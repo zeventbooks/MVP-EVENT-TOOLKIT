@@ -32,6 +32,8 @@
     <div class="tabs">
       <button class="tab active" data-tab="events">Events</button>
       <button class="tab" data-tab="sponsors">Sponsors</button>
+      <button class="tab" data-tab="attendees">Attendees</button>
+      <button class="tab" data-tab="surveys">Surveys</button>
       <button class="tab" data-tab="display">Display Config</button>
     </div>
 
@@ -159,6 +161,78 @@
       </section>
     </div>
 
+    <!-- ATTENDEES TAB -->
+    <div class="tab-content" id="tab-attendees">
+      <section class="card">
+        <h2>Event Attendees</h2>
+        <div class="form-group">
+          <label>Select Event to View Attendees</label>
+          <select id="attendees-event">
+            <option value="">Choose an event...</option>
+          </select>
+        </div>
+        <div id="attendees-list" class="sponsor-list" style="margin-top: 1rem;">
+          <p style="color: #666;">Select an event to view attendees</p>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Check-In Link</h2>
+        <p>Share this link for event check-in:</p>
+        <div id="checkin-link-container" style="display:none;">
+          <a id="checkin-link" target="_blank" style="font-weight: bold;"></a>
+        </div>
+      </section>
+    </div>
+
+    <!-- SURVEYS TAB -->
+    <div class="tab-content" id="tab-surveys">
+      <section class="card">
+        <h2>Create Survey</h2>
+        <form id="form-survey">
+          <div class="form-group">
+            <label>Event (optional)</label>
+            <select id="survey-event">
+              <option value="">General Survey (not event-specific)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Survey Title *</label>
+            <input id="survey-title" type="text" required placeholder="Post-Event Feedback">
+          </div>
+
+          <div class="form-group">
+            <label>Questions</label>
+            <div id="survey-questions">
+              <div class="display-item">
+                <input type="text" placeholder="Question text" data-question-idx="0">
+                <select data-question-type="0">
+                  <option value="text">Text</option>
+                  <option value="rating">Rating (1-5)</option>
+                  <option value="yesno">Yes/No</option>
+                </select>
+                <button type="button" class="btn-secondary" onclick="removeSurveyQuestion(this)">Remove</button>
+              </div>
+            </div>
+            <button type="button" class="btn-secondary" id="add-survey-question" style="margin-top: 0.5rem;">+ Add Question</button>
+          </div>
+
+          <div class="button-group">
+            <button class="btn-primary" type="submit">Create Survey</button>
+            <button id="clear-survey" class="btn-secondary" type="button">Clear</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>Existing Surveys</h2>
+        <div id="survey-list" class="sponsor-list">
+          <p style="color: #666;">Loading surveys...</p>
+        </div>
+      </section>
+    </div>
+
     <!-- DISPLAY CONFIG TAB -->
     <div class="tab-content" id="tab-display">
       <section class="card">
@@ -213,6 +287,8 @@
       document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
 
       if (tab.dataset.tab === 'sponsors') loadSponsors();
+      if (tab.dataset.tab === 'attendees') loadAttendeesTab();
+      if (tab.dataset.tab === 'surveys') loadSurveysTab();
       if (tab.dataset.tab === 'display') loadEventsForDisplay();
     });
   });
@@ -532,6 +608,224 @@
     if (k) localStorage.setItem('ADMIN_KEY:' + tenantId, k);
     return k || '';
   }
+
+  // === ATTENDEES TAB ===
+  let surveyQuestionCount = 1;
+
+  async function loadAttendeesTab() {
+    await loadEventsForAttendees();
+  }
+
+  async function loadEventsForAttendees() {
+    const res = await NU.rpc('api_list', { tenantId: TENANT, scope: 'events' });
+    if (res.ok) {
+      currentEvents = res.value.items || [];
+      const select = document.getElementById('attendees-event');
+      select.innerHTML = '<option value="">Choose an event...</option>' +
+        currentEvents.map(e => `<option value="${e.id}">${e.data.name}</option>`).join('');
+    }
+  }
+
+  document.getElementById('attendees-event').addEventListener('change', async (e) => {
+    const eventId = e.target.value;
+    if (!eventId) {
+      document.getElementById('attendees-list').innerHTML = '<p style="color: #666;">Select an event to view attendees</p>';
+      document.getElementById('checkin-link-container').style.display = 'none';
+      return;
+    }
+
+    // Load attendees for this event
+    overlay(true);
+    const res = await NU.rpc('api_listAttendees', {
+      tenantId: TENANT,
+      eventId,
+      adminKey: getAdminKey(TENANT)
+    });
+    overlay(false);
+
+    if (!res.ok || !res.value.items.length) {
+      document.getElementById('attendees-list').innerHTML = '<p style="color: #666;">No attendees yet</p>';
+    } else {
+      const attendees = res.value.items;
+      document.getElementById('attendees-list').innerHTML = attendees.map(a => `
+        <div class="sponsor-item">
+          <div class="sponsor-info">
+            <strong>${a.name}</strong>
+            <div style="margin-top: 0.25rem; font-size: 0.875rem; color: #666;">
+              ${a.email} ${a.phone ? `• ${a.phone}` : ''}
+            </div>
+            <div style="margin-top: 0.25rem; font-size: 0.875rem;">
+              Registered: ${new Date(a.registeredAt).toLocaleString()}
+              ${a.checkedInAt ? `<br><span style="color: green;">✓ Checked in: ${new Date(a.checkedInAt).toLocaleString()}</span>` : '<span style="color: orange;">Not checked in</span>'}
+            </div>
+          </div>
+          ${!a.checkedInAt ? `<button class="btn-secondary" onclick="checkInAttendee('${a.id}', '${eventId}')">Check In</button>` : ''}
+        </div>
+      `).join('');
+    }
+
+    // Show check-in link
+    const baseUrl = '<?= execUrl ?>';
+    const checkinUrl = `${baseUrl}?page=checkin&tenant=${TENANT}&event=${eventId}`;
+    document.getElementById('checkin-link').textContent = checkinUrl;
+    document.getElementById('checkin-link').href = checkinUrl;
+    document.getElementById('checkin-link-container').style.display = 'block';
+  });
+
+  window.checkInAttendee = async function(attendeeId, eventId) {
+    overlay(true);
+    const res = await NU.rpc('api_checkInAttendee', {
+      tenantId: TENANT,
+      eventId,
+      attendeeId,
+      adminKey: getAdminKey(TENANT)
+    });
+    overlay(false);
+
+    if (!res.ok) {
+      alert(`Error: ${res.message}`);
+      return;
+    }
+
+    // Reload attendees
+    document.getElementById('attendees-event').dispatchEvent(new Event('change'));
+  };
+
+  // === SURVEYS TAB ===
+  async function loadSurveysTab() {
+    await loadEventsForSurveys();
+    await loadSurveys();
+  }
+
+  async function loadEventsForSurveys() {
+    const res = await NU.rpc('api_list', { tenantId: TENANT, scope: 'events' });
+    if (res.ok) {
+      currentEvents = res.value.items || [];
+      const select = document.getElementById('survey-event');
+      select.innerHTML = '<option value="">General Survey (not event-specific)</option>' +
+        currentEvents.map(e => `<option value="${e.id}">${e.data.name}</option>`).join('');
+    }
+  }
+
+  async function loadSurveys() {
+    overlay(true);
+    const res = await NU.rpc('api_listSurveys', { tenantId: TENANT });
+    overlay(false);
+
+    if (!res.ok || !res.value.items.length) {
+      document.getElementById('survey-list').innerHTML = '<p style="color: #666;">No surveys yet. Create one above!</p>';
+      return;
+    }
+
+    const surveys = res.value.items;
+    document.getElementById('survey-list').innerHTML = surveys.map(s => `
+      <div class="sponsor-item">
+        <div class="sponsor-info">
+          <strong>${s.title}</strong>
+          <div style="margin-top: 0.25rem; font-size: 0.875rem; color: #666;">
+            ${s.eventId ? `Event: ${getEventName(s.eventId)}` : 'General Survey'} • ${s.questions.length} questions
+          </div>
+          <div style="margin-top: 0.5rem;">
+            ${s.active ? '<span class="placement-tag">Active</span>' : ''}
+          </div>
+        </div>
+        <div class="sponsor-actions">
+          <button class="btn-secondary" onclick="viewSurveyResponses('${s.id}')">View Responses</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  window.viewSurveyResponses = async function(surveyId) {
+    overlay(true);
+    const res = await NU.rpc('api_getSurveyResponses', {
+      tenantId: TENANT,
+      surveyId,
+      adminKey: getAdminKey(TENANT)
+    });
+    overlay(false);
+
+    if (!res.ok) {
+      alert(`Error: ${res.message}`);
+      return;
+    }
+
+    const responses = res.value.items || [];
+    if (responses.length === 0) {
+      alert('No responses yet');
+      return;
+    }
+
+    // Simple display - you could enhance this
+    alert(`${responses.length} responses received\n\n` +
+      responses.slice(0, 3).map(r =>
+        `${r.attendeeEmail}: ${JSON.stringify(r.answers)}`
+      ).join('\n')
+    );
+  };
+
+  document.getElementById('add-survey-question').addEventListener('click', () => {
+    const container = document.getElementById('survey-questions');
+    const idx = surveyQuestionCount++;
+    const div = document.createElement('div');
+    div.className = 'display-item';
+    div.innerHTML = `
+      <input type="text" placeholder="Question text" data-question-idx="${idx}">
+      <select data-question-type="${idx}">
+        <option value="text">Text</option>
+        <option value="rating">Rating (1-5)</option>
+        <option value="yesno">Yes/No</option>
+      </select>
+      <button type="button" class="btn-secondary" onclick="removeSurveyQuestion(this)">Remove</button>
+    `;
+    container.appendChild(div);
+  });
+
+  window.removeSurveyQuestion = function(btn) {
+    btn.parentElement.remove();
+  };
+
+  document.getElementById('form-survey').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    overlay(true);
+
+    const questions = [];
+    document.querySelectorAll('[data-question-idx]').forEach((input, i) => {
+      const text = input.value.trim();
+      if (text) {
+        const type = document.querySelector(`[data-question-type="${input.dataset.questionIdx}"]`).value;
+        questions.push({ text, type });
+      }
+    });
+
+    if (questions.length === 0) {
+      overlay(false);
+      alert('Please add at least one question');
+      return;
+    }
+
+    const res = await NU.rpc('api_createSurvey', {
+      tenantId: TENANT,
+      eventId: document.getElementById('survey-event').value || '',
+      title: document.getElementById('survey-title').value.trim(),
+      questions,
+      adminKey: getAdminKey(TENANT)
+    });
+
+    overlay(false);
+
+    if (!res.ok) {
+      alert(`Error: ${res.message}`);
+      return;
+    }
+
+    document.getElementById('form-survey').reset();
+    await loadSurveys();
+  });
+
+  document.getElementById('clear-survey').addEventListener('click', () => {
+    document.getElementById('form-survey').reset();
+  });
 
   // Load templates for event type selector
   async function loadTemplates() {

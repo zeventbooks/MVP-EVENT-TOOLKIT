@@ -279,6 +279,223 @@ function api_logEvents(payload){
   });
 }
 
+// === Attendees API =========================================================
+function getAttendeesSheet_(){
+  const ss = SpreadsheetApp.openById(SpreadsheetApp.getActive().getId());
+  let sh = ss.getSheetByName('ATTENDEES');
+  if (!sh) {
+    sh = ss.insertSheet('ATTENDEES');
+    sh.appendRow(['id', 'tenantId', 'eventId', 'name', 'email', 'phone', 'registeredAt', 'checkedInAt', 'qrCode']);
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+
+function api_registerAttendee(payload){
+  return runSafe('api_registerAttendee', () => {
+    if(!payload || typeof payload !== 'object') return Err(ERR.BAD_INPUT, 'Missing payload');
+    const { tenantId, eventId, name, email, phone } = payload;
+
+    if (!name) return Err(ERR.BAD_INPUT, 'Name is required');
+    if (!email) return Err(ERR.BAD_INPUT, 'Email is required');
+
+    const sh = getAttendeesSheet_();
+    const id = Utilities.getUuid();
+    const qrCode = Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, id));
+
+    sh.appendRow([
+      id,
+      tenantId || '',
+      eventId || '',
+      name,
+      email,
+      phone || '',
+      new Date().toISOString(),
+      '', // checkedInAt (empty until check-in)
+      qrCode
+    ]);
+
+    diag_('info', 'api_registerAttendee', 'registered', { id, tenantId, eventId, email });
+    return Ok({ id, qrCode });
+  });
+}
+
+function api_checkInAttendee(payload){
+  return runSafe('api_checkInAttendee', () => {
+    if(!payload || typeof payload !== 'object') return Err(ERR.BAD_INPUT, 'Missing payload');
+    const { tenantId, eventId, attendeeId, qrCode, adminKey } = payload;
+
+    const g = gate_(tenantId, adminKey); if(!g.ok) return g;
+
+    const sh = getAttendeesSheet_();
+    const rows = sh.getDataRange().getValues();
+
+    let rowIndex = -1;
+    if (attendeeId) {
+      rowIndex = rows.findIndex((r, i) => i > 0 && r[0] === attendeeId && r[1] === tenantId && r[2] === eventId);
+    } else if (qrCode) {
+      rowIndex = rows.findIndex((r, i) => i > 0 && r[8] === qrCode && r[1] === tenantId && r[2] === eventId);
+    }
+
+    if (rowIndex === -1) return Err(ERR.NOT_FOUND, 'Attendee not found');
+
+    const row = rows[rowIndex];
+
+    // Update check-in timestamp
+    sh.getRange(rowIndex + 1, 8).setValue(new Date().toISOString());
+
+    diag_('info', 'api_checkInAttendee', 'checked-in', { id: row[0], tenantId, eventId });
+    return Ok({ id: row[0], name: row[3], checkedInAt: new Date().toISOString() });
+  });
+}
+
+function api_listAttendees(payload){
+  return runSafe('api_listAttendees', () => {
+    const { tenantId, eventId, adminKey } = payload || {};
+
+    const g = gate_(tenantId, adminKey); if(!g.ok) return g;
+
+    const sh = getAttendeesSheet_();
+    const rows = sh.getRange(2, 1, Math.max(0, sh.getLastRow() - 1), 9).getValues()
+      .filter(r => r[1] === tenantId && (!eventId || r[2] === eventId))
+      .map(r => ({
+        id: r[0],
+        tenantId: r[1],
+        eventId: r[2],
+        name: r[3],
+        email: r[4],
+        phone: r[5],
+        registeredAt: r[6],
+        checkedInAt: r[7],
+        qrCode: r[8]
+      }));
+
+    const value = { items: rows };
+    return Ok(value);
+  });
+}
+
+// === Surveys API ===========================================================
+function getSurveysSheet_(){
+  const ss = SpreadsheetApp.openById(SpreadsheetApp.getActive().getId());
+  let sh = ss.getSheetByName('SURVEYS');
+  if (!sh) {
+    sh = ss.insertSheet('SURVEYS');
+    sh.appendRow(['id', 'tenantId', 'eventId', 'title', 'questionsJSON', 'createdAt', 'active']);
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+
+function getResponsesSheet_(){
+  const ss = SpreadsheetApp.openById(SpreadsheetApp.getActive().getId());
+  let sh = ss.getSheetByName('RESPONSES');
+  if (!sh) {
+    sh = ss.insertSheet('RESPONSES');
+    sh.appendRow(['id', 'tenantId', 'surveyId', 'attendeeEmail', 'answersJSON', 'submittedAt']);
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+
+function api_createSurvey(payload){
+  return runSafe('api_createSurvey', () => {
+    if(!payload || typeof payload !== 'object') return Err(ERR.BAD_INPUT, 'Missing payload');
+    const { tenantId, eventId, title, questions, adminKey } = payload;
+
+    const g = gate_(tenantId, adminKey); if(!g.ok) return g;
+
+    if (!title) return Err(ERR.BAD_INPUT, 'Title is required');
+    if (!Array.isArray(questions) || questions.length === 0) return Err(ERR.BAD_INPUT, 'Questions required');
+
+    const sh = getSurveysSheet_();
+    const id = Utilities.getUuid();
+
+    sh.appendRow([
+      id,
+      tenantId,
+      eventId || '',
+      title,
+      JSON.stringify(questions),
+      new Date().toISOString(),
+      'TRUE'
+    ]);
+
+    diag_('info', 'api_createSurvey', 'created', { id, tenantId, eventId, title });
+    return Ok({ id });
+  });
+}
+
+function api_submitSurveyResponse(payload){
+  return runSafe('api_submitSurveyResponse', () => {
+    if(!payload || typeof payload !== 'object') return Err(ERR.BAD_INPUT, 'Missing payload');
+    const { tenantId, surveyId, attendeeEmail, answers } = payload;
+
+    if (!surveyId) return Err(ERR.BAD_INPUT, 'Survey ID required');
+    if (!answers) return Err(ERR.BAD_INPUT, 'Answers required');
+
+    const sh = getResponsesSheet_();
+    const id = Utilities.getUuid();
+
+    sh.appendRow([
+      id,
+      tenantId || '',
+      surveyId,
+      attendeeEmail || 'anonymous',
+      JSON.stringify(answers),
+      new Date().toISOString()
+    ]);
+
+    diag_('info', 'api_submitSurveyResponse', 'submitted', { id, surveyId });
+    return Ok({ id });
+  });
+}
+
+function api_listSurveys(payload){
+  return runSafe('api_listSurveys', () => {
+    const { tenantId, eventId } = payload || {};
+    const tenant = findTenant_(tenantId); if(!tenant) return Err(ERR.NOT_FOUND, 'Unknown tenant');
+
+    const sh = getSurveysSheet_();
+    const rows = sh.getRange(2, 1, Math.max(0, sh.getLastRow() - 1), 7).getValues()
+      .filter(r => r[1] === tenantId && (!eventId || r[2] === eventId))
+      .map(r => ({
+        id: r[0],
+        tenantId: r[1],
+        eventId: r[2],
+        title: r[3],
+        questions: JSON.parse(r[4] || '[]'),
+        createdAt: r[5],
+        active: r[6] === 'TRUE'
+      }));
+
+    const value = { items: rows };
+    return Ok(value);
+  });
+}
+
+function api_getSurveyResponses(payload){
+  return runSafe('api_getSurveyResponses', () => {
+    const { tenantId, surveyId, adminKey } = payload || {};
+
+    const g = gate_(tenantId, adminKey); if(!g.ok) return g;
+
+    const sh = getResponsesSheet_();
+    const rows = sh.getRange(2, 1, Math.max(0, sh.getLastRow() - 1), 6).getValues()
+      .filter(r => r[1] === tenantId && r[2] === surveyId)
+      .map(r => ({
+        id: r[0],
+        surveyId: r[2],
+        attendeeEmail: r[3],
+        answers: JSON.parse(r[4] || '{}'),
+        submittedAt: r[5]
+      }));
+
+    const value = { items: rows };
+    return Ok(value);
+  });
+}
+
 // === Sponsors API ==========================================================
 function getSponsorsSheet_(){
   const ss = SpreadsheetApp.openById(SpreadsheetApp.getActive().getId());
