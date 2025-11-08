@@ -6,18 +6,38 @@
   <?!= include('Header'); ?>
   <?!= include('NUSDK'); ?>
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+  <style>
+    .event-detail { max-width: 800px; margin: 0 auto; }
+    .event-header { text-align: center; padding: 2rem 0; }
+    .event-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin: 2rem 0; }
+    .meta-item { padding: 1rem; background: #f8f9fa; border-radius: 4px; }
+    .meta-label { font-size: 0.875rem; color: #666; margin-bottom: 0.25rem; }
+    .meta-value { font-weight: 600; }
+    .register-form { margin: 2rem 0; padding: 2rem; background: #e3f2fd; border-radius: 8px; }
+    .survey-section { margin: 2rem 0; padding: 2rem; background: #fff3e0; border-radius: 8px; }
+    .question { margin: 1.5rem 0; }
+    .question-label { font-weight: 600; margin-bottom: 0.5rem; }
+    .rating-buttons { display: flex; gap: 0.5rem; }
+    .rating-btn { padding: 0.5rem 1rem; border: 2px solid #ddd; background: white; cursor: pointer; border-radius: 4px; }
+    .rating-btn.selected { background: #007bff; color: white; border-color: #007bff; }
+  </style>
 </head>
 <body>
   <main id="app" class="container">
     <section class="card">
-      <h2>Events</h2>
       <div id="list" class="events-grid"></div>
+      <div id="detail" class="event-detail" style="display:none;"></div>
     </section>
   </main>
+
+  <div id="overlay" class="loading-overlay"><div class="spinner"></div><p>Working…</p></div>
+
   <script>
   const TENANT='<?= tenantId ?>', SCOPE='events';
   const url = new URL(location.href);
   const ID = url.searchParams.get('id');
+  let currentEvent = null;
+  let selectedRatings = {};
 
   if (ID) {
     NU.swr('api_get', { tenantId:TENANT, scope:SCOPE, id:ID }, { staleMs:60000, onUpdate: renderDetail });
@@ -26,28 +46,221 @@
   }
 
   function renderList(items){
-    const root=document.getElementById('list'); root.innerHTML='';
+    document.getElementById('list').style.display = '';
+    document.getElementById('detail').style.display = 'none';
+    const root=document.getElementById('list'); root.innerHTML='<h2>Events</h2>';
     for (const ev of items){
       const d=document.createElement('div'); d.className='event-card';
       d.innerHTML = `
         <h3>${esc(ev.data?.name||'(untitled)')}</h3>
         <p>${esc(ev.data?.dateISO||'')}</p>
+        ${ev.data?.location ? `<p>📍 ${esc(ev.data.location)}</p>` : ''}
         <div class="button-group">
-          <a class="btn-secondary" href="<?= execUrl ?>?p=events&tenant=<?= tenantId ?>&id=${ev.id}">Open</a>
+          <a class="btn-secondary" href="<?= execUrl ?>?p=events&tenant=<?= tenantId ?>&id=${ev.id}">View Details</a>
         </div>`;
       root.appendChild(d);
     }
   }
-  function renderDetail(evt){
-    const root=document.getElementById('list'); root.innerHTML='';
-    const d=document.createElement('div'); d.className='event-card';
-    d.innerHTML = `
-      <h3>${esc(evt.data?.name||'(untitled)')}</h3>
-      <p>${esc(evt.data?.dateISO||'')}</p>
-      ${evt.data?.signupUrl ? `<p><a class="btn-primary" target="_blank" rel="noopener" href="${esc(evt.data.signupUrl)}">Sign up</a></p>` : ''}
-      <p><a class="btn-secondary" href="<?= execUrl ?>?p=events&tenant=<?= tenantId ?>">Back</a></p>`;
-    root.appendChild(d);
+
+  async function renderDetail(evt){
+    currentEvent = evt;
+    document.getElementById('list').style.display = 'none';
+    document.getElementById('detail').style.display = '';
+    const root = document.getElementById('detail');
+
+    let html = `
+      <div class="event-header">
+        <h1>${esc(evt.data?.name||'(untitled)')}</h1>
+        ${evt.data?.description ? `<p style="font-size: 1.1rem; color: #666;">${esc(evt.data.description)}</p>` : ''}
+      </div>
+
+      <div class="event-meta">
+        ${evt.data?.dateISO ? `<div class="meta-item"><div class="meta-label">Date</div><div class="meta-value">${esc(evt.data.dateISO)}</div></div>` : ''}
+        ${evt.data?.location ? `<div class="meta-item"><div class="meta-label">Location</div><div class="meta-value">${esc(evt.data.location)}</div></div>` : ''}
+      </div>
+
+      ${evt.data?.videoUrl ? `<div style="margin: 2rem 0;"><iframe width="100%" height="400" src="${esc(evt.data.videoUrl)}" frameborder="0" allowfullscreen></iframe></div>` : ''}
+
+      ${evt.data?.bioText ? `<div style="margin: 2rem 0; padding: 1.5rem; background: #f8f9fa; border-radius: 4px;"><h3>About</h3><p>${esc(evt.data.bioText)}</p></div>` : ''}
+
+      <div class="register-form">
+        <h2>Register for This Event</h2>
+        <form id="form-register">
+          <div class="form-group">
+            <label>Name *</label>
+            <input id="reg-name" type="text" required>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Email *</label>
+              <input id="reg-email" type="email" required>
+            </div>
+            <div class="form-group">
+              <label>Phone</label>
+              <input id="reg-phone" type="tel">
+            </div>
+          </div>
+          <div class="button-group">
+            <button class="btn-primary" type="submit">Register Now</button>
+          </div>
+        </form>
+      </div>
+
+      <div id="surveys-container"></div>
+
+      ${evt.data?.signupUrl ? `<p style="margin: 2rem 0;"><a class="btn-secondary" target="_blank" rel="noopener" href="${esc(evt.data.signupUrl)}">External Registration</a></p>` : ''}
+      <p><a class="btn-secondary" href="<?= execUrl ?>?p=events&tenant=<?= tenantId ?>">← Back to Events</a></p>
+    `;
+
+    root.innerHTML = html;
+
+    // Set up registration form
+    document.getElementById('form-register').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      await registerAttendee();
+    });
+
+    // Load and display surveys
+    await loadSurveysForEvent(evt.id);
   }
+
+  async function registerAttendee() {
+    overlay(true);
+    const res = await NU.rpc('api_registerAttendee', {
+      tenantId: TENANT,
+      eventId: ID,
+      name: document.getElementById('reg-name').value.trim(),
+      email: document.getElementById('reg-email').value.trim(),
+      phone: document.getElementById('reg-phone').value.trim()
+    });
+    overlay(false);
+
+    if (!res.ok) {
+      alert(`Error: ${res.message}`);
+      return;
+    }
+
+    alert(`Registration successful!\n\nYou're registered for ${currentEvent.data.name}.\n\nPlease check your email for confirmation.`);
+    document.getElementById('form-register').reset();
+  }
+
+  async function loadSurveysForEvent(eventId) {
+    const res = await NU.rpc('api_listSurveys', { tenantId: TENANT, eventId });
+
+    if (!res.ok || !res.value.items || res.value.items.length === 0) {
+      return; // No surveys
+    }
+
+    const surveys = res.value.items.filter(s => s.active);
+    if (surveys.length === 0) return;
+
+    const container = document.getElementById('surveys-container');
+    container.innerHTML = surveys.map((survey, sidx) => `
+      <div class="survey-section">
+        <h2>${esc(survey.title)}</h2>
+        <form id="survey-${survey.id}" data-survey-id="${survey.id}">
+          ${survey.questions.map((q, idx) => `
+            <div class="question">
+              <div class="question-label">${idx + 1}. ${esc(q.text)}</div>
+              ${renderQuestion(survey.id, idx, q)}
+            </div>
+          `).join('')}
+          <div class="button-group">
+            <button class="btn-primary" type="submit">Submit Survey</button>
+          </div>
+        </form>
+      </div>
+    `).join('');
+
+    // Set up survey submission handlers
+    surveys.forEach(survey => {
+      document.getElementById(`survey-${survey.id}`).addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await submitSurvey(survey);
+      });
+    });
+  }
+
+  function renderQuestion(surveyId, idx, question) {
+    const qid = `q-${surveyId}-${idx}`;
+    switch(question.type) {
+      case 'rating':
+        return `
+          <div class="rating-buttons">
+            ${[1,2,3,4,5].map(r => `
+              <button type="button" class="rating-btn" data-rating="${r}" data-qid="${qid}" onclick="selectRating('${qid}', ${r})">${r}</button>
+            `).join('')}
+          </div>
+          <input type="hidden" id="${qid}" name="${qid}">
+        `;
+      case 'yesno':
+        return `
+          <select id="${qid}" name="${qid}" required>
+            <option value="">Select...</option>
+            <option value="yes">Yes</option>
+            <option value="no">No</option>
+          </select>
+        `;
+      case 'text':
+      default:
+        return `<textarea id="${qid}" name="${qid}" rows="3" required></textarea>`;
+    }
+  }
+
+  window.selectRating = function(qid, rating) {
+    // Update UI
+    document.querySelectorAll(`[data-qid="${qid}"]`).forEach(btn => {
+      btn.classList.remove('selected');
+    });
+    event.target.classList.add('selected');
+
+    // Set hidden input
+    document.getElementById(qid).value = rating;
+    selectedRatings[qid] = rating;
+  };
+
+  async function submitSurvey(survey) {
+    const form = document.getElementById(`survey-${survey.id}`);
+    const formData = new FormData(form);
+    const answers = {};
+
+    survey.questions.forEach((q, idx) => {
+      const qid = `q-${survey.id}-${idx}`;
+      let value = formData.get(qid);
+
+      // For ratings, check our selectedRatings object
+      if (q.type === 'rating' && !value) {
+        value = selectedRatings[qid] || '';
+      }
+
+      if (!value && q.type !== 'text') {
+        alert(`Please answer question ${idx + 1}`);
+        throw new Error('Missing answer');
+      }
+
+      answers[`q${idx}`] = value;
+    });
+
+    overlay(true);
+    const res = await NU.rpc('api_submitSurveyResponse', {
+      tenantId: TENANT,
+      surveyId: survey.id,
+      attendeeEmail: 'anonymous',
+      answers
+    });
+    overlay(false);
+
+    if (!res.ok) {
+      alert(`Error: ${res.message}`);
+      return;
+    }
+
+    alert('Thank you for your feedback!');
+    form.reset();
+    selectedRatings = {};
+  }
+
+  function overlay(on) { document.getElementById('overlay').style.display = on ? 'flex' : 'none'; }
   function esc(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
   </script>
 </body>
