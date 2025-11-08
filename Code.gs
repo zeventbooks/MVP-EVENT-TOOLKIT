@@ -43,7 +43,7 @@ function doGet(e){
     return HtmlService.createHtmlOutput(`<meta http-equiv="refresh" content="0;url=?p=${first}&tenant=${tenant.id}">`);
   }
 
-  const page = (pageParam==='admin' || pageParam==='poster' || pageParam==='test') ? pageParam : 'public';
+  const page = (pageParam==='admin' || pageParam==='poster' || pageParam==='test' || pageParam==='display') ? pageParam : 'public';
   const tpl = HtmlService.createTemplateFromFile(pageFile_(page));
   tpl.appTitle = `${tenant.name} · ${scope}`;
   tpl.tenantId = tenant.id;
@@ -56,6 +56,7 @@ function pageFile_(page){
   if (page==='admin') return 'Admin';
   if (page==='poster') return 'Poster';
   if (page==='test')   return 'Test';
+  if (page==='display') return 'Display';
   return 'Public';
 }
 
@@ -129,7 +130,33 @@ function api_get(payload){
     const sh = getStoreSheet_(tenant, scope);
     const r = sh.getDataRange().getValues().slice(1).find(row => row[0]===id && row[1]===tenantId);
     if (!r) return Err(ERR.NOT_FOUND,'Not found');
-    const value = { id:r[0], tenantId:r[1], templateId:r[2], data:JSON.parse(r[3]||'{}'), createdAt:r[4], slug:r[5],
+
+    const data = JSON.parse(r[3]||'{}');
+
+    // Auto-load sponsors for this event (if scope is events)
+    if (scope === 'events') {
+      try {
+        const sponsorSh = getSponsorsSheet_();
+        const sponsorRows = sponsorSh.getRange(2, 1, Math.max(0, sponsorSh.getLastRow() - 1), 9).getValues()
+          .filter(sr => sr[1] === tenantId && (sr[2] === id || sr[2] === ''))
+          .map(sr => ({
+            id: sr[0],
+            name: sr[3],
+            img: sr[4],
+            tier: sr[5],
+            placements: {
+              tvTop: sr[6] === 'TRUE',
+              tvSide: sr[7] === 'TRUE'
+            }
+          }));
+        data.sponsors = sponsorRows;
+      } catch (e) {
+        // If sponsors sheet doesn't exist or errors, continue without sponsors
+        data.sponsors = [];
+      }
+    }
+
+    const value = { id:r[0], tenantId:r[1], templateId:r[2], data, createdAt:r[4], slug:r[5],
       links: {
         publicUrl: `${ScriptApp.getService().getUrl()}?p=events&tenant=${tenantId}&id=${r[0]}`,
         posterUrl: `${ScriptApp.getService().getUrl()}?page=poster&p=events&tenant=${tenantId}&id=${r[0]}`
@@ -176,5 +203,207 @@ function api_create(payload){
     };
     diag_('info','api_create','created',{id,tenantId,scope});
     return Ok({ id, links });
+  });
+}
+
+function api_update(payload){
+  return runSafe('api_update', () => {
+    if(!payload||typeof payload!=='object') return Err(ERR.BAD_INPUT,'Missing payload');
+    const { tenantId, scope, id, data, adminKey } = payload;
+
+    const g=gate_(tenantId, adminKey); if(!g.ok) return g;
+    const a=assertScopeAllowed_(findTenant_(tenantId), scope); if(!a.ok) return a;
+
+    if (!id) return Err(ERR.BAD_INPUT, 'ID is required');
+
+    const tenant = findTenant_(tenantId);
+    const sh = getStoreSheet_(tenant, scope);
+    const rows = sh.getDataRange().getValues();
+    const rowIndex = rows.findIndex((r, i) => i > 0 && r[0] === id && r[1] === tenantId);
+
+    if (rowIndex === -1) return Err(ERR.NOT_FOUND, 'Not found');
+
+    const row = rows[rowIndex];
+    const updatedData = data || JSON.parse(row[3] || '{}');
+
+    sh.getRange(rowIndex + 1, 1, 1, 6).setValues([[
+      id,
+      tenantId,
+      row[2], // templateId (unchanged)
+      JSON.stringify(updatedData),
+      row[4], // createdAt (unchanged)
+      row[5]  // slug (unchanged)
+    ]]);
+
+    diag_('info','api_update','updated',{id,tenantId,scope});
+    return Ok({ id });
+  });
+}
+
+// === Analytics API =========================================================
+function getAnalyticsSheet_(){
+  const ss = SpreadsheetApp.openById(SpreadsheetApp.getActive().getId());
+  let sh = ss.getSheetByName('ANALYTICS');
+  if (!sh) {
+    sh = ss.insertSheet('ANALYTICS');
+    sh.appendRow(['timestamp', 'tenantId', 'eventId', 'sponsorId', 'surface', 'metric', 'value', 'context']);
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+
+function api_logEvents(payload){
+  return runSafe('api_logEvents', () => {
+    if(!payload || typeof payload !== 'object') return Err(ERR.BAD_INPUT, 'Missing payload');
+    const { events } = payload;
+    if (!Array.isArray(events) || events.length === 0) return Err(ERR.BAD_INPUT, 'Events must be a non-empty array');
+
+    const sh = getAnalyticsSheet_();
+    const rows = events.map(e => [
+      new Date().toISOString(),
+      e.tenantId || '',
+      e.eventId || '',
+      e.sponsorId || '',
+      e.surface || '',
+      e.metric || '',
+      e.value || '',
+      e.context ? JSON.stringify(e.context) : ''
+    ]);
+
+    if (rows.length > 0) {
+      sh.getRange(sh.getLastRow() + 1, 1, rows.length, 8).setValues(rows);
+    }
+
+    diag_('info', 'api_logEvents', 'logged', { count: rows.length });
+    return Ok({ logged: rows.length });
+  });
+}
+
+// === Sponsors API ==========================================================
+function getSponsorsSheet_(){
+  const ss = SpreadsheetApp.openById(SpreadsheetApp.getActive().getId());
+  let sh = ss.getSheetByName('SPONSORS');
+  if (!sh) {
+    sh = ss.insertSheet('SPONSORS');
+    sh.appendRow(['id', 'tenantId', 'eventId', 'name', 'logoUrl', 'tier', 'placementTvTop', 'placementTvSide', 'createdAt']);
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+
+function api_createSponsor(payload){
+  return runSafe('api_createSponsor', () => {
+    if(!payload || typeof payload !== 'object') return Err(ERR.BAD_INPUT, 'Missing payload');
+    const { tenantId, eventId, name, logoUrl, tier, placements, adminKey } = payload;
+
+    const g = gate_(tenantId, adminKey); if(!g.ok) return g;
+
+    if (!name) return Err(ERR.BAD_INPUT, 'Name is required');
+    if (logoUrl && !isUrl(logoUrl)) return Err(ERR.BAD_INPUT, 'Invalid logo URL');
+
+    const sh = getSponsorsSheet_();
+    const id = Utilities.getUuid();
+    const placementsObj = placements || {};
+
+    sh.appendRow([
+      id,
+      tenantId,
+      eventId || '',
+      name,
+      logoUrl || '',
+      tier || 'standard',
+      placementsObj.tvTop ? 'TRUE' : 'FALSE',
+      placementsObj.tvSide ? 'TRUE' : 'FALSE',
+      new Date().toISOString()
+    ]);
+
+    diag_('info', 'api_createSponsor', 'created', { id, tenantId, eventId, name });
+    return Ok({ id });
+  });
+}
+
+function api_updateSponsor(payload){
+  return runSafe('api_updateSponsor', () => {
+    if(!payload || typeof payload !== 'object') return Err(ERR.BAD_INPUT, 'Missing payload');
+    const { tenantId, id, name, logoUrl, tier, placements, adminKey } = payload;
+
+    const g = gate_(tenantId, adminKey); if(!g.ok) return g;
+
+    if (!id) return Err(ERR.BAD_INPUT, 'Sponsor ID is required');
+
+    const sh = getSponsorsSheet_();
+    const rows = sh.getDataRange().getValues();
+    const rowIndex = rows.findIndex((r, i) => i > 0 && r[0] === id && r[1] === tenantId);
+
+    if (rowIndex === -1) return Err(ERR.NOT_FOUND, 'Sponsor not found');
+
+    const row = rows[rowIndex];
+    const placementsObj = placements || { tvTop: row[6] === 'TRUE', tvSide: row[7] === 'TRUE' };
+
+    sh.getRange(rowIndex + 1, 1, 1, 9).setValues([[
+      id,
+      tenantId,
+      row[2], // eventId (unchanged)
+      name !== undefined ? name : row[3],
+      logoUrl !== undefined ? logoUrl : row[4],
+      tier !== undefined ? tier : row[5],
+      placementsObj.tvTop ? 'TRUE' : 'FALSE',
+      placementsObj.tvSide ? 'TRUE' : 'FALSE',
+      row[8] // createdAt (unchanged)
+    ]]);
+
+    diag_('info', 'api_updateSponsor', 'updated', { id, tenantId });
+    return Ok({ id });
+  });
+}
+
+function api_deleteSponsor(payload){
+  return runSafe('api_deleteSponsor', () => {
+    if(!payload || typeof payload !== 'object') return Err(ERR.BAD_INPUT, 'Missing payload');
+    const { tenantId, id, adminKey } = payload;
+
+    const g = gate_(tenantId, adminKey); if(!g.ok) return g;
+
+    if (!id) return Err(ERR.BAD_INPUT, 'Sponsor ID is required');
+
+    const sh = getSponsorsSheet_();
+    const rows = sh.getDataRange().getValues();
+    const rowIndex = rows.findIndex((r, i) => i > 0 && r[0] === id && r[1] === tenantId);
+
+    if (rowIndex === -1) return Err(ERR.NOT_FOUND, 'Sponsor not found');
+
+    sh.deleteRow(rowIndex + 1);
+
+    diag_('info', 'api_deleteSponsor', 'deleted', { id, tenantId });
+    return Ok({ id });
+  });
+}
+
+function api_listSponsors(payload){
+  return runSafe('api_listSponsors', () => {
+    const { tenantId, eventId } = payload || {};
+    const tenant = findTenant_(tenantId); if(!tenant) return Err(ERR.NOT_FOUND, 'Unknown tenant');
+
+    const sh = getSponsorsSheet_();
+    const rows = sh.getRange(2, 1, Math.max(0, sh.getLastRow() - 1), 9).getValues()
+      .filter(r => r[1] === tenantId && (!eventId || r[2] === eventId || r[2] === ''))
+      .map(r => ({
+        id: r[0],
+        tenantId: r[1],
+        eventId: r[2],
+        name: r[3],
+        logoUrl: r[4],
+        tier: r[5],
+        placements: {
+          tvTop: r[6] === 'TRUE',
+          tvSide: r[7] === 'TRUE'
+        },
+        createdAt: r[8]
+      }));
+
+    const value = { items: rows };
+    const etag = Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(value)));
+    if (payload?.ifNoneMatch === etag) return { ok: true, notModified: true, etag };
+    return { ok: true, etag, value };
   });
 }

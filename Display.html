@@ -33,6 +33,8 @@
   <script>
     const qs = new URLSearchParams(location.search);
     const eventId = qs.get('event') || qs.get('id') || '';
+    const TENANT = '<?= tenantId ?>';
+    const SCOPE = '<?= scope ?>';
     const stage = document.getElementById('stage');
     const topEl = document.getElementById('sponsorTop');
     const sideEl = document.getElementById('sponsorSide');
@@ -45,14 +47,20 @@
       if (!picks.length) return;
       topEl.innerHTML = picks.map(s => s.img ? `<img src="${s.img}" alt="${s.name||''}">` : `<strong>${s.name||''}</strong>`).join('');
       topEl.hidden = false;
-      try { const items = picks.map(s => ({eventId, surface:'display', metric:'impression', sponsorId: s.id||''})); google?.script?.run?.withFailureHandler(()=>{}).api_logEvents({items}); } catch (_) {}
+      try {
+        const events = picks.map(s => ({tenantId: TENANT, eventId, surface:'display', metric:'impression', sponsorId: s.id||''}));
+        google?.script?.run?.withFailureHandler(()=>{}).api_logEvents({events});
+      } catch (_) {}
     }
     function renderSponsorSide(ev){
       const picks = (ev?.data?.sponsors || []).filter(s => s?.placements?.tvSide);
       if (!picks.length) return;
       sideEl.innerHTML = picks.map(s => `<div class="sp-card" data-id="${s.id||''}">${s.img ? `<img src="${s.img}" alt="${s.name||''}">` : ''}<div class="sp-name">${s.name||''}</div></div>`).join('');
       sideEl.hidden = false; mainEl.classList.add('has-side');
-      try { const items = picks.map(s => ({eventId, surface:'display', metric:'impression', sponsorId: s.id||''})); google?.script?.run?.withFailureHandler(()=>{}).api_logEvents({items}); } catch (_) {}
+      try {
+        const events = picks.map(s => ({tenantId: TENANT, eventId, surface:'display', metric:'impression', sponsorId: s.id||''}));
+        google?.script?.run?.withFailureHandler(()=>{}).api_logEvents({events});
+      } catch (_) {}
     }
     function startStatic(){
       const base = location.origin + location.pathname;
@@ -69,7 +77,10 @@
         const sec = Math.max(5, Number(it.sec || it.seconds || 12));
         if (!url) return setTimeout(next, 100);
         stage.src = url; showToast(`TV: Carousel ${idx+1}/${items.length} · ${sec}s`);
-        try { google?.script?.run?.withFailureHandler(()=>{}).api_logEvents({ items: [{eventId, surface:'display', metric:'dwellSec', value: sec}] }); } catch (_) {}
+        try {
+          const events = [{tenantId: TENANT, eventId, surface:'display', metric:'dwellSec', value: sec}];
+          google?.script?.run?.withFailureHandler(()=>{}).api_logEvents({events});
+        } catch (_) {}
         startCarousel._t && clearTimeout(startCarousel._t); startCarousel._t = setTimeout(next, sec * 1000);
       };
       next();
@@ -80,7 +91,7 @@
         const ev = res?.value || {}; const d  = ev?.data?.display || {};
         renderSponsorTop(ev); renderSponsorSide(ev);
         (String(d.mode||'') === 'carousel' && Array.isArray(d.items) && d.items.length) ? startCarousel(d.items) : startStatic();
-      }).withFailureHandler(() => startStatic()).api_get({ id: eventId });
+      }).withFailureHandler(() => startStatic()).api_get({ tenantId: TENANT, scope: SCOPE, id: eventId });
     }
     boot();
   </script>
