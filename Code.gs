@@ -10,19 +10,43 @@ const Err = (code, message) => ({ ok:false, code, message: message||code });
 
 // === Logger (append-only with caps) =======================================
 const DIAG_SHEET='DIAG', DIAG_MAX=3000, DIAG_PER_DAY=800;
+/**
+ * Diagnostic logger with automatic rotation and limits
+ * @param {string} level - Log level (info, warn, error)
+ * @param {string} where - Function/context name
+ * @param {string} msg - Log message
+ * @param {Object} meta - Optional metadata object
+ */
 function diag_(level, where, msg, meta){
   try{
-    const ss=SpreadsheetApp.openById(SpreadsheetApp.getActive().getId());
-    let sh=ss.getSheetByName(DIAG_SHEET); if(!sh){ sh=ss.insertSheet(DIAG_SHEET); sh.appendRow(['ts','level','where','msg','meta']); }
-    sh.appendRow([new Date().toISOString(), level, where, msg, meta?JSON.stringify(meta):'' ]);
-    // hard cap
-    const last=sh.getLastRow(); if(last>DIAG_MAX){ sh.deleteRows(2, last-DIAG_MAX); }
-    // soft per-day cap
-    const today=(new Date()).toISOString().slice(0,10);
-    const ts=sh.getRange(2,1,Math.max(0,sh.getLastRow()-1),1).getValues().flat();
-    const idx=ts.map((t,i)=>String(t).startsWith(today)?i+2:null).filter(Boolean);
-    if(idx.length>DIAG_PER_DAY){ sh.deleteRows(idx[0], idx.length-DIAG_PER_DAY); }
-  }catch(_){}
+    const ss = SpreadsheetApp.getActive();
+    let sh = ss.getSheetByName(DIAG_SHEET);
+    if(!sh){
+      sh = ss.insertSheet(DIAG_SHEET);
+      sh.appendRow(['ts','level','where','msg','meta']);
+    }
+    sh.appendRow([new Date().toISOString(), level, where, msg, meta ? JSON.stringify(meta) : '']);
+
+    // Hard cap cleanup
+    const last = sh.getLastRow();
+    if(last > DIAG_MAX){
+      sh.deleteRows(2, last - DIAG_MAX);
+    }
+
+    // Lazy daily cleanup - only run periodically to avoid performance hit
+    const shouldCleanup = (Math.random() < 0.1); // 10% chance on each log
+    if(shouldCleanup && last > DIAG_PER_DAY){
+      const today = (new Date()).toISOString().slice(0,10);
+      const ts = sh.getRange(2, 1, Math.max(0, sh.getLastRow() - 1), 1).getValues().flat();
+      const idx = ts.map((t, i) => String(t).startsWith(today) ? i + 2 : null).filter(Boolean);
+      if(idx.length > DIAG_PER_DAY){
+        sh.deleteRows(idx[0], idx.length - DIAG_PER_DAY);
+      }
+    }
+  } catch(e) {
+    // Fallback: log to console if sheet logging fails
+    console.error('diag_ failed:', e, {level, where, msg, meta});
+  }
 }
 function runSafe(where, fn){
   try{ return fn(); }
@@ -30,6 +54,11 @@ function runSafe(where, fn){
 }
 
 // === Router ================================================================
+/**
+ * Main HTTP GET handler for web app
+ * @param {Object} e - Event object from Google Apps Script
+ * @return {HtmlOutput} Rendered HTML page
+ */
 function doGet(e){
   const pageParam = (e?.parameter?.page || e?.parameter?.p || '').toString();
   const hostHeader = (e?.headers?.host || e?.parameter?.host || '').toString();
@@ -49,9 +78,14 @@ function doGet(e){
   tpl.tenantId = tenant.id;
   tpl.scope = scope;
   tpl.execUrl = ScriptApp.getService().getUrl();
-  tpl.ZEB.BUILD_ID = ZEB.BUILD_ID;
+  tpl.ZEB = ZEB; // Pass entire ZEB object
   return tpl.evaluate().setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
+/**
+ * Maps page name to HTML file name
+ * @param {string} page - Page identifier
+ * @return {string} HTML file name
+ */
 function pageFile_(page){
   if (page==='admin') return 'Admin';
   if (page==='poster') return 'Poster';
@@ -59,11 +93,31 @@ function pageFile_(page){
   return 'Public';
 }
 
+/**
+ * Include helper for HTML templates
+ * @param {string} filename - Name of file to include
+ * @return {string} File contents
+ */
+function include(filename) {
+  return HtmlService.createHtmlOutputFromFile(filename).getContent();
+}
+
 // === Guards / Helpers ======================================================
 const RATE_MAX_PER_MIN=10;
+
+/**
+ * Admin authentication and rate limiting gate
+ * @param {string} tenantId - Tenant identifier
+ * @param {string} adminKey - Admin secret key
+ * @return {Object} Ok result with tenant, or Err
+ */
 function gate_(tenantId, adminKey){
-  const tenant=findTenant_(tenantId); if(!tenant) return Err(ERR.NOT_FOUND,'Unknown tenant');
-  if (tenant.adminSecret && adminKey !== tenant.adminSecret) return Err(ERR.BAD_INPUT,'Invalid admin key');
+  const tenant=findTenant_(tenantId);
+  if(!tenant) return Err(ERR.NOT_FOUND,'Unknown tenant');
+  if (tenant.adminSecret && adminKey !== tenant.adminSecret)
+    return Err(ERR.BAD_INPUT,'Invalid admin key');
+
+  // Rate limiting per tenant per minute
   const cache=CacheService.getScriptCache();
   const key=`rate:${tenantId}:${new Date().toISOString().slice(0,16)}`;
   const n = Number(cache.get(key)||'0');
@@ -71,29 +125,79 @@ function gate_(tenantId, adminKey){
   cache.put(key,String(n+1),60);
   return Ok({tenant});
 }
+/**
+ * Validates that a scope is allowed for a tenant
+ * @param {Object} tenant - Tenant configuration
+ * @param {string} scope - Scope to validate (events, leagues, etc.)
+ * @return {Object} Ok or Err result
+ */
 function assertScopeAllowed_(tenant, scope){
   const allowed = (tenant.scopesAllowed && tenant.scopesAllowed.length)
     ? tenant.scopesAllowed : ['events','leagues','tournaments'];
   if (!allowed.includes(scope)) return Err(ERR.BAD_INPUT, `Scope not enabled: ${scope}`);
   return Ok();
 }
-function isUrl(s){ try{ new URL(String(s)); return true; }catch(_){ return false; } }
+/**
+ * Validates URL and restricts to http/https protocols only
+ * @param {string} s - URL string to validate
+ * @return {boolean} True if valid and safe URL
+ */
+function isUrl(s) {
+  try {
+    const url = new URL(String(s));
+    return ['http:', 'https:'].includes(url.protocol);
+  } catch(_) {
+    return false;
+  }
+}
 
+/**
+ * Sanitizes user input to prevent XSS and other injection attacks
+ * @param {string} input - Raw user input
+ * @return {string} Sanitized string
+ */
+function sanitizeInput_(input) {
+  if (!input || typeof input !== 'string') return '';
+  return String(input)
+    .replace(/[<>\"']/g, '') // Remove dangerous HTML characters
+    .trim()
+    .slice(0, 1000); // Limit length
+}
+
+/**
+ * Gets or creates the data store sheet for a tenant and scope
+ * @param {Object} tenant - Tenant configuration object
+ * @param {string} scope - Scope name (events, leagues, etc.)
+ * @return {Sheet} Google Sheets object
+ */
 function getStoreSheet_(tenant, scope){
   const ss = SpreadsheetApp.openById(tenant.store.spreadsheetId);
   const title = scope.toUpperCase(); // EVENTS
   let sh = ss.getSheetByName(title);
-  if (!sh){ sh = ss.insertSheet(title); sh.appendRow(['id','tenantId','templateId','dataJSON','createdAt','slug']); }
+  if (!sh){
+    sh = ss.insertSheet(title);
+    sh.appendRow(['id','tenantId','templateId','dataJSON','createdAt','slug']);
+  }
   return sh;
 }
 
 // === APIs (uniform envelopes + SWR) =======================================
+/**
+ * Health check endpoint
+ * @return {Object} Ok response with health checks
+ */
 function api_healthCheck(){
   return runSafe('api_healthCheck', () => {
     diag_('info','health','ping',{build:ZEB.BUILD_ID});
     return Ok({ checks:[{ ok:true, message:'alive' }] });
   });
 }
+
+/**
+ * Get configuration (tenants, templates, build info)
+ * @param {Object} arg - Optional ifNoneMatch etag for caching
+ * @return {Object} Ok response with config or notModified
+ */
 function api_getConfig(arg){
   return runSafe('api_getConfig', () => {
     const tenants = loadTenants_().map(t => ({
@@ -105,6 +209,12 @@ function api_getConfig(arg){
     return { ok:true, etag, value };
   });
 }
+
+/**
+ * List all items for a tenant and scope
+ * @param {Object} payload - {tenantId, scope, ifNoneMatch?}
+ * @return {Object} Ok response with items array or notModified
+ */
 function api_list(payload){
   return runSafe('api_list', () => {
     const { tenantId, scope } = payload||{};
@@ -121,6 +231,12 @@ function api_list(payload){
     return { ok:true, etag, value };
   });
 }
+
+/**
+ * Get a single item by ID
+ * @param {Object} payload - {tenantId, scope, id, ifNoneMatch?}
+ * @return {Object} Ok response with item or notModified/NOT_FOUND
+ */
 function api_get(payload){
   return runSafe('api_get', () => {
     const { tenantId, scope, id } = payload||{};
@@ -140,6 +256,12 @@ function api_get(payload){
     return { ok:true, etag, value };
   });
 }
+
+/**
+ * Create a new item (requires admin auth)
+ * @param {Object} payload - {tenantId, scope, templateId, data, adminKey, idemKey?}
+ * @return {Object} Ok response with id and links, or Err
+ */
 function api_create(payload){
   return runSafe('api_create', () => {
     if(!payload||typeof payload!=='object') return Err(ERR.BAD_INPUT,'Missing payload');
@@ -162,12 +284,31 @@ function api_create(payload){
       if (c.get(k)) return Err(ERR.BAD_INPUT,'Duplicate create'); c.put(k,'1',600);
     }
 
-    // Write row
+    // Sanitize data inputs
+    const sanitizedData = {};
+    for (const f of tpl.fields) {
+      const val = data?.[f.id];
+      if (val !== undefined && val !== null) {
+        sanitizedData[f.id] = (f.type === 'url') ? String(val) : sanitizeInput_(String(val));
+      }
+    }
+
+    // Write row with collision-safe slug
     const tenant = findTenant_(tenantId);
     const sh = getStoreSheet_(tenant, scope);
     const id = Utilities.getUuid();
-    const slug = String((data?.name || id)).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
-    sh.appendRow([id, tenantId, templateId, JSON.stringify(data||{}), new Date().toISOString(), slug]);
+    let slug = String((sanitizedData?.name || id)).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+
+    // Handle slug collisions by appending counter
+    const existingSlugs = sh.getDataRange().getValues().slice(1).map(r => r[5]);
+    let counter = 2;
+    let originalSlug = slug;
+    while (existingSlugs.includes(slug)) {
+      slug = `${originalSlug}-${counter}`;
+      counter++;
+    }
+
+    sh.appendRow([id, tenantId, templateId, JSON.stringify(sanitizedData), new Date().toISOString(), slug]);
 
     const base = ScriptApp.getService().getUrl();
     const links = {

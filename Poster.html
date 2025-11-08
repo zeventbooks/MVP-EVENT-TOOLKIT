@@ -21,17 +21,17 @@
     staleMs: 120000,
     onUpdate: (evt) => {
       const el=document.getElementById('qr'); el.innerHTML='';
-      const url = evt?.links?.posterUrl;
+      // Fixed: Use publicUrl for QR code so users can scan to view the event
+      const url = evt?.links?.publicUrl;
       if (!url){ el.innerHTML = `<div class="qr-code"><p>QR unavailable (not verified)</p></div>`; return; }
       const box=document.createElement('div'); box.className='qr-code';
       box.innerHTML = `
-        <h3>${esc(evt?.data?.name||'Event')}</h3>
+        <h3>${NU.esc(evt?.data?.name||'Event')}</h3>
         <img alt="QR" src="https://quickchart.io/qr?text=${encodeURIComponent(url)}&size=256">
-        <p>${esc(url)}</p>`;
+        <p>${NU.esc(url)}</p>`;
       el.appendChild(box);
     }
   });
-  function esc(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
   </script>
 </body>
 </html>
