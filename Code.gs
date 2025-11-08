@@ -31,32 +31,60 @@ function runSafe(where, fn){
 
 // === Router ================================================================
 function doGet(e){
-  const pageParam = (e?.parameter?.page || e?.parameter?.p || '').toString();
+  const pageParam = (e?.parameter?.page || '').toString();
+  const pParam = (e?.parameter?.p || '').toString();
   const hostHeader = (e?.headers?.host || e?.parameter?.host || '').toString();
   const tenant = findTenantByHost_(hostHeader) || findTenant_('root');
 
+  // Handle special routes
+  if (pParam === 'r') { // Redirect route
+    const token = (e?.parameter?.t || '').toString();
+    return handleRedirect_(token);
+  }
+  if (pParam === 'status') { // Status API endpoint
+    const res = api_status();
+    return ContentService.createTextOutput(JSON.stringify(res)).setMimeType(ContentService.MimeType.JSON);
+  }
+
   const path = (e?.pathInfo || '').toString().replace(/^\/+|\/+$/g,''); // future proxy support
-  const scope = (e?.parameter?.p || 'events').toString(); // MVP default
+  const scope = pParam || 'events'; // MVP default
+
+  // Check if scope is enabled globally
+  if (!isScopeEnabled_(scope)){
+    const first = getActiveScopes_()[0] || 'events';
+    return HtmlService.createHtmlOutput(`<meta http-equiv="refresh" content="0;url=?p=${first}&tenant=${tenant.id}">`);
+  }
+
+  // Check if tenant allows scope
   const allowed = tenant.scopesAllowed?.length ? tenant.scopesAllowed : ['events','leagues','tournaments'];
   if (!allowed.includes(scope)){
     const first = allowed[0] || 'events';
     return HtmlService.createHtmlOutput(`<meta http-equiv="refresh" content="0;url=?p=${first}&tenant=${tenant.id}">`);
   }
 
-  const page = (pageParam==='admin' || pageParam==='poster' || pageParam==='test') ? pageParam : 'public';
-  const tpl = HtmlService.createTemplateFromFile(pageFile_(page));
+  const page = pageFile_(pageParam || pParam || 'public');
+  const tpl = HtmlService.createTemplateFromFile(page);
   tpl.appTitle = `${tenant.name} · ${scope}`;
   tpl.tenantId = tenant.id;
   tpl.scope = scope;
   tpl.execUrl = ScriptApp.getService().getUrl();
-  tpl.ZEB.BUILD_ID = ZEB.BUILD_ID;
+  tpl.BUILD_ID = ZEB.BUILD_ID;
+  tpl.FEATURES = FEATURES;
   return tpl.evaluate().setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
+
 function pageFile_(page){
   if (page==='admin') return 'Admin';
+  if (page==='config') return 'Config';
+  if (page==='diagnostics') return 'Diagnostics';
   if (page==='poster') return 'Poster';
+  if (page==='display') return 'Display';
   if (page==='test')   return 'Test';
   return 'Public';
+}
+
+function include(filename) {
+  return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }
 
 // === Guards / Helpers ======================================================
@@ -176,5 +204,365 @@ function api_create(payload){
     };
     diag_('info','api_create','created',{id,tenantId,scope});
     return Ok({ id, links });
+  });
+}
+
+// === Sponsors APIs ========================================================
+function api_updateSponsors(payload){
+  return runSafe('api_updateSponsors', () => {
+    if(!payload||typeof payload!=='object') return Err(ERR.BAD_INPUT,'Missing payload');
+    const { tenantId, entityType, entityId, sponsors, adminKey } = payload;
+
+    const g=gate_(tenantId, adminKey); if(!g.ok) return g;
+
+    const tenant = findTenant_(tenantId);
+    const ss = SpreadsheetApp.openById(tenant.store.spreadsheetId);
+    let sh = ss.getSheetByName('SPONSORS');
+    if (!sh){ sh = ss.insertSheet('SPONSORS'); sh.appendRow(['id','tenantId','entityType','entityId','posterTop','tvTop','tvSide','mobileBanner','createdAt']); }
+
+    // Find existing row or create new
+    const rows = sh.getDataRange().getValues();
+    let rowIndex = rows.findIndex((r,i) => i>0 && r[1]===tenantId && r[2]===entityType && r[3]===entityId);
+
+    const id = rowIndex > 0 ? rows[rowIndex][0] : Utilities.getUuid();
+    const data = [id, tenantId, entityType, entityId,
+                  sponsors?.posterTop||'', sponsors?.tvTop||'',
+                  sponsors?.tvSide||'', sponsors?.mobileBanner||'',
+                  new Date().toISOString()];
+
+    if(rowIndex > 0){ sh.getRange(rowIndex+1, 1, 1, data.length).setValues([data]); }
+    else { sh.appendRow(data); }
+
+    diag_('info','api_updateSponsors','saved',{entityType,entityId});
+    return Ok({ id });
+  });
+}
+
+function api_getSponsors(payload){
+  return runSafe('api_getSponsors', () => {
+    const { tenantId, entityType, entityId } = payload||{};
+    const tenant=findTenant_(tenantId); if(!tenant) return Err(ERR.NOT_FOUND,'Unknown tenant');
+
+    const ss = SpreadsheetApp.openById(tenant.store.spreadsheetId);
+    const sh = ss.getSheetByName('SPONSORS');
+    if (!sh) return Ok({ sponsors:{} });
+
+    const r = sh.getDataRange().getValues().slice(1).find(row => row[1]===tenantId && row[2]===entityType && row[3]===entityId);
+    if (!r) return Ok({ sponsors:{} });
+
+    const value = { posterTop:r[4], tvTop:r[5], tvSide:r[6], mobileBanner:r[7] };
+    return Ok({ sponsors: value });
+  });
+}
+
+// === Display Config APIs ==================================================
+function api_updateDisplay(payload){
+  return runSafe('api_updateDisplay', () => {
+    if(!payload||typeof payload!=='object') return Err(ERR.BAD_INPUT,'Missing payload');
+    const { tenantId, entityType, entityId, displayConfig, adminKey } = payload;
+
+    const g=gate_(tenantId, adminKey); if(!g.ok) return g;
+
+    const tenant = findTenant_(tenantId);
+    const ss = SpreadsheetApp.openById(tenant.store.spreadsheetId);
+    let sh = ss.getSheetByName('DISPLAY_CONFIG');
+    if (!sh){ sh = ss.insertSheet('DISPLAY_CONFIG'); sh.appendRow(['id','tenantId','entityType','entityId','urlsJSON','timingsJSON','createdAt']); }
+
+    const rows = sh.getDataRange().getValues();
+    let rowIndex = rows.findIndex((r,i) => i>0 && r[1]===tenantId && r[2]===entityType && r[3]===entityId);
+
+    const id = rowIndex > 0 ? rows[rowIndex][0] : Utilities.getUuid();
+    const data = [id, tenantId, entityType, entityId,
+                  JSON.stringify(displayConfig?.urls||[]),
+                  JSON.stringify(displayConfig?.timings||[]),
+                  new Date().toISOString()];
+
+    if(rowIndex > 0){ sh.getRange(rowIndex+1, 1, 1, data.length).setValues([data]); }
+    else { sh.appendRow(data); }
+
+    diag_('info','api_updateDisplay','saved',{entityType,entityId});
+    return Ok({ id });
+  });
+}
+
+function api_getDisplay(payload){
+  return runSafe('api_getDisplay', () => {
+    const { tenantId, entityType, entityId } = payload||{};
+    const tenant=findTenant_(tenantId); if(!tenant) return Err(ERR.NOT_FOUND,'Unknown tenant');
+
+    const ss = SpreadsheetApp.openById(tenant.store.spreadsheetId);
+    const sh = ss.getSheetByName('DISPLAY_CONFIG');
+    if (!sh) return Ok({ displayConfig:{urls:[],timings:[]} });
+
+    const r = sh.getDataRange().getValues().slice(1).find(row => row[1]===tenantId && row[2]===entityType && row[3]===entityId);
+    if (!r) return Ok({ displayConfig:{urls:[],timings:[]} });
+
+    const value = { urls: JSON.parse(r[4]||'[]'), timings: JSON.parse(r[5]||'[]') };
+    return Ok({ displayConfig: value });
+  });
+}
+
+// === Forms APIs ===========================================================
+function api_updateForms(payload){
+  return runSafe('api_updateForms', () => {
+    if(!payload||typeof payload!=='object') return Err(ERR.BAD_INPUT,'Missing payload');
+    const { tenantId, entityType, entityId, forms, adminKey } = payload;
+
+    const g=gate_(tenantId, adminKey); if(!g.ok) return g;
+
+    const tenant = findTenant_(tenantId);
+    const ss = SpreadsheetApp.openById(tenant.store.spreadsheetId);
+    let sh = ss.getSheetByName('FORMS');
+    if (!sh){ sh = ss.insertSheet('FORMS'); sh.appendRow(['id','tenantId','entityType','entityId','signupUrl','checkinUrl','walkinUrl','surveyUrl','createdAt']); }
+
+    const rows = sh.getDataRange().getValues();
+    let rowIndex = rows.findIndex((r,i) => i>0 && r[1]===tenantId && r[2]===entityType && r[3]===entityId);
+
+    const id = rowIndex > 0 ? rows[rowIndex][0] : Utilities.getUuid();
+    const data = [id, tenantId, entityType, entityId,
+                  forms?.signupUrl||'', forms?.checkinUrl||'',
+                  forms?.walkinUrl||'', forms?.surveyUrl||'',
+                  new Date().toISOString()];
+
+    if(rowIndex > 0){ sh.getRange(rowIndex+1, 1, 1, data.length).setValues([data]); }
+    else { sh.appendRow(data); }
+
+    diag_('info','api_updateForms','saved',{entityType,entityId});
+    return Ok({ id });
+  });
+}
+
+function api_getForms(payload){
+  return runSafe('api_getForms', () => {
+    const { tenantId, entityType, entityId } = payload||{};
+    const tenant=findTenant_(tenantId); if(!tenant) return Err(ERR.NOT_FOUND,'Unknown tenant');
+
+    const ss = SpreadsheetApp.openById(tenant.store.spreadsheetId);
+    const sh = ss.getSheetByName('FORMS');
+    if (!sh) return Ok({ forms:{} });
+
+    const r = sh.getDataRange().getValues().slice(1).find(row => row[1]===tenantId && row[2]===entityType && row[3]===entityId);
+    if (!r) return Ok({ forms:{} });
+
+    const value = { signupUrl:r[4], checkinUrl:r[5], walkinUrl:r[6], surveyUrl:r[7] };
+    return Ok({ forms: value });
+  });
+}
+
+// === Shortlinks APIs ======================================================
+function api_createShortlink(payload){
+  return runSafe('api_createShortlink', () => {
+    if(!payload||typeof payload!=='object') return Err(ERR.BAD_INPUT,'Missing payload');
+    const { tenantId, entityType, entityId, targetUrl, linkType, adminKey } = payload;
+
+    const g=gate_(tenantId, adminKey); if(!g.ok) return g;
+    if(!isUrl(targetUrl)) return Err(ERR.BAD_INPUT,'Invalid target URL');
+
+    const tenant = findTenant_(tenantId);
+    const ss = SpreadsheetApp.openById(tenant.store.spreadsheetId);
+    let sh = ss.getSheetByName('LINKS');
+    if (!sh){ sh = ss.insertSheet('LINKS'); sh.appendRow(['token','tenantId','entityType','entityId','targetUrl','linkType','createdAt','clicks']); }
+
+    const token = Utilities.base64Encode(Utilities.getUuid().slice(0,8)).replace(/[=+\/]/g,'').slice(0,8);
+    sh.appendRow([token, tenantId, entityType, entityId, targetUrl, linkType||'', new Date().toISOString(), 0]);
+
+    const shortUrl = `${ScriptApp.getService().getUrl()}?p=r&t=${token}`;
+    diag_('info','api_createShortlink','created',{token,linkType});
+    return Ok({ token, shortUrl, targetUrl });
+  });
+}
+
+function handleRedirect_(token){
+  try {
+    const ss = SpreadsheetApp.getActive();
+    const sh = ss.getSheetByName('LINKS');
+    if (!sh) return HtmlService.createHtmlOutput('<h1>Link not found</h1>');
+
+    const rows = sh.getDataRange().getValues();
+    const rowIndex = rows.findIndex((r,i) => i>0 && r[0]===token);
+    if (rowIndex < 1) return HtmlService.createHtmlOutput('<h1>Link not found</h1>');
+
+    const targetUrl = rows[rowIndex][4];
+    const clicks = Number(rows[rowIndex][7]||0) + 1;
+    sh.getRange(rowIndex+1, 8).setValue(clicks);
+
+    // Log analytics
+    logAnalytics_({ token, surface:'redirect', action:'click', meta:{} });
+
+    return HtmlService.createHtmlOutput(`<meta http-equiv="refresh" content="0;url=${targetUrl}">`);
+  } catch(e) {
+    diag_('error','handleRedirect_','Exception',{err:String(e)});
+    return HtmlService.createHtmlOutput('<h1>Error processing redirect</h1>');
+  }
+}
+
+// === Analytics APIs =======================================================
+function api_logAnalytics(payload){
+  return runSafe('api_logAnalytics', () => {
+    if(!payload||typeof payload!=='object') return Err(ERR.BAD_INPUT,'Missing payload');
+    logAnalytics_(payload);
+    return Ok({});
+  });
+}
+
+function logAnalytics_(data){
+  try {
+    const { token, entityId, surface, action, meta } = data||{};
+    const ss = SpreadsheetApp.getActive();
+    let sh = ss.getSheetByName('ANALYTICS');
+    if (!sh){ sh = ss.insertSheet('ANALYTICS'); sh.appendRow(['timestamp','token','entityId','surface','action','metaJSON']); }
+
+    sh.appendRow([new Date().toISOString(), token||'', entityId||'', surface||'', action||'', JSON.stringify(meta||{})]);
+
+    // Cap analytics rows
+    const MAX_ANALYTICS = 10000;
+    if(sh.getLastRow() > MAX_ANALYTICS){ sh.deleteRows(2, sh.getLastRow() - MAX_ANALYTICS); }
+  } catch(_){}
+}
+
+// === Reports APIs =========================================================
+function api_getReport(payload){
+  return runSafe('api_getReport', () => {
+    const { tenantId, entityType, entityId } = payload||{};
+    const tenant=findTenant_(tenantId); if(!tenant) return Err(ERR.NOT_FOUND,'Unknown tenant');
+
+    const ss = SpreadsheetApp.openById(tenant.store.spreadsheetId);
+    const sh = ss.getSheetByName('ANALYTICS');
+    if (!sh) return Ok({ report:{} });
+
+    const rows = sh.getDataRange().getValues().slice(1).filter(r => r[2]===entityId);
+
+    const bySurface = {};
+    const byAction = {};
+    rows.forEach(r => {
+      const surf = r[3]||'unknown';
+      const act = r[4]||'unknown';
+      bySurface[surf] = (bySurface[surf]||0) + 1;
+      byAction[act] = (byAction[act]||0) + 1;
+    });
+
+    const value = { totalEvents: rows.length, bySurface, byAction };
+    return Ok({ report: value });
+  });
+}
+
+function api_exportReport(payload){
+  return runSafe('api_exportReport', () => {
+    const { tenantId, entityType, entityId, adminKey } = payload||{};
+    const g=gate_(tenantId, adminKey); if(!g.ok) return g;
+
+    const tenant=findTenant_(tenantId); if(!tenant) return Err(ERR.NOT_FOUND,'Unknown tenant');
+
+    const ss = SpreadsheetApp.openById(tenant.store.spreadsheetId);
+    const reportName = `Report_${entityType}_${entityId}_${new Date().toISOString().slice(0,10)}`;
+
+    let reportSh = ss.getSheetByName(reportName);
+    if (!reportSh){ reportSh = ss.insertSheet(reportName); }
+    else { reportSh.clear(); }
+
+    reportSh.appendRow(['Zeventbook Report', entityType, entityId]);
+    reportSh.appendRow([]);
+
+    // Get analytics
+    const analyticsData = api_getReport({ tenantId, entityType, entityId });
+    if(analyticsData.ok){
+      const r = analyticsData.value.report;
+      reportSh.appendRow(['Total Events', r.totalEvents]);
+      reportSh.appendRow([]);
+      reportSh.appendRow(['By Surface']);
+      Object.entries(r.bySurface||{}).forEach(([k,v]) => reportSh.appendRow([k,v]));
+      reportSh.appendRow([]);
+      reportSh.appendRow(['By Action']);
+      Object.entries(r.byAction||{}).forEach(([k,v]) => reportSh.appendRow([k,v]));
+    }
+
+    diag_('info','api_exportReport','exported',{entityId,reportName});
+    return Ok({ sheetUrl: ss.getUrl() + '#gid=' + reportSh.getSheetId(), sheetName: reportName });
+  });
+}
+
+// === Status & Diagnostics APIs ============================================
+function api_status(){
+  return runSafe('api_status', () => {
+    try {
+      const ss = SpreadsheetApp.getActive();
+      const dbOk = ss && ss.getId();
+      const contractOk = ZEB.CONTRACT_VER === '1.1.0';
+
+      return Ok({
+        build: ZEB.BUILD_ID,
+        contract: ZEB.CONTRACT_VER,
+        db: { ok: !!dbOk, id: dbOk },
+        time: new Date().toISOString(),
+        features: FEATURES
+      });
+    } catch(e) {
+      return Err(ERR.INTERNAL, 'Status check failed: ' + String(e));
+    }
+  });
+}
+
+function api_selfTest(payload){
+  return runSafe('api_selfTest', () => {
+    const { tenantId, adminKey } = payload||{};
+    const g=gate_(tenantId||'root', adminKey); if(!g.ok) return g;
+
+    const steps = [];
+    let testEventId = null;
+
+    // Step 1: Status check
+    const statusRes = api_status();
+    steps.push({ name:'Status', ok:statusRes.ok, error: statusRes.ok?null:statusRes.message });
+    if(!statusRes.ok) return Ok({ steps, ok:false });
+
+    // Step 2: Create test event
+    const createRes = api_create({
+      tenantId: tenantId||'root',
+      scope: 'events',
+      templateId: 'event',
+      adminKey,
+      idemKey: 'selftest-'+Date.now(),
+      data: { name:'Self-Test Event', dateISO: new Date().toISOString().slice(0,10) }
+    });
+    steps.push({ name:'Create Event', ok:createRes.ok, error: createRes.ok?null:createRes.message });
+    if(!createRes.ok) return Ok({ steps, ok:false });
+    testEventId = createRes.value.id;
+
+    // Step 3: Update sponsors
+    const sponsorsRes = api_updateSponsors({
+      tenantId: tenantId||'root',
+      entityType:'event',
+      entityId: testEventId,
+      adminKey,
+      sponsors:{ posterTop:'Test Sponsor', tvTop:'Test', tvSide:'Test', mobileBanner:'Test' }
+    });
+    steps.push({ name:'Update Sponsors', ok:sponsorsRes.ok, error: sponsorsRes.ok?null:sponsorsRes.message });
+
+    // Step 4: Update display
+    const displayRes = api_updateDisplay({
+      tenantId: tenantId||'root',
+      entityType:'event',
+      entityId: testEventId,
+      adminKey,
+      displayConfig:{ urls:['https://youtube.com'], timings:[10] }
+    });
+    steps.push({ name:'Update Display', ok:displayRes.ok, error: displayRes.ok?null:displayRes.message });
+
+    // Step 5: Log analytics
+    logAnalytics_({ entityId:testEventId, surface:'test', action:'impression', meta:{} });
+    steps.push({ name:'Log Analytics', ok:true });
+
+    // Step 6: Export report
+    const reportRes = api_exportReport({
+      tenantId: tenantId||'root',
+      entityType:'event',
+      entityId: testEventId,
+      adminKey
+    });
+    steps.push({ name:'Export Report', ok:reportRes.ok, error: reportRes.ok?null:reportRes.message, sheetUrl: reportRes.value?.sheetUrl });
+
+    const allOk = steps.every(s => s.ok);
+    diag_('info','api_selfTest','completed',{allOk,steps:steps.length});
+    return Ok({ ok:allOk, steps, eventId:testEventId, sheetUrl: reportRes.value?.sheetUrl });
   });
 }

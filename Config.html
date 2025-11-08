@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title><?= appTitle ?> · Config</title>
+  <?!= include('Header'); ?>
+  <?!= include('NUSDK'); ?>
+  <?!= include('Styles'); ?>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+  <style>
+    .tab-badge {
+      display: inline-block;
+      margin-left: 8px;
+      padding: 2px 8px;
+      background: #fbbf24;
+      color: #78350f;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .tab-button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 16px;
+      margin-top: 16px;
+    }
+    .url-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .url-item {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .url-item input {
+      flex: 1;
+    }
+    .url-item input[type="number"] {
+      width: 80px;
+      flex: 0;
+    }
+    .btn-small {
+      padding: 6px 12px;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <main id="app" class="container">
+    <header>
+      <h1><?= appTitle ?></h1>
+      <p>Admin Configuration Portal</p>
+    </header>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab-button active" data-tab="events">Events</button>
+      <button class="tab-button" data-tab="leagues" <?= FEATURES.leagues ? '' : 'disabled' ?>>
+        Leagues <?= FEATURES.leagues ? '' : '<span class="tab-badge">Coming Soon</span>' ?>
+      </button>
+      <button class="tab-button" data-tab="tournaments" <?= FEATURES.tournaments ? '' : 'disabled' ?>>
+        Tournaments <?= FEATURES.tournaments ? '' : '<span class="tab-badge">Coming Soon</span>' ?>
+      </button>
+    </div>
+
+    <!-- Events Tab -->
+    <div class="tab-content active" data-tab-content="events">
+      <section class="card">
+        <h2>Create Event</h2>
+        <form id="eventForm">
+          <div class="form-group">
+            <label>Event Name *</label>
+            <input id="eventName" type="text" required>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Date *</label>
+              <input id="eventDate" type="date" required>
+            </div>
+            <div class="form-group">
+              <label>Location</label>
+              <input id="eventLocation" type="text">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Summary</label>
+            <textarea id="eventSummary" rows="3"></textarea>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Summary Link</label>
+              <input id="eventSummaryLink" type="url">
+            </div>
+            <div class="form-group">
+              <label>Video URL</label>
+              <input id="eventVideoUrl" type="url">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Bio Link</label>
+            <input id="eventBioLink" type="url">
+          </div>
+          <div class="button-group">
+            <button class="btn-primary" type="submit">Create Event</button>
+            <button id="eventClear" class="btn-secondary" type="button">Clear</button>
+          </div>
+        </form>
+      </section>
+
+      <!-- Event List -->
+      <section class="card">
+        <h2>Recent Events</h2>
+        <div id="eventList" class="events-grid"></div>
+      </section>
+
+      <!-- Event Config (shown when event selected) -->
+      <div id="eventConfig" style="display:none;">
+        <!-- Sponsors -->
+        <section class="card">
+          <h2>Sponsors</h2>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Poster Top</label>
+              <input id="sponsorPosterTop" type="text" placeholder="Sponsor name or logo URL">
+            </div>
+            <div class="form-group">
+              <label>TV Top Banner</label>
+              <input id="sponsorTvTop" type="text" placeholder="Sponsor name or logo URL">
+            </div>
+            <div class="form-group">
+              <label>TV Side Panel</label>
+              <input id="sponsorTvSide" type="text" placeholder="Sponsor name or logo URL">
+            </div>
+            <div class="form-group">
+              <label>Mobile Banner</label>
+              <input id="sponsorMobileBanner" type="text" placeholder="Sponsor name or logo URL">
+            </div>
+          </div>
+          <div class="button-group">
+            <button id="saveSponsors" class="btn-primary">Save Sponsors</button>
+          </div>
+        </section>
+
+        <!-- Forms -->
+        <section class="card">
+          <h2>Forms & Attendance</h2>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Sign-Up Form URL</label>
+              <input id="formSignup" type="url" placeholder="Google Form URL">
+            </div>
+            <div class="form-group">
+              <label>Check-In Form URL</label>
+              <input id="formCheckin" type="url" placeholder="Google Form URL">
+            </div>
+            <div class="form-group">
+              <label>Walk-In Form URL</label>
+              <input id="formWalkin" type="url" placeholder="Google Form URL">
+            </div>
+            <div class="form-group">
+              <label>Survey Form URL</label>
+              <input id="formSurvey" type="url" placeholder="Google Form URL">
+            </div>
+          </div>
+          <div class="button-group">
+            <button id="saveForms" class="btn-primary">Save Forms</button>
+          </div>
+        </section>
+
+        <!-- Display Config -->
+        <section class="card">
+          <h2>TV Display Carousel</h2>
+          <div id="displayUrls" class="url-list">
+            <!-- Dynamic URL list -->
+          </div>
+          <div class="button-group">
+            <button id="addDisplayUrl" class="btn-secondary btn-small">+ Add URL</button>
+            <button id="saveDisplay" class="btn-primary">Save Display Config</button>
+          </div>
+        </section>
+
+        <!-- Links -->
+        <section class="card">
+          <h2>Links</h2>
+          <div class="events-grid">
+            <div class="event-card">
+              <h3>Public</h3>
+              <p><a id="linkPublic" target="_blank" rel="noopener"></a></p>
+              <button class="btn-secondary btn-small" onclick="copyLink('linkPublic')">Copy</button>
+            </div>
+            <div class="event-card">
+              <h3>Display (TV)</h3>
+              <p><a id="linkDisplay" target="_blank" rel="noopener"></a></p>
+              <button class="btn-secondary btn-small" onclick="copyLink('linkDisplay')">Copy</button>
+            </div>
+            <div class="event-card">
+              <h3>Poster</h3>
+              <p><a id="linkPoster" target="_blank" rel="noopener"></a></p>
+              <button class="btn-secondary btn-small" onclick="copyLink('linkPoster')">Copy</button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <!-- Leagues Tab (Coming Soon) -->
+    <div class="tab-content" data-tab-content="leagues">
+      <section class="card">
+        <h2>Leagues</h2>
+        <p>League management coming in Phase 2.</p>
+      </section>
+    </div>
+
+    <!-- Tournaments Tab (Coming Soon) -->
+    <div class="tab-content" data-tab-content="tournaments">
+      <section class="card">
+        <h2>Tournaments</h2>
+        <p>Tournament management coming in Phase 2.</p>
+      </section>
+    </div>
+  </main>
+
+  <div id="overlay" class="loading-overlay"><div class="spinner"></div><p>Working…</p></div>
+
+  <script>
+  const TENANT = '<?= tenantId ?>';
+  const EXEC_URL = '<?= execUrl ?>';
+  let currentEventId = null;
+
+  // Tab switching
+  document.querySelectorAll('.tab-button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.disabled) return;
+      document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      btn.classList.add('active');
+      document.querySelector(`[data-tab-content="${btn.dataset.tab}"]`).classList.add('active');
+    });
+  });
+
+  // Create Event
+  document.getElementById('eventForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    overlay(true);
+
+    const data = {
+      name: document.getElementById('eventName').value.trim(),
+      dateISO: document.getElementById('eventDate').value,
+      location: document.getElementById('eventLocation').value.trim(),
+      summary: document.getElementById('eventSummary').value.trim(),
+      summaryLink: document.getElementById('eventSummaryLink').value.trim(),
+      videoUrl: document.getElementById('eventVideoUrl').value.trim(),
+      bioLink: document.getElementById('eventBioLink').value.trim()
+    };
+
+    const res = await NU.callApi('api_create', {
+      tenantId: TENANT,
+      scope: 'events',
+      templateId: 'event',
+      adminKey: getAdminKey(),
+      idemKey: crypto.randomUUID?.() || String(Date.now()),
+      data
+    });
+
+    overlay(false);
+    if (res.ok) {
+      currentEventId = res.value.id;
+      showEventConfig(currentEventId);
+      loadEvents();
+    }
+  });
+
+  document.getElementById('eventClear').addEventListener('click', () => {
+    document.getElementById('eventForm').reset();
+    document.getElementById('eventConfig').style.display = 'none';
+    currentEventId = null;
+  });
+
+  // Save Sponsors
+  document.getElementById('saveSponsors').addEventListener('click', async () => {
+    if (!currentEventId) return;
+    overlay(true);
+
+    await NU.callApi('api_updateSponsors', {
+      tenantId: TENANT,
+      entityType: 'event',
+      entityId: currentEventId,
+      adminKey: getAdminKey(),
+      sponsors: {
+        posterTop: document.getElementById('sponsorPosterTop').value.trim(),
+        tvTop: document.getElementById('sponsorTvTop').value.trim(),
+        tvSide: document.getElementById('sponsorTvSide').value.trim(),
+        mobileBanner: document.getElementById('sponsorMobileBanner').value.trim()
+      }
+    });
+
+    overlay(false);
+  });
+
+  // Save Forms
+  document.getElementById('saveForms').addEventListener('click', async () => {
+    if (!currentEventId) return;
+    overlay(true);
+
+    await NU.callApi('api_updateForms', {
+      tenantId: TENANT,
+      entityType: 'event',
+      entityId: currentEventId,
+      adminKey: getAdminKey(),
+      forms: {
+        signupUrl: document.getElementById('formSignup').value.trim(),
+        checkinUrl: document.getElementById('formCheckin').value.trim(),
+        walkinUrl: document.getElementById('formWalkin').value.trim(),
+        surveyUrl: document.getElementById('formSurvey').value.trim()
+      }
+    });
+
+    overlay(false);
+  });
+
+  // Display URLs
+  document.getElementById('addDisplayUrl').addEventListener('click', () => {
+    addDisplayUrlRow('', 10);
+  });
+
+  document.getElementById('saveDisplay').addEventListener('click', async () => {
+    if (!currentEventId) return;
+    overlay(true);
+
+    const rows = document.querySelectorAll('.url-item');
+    const urls = [], timings = [];
+    rows.forEach(row => {
+      const url = row.querySelector('.url-input').value.trim();
+      const timing = Number(row.querySelector('.timing-input').value);
+      if (url) {
+        urls.push(url);
+        timings.push(timing || 10);
+      }
+    });
+
+    await NU.callApi('api_updateDisplay', {
+      tenantId: TENANT,
+      entityType: 'event',
+      entityId: currentEventId,
+      adminKey: getAdminKey(),
+      displayConfig: { urls, timings }
+    });
+
+    overlay(false);
+  });
+
+  // Load events
+  async function loadEvents() {
+    const res = await NU.rpc('api_list', { tenantId: TENANT, scope: 'events' });
+    if (!res.ok) return;
+
+    const list = document.getElementById('eventList');
+    list.innerHTML = '';
+    (res.value.items || []).forEach(ev => {
+      const card = document.createElement('div');
+      card.className = 'event-card';
+      card.innerHTML = `
+        <h3>${esc(ev.data?.name || '(untitled)')}</h3>
+        <p>${esc(ev.data?.dateISO || '')}</p>
+        <button class="btn-secondary btn-small" onclick="selectEvent('${ev.id}')">Configure</button>
+      `;
+      list.appendChild(card);
+    });
+  }
+
+  window.selectEvent = async function(id) {
+    currentEventId = id;
+    showEventConfig(id);
+  };
+
+  async function showEventConfig(id) {
+    document.getElementById('eventConfig').style.display = 'block';
+
+    // Load sponsors
+    const sponsorsRes = await NU.rpc('api_getSponsors', { tenantId: TENANT, entityType: 'event', entityId: id });
+    if (sponsorsRes.ok && sponsorsRes.value.sponsors) {
+      const s = sponsorsRes.value.sponsors;
+      document.getElementById('sponsorPosterTop').value = s.posterTop || '';
+      document.getElementById('sponsorTvTop').value = s.tvTop || '';
+      document.getElementById('sponsorTvSide').value = s.tvSide || '';
+      document.getElementById('sponsorMobileBanner').value = s.mobileBanner || '';
+    }
+
+    // Load forms
+    const formsRes = await NU.rpc('api_getForms', { tenantId: TENANT, entityType: 'event', entityId: id });
+    if (formsRes.ok && formsRes.value.forms) {
+      const f = formsRes.value.forms;
+      document.getElementById('formSignup').value = f.signupUrl || '';
+      document.getElementById('formCheckin').value = f.checkinUrl || '';
+      document.getElementById('formWalkin').value = f.walkinUrl || '';
+      document.getElementById('formSurvey').value = f.surveyUrl || '';
+    }
+
+    // Load display
+    const displayRes = await NU.rpc('api_getDisplay', { tenantId: TENANT, entityType: 'event', entityId: id });
+    if (displayRes.ok && displayRes.value.displayConfig) {
+      const d = displayRes.value.displayConfig;
+      document.getElementById('displayUrls').innerHTML = '';
+      if (d.urls && d.urls.length) {
+        d.urls.forEach((url, i) => addDisplayUrlRow(url, d.timings[i] || 10));
+      } else {
+        addDisplayUrlRow('', 10);
+      }
+    }
+
+    // Set links
+    const base = EXEC_URL;
+    setLink('linkPublic', `${base}?p=events&tenant=${TENANT}&id=${id}`);
+    setLink('linkDisplay', `${base}?page=display&p=events&tenant=${TENANT}&id=${id}`);
+    setLink('linkPoster', `${base}?page=poster&p=events&tenant=${TENANT}&id=${id}`);
+  }
+
+  function addDisplayUrlRow(url = '', timing = 10) {
+    const container = document.getElementById('displayUrls');
+    const div = document.createElement('div');
+    div.className = 'url-item';
+    div.innerHTML = `
+      <input class="url-input" type="url" placeholder="URL to display" value="${esc(url)}">
+      <input class="timing-input" type="number" min="1" max="300" placeholder="Sec" value="${timing}">
+      <button class="btn-secondary btn-small" onclick="this.parentElement.remove()">Remove</button>
+    `;
+    container.appendChild(div);
+  }
+
+  function setLink(id, url) {
+    const a = document.getElementById(id);
+    a.textContent = url;
+    a.href = url;
+  }
+
+  window.copyLink = function(id) {
+    const url = document.getElementById(id).textContent;
+    navigator.clipboard.writeText(url).then(() => {
+      NU.toast('Link copied!', 'success');
+    });
+  };
+
+  function overlay(on) {
+    document.getElementById('overlay').style.display = on ? 'flex' : 'none';
+  }
+
+  function getAdminKey() {
+    const k = localStorage.getItem('ADMIN_KEY:' + TENANT) || prompt('Admin key for ' + TENANT);
+    if (k) localStorage.setItem('ADMIN_KEY:' + TENANT, k);
+    return k || '';
+  }
+
+  // Load events on page load
+  loadEvents();
+  </script>
+</body>
+</html>

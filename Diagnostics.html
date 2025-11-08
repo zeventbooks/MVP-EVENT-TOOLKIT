@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title><?= appTitle ?> · Diagnostics</title>
+  <?!= include('Header'); ?>
+  <?!= include('NUSDK'); ?>
+  <?!= include('Styles'); ?>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+  <style>
+    .status-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: 600;
+      margin-left: 8px;
+    }
+    .status-ok {
+      background: #d1fae5;
+      color: #065f46;
+    }
+    .status-error {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+    .step-list {
+      list-style: none;
+      padding: 0;
+      margin-top: 16px;
+    }
+    .step-item {
+      padding: 12px;
+      background: #f8fafc;
+      border-left: 4px solid #cbd5e1;
+      margin-bottom: 8px;
+      border-radius: 4px;
+    }
+    .step-item.step-ok {
+      border-left-color: #10b981;
+    }
+    .step-item.step-error {
+      border-left-color: #ef4444;
+    }
+    .code-block {
+      background: #1e293b;
+      color: #e2e8f0;
+      padding: 16px;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-family: monospace;
+      font-size: 13px;
+      margin-top: 12px;
+    }
+  </style>
+</head>
+<body>
+  <main id="app" class="container">
+    <header>
+      <h1><?= appTitle ?></h1>
+      <p>System Diagnostics</p>
+    </header>
+
+    <!-- Status Check -->
+    <section class="card">
+      <h2>System Status</h2>
+      <p>Check the overall health of the platform.</p>
+      <div class="button-group">
+        <button id="btnStatus" class="btn-primary">Run Status Check</button>
+      </div>
+      <div id="statusResult" style="display:none; margin-top:20px;">
+        <h3>Status: <span id="statusBadge" class="status-badge"></span></h3>
+        <div id="statusDetails" class="code-block"></div>
+      </div>
+    </section>
+
+    <!-- Self-Test -->
+    <section class="card">
+      <h2>End-to-End Self-Test</h2>
+      <p>Run a complete workflow test: create event, configure sponsors/display, log analytics, and export a report.</p>
+      <div class="button-group">
+        <button id="btnSelfTest" class="btn-primary">Run Self-Test</button>
+      </div>
+      <div id="selfTestResult" style="display:none; margin-top:20px;">
+        <h3>Result: <span id="selfTestBadge" class="status-badge"></span></h3>
+        <ul id="selfTestSteps" class="step-list"></ul>
+        <div id="selfTestLinks" style="margin-top:16px;"></div>
+      </div>
+    </section>
+
+    <!-- DIAG Log Viewer -->
+    <section class="card">
+      <h2>Diagnostic Logs</h2>
+      <p>View recent diagnostic logs from the DIAG sheet.</p>
+      <div class="button-group">
+        <button id="btnViewLogs" class="btn-secondary" onclick="window.open('<?= execUrl ?>/../edit', '_blank')">Open Spreadsheet</button>
+      </div>
+    </section>
+
+    <!-- Build Info -->
+    <section class="card">
+      <h2>Build Information</h2>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">Build ID</div>
+          <div class="stat-number" style="font-size:14px;"><?= BUILD_ID ?></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Tenant</div>
+          <div class="stat-number" style="font-size:16px;"><?= tenantId ?></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Scope</div>
+          <div class="stat-number" style="font-size:16px;"><?= scope ?></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="overlay" class="loading-overlay"><div class="spinner"></div><p>Working…</p></div>
+
+  <script>
+  const TENANT = '<?= tenantId ?>';
+
+  // Status Check
+  document.getElementById('btnStatus').addEventListener('click', async () => {
+    overlay(true);
+    const res = await NU.rpc('api_status');
+    overlay(false);
+
+    document.getElementById('statusResult').style.display = 'block';
+    const badge = document.getElementById('statusBadge');
+    const details = document.getElementById('statusDetails');
+
+    if (res.ok) {
+      badge.textContent = '✓ OK';
+      badge.className = 'status-badge status-ok';
+      details.textContent = JSON.stringify(res.value, null, 2);
+    } else {
+      badge.textContent = '✗ ERROR';
+      badge.className = 'status-badge status-error';
+      details.textContent = JSON.stringify(res, null, 2);
+    }
+  });
+
+  // Self-Test
+  document.getElementById('btnSelfTest').addEventListener('click', async () => {
+    overlay(true);
+    const res = await NU.rpc('api_selfTest', {
+      tenantId: TENANT,
+      adminKey: getAdminKey()
+    });
+    overlay(false);
+
+    document.getElementById('selfTestResult').style.display = 'block';
+    const badge = document.getElementById('selfTestBadge');
+    const stepsList = document.getElementById('selfTestSteps');
+    const linksDiv = document.getElementById('selfTestLinks');
+
+    stepsList.innerHTML = '';
+    linksDiv.innerHTML = '';
+
+    if (res.ok) {
+      badge.textContent = res.value.ok ? '✓ All Passed' : '✗ Some Failed';
+      badge.className = 'status-badge ' + (res.value.ok ? 'status-ok' : 'status-error');
+
+      res.value.steps.forEach(step => {
+        const li = document.createElement('li');
+        li.className = 'step-item ' + (step.ok ? 'step-ok' : 'step-error');
+        li.innerHTML = `
+          <strong>${step.ok ? '✓' : '✗'} ${esc(step.name)}</strong>
+          ${step.error ? `<br><span style="color:#991b1b;">${esc(step.error)}</span>` : ''}
+        `;
+        stepsList.appendChild(li);
+      });
+
+      if (res.value.sheetUrl) {
+        linksDiv.innerHTML = `
+          <div class="event-card">
+            <h3>Test Report</h3>
+            <p><a href="${esc(res.value.sheetUrl)}" target="_blank" rel="noopener">View Report Sheet</a></p>
+            <p style="color:#64748b;font-size:13px;">Event ID: ${esc(res.value.eventId)}</p>
+          </div>
+        `;
+      }
+    } else {
+      badge.textContent = '✗ ERROR';
+      badge.className = 'status-badge status-error';
+      stepsList.innerHTML = `<li class="step-item step-error">${esc(res.message)}</li>`;
+    }
+  });
+
+  function overlay(on) {
+    document.getElementById('overlay').style.display = on ? 'flex' : 'none';
+  }
+
+  function getAdminKey() {
+    const k = localStorage.getItem('ADMIN_KEY:' + TENANT) || prompt('Admin key for ' + TENANT);
+    if (k) localStorage.setItem('ADMIN_KEY:' + TENANT, k);
+    return k || '';
+  }
+  </script>
+</body>
+</html>

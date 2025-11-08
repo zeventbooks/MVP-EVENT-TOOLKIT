@@ -38,15 +38,58 @@
       root.appendChild(d);
     }
   }
-  function renderDetail(evt){
+  async function renderDetail(evt){
     const root=document.getElementById('list'); root.innerHTML='';
-    const d=document.createElement('div'); d.className='event-card';
+
+    // Log impression
+    NU.logAnalytics({ entityId: evt.id, surface: 'public-mobile', action: 'impression', meta: {} });
+
+    // Load sponsors
+    const sponsorsRes = await NU.rpc('api_getSponsors', { tenantId: TENANT, entityType: 'event', entityId: evt.id });
+    let sponsorBanner = '';
+    if (sponsorsRes.ok && sponsorsRes.value.sponsors?.mobileBanner) {
+      const sponsor = sponsorsRes.value.sponsors.mobileBanner;
+      sponsorBanner = `
+        <div class="event-card" style="background:#eff6ff;border-left:4px solid #3b82f6;">
+          <h3 style="color:#1e40af;">Sponsored by ${esc(sponsor)}</h3>
+        </div>
+      `;
+      NU.logAnalytics({ entityId: evt.id, surface: 'mobile-banner', action: 'impression', meta: { sponsor } });
+    }
+
+    // Load forms
+    const formsRes = await NU.rpc('api_getForms', { tenantId: TENANT, entityType: 'event', entityId: evt.id });
+    let formButtons = '';
+    if (formsRes.ok && formsRes.value.forms) {
+      const f = formsRes.value.forms;
+      const buttons = [];
+      if (f.signupUrl) buttons.push(`<a class="btn-primary" target="_blank" rel="noopener" href="${esc(f.signupUrl)}" onclick="logFormClick('signup')">Sign Up</a>`);
+      if (f.checkinUrl) buttons.push(`<a class="btn-secondary" target="_blank" rel="noopener" href="${esc(f.checkinUrl)}" onclick="logFormClick('checkin')">Check In</a>`);
+      if (f.walkinUrl) buttons.push(`<a class="btn-secondary" target="_blank" rel="noopener" href="${esc(f.walkinUrl)}" onclick="logFormClick('walkin')">Walk In</a>`);
+      if (f.surveyUrl) buttons.push(`<a class="btn-secondary" target="_blank" rel="noopener" href="${esc(f.surveyUrl)}" onclick="logFormClick('survey')">Survey</a>`);
+      if (buttons.length) formButtons = `<div class="button-group">${buttons.join('')}</div>`;
+    }
+
+    const d=document.createElement('div');
     d.innerHTML = `
-      <h3>${esc(evt.data?.name||'(untitled)')}</h3>
-      <p>${esc(evt.data?.dateISO||'')}</p>
-      ${evt.data?.signupUrl ? `<p><a class="btn-primary" target="_blank" rel="noopener" href="${esc(evt.data.signupUrl)}">Sign up</a></p>` : ''}
-      <p><a class="btn-secondary" href="<?= execUrl ?>?p=events&tenant=<?= tenantId ?>">Back</a></p>`;
+      ${sponsorBanner}
+      <div class="event-card">
+        <h2>${esc(evt.data?.name||'(untitled)')}</h2>
+        <p><strong>Date:</strong> ${esc(evt.data?.dateISO||'')}</p>
+        ${evt.data?.location ? `<p><strong>Location:</strong> ${esc(evt.data.location)}</p>` : ''}
+        ${evt.data?.summary ? `<p>${esc(evt.data.summary)}</p>` : ''}
+        ${evt.data?.summaryLink ? `<p><a href="${esc(evt.data.summaryLink)}" target="_blank" rel="noopener">More Info</a></p>` : ''}
+        ${evt.data?.videoUrl ? `<p><a href="${esc(evt.data.videoUrl)}" target="_blank" rel="noopener">Watch Video</a></p>` : ''}
+        ${evt.data?.bioLink ? `<p><a href="${esc(evt.data.bioLink)}" target="_blank" rel="noopener">Bio</a></p>` : ''}
+        ${formButtons}
+        <p><a class="btn-secondary" href="<?= execUrl ?>?p=events&tenant=<?= tenantId ?>">Back to Events</a></p>
+      </div>
+    `;
     root.appendChild(d);
+
+    window.logFormClick = function(type) {
+      NU.logAnalytics({ entityId: evt.id, surface: 'mobile-forms', action: 'click', meta: { formType: type } });
+    };
   }
   function esc(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
   </script>

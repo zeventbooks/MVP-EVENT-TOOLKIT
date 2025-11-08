@@ -1,5 +1,6 @@
 <script>
 window.NU = {
+  // Core RPC wrapper
   rpc(method, payload) {
     return new Promise((resolve) => {
       google.script.run
@@ -8,6 +9,26 @@ window.NU = {
         [method](payload);
     });
   },
+
+  // API Bridge - normalized call with error handling
+  async callApi(method, payload, onSuccess) {
+    try {
+      const res = await NU.rpc(method, payload);
+      if (res.ok) {
+        NU.toast(`✓ ${method} succeeded`, 'success');
+        if (onSuccess) onSuccess(res.value || res);
+        return res;
+      } else {
+        NU.toast(`✗ ${res.code}: ${res.message}`, 'error');
+        return res;
+      }
+    } catch (e) {
+      NU.toast(`✗ Error: ${String(e)}`, 'error');
+      return { ok: false, code: 'INTERNAL', message: String(e) };
+    }
+  },
+
+  // SWR (stale-while-revalidate) caching
   swr(method, payload, { staleMs=120000, onUpdate } = {}) {
     const key = `swr:${method}:${JSON.stringify(payload||{})}`;
     const cached = JSON.parse(localStorage.getItem(key) || '{}');
@@ -19,6 +40,40 @@ window.NU = {
         onUpdate && onUpdate(res.value);
       }
     });
+  },
+
+  // Toast notifications
+  toast(message, type = 'info') {
+    let container = document.getElementById('toast-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'toast-container';
+      container.className = 'toast-container';
+      document.body.appendChild(container);
+    }
+
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.innerHTML = `<span>${esc(message)}</span><button class="toast-close" onclick="this.parentElement.remove()">×</button>`;
+    container.appendChild(toast);
+
+    setTimeout(() => toast.classList.add('toast-show'), 10);
+    setTimeout(() => {
+      toast.classList.remove('toast-show');
+      setTimeout(() => toast.remove(), 300);
+    }, type === 'error' ? 5000 : 3000);
+  },
+
+  // Log analytics
+  async logAnalytics(data) {
+    try {
+      await NU.rpc('api_logAnalytics', data);
+    } catch(e) {
+      console.warn('Analytics logging failed:', e);
+    }
   }
 };
+
+// HTML escape helper
+function esc(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
 </script>

@@ -17,20 +17,46 @@
   <script>
   const TENANT='<?= tenantId ?>', SCOPE='events';
   const ID = new URL(location.href).searchParams.get('id');
-  NU.swr('api_get', { tenantId:TENANT, scope:SCOPE, id:ID }, {
-    staleMs: 120000,
-    onUpdate: (evt) => {
-      const el=document.getElementById('qr'); el.innerHTML='';
-      const url = evt?.links?.posterUrl;
-      if (!url){ el.innerHTML = `<div class="qr-code"><p>QR unavailable (not verified)</p></div>`; return; }
-      const box=document.createElement('div'); box.className='qr-code';
-      box.innerHTML = `
-        <h3>${esc(evt?.data?.name||'Event')}</h3>
-        <img alt="QR" src="https://quickchart.io/qr?text=${encodeURIComponent(url)}&size=256">
-        <p>${esc(url)}</p>`;
-      el.appendChild(box);
+  async function loadPoster() {
+    // Get event
+    const evtRes = await NU.rpc('api_get', { tenantId: TENANT, scope: SCOPE, id: ID });
+    if (!evtRes.ok) return;
+    const evt = evtRes.value;
+
+    // Load sponsors
+    const sponsorsRes = await NU.rpc('api_getSponsors', { tenantId: TENANT, entityType: 'event', entityId: ID });
+    let sponsorStrip = '';
+    if (sponsorsRes.ok && sponsorsRes.value.sponsors?.posterTop) {
+      const sponsor = sponsorsRes.value.sponsors.posterTop;
+      sponsorStrip = `
+        <div class="event-card" style="background:#f0fdf4;border-left:4px solid #10b981;margin-bottom:20px;">
+          <h3 style="color:#065f46;">Sponsored by ${esc(sponsor)}</h3>
+        </div>
+      `;
     }
-  });
+
+    const el = document.getElementById('qr');
+    el.innerHTML = sponsorStrip;
+
+    const url = evt?.links?.posterUrl;
+    if (!url) {
+      el.innerHTML += `<div class="qr-code"><p>QR unavailable (not verified)</p></div>`;
+      return;
+    }
+
+    const box = document.createElement('div');
+    box.className = 'qr-code';
+    box.innerHTML = `
+      <h3>${esc(evt?.data?.name||'Event')}</h3>
+      <img alt="QR" src="https://quickchart.io/qr?text=${encodeURIComponent(url)}&size=256">
+      <p style="font-size:13px;color:#64748b;">${esc(url)}</p>
+      ${evt?.data?.dateISO ? `<p><strong>Date:</strong> ${esc(evt.data.dateISO)}</p>` : ''}
+      ${evt?.data?.location ? `<p><strong>Location:</strong> ${esc(evt.data.location)}</p>` : ''}
+    `;
+    el.appendChild(box);
+  }
+
+  loadPoster();
   function esc(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
   </script>
 </body>
