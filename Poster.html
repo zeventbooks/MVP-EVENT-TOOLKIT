@@ -3,35 +3,99 @@
 <head>
   <meta charset="utf-8"/>
   <title><?= appTitle ?> · Poster</title>
-  <?!= include('Header'); ?>
-  <?!= include('NUSDK'); ?>
+  <?!= include('Styles'); ?>
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+  <style>
+    [hidden] { display:none !important; }
+    .poster-container{ max-width:800px; margin:0 auto; padding:20px; background:#fff; }
+    .sponsor-strip{
+      display:flex; align-items:center; justify-content:center; gap:16px;
+      padding:12px 16px; border-bottom:1px solid #e2e8f0; margin-bottom:20px;
+      background:linear-gradient(135deg, #f8fafc 0%, #fff 100%);
+    }
+    .sponsor-strip img{ max-height:48px; object-fit:contain; }
+    .sponsor-strip strong{ color:var(--text); font-size:1.1em; }
+    .qr-grid{ display:grid; grid-template-columns:1fr; gap:24px; margin:24px 0; }
+    .qr-code{
+      text-align:center; padding:20px; background:#f8fafc;
+      border-radius:12px; border:2px solid #e2e8f0;
+    }
+    .qr-code h3{ margin:0 0 16px; color:var(--text); }
+    .qr-code img{ width:100%; max-width:280px; height:auto; margin:0 auto; display:block; }
+    .qr-code p{ margin-top:12px; color:var(--muted); font-size:14px; word-break:break-all; }
+    @media print {
+      body{ background:#fff; }
+      .sponsor-strip{ border:0; padding-bottom:8px; }
+      @page{ margin:0.5in; }
+    }
+  </style>
 </head>
 <body>
-  <main id="app" class="container">
-    <section class="card">
-      <h2>Poster</h2>
+  <div class="poster-container">
+    <div id="sponsorStrip" class="sponsor-strip" hidden></div>
+    <section>
+      <h2>Event Poster</h2>
       <div id="qr" class="qr-grid"></div>
     </section>
-  </main>
+  </div>
+
   <script>
-  const TENANT='<?= tenantId ?>', SCOPE='events';
-  const ID = new URL(location.href).searchParams.get('id');
-  NU.swr('api_get', { tenantId:TENANT, scope:SCOPE, id:ID }, {
-    staleMs: 120000,
-    onUpdate: (evt) => {
-      const el=document.getElementById('qr'); el.innerHTML='';
-      // Fixed: Use publicUrl for QR code so users can scan to view the event
-      const url = evt?.links?.publicUrl;
-      if (!url){ el.innerHTML = `<div class="qr-code"><p>QR unavailable (not verified)</p></div>`; return; }
-      const box=document.createElement('div'); box.className='qr-code';
-      box.innerHTML = `
-        <h3>${NU.esc(evt?.data?.name||'Event')}</h3>
-        <img alt="QR" src="https://quickchart.io/qr?text=${encodeURIComponent(url)}&size=256">
-        <p>${NU.esc(url)}</p>`;
-      el.appendChild(box);
+    const TENANT = '<?= tenantId ?>';
+    const SCOPE = '<?= scope ?>';
+    const ID = new URL(location.href).searchParams.get('id');
+
+    function esc(s) {
+      return String(s).replace(/[&<>"']/g, m => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[m]));
     }
-  });
+
+    function renderSponsorStrip(ev) {
+      const picks = (ev?.data?.sponsors || []).filter(s => s?.placements?.posterTop);
+      if (!picks.length) return; // stays hidden → no space consumed
+
+      const strip = document.getElementById('sponsorStrip');
+      strip.innerHTML = picks.map(s =>
+        s.img
+          ? `<img src="${esc(s.img)}" alt="${esc(s.name || '')}">`
+          : `<strong>${esc(s.name || '')}</strong>`
+      ).join('');
+      strip.hidden = false;
+    }
+
+    function renderQR(evt) {
+      const el = document.getElementById('qr');
+      el.innerHTML = '';
+
+      // Verified-QR invariant: only show QR if publicUrl exists
+      const url = evt?.links?.publicUrl;
+      if (!url) {
+        el.innerHTML = `<div class="qr-code"><p style="color:#ef4444;">QR unavailable (not verified)</p></div>`;
+        return;
+      }
+
+      const box = document.createElement('div');
+      box.className = 'qr-code';
+      box.innerHTML = `
+        <h3>${esc(evt?.data?.name || 'Event')}</h3>
+        <p class="muted">${esc(evt?.data?.dateISO || '')}</p>
+        <img alt="QR Code" src="https://quickchart.io/qr?text=${encodeURIComponent(url)}&size=280&margin=2">
+        <p>${esc(url)}</p>
+      `;
+      el.appendChild(box);
+
+      renderSponsorStrip(evt);
+    }
+
+    google.script.run
+      .withSuccessHandler(res => {
+        if (res.ok && res.value) renderQR(res.value);
+        else document.getElementById('qr').innerHTML = '<p class="muted">Event not found.</p>';
+      })
+      .withFailureHandler(() => {
+        document.getElementById('qr').innerHTML = '<p class="muted">Could not load event.</p>';
+      })
+      .api_get({ tenantId: TENANT, scope: SCOPE, id: ID });
   </script>
 </body>
 </html>

@@ -3,68 +3,414 @@
 <head>
   <meta charset="utf-8"/>
   <title><?= appTitle ?> · Admin</title>
-  <?!= include('Header'); ?>
-  <?!= include('NUSDK'); ?>
+  <?!= include('Styles'); ?>
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+  <style>
+    .card{ background:#fff; border-radius:12px; padding:20px; margin-bottom:20px; box-shadow:0 1px 3px rgba(0,0,0,0.1); }
+    .card h2{ margin:0 0 16px; color:var(--text); }
+    .form-group{ margin-bottom:16px; }
+    .form-group label{ display:block; margin-bottom:6px; color:var(--muted); font-weight:500; }
+    .form-group input, .form-group select{
+      width:100%; padding:10px; border:1px solid #e2e8f0; border-radius:6px; font-size:14px;
+    }
+    .form-group input:focus{ outline:none; border-color:var(--brand); }
+    .button-group{ display:flex; gap:12px; margin-top:16px; }
+    .events-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:16px; }
+    .event-card{ background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:16px; }
+    .event-card h3{ margin:0 0 8px; color:var(--text); }
+    .event-card p{ margin:4px 0; color:var(--muted); font-size:14px; }
+    .event-card a{ color:var(--brand); text-decoration:none; }
+    .event-card a:hover{ text-decoration:underline; }
+    #overlay{ display:none; position:fixed; inset:0; background:rgba(255,255,255,0.9); z-index:999; justify-content:center; align-items:center; flex-direction:column; }
+    .spinner{ border:4px solid #e2e8f0; border-top:4px solid var(--brand); border-radius:50%; width:50px; height:50px; animation:spin 1s linear infinite; }
+    @keyframes spin{ 0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)} }
+    pre{ background:#f8fafc; padding:12px; border-radius:6px; overflow:auto; font-size:13px; max-height:400px; }
+    .status-ok{ color:#10b981; font-weight:600; }
+    .status-err{ color:#ef4444; font-weight:600; }
+  </style>
 </head>
 <body>
-  <main id="app" class="container">
+  <div class="container">
+    <h1><?= appTitle ?> Admin</h1>
+    <p class="muted">Build: <?= ZEB.BUILD_ID ?> | Contract: <?= ZEB.CONTRACT_VER ?></p>
+
+    <!-- Diagnostics -->
+    <section class="card">
+      <h2>Diagnostics</h2>
+      <div class="button-group">
+        <button class="btn" onclick="runStatus()">Status</button>
+        <button class="btn" onclick="runSelfTest()">Run Self-Test</button>
+      </div>
+      <pre id="diagResult" style="display:none;"></pre>
+    </section>
+
+    <!-- Create Event -->
     <section class="card">
       <h2>Create Event</h2>
-      <form id="form">
-        <div class="form-group"><label>Name</label><input id="name" type="text" required></div>
-        <div class="form-row">
-          <div class="form-group"><label>Date</label><input id="dateISO" type="date" required></div>
-          <div class="form-group"><label>Signup URL (optional)</label><input id="signupUrl" type="url"></div>
+      <form id="createForm">
+        <div class="form-group">
+          <label>Name</label>
+          <input id="name" type="text" required>
+        </div>
+        <div class="form-group">
+          <label>Date</label>
+          <input id="dateISO" type="date" required>
+        </div>
+        <div class="form-group">
+          <label>Signup URL (optional)</label>
+          <input id="signupUrl" type="url">
         </div>
         <div class="button-group">
-          <button class="btn-primary" type="submit">Create</button>
-          <button id="clear" class="btn-secondary" type="button">Clear</button>
+          <button class="btn" type="submit">Create</button>
+          <button class="btn secondary" type="button" onclick="clearForm()">Clear</button>
         </div>
       </form>
     </section>
-    <section id="result" class="card" style="display:none;">
-      <h2>Links</h2>
+
+    <!-- Event Links (shown after create) -->
+    <section id="linksCard" class="card" style="display:none;">
+      <h2>Event Links</h2>
       <div class="events-grid">
-        <div class="event-card"><h3>Public</h3><p><a id="lnkPublic" target="_blank" rel="noopener"></a></p></div>
-        <div class="event-card"><h3>Poster</h3><p><a id="lnkPoster" target="_blank" rel="noopener"></a></p></div>
+        <div class="event-card">
+          <h3>Public (Mobile)</h3>
+          <p><a id="lnkPublic" target="_blank" rel="noopener"></a></p>
+          <button class="btn secondary" onclick="copy('lnkPublic')">Copy</button>
+        </div>
+        <div class="event-card">
+          <h3>Display (TV)</h3>
+          <p><a id="lnkDisplay" target="_blank" rel="noopener"></a></p>
+          <button class="btn secondary" onclick="copy('lnkDisplay')">Copy</button>
+        </div>
+        <div class="event-card">
+          <h3>Poster (Print/QR)</h3>
+          <p><a id="lnkPoster" target="_blank" rel="noopener"></a></p>
+          <button class="btn secondary" onclick="copy('lnkPoster')">Copy</button>
+        </div>
+      </div>
+      <div class="button-group">
+        <button class="btn" onclick="openConfigPanel()">Configure Display & Sponsors</button>
+        <button class="btn secondary" onclick="openReportPanel()">View Report</button>
       </div>
     </section>
-  </main>
 
-  <div id="overlay" class="loading-overlay"><div class="spinner"></div><p>Working…</p></div>
+    <!-- Display & Sponsors Config (shown on demand) -->
+    <section id="configCard" class="card" style="display:none;">
+      <h2>Display & Sponsors Config</h2>
+
+      <h3>Display Mode</h3>
+      <div class="form-group">
+        <label>Mode</label>
+        <select id="displayMode">
+          <option value="static">Static (mirror Public page)</option>
+          <option value="carousel">Carousel (rotate URLs)</option>
+        </select>
+      </div>
+      <div id="carouselItems" style="display:none;">
+        <h4>Carousel Items</h4>
+        <div id="itemsList"></div>
+        <button class="btn secondary" onclick="addCarouselItem()">Add Item</button>
+      </div>
+
+      <h3>Sponsors</h3>
+      <div id="sponsorsList"></div>
+      <button class="btn secondary" onclick="addSponsor()">Add Sponsor</button>
+
+      <div class="button-group">
+        <button class="btn" onclick="saveConfig()">Save Config</button>
+        <button class="btn secondary" onclick="closeConfigPanel()">Cancel</button>
+      </div>
+    </section>
+
+  </div>
+
+  <div id="overlay"><div class="spinner"></div><p>Working…</p></div>
+  <div id="toast" class="toast" style="display:none;"></div>
 
   <script>
-  const TENANT='<?= tenantId ?>';
-  document.getElementById('form').addEventListener('submit', async (e) => {
-    e.preventDefault(); overlay(true);
-    const payload = {
-      tenantId: TENANT, scope:'events', templateId:'event',
-      adminKey: getAdminKey(TENANT),
-      // Improved idempotency key with better uniqueness guarantee
-      idemKey: crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      data: {
-        name: document.getElementById('name').value.trim(),
-        dateISO: document.getElementById('dateISO').value,
-        signupUrl: document.getElementById('signupUrl').value.trim()
+    const TENANT = '<?= tenantId ?>';
+    const SCOPE = '<?= scope ?>';
+    let currentEventId = null;
+
+    // === Diagnostics ===
+    async function runStatus() {
+      const result = document.getElementById('diagResult');
+      result.style.display = 'block';
+      result.textContent = 'Checking status...';
+      const res = await callApi('api_status');
+      if (res.ok) {
+        result.innerHTML = `<span class="status-ok">✓ OK</span>\n${JSON.stringify(res.value, null, 2)}`;
+      } else {
+        result.innerHTML = `<span class="status-err">✗ FAILED</span>\n${res.message}`;
       }
-    };
-    const res = await NU.rpc('api_create', payload);
-    overlay(false);
-    if (!res.ok){ alert(`${res.code}: ${res.message}`); return; }
-    const { publicUrl, posterUrl } = res.value.links;
-    setLink('lnkPublic', publicUrl); setLink('lnkPoster', posterUrl);
-    document.getElementById('result').style.display='';
-  });
-  document.getElementById('clear').addEventListener('click',()=>{document.getElementById('form').reset();document.getElementById('result').style.display='none';});
-  function setLink(id, url){ const a=document.getElementById(id); a.textContent=url; a.href=url; }
-  function overlay(on){ document.getElementById('overlay').style.display = on?'flex':'none'; }
-  function getAdminKey(tenantId){
-    // Use sessionStorage instead of localStorage for better security (cleared on tab close)
-    const k = sessionStorage.getItem('ADMIN_KEY:'+tenantId) || prompt('Admin key for '+tenantId);
-    if (k) sessionStorage.setItem('ADMIN_KEY:'+tenantId, k);
-    return k||'';
-  }
+    }
+
+    async function runSelfTest() {
+      const result = document.getElementById('diagResult');
+      result.style.display = 'block';
+      result.textContent = 'Running self-test...';
+      overlay(true);
+      const res = await callApi('api_runDiagnostics');
+      overlay(false);
+      if (res.ok && res.value.ok) {
+        result.innerHTML = `<span class="status-ok">✓ ALL CHECKS PASSED</span>\n${JSON.stringify(res.value, null, 2)}`;
+      } else {
+        result.innerHTML = `<span class="status-err">✗ SOME CHECKS FAILED</span>\n${JSON.stringify(res.value || res, null, 2)}`;
+      }
+    }
+
+    // === Create Event ===
+    document.getElementById('createForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      overlay(true);
+      const res = await callApi('api_create', {
+        tenantId: TENANT,
+        scope: SCOPE,
+        templateId: 'event',
+        adminKey: getAdminKey(),
+        idemKey: crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        data: {
+          name: document.getElementById('name').value.trim(),
+          dateISO: document.getElementById('dateISO').value,
+          signupUrl: document.getElementById('signupUrl').value.trim()
+        }
+      });
+      overlay(false);
+      if (!res.ok) {
+        toast(`Error: ${res.message}`);
+        return;
+      }
+      currentEventId = res.value.id;
+      const { publicUrl, posterUrl, displayUrl } = res.value.links;
+      setLink('lnkPublic', publicUrl);
+      setLink('lnkDisplay', displayUrl);
+      setLink('lnkPoster', posterUrl);
+      document.getElementById('linksCard').style.display = '';
+      toast('Event created!');
+    });
+
+    function clearForm() {
+      document.getElementById('createForm').reset();
+      document.getElementById('linksCard').style.display = 'none';
+      document.getElementById('configCard').style.display = 'none';
+      currentEventId = null;
+    }
+
+    function setLink(id, url) {
+      const a = document.getElementById(id);
+      a.textContent = url;
+      a.href = url;
+    }
+
+    async function copy(id) {
+      const url = document.getElementById(id).textContent;
+      await navigator.clipboard.writeText(url);
+      toast('Copied!');
+    }
+
+    // === Config Panel ===
+    function openConfigPanel() {
+      if (!currentEventId) {
+        toast('Create an event first');
+        return;
+      }
+      document.getElementById('configCard').style.display = '';
+      loadConfig();
+    }
+
+    function closeConfigPanel() {
+      document.getElementById('configCard').style.display = 'none';
+    }
+
+    async function loadConfig() {
+      overlay(true);
+      const res = await callApi('api_get', { tenantId: TENANT, scope: SCOPE, id: currentEventId });
+      overlay(false);
+      if (!res.ok || !res.value) return;
+
+      const display = res.value.data?.display || {};
+      const sponsors = res.value.data?.sponsors || [];
+
+      document.getElementById('displayMode').value = display.mode || 'static';
+      toggleCarouselItems();
+
+      if (display.items && display.items.length) {
+        renderCarouselItems(display.items);
+      }
+
+      renderSponsors(sponsors);
+    }
+
+    document.getElementById('displayMode').addEventListener('change', toggleCarouselItems);
+
+    function toggleCarouselItems() {
+      const mode = document.getElementById('displayMode').value;
+      document.getElementById('carouselItems').style.display = mode === 'carousel' ? '' : 'none';
+    }
+
+    function renderCarouselItems(items) {
+      const list = document.getElementById('itemsList');
+      list.innerHTML = '';
+      items.forEach((it, i) => {
+        const div = document.createElement('div');
+        div.className = 'form-group';
+        div.innerHTML = `
+          <label>Item ${i + 1}</label>
+          <input type="url" placeholder="URL" value="${it.url || ''}" class="item-url">
+          <input type="number" placeholder="Seconds" value="${it.sec || 12}" min="5" max="300" class="item-sec" style="width:100px;margin-top:4px;">
+        `;
+        list.appendChild(div);
+      });
+    }
+
+    function addCarouselItem() {
+      const list = document.getElementById('itemsList');
+      const div = document.createElement('div');
+      div.className = 'form-group';
+      div.innerHTML = `
+        <label>New Item</label>
+        <input type="url" placeholder="URL" class="item-url">
+        <input type="number" placeholder="Seconds" value="12" min="5" max="300" class="item-sec" style="width:100px;margin-top:4px;">
+      `;
+      list.appendChild(div);
+    }
+
+    function renderSponsors(sponsors) {
+      const list = document.getElementById('sponsorsList');
+      list.innerHTML = '';
+      sponsors.forEach((sp, i) => {
+        const div = document.createElement('div');
+        div.className = 'event-card';
+        div.style.marginBottom = '12px';
+        div.innerHTML = `
+          <h4>Sponsor ${i + 1}</h4>
+          <input type="text" placeholder="Name" value="${sp.name || ''}" class="sp-name" style="width:100%;margin-bottom:4px;">
+          <input type="url" placeholder="URL" value="${sp.url || ''}" class="sp-url" style="width:100%;margin-bottom:4px;">
+          <input type="url" placeholder="Image URL" value="${sp.img || ''}" class="sp-img" style="width:100%;margin-bottom:8px;">
+          <label><input type="checkbox" class="sp-posterTop" ${sp.placements?.posterTop ? 'checked' : ''}> Poster Top</label><br>
+          <label><input type="checkbox" class="sp-tvTop" ${sp.placements?.tvTop ? 'checked' : ''}> TV Top</label><br>
+          <label><input type="checkbox" class="sp-tvSide" ${sp.placements?.tvSide ? 'checked' : ''}> TV Side</label><br>
+          <label><input type="checkbox" class="sp-mobileBanner" ${sp.placements?.mobileBanner ? 'checked' : ''}> Mobile Banner</label>
+        `;
+        list.appendChild(div);
+      });
+    }
+
+    function addSponsor() {
+      const list = document.getElementById('sponsorsList');
+      const div = document.createElement('div');
+      div.className = 'event-card';
+      div.style.marginBottom = '12px';
+      div.innerHTML = `
+        <h4>New Sponsor</h4>
+        <input type="text" placeholder="Name" class="sp-name" style="width:100%;margin-bottom:4px;">
+        <input type="url" placeholder="URL" class="sp-url" style="width:100%;margin-bottom:4px;">
+        <input type="url" placeholder="Image URL" class="sp-img" style="width:100%;margin-bottom:8px;">
+        <label><input type="checkbox" class="sp-posterTop"> Poster Top</label><br>
+        <label><input type="checkbox" class="sp-tvTop"> TV Top</label><br>
+        <label><input type="checkbox" class="sp-tvSide"> TV Side</label><br>
+        <label><input type="checkbox" class="sp-mobileBanner"> Mobile Banner</label>
+      `;
+      list.appendChild(div);
+    }
+
+    async function saveConfig() {
+      if (!currentEventId) return;
+
+      const mode = document.getElementById('displayMode').value;
+      const items = [];
+      if (mode === 'carousel') {
+        document.querySelectorAll('#itemsList .form-group').forEach(row => {
+          const url = row.querySelector('.item-url').value.trim();
+          const sec = Number(row.querySelector('.item-sec').value || 12);
+          if (url) items.push({ url, sec });
+        });
+      }
+
+      const sponsors = [];
+      document.querySelectorAll('#sponsorsList .event-card').forEach(row => {
+        const name = row.querySelector('.sp-name').value.trim();
+        const url = row.querySelector('.sp-url').value.trim();
+        const img = row.querySelector('.sp-img').value.trim();
+        if (!name) return;
+        sponsors.push({
+          id: Utilities?.getUuid?.() || `sp-${Date.now()}`,
+          name,
+          url,
+          img,
+          placements: {
+            posterTop: row.querySelector('.sp-posterTop').checked,
+            tvTop: row.querySelector('.sp-tvTop').checked,
+            tvSide: row.querySelector('.sp-tvSide').checked,
+            mobileBanner: row.querySelector('.sp-mobileBanner').checked
+          }
+        });
+      });
+
+      overlay(true);
+      const res = await callApi('api_updateEventData', {
+        tenantId: TENANT,
+        scope: SCOPE,
+        id: currentEventId,
+        adminKey: getAdminKey(),
+        data: { display: { mode, items }, sponsors }
+      });
+      overlay(false);
+
+      if (res.ok) {
+        toast('Config saved!');
+        closeConfigPanel();
+      } else {
+        toast(`Error: ${res.message}`);
+      }
+    }
+
+    // === Report ===
+    async function openReportPanel() {
+      if (!currentEventId) {
+        toast('Create an event first');
+        return;
+      }
+      overlay(true);
+      const res = await callApi('api_exportReport', { id: currentEventId });
+      overlay(false);
+      if (res.ok && res.value.sheetUrl) {
+        window.open(res.value.sheetUrl, '_blank');
+        toast('Report opened in new tab');
+      } else {
+        toast(`Error: ${res.message || 'Could not generate report'}`);
+      }
+    }
+
+    // === Helpers ===
+    function overlay(on) {
+      document.getElementById('overlay').style.display = on ? 'flex' : 'none';
+    }
+
+    function toast(msg) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.style.display = 'block';
+      setTimeout(() => { el.style.display = 'none'; }, 3000);
+    }
+
+    function getAdminKey() {
+      const k = sessionStorage.getItem('ADMIN_KEY:' + TENANT) || prompt('Admin key for ' + TENANT);
+      if (k) sessionStorage.setItem('ADMIN_KEY:' + TENANT, k);
+      return k || '';
+    }
+
+    async function callApi(method, payload) {
+      try {
+        return await new Promise((resolve) => {
+          google.script.run
+            .withSuccessHandler(res => resolve(res))
+            .withFailureHandler(err => resolve({ ok: false, code: 'INTERNAL', message: String(err) }))
+            [method](payload);
+        });
+      } catch (e) {
+        return { ok: false, code: 'INTERNAL', message: String(e) };
+      }
+    }
   </script>
 </body>
 </html>

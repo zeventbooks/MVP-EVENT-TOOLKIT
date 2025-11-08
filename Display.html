@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html>
 <head>
@@ -8,80 +7,222 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <style>
     :root { --tv-pad: 12px; --side-w: 320px; }
-    body[data-tv="1"] { background:#111; color:#eee; font-size: clamp(18px, 2.6vw, 28px); }
+    body[data-tv="1"] {
+      background:#111; color:#eee;
+      font-size: clamp(20px, 2.8vw, 32px); /* Legible at 10-12ft */
+      line-height:1.5;
+    }
     [hidden] { display:none !important; }
-    main#tv { display:grid; grid-template-columns: 1fr; grid-template-rows: auto 1fr; height:100vh; }
-    main#tv.has-side { grid-template-columns: 1fr var(--side-w); grid-template-rows: auto 1fr; }
-    .sponsor-top { grid-column: 1 / -1; grid-row:1; padding: var(--tv-pad); text-align:center; font-weight:600; opacity:.95; }
-    .sponsor-top img { max-height:56px; vertical-align:middle; margin:0 .75rem; }
+    main#tv {
+      display:grid; grid-template-columns: 1fr; grid-template-rows: auto 1fr; height:100vh;
+    }
+    main#tv.has-side {
+      grid-template-columns: 1fr var(--side-w); grid-template-rows: auto 1fr;
+    }
+    .sponsor-top {
+      grid-column: 1 / -1; grid-row:1;
+      padding: var(--tv-pad); text-align:center; font-weight:600; opacity:.95;
+      background:#0b0b0b; border-bottom:1px solid #222;
+    }
+    .sponsor-top img { max-height:64px; vertical-align:middle; margin:0 1rem; }
     .stage { position:relative; grid-column:1; grid-row:2; }
-    iframe#stage { position:absolute; inset:0; width:100%; height:100%; border:0; background:#000; }
-    aside#sponsorSide { grid-column:2; grid-row:2; padding: var(--tv-pad); overflow:auto; background:#0b0b0b; display:flex; flex-direction:column; gap:12px; border-left: 1px solid #222; }
-    .sp-card { display:flex; align-items:center; gap:10px; background:#161616; padding:8px; border-radius:10px; }
-    .sp-card img { max-height:48px; max-width:120px; object-fit:contain; }
-    .sp-name { font-weight:600; }
-    .toast { position:fixed; right:16px; bottom:12px; background:#000a; color:#fff; padding:8px 12px; border-radius:8px; font-size:.9em; z-index:9 }
+    iframe#stage {
+      position:absolute; inset:0; width:100%; height:100%; border:0; background:#000;
+    }
+    .fallback-card {
+      position:absolute; inset:0; display:flex; flex-direction:column;
+      align-items:center; justify-content:center; background:#1a1a1a;
+      text-align:center; padding:40px;
+    }
+    .fallback-card h2 { margin:0 0 16px; color:#f59e0b; font-size:1.8em; }
+    .fallback-card p { color:#9ca3af; font-size:1.1em; margin:8px 0; }
+    aside#sponsorSide {
+      grid-column:2; grid-row:2; padding: var(--tv-pad); overflow:auto;
+      background:#0b0b0b; display:flex; flex-direction:column; gap:12px;
+      border-left: 1px solid #222;
+    }
+    .sp-card {
+      display:flex; align-items:center; gap:12px; background:#161616;
+      padding:12px; border-radius:10px;
+    }
+    .sp-card img { max-height:56px; max-width:140px; object-fit:contain; }
+    .sp-name { font-weight:600; font-size:1em; }
+    .toast {
+      position:fixed; right:16px; bottom:12px; background:#000c; color:#fff;
+      padding:10px 14px; border-radius:10px; font-size:.85em; z-index:9;
+    }
   </style>
 </head>
 <body data-tv="1">
   <main id="tv">
     <div class="sponsor-top" id="sponsorTop" hidden></div>
-    <div class="stage"><iframe id="stage" allow="autoplay; fullscreen"></iframe></div>
+    <div class="stage">
+      <iframe id="stage" allow="autoplay; fullscreen" sandbox="allow-scripts allow-same-origin allow-popups allow-forms"></iframe>
+      <div id="fallback" class="fallback-card" hidden>
+        <h2>⚠ Content Unavailable</h2>
+        <p id="fallbackMsg">This source cannot be embedded.</p>
+        <p class="muted">Switching to next item...</p>
+      </div>
+    </div>
     <aside id="sponsorSide" hidden></aside>
   </main>
   <div class="toast" id="toast" hidden></div>
+
   <script>
     const qs = new URLSearchParams(location.search);
     const eventId = qs.get('event') || qs.get('id') || '';
+    const tenantId = qs.get('tenant') || '<?= tenantId ?>';
     const stage = document.getElementById('stage');
+    const fallback = document.getElementById('fallback');
     const topEl = document.getElementById('sponsorTop');
     const sideEl = document.getElementById('sponsorSide');
     const mainEl = document.getElementById('tv');
     const toast = document.getElementById('toast');
-    const showToast = (msg, ms=2000) => { toast.textContent = msg; toast.hidden = false; clearTimeout(showToast._t); showToast._t = setTimeout(()=> toast.hidden = true, ms); };
 
-    function renderSponsorTop(ev){
+    const showToast = (msg, ms=2500) => {
+      toast.textContent = msg; toast.hidden = false;
+      clearTimeout(showToast._t);
+      showToast._t = setTimeout(() => toast.hidden = true, ms);
+    };
+
+    const logBatch = [];
+    function logEvent(evt) {
+      try {
+        evt.ua = navigator.userAgent;
+        evt.ts = Date.now();
+        logBatch.push(evt);
+        if (logBatch.length >= 5) flush();
+      } catch(_) {}
+    }
+    function flush() {
+      if (!logBatch.length) return;
+      const copy = logBatch.splice(0, logBatch.length);
+      if (google?.script?.run) {
+        google.script.run.withFailureHandler(() => {}).api_logEvents({ items: copy });
+      }
+    }
+    setInterval(flush, 6000);
+    window.addEventListener('beforeunload', flush);
+
+    function renderSponsorTop(ev) {
       const picks = (ev?.data?.sponsors || []).filter(s => s?.placements?.tvTop);
       if (!picks.length) return;
-      topEl.innerHTML = picks.map(s => s.img ? `<img src="${s.img}" alt="${s.name||''}">` : `<strong>${s.name||''}</strong>`).join('');
+      topEl.innerHTML = picks.map(s => s.img
+        ? `<img src="${s.img}" alt="${s.name || ''}">`
+        : `<strong>${s.name || ''}</strong>`
+      ).join('');
       topEl.hidden = false;
-      try { const items = picks.map(s => ({eventId, surface:'display', metric:'impression', sponsorId: s.id||''})); google?.script?.run?.withFailureHandler(()=>{}).api_logEvents({items}); } catch (_) {}
+      picks.forEach(s => logEvent({ eventId, surface: 'display', metric: 'impression', sponsorId: s.id || '' }));
     }
-    function renderSponsorSide(ev){
+
+    function renderSponsorSide(ev) {
       const picks = (ev?.data?.sponsors || []).filter(s => s?.placements?.tvSide);
       if (!picks.length) return;
-      sideEl.innerHTML = picks.map(s => `<div class="sp-card" data-id="${s.id||''}">${s.img ? `<img src="${s.img}" alt="${s.name||''}">` : ''}<div class="sp-name">${s.name||''}</div></div>`).join('');
-      sideEl.hidden = false; mainEl.classList.add('has-side');
-      try { const items = picks.map(s => ({eventId, surface:'display', metric:'impression', sponsorId: s.id||''})); google?.script?.run?.withFailureHandler(()=>{}).api_logEvents({items}); } catch (_) {}
+      sideEl.innerHTML = picks.map(s => `
+        <div class="sp-card" data-id="${s.id || ''}">
+          ${s.img ? `<img src="${s.img}" alt="${s.name || ''}">` : ''}
+          <div class="sp-name">${s.name || ''}</div>
+        </div>
+      `).join('');
+      sideEl.hidden = false;
+      mainEl.classList.add('has-side');
+      picks.forEach(s => logEvent({ eventId, surface: 'display', metric: 'impression', sponsorId: s.id || '' }));
     }
-    function startStatic(){
+
+    function startStatic() {
       const base = location.origin + location.pathname;
-      const tvPublicUrl = `${base}?p=public&event=${encodeURIComponent(eventId)}&tv=1`; 
-      stage.src = tvPublicUrl; showToast('TV: Static');
+      const tvPublicUrl = `${base}?p=public&tenant=${encodeURIComponent(tenantId)}&id=${encodeURIComponent(eventId)}&tv=1`;
+      loadIframe(tvPublicUrl);
+      showToast('TV: Static mode');
     }
-    function startCarousel(items){
+
+    function loadIframe(url, onFail) {
+      fallback.hidden = true;
+      stage.hidden = false;
+      stage.src = url;
+
+      // Detect iframe load errors (blocked embed, 404, etc.)
+      let loaded = false;
+      const checkLoad = () => {
+        try {
+          // If same-origin, we can check; if cross-origin with errors, this will fail
+          const doc = stage.contentDocument || stage.contentWindow?.document;
+          if (doc && doc.readyState === 'complete') loaded = true;
+        } catch (_) {
+          // Cross-origin, assume it's loading unless we timeout
+        }
+      };
+
+      stage.onload = () => { loaded = true; checkLoad(); };
+      stage.onerror = () => {
+        showFallback(url);
+        if (onFail) onFail();
+      };
+
+      // Fallback timeout: if not loaded in 4s, assume blocked
+      setTimeout(() => {
+        if (!loaded) {
+          showFallback(url);
+          if (onFail) onFail();
+        }
+      }, 4000);
+    }
+
+    function showFallback(url) {
+      stage.hidden = true;
+      fallback.hidden = false;
+      document.getElementById('fallbackMsg').textContent = `Cannot embed: ${url.slice(0, 60)}...`;
+      logEvent({ eventId, surface: 'display', metric: 'blocked_embed', value: 1 });
+    }
+
+    function startCarousel(items) {
       if (!items || !items.length) return startStatic();
       let idx = -1;
+
       const next = () => {
         idx = (idx + 1) % items.length;
         const it = items[idx] || {};
         const url = String(it.url || '').trim();
-        const sec = Math.max(5, Number(it.sec || it.seconds || 12));
-        if (!url) return setTimeout(next, 100);
-        stage.src = url; showToast(`TV: Carousel ${idx+1}/${items.length} · ${sec}s`);
-        try { google?.script?.run?.withFailureHandler(()=>{}).api_logEvents({ items: [{eventId, surface:'display', metric:'dwellSec', value: sec}] }); } catch (_) {}
-        startCarousel._t && clearTimeout(startCarousel._t); startCarousel._t = setTimeout(next, sec * 1000);
+        const sec = Math.max(5, Number(it.sec || it.seconds || it.duration || 12));
+        if (!url) return setTimeout(next, 200);
+
+        showToast(`TV: Carousel ${idx + 1}/${items.length} · ${sec}s`);
+
+        logEvent({ eventId, surface: 'display', metric: 'impression' });
+        logEvent({ eventId, surface: 'display', metric: 'dwellSec', value: sec });
+
+        loadIframe(url, () => {
+          // If blocked, skip to next after 3s
+          setTimeout(next, 3000);
+        });
+
+        clearTimeout(startCarousel._t);
+        startCarousel._t = setTimeout(next, sec * 1000);
       };
       next();
     }
-    function boot(){
+
+    function boot() {
       if (!eventId || !google?.script?.run) return startStatic();
-      google.script.run.withSuccessHandler(res => {
-        const ev = res?.value || {}; const d  = ev?.data?.display || {};
-        renderSponsorTop(ev); renderSponsorSide(ev);
-        (String(d.mode||'') === 'carousel' && Array.isArray(d.items) && d.items.length) ? startCarousel(d.items) : startStatic();
-      }).withFailureHandler(() => startStatic()).api_get({ id: eventId });
+
+      google.script.run
+        .withSuccessHandler(res => {
+          const ev = res?.value || {};
+          const d = ev?.data?.display || {};
+
+          renderSponsorTop(ev);
+          renderSponsorSide(ev);
+
+          if (String(d.mode || '') === 'carousel' && Array.isArray(d.items) && d.items.length) {
+            startCarousel(d.items);
+          } else {
+            startStatic();
+          }
+        })
+        .withFailureHandler(() => startStatic())
+        .api_get({ tenantId, scope: 'events', id: eventId });
     }
+
     boot();
   </script>
 </body>
