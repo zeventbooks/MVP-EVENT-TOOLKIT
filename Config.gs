@@ -15,6 +15,62 @@ const FEATURES = Object.freeze({
   multiTenant: false   // 🔒 Post-MVP (single tenant for now)
 });
 
+// === Database Configuration ===
+// OPTION 1: Paste your spreadsheet ID here (recommended for production)
+const DB_SPREADSHEET_ID = ''; // Leave empty to auto-create on first run
+
+// OPTION 2: Auto-create will happen on first API call if DB_SPREADSHEET_ID is empty
+function getOrCreateDatabase_() {
+  // Try user-provided ID first
+  if (DB_SPREADSHEET_ID) {
+    try {
+      return SpreadsheetApp.openById(DB_SPREADSHEET_ID).getId();
+    } catch(e) {
+      throw new Error(`Cannot open spreadsheet ${DB_SPREADSHEET_ID}: ${e.message}`);
+    }
+  }
+
+  // Try script properties (persistent storage)
+  const props = PropertiesService.getScriptProperties();
+  let ssId = props.getProperty('DB_SPREADSHEET_ID');
+
+  if (ssId) {
+    try {
+      SpreadsheetApp.openById(ssId); // Verify it still exists
+      return ssId;
+    } catch(e) {
+      // Spreadsheet was deleted, create new one
+      props.deleteProperty('DB_SPREADSHEET_ID');
+      ssId = null;
+    }
+  }
+
+  // Create new spreadsheet
+  const ss = SpreadsheetApp.create(ZEB.DB_NAME + ' - Database');
+  ssId = ss.getId();
+  props.setProperty('DB_SPREADSHEET_ID', ssId);
+
+  // Add instructions sheet
+  const sheet = ss.getSheets()[0];
+  sheet.setName('README');
+  sheet.appendRow(['Zeventbook Database']);
+  sheet.appendRow([]);
+  sheet.appendRow(['This spreadsheet stores all your event data.']);
+  sheet.appendRow(['Spreadsheet ID:', ssId]);
+  sheet.appendRow(['Created:', new Date().toISOString()]);
+  sheet.appendRow([]);
+  sheet.appendRow(['Data sheets will be created automatically:']);
+  sheet.appendRow(['- EVENTS: Event records']);
+  sheet.appendRow(['- SPONSORS: Sponsor placements']);
+  sheet.appendRow(['- DISPLAY_CONFIG: TV carousel settings']);
+  sheet.appendRow(['- FORMS: Form URLs']);
+  sheet.appendRow(['- LINKS: Shortlink tokens']);
+  sheet.appendRow(['- ANALYTICS: Tracking data']);
+  sheet.appendRow(['- DIAG: Diagnostic logs']);
+
+  return ssId;
+}
+
 // Tenants (MVP: single root tenant; future: add abc, cbc, cbl)
 const TENANTS = [
   {
@@ -22,7 +78,7 @@ const TENANTS = [
     name: 'Zeventbook',
     hostnames: ['zeventbooks.com', 'www.zeventbooks.com'],
     adminSecret: 'CHANGE_ME_root',
-    store: { type: 'workbook', spreadsheetId: SpreadsheetApp.getActive().getId() },
+    store: { type: 'workbook', get spreadsheetId() { return getOrCreateDatabase_(); } },
     scopesAllowed: ['events', 'leagues', 'tournaments'], // Ready for all, but FEATURES gate them
     isActive: true
   }
@@ -32,7 +88,7 @@ const TENANTS = [
   //   name: 'American Bocce Co.',
   //   hostnames: ['americanbocceco.zeventbooks.com'],
   //   adminSecret: 'CHANGE_ME_abc',
-  //   store: { type: 'workbook', spreadsheetId: SpreadsheetApp.getActive().getId() },
+  //   store: { type: 'workbook', get spreadsheetId() { return getOrCreateDatabase_(); } },
   //   scopesAllowed: ['leagues', 'tournaments'],
   //   isActive: false
   // },
@@ -41,7 +97,7 @@ const TENANTS = [
   //   name: 'Chicago Bocce Club',
   //   hostnames: ['chicagobocceclub.zeventbooks.com'],
   //   adminSecret: 'CHANGE_ME_cbc',
-  //   store: { type: 'workbook', spreadsheetId: SpreadsheetApp.getActive().getId() },
+  //   store: { type: 'workbook', get spreadsheetId() { return getOrCreateDatabase_(); } },
   //   scopesAllowed: ['events', 'leagues'],
   //   isActive: false
   // },
@@ -50,7 +106,7 @@ const TENANTS = [
   //   name: 'Chicago Bocce League',
   //   hostnames: ['chicagobocceleague.zeventbooks.com'],
   //   adminSecret: 'CHANGE_ME_cbl',
-  //   store: { type: 'workbook', spreadsheetId: SpreadsheetApp.getActive().getId() },
+  //   store: { type: 'workbook', get spreadsheetId() { return getOrCreateDatabase_(); } },
   //   scopesAllowed: ['events', 'tournaments'],
   //   isLeague: true, // Special: this tenant IS a league
   //   affiliatedWith: 'abc', // Relationship tracking
