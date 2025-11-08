@@ -405,54 +405,12 @@
     .qr-grid {
       break-inside: avoid;
     }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
   }
 </style>
-
-/* --- MVP Fix Pack ------------------------------------------------------ */
-
-/* 1) Stack form rows on small screens */
-@media (max-width: 768px) {
-  .form-row {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* 2) Consistent, accessible focus for interactive elements */
-.btn-primary:focus-visible,
-.btn-secondary:focus-visible,
-.tab-button:focus-visible,
-a:focus-visible,
-.close:focus-visible {
-  outline: 2px solid #2563eb;
-  outline-offset: 2px;
-}
-
-/* 3) Respect reduced motion for spinner and transitions */
-@media (prefers-reduced-motion: reduce) {
-  .spinner {
-    animation: none;
-  }
-  * {
-    transition: none !important;
-    scroll-behavior: auto;
-  }
-}
-
-/* 4) Optional: slightly stronger hover contrast for primary button */
-.btn-primary:hover {
-  filter: brightness(0.95);
-}
-
-/* 5) Fix minor typo (safety re-declare) */
-.event-card p {
-  margin-bottom: 8px;
-}
-
-/* 6) If you want the .header class to matter, mirror element styles */
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 12px;
-  margin-bottom: 20px;
-}

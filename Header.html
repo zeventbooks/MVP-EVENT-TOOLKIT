@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (!root) return;
   const h = document.createElement('header');
   h.className = 'header';
-  h.innerHTML = `<h1 id="app-title"><?= appTitle ?></h1><small id="build">BUILD: <?= BUILD_ID ?></small>`;
+  h.innerHTML = `<h1 id="app-title"><?= appTitle ?></h1><small id="build">BUILD: <?= ZEB.BUILD_ID ?></small>`;
   root.prepend(h);
 });
 </script>

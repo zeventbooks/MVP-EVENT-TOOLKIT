@@ -41,7 +41,8 @@
     const payload = {
       tenantId: TENANT, scope:'events', templateId:'event',
       adminKey: getAdminKey(TENANT),
-      idemKey: (crypto.randomUUID?.() || String(Date.now())),
+      // Improved idempotency key with better uniqueness guarantee
+      idemKey: crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       data: {
         name: document.getElementById('name').value.trim(),
         dateISO: document.getElementById('dateISO').value,
@@ -59,8 +60,9 @@
   function setLink(id, url){ const a=document.getElementById(id); a.textContent=url; a.href=url; }
   function overlay(on){ document.getElementById('overlay').style.display = on?'flex':'none'; }
   function getAdminKey(tenantId){
-    const k = localStorage.getItem('ADMIN_KEY:'+tenantId) || prompt('Admin key for '+tenantId);
-    if (k) localStorage.setItem('ADMIN_KEY:'+tenantId, k);
+    // Use sessionStorage instead of localStorage for better security (cleared on tab close)
+    const k = sessionStorage.getItem('ADMIN_KEY:'+tenantId) || prompt('Admin key for '+tenantId);
+    if (k) sessionStorage.setItem('ADMIN_KEY:'+tenantId, k);
     return k||'';
   }
   </script>

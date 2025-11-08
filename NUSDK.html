@@ -19,6 +19,20 @@ window.NU = {
         onUpdate && onUpdate(res.value);
       }
     });
+  },
+  /**
+   * Escapes HTML special characters to prevent XSS
+   * @param {string} s - String to escape
+   * @return {string} HTML-safe string
+   */
+  esc(s) {
+    return String(s).replace(/[&<>"']/g, m => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    }[m]));
   }
 };
 </script>
