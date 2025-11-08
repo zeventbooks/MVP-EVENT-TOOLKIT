@@ -41,9 +41,17 @@
         <h2>Create Event</h2>
         <form id="form-event">
           <div class="form-group">
-            <label>Event Name *</label>
-            <input id="name" type="text" required placeholder="Annual Bocce Tournament">
+            <label>Event Type *</label>
+            <select id="event-template" required>
+              <option value="">Choose event type...</option>
+            </select>
           </div>
+
+          <div id="event-fields-container">
+            <div class="form-group">
+              <label>Event Name *</label>
+              <input id="name" type="text" required placeholder="Annual Bocce Tournament">
+            </div>
 
           <div class="form-row">
             <div class="form-group">
@@ -212,8 +220,11 @@
   // === EVENTS TAB ===
   document.getElementById('form-event').addEventListener('submit', async (e) => {
     e.preventDefault(); overlay(true);
+    const templateId = document.getElementById('event-template').value || 'event';
+
+    // Collect all field values (unused fields will just be empty strings)
     const payload = {
-      tenantId: TENANT, scope: 'events', templateId: 'event',
+      tenantId: TENANT, scope: 'events', templateId,
       adminKey: getAdminKey(TENANT),
       idemKey: (crypto.randomUUID?.() || String(Date.now())),
       data: {
@@ -522,8 +533,25 @@
     return k || '';
   }
 
-  // Load events for sponsor dropdown on page load
+  // Load templates for event type selector
+  async function loadTemplates() {
+    const res = await NU.rpc('api_getConfig', {});
+    if (res.ok && res.value) {
+      const eventTemplates = res.value.templates.filter(t =>
+        t.id.startsWith('event') || t.id === 'league' || t.id === 'tournament'
+      );
+      const select = document.getElementById('event-template');
+      select.innerHTML = '<option value="">Choose event type...</option>' +
+        eventTemplates.map(t => `<option value="${t.id}">${t.label}</option>`).join('');
+
+      // Set default to 'event'
+      select.value = 'event';
+    }
+  }
+
+  // Load events for sponsor dropdown and templates on page load
   loadEventsForSponsors();
+  loadTemplates();
   </script>
 </body>
 </html>
