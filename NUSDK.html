@@ -1,0 +1,24 @@
+<script>
+window.NU = {
+  rpc(method, payload) {
+    return new Promise((resolve) => {
+      google.script.run
+        .withSuccessHandler(res => resolve(res))
+        .withFailureHandler(err => resolve({ ok:false, code:'INTERNAL', message:String(err) }))
+        [method](payload);
+    });
+  },
+  swr(method, payload, { staleMs=120000, onUpdate } = {}) {
+    const key = `swr:${method}:${JSON.stringify(payload||{})}`;
+    const cached = JSON.parse(localStorage.getItem(key) || '{}');
+    if (cached.data) setTimeout(() => onUpdate && onUpdate(cached.data), 0);
+    NU.rpc(method, { ...(payload||{}), ifNoneMatch: cached.etag }).then(res => {
+      if (res && res.notModified) return;
+      if (res && res.ok && res.value){
+        localStorage.setItem(key, JSON.stringify({ etag: res.etag, data: res.value, t: Date.now() }));
+        onUpdate && onUpdate(res.value);
+      }
+    });
+  }
+};
+</script>

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title><?= appTitle ?> · Test</title>
+  <?!= include('Header'); ?>
+  <?!= include('NUSDK'); ?>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+</head>
+<body>
+  <main id="app" class="container">
+    <section class="card">
+      <h2>Health & Contracts</h2>
+      <div id="out" class="events-grid"></div>
+    </section>
+  </main>
+  <script>
+  (async () => {
+    add('Health alive', (await NU.rpc('api_healthCheck'))?.ok===true);
+
+    // SWR: two calls; second should notModified
+    const cfg1 = await NU.rpc('api_getConfig', {});
+    const cfg2 = await NU.rpc('api_getConfig', { ifNoneMatch: cfg1.etag });
+    add('SWR notModified', cfg2 && cfg2.notModified === true);
+
+    // Flags: leagues blocked in MVP
+    const blocked = await NU.rpc('api_list', { tenantId:'<?= tenantId ?>', scope:'leagues' });
+    add('Leagues blocked (MVP)', blocked?.ok===false && blocked.code==='BAD_INPUT');
+  })();
+
+  function add(label, pass){
+    const out=document.getElementById('out');
+    const d=document.createElement('div'); d.className='event-card';
+    d.innerHTML = `<h3>${pass?'✅':'❌'} ${label}</h3>`;
+    out.appendChild(d);
+  }
+  </script>
+</body>
+</html>

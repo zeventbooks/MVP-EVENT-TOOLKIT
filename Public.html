@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title><?= appTitle ?> · Public</title>
+  <?!= include('Header'); ?>
+  <?!= include('NUSDK'); ?>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+</head>
+<body>
+  <main id="app" class="container">
+    <section class="card">
+      <h2>Events</h2>
+      <div id="list" class="events-grid"></div>
+    </section>
+  </main>
+  <script>
+  const TENANT='<?= tenantId ?>', SCOPE='events';
+  const url = new URL(location.href);
+  const ID = url.searchParams.get('id');
+
+  if (ID) {
+    NU.swr('api_get', { tenantId:TENANT, scope:SCOPE, id:ID }, { staleMs:60000, onUpdate: renderDetail });
+  } else {
+    NU.swr('api_list', { tenantId:TENANT, scope:SCOPE }, { staleMs:60000, onUpdate: ({items}) => renderList(items||[]) });
+  }
+
+  function renderList(items){
+    const root=document.getElementById('list'); root.innerHTML='';
+    for (const ev of items){
+      const d=document.createElement('div'); d.className='event-card';
+      d.innerHTML = `
+        <h3>${esc(ev.data?.name||'(untitled)')}</h3>
+        <p>${esc(ev.data?.dateISO||'')}</p>
+        <div class="button-group">
+          <a class="btn-secondary" href="<?= execUrl ?>?p=events&tenant=<?= tenantId ?>&id=${ev.id}">Open</a>
+        </div>`;
+      root.appendChild(d);
+    }
+  }
+  function renderDetail(evt){
+    const root=document.getElementById('list'); root.innerHTML='';
+    const d=document.createElement('div'); d.className='event-card';
+    d.innerHTML = `
+      <h3>${esc(evt.data?.name||'(untitled)')}</h3>
+      <p>${esc(evt.data?.dateISO||'')}</p>
+      ${evt.data?.signupUrl ? `<p><a class="btn-primary" target="_blank" rel="noopener" href="${esc(evt.data.signupUrl)}">Sign up</a></p>` : ''}
+      <p><a class="btn-secondary" href="<?= execUrl ?>?p=events&tenant=<?= tenantId ?>">Back</a></p>`;
+    root.appendChild(d);
+  }
+  function esc(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
+  </script>
+</body>
+</html>

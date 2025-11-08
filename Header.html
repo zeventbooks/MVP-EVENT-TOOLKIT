@@ -1,0 +1,12 @@
+<?!= include('Styles'); ?>
+<?!= include('DesignAdapter'); ?>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const root = document.getElementById('app');
+  if (!root) return;
+  const h = document.createElement('header');
+  h.className = 'header';
+  h.innerHTML = `<h1 id="app-title"><?= appTitle ?></h1><small id="build">BUILD: <?= BUILD_ID ?></small>`;
+  root.prepend(h);
+});
+</script>

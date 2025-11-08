@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title><?= appTitle ?> · Admin</title>
+  <?!= include('Header'); ?>
+  <?!= include('NUSDK'); ?>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+</head>
+<body>
+  <main id="app" class="container">
+    <section class="card">
+      <h2>Create Event</h2>
+      <form id="form">
+        <div class="form-group"><label>Name</label><input id="name" type="text" required></div>
+        <div class="form-row">
+          <div class="form-group"><label>Date</label><input id="dateISO" type="date" required></div>
+          <div class="form-group"><label>Signup URL (optional)</label><input id="signupUrl" type="url"></div>
+        </div>
+        <div class="button-group">
+          <button class="btn-primary" type="submit">Create</button>
+          <button id="clear" class="btn-secondary" type="button">Clear</button>
+        </div>
+      </form>
+    </section>
+    <section id="result" class="card" style="display:none;">
+      <h2>Links</h2>
+      <div class="events-grid">
+        <div class="event-card"><h3>Public</h3><p><a id="lnkPublic" target="_blank" rel="noopener"></a></p></div>
+        <div class="event-card"><h3>Poster</h3><p><a id="lnkPoster" target="_blank" rel="noopener"></a></p></div>
+      </div>
+    </section>
+  </main>
+
+  <div id="overlay" class="loading-overlay"><div class="spinner"></div><p>Working…</p></div>
+
+  <script>
+  const TENANT='<?= tenantId ?>';
+  document.getElementById('form').addEventListener('submit', async (e) => {
+    e.preventDefault(); overlay(true);
+    const payload = {
+      tenantId: TENANT, scope:'events', templateId:'event',
+      adminKey: getAdminKey(TENANT),
+      idemKey: (crypto.randomUUID?.() || String(Date.now())),
+      data: {
+        name: document.getElementById('name').value.trim(),
+        dateISO: document.getElementById('dateISO').value,
+        signupUrl: document.getElementById('signupUrl').value.trim()
+      }
+    };
+    const res = await NU.rpc('api_create', payload);
+    overlay(false);
+    if (!res.ok){ alert(`${res.code}: ${res.message}`); return; }
+    const { publicUrl, posterUrl } = res.value.links;
+    setLink('lnkPublic', publicUrl); setLink('lnkPoster', posterUrl);
+    document.getElementById('result').style.display='';
+  });
+  document.getElementById('clear').addEventListener('click',()=>{document.getElementById('form').reset();document.getElementById('result').style.display='none';});
+  function setLink(id, url){ const a=document.getElementById(id); a.textContent=url; a.href=url; }
+  function overlay(on){ document.getElementById('overlay').style.display = on?'flex':'none'; }
+  function getAdminKey(tenantId){
+    const k = localStorage.getItem('ADMIN_KEY:'+tenantId) || prompt('Admin key for '+tenantId);
+    if (k) localStorage.setItem('ADMIN_KEY:'+tenantId, k);
+    return k||'';
+  }
+  </script>
+</body>
+</html>
