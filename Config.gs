@@ -9,10 +9,10 @@ const ZEB = Object.freeze({
 
 // === Feature Flags (master control for progressive rollout) ===
 const FEATURES = Object.freeze({
-  events: true,        // ✅ ENABLED for MVP launch
-  leagues: false,      // 🔒 Post-MVP (Phase 2)
-  tournaments: false,  // 🔒 Post-MVP (Phase 2)
-  multiTenant: false   // 🔒 Post-MVP (single tenant for now)
+  events: true,        // ENABLED for MVP launch
+  leagues: false,      // Post-MVP (Phase 2)
+  tournaments: false,  // Post-MVP (Phase 2)
+  multiTenant: false   // Post-MVP (single tenant for now)
 });
 
 // === Database Configuration ===
