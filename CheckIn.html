@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title><?= appTitle ?> · Check-In</title>
+  <?!= include('Header'); ?>
+  <?!= include('NUSDK'); ?>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+  <style>
+    .search-box { max-width: 600px; margin: 2rem auto; }
+    .search-box input { width: 100%; padding: 1rem; font-size: 1.1rem; }
+    .attendee-result { padding: 1.5rem; background: #f8f9fa; border-radius: 8px; margin: 1rem 0; }
+    .attendee-result h3 { margin: 0 0 0.5rem 0; }
+    .status-badge { display: inline-block; padding: 0.5rem 1rem; border-radius: 4px; font-weight: bold; margin-top: 1rem; }
+    .status-checked-in { background: #d4edda; color: #155724; }
+    .status-not-checked-in { background: #fff3cd; color: #856404; }
+    .checkin-btn { font-size: 1.2rem; padding: 1rem 2rem; }
+  </style>
+</head>
+<body>
+  <main id="app" class="container">
+    <section class="card">
+      <h1>Event Check-In</h1>
+      <p id="event-name" style="color: #666; font-size: 1.1rem;"></p>
+
+      <div class="search-box">
+        <div class="form-group">
+          <label>Search by Name or Email</label>
+          <input id="search" type="text" placeholder="Start typing..." autocomplete="off">
+        </div>
+      </div>
+
+      <div id="results"></div>
+    </section>
+  </main>
+
+  <div id="overlay" class="loading-overlay"><div class="spinner"></div><p>Working…</p></div>
+
+  <script>
+  const TENANT = '<?= tenantId ?>';
+  const qs = new URLSearchParams(location.search);
+  const eventId = qs.get('event') || qs.get('id') || '';
+  let allAttendees = [];
+
+  async function loadEvent() {
+    if (!eventId) {
+      alert('No event specified');
+      return;
+    }
+
+    overlay(true);
+    const res = await NU.rpc('api_get', { tenantId: TENANT, scope: 'events', id: eventId });
+    overlay(false);
+
+    if (!res.ok) {
+      alert('Error loading event');
+      return;
+    }
+
+    document.getElementById('event-name').textContent = res.value.data.name;
+    loadAttendees();
+  }
+
+  async function loadAttendees() {
+    overlay(true);
+    const adminKey = getAdminKey(TENANT);
+    const res = await NU.rpc('api_listAttendees', {
+      tenantId: TENANT,
+      eventId,
+      adminKey
+    });
+    overlay(false);
+
+    if (!res.ok) {
+      alert(`Error: ${res.message}`);
+      return;
+    }
+
+    allAttendees = res.value.items || [];
+    document.getElementById('search').focus();
+  }
+
+  document.getElementById('search').addEventListener('input', (e) => {
+    const query = e.target.value.toLowerCase().trim();
+    if (query.length < 2) {
+      document.getElementById('results').innerHTML = '';
+      return;
+    }
+
+    const matches = allAttendees.filter(a =>
+      a.name.toLowerCase().includes(query) ||
+      a.email.toLowerCase().includes(query)
+    );
+
+    if (matches.length === 0) {
+      document.getElementById('results').innerHTML = '<p style="text-align: center; color: #666;">No matches found</p>';
+      return;
+    }
+
+    document.getElementById('results').innerHTML = matches.map(a => `
+      <div class="attendee-result">
+        <h3>${a.name}</h3>
+        <p>${a.email}${a.phone ? ` • ${a.phone}` : ''}</p>
+        <p style="font-size: 0.9rem; color: #666;">Registered: ${new Date(a.registeredAt).toLocaleString()}</p>
+        ${a.checkedInAt
+          ? `<div class="status-badge status-checked-in">✓ Checked In at ${new Date(a.checkedInAt).toLocaleString()}</div>`
+          : `<button class="btn-primary checkin-btn" onclick="checkIn('${a.id}')">Check In Now</button>`
+        }
+      </div>
+    `).join('');
+  });
+
+  window.checkIn = async function(attendeeId) {
+    overlay(true);
+    const res = await NU.rpc('api_checkInAttendee', {
+      tenantId: TENANT,
+      eventId,
+      attendeeId,
+      adminKey: getAdminKey(TENANT)
+    });
+    overlay(false);
+
+    if (!res.ok) {
+      alert(`Error: ${res.message}`);
+      return;
+    }
+
+    // Reload and search again
+    await loadAttendees();
+    document.getElementById('search').dispatchEvent(new Event('input'));
+  };
+
+  function overlay(on) { document.getElementById('overlay').style.display = on ? 'flex' : 'none'; }
+  function getAdminKey(tenantId) {
+    const k = localStorage.getItem('ADMIN_KEY:' + tenantId) || prompt('Admin key for ' + tenantId);
+    if (k) localStorage.setItem('ADMIN_KEY:' + tenantId, k);
+    return k || '';
+  }
+
+  loadEvent();
+  </script>
+</body>
+</html>

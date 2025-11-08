@@ -43,7 +43,7 @@ function doGet(e){
     return HtmlService.createHtmlOutput(`<meta http-equiv="refresh" content="0;url=?p=${first}&tenant=${tenant.id}">`);
   }
 
-  const page = (pageParam==='admin' || pageParam==='poster' || pageParam==='test' || pageParam==='display') ? pageParam : 'public';
+  const page = (pageParam==='admin' || pageParam==='poster' || pageParam==='test' || pageParam==='display' || pageParam==='checkin') ? pageParam : 'public';
   const tpl = HtmlService.createTemplateFromFile(pageFile_(page));
   tpl.appTitle = `${tenant.name} · ${scope}`;
   tpl.tenantId = tenant.id;
@@ -57,6 +57,7 @@ function pageFile_(page){
   if (page==='poster') return 'Poster';
   if (page==='test')   return 'Test';
   if (page==='display') return 'Display';
+  if (page==='checkin') return 'CheckIn';
   return 'Public';
 }
 
