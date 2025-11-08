@@ -37,13 +37,21 @@ const TENANTS = [
   }
 ];
 
-// Templates (keep tiny for MVP)
+// Templates
 const TEMPLATES = [
-  { id:'event', label:'Event',
+  {
+    id:'event',
+    label:'Event',
     fields:[
-      { id:'name',     type:'text', required:true },
-      { id:'dateISO',  type:'date', required:true },
-      { id:'signupUrl',type:'url',  required:false }
+      { id:'name',        type:'text', required:true },
+      { id:'dateISO',     type:'date', required:true },
+      { id:'location',    type:'text', required:false },
+      { id:'description', type:'text', required:false },
+      { id:'signupUrl',   type:'url',  required:false },
+      { id:'videoUrl',    type:'url',  required:false },
+      { id:'galleryUrls', type:'text', required:false }, // Comma-separated URLs
+      { id:'bioText',     type:'text', required:false },
+      { id:'bioUrl',      type:'url',  required:false }
     ]
   }
 ];
