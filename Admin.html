@@ -17,20 +17,71 @@
     <section class="card">
       <h2>Create Event</h2>
       <form id="createForm">
+        <!-- Core Event Details -->
         <div class="form-group">
-          <label>Event Name</label>
+          <label>Event Name *</label>
           <input id="name" type="text" required>
         </div>
+
         <div class="form-row">
           <div class="form-group">
-            <label>Date</label>
+            <label>Date *</label>
             <input id="dateISO" type="date" required>
           </div>
           <div class="form-group">
-            <label>Signup URL (optional)</label>
-            <input id="signupUrl" type="url">
+            <label>Time</label>
+            <input id="timeISO" type="time">
           </div>
         </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Location</label>
+            <input id="location" type="text" placeholder="Venue name or address">
+          </div>
+          <div class="form-group">
+            <label>Entity</label>
+            <input id="entity" type="text" placeholder="Organization or department">
+          </div>
+        </div>
+
+        <!-- Summary Section -->
+        <h3>Summary</h3>
+        <div class="form-group">
+          <label>Summary</label>
+          <textarea id="summary" placeholder="Brief event description"></textarea>
+        </div>
+        <div class="form-group">
+          <label>Summary Link</label>
+          <input id="summaryLink" type="url" placeholder="https://...">
+        </div>
+
+        <!-- Media Section -->
+        <h3>Media</h3>
+        <div class="form-group">
+          <label>Event Image URL</label>
+          <input id="imageUrl" type="url" placeholder="https://...">
+        </div>
+        <div class="form-group">
+          <label>Video URL</label>
+          <input id="videoUrl" type="url" placeholder="YouTube, Vimeo, etc.">
+        </div>
+        <div class="form-group">
+          <label>Gallery URLs</label>
+          <textarea id="galleryUrls" placeholder="Comma-separated image URLs"></textarea>
+        </div>
+
+        <!-- Bio Section -->
+        <h3>Bio</h3>
+        <div class="form-group">
+          <label>Bio</label>
+          <textarea id="bio" placeholder="Detailed event or organizer bio"></textarea>
+        </div>
+        <div class="form-group">
+          <label>Bio Link</label>
+          <input id="bioLink" type="url" placeholder="https://...">
+        </div>
+
         <div class="button-group">
           <button class="btn-primary" type="submit">Create Event</button>
           <button class="btn-secondary" type="button" onclick="clearForm()">Clear</button>
@@ -68,56 +119,46 @@
       </div>
     </section>
 
-    <!-- Sign Up Cards -->
+    <!-- Sign Up Forms (Compact) -->
     <section id="signupCard" class="card" style="display:none;">
       <h2>Sign-Up Forms Configuration</h2>
+      <p class="muted">Configure Google Forms or other sign-up links for different event phases</p>
 
-      <!-- Pre-Event: Register -->
-      <div class="event-card">
-        <h3>Pre-Event: Registration</h3>
-        <p>Allow users to register before the event</p>
+      <div class="form-row">
+        <!-- Pre-Event: Register -->
         <div class="form-group">
-          <label>Registration Form URL</label>
+          <label><strong>Pre-Event:</strong> Registration</label>
           <input type="url" id="registerUrl" placeholder="https://forms.google.com/...">
+          <small class="muted">Allow users to register before the event</small>
         </div>
-        <button class="btn-secondary" onclick="saveSignupForm('register')">Save</button>
-      </div>
 
-      <!-- Event: Check-in -->
-      <div class="event-card">
-        <h3>During Event: Check-In</h3>
-        <p>Allow attendees to check in when they arrive</p>
+        <!-- Event: Check-in -->
         <div class="form-group">
-          <label>Check-In Form URL</label>
+          <label><strong>During Event:</strong> Check-In</label>
           <input type="url" id="checkinUrl" placeholder="https://forms.google.com/...">
+          <small class="muted">Attendees check in on arrival</small>
         </div>
-        <button class="btn-secondary" onclick="saveSignupForm('checkin')">Save</button>
       </div>
 
-      <!-- Event: Walk-in -->
-      <div class="event-card">
-        <h3>During Event: Walk-In Registration</h3>
-        <p>Allow walk-ins to register on the spot</p>
+      <div class="form-row">
+        <!-- Event: Walk-in -->
         <div class="form-group">
-          <label>Walk-In Form URL</label>
+          <label><strong>During Event:</strong> Walk-In</label>
           <input type="url" id="walkinUrl" placeholder="https://forms.google.com/...">
+          <small class="muted">Walk-ins register on the spot</small>
         </div>
-        <button class="btn-secondary" onclick="saveSignupForm('walkin')">Save</button>
-      </div>
 
-      <!-- Post-Event: Survey -->
-      <div class="event-card">
-        <h3>Post-Event: Survey</h3>
-        <p>Collect feedback after the event</p>
+        <!-- Post-Event: Survey -->
         <div class="form-group">
-          <label>Survey Form URL</label>
+          <label><strong>Post-Event:</strong> Survey</label>
           <input type="url" id="surveyUrl" placeholder="https://forms.google.com/...">
+          <small class="muted">Collect feedback after the event</small>
         </div>
-        <button class="btn-secondary" onclick="saveSignupForm('survey')">Save</button>
       </div>
 
       <div class="button-group">
-        <button class="btn-primary" onclick="closeSignupConfig()">Done</button>
+        <button class="btn-primary" onclick="saveAllSignupForms()">Save All Forms</button>
+        <button class="btn-secondary" onclick="closeSignupConfig()">Cancel</button>
       </div>
     </section>
 
@@ -165,17 +206,27 @@
       e.preventDefault();
       overlay(true);
 
+      const data = {
+        name: document.getElementById('name').value.trim(),
+        dateISO: document.getElementById('dateISO').value
+      };
+
+      // Optional fields
+      const optional = ['timeISO', 'location', 'entity', 'summary', 'summaryLink',
+                       'imageUrl', 'videoUrl', 'galleryUrls', 'bio', 'bioLink'];
+
+      optional.forEach(field => {
+        const val = document.getElementById(field)?.value.trim();
+        if (val) data[field] = val;
+      });
+
       const res = await NU.rpc('api_create', {
         tenantId: TENANT,
         scope: SCOPE,
         templateId: 'event',
         adminKey: getAdminKey(),
         idemKey: crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        data: {
-          name: document.getElementById('name').value.trim(),
-          dateISO: document.getElementById('dateISO').value,
-          signupUrl: document.getElementById('signupUrl').value.trim()
-        }
+        data
       });
 
       overlay(false);
@@ -191,17 +242,26 @@
 
     function showEventCard(event) {
       const { publicUrl, posterUrl, displayUrl } = event.links;
+      const d = event.data || {};
 
       setLink('lnkPublic', publicUrl);
       setLink('lnkDisplay', displayUrl);
       setLink('lnkPoster', posterUrl);
 
       document.getElementById('eventCard').style.display = '';
-      document.getElementById('eventInfo').innerHTML = `
-        <p><strong>Name:</strong> ${NU.esc(event.data?.name || '')}</p>
-        <p><strong>Date:</strong> ${NU.esc(event.data?.dateISO || '')}</p>
-        <p><strong>ID:</strong> ${event.id}</p>
+
+      let info = `
+        <p><strong>Name:</strong> ${NU.esc(d.name || '')}</p>
+        <p><strong>Date:</strong> ${NU.esc(d.dateISO || '')}${d.timeISO ? ' at ' + NU.esc(d.timeISO) : ''}</p>
       `;
+
+      if (d.location) info += `<p><strong>Location:</strong> ${NU.esc(d.location)}</p>`;
+      if (d.entity) info += `<p><strong>Entity:</strong> ${NU.esc(d.entity)}</p>`;
+      if (d.summary) info += `<p><strong>Summary:</strong> ${NU.esc(d.summary.substring(0, 100))}${d.summary.length > 100 ? '...' : ''}</p>`;
+
+      info += `<p><strong>Event ID:</strong> <code>${event.id}</code></p>`;
+
+      document.getElementById('eventInfo').innerHTML = info;
     }
 
     function setLink(id, url) {
@@ -237,22 +297,22 @@
       overlay(false);
 
       if (res.ok && res.value) {
-        const forms = res.value.data?.signupForms || {};
-        document.getElementById('registerUrl').value = forms.register || '';
-        document.getElementById('checkinUrl').value = forms.checkin || '';
-        document.getElementById('walkinUrl').value = forms.walkin || '';
-        document.getElementById('surveyUrl').value = forms.survey || '';
+        const data = res.value.data || {};
+        document.getElementById('registerUrl').value = data.registerUrl || '';
+        document.getElementById('checkinUrl').value = data.checkinUrl || '';
+        document.getElementById('walkinUrl').value = data.walkinUrl || '';
+        document.getElementById('surveyUrl').value = data.surveyUrl || '';
       }
     }
 
-    async function saveSignupForm(type) {
+    async function saveAllSignupForms() {
       if (!currentEventId) return;
 
-      const forms = {
-        register: document.getElementById('registerUrl').value.trim(),
-        checkin: document.getElementById('checkinUrl').value.trim(),
-        walkin: document.getElementById('walkinUrl').value.trim(),
-        survey: document.getElementById('surveyUrl').value.trim()
+      const data = {
+        registerUrl: document.getElementById('registerUrl').value.trim(),
+        checkinUrl: document.getElementById('checkinUrl').value.trim(),
+        walkinUrl: document.getElementById('walkinUrl').value.trim(),
+        surveyUrl: document.getElementById('surveyUrl').value.trim()
       };
 
       overlay(true);
@@ -261,12 +321,13 @@
         scope: SCOPE,
         id: currentEventId,
         adminKey: getAdminKey(),
-        data: { signupForms: forms }
+        data
       });
       overlay(false);
 
       if (res.ok) {
-        alert('Sign-up form saved!');
+        alert('Sign-up forms saved!');
+        closeSignupConfig();
       } else {
         alert(`Error: ${res.message}`);
       }

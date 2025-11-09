@@ -7,12 +7,14 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <style>
     .card{ background:#fff; border-radius:12px; padding:20px; margin-bottom:20px; box-shadow:0 1px 3px rgba(0,0,0,0.1); }
-    .card h2{ margin:0 0 16px; color:var(--text); }
+    .card h2{ margin:0 0 16px; color:#1e293b; }
     .events-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:16px; }
     .event-card{ background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:16px; transition:all 0.2s; }
-    .event-card:hover{ transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,0.1); border-color:var(--brand); }
-    .event-card h3{ margin:0 0 8px; color:var(--text); }
-    .event-card p{ margin:4px 0; color:var(--muted); font-size:14px; }
+    .event-card:hover{ transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,0.1); border-color:#2563eb; }
+    .event-card h3{ margin:0 0 8px; color:#1e293b; }
+    .event-card p{ margin:4px 0; color:#64748b; font-size:14px; }
+
+    /* Sponsor Banner */
     .sponsor-banner{
       background:linear-gradient(135deg, #f8fafc 0%, #fff 100%);
       border:1px solid #e2e8f0; border-radius:12px; padding:16px;
@@ -20,11 +22,111 @@
       justify-content:center; gap:12px; flex-wrap:wrap;
     }
     .sponsor-banner img{ max-height:56px; max-width:200px; object-fit:contain; }
-    .sponsor-banner strong{ color:var(--text); font-size:1.1em; }
+    .sponsor-banner strong{ color:#1e293b; font-size:1.1em; }
+
+    /* Event Detail View */
+    .event-detail {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    .event-header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    .event-header h1 {
+      color: #2563eb;
+      font-size: 2.2rem;
+      margin-bottom: 12px;
+      line-height: 1.2;
+    }
+    .event-meta {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 16px;
+      margin: 12px 0;
+      color: #475569;
+      font-size: 1rem;
+    }
+    .event-meta-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .event-meta-item strong {
+      color: #1e293b;
+    }
+    .event-image {
+      width: 100%;
+      max-width: 100%;
+      height: auto;
+      border-radius: 12px;
+      margin: 24px 0;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .event-video {
+      width: 100%;
+      max-width: 100%;
+      aspect-ratio: 16/9;
+      border-radius: 12px;
+      margin: 24px 0;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .event-section {
+      margin: 32px 0;
+    }
+    .event-section h2 {
+      color: #1e293b;
+      font-size: 1.5rem;
+      margin-bottom: 12px;
+      border-bottom: 2px solid #e2e8f0;
+      padding-bottom: 8px;
+    }
+    .event-section p {
+      color: #475569;
+      line-height: 1.7;
+      margin: 12px 0;
+    }
+    .event-section a {
+      color: #2563eb;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .event-section a:hover {
+      text-decoration: underline;
+    }
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 12px;
+      margin: 16px 0;
+    }
+    .gallery img {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      transition: transform 0.2s;
+    }
+    .gallery img:hover {
+      transform: scale(1.05);
+    }
+    .action-buttons {
+      display: flex;
+      gap: 12px;
+      margin: 24px 0;
+      flex-wrap: wrap;
+    }
+
     @media (max-width: 640px) {
       .events-grid{ grid-template-columns:1fr; }
       .sponsor-banner{ flex-direction:column; padding:12px; }
       .sponsor-banner img{ max-height:48px; }
+      .event-header h1 { font-size: 1.6rem; }
+      .event-meta { font-size: 0.9rem; }
+      .gallery { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+      .gallery img { height: 150px; }
     }
   </style>
 </head>
@@ -130,18 +232,133 @@
 
     async function renderDetail(evt) {
       const root = document.getElementById('list');
-      root.innerHTML = '';
-      const d = document.createElement('div');
-      d.className = 'event-card';
-      d.innerHTML = `
-        <h3>${esc(evt.data?.name || '(untitled)')}</h3>
-        <p>${esc(evt.data?.dateISO || '')}</p>
-        ${evt.data?.signupUrl ? `<p style="margin-top:12px;"><a class="btn" target="_blank" rel="noopener" href="${esc(evt.data.signupUrl)}">Sign up</a></p>` : ''}
-        <p style="margin-top:12px;"><a class="btn secondary" href="${EXEC_URL}?p=events&tenant=${TENANT}">Back</a></p>
-      `;
-      root.appendChild(d);
+      const data = evt.data || {};
 
+      // Render sponsor banner first
       renderSponsorBanner(evt);
+
+      // Build event detail HTML
+      let html = '<div class="event-detail">';
+
+      // Header with name and meta
+      html += '<div class="event-header">';
+      html += `<h1>${esc(data.name || '(untitled)')}</h1>`;
+
+      // Meta information
+      html += '<div class="event-meta">';
+      if (data.dateISO) {
+        const date = new Date(data.dateISO + 'T00:00:00');
+        html += `<div class="event-meta-item"><strong>📅</strong> ${date.toLocaleDateString('en-US', {
+          weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+        })}</div>`;
+      }
+      if (data.timeISO) {
+        html += `<div class="event-meta-item"><strong>🕒</strong> ${esc(data.timeISO)}</div>`;
+      }
+      if (data.location) {
+        html += `<div class="event-meta-item"><strong>📍</strong> ${esc(data.location)}</div>`;
+      }
+      if (data.entity) {
+        html += `<div class="event-meta-item"><strong>🏢</strong> ${esc(data.entity)}</div>`;
+      }
+      html += '</div>';
+      html += '</div>';
+
+      // Action buttons
+      html += '<div class="action-buttons">';
+      if (data.registerUrl) {
+        html += `<a class="btn-primary" href="${esc(data.registerUrl)}" target="_blank" rel="noopener">Register</a>`;
+      } else if (data.signupUrl) {
+        html += `<a class="btn-primary" href="${esc(data.signupUrl)}" target="_blank" rel="noopener">Sign Up</a>`;
+      }
+      if (data.checkinUrl) {
+        html += `<a class="btn-secondary" href="${esc(data.checkinUrl)}" target="_blank" rel="noopener">Check In</a>`;
+      }
+      html += `<a class="btn-secondary" href="${EXEC_URL}?p=events&tenant=${TENANT}">← Back to Events</a>`;
+      html += '</div>';
+
+      // Event Image
+      if (data.imageUrl) {
+        html += `<img src="${esc(data.imageUrl)}" alt="${esc(data.name || 'Event')}" class="event-image">`;
+      }
+
+      // Summary Section
+      if (data.summary || data.summaryLink) {
+        html += '<div class="event-section">';
+        html += '<h2>About This Event</h2>';
+        if (data.summary) {
+          html += `<p>${esc(data.summary)}</p>`;
+        }
+        if (data.summaryLink) {
+          html += `<p><a href="${esc(data.summaryLink)}" target="_blank" rel="noopener">Learn more →</a></p>`;
+        }
+        html += '</div>';
+      }
+
+      // Video Section
+      if (data.videoUrl) {
+        html += '<div class="event-section">';
+        html += '<h2>Video</h2>';
+        const videoUrl = esc(data.videoUrl);
+        // Try to embed YouTube/Vimeo videos
+        if (videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be')) {
+          let embedUrl = videoUrl;
+          if (videoUrl.includes('watch?v=')) {
+            const videoId = videoUrl.split('watch?v=')[1].split('&')[0];
+            embedUrl = `https://www.youtube.com/embed/${videoId}`;
+          } else if (videoUrl.includes('youtu.be/')) {
+            const videoId = videoUrl.split('youtu.be/')[1].split('?')[0];
+            embedUrl = `https://www.youtube.com/embed/${videoId}`;
+          }
+          html += `<iframe src="${embedUrl}" class="event-video" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+        } else if (videoUrl.includes('vimeo.com')) {
+          const videoId = videoUrl.split('vimeo.com/')[1].split('?')[0];
+          html += `<iframe src="https://player.vimeo.com/video/${videoId}" class="event-video" frameborder="0" allow="autoplay; fullscreen" allowfullscreen></iframe>`;
+        } else {
+          html += `<p><a href="${videoUrl}" target="_blank" rel="noopener">Watch Video →</a></p>`;
+        }
+        html += '</div>';
+      }
+
+      // Gallery Section
+      if (data.galleryUrls) {
+        const urls = data.galleryUrls.split(',').map(u => u.trim()).filter(u => u);
+        if (urls.length > 0) {
+          html += '<div class="event-section">';
+          html += '<h2>Gallery</h2>';
+          html += '<div class="gallery">';
+          urls.forEach(url => {
+            html += `<img src="${esc(url)}" alt="Event photo" loading="lazy">`;
+          });
+          html += '</div>';
+          html += '</div>';
+        }
+      }
+
+      // Bio Section
+      if (data.bio || data.bioLink) {
+        html += '<div class="event-section">';
+        html += '<h2>More Information</h2>';
+        if (data.bio) {
+          html += `<p>${esc(data.bio)}</p>`;
+        }
+        if (data.bioLink) {
+          html += `<p><a href="${esc(data.bioLink)}" target="_blank" rel="noopener">Read full bio →</a></p>`;
+        }
+        html += '</div>';
+      }
+
+      // Post-event Survey
+      if (data.surveyUrl) {
+        html += '<div class="event-section">';
+        html += '<h2>Feedback</h2>';
+        html += `<p><a class="btn-primary" href="${esc(data.surveyUrl)}" target="_blank" rel="noopener">Share Your Feedback</a></p>`;
+        html += '</div>';
+      }
+
+      html += '</div>';
+
+      root.innerHTML = html;
     }
 
     if (ID) {

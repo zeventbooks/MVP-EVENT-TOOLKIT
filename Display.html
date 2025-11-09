@@ -129,11 +129,11 @@
       picks.forEach(s => logEvent({ eventId, surface: 'display', metric: 'impression', sponsorId: s.id || '' }));
     }
 
-    function startStatic() {
+    function startPublicMode() {
       const base = location.origin + location.pathname;
       const tvPublicUrl = `${base}?p=public&tenant=${encodeURIComponent(tenantId)}&id=${encodeURIComponent(eventId)}&tv=1`;
       loadIframe(tvPublicUrl);
-      showToast('TV: Static mode');
+      showToast('TV: Public mode (mirroring event page)');
     }
 
     function loadIframe(url, onFail) {
@@ -175,35 +175,43 @@
       logEvent({ eventId, surface: 'display', metric: 'blocked_embed', value: 1 });
     }
 
-    function startCarousel(items) {
-      if (!items || !items.length) return startStatic();
+    function startDynamicMode(urls) {
+      if (!urls || !urls.length) return startPublicMode();
       let idx = -1;
 
       const next = () => {
-        idx = (idx + 1) % items.length;
-        const it = items[idx] || {};
+        idx = (idx + 1) % urls.length;
+        const it = urls[idx] || {};
         const url = String(it.url || '').trim();
-        const sec = Math.max(5, Number(it.sec || it.seconds || it.duration || 12));
+        const sec = Math.max(5, Number(it.seconds || it.sec || it.duration || 10));
+
         if (!url) return setTimeout(next, 200);
 
-        showToast(`TV: Carousel ${idx + 1}/${items.length} · ${sec}s`);
+        // Skip known restricted embeds (Instagram, etc.) silently
+        const lower = url.toLowerCase();
+        if (lower.includes('instagram.com') || lower.includes('tiktok.com')) {
+          console.log(`Skipping restricted embed: ${url}`);
+          return setTimeout(next, 500);
+        }
+
+        showToast(`TV: Dynamic ${idx + 1}/${urls.length} · ${sec}s`);
 
         logEvent({ eventId, surface: 'display', metric: 'impression' });
         logEvent({ eventId, surface: 'display', metric: 'dwellSec', value: sec });
 
         loadIframe(url, () => {
-          // If blocked, skip to next after 3s
-          setTimeout(next, 3000);
+          // If blocked, skip to next after 2s (no error display, just skip)
+          setTimeout(next, 2000);
         });
 
-        clearTimeout(startCarousel._t);
-        startCarousel._t = setTimeout(next, sec * 1000);
+        clearTimeout(startDynamicMode._t);
+        startDynamicMode._t = setTimeout(next, sec * 1000);
       };
       next();
     }
 
     function boot() {
-      if (!eventId || !google?.script?.run) return startStatic();
+      if (!eventId || !google?.script?.run) return startPublicMode();
 
       google.script.run
         .withSuccessHandler(res => {
@@ -213,13 +221,14 @@
           renderSponsorTop(ev);
           renderSponsorSide(ev);
 
-          if (String(d.mode || '') === 'carousel' && Array.isArray(d.items) && d.items.length) {
-            startCarousel(d.items);
+          // Check display mode: 'dynamic' uses carousel with configured URLs, 'public' mirrors event page
+          if (String(d.mode || '').toLowerCase() === 'dynamic' && Array.isArray(d.urls) && d.urls.length) {
+            startDynamicMode(d.urls);
           } else {
-            startStatic();
+            startPublicMode();
           }
         })
-        .withFailureHandler(() => startStatic())
+        .withFailureHandler(() => startPublicMode())
         .api_get({ tenantId, scope: 'events', id: eventId });
     }
 
