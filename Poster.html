@@ -3,35 +3,323 @@
 <head>
   <meta charset="utf-8"/>
   <title><?= appTitle ?> · Poster</title>
-  <?!= include('Header'); ?>
-  <?!= include('NUSDK'); ?>
+  <?!= include('Styles'); ?>
+  <?!= include('DesignAdapter'); ?>
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+  <style>
+    [hidden] { display:none !important; }
+    body { background: #fff; }
+    .poster-container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 40px 20px;
+      background: #fff;
+    }
+
+    /* Sponsor Strip */
+    .sponsor-strip {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      padding: 16px;
+      border-bottom: 2px solid #e2e8f0;
+      margin-bottom: 32px;
+      background: linear-gradient(135deg, #f8fafc 0%, #fff 100%);
+    }
+    .sponsor-strip img {
+      max-height: 60px;
+      object-fit: contain;
+    }
+    .sponsor-strip strong {
+      color: #1e293b;
+      font-size: 1.2em;
+    }
+
+    /* Event Details */
+    .event-details {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+    .event-details h1 {
+      color: #2563eb;
+      font-size: 2.5rem;
+      margin-bottom: 16px;
+      line-height: 1.2;
+    }
+    .event-meta {
+      font-size: 1.2rem;
+      color: #475569;
+      margin: 8px 0;
+    }
+    .event-meta strong {
+      color: #1e293b;
+    }
+    .event-image {
+      max-width: 100%;
+      height: auto;
+      border-radius: 12px;
+      margin: 24px 0;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .event-summary {
+      font-size: 1.1rem;
+      line-height: 1.6;
+      color: #475569;
+      margin: 20px 0;
+      padding: 20px;
+      background: #f8fafc;
+      border-radius: 8px;
+      border-left: 4px solid #2563eb;
+    }
+
+    /* QR Codes */
+    .qr-section {
+      margin-top: 40px;
+    }
+    .qr-section h2 {
+      text-align: center;
+      color: #1e293b;
+      font-size: 1.8rem;
+      margin-bottom: 24px;
+      border-bottom: 2px solid #2563eb;
+      padding-bottom: 8px;
+    }
+    .qr-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      margin: 24px 0;
+    }
+    .qr-code {
+      text-align: center;
+      padding: 20px;
+      background: #f8fafc;
+      border-radius: 12px;
+      border: 2px solid #e2e8f0;
+    }
+    .qr-code h3 {
+      margin: 0 0 8px;
+      color: #1e293b;
+      font-size: 1.1rem;
+    }
+    .qr-code h4 {
+      margin: 0 0 12px;
+      color: #64748b;
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+    .qr-code img {
+      width: 100%;
+      max-width: 200px;
+      height: auto;
+      margin: 12px auto;
+      display: block;
+    }
+    .qr-code p {
+      margin-top: 8px;
+      color: #94a3b8;
+      font-size: 11px;
+      word-break: break-all;
+    }
+
+    /* Print Styles */
+    @media print {
+      body { background: #fff; }
+      .poster-container { padding: 20px; }
+      .sponsor-strip { border: 0; padding-bottom: 12px; }
+      .qr-grid { gap: 16px; }
+      @page { margin: 0.5in; }
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .event-details h1 { font-size: 1.8rem; }
+      .event-meta { font-size: 1rem; }
+      .qr-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+      }
+    }
+  </style>
 </head>
 <body>
-  <main id="app" class="container">
-    <section class="card">
-      <h2>Poster</h2>
-      <div id="qr" class="qr-grid"></div>
+  <div class="poster-container">
+    <!-- Sponsor Strip (Top) -->
+    <div id="sponsorStrip" class="sponsor-strip" hidden></div>
+
+    <!-- Event Details -->
+    <div class="event-details">
+      <h1 id="eventName">Event Name</h1>
+      <div class="event-meta">
+        <div id="eventDate"></div>
+        <div id="eventTime"></div>
+        <div id="eventLocation"></div>
+        <div id="eventEntity"></div>
+      </div>
+    </div>
+
+    <!-- Event Image -->
+    <div id="eventImageContainer" hidden>
+      <img id="eventImage" class="event-image" alt="Event Image">
+    </div>
+
+    <!-- Event Summary -->
+    <div id="eventSummary" class="event-summary" hidden></div>
+
+    <!-- QR Codes Section -->
+    <section class="qr-section">
+      <h2>Scan to Connect</h2>
+      <div id="qrGrid" class="qr-grid"></div>
     </section>
-  </main>
+  </div>
+
   <script>
-  const TENANT='<?= tenantId ?>', SCOPE='events';
-  const ID = new URL(location.href).searchParams.get('id');
-  NU.swr('api_get', { tenantId:TENANT, scope:SCOPE, id:ID }, {
-    staleMs: 120000,
-    onUpdate: (evt) => {
-      const el=document.getElementById('qr'); el.innerHTML='';
-      // Fixed: Use publicUrl for QR code so users can scan to view the event
-      const url = evt?.links?.publicUrl;
-      if (!url){ el.innerHTML = `<div class="qr-code"><p>QR unavailable (not verified)</p></div>`; return; }
-      const box=document.createElement('div'); box.className='qr-code';
-      box.innerHTML = `
-        <h3>${NU.esc(evt?.data?.name||'Event')}</h3>
-        <img alt="QR" src="https://quickchart.io/qr?text=${encodeURIComponent(url)}&size=256">
-        <p>${NU.esc(url)}</p>`;
-      el.appendChild(box);
+    const TENANT = '<?= tenantId ?>';
+    const SCOPE = '<?= scope ?>';
+    const ID = new URL(location.href).searchParams.get('id');
+
+    function esc(s) {
+      return String(s).replace(/[&<>"']/g, m => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[m]));
     }
-  });
+
+    function renderSponsorStrip(evt) {
+      const picks = (evt?.data?.sponsors || []).filter(s => s?.placements?.posterTop);
+      if (!picks.length) return;
+
+      const strip = document.getElementById('sponsorStrip');
+      strip.innerHTML = picks.map(s =>
+        s.img
+          ? `<img src="${esc(s.img)}" alt="${esc(s.name || '')}">`
+          : `<strong>${esc(s.name || '')}</strong>`
+      ).join('');
+      strip.hidden = false;
+    }
+
+    function renderEventDetails(evt) {
+      const d = evt?.data || {};
+
+      // Event Name
+      document.getElementById('eventName').textContent = d.name || 'Event Name';
+
+      // Date & Time
+      const dateEl = document.getElementById('eventDate');
+      if (d.dateISO) {
+        const date = new Date(d.dateISO + 'T00:00:00');
+        dateEl.innerHTML = `<strong>Date:</strong> ${date.toLocaleDateString('en-US', {
+          weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+        })}`;
+      }
+
+      const timeEl = document.getElementById('eventTime');
+      if (d.timeISO) {
+        timeEl.innerHTML = `<strong>Time:</strong> ${d.timeISO}`;
+      }
+
+      // Location
+      const locEl = document.getElementById('eventLocation');
+      if (d.location) {
+        locEl.innerHTML = `<strong>Location:</strong> ${esc(d.location)}`;
+      }
+
+      // Entity
+      const entityEl = document.getElementById('eventEntity');
+      if (d.entity) {
+        entityEl.innerHTML = `<strong>Hosted by:</strong> ${esc(d.entity)}`;
+      }
+
+      // Event Image
+      if (d.imageUrl) {
+        document.getElementById('eventImage').src = d.imageUrl;
+        document.getElementById('eventImageContainer').hidden = false;
+      }
+
+      // Summary
+      if (d.summary) {
+        document.getElementById('eventSummary').textContent = d.summary;
+        document.getElementById('eventSummary').hidden = false;
+      }
+    }
+
+    function renderQRCodes(evt) {
+      const el = document.getElementById('qrGrid');
+      el.innerHTML = '';
+
+      const d = evt?.data || {};
+      const links = evt?.links || {};
+
+      // QR Code 1: Sign Up (Register)
+      const registerUrl = d.registerUrl || d.signupUrl;
+      if (registerUrl) {
+        el.innerHTML += `
+          <div class="qr-code">
+            <h3>Sign Up</h3>
+            <h4>Register Now</h4>
+            <img alt="Sign Up QR Code" src="https://quickchart.io/qr?text=${encodeURIComponent(registerUrl)}&size=200&margin=1">
+            <p>${esc(registerUrl)}</p>
+          </div>
+        `;
+      }
+
+      // QR Code 2: Public Event Page
+      const publicUrl = links.publicUrl;
+      if (publicUrl) {
+        el.innerHTML += `
+          <div class="qr-code">
+            <h3>Event Page</h3>
+            <h4>View Details</h4>
+            <img alt="Public Page QR Code" src="https://quickchart.io/qr?text=${encodeURIComponent(publicUrl)}&size=200&margin=1">
+            <p>${esc(publicUrl)}</p>
+          </div>
+        `;
+      }
+
+      // QR Code 3: Promotion Link (could be summaryLink or custom promotion URL)
+      const promoUrl = d.summaryLink || d.bioLink;
+      if (promoUrl) {
+        el.innerHTML += `
+          <div class="qr-code">
+            <h3>Learn More</h3>
+            <h4>Additional Info</h4>
+            <img alt="Promotion QR Code" src="https://quickchart.io/qr?text=${encodeURIComponent(promoUrl)}&size=200&margin=1">
+            <p>${esc(promoUrl)}</p>
+          </div>
+        `;
+      }
+
+      // If no QR codes available
+      if (el.innerHTML === '') {
+        el.innerHTML = '<p style="text-align:center; color:#94a3b8; grid-column: 1 / -1;">No QR codes available. Configure sign-up forms in Admin.</p>';
+      }
+    }
+
+    function renderPoster(evt) {
+      if (!evt) {
+        document.querySelector('.poster-container').innerHTML =
+          '<p style="text-align:center; color:#94a3b8; padding:40px;">Event not found.</p>';
+        return;
+      }
+
+      renderSponsorStrip(evt);
+      renderEventDetails(evt);
+      renderQRCodes(evt);
+    }
+
+    google.script.run
+      .withSuccessHandler(res => {
+        if (res.ok && res.value) {
+          renderPoster(res.value);
+        } else {
+          renderPoster(null);
+        }
+      })
+      .withFailureHandler(() => {
+        document.querySelector('.poster-container').innerHTML =
+          '<p style="text-align:center; color:#ef4444; padding:40px;">Could not load event.</p>';
+      })
+      .api_get({ tenantId: TENANT, scope: SCOPE, id: ID });
   </script>
 </body>
 </html>
