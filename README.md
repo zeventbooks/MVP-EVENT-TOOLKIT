@@ -77,7 +77,8 @@ npm run deploy # Create new deployment
 
 ### For Architecture & Testing
 - **[ARCHITECTURE_REVIEW.md](./ARCHITECTURE_REVIEW.md)** - System architecture
-- **[TESTING.md](./TESTING.md)** - Test infrastructure (94 tests)
+- **[TESTING.md](./TESTING.md)** - Test infrastructure (130+ tests)
+- **[tests/README.md](./tests/README.md)** - 🆕 Complete test suite documentation
 - **[TEST_INFRASTRUCTURE_SUMMARY.md](./TEST_INFRASTRUCTURE_SUMMARY.md)** - Test coverage matrix
 
 ## Notes
