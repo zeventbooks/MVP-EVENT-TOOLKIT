@@ -13,6 +13,71 @@
 
   <main id="app" class="container">
 
+    <!-- Event Lifecycle Dashboard -->
+    <section class="card" id="dashboardCard" style="display:none;">
+      <h2>Event Dashboard</h2>
+      <div id="eventPhaseIndicator"></div>
+
+      <div class="stats-grid" style="margin-top: 20px;">
+        <div class="stat-card blue">
+          <div class="stat-value" id="statViews">-</div>
+          <div class="stat-label">Total Views</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-value" id="statImpressions">-</div>
+          <div class="stat-label">Sponsor Impressions</div>
+        </div>
+        <div class="stat-card purple">
+          <div class="stat-value" id="statCTR">-</div>
+          <div class="stat-label">Click-Through Rate</div>
+        </div>
+        <div class="stat-card orange">
+          <div class="stat-value" id="statEngagement">-</div>
+          <div class="stat-label">Engagement Score</div>
+        </div>
+      </div>
+
+      <h3 style="margin-top: 24px;">Event Lifecycle</h3>
+      <div class="metric-card">
+        <div class="metric-header">
+          <span class="metric-title">Pre-Event Phase</span>
+          <span class="phase-indicator pre-event">Preparation</span>
+        </div>
+        <p style="color: #64748b; font-size: 14px; margin-top: 8px;">
+          Advertising with sponsors, creating posters, setting up displays, and getting the public to register
+        </p>
+        <div class="progress-bar">
+          <div class="progress-bar-fill" id="preEventProgress" style="width: 0%"></div>
+        </div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-header">
+          <span class="metric-title">Event Day</span>
+          <span class="phase-indicator event-day">Active</span>
+        </div>
+        <p style="color: #64748b; font-size: 14px; margin-top: 8px;">
+          Public reminders, displays at entrance, check-in at door, sponsor banners rotating on screens
+        </p>
+        <div class="progress-bar">
+          <div class="progress-bar-fill green" id="eventDayProgress" style="width: 0%"></div>
+        </div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-header">
+          <span class="metric-title">Post-Event Phase</span>
+          <span class="phase-indicator post-event">Analytics</span>
+        </div>
+        <p style="color: #64748b; font-size: 14px; margin-top: 8px;">
+          CTR analysis, sponsor impressions per screen/time/location, ROI calculations
+        </p>
+        <div class="progress-bar">
+          <div class="progress-bar-fill orange" id="postEventProgress" style="width: 0%"></div>
+        </div>
+      </div>
+    </section>
+
     <!-- Create Event Card -->
     <section class="card">
       <h2>Create Event</h2>
@@ -249,17 +314,99 @@
       setLink('lnkPoster', posterUrl);
 
       document.getElementById('eventCard').style.display = '';
+      document.getElementById('dashboardCard').style.display = '';
 
-      let info = `
-        <p><strong>Name:</strong> ${NU.esc(d.name || '')}</p>
-        <p><strong>Date:</strong> ${NU.esc(d.dateISO || '')}${d.timeISO ? ' at ' + NU.esc(d.timeISO) : ''}</p>
+      // Determine event phase based on date
+      const eventDate = new Date(d.dateISO || '');
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const eventDay = new Date(eventDate);
+      eventDay.setHours(0, 0, 0, 0);
+
+      let phase = 'pre-event';
+      let phaseLabel = 'Pre-Event Preparation';
+
+      if (eventDay.getTime() === today.getTime()) {
+        phase = 'event-day';
+        phaseLabel = 'Event Day - Live';
+      } else if (eventDay < today) {
+        phase = 'post-event';
+        phaseLabel = 'Post-Event Analytics';
+      }
+
+      // Update phase indicator
+      document.getElementById('eventPhaseIndicator').innerHTML = `
+        <div style="text-align: center; margin-bottom: 16px;">
+          <span class="phase-indicator ${phase}" style="font-size: 15px; padding: 8px 20px;">
+            ${phaseLabel}
+          </span>
+        </div>
       `;
 
-      if (d.location) info += `<p><strong>Location:</strong> ${NU.esc(d.location)}</p>`;
-      if (d.entity) info += `<p><strong>Entity:</strong> ${NU.esc(d.entity)}</p>`;
-      if (d.summary) info += `<p><strong>Summary:</strong> ${NU.esc(d.summary.substring(0, 100))}${d.summary.length > 100 ? '...' : ''}</p>`;
+      // Calculate mock metrics (in real implementation, fetch from analytics)
+      const sponsors = d.sponsors || [];
+      const mockViews = Math.floor(Math.random() * 500) + 100;
+      const mockImpressions = sponsors.length * Math.floor(Math.random() * 1000) + 200;
+      const mockCTR = ((Math.random() * 5) + 1).toFixed(1) + '%';
+      const mockEngagement = Math.floor(Math.random() * 100);
 
-      info += `<p><strong>Event ID:</strong> <code>${event.id}</code></p>`;
+      document.getElementById('statViews').textContent = mockViews;
+      document.getElementById('statImpressions').textContent = mockImpressions.toLocaleString();
+      document.getElementById('statCTR').textContent = mockCTR;
+      document.getElementById('statEngagement').textContent = mockEngagement + '/100';
+
+      // Update progress bars based on phase
+      const preEventProg = phase === 'pre-event' ? 50 : 100;
+      const eventDayProg = phase === 'event-day' ? 50 : (phase === 'post-event' ? 100 : 0);
+      const postEventProg = phase === 'post-event' ? 50 : 0;
+
+      document.getElementById('preEventProgress').style.width = preEventProg + '%';
+      document.getElementById('eventDayProgress').style.width = eventDayProg + '%';
+      document.getElementById('postEventProgress').style.width = postEventProg + '%';
+
+      // Event info
+      let info = `
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px;">
+          <div>
+            <p style="color: #64748b; font-size: 13px; margin-bottom: 4px;">EVENT NAME</p>
+            <p style="font-weight: 600; font-size: 16px;">${NU.esc(d.name || '')}</p>
+          </div>
+          <div>
+            <p style="color: #64748b; font-size: 13px; margin-bottom: 4px;">DATE & TIME</p>
+            <p style="font-weight: 600; font-size: 16px;">${NU.esc(d.dateISO || '')}${d.timeISO ? ' at ' + NU.esc(d.timeISO) : ''}</p>
+          </div>
+      `;
+
+      if (d.location) {
+        info += `
+          <div>
+            <p style="color: #64748b; font-size: 13px; margin-bottom: 4px;">LOCATION</p>
+            <p style="font-weight: 600; font-size: 16px;">${NU.esc(d.location)}</p>
+          </div>
+        `;
+      }
+
+      if (d.entity) {
+        info += `
+          <div>
+            <p style="color: #64748b; font-size: 13px; margin-bottom: 4px;">ORGANIZATION</p>
+            <p style="font-weight: 600; font-size: 16px;">${NU.esc(d.entity)}</p>
+          </div>
+        `;
+      }
+
+      info += `</div>`;
+
+      if (d.summary) {
+        info += `
+          <div style="margin-top: 16px; padding: 16px; background: #f8fafc; border-radius: 8px;">
+            <p style="color: #64748b; font-size: 13px; margin-bottom: 4px;">SUMMARY</p>
+            <p style="color: #1e293b; line-height: 1.6;">${NU.esc(d.summary)}</p>
+          </div>
+        `;
+      }
+
+      info += `<p style="margin-top: 16px;"><strong>Event ID:</strong> <code>${event.id}</code></p>`;
 
       document.getElementById('eventInfo').innerHTML = info;
     }
@@ -278,6 +425,7 @@
 
     function clearForm() {
       document.getElementById('createForm').reset();
+      document.getElementById('dashboardCard').style.display = 'none';
       document.getElementById('eventCard').style.display = 'none';
       document.getElementById('signupCard').style.display = 'none';
       document.getElementById('displayCard').style.display = 'none';
