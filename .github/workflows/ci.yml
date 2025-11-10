@@ -144,10 +144,36 @@ jobs:
           echo "url=$URL" >> $GITHUB_OUTPUT
           echo "Deployed to: $URL"
 
-  e2e-tests:
-    name: E2E Tests on Deployed URL
+  verify-deployment:
+    name: Verify Deployment
     runs-on: ubuntu-latest
     needs: deploy
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify deployment health
+        env:
+          BASE_URL: ${{ needs.deploy.outputs.url }}
+        run: |
+          echo "🔍 Verifying deployment at $BASE_URL"
+          chmod +x ./verify-deployment.sh
+          ./verify-deployment.sh "$BASE_URL"
+          echo "✅ Deployment verified successfully!"
+
+  e2e-smoke-tests:
+    name: 🚨 Smoke Tests (Critical)
+    runs-on: ubuntu-latest
+    needs: verify-deployment
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
       - uses: actions/checkout@v4
@@ -164,23 +190,117 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
-      - name: Run E2E tests
+      - name: Run smoke tests
         env:
           BASE_URL: ${{ needs.deploy.outputs.url }}
           ADMIN_KEY: ${{ secrets.ADMIN_KEY_ROOT }}
-        run: npm run test:e2e
+        run: |
+          echo "🚨 Running smoke tests..."
+          npm run test:smoke
 
-      - name: Upload test results
+      - name: Upload smoke test results
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: playwright-report
+          name: smoke-test-report
+          path: playwright-report/
+
+  e2e-page-tests:
+    name: 📄 Page Tests (Components)
+    runs-on: ubuntu-latest
+    needs: e2e-smoke-tests
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run page tests
+        env:
+          BASE_URL: ${{ needs.deploy.outputs.url }}
+          ADMIN_KEY: ${{ secrets.ADMIN_KEY_ROOT }}
+        run: |
+          echo "📄 Running page tests..."
+          npm run test:pages
+
+      - name: Upload page test results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: page-test-report
+          path: playwright-report/
+
+  e2e-flow-tests:
+    name: 🔄 Flow Tests (End-to-End)
+    runs-on: ubuntu-latest
+    needs: e2e-page-tests
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run flow tests
+        env:
+          BASE_URL: ${{ needs.deploy.outputs.url }}
+          ADMIN_KEY: ${{ secrets.ADMIN_KEY_ROOT }}
+        run: |
+          echo "🔄 Running flow tests..."
+          npm run test:flows
+
+      - name: Upload flow test results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: flow-test-report
           path: playwright-report/
 
   quality-gate:
     name: Quality Gate Check
     runs-on: ubuntu-latest
-    needs: [lint, test, contract-tests]
+    needs: [lint, test, contract-tests, e2e-smoke-tests, e2e-page-tests, e2e-flow-tests]
+    if: always()
     steps:
       - name: Check all tests passed
-        run: echo "All quality gates passed!"
+        run: |
+          echo "📊 Quality Gate Summary"
+          echo "======================="
+          echo "✅ Lint: ${{ needs.lint.result }}"
+          echo "✅ Unit Tests: ${{ needs.test.result }}"
+          echo "✅ Contract Tests: ${{ needs.contract-tests.result }}"
+          echo "🚨 Smoke Tests: ${{ needs.e2e-smoke-tests.result }}"
+          echo "📄 Page Tests: ${{ needs.e2e-page-tests.result }}"
+          echo "🔄 Flow Tests: ${{ needs.e2e-flow-tests.result }}"
+          echo "======================="
+
+          if [[ "${{ needs.lint.result }}" != "success" ]] || \
+             [[ "${{ needs.test.result }}" != "success" ]] || \
+             [[ "${{ needs.contract-tests.result }}" != "success" ]] || \
+             [[ "${{ needs.e2e-smoke-tests.result }}" != "success" ]] || \
+             [[ "${{ needs.e2e-page-tests.result }}" != "success" ]] || \
+             [[ "${{ needs.e2e-flow-tests.result }}" != "success" ]]; then
+            echo "❌ Quality gate FAILED!"
+            exit 1
+          fi
+
+          echo "✅ All quality gates passed!"
