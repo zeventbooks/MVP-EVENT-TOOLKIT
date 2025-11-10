@@ -14,15 +14,31 @@
     .event-card h3{ margin:0 0 8px; color:#1e293b; }
     .event-card p{ margin:4px 0; color:#64748b; font-size:14px; }
 
-    /* Sponsor Banner */
+    /* Enhanced Sponsor Banner */
     .sponsor-banner{
-      background:linear-gradient(135deg, #f8fafc 0%, #fff 100%);
-      border:1px solid #e2e8f0; border-radius:12px; padding:16px;
-      margin-bottom:20px; text-align:center; display:flex; align-items:center;
-      justify-content:center; gap:12px; flex-wrap:wrap;
+      background:linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+      border:2px solid #e2e8f0; border-radius:12px; padding:20px;
+      margin-bottom:24px; text-align:center; display:flex; align-items:center;
+      justify-content:center; gap:16px; flex-wrap:wrap;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     }
-    .sponsor-banner img{ max-height:56px; max-width:200px; object-fit:contain; }
-    .sponsor-banner strong{ color:#1e293b; font-size:1.1em; }
+    .sponsor-banner img{
+      max-height:60px; max-width:220px; object-fit:contain;
+      transition: transform 0.2s ease;
+    }
+    .sponsor-banner img:hover {
+      transform: scale(1.05);
+    }
+    .sponsor-banner strong{
+      color:#1e293b; font-size:1.1em; font-weight:600;
+      text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .sponsor-banner a {
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
 
     /* Event Detail View */
     .event-detail {
@@ -117,16 +133,53 @@
       gap: 12px;
       margin: 24px 0;
       flex-wrap: wrap;
+      justify-content: center;
     }
 
+    /* Mobile: Sticky bottom buttons for one-handed use */
     @media (max-width: 640px) {
+      body {
+        padding-bottom: 80px; /* Space for sticky buttons */
+      }
+
       .events-grid{ grid-template-columns:1fr; }
-      .sponsor-banner{ flex-direction:column; padding:12px; }
-      .sponsor-banner img{ max-height:48px; }
-      .event-header h1 { font-size: 1.6rem; }
-      .event-meta { font-size: 0.9rem; }
+      .sponsor-banner{ flex-direction:column; padding:16px; gap:12px; }
+      .sponsor-banner img{ max-height:50px; }
+      .event-header h1 { font-size: 1.75rem; }
+      .event-meta { font-size: 0.9rem; gap: 12px; }
       .gallery { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
       .gallery img { height: 150px; }
+
+      /* Sticky action buttons at bottom for thumb reach */
+      .action-buttons {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: white;
+        padding: 12px 16px;
+        margin: 0;
+        box-shadow: 0 -4px 12px rgba(0,0,0,0.1);
+        z-index: 100;
+        border-top: 2px solid #e2e8f0;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .action-buttons .btn-primary,
+      .action-buttons .btn-secondary {
+        width: 100%;
+        margin: 0;
+      }
+
+      .event-image,
+      .event-video {
+        margin: 16px 0;
+      }
+
+      .event-section {
+        margin: 24px 0;
+      }
     }
   </style>
 </head>
@@ -242,6 +295,26 @@
 
       // Header with name and meta
       html += '<div class="event-header">';
+
+      // Determine event status
+      let statusBadge = '';
+      if (data.dateISO) {
+        const eventDate = new Date(data.dateISO + 'T00:00:00');
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const eventDay = new Date(eventDate);
+        eventDay.setHours(0, 0, 0, 0);
+
+        if (eventDay.getTime() === today.getTime()) {
+          statusBadge = '<span class="status-badge active">Today</span>';
+        } else if (eventDay > today) {
+          statusBadge = '<span class="status-badge upcoming">Upcoming</span>';
+        } else {
+          statusBadge = '<span class="status-badge ended">Past Event</span>';
+        }
+      }
+
+      html += `<div style="margin-bottom: 12px;">${statusBadge}</div>`;
       html += `<h1>${esc(data.name || '(untitled)')}</h1>`;
 
       // Meta information

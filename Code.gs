@@ -478,9 +478,12 @@ function api_getReport(req){
     for (const r of data){
       const surface = r[2], metric = r[3], sponsorId = r[4]||'-', value = Number(r[5]||0), token = r[6]||'-';
 
-      const surf = (agg.bySurface[surface] ||= {impressions:0, clicks:0, dwellSec:0});
-      const spons = (agg.bySponsor[sponsorId] ||= {impressions:0, clicks:0, dwellSec:0});
-      const tok = (agg.byToken[token] ||= {impressions:0, clicks:0, dwellSec:0});
+      if (!agg.bySurface[surface]) agg.bySurface[surface] = {impressions:0, clicks:0, dwellSec:0};
+      if (!agg.bySponsor[sponsorId]) agg.bySponsor[sponsorId] = {impressions:0, clicks:0, dwellSec:0};
+      if (!agg.byToken[token]) agg.byToken[token] = {impressions:0, clicks:0, dwellSec:0};
+      const surf = agg.bySurface[surface];
+      const spons = agg.bySponsor[sponsorId];
+      const tok = agg.byToken[token];
 
       if (metric === 'impression'){
         agg.totals.impressions++; surf.impressions++; spons.impressions++; tok.impressions++;
