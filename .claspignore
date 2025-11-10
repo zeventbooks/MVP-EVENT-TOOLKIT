@@ -1,0 +1,36 @@
+# Test files
+tests/**
+**/*.spec.js
+**/*.test.js
+test-*.js
+test-*.html
+
+# Config files
+jest.config.js
+playwright.config.js
+.eslintrc.json
+.prettierrc.json
+package.json
+package-lock.json
+.clasp.json
+.clasprc.json
+
+# CI/CD
+.github/**
+.git/**
+.gitignore
+.devcontainer/**
+
+# Documentation
+*.md
+README.md
+
+# Scripts
+*.sh
+deploy-*.sh
+verify-*.sh
+get-*.sh
+
+# API specs
+openapi.yaml
+postman-collection.json
