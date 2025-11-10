@@ -73,6 +73,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: [lint, test, contract-tests]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    outputs:
+      deployment_id: ${{ steps.deploy.outputs.deployment_id }}
+      url: ${{ steps.url.outputs.url }}
     steps:
       - uses: actions/checkout@v4
 

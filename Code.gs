@@ -134,7 +134,7 @@ function doGet(e){
     return HtmlService.createHtmlOutput(`<meta http-equiv="refresh" content="0;url=?p=${first}&tenant=${tenant.id}">`);
   }
 
-  const page = (pageParam==='admin' || pageParam==='poster' || pageParam==='test' || pageParam==='display') ? pageParam : 'public';
+  const page = (pageParam==='admin' || pageParam==='poster' || pageParam==='test' || pageParam==='display' || pageParam==='report' || pageParam==='analytics') ? pageParam : 'public';
   const tpl = HtmlService.createTemplateFromFile(pageFile_(page));
   tpl.appTitle = `${tenant.name} · ${scope}`;
   tpl.tenantId = tenant.id;
@@ -277,6 +277,7 @@ function pageFile_(page){
   if (page==='poster') return 'Poster';
   if (page==='test') return 'Test';
   if (page==='display') return 'Display';
+  if (page==='report' || page==='analytics') return 'SharedReport';
   return 'Public';
 }
 
@@ -597,7 +598,8 @@ function api_get(payload){
       links: {
         publicUrl: `${base}?p=events&tenant=${tenantId}&id=${r[0]}`,
         posterUrl: `${base}?page=poster&p=events&tenant=${tenantId}&id=${r[0]}`,
-        displayUrl: `${base}?page=display&p=events&tenant=${tenantId}&id=${r[0]}&tv=1`
+        displayUrl: `${base}?page=display&p=events&tenant=${tenantId}&id=${r[0]}&tv=1`,
+        reportUrl: `${base}?page=report&tenant=${tenantId}&id=${r[0]}`
       }
     };
     const etag = Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(value)));
@@ -659,7 +661,8 @@ function api_create(payload){
     const links = {
       publicUrl: `${base}?p=events&tenant=${tenantId}&id=${id}`,
       posterUrl: `${base}?page=poster&p=events&tenant=${tenantId}&id=${id}`,
-      displayUrl: `${base}?page=display&p=events&tenant=${tenantId}&id=${id}&tv=1`
+      displayUrl: `${base}?page=display&p=events&tenant=${tenantId}&id=${id}&tv=1`,
+      reportUrl: `${base}?page=report&tenant=${tenantId}&id=${id}`
     };
     diag_('info','api_create','created',{id,tenantId,scope});
     return Ok({ id, links });

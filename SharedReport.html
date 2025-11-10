@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title><?= appTitle ?> · Shared Analytics</title>
+  <?!= include('Header'); ?>
+  <?!= include('NUSDK'); ?>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+  <style>
+    /* Mobile-First Shared Reporting Dashboard */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: #f8fafc;
+      color: #1e293b;
+      line-height: 1.6;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 1rem;
+    }
+
+    /* Header Section - Clean & Minimal */
+    .report-header {
+      background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+      color: white;
+      padding: 2rem 1rem;
+      border-radius: 12px;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .report-header h1 {
+      font-size: 1.75rem;
+      margin-bottom: 0.5rem;
+      font-weight: 700;
+    }
+
+    .report-header .subtitle {
+      opacity: 0.9;
+      font-size: 0.875rem;
+    }
+
+    /* Key Metrics Grid - Mobile First */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    @media (min-width: 640px) {
+      .metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (min-width: 1024px) {
+      .metrics-grid {
+        grid-template-columns: repeat(5, 1fr);
+      }
+    }
+
+    .metric-card {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 10px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+      border-left: 4px solid #2563eb;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .metric-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .metric-card .label {
+      font-size: 0.75rem;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+    }
+
+    .metric-card .value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 0.25rem;
+    }
+
+    .metric-card .trend {
+      font-size: 0.875rem;
+      color: #10b981;
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    .metric-card .trend.negative {
+      color: #ef4444;
+    }
+
+    /* Section Cards - Compact & Clean */
+    .section-card {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+      border: 1px solid #e2e8f0;
+    }
+
+    .section-card h2 {
+      font-size: 1.25rem;
+      margin-bottom: 1rem;
+      color: #0f172a;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .section-card h2::before {
+      content: '';
+      width: 4px;
+      height: 1.25rem;
+      background: #2563eb;
+      border-radius: 2px;
+    }
+
+    /* Data Table - Mobile-Responsive */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+    }
+
+    .data-table thead {
+      background: #f1f5f9;
+    }
+
+    .data-table th {
+      padding: 0.75rem 1rem;
+      text-align: left;
+      font-weight: 600;
+      color: #475569;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-bottom: 2px solid #e2e8f0;
+    }
+
+    .data-table td {
+      padding: 1rem;
+      border-bottom: 1px solid #f1f5f9;
+    }
+
+    .data-table tbody tr:hover {
+      background: #f8fafc;
+    }
+
+    /* Mobile: Stack table */
+    @media (max-width: 640px) {
+      .data-table thead {
+        display: none;
+      }
+
+      .data-table, .data-table tbody, .data-table tr, .data-table td {
+        display: block;
+        width: 100%;
+      }
+
+      .data-table tr {
+        margin-bottom: 1rem;
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 0.75rem;
+      }
+
+      .data-table td {
+        padding: 0.5rem 0;
+        border: none;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .data-table td::before {
+        content: attr(data-label);
+        font-weight: 600;
+        color: #64748b;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+      }
+    }
+
+    /* Progress Bars */
+    .progress-bar {
+      height: 8px;
+      background: #e2e8f0;
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .progress-bar .fill {
+      height: 100%;
+      background: linear-gradient(90deg, #2563eb 0%, #3b82f6 100%);
+      transition: width 0.3s ease;
+      border-radius: 4px;
+    }
+
+    /* Badges */
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .badge.high {
+      background: #fef2f2;
+      color: #dc2626;
+    }
+
+    .badge.medium {
+      background: #fef3c7;
+      color: #d97706;
+    }
+
+    .badge.success {
+      background: #ecfdf5;
+      color: #10b981;
+    }
+
+    .badge.info {
+      background: #eff6ff;
+      color: #2563eb;
+    }
+
+    /* Charts Placeholder */
+    .chart-container {
+      height: 300px;
+      background: #f8fafc;
+      border: 2px dashed #cbd5e1;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #94a3b8;
+      font-size: 0.875rem;
+    }
+
+    /* Action Buttons */
+    .action-bar {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.5rem;
+    }
+
+    .btn {
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .btn-primary {
+      background: #2563eb;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #1e40af;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    }
+
+    .btn-secondary {
+      background: white;
+      color: #475569;
+      border: 1px solid #cbd5e1;
+    }
+
+    .btn-secondary:hover {
+      background: #f8fafc;
+      border-color: #94a3b8;
+    }
+
+    /* Loading States */
+    .loading {
+      text-align: center;
+      padding: 3rem 1rem;
+    }
+
+    .spinner {
+      width: 48px;
+      height: 48px;
+      border: 4px solid #e2e8f0;
+      border-top-color: #2563eb;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 1rem;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Recommendations */
+    .recommendation {
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 0.75rem;
+      display: flex;
+      gap: 1rem;
+      align-items: flex-start;
+    }
+
+    .recommendation.high {
+      background: #fef2f2;
+      border-left: 4px solid #dc2626;
+    }
+
+    .recommendation.medium {
+      background: #fef3c7;
+      border-left: 4px solid #d97706;
+    }
+
+    .recommendation.success {
+      background: #ecfdf5;
+      border-left: 4px solid #10b981;
+    }
+
+    .recommendation.info {
+      background: #eff6ff;
+      border-left: 4px solid #2563eb;
+    }
+
+    .recommendation-icon {
+      font-size: 1.5rem;
+    }
+
+    .recommendation-content {
+      flex: 1;
+    }
+
+    .recommendation-content .title {
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      letter-spacing: 0.05em;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="report-header">
+      <h1>📊 Shared Event-Sponsor Analytics</h1>
+      <p class="subtitle">Single source of truth for Event Managers & Sponsors</p>
+      <p class="subtitle" id="lastUpdated">Loading...</p>
+    </div>
+
+    <!-- Action Bar -->
+    <div class="action-bar">
+      <button class="btn btn-primary" onclick="loadReport()">
+        🔄 Refresh Data
+      </button>
+      <button class="btn btn-secondary" onclick="exportReport()">
+        📊 Export to Sheets
+      </button>
+      <button class="btn btn-secondary" onclick="showFilters()">
+        🔍 Filter
+      </button>
+    </div>
+
+    <!-- Loading State -->
+    <div id="loading" class="loading">
+      <div class="spinner"></div>
+      <p>Loading analytics data...</p>
+    </div>
+
+    <!-- Key Metrics -->
+    <div id="metrics" style="display:none;">
+      <div class="metrics-grid" id="metricsGrid"></div>
+
+      <!-- Surface Performance -->
+      <div class="section-card">
+        <h2>🌐 Performance by Surface</h2>
+        <div id="surfacePerformance"></div>
+      </div>
+
+      <!-- Sponsor Performance -->
+      <div class="section-card">
+        <h2>🏢 Sponsor Performance</h2>
+        <div id="sponsorPerformance"></div>
+      </div>
+
+      <!-- Event Performance (Event Managers Only) -->
+      <div class="section-card" id="eventPerformanceCard" style="display:none;">
+        <h2>🎉 Event Performance</h2>
+        <div id="eventPerformance"></div>
+      </div>
+
+      <!-- Trends -->
+      <div class="section-card">
+        <h2>📈 Daily Trends</h2>
+        <div class="chart-container">
+          Chart: Daily Impressions & Clicks Over Time
+        </div>
+      </div>
+
+      <!-- Recommendations -->
+      <div class="section-card">
+        <h2>💡 Recommendations</h2>
+        <div id="recommendations"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const TENANT_ID = '<?= tenantId ?>';
+    const IS_SPONSOR_VIEW = false; // Set via URL param if sponsor
+
+    async function loadReport() {
+      try {
+        document.getElementById('loading').style.display = 'block';
+        document.getElementById('metrics').style.display = 'none';
+
+        // Get shared analytics
+        const result = await NU.rpc('api_getSharedAnalytics', {
+          tenantId: TENANT_ID,
+          isSponsorView: IS_SPONSOR_VIEW
+        });
+
+        if (!result.ok) {
+          throw new Error(result.message || 'Failed to load analytics');
+        }
+
+        renderReport(result.value);
+
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('metrics').style.display = 'block';
+        document.getElementById('lastUpdated').textContent = `Last updated: ${new Date().toLocaleString()}`;
+
+      } catch (e) {
+        alert('Error loading report: ' + e.message);
+        console.error(e);
+      }
+    }
+
+    function renderReport(metrics) {
+      // Render key metrics
+      renderMetrics(metrics);
+
+      // Render surface performance
+      renderSurfacePerformance(metrics.bySurface);
+
+      // Render sponsor performance
+      renderSponsorPerformance(metrics.bySponsor);
+
+      // Render event performance (if not sponsor view)
+      if (!IS_SPONSOR_VIEW && metrics.byEvent) {
+        document.getElementById('eventPerformanceCard').style.display = 'block';
+        renderEventPerformance(metrics.byEvent);
+      }
+
+      // Render recommendations
+      renderRecommendations(metrics);
+    }
+
+    function renderMetrics(metrics) {
+      const grid = document.getElementById('metricsGrid');
+      grid.innerHTML = '';
+
+      const metricCards = [
+        {
+          label: 'Total Impressions',
+          value: metrics.totalImpressions.toLocaleString(),
+          trend: null
+        },
+        {
+          label: 'Total Clicks',
+          value: metrics.totalClicks.toLocaleString(),
+          trend: null
+        },
+        {
+          label: 'Engagement Rate',
+          value: metrics.engagementRate.rate,
+          trend: null
+        },
+        {
+          label: 'Active Events',
+          value: metrics.uniqueEvents,
+          trend: null
+        },
+        {
+          label: 'Active Sponsors',
+          value: metrics.uniqueSponsors,
+          trend: null
+        }
+      ];
+
+      metricCards.forEach(metric => {
+        const card = document.createElement('div');
+        card.className = 'metric-card';
+        card.innerHTML = `
+          <div class="label">${metric.label}</div>
+          <div class="value">${metric.value}</div>
+          ${metric.trend ? `<div class="trend ${metric.trend < 0 ? 'negative' : ''}">
+            ${metric.trend > 0 ? '↑' : '↓'} ${Math.abs(metric.trend)}%
+          </div>` : ''}
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    function renderSurfacePerformance(surfaces) {
+      const container = document.getElementById('surfacePerformance');
+
+      const html = `
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Surface</th>
+              <th>Impressions</th>
+              <th>Clicks</th>
+              <th>Engagement Rate</th>
+              <th>Performance</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${Object.keys(surfaces).map(surface => {
+              const data = surfaces[surface];
+              const rate = parseFloat(data.engagementRate);
+              return `
+                <tr>
+                  <td data-label="Surface"><strong>${surface}</strong></td>
+                  <td data-label="Impressions">${data.impressions.toLocaleString()}</td>
+                  <td data-label="Clicks">${data.clicks.toLocaleString()}</td>
+                  <td data-label="Engagement Rate">${data.engagementRate}</td>
+                  <td data-label="Performance">
+                    <div class="progress-bar">
+                      <div class="fill" style="width: ${Math.min(rate * 10, 100)}%"></div>
+                    </div>
+                  </td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+      `;
+
+      container.innerHTML = html;
+    }
+
+    function renderSponsorPerformance(sponsors) {
+      const container = document.getElementById('sponsorPerformance');
+
+      if (!sponsors || sponsors.length === 0) {
+        container.innerHTML = '<p style="color: #64748b;">No sponsor data available.</p>';
+        return;
+      }
+
+      const html = `
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Sponsor</th>
+              <th>Impressions</th>
+              <th>Clicks</th>
+              <th>Events</th>
+              <th>Engagement Rate</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${sponsors.slice(0, 10).map(sponsor => `
+              <tr>
+                <td data-label="Sponsor"><strong>${sponsor.sponsorId}</strong></td>
+                <td data-label="Impressions">${sponsor.impressions.toLocaleString()}</td>
+                <td data-label="Clicks">${sponsor.clicks.toLocaleString()}</td>
+                <td data-label="Events">${sponsor.uniqueEvents}</td>
+                <td data-label="Engagement Rate">
+                  <span class="badge success">${sponsor.engagementRate}</span>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+
+      container.innerHTML = html;
+    }
+
+    function renderEventPerformance(events) {
+      const container = document.getElementById('eventPerformance');
+
+      if (!events || events.length === 0) {
+        container.innerHTML = '<p style="color: #64748b;">No event data available.</p>';
+        return;
+      }
+
+      const html = `
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Event</th>
+              <th>Impressions</th>
+              <th>Clicks</th>
+              <th>Sponsors</th>
+              <th>Engagement Rate</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${events.slice(0, 10).map(event => `
+              <tr>
+                <td data-label="Event"><strong>${event.eventId}</strong></td>
+                <td data-label="Impressions">${event.impressions.toLocaleString()}</td>
+                <td data-label="Clicks">${event.clicks.toLocaleString()}</td>
+                <td data-label="Sponsors">${event.uniqueSponsors}</td>
+                <td data-label="Engagement Rate">
+                  <span class="badge info">${event.engagementRate}</span>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+
+      container.innerHTML = html;
+    }
+
+    function renderRecommendations(metrics) {
+      const container = document.getElementById('recommendations');
+
+      // Generate recommendations
+      const recommendations = [];
+
+      const overallRate = parseFloat(metrics.engagementRate.rate);
+      if (overallRate < 2) {
+        recommendations.push({
+          type: 'engagement',
+          priority: 'high',
+          message: `Low engagement rate (${metrics.engagementRate.rate}). Consider testing different sponsor placements or creative.`
+        });
+      } else if (overallRate > 10) {
+        recommendations.push({
+          type: 'engagement',
+          priority: 'success',
+          message: `Excellent engagement rate (${metrics.engagementRate.rate})! Current strategy is working well.`
+        });
+      }
+
+      // Add surface-specific recommendations
+      Object.keys(metrics.bySurface).forEach(surface => {
+        const rate = parseFloat(metrics.bySurface[surface].engagementRate);
+        if (rate > overallRate * 1.5) {
+          recommendations.push({
+            type: 'surface',
+            priority: 'info',
+            message: `"${surface}" surface is performing ${rate.toFixed(1)}% above average. Consider increasing sponsor presence here.`
+          });
+        }
+      });
+
+      if (recommendations.length === 0) {
+        container.innerHTML = '<p style="color: #64748b;">No recommendations at this time. Keep monitoring your metrics!</p>';
+        return;
+      }
+
+      const html = recommendations.map(rec => `
+        <div class="recommendation ${rec.priority}">
+          <div class="recommendation-icon">
+            ${rec.priority === 'high' ? '⚠️' : rec.priority === 'success' ? '✅' : '💡'}
+          </div>
+          <div class="recommendation-content">
+            <div class="title">${rec.priority}</div>
+            <div>${rec.message}</div>
+          </div>
+        </div>
+      `).join('');
+
+      container.innerHTML = html;
+    }
+
+    async function exportReport() {
+      try {
+        if (!confirm('Export report to Google Sheets?')) return;
+
+        const result = await NU.rpc('api_exportSharedReport', TENANT_ID, {});
+
+        if (!result.ok) {
+          throw new Error(result.message || 'Failed to export');
+        }
+
+        alert(`Report exported! Opening sheet...`);
+        window.open(result.value.url, '_blank');
+
+      } catch (e) {
+        alert('Error exporting: ' + e.message);
+        console.error(e);
+      }
+    }
+
+    function showFilters() {
+      alert('Filter functionality coming soon!');
+    }
+
+    // Auto-load on page load
+    window.addEventListener('load', loadReport);
+  </script>
+</body>
+</html>
