@@ -10,7 +10,11 @@ module.exports = {
   ],
   testMatch: [
     '**/tests/**/*.test.js',
-    '**/tests/**/*.spec.js'
+    '!**/tests/e2e/**'
+  ],
+  testPathIgnorePatterns: [
+    '/node_modules/',
+    '/tests/e2e/'
   ],
   coverageThreshold: {
     global: {

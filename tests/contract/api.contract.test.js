@@ -11,7 +11,10 @@ describe('API Contract Tests', () => {
     expect(typeof response.ok).toBe('boolean');
 
     if (response.ok) {
-      expect(response).toHaveProperty('value');
+      // notModified responses don't have value property
+      if (!response.notModified) {
+        expect(response).toHaveProperty('value');
+      }
     } else {
       expect(response).toHaveProperty('code');
       expect(response).toHaveProperty('message');

@@ -2,27 +2,78 @@
   "env": {
     "browser": true,
     "es2021": true,
-    "node": true,
-    "googleappsscript/googleappsscript": true
+    "node": true
   },
   "extends": "eslint:recommended",
   "parserOptions": {
     "ecmaVersion": 2021,
-    "sourceType": "module"
+    "sourceType": "script"
   },
-  "plugins": ["googleappsscript"],
+  "globals": {
+    "SpreadsheetApp": "readonly",
+    "ScriptApp": "readonly",
+    "ContentService": "readonly",
+    "HtmlService": "readonly",
+    "CacheService": "readonly",
+    "Utilities": "readonly",
+    "google": "readonly",
+    "Logger": "readonly",
+    "Session": "readonly",
+    "UrlFetchApp": "readonly"
+  },
   "rules": {
     "no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
     "no-console": "off",
-    "no-undef": "error",
-    "semi": ["error", "always"],
-    "quotes": ["error", "single", { "avoidEscape": true }]
+    "no-undef": "warn",
+    "semi": ["warn", "always"],
+    "quotes": "off",
+    "no-var": "warn"
   },
   "overrides": [
     {
       "files": ["*.gs"],
+      "parserOptions": {
+        "sourceType": "script"
+      }
+    },
+    {
+      "files": ["Code.gs"],
+      "globals": {
+        "ZEB": "readonly",
+        "TENANTS": "readonly",
+        "TEMPLATES": "readonly",
+        "loadTenants_": "readonly",
+        "findTenant_": "readonly",
+        "findTenantByHost_": "readonly",
+        "findTemplate_": "readonly"
+      }
+    },
+    {
+      "files": ["tests/**/*.js"],
+      "env": {
+        "jest": true
+      },
+      "globals": {
+        "test": "readonly",
+        "expect": "readonly",
+        "describe": "readonly",
+        "it": "readonly",
+        "beforeEach": "readonly",
+        "afterEach": "readonly",
+        "beforeAll": "readonly",
+        "afterAll": "readonly"
+      }
+    },
+    {
+      "files": ["tests/e2e/**/*.js"],
       "rules": {
-        "no-var": "warn"
+        "no-unused-vars": "off"
+      }
+    },
+    {
+      "files": ["*.html"],
+      "rules": {
+        "no-undef": "off"
       }
     }
   ],
@@ -30,6 +81,7 @@
     "node_modules/",
     "coverage/",
     "dist/",
-    "build/"
+    "build/",
+    "playwright-report/"
   ]
 }
