@@ -10,12 +10,13 @@ module.exports = {
     '!playwright.config.js'
   ],
   testMatch: [
-    '**/tests/**/*.test.js',
-    '!**/tests/e2e/**'
+    '**/tests/unit/**/*.test.js',
+    '**/tests/contract/**/*.test.js'
   ],
   testPathIgnorePatterns: [
     '/node_modules/',
-    '/tests/e2e/'
+    '/tests/e2e/',
+    '/tests/smoke/'
   ],
   // Coverage thresholds disabled for Apps Script project
   // (code runs in Google's sandbox, not locally testable)

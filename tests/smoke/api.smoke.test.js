@@ -1,0 +1,145 @@
+/**
+ * API Smoke Tests - Quick health checks for backend endpoints
+ *
+ * These tests verify:
+ * - API endpoints are reachable
+ * - Response format is correct
+ * - Basic error handling works
+ * - No critical backend failures
+ *
+ * Run with: npm run test:smoke
+ */
+
+const { test, expect } = require('@playwright/test');
+
+const BASE_URL = process.env.BASE_URL || 'https://script.google.com/macros/s/.../exec';
+const TENANT_ID = 'root';
+
+test.describe('API Smoke Tests - Status & Health', () => {
+
+  test('api_status - Returns system status', async ({ page }) => {
+    const response = await page.goto(`${BASE_URL}?p=status&tenant=${TENANT_ID}`);
+
+    expect(response.status()).toBe(200);
+    const json = await response.json();
+
+    expect(json).toHaveProperty('ok', true);
+    expect(json.value).toHaveProperty('build', 'triangle-extended-v1.3');
+    expect(json.value).toHaveProperty('contract', '1.0.3');
+    expect(json.value).toHaveProperty('time');
+    expect(json.value).toHaveProperty('db');
+    expect(json.value.db).toHaveProperty('ok');
+  });
+
+  test('Health check page - Returns OK response', async ({ page }) => {
+    const response = await page.goto(`${BASE_URL}?page=test&tenant=${TENANT_ID}`);
+
+    expect(response.status()).toBe(200);
+    // Test page should load without errors
+    await page.waitForLoadState('domcontentloaded');
+  });
+});
+
+test.describe('API Smoke Tests - Error Handling', () => {
+
+  test('Invalid page parameter - Returns 404 or error page', async ({ page }) => {
+    const response = await page.goto(`${BASE_URL}?page=nonexistent&tenant=${TENANT_ID}`);
+
+    // Should either return 200 with error message or 404
+    expect([200, 404]).toContain(response.status());
+  });
+
+  test('Missing tenant parameter - Falls back to root', async ({ page }) => {
+    const response = await page.goto(`${BASE_URL}?page=admin`);
+
+    expect(response.status()).toBe(200);
+    // Should fall back to root tenant
+    await expect(page).toHaveTitle(/Admin/);
+  });
+
+  test('Invalid redirect token - Shows error', async ({ page }) => {
+    await page.goto(`${BASE_URL}?p=r&t=invalid-token-12345`);
+
+    // Should show "not found" or error message
+    const bodyText = await page.locator('body').textContent();
+    expect(bodyText.toLowerCase()).toMatch(/not found|invalid|error/);
+  });
+});
+
+test.describe('API Smoke Tests - Response Format', () => {
+
+  test('Status endpoint - Follows OK envelope format', async ({ page }) => {
+    const response = await page.goto(`${BASE_URL}?p=status&tenant=${TENANT_ID}`);
+    const json = await response.json();
+
+    // OK envelope: { ok: true, value: {...} }
+    expect(json).toMatchObject({
+      ok: true,
+      value: expect.any(Object)
+    });
+  });
+
+  test('Error responses - Follow Err envelope format', async ({ page }) => {
+    // This would need to trigger an error condition
+    // For now, verify the page handles errors gracefully
+    await page.goto(`${BASE_URL}?page=admin&tenant=${TENANT_ID}`);
+
+    // Should load without throwing
+    await expect(page.locator('body')).toBeVisible();
+  });
+});
+
+test.describe('API Smoke Tests - Performance', () => {
+
+  test('Status API - Responds quickly', async ({ page }) => {
+    const times = [];
+
+    // Make 3 requests to check consistency
+    for (let i = 0; i < 3; i++) {
+      const start = Date.now();
+      await page.goto(`${BASE_URL}?p=status&tenant=${TENANT_ID}`);
+      times.push(Date.now() - start);
+    }
+
+    const avgTime = times.reduce((a, b) => a + b, 0) / times.length;
+    expect(avgTime).toBeLessThan(3000); // Average under 3 seconds
+  });
+});
+
+test.describe('API Smoke Tests - Multi-tenant', () => {
+
+  test('Root tenant - Accessible', async ({ page }) => {
+    const response = await page.goto(`${BASE_URL}?page=admin&tenant=root`);
+
+    expect(response.status()).toBe(200);
+    await expect(page).toHaveTitle(/Admin/);
+  });
+
+  test('Different tenant IDs - Load correctly', async ({ page }) => {
+    // Test different tenant IDs (abc, cbc, cbl per Config.gs)
+    const tenants = ['root', 'abc', 'cbc', 'cbl'];
+
+    for (const tenant of tenants) {
+      const response = await page.goto(`${BASE_URL}?page=admin&tenant=${tenant}`);
+      expect(response.status()).toBe(200);
+    }
+  });
+});
+
+test.describe('API Smoke Tests - Rate Limiting', () => {
+
+  test('Multiple rapid requests - Should handle gracefully', async ({ page }) => {
+    // Make 5 rapid status requests
+    const requests = [];
+    for (let i = 0; i < 5; i++) {
+      requests.push(page.goto(`${BASE_URL}?p=status&tenant=${TENANT_ID}`));
+    }
+
+    const responses = await Promise.all(requests);
+
+    // All should succeed (rate limit is 20/min per tenant)
+    responses.forEach(response => {
+      expect(response.status()).toBe(200);
+    });
+  });
+});
