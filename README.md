@@ -16,8 +16,10 @@ Project ID: 1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l
 ---
 
 ## What's here
-- **REST API** - Build custom frontends in React, Vue, mobile apps! (✅ NEW!)
-- **Built-in HTML Pages** - Admin, Public, Display, Poster, Test
+- **REST API** - Build custom frontends in React, Vue, mobile apps!
+- **3 Authentication Methods** - adminKey, JWT tokens, API key header (✅ NEW!)
+- **Interactive API Docs** - Test endpoints right in your browser! (✅ NEW!)
+- **Built-in HTML Pages** - Admin, Public, Display, Poster, Test, Diagnostics
 - Multi-tenant config (events-only flags)
 - Uniform API envelopes, DIAG logging, idempotency, rate-limits
 - SWR helper (etag + localStorage)
@@ -37,6 +39,7 @@ Project ID: 1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l
 - Test.html
 - Display.html
 - Diagnostics.html
+- ApiDocs.html (🆕 Interactive API documentation)
 
 ## Quick Deploy Options
 
@@ -59,9 +62,12 @@ npm run deploy # Create new deployment
 ## Documentation
 
 ### For Developers Building Custom Frontends
-- **[CUSTOM_FRONTEND_GUIDE.md](./CUSTOM_FRONTEND_GUIDE.md)** - 🆕 Build React/Vue/mobile apps
+- **[Interactive API Docs](?page=docs)** - 🆕 Test API endpoints in your browser!
+- **[AUTHENTICATION_GUIDE.md](./AUTHENTICATION_GUIDE.md)** - 🆕 3 authentication methods explained
+- **[CUSTOM_FRONTEND_GUIDE.md](./CUSTOM_FRONTEND_GUIDE.md)** - Build React/Vue/mobile apps
 - **[POSTMAN_API_TESTING.md](./POSTMAN_API_TESTING.md)** - REST API reference & testing
 - **[postman-collection.json](./postman-collection.json)** - Import into Postman
+- **[openapi.yaml](./openapi.yaml)** - 🆕 OpenAPI 3.0 specification
 
 ### For Deployment & DevOps
 - **[APPS_SCRIPT_PROJECT.md](./APPS_SCRIPT_PROJECT.md)** - Unified deployment configuration

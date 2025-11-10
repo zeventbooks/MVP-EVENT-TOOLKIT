@@ -111,6 +111,13 @@ function doGet(e){
     return handleRedirect_(token);
   }
 
+  // API Documentation page
+  if (pageParam === 'docs' || pageParam === 'api') {
+    return HtmlService.createHtmlOutputFromFile('ApiDocs')
+      .setTitle('API Documentation - MVP Event Toolkit')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  }
+
   // Status endpoint
   if (pageParam === 'status') {
     const status = api_status();
@@ -182,15 +189,27 @@ function handleRestApiGet_(e, action, tenant) {
 
 // === REST API POST Handler (write operations, require auth) ===============
 function handleRestApiPost_(e, action, body, tenant) {
-  const adminKey = body.adminKey || e.parameter?.adminKey || '';
   const tenantId = body.tenantId || e.parameter?.tenant || tenant.id;
   const scope = body.scope || e.parameter?.scope || 'events';
 
-  // Check authorization for admin operations
-  const authCheck = gate_(tenantId, adminKey);
+  // Special case: token generation uses old auth flow
+  if (action === 'generateToken') {
+    return jsonResponse_(api_generateToken({
+      tenantId,
+      adminKey: body.adminKey,
+      expiresIn: body.expiresIn,
+      scope
+    }));
+  }
+
+  // Check authorization using multi-method authentication
+  const authCheck = authenticateRequest_(e, body, tenantId);
   if (!authCheck.ok) {
     return jsonResponse_(authCheck);
   }
+
+  const authenticatedTenant = authCheck.value.tenant;
+  const adminKey = body.adminKey || authenticatedTenant.adminSecret; // For backward compatibility
 
   // Route to appropriate API function
   if (action === 'create') {
@@ -308,6 +327,124 @@ function handleRedirect_(token) {
     <meta http-equiv="refresh" content="0;url=${targetUrl}">
     <p>Redirecting...</p>
   `);
+}
+
+// === Authentication & Authorization ========================================
+
+/**
+ * Multi-method authentication support:
+ * 1. adminKey (legacy) - Simple secret key
+ * 2. Bearer token (JWT) - Stateless token-based auth
+ * 3. API Key (header) - X-API-Key header
+ */
+function authenticateRequest_(e, body, tenantId) {
+  const tenant = findTenant_(tenantId);
+  if (!tenant) {
+    return Err(ERR.NOT_FOUND, 'Unknown tenant');
+  }
+
+  // Method 1: adminKey in body (legacy, backward compatible)
+  const adminKey = body?.adminKey || e?.parameter?.adminKey || '';
+  if (adminKey && adminKey === tenant.adminSecret) {
+    return Ok({ tenant, method: 'adminKey' });
+  }
+
+  // Method 2: Bearer token (JWT)
+  const authHeader = e?.headers?.Authorization || e?.headers?.authorization || '';
+  if (authHeader.startsWith('Bearer ')) {
+    const token = authHeader.substring(7);
+    const jwtResult = verifyJWT_(token, tenant);
+    if (jwtResult.ok) {
+      return Ok({ tenant, method: 'jwt', claims: jwtResult.value });
+    }
+  }
+
+  // Method 3: API Key in header
+  const apiKey = e?.headers?.['X-API-Key'] || e?.headers?.['x-api-key'] || '';
+  if (apiKey && apiKey === tenant.adminSecret) {
+    return Ok({ tenant, method: 'apiKey' });
+  }
+
+  // No valid authentication found
+  return Err(ERR.BAD_INPUT, 'Invalid authentication credentials');
+}
+
+/**
+ * Simple JWT verification (for demonstration)
+ * In production, use a proper JWT library or Google's OAuth
+ */
+function verifyJWT_(token, tenant) {
+  try {
+    // Simple validation: decode base64 payload
+    const parts = token.split('.');
+    if (parts.length !== 3) {
+      return Err(ERR.BAD_INPUT, 'Invalid JWT format');
+    }
+
+    const payload = JSON.parse(Utilities.newBlob(Utilities.base64Decode(parts[1])).getDataAsString());
+
+    // Verify tenant
+    if (payload.tenant !== tenant.id) {
+      return Err(ERR.BAD_INPUT, 'Token tenant mismatch');
+    }
+
+    // Verify expiration
+    const now = Math.floor(Date.now() / 1000);
+    if (payload.exp && payload.exp < now) {
+      return Err(ERR.BAD_INPUT, 'Token expired');
+    }
+
+    // Verify signature (simplified - use proper crypto in production)
+    const expectedSignature = generateJWTSignature_(parts[0] + '.' + parts[1], tenant.adminSecret);
+    if (parts[2] !== expectedSignature) {
+      return Err(ERR.BAD_INPUT, 'Invalid token signature');
+    }
+
+    return Ok(payload);
+  } catch (e) {
+    return Err(ERR.BAD_INPUT, 'Invalid JWT: ' + e.message);
+  }
+}
+
+/**
+ * Generate JWT token for a tenant (for demo/testing)
+ */
+function api_generateToken(req) {
+  const authCheck = gate_(req.tenantId, req.adminKey);
+  if (!authCheck.ok) return authCheck;
+
+  const tenant = authCheck.value.tenant;
+  const expiresIn = req.expiresIn || 3600; // 1 hour default
+
+  const header = {
+    alg: 'HS256',
+    typ: 'JWT'
+  };
+
+  const payload = {
+    tenant: tenant.id,
+    iat: Math.floor(Date.now() / 1000),
+    exp: Math.floor(Date.now() / 1000) + expiresIn,
+    scope: req.scope || 'events'
+  };
+
+  const headerB64 = Utilities.base64EncodeWebSafe(JSON.stringify(header));
+  const payloadB64 = Utilities.base64EncodeWebSafe(JSON.stringify(payload));
+  const signature = generateJWTSignature_(headerB64 + '.' + payloadB64, tenant.adminSecret);
+
+  const token = headerB64 + '.' + payloadB64 + '.' + signature;
+
+  return Ok({
+    token,
+    expiresIn,
+    expiresAt: new Date((payload.exp * 1000)).toISOString(),
+    usage: `Authorization: Bearer ${token}`
+  });
+}
+
+function generateJWTSignature_(data, secret) {
+  const signature = Utilities.computeHmacSha256Signature(data, secret);
+  return Utilities.base64EncodeWebSafe(signature);
 }
 
 // === Guards / Helpers ======================================================
