@@ -29,6 +29,7 @@
   "license": "MIT",
   "devDependencies": {
     "@google/clasp": "^2.4.2",
+    "@playwright/test": "^1.56.1",
     "@types/google-apps-script": "^1.0.83",
     "eslint": "^8.57.0",
     "jest": "^29.7.0",
