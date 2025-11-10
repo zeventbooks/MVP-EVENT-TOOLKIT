@@ -227,7 +227,7 @@ function isUrl(s) {
 function sanitizeInput_(input) {
   if (!input || typeof input !== 'string') return '';
   return String(input)
-    .replace(/[<>\"']/g, '')
+    .replace(/[<>"']/g, '')
     .trim()
     .slice(0, 1000);
 }
