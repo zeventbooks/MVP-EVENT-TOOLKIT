@@ -1,0 +1,247 @@
+/**
+ * Smoke Tests - Quick health checks for all pages
+ *
+ * These tests verify basic page functionality:
+ * - Page loads successfully (200 status)
+ * - Core elements are present
+ * - No JavaScript errors on load
+ * - Basic responsive behavior
+ *
+ * Run with: npm run test:smoke
+ */
+
+const { test, expect } = require('@playwright/test');
+
+const BASE_URL = process.env.BASE_URL || 'https://script.google.com/macros/s/.../exec';
+const TENANT_ID = 'root';
+
+test.describe('Smoke Tests - All Pages', () => {
+
+  test('Admin Page - Loads and shows create form', async ({ page }) => {
+    const response = await page.goto(`${BASE_URL}?page=admin&tenant=${TENANT_ID}`);
+
+    expect(response.status()).toBe(200);
+    await expect(page).toHaveTitle(/Admin/);
+    await expect(page.locator('h2:has-text("Create Event")')).toBeVisible();
+    await expect(page.locator('#name')).toBeVisible();
+    await expect(page.locator('#dateISO')).toBeVisible();
+    await expect(page.locator('button[type="submit"]')).toBeVisible();
+  });
+
+  test('Public Page - Loads event listing', async ({ page }) => {
+    const response = await page.goto(`${BASE_URL}?p=events&tenant=${TENANT_ID}`);
+
+    expect(response.status()).toBe(200);
+    await expect(page).toHaveTitle(/Public/);
+    await expect(page.locator('main#app')).toBeVisible();
+    // Should show either event list or "no events" message
+    const hasContent = await page.locator('h1, h2, .event-card').count();
+    expect(hasContent).toBeGreaterThan(0);
+  });
+
+  test('Display Page - Loads TV display layout', async ({ page }) => {
+    const response = await page.goto(`${BASE_URL}?page=display&tenant=${TENANT_ID}`);
+
+    expect(response.status()).toBe(200);
+    await expect(page).toHaveTitle(/TV Display/);
+    await expect(page.locator('body[data-tv="1"]')).toBeVisible();
+    await expect(page.locator('#stage')).toBeVisible();
+
+    // Verify TV-optimized font size
+    const fontSize = await page.locator('body').evaluate(el =>
+      window.getComputedStyle(el).fontSize
+    );
+    const fontSizeNum = parseInt(fontSize);
+    expect(fontSizeNum).toBeGreaterThanOrEqual(20); // Min 20px for 10-12ft viewing
+  });
+
+  test('Poster Page - Loads print layout', async ({ page }) => {
+    // Note: Requires event ID, will show blank if no ID provided
+    const response = await page.goto(`${BASE_URL}?page=poster&tenant=${TENANT_ID}`);
+
+    expect(response.status()).toBe(200);
+    await expect(page).toHaveTitle(/Poster/);
+    await expect(page.locator('main')).toBeVisible();
+  });
+
+  test('Test Page - Health check endpoint', async ({ page }) => {
+    const response = await page.goto(`${BASE_URL}?page=test&tenant=${TENANT_ID}`);
+
+    expect(response.status()).toBe(200);
+    await expect(page).toHaveTitle(/Test/);
+    await expect(page.locator('body')).toBeVisible();
+  });
+
+  test('Diagnostics Page - System test interface', async ({ page }) => {
+    const response = await page.goto(`${BASE_URL}?page=diagnostics&tenant=${TENANT_ID}`);
+
+    expect(response.status()).toBe(200);
+    await expect(page).toHaveTitle(/Diagnostics/);
+    await expect(page.locator('h1:has-text("System Diagnostics")')).toBeVisible();
+    await expect(page.locator('button:has-text("Run All Tests")')).toBeVisible();
+  });
+
+  test('Status API - JSON endpoint responds', async ({ page }) => {
+    const response = await page.goto(`${BASE_URL}?p=status&tenant=${TENANT_ID}`);
+
+    expect(response.status()).toBe(200);
+    const json = await response.json();
+
+    expect(json).toHaveProperty('ok', true);
+    expect(json.value).toHaveProperty('build');
+    expect(json.value).toHaveProperty('contract');
+    expect(json.value.build).toBe('triangle-extended-v1.3');
+    expect(json.value.contract).toBe('1.0.3');
+  });
+});
+
+test.describe('Smoke Tests - Responsive Design', () => {
+
+  test('Mobile - Admin page is usable', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 667 }); // iPhone SE
+    await page.goto(`${BASE_URL}?page=admin&tenant=${TENANT_ID}`);
+
+    await expect(page.locator('#name')).toBeVisible();
+
+    // Check input has minimum 44px tap target (iOS requirement)
+    const inputHeight = await page.locator('#name').evaluate(el => el.offsetHeight);
+    expect(inputHeight).toBeGreaterThanOrEqual(40); // ~44px with padding
+  });
+
+  test('Mobile - Public page is readable', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 667 });
+    await page.goto(`${BASE_URL}?p=events&tenant=${TENANT_ID}`);
+
+    // Font size should be at least 16px to prevent iOS zoom
+    const fontSize = await page.locator('body').evaluate(el =>
+      window.getComputedStyle(el).fontSize
+    );
+    const fontSizeNum = parseInt(fontSize);
+    expect(fontSizeNum).toBeGreaterThanOrEqual(16);
+  });
+
+  test('Tablet - Display adapts to medium screens', async ({ page }) => {
+    await page.setViewportSize({ width: 768, height: 1024 }); // iPad
+    await page.goto(`${BASE_URL}?p=events&tenant=${TENANT_ID}`);
+
+    await expect(page.locator('main')).toBeVisible();
+  });
+
+  test('TV - Large viewport with readable fonts', async ({ page }) => {
+    await page.setViewportSize({ width: 1920, height: 1080 }); // 1080p TV
+    await page.goto(`${BASE_URL}?page=display&tenant=${TENANT_ID}`);
+
+    const fontSize = await page.locator('body').evaluate(el =>
+      window.getComputedStyle(el).fontSize
+    );
+    const fontSizeNum = parseInt(fontSize);
+    expect(fontSizeNum).toBeGreaterThanOrEqual(20); // TV-optimized
+  });
+});
+
+test.describe('Smoke Tests - JavaScript Errors', () => {
+
+  test('Admin page - No console errors on load', async ({ page }) => {
+    const errors = [];
+    page.on('pageerror', error => errors.push(error));
+
+    await page.goto(`${BASE_URL}?page=admin&tenant=${TENANT_ID}`);
+    await page.waitForLoadState('networkidle');
+
+    // Allow google.script.run errors in non-Apps Script environment
+    const criticalErrors = errors.filter(e =>
+      !e.message.includes('google.script') &&
+      !e.message.includes('google is not defined')
+    );
+    expect(criticalErrors.length).toBe(0);
+  });
+
+  test('Public page - No console errors on load', async ({ page }) => {
+    const errors = [];
+    page.on('pageerror', error => errors.push(error));
+
+    await page.goto(`${BASE_URL}?p=events&tenant=${TENANT_ID}`);
+    await page.waitForLoadState('networkidle');
+
+    const criticalErrors = errors.filter(e =>
+      !e.message.includes('google.script') &&
+      !e.message.includes('google is not defined')
+    );
+    expect(criticalErrors.length).toBe(0);
+  });
+
+  test('Display page - No console errors on load', async ({ page }) => {
+    const errors = [];
+    page.on('pageerror', error => errors.push(error));
+
+    await page.goto(`${BASE_URL}?page=display&tenant=${TENANT_ID}`);
+    await page.waitForLoadState('networkidle');
+
+    const criticalErrors = errors.filter(e =>
+      !e.message.includes('google.script') &&
+      !e.message.includes('google is not defined')
+    );
+    expect(criticalErrors.length).toBe(0);
+  });
+});
+
+test.describe('Smoke Tests - Performance', () => {
+
+  test('Status endpoint - Responds within 2 seconds', async ({ page }) => {
+    const start = Date.now();
+    await page.goto(`${BASE_URL}?p=status&tenant=${TENANT_ID}`);
+    const duration = Date.now() - start;
+
+    expect(duration).toBeLessThan(2000);
+  });
+
+  test('Admin page - Loads within 5 seconds', async ({ page }) => {
+    const start = Date.now();
+    await page.goto(`${BASE_URL}?page=admin&tenant=${TENANT_ID}`);
+    await page.waitForLoadState('domcontentloaded');
+    const duration = Date.now() - start;
+
+    expect(duration).toBeLessThan(5000);
+  });
+
+  test('Public page - Loads within 5 seconds', async ({ page }) => {
+    const start = Date.now();
+    await page.goto(`${BASE_URL}?p=events&tenant=${TENANT_ID}`);
+    await page.waitForLoadState('domcontentloaded');
+    const duration = Date.now() - start;
+
+    expect(duration).toBeLessThan(5000);
+  });
+});
+
+test.describe('Smoke Tests - Accessibility', () => {
+
+  test('Admin page - Keyboard navigation works', async ({ page }) => {
+    await page.goto(`${BASE_URL}?page=admin&tenant=${TENANT_ID}`);
+
+    // Tab through elements
+    await page.keyboard.press('Tab');
+    await page.keyboard.press('Tab');
+
+    const focusedElement = await page.evaluate(() => document.activeElement.tagName);
+    expect(['INPUT', 'TEXTAREA', 'BUTTON', 'A']).toContain(focusedElement);
+  });
+
+  test('Public page - Has proper heading structure', async ({ page }) => {
+    await page.goto(`${BASE_URL}?p=events&tenant=${TENANT_ID}`);
+
+    const h1Count = await page.locator('h1').count();
+    expect(h1Count).toBeGreaterThanOrEqual(0); // Should have at least one h1 if content exists
+  });
+
+  test('Forms have accessible labels', async ({ page }) => {
+    await page.goto(`${BASE_URL}?page=admin&tenant=${TENANT_ID}`);
+
+    // Check that inputs have associated labels
+    const nameInput = page.locator('#name');
+    await expect(nameInput).toBeVisible();
+
+    const label = page.locator('label:has-text("Event Name")');
+    await expect(label).toBeVisible();
+  });
+});

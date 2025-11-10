@@ -8,7 +8,10 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:contract": "jest --testMatch='**/tests/contract/**/*.test.js'",
-    "test:e2e": "playwright test",
+    "test:unit": "jest --testMatch='**/tests/unit/**/*.test.js'",
+    "test:smoke": "playwright test tests/smoke",
+    "test:e2e": "playwright test tests/e2e",
+    "test:all": "npm run test:unit && npm run test:contract && npm run test:smoke && npm run test:e2e",
     "lint": "eslint '**/*.{js,gs}' --ext .js,.gs",
     "lint:fix": "eslint '**/*.{js,gs}' --ext .js,.gs --fix",
     "format": "prettier --write '**/*.{js,gs,html,json,md}'",
@@ -16,7 +19,8 @@
     "pull": "clasp pull",
     "deploy": "clasp deploy",
     "open": "clasp open",
-    "logs": "clasp logs"
+    "logs": "clasp logs",
+    "verify-deployment": "./verify-deployment.sh"
   },
   "keywords": [
     "events",
