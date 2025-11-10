@@ -45,12 +45,14 @@ Project ID: 1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l
 
 ### Option 1: GitHub Actions (Recommended)
 Push to `main` branch - automatic deployment via CI/CD pipeline.
+- **First time setup:** See [CLASP_SETUP.md](./CLASP_SETUP.md) to configure secrets
 
 ### Option 2: clasp CLI
 ```bash
 npm run push   # Push code to Apps Script
 npm run deploy # Create new deployment
 ```
+- **First time setup:** Run `clasp login` (see [CLASP_SETUP.md](./CLASP_SETUP.md))
 
 ### Option 3: Manual Copy-Paste
 1. Open [Apps Script Editor](https://script.google.com/home/projects/1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l/edit)
@@ -70,6 +72,7 @@ npm run deploy # Create new deployment
 - **[openapi.yaml](./openapi.yaml)** - 🆕 OpenAPI 3.0 specification
 
 ### For Deployment & DevOps
+- **[CLASP_SETUP.md](./CLASP_SETUP.md)** - 🆕 Configure clasp authentication for CI/CD
 - **[APPS_SCRIPT_PROJECT.md](./APPS_SCRIPT_PROJECT.md)** - Unified deployment configuration
 - **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Complete deployment guide
 - **[DEPLOYMENT_QUICK_START.md](./DEPLOYMENT_QUICK_START.md)** - DevOps quick start
