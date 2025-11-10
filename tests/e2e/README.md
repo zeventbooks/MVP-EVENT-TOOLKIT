@@ -251,6 +251,51 @@ test.describe('🔄 FLOW: Your User Journey', () => {
 });
 ```
 
+## 🔺 TRIANGLE Framework Tests
+
+**Special comprehensive tests that exercise the complete TRIANGLE framework:**
+
+### **triangle-framework.spec.js** - Cross-Page Data Propagation
+Tests the complete lifecycle: **Sponsor → Admin → Poster → Display → Public**
+
+**Coverage:**
+- ✅ Sponsor setup and propagation to all pages
+- ✅ Admin changes flowing to Poster, Display, Public
+- ✅ All Admin.html cards (Create Event, Event Card, Configure Sponsors, Events List)
+- ✅ Complete Display.html features
+- ✅ Complete Public.html features (desktop + mobile)
+- ✅ Shared reporting between Admin and Sponsors
+- ✅ Event updates propagating across all pages
+
+### **advanced-display-features.spec.js** - Deep Display Testing
+Tests all advanced Display.html features:
+
+**Coverage:**
+- ✅ Dynamic URLs with variable timing
+- ✅ Admin Notes window updates
+- ✅ iframe handling (skip on error, no missed beat)
+- ✅ YouTube video streaming support
+- ✅ Vimeo video streaming support
+- ✅ Multiple language support (English, Spanish, French, German)
+- ✅ Sponsor banner positioning (top, bottom, left, right)
+- ✅ No sponsor = slide up behavior
+- ✅ 10-12ft viewing optimization
+- ✅ 4K display support (3840x2160)
+
+### **poster-maps-integration.spec.js** - Poster & Maps
+Tests Poster editing and Google Maps integration:
+
+**Coverage:**
+- ✅ Poster view and edit functionality
+- ✅ Poster changes syncing back to Admin
+- ✅ Print-optimized poster layout
+- ✅ Google Maps embedding on Public pages
+- ✅ Mobile responsive maps
+- ✅ Directions link integration
+- ✅ Complete propagation cycle: Admin → Poster → Display → Public
+
+**Total TRIANGLE Tests: 75+ comprehensive integration tests!**
+
 ---
 
 ## Best Practices
