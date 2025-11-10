@@ -1,9 +1,21 @@
 # Zeventbook MVP (Events-only)
 
-**Build:** mvp-v1.0-events-only  
+**Build:** mvp-v1.0-events-only
 **Date:** 20251107-194908
 
-## What’s here
+## 🎯 Single Unified Deployment
+
+**All code in this repository deploys to ONE Google Apps Script project:**
+
+```
+Project ID: 1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l
+```
+
+📖 **See [APPS_SCRIPT_PROJECT.md](./APPS_SCRIPT_PROJECT.md) for complete deployment details**
+
+---
+
+## What's here
 - Multi-tenant config (events-only flags)
 - Uniform API envelopes, DIAG logging, idempotency, rate-limits
 - SWR helper (etag + localStorage)
@@ -22,16 +34,38 @@
 - Public.html
 - Poster.html
 - Test.html
+- Display.html
+- Diagnostics.html
 
-## Deploy
-1. New Apps Script → add all files above (names must match).
-2. Edit `Config.gs`: set real `adminSecret` values.
-3. Deploy → New deployment → Web app → Execute as **User accessing**, Access **Anyone**.
-4. Open `/exec?page=test` → all ✅.
-5. Open `/exec?page=admin&p=events&tenant=root` → create an event → get Public/Poster links.
+## Quick Deploy Options
+
+### Option 1: GitHub Actions (Recommended)
+Push to `main` branch - automatic deployment via CI/CD pipeline.
+
+### Option 2: clasp CLI
+```bash
+npm run push   # Push code to Apps Script
+npm run deploy # Create new deployment
+```
+
+### Option 3: Manual Copy-Paste
+1. Open [Apps Script Editor](https://script.google.com/home/projects/1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l/edit)
+2. Edit `Config.gs`: set real `adminSecret` values
+3. Deploy → New deployment → Web app → Execute as **User accessing**, Access **Anyone**
+4. Open `/exec?page=test` → all ✅
+5. Open `/exec?page=admin&p=events&tenant=root` → create an event → get Public/Poster links
+
+## Documentation
+
+- **[APPS_SCRIPT_PROJECT.md](./APPS_SCRIPT_PROJECT.md)** - Unified deployment configuration
+- **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Complete deployment guide
+- **[DEPLOYMENT_QUICK_START.md](./DEPLOYMENT_QUICK_START.md)** - DevOps quick start
+- **[GITHUB_ACTIONS_DEPLOYMENT.md](./GITHUB_ACTIONS_DEPLOYMENT.md)** - CI/CD setup
+- **[ARCHITECTURE_REVIEW.md](./ARCHITECTURE_REVIEW.md)** - System architecture
+- **[TESTING.md](./TESTING.md)** - Test infrastructure
 
 ## Notes
-- Poster shows a QR only when the server returns a verified `posterUrl`.
-- `EVENTS` & `DIAG` sheets are created on-demand in the bound spreadsheet.
-- Add tenants by extending `TENANTS` in `Config.gs`; later enable more scopes by adding `'leagues'` or `'tournaments'`.
+- Poster shows a QR only when the server returns a verified `posterUrl`
+- `EVENTS` & `DIAG` sheets are created on-demand in the bound spreadsheet
+- Add tenants by extending `TENANTS` in `Config.gs`; later enable more scopes by adding `'leagues'` or `'tournaments'`
 

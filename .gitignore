@@ -1,5 +1,6 @@
-# Clasp
+# Clasp (Apps Script deployment)
 .clasp.json
+.clasprc.json
 
 # Node modules
 node_modules/
