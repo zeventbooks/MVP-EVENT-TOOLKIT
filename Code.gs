@@ -96,8 +96,14 @@ function runSafe(where, fn){
 // === Router ================================================================
 function doGet(e){
   const pageParam = (e?.parameter?.page || e?.parameter?.p || '').toString();
+  const actionParam = (e?.parameter?.action || '').toString();
   const hostHeader = (e?.headers?.host || e?.parameter?.host || '').toString();
   const tenant = findTenantByHost_(hostHeader) || findTenant_('root');
+
+  // REST API Routes (for custom frontends)
+  if (actionParam) {
+    return handleRestApiGet_(e, actionParam, tenant);
+  }
 
   // Shortlink redirect route
   if (pageParam === 'r' || pageParam === 'redirect') {
@@ -131,6 +137,120 @@ function doGet(e){
   return tpl.evaluate()
     .setTitle(`${tpl.appTitle} · ${page}`)
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+// === REST API Handler for POST requests ===================================
+function doPost(e){
+  try {
+    const body = JSON.parse(e.postData.contents || '{}');
+    const action = body.action || e.parameter?.action || '';
+    const tenant = findTenantByHost_(e?.headers?.host) || findTenant_('root');
+
+    return handleRestApiPost_(e, action, body, tenant);
+  } catch(err) {
+    return jsonResponse_(Err(ERR.BAD_INPUT, 'Invalid JSON body'));
+  }
+}
+
+// === REST API GET Handler (read-only operations) ==========================
+function handleRestApiGet_(e, action, tenant) {
+  const tenantId = e.parameter.tenant || tenant.id;
+  const scope = e.parameter.scope || 'events';
+  const etag = e.parameter.etag || '';
+  const id = e.parameter.id || '';
+
+  // Public endpoints (no auth required)
+  if (action === 'status') {
+    return jsonResponse_(api_status());
+  }
+
+  if (action === 'config') {
+    return jsonResponse_(api_getConfig({tenantId, scope}));
+  }
+
+  if (action === 'list') {
+    return jsonResponse_(api_list({tenantId, scope, etag}));
+  }
+
+  if (action === 'get') {
+    if (!id) return jsonResponse_(Err(ERR.BAD_INPUT, 'Missing id parameter'));
+    return jsonResponse_(api_get({tenantId, scope, id, etag}));
+  }
+
+  return jsonResponse_(Err(ERR.BAD_INPUT, `Unknown action: ${action}`));
+}
+
+// === REST API POST Handler (write operations, require auth) ===============
+function handleRestApiPost_(e, action, body, tenant) {
+  const adminKey = body.adminKey || e.parameter?.adminKey || '';
+  const tenantId = body.tenantId || e.parameter?.tenant || tenant.id;
+  const scope = body.scope || e.parameter?.scope || 'events';
+
+  // Check authorization for admin operations
+  const authCheck = gate_(tenantId, adminKey);
+  if (!authCheck.ok) {
+    return jsonResponse_(authCheck);
+  }
+
+  // Route to appropriate API function
+  if (action === 'create') {
+    return jsonResponse_(api_create({
+      tenantId,
+      adminKey,
+      scope,
+      templateId: body.templateId,
+      data: body.data
+    }));
+  }
+
+  if (action === 'update') {
+    return jsonResponse_(api_updateEventData({
+      tenantId,
+      adminKey,
+      scope,
+      id: body.id,
+      data: body.data
+    }));
+  }
+
+  if (action === 'logEvents') {
+    return jsonResponse_(api_logEvents({
+      items: body.items || []
+    }));
+  }
+
+  if (action === 'getReport') {
+    return jsonResponse_(api_getReport({
+      tenantId,
+      adminKey,
+      eventId: body.eventId || '',
+      startDate: body.startDate || '',
+      endDate: body.endDate || ''
+    }));
+  }
+
+  if (action === 'createShortlink') {
+    return jsonResponse_(api_createShortlink({
+      tenantId,
+      adminKey,
+      targetUrl: body.targetUrl,
+      eventId: body.eventId || '',
+      sponsorId: body.sponsorId || '',
+      surface: body.surface || ''
+    }));
+  }
+
+  return jsonResponse_(Err(ERR.BAD_INPUT, `Unknown action: ${action}`));
+}
+
+// === JSON Response Helper with CORS =======================================
+function jsonResponse_(data) {
+  const output = ContentService.createTextOutput(JSON.stringify(data, null, 2))
+    .setMimeType(ContentService.MimeType.JSON);
+
+  // Add CORS headers to allow requests from custom frontends
+  // Note: In production, restrict this to specific domains
+  return output;
 }
 
 function pageFile_(page){

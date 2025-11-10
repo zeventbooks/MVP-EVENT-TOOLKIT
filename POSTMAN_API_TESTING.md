@@ -1,8 +1,13 @@
 # API Testing with Postman
 
-## ⚠️ Important: API Architecture Limitation
+## ✅ REST API Now Available!
 
-The **MVP Event Toolkit** uses **Google Apps Script's `google.script.run`** architecture, which means most API functions are **NOT directly accessible via HTTP/REST**.
+The **MVP Event Toolkit** now supports **BOTH** architectures:
+
+1. **REST API** - Full HTTP/REST access for custom frontends (✅ NEW!)
+2. **google.script.run** - For built-in HTML pages (existing)
+
+You can now build custom frontends in React, Vue, mobile apps, etc. **AND** still use the built-in Admin/Public/Display pages!
 
 ### How the API Works
 
@@ -29,23 +34,15 @@ The **MVP Event Toolkit** uses **Google Apps Script's `google.script.run`** arch
 
 ---
 
-## ✅ Endpoints You CAN Test with Postman
+## ✅ REST API Endpoints (All Testable in Postman!)
 
-### 1. Status Endpoint (GET)
+### Public Endpoints (No Auth Required)
 
-**URL:**
+#### 1. GET Status
 ```
-https://script.google.com/macros/s/{DEPLOYMENT_ID}/exec?page=status
+GET {BASE_URL}?action=status
 ```
-
-**Method:** `GET`
-
-**Headers:**
-```
-None required
-```
-
-**Response:**
+Response:
 ```json
 {
   "ok": true,
@@ -53,59 +50,141 @@ None required
     "build": "mvp-v1.0-events-only",
     "contract": "v1",
     "dbOk": true,
-    "tenant": "root",
-    "uptime": "OK"
+    "tenant": "root"
   }
 }
 ```
 
-**Postman Setup:**
-1. Create new GET request
-2. Set URL: `https://script.google.com/macros/s/{YOUR_DEPLOYMENT_ID}/exec?page=status`
-3. No auth required
-4. Click Send
+#### 2. GET Configuration
+```
+GET {BASE_URL}?action=config&tenant=root&scope=events
+```
+
+#### 3. GET List Events
+```
+GET {BASE_URL}?action=list&tenant=root&scope=events&etag=abc123
+```
+Response:
+```json
+{
+  "ok": true,
+  "value": {
+    "items": [...],
+    "etag": "xyz789"
+  }
+}
+```
+
+#### 4. GET Single Event
+```
+GET {BASE_URL}?action=get&tenant=root&scope=events&id=evt_123
+```
 
 ---
 
-### 2. Shortlink Redirect (GET)
+### Admin Endpoints (Require Auth in POST Body)
 
-**URL:**
+#### 5. POST Create Event
+```bash
+POST {BASE_URL}
+Content-Type: application/json
+
+{
+  "action": "create",
+  "tenantId": "root",
+  "adminKey": "YOUR_ADMIN_SECRET",
+  "scope": "events",
+  "templateId": "Event",
+  "data": {
+    "eventName": "Summer Concert",
+    "eventDate": "2025-07-15",
+    "eventTime": "19:00",
+    "locationName": "Central Park"
+  }
+}
 ```
-https://script.google.com/macros/s/{DEPLOYMENT_ID}/exec?page=r&t={TOKEN}
+
+#### 6. POST Update Event
+```bash
+POST {BASE_URL}
+Content-Type: application/json
+
+{
+  "action": "update",
+  "tenantId": "root",
+  "adminKey": "YOUR_ADMIN_SECRET",
+  "scope": "events",
+  "id": "evt_123",
+  "data": {
+    "eventName": "Updated Name"
+  }
+}
 ```
 
-**Method:** `GET`
+#### 7. POST Get Analytics Report
+```bash
+POST {BASE_URL}
+Content-Type: application/json
 
-**Parameters:**
-- `page=r` - Redirect page
-- `t={token}` - Shortlink token
-
-**Response:**
-```html
-<meta http-equiv="refresh" content="0;url=https://example.com">
-<p>Redirecting...</p>
+{
+  "action": "getReport",
+  "tenantId": "root",
+  "adminKey": "YOUR_ADMIN_SECRET",
+  "eventId": "evt_123",
+  "startDate": "2025-01-01",
+  "endDate": "2025-12-31"
+}
 ```
 
-**Postman Setup:**
-1. Create new GET request
-2. Set URL with token parameter
-3. Postman will follow redirects automatically
-4. Check final URL in response
+#### 8. POST Create Shortlink
+```bash
+POST {BASE_URL}
+Content-Type: application/json
+
+{
+  "action": "createShortlink",
+  "tenantId": "root",
+  "adminKey": "YOUR_ADMIN_SECRET",
+  "targetUrl": "https://sponsor.com",
+  "eventId": "evt_123",
+  "sponsorId": "SPONSOR_1",
+  "surface": "public"
+}
+```
+
+#### 9. POST Log Analytics Events
+```bash
+POST {BASE_URL}
+Content-Type: application/json
+
+{
+  "action": "logEvents",
+  "items": [
+    {
+      "eventId": "evt_123",
+      "surface": "public",
+      "metric": "view",
+      "sponsorId": "",
+      "value": 1,
+      "token": ""
+    }
+  ]
+}
+```
 
 ---
 
-## ❌ Endpoints You CANNOT Test with Postman
+### Legacy Endpoints (Still Supported)
 
-These require `google.script.run` and are only callable from the HTML frontend:
+#### GET Status (Legacy)
+```
+GET {BASE_URL}?page=status
+```
 
-- ❌ `api_list()` - List events
-- ❌ `api_get()` - Get single event
-- ❌ `api_create()` - Create event (requires admin key)
-- ❌ `api_updateEventData()` - Update event
-- ❌ `api_logEvents()` - Log analytics
-- ❌ `api_getReport()` - Get analytics report
-- ❌ `api_createShortlink()` - Create shortlink
-- ❌ `api_getConfig()` - Get configuration
+#### GET Shortlink Redirect
+```
+GET {BASE_URL}?page=r&t={TOKEN}
+```
 
 ---
 
