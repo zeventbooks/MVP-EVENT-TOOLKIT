@@ -88,9 +88,37 @@ jobs:
       - name: Install Clasp
         run: npm install -g @google/clasp
 
+      - name: Validate secrets
+        run: |
+          if [ -z "${{ secrets.CLASPRC_JSON }}" ]; then
+            echo "❌ ERROR: CLASPRC_JSON secret is not set!"
+            echo "Please configure the CLASPRC_JSON secret in your repository settings."
+            echo "See CLASP_SETUP.md for instructions."
+            exit 1
+          fi
+          if [ -z "${{ secrets.SCRIPT_ID }}" ]; then
+            echo "❌ ERROR: SCRIPT_ID secret is not set!"
+            echo "Please configure the SCRIPT_ID secret in your repository settings."
+            echo "See CLASP_SETUP.md for instructions."
+            exit 1
+          fi
+
       - name: Write .clasprc.json
         run: |
           echo '${{ secrets.CLASPRC_JSON }}' > ~/.clasprc.json
+          # Validate JSON format
+          if ! jq empty ~/.clasprc.json 2>/dev/null; then
+            echo "❌ ERROR: CLASPRC_JSON is not valid JSON!"
+            echo "Please check the CLASPRC_JSON secret format."
+            exit 1
+          fi
+          # Validate required fields
+          if ! jq -e '.token.access_token' ~/.clasprc.json >/dev/null 2>&1; then
+            echo "❌ ERROR: CLASPRC_JSON is missing required 'token.access_token' field!"
+            echo "Please ensure your CLASPRC_JSON contains valid OAuth credentials."
+            exit 1
+          fi
+          echo "✅ .clasprc.json validated successfully"
 
       - name: Write .clasp.json
         run: |
@@ -98,6 +126,7 @@ jobs:
             "scriptId": "${{ secrets.SCRIPT_ID }}",
             "rootDir": "."
           }' > .clasp.json
+          echo "✅ .clasp.json created successfully"
 
       - name: Push to Apps Script
         run: clasp push --force
