@@ -281,7 +281,8 @@
                        'imageUrl', 'videoUrl', 'galleryUrls', 'bio', 'bioLink'];
 
       optional.forEach(field => {
-        const val = document.getElementById(field)?.value.trim();
+        const elem = document.getElementById(field);
+        const val = elem ? elem.value.trim() : '';
         if (val) data[field] = val;
       });
 
@@ -290,7 +291,7 @@
         scope: SCOPE,
         templateId: 'event',
         adminKey: getAdminKey(),
-        idemKey: crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        idemKey: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         data
       });
 
@@ -498,8 +499,9 @@
       overlay(false);
 
       if (res.ok && res.value) {
-        const display = res.value.data?.display || {};
-        const sponsors = res.value.data?.sponsors || [];
+        const data = res.value.data || {};
+        const display = data.display || {};
+        const sponsors = data.sponsors || [];
 
         document.getElementById('displayMode').value = display.mode || 'public';
         toggleDisplayMode();
@@ -550,15 +552,16 @@
       sponsors.forEach((sp, i) => {
         const div = document.createElement('div');
         div.className = 'event-card';
+        const placements = sp.placements || {};
         div.innerHTML = `
           <h4>Sponsor ${i + 1}</h4>
           <input type="text" placeholder="Name" value="${sp.name || ''}" class="sp-name" style="width:100%;margin-bottom:4px;">
           <input type="url" placeholder="URL" value="${sp.url || ''}" class="sp-url" style="width:100%;margin-bottom:4px;">
           <input type="url" placeholder="Image URL" value="${sp.img || ''}" class="sp-img" style="width:100%;margin-bottom:8px;">
-          <label><input type="checkbox" class="sp-posterTop" ${sp.placements?.posterTop ? 'checked' : ''}> Poster Top</label><br>
-          <label><input type="checkbox" class="sp-tvTop" ${sp.placements?.tvTop ? 'checked' : ''}> TV Top</label><br>
-          <label><input type="checkbox" class="sp-tvSide" ${sp.placements?.tvSide ? 'checked' : ''}> TV Side</label><br>
-          <label><input type="checkbox" class="sp-mobileBanner" ${sp.placements?.mobileBanner ? 'checked' : ''}> Mobile Banner</label>
+          <label><input type="checkbox" class="sp-posterTop" ${placements.posterTop ? 'checked' : ''}> Poster Top</label><br>
+          <label><input type="checkbox" class="sp-tvTop" ${placements.tvTop ? 'checked' : ''}> TV Top</label><br>
+          <label><input type="checkbox" class="sp-tvSide" ${placements.tvSide ? 'checked' : ''}> TV Side</label><br>
+          <label><input type="checkbox" class="sp-mobileBanner" ${placements.mobileBanner ? 'checked' : ''}> Mobile Banner</label>
         `;
         list.appendChild(div);
       });
@@ -600,7 +603,7 @@
         const name = row.querySelector('.sp-name').value.trim();
         if (!name) return;
         sponsors.push({
-          id: crypto.randomUUID?.() || `sp-${Date.now()}`,
+          id: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `sp-${Date.now()}`,
           name,
           url: row.querySelector('.sp-url').value.trim(),
           img: row.querySelector('.sp-img').value.trim(),
