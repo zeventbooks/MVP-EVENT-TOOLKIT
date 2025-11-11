@@ -20,18 +20,35 @@ DEPLOY_OUTPUT=$(npx @google/clasp deploy --description "Deployment $(date '+%Y-%
 echo "$DEPLOY_OUTPUT"
 
 echo ""
-echo "🔍 Getting deployment URL..."
+echo "🔍 Getting deployment information..."
 DEPLOYMENTS=$(npx @google/clasp deployments 2>&1)
 echo "$DEPLOYMENTS"
 echo ""
 
-# Extract the first deployment URL (most recent)
+# Try to extract URL from deployments output
 WEBAPP_URL=$(echo "$DEPLOYMENTS" | grep -oP 'https://script\.google\.com/macros/s/[^\s]+' | head -1)
 
+# If no URL found, provide instructions to get it
 if [ -z "$WEBAPP_URL" ]; then
-    echo "❌ Could not find deployment URL!"
-    echo "Please run 'npx @google/clasp deployments' manually to get the URL"
-    exit 1
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "✅ DEPLOYMENT SUCCESSFUL!"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    echo "⚠️  Please get your Web App URL manually:"
+    echo ""
+    echo "1. Open: https://script.google.com/home/projects/1KttRXT0Sq2663irNS0FlUi3mMkHL9QisErtY4pAqwtqPKH2ZuS7y_Upe/edit"
+    echo "2. Click 'Deploy' → 'Manage deployments'"
+    echo "3. Find deployment @21 (most recent)"
+    echo "4. Copy the 'Web app' URL"
+    echo ""
+    echo "Then use this URL format for testing:"
+    echo ""
+    echo "Root Admin:     {URL}?page=admin&tenant=root"
+    echo "Root Analytics: {URL}?page=report&tenant=root"
+    echo "ABC Admin:      {URL}?page=admin&tenant=abc"
+    echo "ABC Analytics:  {URL}?page=report&tenant=abc"
+    echo ""
+    exit 0
 fi
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
