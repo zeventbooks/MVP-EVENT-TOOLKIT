@@ -1,8 +1,8 @@
 # Deployment URLs Reference
 
-## Quick Deploy with Test URLs
+## Quick Deploy with Automated Quality Gate
 
-After making changes to your code, deploy and get all test URLs in one command:
+After making changes to your code, deploy and automatically validate with E2E tests:
 
 ```bash
 npm run deploy:test
@@ -11,7 +11,57 @@ npm run deploy:test
 This will:
 1. ✅ Push your latest code to Apps Script
 2. ✅ Create a new deployment
-3. ✅ Output formatted test URLs for all tenants and pages
+3. ✅ Extract deployment URLs automatically
+4. ✅ Output formatted test URLs for all tenants and pages
+5. ✅ **Run E2E tests against deployed URL (QUALITY GATE)**
+6. ✅ Pass/Fail validation before manual testing
+
+## Quality Gate Process
+
+**The deployment script enforces a strict quality gate:**
+
+### Test Stages (Sequential)
+
+**Stage 1: 🚨 Smoke Tests (Critical)**
+- Basic functionality validation
+- Pages load without errors
+- Core API endpoints respond
+- **If fails → Deployment REJECTED immediately**
+
+**Stage 2: 📄 Page Tests (Components)**
+- Individual page validation (Admin, Public, Display, Poster, SharedReport)
+- Component functionality
+- Form submissions
+- Navigation
+- **If fails → Deployment REJECTED**
+
+**Stage 3: 🔄 Flow Tests (End-to-End)**
+- Complete workflows
+- TRIANGLE framework (Admin → Poster → Display → Public)
+- SharedReport integration
+- Cross-page data propagation
+- **If fails → Deployment REJECTED**
+
+### Success Criteria
+
+✅ **ALL tests must pass** for deployment to be considered successful
+
+❌ **ANY test failure** = Deployment REJECTED
+- Script exits with error code 1
+- URLs are still displayed for debugging
+- Clear error message shows which stage failed
+- Fix issues and re-deploy
+
+### Why This Matters
+
+> **"If automation has errors, there is no deployment and we fix until the Quality Gate plus the new functionality is working. This is how the code remains with the highest quality and does not waver."**
+
+**Benefits:**
+- 🚫 No broken code reaches manual testers
+- ⏱️ Fast feedback loop for developers
+- 🎯 Automated validation before human time investment
+- 📊 Consistent quality across all deployments
+- 🔒 Prevents regression bugs
 
 ---
 
