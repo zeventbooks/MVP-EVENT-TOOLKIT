@@ -1,0 +1,237 @@
+/**
+ * Reusable Test Fixtures
+ *
+ * Sustainability: Eliminates code duplication across 20+ test files
+ * Easy to understand: Clear fixture names describe what they provide
+ * Mobile support: Handles mobile-specific behaviors automatically
+ */
+
+import { test as base, expect } from '@playwright/test';
+import { config, getPageUrl, isMobile } from './config';
+
+/**
+ * Extended test with custom fixtures
+ */
+export const test = base.extend({
+  /**
+   * Authenticated admin page fixture
+   * Handles dialog prompts automatically and navigates to admin page
+   *
+   * Usage:
+   *   test('create event', async ({ authenticatedAdminPage }) => {
+   *     // Already on admin page with auth handler set up!
+   *   });
+   */
+  authenticatedAdminPage: async ({ page }, use) => {
+    // Set up dialog handler BEFORE any interactions
+    page.on('dialog', async (dialog) => {
+      if (dialog.type() === 'prompt') {
+        await dialog.accept(config.adminKey);
+      } else if (dialog.type() === 'alert') {
+        await dialog.accept();
+      }
+    });
+
+    // Navigate to admin page
+    const url = getPageUrl('admin');
+    await page.goto(url);
+
+    // Wait for page to be ready (auto-waits for network idle)
+    await page.waitForLoadState('networkidle');
+
+    // Provide page to test
+    await use(page);
+
+    // Cleanup happens automatically after test
+  },
+
+  /**
+   * Public events page fixture
+   * No authentication needed
+   *
+   * Usage:
+   *   test('view events', async ({ publicPage }) => {
+   *     // Already on public events page!
+   *   });
+   */
+  publicPage: async ({ page }, use) => {
+    const url = getPageUrl('events');
+    await page.goto(url);
+    await page.waitForLoadState('networkidle');
+    await use(page);
+  },
+
+  /**
+   * Display/TV page fixture
+   * For testing digital signage views
+   *
+   * Usage:
+   *   test('display carousel', async ({ displayPage }) => {
+   *     // Already on display page!
+   *   });
+   */
+  displayPage: async ({ page }, use) => {
+    const url = getPageUrl('display');
+    await page.goto(url);
+    await page.waitForLoadState('networkidle');
+    await use(page);
+  },
+
+  /**
+   * Mobile helper fixture
+   * Provides mobile-specific utilities
+   *
+   * Usage:
+   *   test('mobile navigation', async ({ page, mobile }) => {
+   *     if (mobile.isMobile) {
+   *       await mobile.openMenu(); // Handle hamburger menu
+   *     }
+   *   });
+   */
+  mobile: async ({ page }, use) => {
+    const mobileHelpers = {
+      isMobile: isMobile(page),
+
+      /**
+       * Open mobile menu (if hamburger exists)
+       */
+      async openMenu() {
+        if (this.isMobile) {
+          const menuButton = page.locator('[data-testid="mobile-menu-button"], .hamburger, button[aria-label="Menu"]');
+          if (await menuButton.isVisible()) {
+            await menuButton.click();
+          }
+        }
+      },
+
+      /**
+       * Scroll to element (mobile may need extra scrolling)
+       */
+      async scrollTo(selector) {
+        const element = page.locator(selector);
+        await element.scrollIntoViewIfNeeded();
+
+        // Mobile: Extra scroll to account for fixed headers
+        if (this.isMobile) {
+          await page.evaluate(() => window.scrollBy(0, -100));
+        }
+      },
+
+      /**
+       * Wait for element to be tappable (visible + stable)
+       */
+      async waitForTappable(selector) {
+        const element = page.locator(selector);
+        await expect(element).toBeVisible();
+
+        // Mobile: Wait for any animations to complete
+        if (this.isMobile) {
+          await page.waitForTimeout(300); // Short wait for transitions
+        }
+
+        return element;
+      },
+    };
+
+    await use(mobileHelpers);
+  },
+
+  /**
+   * API helper fixture
+   * For making direct API calls without UI
+   *
+   * Usage:
+   *   test('create event via API', async ({ api }) => {
+   *     const response = await api.call('createEvent', { name: 'Test' });
+   *   });
+   */
+  api: async ({ request }, use) => {
+    const apiHelpers = {
+      /**
+       * Make API call to backend
+       */
+      async call(endpoint, data = {}) {
+        const response = await request.post(config.baseUrl, {
+          data: {
+            p: endpoint,
+            tenant: config.tenantId,
+            adminKey: config.adminKey,
+            ...data,
+          },
+        });
+
+        return await response.json();
+      },
+
+      /**
+       * Create test event (returns event ID)
+       */
+      async createEvent(name = null) {
+        const eventName = name || config.testData.event.name();
+        const response = await this.call('create', {
+          scope: 'events',
+          data: {
+            name: eventName,
+            dateISO: config.testData.event.date,
+            description: config.testData.event.description,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to create event: ${response.message}`);
+        }
+
+        return response.value.id;
+      },
+
+      /**
+       * Delete test event
+       */
+      async deleteEvent(eventId) {
+        const response = await this.call('delete', {
+          scope: 'events',
+          id: eventId,
+        });
+
+        if (!response.ok) {
+          console.warn(`Failed to delete event ${eventId}: ${response.message}`);
+        }
+      },
+    };
+
+    await use(apiHelpers);
+  },
+});
+
+/**
+ * Export expect for convenience
+ */
+export { expect };
+
+/**
+ * Custom matchers for mobile testing
+ */
+expect.extend({
+  /**
+   * Check if element is visible in mobile viewport
+   */
+  async toBeVisibleInViewport(locator) {
+    const box = await locator.boundingBox();
+    const viewport = await locator.page().viewportSize();
+
+    const isVisible =
+      box &&
+      box.y >= 0 &&
+      box.y + box.height <= viewport.height &&
+      box.x >= 0 &&
+      box.x + box.width <= viewport.width;
+
+    return {
+      pass: isVisible,
+      message: () =>
+        isVisible
+          ? 'Element is visible in viewport'
+          : 'Element is outside viewport bounds',
+    };
+  },
+});
