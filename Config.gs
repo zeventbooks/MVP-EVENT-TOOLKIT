@@ -14,7 +14,7 @@ const TENANTS = [
     name: 'Zeventbook',
     hostnames: ['zeventbook.io','www.zeventbook.io'],
     logoUrl: '/My files/Linux files/zeventbook/assets/logos/ABCMainTransparent.webp',
-    adminSecret: 'CHANGE_ME_root',
+    adminSecret: '4a249d9791716c208479712c74aae27a',
     store: { type: 'workbook', spreadsheetId: SpreadsheetApp.getActive().getId() },
     scopesAllowed: ['events', 'sponsors']
   },
