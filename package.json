@@ -21,6 +21,10 @@
     "test:playwright": "playwright test",
     "test:all": "npm run test:jest && npm run test:e2e",
     "test:quick": "npm run test:jest && npm run test:smoke",
+    "test:newman": "newman run postman/collections/mvp-event-toolkit-api.json -e postman/environments/mvp-event-toolkit-dev.json -r cli,json,html --reporter-html-export newman-reports/report.html --reporter-json-export newman-reports/report.json",
+    "test:newman:smoke": "newman run postman/collections/mvp-event-toolkit-api.json -e postman/environments/mvp-event-toolkit-dev.json --folder System -r cli",
+    "test:newman:forms": "newman run postman/collections/mvp-event-toolkit-api.json -e postman/environments/mvp-event-toolkit-dev.json --folder 'Forms Templates' -r cli",
+    "test:api:all": "npm run test:newman && npm run test:api",
     "lint": "eslint '**/*.{js,gs}' --ext .js,.gs",
     "lint:fix": "eslint '**/*.{js,gs}' --ext .js,.gs --fix",
     "format": "prettier --write '**/*.{js,gs,html,json,md}'",
@@ -47,6 +51,8 @@
     "@types/google-apps-script": "^1.0.83",
     "eslint": "^8.57.0",
     "jest": "^29.7.0",
+    "newman": "^6.1.0",
+    "newman-reporter-html": "^1.0.5",
     "playwright": "^1.40.0",
     "prettier": "^3.1.1"
   }
