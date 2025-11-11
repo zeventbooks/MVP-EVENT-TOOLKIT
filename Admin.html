@@ -186,6 +186,7 @@
       <div class="button-group">
         <button class="btn-primary" onclick="configureDisplay()">Configure Display & Sponsors</button>
         <button class="btn-secondary" onclick="configureSignup()">Configure Sign-Up Forms</button>
+        <button class="btn-secondary" onclick="openFormsTemplates()">Create Forms from Templates</button>
       </div>
     </section>
 
@@ -229,6 +230,60 @@
       <div class="button-group">
         <button class="btn-primary" onclick="saveAllSignupForms()">Save All Forms</button>
         <button class="btn-secondary" onclick="closeSignupConfig()">Cancel</button>
+      </div>
+    </section>
+
+    <!-- Google Forms Templates -->
+    <section id="formsCard" class="card" style="display:none;">
+      <h2>Google Forms Templates</h2>
+      <p class="muted">Create pre-built forms for check-in, walk-in, and surveys with automatic shortlink generation</p>
+
+      <div class="form-row">
+        <!-- Check-In Form -->
+        <div class="form-group">
+          <label><strong>Check-In Form</strong></label>
+          <small class="muted">Quick check-in for registered attendees</small>
+          <button class="btn-secondary" onclick="createFormTemplate('check-in')" style="margin-top: 8px;">
+            Create Check-In Form
+          </button>
+          <div id="checkin-form-display" style="margin-top: 8px;"></div>
+        </div>
+
+        <!-- Walk-In Form -->
+        <div class="form-group">
+          <label><strong>Walk-In Registration Form</strong></label>
+          <small class="muted">Registration for walk-in attendees</small>
+          <button class="btn-secondary" onclick="createFormTemplate('walk-in')" style="margin-top: 8px;">
+            Create Walk-In Form
+          </button>
+          <div id="walkin-form-display" style="margin-top: 8px;"></div>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <!-- Survey Form -->
+        <div class="form-group">
+          <label><strong>Post-Event Survey</strong></label>
+          <small class="muted">Feedback and satisfaction survey</small>
+          <button class="btn-secondary" onclick="createFormTemplate('survey')" style="margin-top: 8px;">
+            Create Survey Form
+          </button>
+          <div id="survey-form-display" style="margin-top: 8px;"></div>
+        </div>
+
+        <div class="form-group">
+          <label><strong>Instructions</strong></label>
+          <small class="muted">
+            1. Click a button to create a form from template<br>
+            2. Forms are created with response spreadsheets<br>
+            3. Copy the shortlink to share with attendees<br>
+            4. Use "Edit Form" to customize questions
+          </small>
+        </div>
+      </div>
+
+      <div class="button-group">
+        <button class="btn-secondary" onclick="closeFormsTemplates()">Close</button>
       </div>
     </section>
 
@@ -490,6 +545,121 @@
 
     function closeSignupConfig() {
       document.getElementById('signupCard').style.display = 'none';
+    }
+
+    // Google Forms Templates
+    function openFormsTemplates() {
+      document.getElementById('formsCard').style.display = '';
+    }
+
+    function closeFormsTemplates() {
+      document.getElementById('formsCard').style.display = 'none';
+    }
+
+    async function createFormTemplate(templateType) {
+      if (!currentEventId) {
+        alert('Please select or create an event first.');
+        return;
+      }
+
+      const displayMap = {
+        'check-in': 'checkin-form-display',
+        'walk-in': 'walkin-form-display',
+        'survey': 'survey-form-display'
+      };
+
+      const displayId = displayMap[templateType];
+      if (!displayId) return;
+
+      const displayDiv = document.getElementById(displayId);
+      displayDiv.innerHTML = '<p class="muted">Creating form...</p>';
+
+      overlay(true);
+
+      // Get event data for context
+      const eventRes = await NU.rpc('api_get', {
+        tenantId: TENANT,
+        scope: SCOPE,
+        id: currentEventId
+      });
+
+      const eventName = eventRes.ok && eventRes.value?.data?.name
+        ? eventRes.value.data.name
+        : 'Event';
+
+      // Create form from template
+      const formRes = await NU.rpc('api_createFormFromTemplate', {
+        tenantId: TENANT,
+        adminKey: getAdminKey(),
+        templateType,
+        eventName,
+        eventId: currentEventId
+      });
+
+      if (!formRes.ok) {
+        overlay(false);
+        displayDiv.innerHTML = `<p style="color: #ef4444;">Error: ${formRes.message}</p>`;
+        return;
+      }
+
+      const { publishedUrl, editUrl, responseSheetUrl } = formRes.value;
+
+      // Generate shortlink for the published form
+      const shortlinkRes = await NU.rpc('api_generateFormShortlink', {
+        tenantId: TENANT,
+        adminKey: getAdminKey(),
+        formUrl: publishedUrl,
+        formType: templateType,
+        eventId: currentEventId
+      });
+
+      overlay(false);
+
+      const shortlink = shortlinkRes.ok ? shortlinkRes.value.shortlink : publishedUrl;
+
+      // Display form links with copy buttons
+      displayDiv.innerHTML = `
+        <div style="background: #f1f5f9; padding: 12px; border-radius: 4px; margin-top: 8px;">
+          <div style="margin-bottom: 8px;">
+            <strong>Shortlink:</strong><br>
+            <input type="text" id="${templateType}-shortlink" value="${shortlink}" readonly
+                   style="width: 100%; margin-top: 4px; font-size: 12px;">
+            <button class="btn-secondary" onclick="copyFormLink('${templateType}-shortlink')"
+                    style="margin-top: 4px; width: 100%;">
+              Copy Shortlink
+            </button>
+          </div>
+          <div style="margin-top: 12px;">
+            <a href="${editUrl}" target="_blank" rel="noopener" class="btn-secondary"
+               style="display: inline-block; margin-right: 8px;">
+              Edit Form
+            </a>
+            <a href="${responseSheetUrl}" target="_blank" rel="noopener" class="btn-secondary"
+               style="display: inline-block;">
+              View Responses
+            </a>
+          </div>
+          <div style="margin-top: 8px; font-size: 12px; color: #64748b;">
+            Form created successfully! Share the shortlink with attendees.
+          </div>
+        </div>
+      `;
+    }
+
+    function copyFormLink(inputId) {
+      const input = document.getElementById(inputId);
+      if (input) {
+        input.select();
+        input.setSelectionRange(0, 99999); // For mobile devices
+        document.execCommand('copy');
+
+        // Visual feedback
+        const originalValue = input.value;
+        input.value = 'Copied!';
+        setTimeout(() => {
+          input.value = originalValue;
+        }, 1000);
+      }
     }
 
     // Configure Display & Sponsors

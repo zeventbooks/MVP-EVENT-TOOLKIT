@@ -100,6 +100,48 @@ const TEMPLATES = [
   }
 ];
 
+// Google Forms Templates - Pre-built form configurations
+const FORM_TEMPLATES = [
+  {
+    id: 'check-in',
+    label: 'Check-In Form',
+    description: 'Quick check-in for registered attendees',
+    questions: [
+      { title: 'Full Name', type: 'TEXT', required: true },
+      { title: 'Email Address', type: 'TEXT', required: true },
+      { title: 'Confirmation Number (if available)', type: 'TEXT', required: false },
+      { title: 'Number in Party', type: 'MULTIPLE_CHOICE', choices: ['1', '2', '3', '4', '5+'], required: true },
+      { title: 'Additional Notes', type: 'PARAGRAPH_TEXT', required: false }
+    ]
+  },
+  {
+    id: 'walk-in',
+    label: 'Walk-In Registration Form',
+    description: 'Registration for walk-in attendees',
+    questions: [
+      { title: 'Full Name', type: 'TEXT', required: true },
+      { title: 'Email Address', type: 'TEXT', required: true },
+      { title: 'Phone Number', type: 'TEXT', required: false },
+      { title: 'Number in Party', type: 'MULTIPLE_CHOICE', choices: ['1', '2', '3', '4', '5+'], required: true },
+      { title: 'How did you hear about this event?', type: 'MULTIPLE_CHOICE', choices: ['Social Media', 'Friend/Family', 'Website', 'Email', 'Other'], required: false },
+      { title: 'Additional Comments', type: 'PARAGRAPH_TEXT', required: false }
+    ]
+  },
+  {
+    id: 'survey',
+    label: 'Post-Event Survey',
+    description: 'Feedback and satisfaction survey',
+    questions: [
+      { title: 'Overall, how would you rate this event?', type: 'SCALE', scaleMin: 1, scaleMax: 5, scaleMinLabel: 'Poor', scaleMaxLabel: 'Excellent', required: true },
+      { title: 'What did you enjoy most about the event?', type: 'PARAGRAPH_TEXT', required: false },
+      { title: 'What could we improve for future events?', type: 'PARAGRAPH_TEXT', required: false },
+      { title: 'Would you attend another event?', type: 'MULTIPLE_CHOICE', choices: ['Definitely', 'Probably', 'Not Sure', 'Probably Not', 'Definitely Not'], required: true },
+      { title: 'Would you recommend this event to others?', type: 'SCALE', scaleMin: 1, scaleMax: 10, scaleMinLabel: 'Not Likely', scaleMaxLabel: 'Very Likely', required: true },
+      { title: 'Any additional feedback?', type: 'PARAGRAPH_TEXT', required: false }
+    ]
+  }
+];
+
 // Accessors
 function loadTenants_() { return TENANTS; }
 function findTenant_(id) { return TENANTS.find(t => t.id === id) || null; }
@@ -108,3 +150,5 @@ function findTenantByHost_(host) {
   return TENANTS.find(t => (t.hostnames || []).includes(host)) || TENANTS.find(t => t.id === 'root');
 }
 function findTemplate_(id) { return TEMPLATES.find(x => x.id === id) || null; }
+function findFormTemplate_(id) { return FORM_TEMPLATES.find(x => x.id === id) || null; }
+function listFormTemplates_() { return FORM_TEMPLATES; }
