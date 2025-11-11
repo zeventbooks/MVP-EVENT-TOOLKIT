@@ -24,6 +24,7 @@
     "test:newman": "newman run postman/collections/mvp-event-toolkit-api.json -e postman/environments/mvp-event-toolkit-dev.json -r cli,json,html --reporter-html-export newman-reports/report.html --reporter-json-export newman-reports/report.json",
     "test:newman:smoke": "newman run postman/collections/mvp-event-toolkit-api.json -e postman/environments/mvp-event-toolkit-dev.json --folder System -r cli",
     "test:newman:forms": "newman run postman/collections/mvp-event-toolkit-api.json -e postman/environments/mvp-event-toolkit-dev.json --folder 'Forms Templates' -r cli",
+    "test:newman:flow": "newman run postman/collections/mvp-event-toolkit-flows.json -e postman/environments/mvp-event-toolkit-dev.json -r cli,json,html --reporter-html-export newman-reports/flow-report.html --reporter-json-export newman-reports/flow-report.json",
     "test:api:all": "npm run test:newman && npm run test:api",
     "lint": "eslint '**/*.{js,gs}' --ext .js,.gs",
     "lint:fix": "eslint '**/*.{js,gs}' --ext .js,.gs --fix",
