@@ -24,6 +24,7 @@
     "push": "clasp push",
     "pull": "clasp pull",
     "deploy": "clasp deploy",
+    "deploy:test": "./deploy-and-get-urls.sh",
     "open": "clasp open",
     "logs": "clasp logs",
     "verify-deployment": "./verify-deployment.sh"
