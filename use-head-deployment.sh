@@ -11,7 +11,8 @@ HEAD_URL="https://script.google.com/macros/s/AKfycbzu-U4UgdjdAiXHTg9TD5Y-1gDkc79
 
 # Update environment files
 if [ -f "postman/environments/mvp-event-toolkit-local.json" ]; then
-    sed -i "s|https://script.google.com/macros/s/[^\"]*|$HEAD_URL|g" postman/environments/mvp-event-toolkit-local.json
+    # Match any Google Apps Script URL (deployment or editor URL)
+    sed -i "s|https://script.google.com/[^\"]*|$HEAD_URL|g" postman/environments/mvp-event-toolkit-local.json
     echo "✅ Updated: postman/environments/mvp-event-toolkit-local.json"
 fi
 
