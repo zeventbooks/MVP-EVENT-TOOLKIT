@@ -21,34 +21,25 @@ echo "$DEPLOY_OUTPUT"
 
 echo ""
 echo "🔍 Getting deployment information..."
-DEPLOYMENTS=$(npx @google/clasp deployments 2>&1)
-echo "$DEPLOYMENTS"
-echo ""
 
-# Try to extract URL from deployments output
-WEBAPP_URL=$(echo "$DEPLOYMENTS" | grep -oP 'https://script\.google\.com/macros/s/[^\s]+' | head -1)
+# Extract deployment ID from the deploy output
+DEPLOYMENT_ID=$(echo "$DEPLOY_OUTPUT" | grep -oP 'AKfycb[a-zA-Z0-9_-]+' | head -1)
 
-# If no URL found, provide instructions to get it
-if [ -z "$WEBAPP_URL" ]; then
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "✅ DEPLOYMENT SUCCESSFUL!"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo ""
-    echo "⚠️  Please get your Web App URL manually:"
-    echo ""
-    echo "1. Open: https://script.google.com/home/projects/1KttRXT0Sq2663irNS0FlUi3mMkHL9QisErtY4pAqwtqPKH2ZuS7y_Upe/edit"
-    echo "2. Click 'Deploy' → 'Manage deployments'"
-    echo "3. Find deployment @21 (most recent)"
-    echo "4. Copy the 'Web app' URL"
-    echo ""
-    echo "Then use this URL format for testing:"
-    echo ""
-    echo "Root Admin:     {URL}?page=admin&tenant=root"
-    echo "Root Analytics: {URL}?page=report&tenant=root"
-    echo "ABC Admin:      {URL}?page=admin&tenant=abc"
-    echo "ABC Analytics:  {URL}?page=report&tenant=abc"
-    echo ""
-    exit 0
+if [ -z "$DEPLOYMENT_ID" ]; then
+    echo "⚠️  Could not extract deployment ID from output"
+    echo "Trying to get it from deployments list..."
+    DEPLOYMENTS=$(npx @google/clasp deployments 2>&1)
+    DEPLOYMENT_ID=$(echo "$DEPLOYMENTS" | grep -oP 'AKfycb[a-zA-Z0-9_-]+' | head -1)
+fi
+
+# Construct the Web App URL
+if [ -n "$DEPLOYMENT_ID" ]; then
+    WEBAPP_URL="https://script.google.com/macros/s/${DEPLOYMENT_ID}/exec"
+    echo "✅ Found deployment ID: ${DEPLOYMENT_ID}"
+else
+    echo "❌ Could not find deployment ID!"
+    echo "Please run 'npx @google/clasp deployments' to see your deployments"
+    exit 1
 fi
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
