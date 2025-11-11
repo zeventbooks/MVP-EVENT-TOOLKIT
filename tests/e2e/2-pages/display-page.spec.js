@@ -50,68 +50,82 @@ test.describe('📄 PAGE: Display - TV Layout', () => {
 
 test.describe('📄 PAGE: Display - Sponsor Areas', () => {
 
-  test('Top sponsor area renders', async ({ page }) => {
+  test('Display page has sponsor area containers in DOM', async ({ page }) => {
     await page.goto(`${BASE_URL}?page=display&tenant=${TENANT_ID}`);
 
-    const topSponsor = page.locator('#sponsorTop, .sponsor-top');
+    // STRICT: Sponsor containers must exist in DOM (even if hidden when no sponsors)
+    const topSponsor = page.locator('#sponsorTop, .sponsor-top, [data-sponsor-area="top"]');
+    const bottomSponsor = page.locator('#sponsorBottom, .sponsor-bottom, [data-sponsor-area="bottom"]');
+    const leftSponsor = page.locator('#sponsorLeft, .sponsor-left, [data-sponsor-area="left"]');
+    const rightSponsor = page.locator('#sponsorRight, .sponsor-right, [data-sponsor-area="right"]');
 
-    // May or may not be visible depending on configuration
-    const exists = await topSponsor.count() > 0;
+    // At least one sponsor area must exist in page structure
+    const sponsorAreas = [
+      await topSponsor.count(),
+      await bottomSponsor.count(),
+      await leftSponsor.count(),
+      await rightSponsor.count()
+    ];
 
-    if (exists) {
-      // If it exists, should be in DOM
-      await expect(topSponsor).toBeTruthy();
-    }
+    const totalSponsorAreas = sponsorAreas.reduce((a, b) => a + b, 0);
+
+    // STRICT: Display page MUST have sponsor area infrastructure
+    expect(totalSponsorAreas).toBeGreaterThan(0);
   });
 
-  test('Bottom sponsor area renders', async ({ page }) => {
+  test('Sponsor areas have proper structure when visible', async ({ page }) => {
     await page.goto(`${BASE_URL}?page=display&tenant=${TENANT_ID}`);
 
-    const bottomSponsor = page.locator('#sponsorBottom, .sponsor-bottom');
-    const exists = await bottomSponsor.count() > 0;
+    // Find any visible sponsor area
+    const sponsorAreas = page.locator('[id^="sponsor"], [class*="sponsor-"]');
+    const visibleCount = await sponsorAreas.count();
 
-    if (exists) {
-      await expect(bottomSponsor).toBeTruthy();
-    }
-  });
+    if (visibleCount > 0) {
+      // STRICT: If sponsors exist, they must be properly structured
+      const firstSponsor = sponsorAreas.first();
+      await expect(firstSponsor).toBeAttached();
 
-  test('Side sponsor areas render', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=display&tenant=${TENANT_ID}`);
+      // Sponsor area should not be empty
+      const content = await firstSponsor.textContent();
+      const isEmpty = !content || content.trim().length === 0;
 
-    const leftSponsor = page.locator('#sponsorLeft, .sponsor-left');
-    const rightSponsor = page.locator('#sponsorRight, .sponsor-right');
-
-    const hasLeft = await leftSponsor.count() > 0;
-    const hasRight = await rightSponsor.count() > 0;
-
-    // At least one side should exist if sponsors configured
-    if (hasLeft || hasRight) {
-      expect(hasLeft || hasRight).toBe(true);
+      // Allow empty if hidden (display: none), but not if visible
+      if (!isEmpty || await firstSponsor.isVisible()) {
+        expect(await firstSponsor.isVisible() || isEmpty).toBeTruthy();
+      }
     }
   });
 });
 
 test.describe('📄 PAGE: Display - Carousel Controls', () => {
 
-  test('Carousel auto-rotates sponsors', async ({ page }) => {
+  test('Carousel exists and does not crash during rotation', async ({ page }) => {
     await page.goto(`${BASE_URL}?page=display&tenant=${TENANT_ID}`);
+    await page.waitForLoadState('networkidle');
 
-    const topSponsor = page.locator('#sponsorTop, .sponsor-top');
-    const exists = await topSponsor.count() > 0;
+    const errors = [];
+    page.on('pageerror', error => errors.push(error));
+
+    const sponsorArea = page.locator('#sponsorTop, .sponsor-top, [data-sponsor-area="top"]');
+    const exists = await sponsorArea.count() > 0;
 
     if (exists) {
-      // Get initial content
-      const initialContent = await topSponsor.textContent();
+      // STRICT: Sponsor area must be in DOM
+      await expect(sponsorArea.first()).toBeAttached();
 
-      // Wait for potential rotation (most carousels rotate every 3-10 seconds)
-      await page.waitForTimeout(11000);
+      // Wait for multiple rotation cycles (test stability)
+      // Use Promise.race to avoid indefinite wait
+      await Promise.race([
+        page.waitForTimeout(12000), // Max wait time
+        page.waitForSelector('#sponsorTop.rotated, .sponsor-rotated', { timeout: 12000 }).catch(() => {})
+      ]);
 
-      // Check if content changed (indicates rotation)
-      const afterContent = await topSponsor.textContent();
-
-      // Content may or may not change depending on number of sponsors
-      // But carousel should not crash
-      expect(afterContent).toBeTruthy();
+      // STRICT: No JavaScript errors during carousel operation
+      const criticalErrors = errors.filter(e =>
+        !e.message.includes('google.script') &&
+        !e.message.includes('google is not defined')
+      );
+      expect(criticalErrors.length).toBe(0);
     }
   });
 

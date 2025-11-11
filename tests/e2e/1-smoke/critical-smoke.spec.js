@@ -18,14 +18,22 @@ const TENANT_ID = 'root';
 
 test.describe('🚨 SMOKE: Critical Endpoints', () => {
 
-  test('Status API responds with 200', async ({ page }) => {
+  test('Status API responds with 200 and valid schema', async ({ page }) => {
     const response = await page.goto(`${BASE_URL}?p=status&tenant=${TENANT_ID}`);
     expect(response.status()).toBe(200);
 
     const json = await response.json();
+
+    // STRICT: API contract validation
     expect(json).toHaveProperty('ok', true);
+    expect(json).toHaveProperty('value');
     expect(json.value).toHaveProperty('build');
+    expect(json.value).toHaveProperty('tenant');
     expect(json.value.build).toBe('triangle-extended-v1.3');
+    expect(json.value.tenant).toBe(TENANT_ID);
+
+    // STRICT: Response must be JSON (not HTML error page)
+    expect(response.headers()['content-type']).toContain('application/json');
   });
 
   test('Health check endpoint is alive', async ({ page }) => {

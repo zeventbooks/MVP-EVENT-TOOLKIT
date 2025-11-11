@@ -11,6 +11,20 @@ const BASE_URL = process.env.BASE_URL || 'https://script.google.com/macros/s/...
 const ADMIN_KEY = process.env.ADMIN_KEY || 'CHANGE_ME_root';
 const TENANT_ID = 'root';
 
+// Track created test events for cleanup
+const testEvents = [];
+
+// Cleanup helper
+async function deleteTestEvent(page, eventId) {
+  try {
+    // Attempt to delete event via admin interface
+    // Note: Implement actual deletion when delete functionality is available
+    console.log(`[Cleanup] Would delete event: ${eventId}`);
+  } catch (e) {
+    console.log(`[Cleanup] Could not delete event ${eventId}:`, e.message);
+  }
+}
+
 test.describe('📄 PAGE: Admin - Page Load', () => {
 
   test('Admin page renders all core elements', async ({ page }) => {

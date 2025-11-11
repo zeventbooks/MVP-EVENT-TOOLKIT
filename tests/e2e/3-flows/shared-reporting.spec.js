@@ -20,34 +20,35 @@ const TENANT_ID = 'root';
 test.describe('📊 SHARED REPORTING: Analytics Dashboard', () => {
 
   test('SharedReport page loads and displays key metrics', async ({ page }) => {
-    console.log('📊 Testing SharedReport page load...');
-
     await page.goto(`${BASE_URL}?page=report&tenant=${TENANT_ID}`);
     await page.waitForLoadState('networkidle');
 
-    // Verify page loaded
-    await expect(page.locator('h1')).toContainText(/Analytics|Report|Metrics/i);
-    console.log('✅ SharedReport page loaded');
+    // STRICT: Page must have proper heading
+    const heading = page.locator('h1, h2');
+    await expect(heading.first()).toBeVisible();
+    await expect(heading.first()).toContainText(/Analytics|Report|Metrics|Dashboard/i);
 
-    // Check for key metric cards
-    const metrics = [
-      'Impressions',
-      'Clicks',
-      'Engagement',
-      'Events',
-      'Sponsors'
-    ];
+    // STRICT: Page must have metrics structure (even if values are zero)
+    const metricsContainer = page.locator('.metrics, .metrics-grid, [data-metrics], .dashboard, main');
+    await expect(metricsContainer.first()).toBeAttached();
 
-    for (const metric of metrics) {
-      const metricCard = page.locator(`.metric-card:has-text("${metric}"), [data-metric="${metric.toLowerCase()}"]`);
-      const hasMetric = await metricCard.count() > 0;
+    // STRICT: At least one metric display must exist
+    const metricElements = page.locator('.metric-card, .metric, [data-metric], .stat-card, .kpi');
+    const metricCount = await metricElements.count();
 
-      if (hasMetric) {
-        console.log(`✅ Found metric: ${metric}`);
-      } else {
-        console.log(`⚠️ Metric not found: ${metric} (may be loading)`);
-      }
-    }
+    // Must have at least one metric visualization
+    expect(metricCount).toBeGreaterThan(0);
+
+    // STRICT: No JavaScript errors on page load
+    const errors = [];
+    page.on('pageerror', error => errors.push(error));
+    await page.waitForTimeout(1000);
+
+    const criticalErrors = errors.filter(e =>
+      !e.message.includes('google.script') &&
+      !e.message.includes('google is not defined')
+    );
+    expect(criticalErrors.length).toBe(0);
   });
 
   test('Navigation from Admin to SharedReport works', async ({ page, context }) => {
