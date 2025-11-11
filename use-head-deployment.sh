@@ -7,7 +7,7 @@ set -e
 echo "Using @HEAD deployment (auto-updates with code pushes)"
 echo ""
 
-HEAD_URL="https://script.google.com/macros/s/AKfycbzu-U4UgdjdAiXHTg9TD5Y-1gDkc798YSTqQCdhOddG/exec"
+HEAD_URL="https://script.google.com/macros/s/AKfycbwqhDGZMqfXSKOV12mHW8XgxYF8QBdQXqhCu9kcxC6-ZqedTBkMb_NmEG2GO64-ZuSf/exec"
 
 # Update environment files
 if [ -f "postman/environments/mvp-event-toolkit-local.json" ]; then
