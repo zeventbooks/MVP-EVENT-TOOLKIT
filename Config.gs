@@ -15,7 +15,7 @@ const TENANTS = [
     hostnames: ['zeventbook.io','www.zeventbook.io'],
     logoUrl: '/My files/Linux files/zeventbook/assets/logos/ABCMainTransparent.webp',
     adminSecret: '4a249d9791716c208479712c74aae27a',
-    store: { type: 'workbook', spreadsheetId: SpreadsheetApp.getActive().getId() },
+    store: { type: 'workbook', spreadsheetId: '1ixHd2iUc27UF0fJvKh9hXsRI1XZtNRKqbZYf0vgMbKrBFItxngd7L-VO' },
     scopesAllowed: ['events', 'sponsors']
   },
   {
@@ -24,7 +24,7 @@ const TENANTS = [
     hostnames: ['americanbocceco.zeventbooks.io'],
     logoUrl: '/My files/Linux files/zeventbook/assets/logos/ABCMainTransparent.webp',
     adminSecret: 'CHANGE_ME_abc',
-    store: { type: 'workbook', spreadsheetId: SpreadsheetApp.getActive().getId() },
+    store: { type: 'workbook', spreadsheetId: '1ixHd2iUc27UF0fJvKh9hXsRI1XZtNRKqbZYf0vgMbKrBFItxngd7L-VO' },
     scopesAllowed: ['events', 'sponsors']
   },
   {
@@ -33,7 +33,7 @@ const TENANTS = [
     hostnames: ['chicagobocceclub.zeventbooks.io'],
     logoUrl: '/My files/Linux files/zeventbook/assets/logos/ABCMainTransparent.webp',
     adminSecret: 'CHANGE_ME_cbc',
-    store: { type: 'workbook', spreadsheetId: SpreadsheetApp.getActive().getId() },
+    store: { type: 'workbook', spreadsheetId: '1ixHd2iUc27UF0fJvKh9hXsRI1XZtNRKqbZYf0vgMbKrBFItxngd7L-VO' },
     scopesAllowed: ['events', 'sponsors']
   },
   {
@@ -42,7 +42,7 @@ const TENANTS = [
     hostnames: ['chicagobocceleague.zeventbooks.io'],
     logoUrl: '/My files/Linux files/zeventbook/assets/logos/ABCMainTransparent.webp',
     adminSecret: 'CHANGE_ME_cbl',
-    store: { type: 'workbook', spreadsheetId: SpreadsheetApp.getActive().getId() },
+    store: { type: 'workbook', spreadsheetId: '1ixHd2iUc27UF0fJvKh9hXsRI1XZtNRKqbZYf0vgMbKrBFItxngd7L-VO' },
     scopesAllowed: ['events', 'sponsors']
   }
 ];
