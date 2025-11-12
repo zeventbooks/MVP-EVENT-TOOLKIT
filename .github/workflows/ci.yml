@@ -287,22 +287,31 @@ jobs:
       - name: Check all tests passed
         run: |
           echo "📊 Quality Gate Summary"
-          echo "======================="
-          echo "✅ Lint: ${{ needs.lint.result }}"
-          echo "✅ Unit Tests: ${{ needs.test.result }}"
-          echo "✅ Contract Tests: ${{ needs.contract-tests.result }}"
-          echo "🚨 Smoke Tests: ${{ needs.e2e-smoke-tests.result }}"
-          echo "📄 Page Tests: ${{ needs.e2e-page-tests.result }}"
-          echo "🔄 Flow Tests: ${{ needs.e2e-flow-tests.result }}"
-          echo "======================="
+          echo "================================================"
+          echo "Core Tests (must pass):"
+          echo "  ✅ Lint: ${{ needs.lint.result }}"
+          echo "  ✅ Unit Tests: ${{ needs.test.result }}"
+          echo "  ✅ Contract Tests: ${{ needs.contract-tests.result }}"
+          echo ""
+          echo "E2E Tests (run on main branch only):"
+          echo "  🚨 Smoke Tests: ${{ needs.e2e-smoke-tests.result }}"
+          echo "  📄 Page Tests: ${{ needs.e2e-page-tests.result }}"
+          echo "  🔄 Flow Tests: ${{ needs.e2e-flow-tests.result }}"
+          echo "================================================"
 
+          # Core tests must pass
           if [[ "${{ needs.lint.result }}" != "success" ]] || \
              [[ "${{ needs.test.result }}" != "success" ]] || \
-             [[ "${{ needs.contract-tests.result }}" != "success" ]] || \
-             [[ "${{ needs.e2e-smoke-tests.result }}" != "success" ]] || \
-             [[ "${{ needs.e2e-page-tests.result }}" != "success" ]] || \
-             [[ "${{ needs.e2e-flow-tests.result }}" != "success" ]]; then
-            echo "❌ Quality gate FAILED!"
+             [[ "${{ needs.contract-tests.result }}" != "success" ]]; then
+            echo "❌ Quality gate FAILED! Core tests (lint, unit, contract) must pass."
+            exit 1
+          fi
+
+          # E2E tests must pass OR be skipped (they only run on main branch)
+          if [[ "${{ needs.e2e-smoke-tests.result }}" == "failure" ]] || \
+             [[ "${{ needs.e2e-page-tests.result }}" == "failure" ]] || \
+             [[ "${{ needs.e2e-flow-tests.result }}" == "failure" ]]; then
+            echo "❌ Quality gate FAILED! E2E tests failed."
             exit 1
           fi
 
