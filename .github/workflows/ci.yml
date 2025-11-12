@@ -281,9 +281,9 @@ jobs:
           path: playwright-report/
 
   quality-gate:
-    name: Quality Gate Check
+    name: 🎯 Quality Gate - Final Validation
     runs-on: ubuntu-latest
-    needs: [lint, test, contract-tests, e2e-smoke-tests, e2e-page-tests, e2e-flow-tests]
+    needs: [lint, test, contract-tests, deploy, verify-deployment, e2e-smoke-tests, e2e-page-tests, e2e-flow-tests]
     if: always()
     steps:
       - name: Check all tests passed
@@ -294,6 +294,10 @@ jobs:
           echo "  ✅ Lint: ${{ needs.lint.result }}"
           echo "  ✅ Unit Tests: ${{ needs.test.result }}"
           echo "  ✅ Contract Tests: ${{ needs.contract-tests.result }}"
+          echo ""
+          echo "Deployment (runs on main branch only):"
+          echo "  🚀 Deploy: ${{ needs.deploy.result }}"
+          echo "  🔍 Verify Deployment: ${{ needs.verify-deployment.result }}"
           echo ""
           echo "E2E Tests (run on main branch only):"
           echo "  🚨 Smoke Tests: ${{ needs.e2e-smoke-tests.result }}"
@@ -306,6 +310,13 @@ jobs:
              [[ "${{ needs.test.result }}" != "success" ]] || \
              [[ "${{ needs.contract-tests.result }}" != "success" ]]; then
             echo "❌ Quality gate FAILED! Core tests (lint, unit, contract) must pass."
+            exit 1
+          fi
+
+          # Deployment jobs must pass OR be skipped (they only run on main branch)
+          if [[ "${{ needs.deploy.result }}" == "failure" ]] || \
+             [[ "${{ needs.verify-deployment.result }}" == "failure" ]]; then
+            echo "❌ Quality gate FAILED! Deployment or verification failed."
             exit 1
           fi
 
