@@ -193,8 +193,67 @@ npm run push
 npm run pull
 ```
 
+## Pre-flight Validation
+
+**Before configuring GitHub Actions**, validate your local setup:
+
+```bash
+./scripts/validate-clasp-setup.sh
+```
+
+This script will:
+- ✅ Check Clasp installation
+- ✅ Validate `.clasprc.json` format and OAuth fields
+- ✅ Check token expiration
+- ✅ Verify `.clasp.json` configuration
+- ✅ Test connection to Google Apps Script
+- ✅ Provide ready-to-use values for GitHub secrets
+
+**Run this every time before updating GitHub secrets!**
+
 ## Additional Resources
 
+### Documentation
+- [Deployment Flow Guide](docs/DEPLOYMENT_FLOW.md) - Complete CI/CD pipeline visualization
+- [GitHub Actions Debugging Guide](docs/CLASP_GITHUB_ACTIONS_DEBUG.md) - Comprehensive troubleshooting for Clasp issues
+- [Validation Script](scripts/validate-clasp-setup.sh) - Local setup validation tool
+
+### External Links
 - [Clasp Documentation](https://github.com/google/clasp)
 - [Google Apps Script Documentation](https://developers.google.com/apps-script)
 - [GitHub Actions Secrets](https://docs.github.com/en/actions/security-guides/encrypted-secrets)
+
+## Quick Reference
+
+**Common Commands:**
+```bash
+# Validate setup before configuring GitHub
+./scripts/validate-clasp-setup.sh
+
+# Re-authenticate (when tokens expire)
+clasp logout && clasp login
+
+# Copy credentials to clipboard (macOS)
+cat ~/.clasprc.json | pbcopy
+
+# Test JSON format
+cat ~/.clasprc.json | jq .
+
+# Get Script ID
+cat .clasp.json | jq -r '.scriptId'
+
+# Test deployment locally
+npm run push
+```
+
+**GitHub Secret Configuration:**
+1. Validate locally: `./scripts/validate-clasp-setup.sh`
+2. Copy credentials: `cat ~/.clasprc.json | pbcopy`
+3. Go to: `https://github.com/YOUR_USERNAME/YOUR_REPO/settings/secrets/actions`
+4. Create/Update secrets:
+   - `CLASPRC_JSON`: Paste entire `.clasprc.json` contents
+   - `SCRIPT_ID`: Your Apps Script project ID
+
+**Troubleshooting:**
+- See [GitHub Actions Debugging Guide](docs/CLASP_GITHUB_ACTIONS_DEBUG.md) for detailed troubleshooting
+- See [Deployment Flow](docs/DEPLOYMENT_FLOW.md) for understanding the complete pipeline
