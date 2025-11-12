@@ -68,8 +68,8 @@ if [ -f "$CLASPRC_PATH" ]; then
     exit 1
   fi
 
-  # Check for access_token (nested or flat structure)
-  if jq -e '.token.access_token // .access_token' "$CLASPRC_PATH" >/dev/null 2>&1; then
+  # Check for access_token (support all Clasp formats)
+  if jq -e '.tokens.default.access_token // .token.access_token // .access_token' "$CLASPRC_PATH" >/dev/null 2>&1; then
     success "Found OAuth access_token field"
   else
     error "Missing OAuth access_token field!"
@@ -78,15 +78,15 @@ if [ -f "$CLASPRC_PATH" ]; then
     exit 1
   fi
 
-  # Check for refresh_token
-  if jq -e '.token.refresh_token // .refresh_token' "$CLASPRC_PATH" >/dev/null 2>&1; then
+  # Check for refresh_token (support all Clasp formats)
+  if jq -e '.tokens.default.refresh_token // .token.refresh_token // .refresh_token' "$CLASPRC_PATH" >/dev/null 2>&1; then
     success "Found OAuth refresh_token field"
   else
     warning "Missing refresh_token field (may cause issues)"
   fi
 
-  # Check token expiry
-  EXPIRY=$(jq -r '.token.expiry_date // .expiry_date // "null"' "$CLASPRC_PATH")
+  # Check token expiry (support all Clasp formats)
+  EXPIRY=$(jq -r '.tokens.default.expiry_date // .token.expiry_date // .expiry_date // "null"' "$CLASPRC_PATH")
   if [ "$EXPIRY" != "null" ]; then
     CURRENT_TIME=$(date +%s)000  # milliseconds
     if [ "$EXPIRY" -lt "$CURRENT_TIME" ]; then
