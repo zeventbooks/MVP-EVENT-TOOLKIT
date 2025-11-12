@@ -108,11 +108,14 @@ jobs:
 
       - name: Write .clasprc.json
         run: |
-          echo '${{ secrets.CLASPRC_JSON }}' > ~/.clasprc.json
+          # Write secret to file using printf to handle special characters properly
+          printf '%s\n' '${{ secrets.CLASPRC_JSON }}' > ~/.clasprc.json
           # Validate JSON format
           if ! jq empty ~/.clasprc.json 2>/dev/null; then
             echo "❌ ERROR: CLASPRC_JSON is not valid JSON!"
             echo "Please check the CLASPRC_JSON secret format."
+            echo "Current content preview (first 100 chars):"
+            head -c 100 ~/.clasprc.json || true
             exit 1
           fi
           # Validate required OAuth fields (support both nested and flat structures)
