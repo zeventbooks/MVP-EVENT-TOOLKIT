@@ -108,8 +108,10 @@ jobs:
 
       - name: Write .clasprc.json
         run: |
-          # Write secret to file using printf to handle special characters properly
-          printf '%s\n' '${{ secrets.CLASPRC_JSON }}' > ~/.clasprc.json
+          # Write secret to file using heredoc to handle all special characters
+          cat > ~/.clasprc.json << 'EOF'
+          ${{ secrets.CLASPRC_JSON }}
+          EOF
           # Validate JSON format
           if ! jq empty ~/.clasprc.json 2>/dev/null; then
             echo "❌ ERROR: CLASPRC_JSON is not valid JSON!"
