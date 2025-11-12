@@ -31,9 +31,5 @@ module.exports = defineConfig({
     },
   ],
 
-  webServer: process.env.BASE_URL ? undefined : {
-    command: 'echo "No local server needed - testing deployed Apps Script URL"',
-    port: 3000,
-    reuseExistingServer: true,
-  },
+  // No webServer needed - we test the deployed Google Apps Script URL directly
 });

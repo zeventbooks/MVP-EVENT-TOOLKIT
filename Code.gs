@@ -134,7 +134,7 @@ function doGet(e){
     return HtmlService.createHtmlOutput(`<meta http-equiv="refresh" content="0;url=?p=${first}&tenant=${tenant.id}">`);
   }
 
-  const page = (pageParam==='admin' || pageParam==='poster' || pageParam==='test' || pageParam==='display') ? pageParam : 'public';
+  const page = (pageParam==='admin' || pageParam==='poster' || pageParam==='test' || pageParam==='display' || pageParam==='report' || pageParam==='analytics') ? pageParam : 'public';
   const tpl = HtmlService.createTemplateFromFile(pageFile_(page));
   tpl.appTitle = `${tenant.name} · ${scope}`;
   tpl.tenantId = tenant.id;
@@ -259,6 +259,30 @@ function handleRestApiPost_(e, action, body, tenant) {
     }));
   }
 
+  if (action === 'listFormTemplates') {
+    return jsonResponse_(api_listFormTemplates());
+  }
+
+  if (action === 'createFormFromTemplate') {
+    return jsonResponse_(api_createFormFromTemplate({
+      tenantId,
+      adminKey,
+      templateType: body.templateType,
+      eventName: body.eventName || '',
+      eventId: body.eventId || ''
+    }));
+  }
+
+  if (action === 'generateFormShortlink') {
+    return jsonResponse_(api_generateFormShortlink({
+      tenantId,
+      adminKey,
+      formUrl: body.formUrl,
+      formType: body.formType || '',
+      eventId: body.eventId || ''
+    }));
+  }
+
   return jsonResponse_(Err(ERR.BAD_INPUT, `Unknown action: ${action}`));
 }
 
@@ -277,6 +301,7 @@ function pageFile_(page){
   if (page==='poster') return 'Poster';
   if (page==='test') return 'Test';
   if (page==='display') return 'Display';
+  if (page==='report' || page==='analytics') return 'SharedReport';
   return 'Public';
 }
 
@@ -597,7 +622,8 @@ function api_get(payload){
       links: {
         publicUrl: `${base}?p=events&tenant=${tenantId}&id=${r[0]}`,
         posterUrl: `${base}?page=poster&p=events&tenant=${tenantId}&id=${r[0]}`,
-        displayUrl: `${base}?page=display&p=events&tenant=${tenantId}&id=${r[0]}&tv=1`
+        displayUrl: `${base}?page=display&p=events&tenant=${tenantId}&id=${r[0]}&tv=1`,
+        reportUrl: `${base}?page=report&tenant=${tenantId}&id=${r[0]}`
       }
     };
     const etag = Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(value)));
@@ -659,7 +685,8 @@ function api_create(payload){
     const links = {
       publicUrl: `${base}?p=events&tenant=${tenantId}&id=${id}`,
       posterUrl: `${base}?page=poster&p=events&tenant=${tenantId}&id=${id}`,
-      displayUrl: `${base}?page=display&p=events&tenant=${tenantId}&id=${id}&tv=1`
+      displayUrl: `${base}?page=display&p=events&tenant=${tenantId}&id=${id}&tv=1`,
+      reportUrl: `${base}?page=report&tenant=${tenantId}&id=${id}`
     };
     diag_('info','api_create','created',{id,tenantId,scope});
     return Ok({ id, links });
@@ -837,6 +864,127 @@ function api_createShortlink(req){
 
     diag_('info','api_createShortlink','created',{token, targetUrl, eventId, sponsorId});
     return Ok({ token, shortlink, targetUrl });
+  });
+}
+
+// === Google Forms Template Creation ===
+
+function api_listFormTemplates(){
+  return runSafe('api_listFormTemplates', () => {
+    const templates = listFormTemplates_();
+    return Ok({ templates });
+  });
+}
+
+function api_createFormFromTemplate(req){
+  return runSafe('api_createFormFromTemplate', () => {
+    if(!req||typeof req!=='object') return Err(ERR.BAD_INPUT,'Missing payload');
+    const { templateType, eventName, eventId, adminKey, tenantId } = req;
+
+    if (!templateType) return Err(ERR.BAD_INPUT,'Missing templateType');
+
+    const g=gate_(tenantId||'root', adminKey); if(!g.ok) return g;
+
+    const template = findFormTemplate_(templateType);
+    if (!template) return Err(ERR.BAD_INPUT, `Unknown template type: ${templateType}`);
+
+    try {
+      // Create the form
+      const formTitle = eventName ? `${eventName} - ${template.label}` : template.label;
+      const form = FormApp.create(formTitle);
+
+      form.setDescription(template.description);
+      form.setCollectEmail(true);
+      form.setLimitOneResponsePerUser(false);
+      form.setShowLinkToRespondAgain(true);
+
+      // Add questions from template
+      template.questions.forEach(q => {
+        let item;
+
+        switch(q.type) {
+          case 'TEXT':
+            item = form.addTextItem();
+            item.setTitle(q.title);
+            if (q.required) item.setRequired(true);
+            break;
+
+          case 'PARAGRAPH_TEXT':
+            item = form.addParagraphTextItem();
+            item.setTitle(q.title);
+            if (q.required) item.setRequired(true);
+            break;
+
+          case 'MULTIPLE_CHOICE':
+            item = form.addMultipleChoiceItem();
+            item.setTitle(q.title);
+            if (q.choices && q.choices.length > 0) {
+              item.setChoiceValues(q.choices);
+            }
+            if (q.required) item.setRequired(true);
+            break;
+
+          case 'SCALE':
+            item = form.addScaleItem();
+            item.setTitle(q.title);
+            if (q.scaleMin && q.scaleMax) {
+              item.setBounds(q.scaleMin, q.scaleMax);
+            }
+            if (q.scaleMinLabel) item.setLabels(q.scaleMinLabel, q.scaleMaxLabel || '');
+            if (q.required) item.setRequired(true);
+            break;
+
+          default:
+            // Default to text item
+            item = form.addTextItem();
+            item.setTitle(q.title);
+            if (q.required) item.setRequired(true);
+        }
+      });
+
+      // Create response spreadsheet
+      const responseSheet = SpreadsheetApp.create(`${formTitle} - Responses`);
+      form.setDestination(FormApp.DestinationType.SPREADSHEET, responseSheet.getId());
+
+      const formId = form.getId();
+      const editUrl = form.getEditUrl();
+      const publishedUrl = form.getPublishedUrl();
+      const responseSheetUrl = responseSheet.getUrl();
+
+      diag_('info','api_createFormFromTemplate','created',{formId, templateType, eventId});
+
+      return Ok({
+        formId,
+        editUrl,
+        publishedUrl,
+        responseSheetUrl,
+        templateType,
+        eventId: eventId || ''
+      });
+
+    } catch(e) {
+      diag_('error','api_createFormFromTemplate','failed',{error: e.toString(), templateType});
+      return Err(ERR.SERVER_ERROR, `Failed to create form: ${e.toString()}`);
+    }
+  });
+}
+
+function api_generateFormShortlink(req){
+  return runSafe('api_generateFormShortlink', () => {
+    if(!req||typeof req!=='object') return Err(ERR.BAD_INPUT,'Missing payload');
+    const { formUrl, formType, eventId, adminKey, tenantId } = req;
+
+    if (!formUrl) return Err(ERR.BAD_INPUT,'Missing formUrl');
+
+    // Use existing shortlink API
+    return api_createShortlink({
+      targetUrl: formUrl,
+      eventId: eventId || '',
+      sponsorId: '',
+      surface: `form-${formType || 'unknown'}`,
+      adminKey,
+      tenantId
+    });
   });
 }
 

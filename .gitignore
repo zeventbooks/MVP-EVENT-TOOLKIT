@@ -1,6 +1,7 @@
 # Clasp (Apps Script deployment)
 .clasp.json
 .clasprc.json
+.clasp-creds.json
 
 # Node modules
 node_modules/
@@ -31,6 +32,11 @@ yarn-error.log*
 # Test coverage
 coverage/
 .nyc_output/
+
+# Test reports
+newman-reports/
+playwright-report/
+test-results/
 
 # Build outputs
 dist/

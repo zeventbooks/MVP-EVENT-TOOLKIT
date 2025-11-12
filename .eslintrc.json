@@ -16,6 +16,7 @@
     "HtmlService": "readonly",
     "CacheService": "readonly",
     "Utilities": "readonly",
+    "FormApp": "readonly",
     "google": "readonly",
     "Logger": "readonly",
     "Session": "readonly",
@@ -42,10 +43,13 @@
         "ZEB": "readonly",
         "TENANTS": "readonly",
         "TEMPLATES": "readonly",
+        "FORM_TEMPLATES": "readonly",
         "loadTenants_": "readonly",
         "findTenant_": "readonly",
         "findTenantByHost_": "readonly",
-        "findTemplate_": "readonly"
+        "findTemplate_": "readonly",
+        "findFormTemplate_": "readonly",
+        "listFormTemplates_": "readonly"
       }
     },
     {
@@ -66,6 +70,9 @@
     },
     {
       "files": ["tests/e2e/**/*.js"],
+      "parserOptions": {
+        "sourceType": "module"
+      },
       "rules": {
         "no-unused-vars": "off"
       }
