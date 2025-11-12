@@ -41,3 +41,5 @@ get-*.sh
 # API specs
 openapi.yaml
 postman-collection.json
+postman/
+postman/**
