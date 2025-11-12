@@ -115,10 +115,12 @@ jobs:
             echo "Please check the CLASPRC_JSON secret format."
             exit 1
           fi
-          # Validate required fields
-          if ! jq -e '.token.access_token' ~/.clasprc.json >/dev/null 2>&1; then
-            echo "❌ ERROR: CLASPRC_JSON is missing required 'token.access_token' field!"
+          # Validate required OAuth fields (support both nested and flat structures)
+          if ! jq -e '.token.access_token // .access_token' ~/.clasprc.json >/dev/null 2>&1; then
+            echo "❌ ERROR: CLASPRC_JSON is missing required OAuth access_token field!"
+            echo "Expected either '.token.access_token' (nested) or '.access_token' (flat) structure."
             echo "Please ensure your CLASPRC_JSON contains valid OAuth credentials."
+            echo "Run 'clasp login' locally and copy the contents of ~/.clasprc.json"
             exit 1
           fi
           echo "✅ .clasprc.json validated successfully"

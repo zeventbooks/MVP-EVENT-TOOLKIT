@@ -42,8 +42,9 @@ cat ~/.clasprc.json
 type %USERPROFILE%\.clasprc.json
 ```
 
-The file should look like this:
+The file should look like one of these formats (depending on your clasp version):
 
+**Nested format (older clasp versions):**
 ```json
 {
   "token": {
@@ -62,7 +63,18 @@ The file should look like this:
 }
 ```
 
-Copy the **entire contents** of this file.
+**Flat format (newer clasp versions):**
+```json
+{
+  "access_token": "ya29.a0...",
+  "refresh_token": "1//0e...",
+  "scope": "https://www.googleapis.com/auth/...",
+  "token_type": "Bearer",
+  "expiry_date": 1234567890123
+}
+```
+
+Copy the **entire contents** of this file. Both formats are supported by the CI/CD pipeline.
 
 ## Step 3: Get Your Script ID
 
@@ -131,11 +143,12 @@ Push a change to the `main` branch and check the GitHub Actions logs. The deploy
 - Check for any trailing spaces or newlines
 - Validate the JSON using a tool like [jsonlint.com](https://jsonlint.com/)
 
-### Error: "CLASPRC_JSON is missing required 'token.access_token' field"
+### Error: "CLASPRC_JSON is missing required OAuth access_token field"
 
-- Your `.clasprc.json` may be from an old version of clasp
-- Run `clasp logout` and then `clasp login` again to generate a fresh token
-- Verify the JSON structure matches the example in Step 2
+- Your `.clasprc.json` may be corrupted or incomplete
+- Run `clasp logout` and then `clasp login` again to generate fresh credentials
+- Verify the JSON structure matches one of the examples in Step 2 (either nested or flat format)
+- Ensure you copied the entire file contents without truncation
 
 ### Error: "Script not found"
 
