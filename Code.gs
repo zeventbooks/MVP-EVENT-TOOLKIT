@@ -134,7 +134,7 @@ function doGet(e){
     return HtmlService.createHtmlOutput(`<meta http-equiv="refresh" content="0;url=?p=${first}&tenant=${tenant.id}">`);
   }
 
-  const page = (pageParam==='admin' || pageParam==='poster' || pageParam==='test' || pageParam==='display' || pageParam==='report' || pageParam==='analytics') ? pageParam : 'public';
+  const page = (pageParam==='admin' || pageParam==='poster' || pageParam==='test' || pageParam==='display' || pageParam==='report' || pageParam==='analytics' || pageParam==='diagnostics' || pageParam==='sponsor' || pageParam==='signup' || pageParam==='config') ? pageParam : 'public';
   const tpl = HtmlService.createTemplateFromFile(pageFile_(page));
   tpl.appTitle = `${tenant.name} · ${scope}`;
   tpl.tenantId = tenant.id;
@@ -302,6 +302,10 @@ function pageFile_(page){
   if (page==='test') return 'Test';
   if (page==='display') return 'Display';
   if (page==='report' || page==='analytics') return 'SharedReport';
+  if (page==='diagnostics') return 'Diagnostics';
+  if (page==='sponsor') return 'Sponsor';
+  if (page==='signup') return 'Signup';
+  if (page==='config') return 'Config';
   return 'Public';
 }
 
