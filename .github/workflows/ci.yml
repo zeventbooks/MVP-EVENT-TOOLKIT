@@ -204,9 +204,15 @@ jobs:
           }
           EOF
 
-          # Run Newman smoke tests (system checks only - fast)
-          echo "Running System API checks..."
-          npm run test:newman:smoke || echo "⚠️ Newman smoke tests encountered issues"
+          # Run Newman smoke tests against deployed URL (system checks only - fast)
+          echo "Running System API checks against: $BASE_URL"
+          newman run postman/collections/mvp-event-toolkit-api.json \
+            -e postman/environments/ci-deployment.json \
+            --folder System \
+            -r cli,json,html \
+            --reporter-html-export newman-reports/ci-report.html \
+            --reporter-json-export newman-reports/ci-report.json \
+            || echo "⚠️ Newman smoke tests encountered issues"
 
           echo "✅ Newman API tests completed"
 

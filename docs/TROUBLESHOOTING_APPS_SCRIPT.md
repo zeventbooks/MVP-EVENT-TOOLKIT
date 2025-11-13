@@ -63,14 +63,14 @@ This will check all configuration steps and tell you exactly what's wrong.
 
 1. Get service account email from `SERVICE_ACCOUNT_JSON`:
    ```json
-   "client_email": "apps-script-deployer@your-project.iam.gserviceaccount.com"
+   "client_email": "apps-script-deployer@zeventbooks.iam.gserviceaccount.com"
    ```
 
-2. Open Apps Script project: https://script.google.com/d/YOUR_SCRIPT_ID/edit
+2. Open Apps Script project: https://script.google.com/home/projects/1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l/edit
 
 3. Click "Share" (top right)
 
-4. Add service account email as **Editor**
+4. Add service account email as **Editor**: `apps-script-deployer@zeventbooks.iam.gserviceaccount.com`
 
 5. **Uncheck** "Notify people"
 
@@ -90,11 +90,11 @@ This will check all configuration steps and tell you exactly what's wrong.
 
 2. Click "Project Settings" (gear icon)
 
-3. Copy the "Script ID" (looks like: `1YO4apLOQo...`)
+3. Copy the "Script ID" (should be: `1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l`)
 
 4. Update environment variable or GitHub secret:
-   - Local: `export SCRIPT_ID='your-script-id'`
-   - GitHub: Update `SCRIPT_ID` secret
+   - Local: `export SCRIPT_ID='1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l'`
+   - GitHub: Update `SCRIPT_ID` secret at https://github.com/zeventbooks/MVP-EVENT-TOOLKIT/settings/secrets/actions
 
 ---
 
@@ -164,7 +164,7 @@ The diagnostic tool will tell you:
 
 ### Check Secrets Are Set
 
-1. Go to: `https://github.com/YOUR_ORG/YOUR_REPO/settings/secrets/actions`
+1. Go to: https://github.com/zeventbooks/MVP-EVENT-TOOLKIT/settings/secrets/actions
 
 2. Verify both secrets exist:
    - ✅ `APPS_SCRIPT_SERVICE_ACCOUNT_JSON`
