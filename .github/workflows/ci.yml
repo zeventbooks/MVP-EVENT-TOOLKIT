@@ -133,6 +133,39 @@ jobs:
           fi
           echo "✅ .clasprc.json validated successfully"
 
+          # Transform to Clasp 3.x format if needed (for compatibility with latest Clasp)
+          if jq -e '.tokens.default.access_token' ~/.clasprc.json >/dev/null 2>&1; then
+            echo "✅ Already in Clasp 3.x format"
+          elif jq -e '.token.access_token' ~/.clasprc.json >/dev/null 2>&1; then
+            echo "🔄 Converting from Clasp 2.x nested format to Clasp 3.x format..."
+            jq '{
+              tokens: {
+                default: {
+                  client_id: (.oauth2ClientSettings.clientId // "1072944905499-vm2v2i5dvn2a37k91vc9ii6lscm1un4p.apps.googleusercontent.com"),
+                  client_secret: (.oauth2ClientSettings.clientSecret // "v6V3fKV_zWU7iw1DrzzqOjh1"),
+                  type: "authorized_user",
+                  refresh_token: .token.refresh_token,
+                  access_token: .token.access_token
+                }
+              }
+            }' ~/.clasprc.json > ~/.clasprc.json.tmp && mv ~/.clasprc.json.tmp ~/.clasprc.json
+            echo "✅ Converted to Clasp 3.x format"
+          elif jq -e '.access_token' ~/.clasprc.json >/dev/null 2>&1; then
+            echo "🔄 Converting from Clasp 2.x flat format to Clasp 3.x format..."
+            jq '{
+              tokens: {
+                default: {
+                  client_id: "1072944905499-vm2v2i5dvn2a37k91vc9ii6lscm1un4p.apps.googleusercontent.com",
+                  client_secret: "v6V3fKV_zWU7iw1DrzzqOjh1",
+                  type: "authorized_user",
+                  refresh_token: .refresh_token,
+                  access_token: .access_token
+                }
+              }
+            }' ~/.clasprc.json > ~/.clasprc.json.tmp && mv ~/.clasprc.json.tmp ~/.clasprc.json
+            echo "✅ Converted to Clasp 3.x format"
+          fi
+
       - name: Write .clasp.json
         run: |
           echo '{
