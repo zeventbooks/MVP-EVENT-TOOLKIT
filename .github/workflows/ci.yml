@@ -147,7 +147,7 @@ jobs:
       - name: Deploy to Apps Script via API
         id: deploy
         env:
-          SERVICE_ACCOUNT_JSON: ${{ secrets.APPS_SCRIPT_SERVICE_ACCOUNT_JSON }}
+          SERVICE_ACCOUNT_JSON: ${{ secrets.APPS_SCRIPT_SERVICE_ACCOUNT_JSON }}  # ← REMOVE THIS
           SCRIPT_ID: ${{ secrets.SCRIPT_ID }}
           IMPERSONATE_USER: ${{ secrets.IMPERSONATE_USER }}
         run: |
