@@ -52,6 +52,7 @@
     "lint:fix": "eslint '**/*.{js,gs}' --ext .js,.gs --fix",
     "format": "prettier --write '**/*.{js,gs,html,json,md}'",
     "deploy": "node scripts/deploy-apps-script.js",
+    "deploy:diagnose": "node scripts/diagnose-apps-script-access.js",
     "deploy:clasp": "clasp deploy",
     "pull": "clasp pull",
     "open": "clasp open",
