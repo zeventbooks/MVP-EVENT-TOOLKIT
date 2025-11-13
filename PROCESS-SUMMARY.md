@@ -254,7 +254,7 @@ npm run push && sleep 30
 - [Full DevOps Workflow](DEVOPS-WORKFLOW.md) - Comprehensive process documentation
 - [Deployment Guide](DEPLOYMENT-GUIDE.md) - Deployment troubleshooting
 - [Test Execution Summary](TEST-EXECUTION-SUMMARY.md) - Test suite overview
-- Apps Script Project: https://script.google.com/home/projects/1ixHd2iUc27UF0fJvKh9hXsRI1XZtNRKqbZYf0vgMbKrBFItxngd7L-VO/edit
+- Apps Script Project: https://script.google.com/home/projects/1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l/edit
 
 ## Script Reference
 
