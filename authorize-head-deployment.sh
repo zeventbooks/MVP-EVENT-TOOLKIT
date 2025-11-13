@@ -15,7 +15,7 @@ HEAD_URL="https://script.google.com/macros/s/AKfycbzu-U4UgdjdAiXHTg9TD5Y-1gDkc79
 
 echo "Step 1: Open Apps Script Editor"
 echo "----------------------------------------"
-echo "URL: https://script.google.com/home/projects/1ixHd2iUc27UF0fJvKh9hXsRI1XZtNRKqbZYf0vgMbKrBFItxngd7L-VO/edit"
+echo "URL: https://script.google.com/home/projects/1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l/edit"
 echo ""
 echo "Press ENTER when the editor is open..."
 read

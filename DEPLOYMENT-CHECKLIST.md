@@ -65,7 +65,7 @@ Created version 8.
 
 **In Apps Script UI:**
 
-1. Open: https://script.google.com/home/projects/1ixHd2iUc27UF0fJvKh9hXsRI1XZtNRKqbZYf0vgMbKrBFItxngd7L-VO/edit
+1. Open: https://script.google.com/home/projects/1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l/edit
 
 2. Click **Deploy** → **Manage deployments**
 

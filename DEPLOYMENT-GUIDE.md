@@ -71,7 +71,7 @@ git pull origin claude/e2e-playwright-testing-011CUzuxDzMBaNQrs2xcK1NG
 ```bash
 grep "spreadsheetId: '1ixHd" Config.gs
 ```
-Should show: `spreadsheetId: '1ixHd2iUc27UF0fJvKh9hXsRI1XZtNRKqbZYf0vgMbKrBFItxngd7L-VO'`
+Should show: `spreadsheetId: '1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l'`
 
 **3. Push to Apps Script:**
 ```bash

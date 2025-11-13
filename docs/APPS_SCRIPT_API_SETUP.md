@@ -158,7 +158,7 @@ This is the critical step that many guides miss!
 
 1. Open your Apps Script project: https://script.google.com
 2. Click "**Project Settings**" (gear icon on left)
-3. Copy the "**Script ID**" (e.g., `1ixHd2iUc27UF0fJvKh9hXsRI1XZtNRKqbZYf0vgMbKrBFItxngd7L-VO`)
+3. Copy the "**Script ID**" (e.g., `1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l`)
 
 ### 4.2 Add Service Account as Project Editor
 
@@ -244,7 +244,7 @@ This installs the `googleapis` package needed for the deployment script.
 export SERVICE_ACCOUNT_JSON='{"type":"service_account",...}'
 
 # Set your script ID
-export SCRIPT_ID='1ixHd2iUc27UF0fJvKh9hXsRI1XZtNRKqbZYf0vgMbKrBFItxngd7L-VO'
+export SCRIPT_ID='1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l'
 ```
 
 ### 6.3 Test Deployment

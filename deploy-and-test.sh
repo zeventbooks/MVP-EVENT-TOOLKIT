@@ -11,7 +11,7 @@ echo ""
 
 # Step 1: Verify local code has the fix
 echo "1️⃣  Verifying local Config.gs has hard-coded spreadsheet ID..."
-if grep -q "spreadsheetId: '1ixHd2iUc27UF0fJvKh9hXsRI1XZtNRKqbZYf0vgMbKrBFItxngd7L-VO'" Config.gs; then
+if grep -q "spreadsheetId: '1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l'" Config.gs; then
     echo "✅ Local code has the fix"
 else
     echo "❌ Local code is missing the fix"
@@ -34,7 +34,7 @@ echo ""
 echo "4️⃣  Next: Create new deployment in Apps Script"
 echo ""
 echo "Open this URL:"
-echo "https://script.google.com/home/projects/1ixHd2iUc27UF0fJvKh9hXsRI1XZtNRKqbZYf0vgMbKrBFItxngd7L-VO/edit"
+echo "https://script.google.com/home/projects/1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l/edit"
 echo ""
 echo "Then:"
 echo "  1. Deploy → New deployment"
