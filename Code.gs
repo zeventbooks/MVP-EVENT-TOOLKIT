@@ -134,7 +134,17 @@ function doGet(e){
     return HtmlService.createHtmlOutput(`<meta http-equiv="refresh" content="0;url=?p=${first}&tenant=${tenant.id}">`);
   }
 
-  const page = (pageParam==='admin' || pageParam==='poster' || pageParam==='test' || pageParam==='display' || pageParam==='report' || pageParam==='analytics' || pageParam==='diagnostics' || pageParam==='sponsor' || pageParam==='signup' || pageParam==='config') ? pageParam : 'public';
+  // Admin mode selection: default to wizard for simplicity, allow advanced mode via URL parameter
+  let page = (pageParam==='admin' || pageParam==='wizard' || pageParam==='poster' || pageParam==='test' || pageParam==='display' || pageParam==='report' || pageParam==='analytics' || pageParam==='diagnostics' || pageParam==='sponsor' || pageParam==='signup' || pageParam==='config') ? pageParam : 'public';
+
+  // Route admin to wizard by default (simple mode), unless mode=advanced is specified
+  if (page === 'admin') {
+    const mode = (e?.parameter?.mode || '').toString();
+    if (mode !== 'advanced') {
+      page = 'wizard'; // Default to wizard (simple mode)
+    }
+  }
+
   const tpl = HtmlService.createTemplateFromFile(pageFile_(page));
   tpl.appTitle = `${tenant.name} · ${scope}`;
   tpl.tenantId = tenant.id;
@@ -298,6 +308,7 @@ function jsonResponse_(data) {
 
 function pageFile_(page){
   if (page==='admin') return 'Admin';
+  if (page==='wizard') return 'AdminWizard';
   if (page==='poster') return 'Poster';
   if (page==='test') return 'Test';
   if (page==='display') return 'Display';
