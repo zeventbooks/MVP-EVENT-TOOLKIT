@@ -44,7 +44,22 @@ type %USERPROFILE%\.clasprc.json
 
 The file should look like one of these formats (depending on your clasp version):
 
-**Nested format (older clasp versions):**
+**Clasp 3.x format (newest - v3.0+):**
+```json
+{
+  "tokens": {
+    "default": {
+      "client_id": "1072944905499-...",
+      "client_secret": "...",
+      "type": "authorized_user",
+      "refresh_token": "1//0e...",
+      "access_token": "ya29.a0..."
+    }
+  }
+}
+```
+
+**Clasp 2.x nested format (older versions):**
 ```json
 {
   "token": {
@@ -63,7 +78,7 @@ The file should look like one of these formats (depending on your clasp version)
 }
 ```
 
-**Flat format (newer clasp versions):**
+**Clasp 2.x flat format:**
 ```json
 {
   "access_token": "ya29.a0...",
@@ -74,7 +89,7 @@ The file should look like one of these formats (depending on your clasp version)
 }
 ```
 
-Copy the **entire contents** of this file. Both formats are supported by the CI/CD pipeline.
+Copy the **entire contents** of this file. All three formats are supported by the CI/CD pipeline.
 
 ## Step 3: Get Your Script ID
 
