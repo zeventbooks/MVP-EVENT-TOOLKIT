@@ -92,3 +92,4 @@ npm run deploy # Create new deployment
 - `EVENTS` & `DIAG` sheets are created on-demand in the bound spreadsheet
 - Add tenants by extending `TENANTS` in `Config.gs`; later enable more scopes by adding `'leagues'` or `'tournaments'`
 
+# Deployment test - Thu Nov 13 05:41:27 PM CST 2025
