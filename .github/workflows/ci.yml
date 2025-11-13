@@ -112,6 +112,7 @@ jobs:
           cat > ~/.clasprc.json << 'EOF'
           ${{ secrets.CLASPRC_JSON }}
           EOF
+
           # Validate JSON format
           if ! jq empty ~/.clasprc.json 2>/dev/null; then
             echo "❌ ERROR: CLASPRC_JSON is not valid JSON!"
@@ -120,29 +121,63 @@ jobs:
             head -c 100 ~/.clasprc.json || true
             exit 1
           fi
-          # Validate required OAuth fields (support all Clasp formats)
-          if ! jq -e '.tokens.default.access_token // .token.access_token // .access_token' ~/.clasprc.json >/dev/null 2>&1; then
-            echo "❌ ERROR: CLASPRC_JSON is missing required OAuth access_token field!"
-            echo "Expected one of these structures:"
-            echo "  - Clasp 3.x: '.tokens.default.access_token'"
-            echo "  - Clasp 2.x nested: '.token.access_token'"
-            echo "  - Clasp 2.x flat: '.access_token'"
-            echo "Please ensure your CLASPRC_JSON contains valid OAuth credentials."
-            echo "Run 'clasp login' locally and copy the contents of ~/.clasprc.json"
-            exit 1
-          fi
-          echo "✅ .clasprc.json validated successfully"
 
-          # Transform to Clasp 3.x format if needed (for compatibility with latest Clasp)
-          if jq -e '.tokens.default.access_token' ~/.clasprc.json >/dev/null 2>&1; then
-            echo "✅ Already in Clasp 3.x format"
+          # Detect format and validate required fields
+          echo "🔍 Detecting Clasp format..."
+          if jq -e '.tokens.default' ~/.clasprc.json >/dev/null 2>&1; then
+            echo "✅ Detected Clasp 3.x format"
+
+            # Validate required fields for Clasp 3.x
+            if ! jq -e '.tokens.default.access_token' ~/.clasprc.json >/dev/null 2>&1 || \
+               [ "$(jq -r '.tokens.default.access_token' ~/.clasprc.json)" == "null" ]; then
+              echo "❌ ERROR: Clasp 3.x format requires '.tokens.default.access_token'"
+              exit 1
+            fi
+            if ! jq -e '.tokens.default.refresh_token' ~/.clasprc.json >/dev/null 2>&1 || \
+               [ "$(jq -r '.tokens.default.refresh_token' ~/.clasprc.json)" == "null" ]; then
+              echo "❌ ERROR: Clasp 3.x format requires '.tokens.default.refresh_token'"
+              exit 1
+            fi
+
           elif jq -e '.token.access_token' ~/.clasprc.json >/dev/null 2>&1; then
+            echo "✅ Detected Clasp 2.x nested format"
+
+            # Validate required fields for Clasp 2.x nested
+            if ! jq -e '.token.refresh_token' ~/.clasprc.json >/dev/null 2>&1 || \
+               [ "$(jq -r '.token.refresh_token' ~/.clasprc.json)" == "null" ]; then
+              echo "❌ ERROR: CLASPRC_JSON is missing required 'refresh_token' field!"
+              echo "Your OAuth credentials are incomplete or expired."
+              echo ""
+              echo "To fix this:"
+              echo "  1. Run 'clasp logout && clasp login' on your local machine"
+              echo "  2. Copy the contents of ~/.clasprc.json"
+              echo "  3. Update the CLASPRC_JSON secret in GitHub"
+              echo ""
+              echo "See CLASP_SETUP.md for detailed instructions."
+              exit 1
+            fi
+
+            # Validate oauth2ClientSettings exist (needed for conversion)
+            if ! jq -e '.oauth2ClientSettings.clientId' ~/.clasprc.json >/dev/null 2>&1 || \
+               [ "$(jq -r '.oauth2ClientSettings.clientId' ~/.clasprc.json)" == "null" ]; then
+              echo "❌ ERROR: CLASPRC_JSON is missing 'oauth2ClientSettings.clientId' field!"
+              echo "Your OAuth credentials are incomplete."
+              echo ""
+              echo "To fix this:"
+              echo "  1. Run 'clasp logout && clasp login' on your local machine"
+              echo "  2. Ensure the generated ~/.clasprc.json includes oauth2ClientSettings"
+              echo "  3. Copy the contents of ~/.clasprc.json"
+              echo "  4. Update the CLASPRC_JSON secret in GitHub"
+              exit 1
+            fi
+
+            # Convert to Clasp 3.x format
             echo "🔄 Converting from Clasp 2.x nested format to Clasp 3.x format..."
             jq '{
               tokens: {
                 default: {
-                  client_id: (.oauth2ClientSettings.clientId // "1072944905499-vm2v2i5dvn2a37k91vc9ii6lscm1un4p.apps.googleusercontent.com"),
-                  client_secret: (.oauth2ClientSettings.clientSecret // "v6V3fKV_zWU7iw1DrzzqOjh1"),
+                  client_id: .oauth2ClientSettings.clientId,
+                  client_secret: .oauth2ClientSettings.clientSecret,
                   type: "authorized_user",
                   refresh_token: .token.refresh_token,
                   access_token: .token.access_token
@@ -150,7 +185,24 @@ jobs:
               }
             }' ~/.clasprc.json > ~/.clasprc.json.tmp && mv ~/.clasprc.json.tmp ~/.clasprc.json
             echo "✅ Converted to Clasp 3.x format"
+
           elif jq -e '.access_token' ~/.clasprc.json >/dev/null 2>&1; then
+            echo "✅ Detected Clasp 2.x flat format"
+
+            # Validate required fields for Clasp 2.x flat
+            if ! jq -e '.refresh_token' ~/.clasprc.json >/dev/null 2>&1 || \
+               [ "$(jq -r '.refresh_token' ~/.clasprc.json)" == "null" ]; then
+              echo "❌ ERROR: CLASPRC_JSON is missing required 'refresh_token' field!"
+              echo "Your OAuth credentials are incomplete or expired."
+              echo ""
+              echo "To fix this:"
+              echo "  1. Run 'clasp logout && clasp login' on your local machine"
+              echo "  2. Copy the contents of ~/.clasprc.json"
+              echo "  3. Update the CLASPRC_JSON secret in GitHub"
+              exit 1
+            fi
+
+            # Convert to Clasp 3.x format using default OAuth client
             echo "🔄 Converting from Clasp 2.x flat format to Clasp 3.x format..."
             jq '{
               tokens: {
@@ -164,7 +216,34 @@ jobs:
               }
             }' ~/.clasprc.json > ~/.clasprc.json.tmp && mv ~/.clasprc.json.tmp ~/.clasprc.json
             echo "✅ Converted to Clasp 3.x format"
+
+          else
+            echo "❌ ERROR: CLASPRC_JSON format not recognized!"
+            echo "Could not find access_token in any supported location."
+            echo ""
+            echo "Expected one of these structures:"
+            echo "  - Clasp 3.x: '.tokens.default.access_token'"
+            echo "  - Clasp 2.x nested: '.token.access_token'"
+            echo "  - Clasp 2.x flat: '.access_token'"
+            echo ""
+            echo "Please run 'clasp login' locally and copy the full contents of ~/.clasprc.json"
+            exit 1
           fi
+
+          # Final validation
+          echo "🔍 Final validation of converted .clasprc.json..."
+          if ! jq -e '.tokens.default.access_token' ~/.clasprc.json >/dev/null 2>&1 || \
+             [ "$(jq -r '.tokens.default.access_token' ~/.clasprc.json)" == "null" ]; then
+            echo "❌ ERROR: Conversion failed - access_token is null or missing"
+            exit 1
+          fi
+          if ! jq -e '.tokens.default.refresh_token' ~/.clasprc.json >/dev/null 2>&1 || \
+             [ "$(jq -r '.tokens.default.refresh_token' ~/.clasprc.json)" == "null" ]; then
+            echo "❌ ERROR: Conversion failed - refresh_token is null or missing"
+            exit 1
+          fi
+
+          echo "✅ .clasprc.json ready for Clasp (all required fields validated)"
 
       - name: Write .clasp.json
         run: |
