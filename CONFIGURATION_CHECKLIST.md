@@ -3,7 +3,7 @@
 **Status:** Pre-deployment configuration verification
 **Last Updated:** 2025-11-13
 **Your Project:** mvp-event-toolkit
-**Script ID:** `1ixHd2iUc27UF0fJvKh9hXsRI1XZtNRKqbZYf0vgMbKrBFItxngd7L-VO`
+**Script ID:** `1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l`
 
 ---
 
@@ -15,7 +15,7 @@ Based on the URLs you provided:
 |----------|-----|---------|
 | **GitHub Secrets** | https://github.com/zeventbooks/MVP-EVENT-TOOLKIT/settings/secrets/actions | Configure deployment credentials |
 | **GitHub Repo** | https://github.com/zeventbooks/MVP-EVENT-TOOLKIT | Monitor CI/CD runs |
-| **Apps Script Project** | https://script.google.com/home/projects/1ixHd2iUc27UF0fJvKh9hXsRI1XZtNRKqbZYf0vgMbKrBFItxngd7L-VO/edit | Edit code & view logs |
+| **Apps Script Project** | https://script.google.com/home/projects/1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l/edit | Edit code & view logs |
 | **Live Web App** | https://script.google.com/macros/s/AKfycbxaTPh3FS4NHJblIcUrz4k01kWAdxsKzLNnYRf0TXe18lBditTm3hqbBoQ4ZxbGhhGuCA/exec | Current deployment |
 | **Service Accounts** | https://console.cloud.google.com/iam-admin/serviceaccounts?project=mvp-event-toolkit | Manage service accounts |
 | **IAM Permissions** | https://console.cloud.google.com/iam-admin/iam?project=mvp-event-toolkit | Project-level permissions |
@@ -80,7 +80,7 @@ Expected format: `apps-script-deployer@mvp-event-toolkit.iam.gserviceaccount.com
 #### 3.1 Link to Google Cloud Project
 
 - [ ] **Apps Script linked to GCP project**
-  - Open: https://script.google.com/home/projects/1ixHd2iUc27UF0fJvKh9hXsRI1XZtNRKqbZYf0vgMbKrBFItxngd7L-VO/edit
+  - Open: https://script.google.com/home/projects/1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l/edit
   - Click: Project Settings (⚙️ icon)
   - Verify: "Google Cloud Platform (GCP) Project" shows `mvp-event-toolkit`
   - **Expected GCP Project Number:** You can find this at https://console.cloud.google.com/home/dashboard?project=mvp-event-toolkit
@@ -88,7 +88,7 @@ Expected format: `apps-script-deployer@mvp-event-toolkit.iam.gserviceaccount.com
 #### 3.2 Service Account Has Editor Access - **CRITICAL**
 
 - [ ] **Grant service account access to Apps Script project**
-  - Open: https://script.google.com/home/projects/1ixHd2iUc27UF0fJvKh9hXsRI1XZtNRKqbZYf0vgMbKrBFItxngd7L-VO/edit
+  - Open: https://script.google.com/home/projects/1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l/edit
   - Click: "Share" (top right)
   - Add email: `apps-script-deployer@mvp-event-toolkit.iam.gserviceaccount.com`
   - Role: **Editor**
@@ -102,7 +102,7 @@ Expected format: `apps-script-deployer@mvp-event-toolkit.iam.gserviceaccount.com
 #### 3.3 Web App Deployment Settings
 
 - [ ] **Check current deployment settings**
-  - Open: https://script.google.com/home/projects/1ixHd2iUc27UF0fJvKh9hXsRI1XZtNRKqbZYf0vgMbKrBFItxngd7L-VO/edit
+  - Open: https://script.google.com/home/projects/1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l/edit
   - Click: Deploy → Manage deployments
   - Verify settings:
     - Execute as: **User accessing the web app** (matches appsscript.json)
@@ -131,7 +131,7 @@ Go to: https://github.com/zeventbooks/MVP-EVENT-TOOLKIT/settings/secrets/actions
 
 - [ ] **SCRIPT_ID**
   - Name: Exactly `SCRIPT_ID`
-  - Value: `1ixHd2iUc27UF0fJvKh9hXsRI1XZtNRKqbZYf0vgMbKrBFItxngd7L-VO`
+  - Value: `1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l`
 
 - [ ] **ADMIN_KEY_ROOT** (for E2E tests)
   - Name: `ADMIN_KEY_ROOT`
@@ -157,7 +157,7 @@ If testing deployment locally:
 ```bash
 # Set these in your terminal
 export SERVICE_ACCOUNT_JSON='{"type":"service_account",...}'
-export SCRIPT_ID='1ixHd2iUc27UF0fJvKh9hXsRI1XZtNRKqbZYf0vgMbKrBFItxngd7L-VO'
+export SCRIPT_ID='1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l'
 
 # Then run
 npm run deploy
@@ -211,7 +211,7 @@ After enabling the Apps Script API, verify everything works:
 ```bash
 # Set env vars
 export SERVICE_ACCOUNT_JSON='<paste JSON here>'
-export SCRIPT_ID='1ixHd2iUc27UF0fJvKh9hXsRI1XZtNRKqbZYf0vgMbKrBFItxngd7L-VO'
+export SCRIPT_ID='1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l'
 
 # Run deployment
 npm run deploy
