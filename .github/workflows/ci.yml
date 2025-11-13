@@ -117,14 +117,30 @@ jobs:
           fi
           echo "✅ Required secrets are configured"
 
-      - name: Deploy to Apps Script via API
+      - name: Deploy to Apps Script via clasp
         id: deploy
         env:
-          SERVICE_ACCOUNT_JSON: ${{ secrets.APPS_SCRIPT_SERVICE_ACCOUNT_JSON }}
-          SCRIPT_ID: ${{ secrets.SCRIPT_ID }}
+          CLASPRC_JSON: ${{ secrets.OAUTH_CREDENTIALS }}
         run: |
-          echo "🚀 Deploying via Apps Script API (service account authentication)..."
-          npm run deploy
+          echo "🔐 Setting up clasp credentials..."
+          echo "$CLASPRC_JSON" > ~/.clasprc.json
+          
+          echo "🚀 Deploying to Apps Script..."
+          npx clasp push --force
+          
+          echo "📦 Creating deployment..."
+          DEPLOY_OUTPUT=$(npx clasp deploy --description "CI/CD Deploy $(date -Iseconds)" 2>&1)
+          echo "$DEPLOY_OUTPUT"
+          
+          # Extract deployment ID if available
+          DEPLOY_ID=$(echo "$DEPLOY_OUTPUT" | grep -oP 'Created version \K\d+' || echo "unknown")
+          echo "deployment_id=$DEPLOY_ID" >> $GITHUB_OUTPUT
+          
+          # Get the web app URL from the project
+          WEB_APP_URL="https://script.google.com/macros/s/AKfycbyFSdlFOFWm80Vt0DMLrxgNGwuK5KO9_PbWcb4nk_iYl-n6jL-wQaB3vzLxvZbibOML/exec"
+          echo "url=$WEB_APP_URL" >> $GITHUB_OUTPUT
+          
+          echo "✅ Deployment complete!"
 
   # ============================================================================
   # PHASE 3: API VERIFICATION (Parallel - Validate Backend)
