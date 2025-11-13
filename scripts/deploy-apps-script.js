@@ -162,30 +162,62 @@ async function verifyApiAccess(scriptClient) {
   console.log('🔍 Verifying Apps Script API access...');
 
   try {
-    // Try to get project metadata to verify API access
+    // Try to get project metadata to verify READ access
     await scriptClient.projects.get({
       scriptId: SCRIPT_ID
     });
-    console.log('✅ Apps Script API is enabled and accessible');
+    console.log('✅ Apps Script API read access verified');
+
+    // Try to verify WRITE access by getting current content
+    try {
+      await scriptClient.projects.getContent({
+        scriptId: SCRIPT_ID
+      });
+      console.log('✅ Apps Script API write access verified');
+    } catch (writeError) {
+      if (writeError.code === 403) {
+        console.error('\n' + '═'.repeat(55));
+        console.error('  ⚠️  Write Access Not Enabled');
+        console.error('═'.repeat(55));
+        console.error('\n⚠️  WARNING: Read access works, but write access is blocked.');
+        console.error('This typically means the project owner needs to enable the');
+        console.error('Apps Script API in their USER settings.\n');
+        console.error('📋 To fix this:\n');
+        console.error('1. Project owner must visit:');
+        console.error('   https://script.google.com/home/usersettings\n');
+        console.error('2. Enable "Google Apps Script API"\n');
+        console.error('3. Wait 2-5 minutes for propagation\n');
+        console.error('4. Retry this deployment\n');
+        console.error('Note: This is DIFFERENT from enabling the API in GCP Console.');
+        console.error('      Both the GCP API AND user settings must be enabled.\n');
+        console.error('═'.repeat(55));
+        throw new Error('Apps Script API user setting not enabled. See instructions above.');
+      }
+      // If it's not a 403, continue anyway - we'll catch write errors during upload
+      console.log('⚠️  Could not verify write access (will attempt upload anyway)');
+    }
+
     return true;
   } catch (error) {
     if (error.message && error.message.includes('Apps Script API')) {
+      // Re-throw if already formatted
+      throw error;
+    }
+    if (error.code === 403 || error.code === 404) {
       console.error('\n' + '═'.repeat(55));
-      console.error('  ❌ Apps Script API Not Enabled');
+      console.error('  ❌ Apps Script API Access Denied');
       console.error('═'.repeat(55));
-      console.error('\nThe Apps Script API is not enabled in your Google Cloud Project.');
-      console.error('\n📋 To fix this:\n');
-      console.error('1. Go to: https://console.cloud.google.com\n');
-      console.error('2. Select your project (linked to your Apps Script)\n');
-      console.error('3. Go to: APIs & Services → Library\n');
-      console.error('4. Search: "Apps Script API"\n');
-      console.error('5. Click: "Google Apps Script API"\n');
-      console.error('6. Click: "ENABLE"\n');
-      console.error('7. Wait 2-5 minutes for propagation\n');
-      console.error('8. Retry deployment\n');
-      console.error('\n📖 Full guide: docs/APPS_SCRIPT_API_SETUP.md (Step 1.3)\n');
+      console.error('\nCannot access the Apps Script project.');
+      console.error('\n📋 Possible causes:\n');
+      console.error('1. Apps Script API not enabled in Google Cloud Console:');
+      console.error('   → https://console.cloud.google.com/apis/library\n');
+      console.error('2. Service account not granted access to the Apps Script project:');
+      console.error('   → Open Apps Script → Share → Add service account as Editor\n');
+      console.error('3. Wrong SCRIPT_ID:');
+      console.error(`   → Current ID: ${SCRIPT_ID}\n`);
+      console.error('📖 Full setup guide: docs/APPS_SCRIPT_API_SETUP.md\n');
       console.error('═'.repeat(55));
-      throw new Error('Apps Script API not enabled. Follow steps above to enable it.');
+      throw new Error('Apps Script API access denied. Follow steps above to fix.');
     }
     throw error;
   }
@@ -217,20 +249,22 @@ async function uploadFiles(scriptClient, files) {
     // Provide specific guidance for common errors
     if (error.message && error.message.includes('Apps Script API')) {
       console.error('\n' + '═'.repeat(55));
-      console.error('  ⚠️  Apps Script API Not Enabled');
+      console.error('  ⚠️  Apps Script API Not Enabled (User Settings)');
       console.error('═'.repeat(55));
-      console.error('\nThe Apps Script API needs to be enabled in your Google Cloud Project.');
-      console.error('\n📋 Required Steps:\n');
-      console.error('1. Go to Google Cloud Console:');
-      console.error('   https://console.cloud.google.com\n');
-      console.error('2. Select your project (the one linked to your Apps Script)\n');
-      console.error('3. Navigate to: APIs & Services → Library\n');
-      console.error('4. Search for: "Apps Script API"\n');
-      console.error('5. Click: "Google Apps Script API"\n');
-      console.error('6. Click: "ENABLE"\n');
-      console.error('7. Wait 2-5 minutes for the change to propagate\n');
-      console.error('8. Retry this deployment\n');
-      console.error('📖 Detailed guide: docs/APPS_SCRIPT_API_SETUP.md (Step 1.3)\n');
+      console.error('\n⚠️  CRITICAL: The project OWNER must enable Apps Script API');
+      console.error('in their USER settings. This is different from the GCP setting.\n');
+      console.error('📋 Required Steps:\n');
+      console.error('1. Project owner must visit:');
+      console.error('   https://script.google.com/home/usersettings\n');
+      console.error('2. Toggle ON: "Google Apps Script API"\n');
+      console.error('3. Wait 2-5 minutes for the change to propagate\n');
+      console.error('4. Retry this deployment\n');
+      console.error('\n📋 Additional Requirements (if above doesn\'t work):\n');
+      console.error('A. Enable API in Google Cloud Console:');
+      console.error('   https://console.cloud.google.com/apis/library\n');
+      console.error('B. Grant service account Editor access to Apps Script:');
+      console.error('   → Apps Script → Share → Add service account email\n');
+      console.error('📖 Complete guide: docs/APPS_SCRIPT_API_SETUP.md\n');
       console.error('═'.repeat(55));
     }
 

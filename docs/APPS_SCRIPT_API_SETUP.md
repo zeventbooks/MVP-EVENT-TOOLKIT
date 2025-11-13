@@ -24,7 +24,18 @@
 
 ---
 
-## Step 1: Enable Apps Script API
+## ⚠️ CRITICAL: Two-Step API Enablement Required
+
+**The Apps Script API must be enabled in TWO places:**
+
+1. **Google Cloud Console** (Project level) ← Enables the API for your GCP project
+2. **Apps Script User Settings** (User level) ← Allows YOUR account to use the API
+
+**Both must be enabled or deployments will fail!**
+
+---
+
+## Step 1: Enable Apps Script API (Google Cloud Console)
 
 ### 1.1 Go to Google Cloud Console
 
@@ -41,7 +52,7 @@ https://console.cloud.google.com
   - Click "Project Settings" (gear icon)
   - Look for "Google Cloud Platform (GCP) Project number"
 
-### 1.3 Enable Apps Script API
+### 1.3 Enable Apps Script API (Project Level)
 
 1. Go to **APIs & Services** → **Library**
 2. Search for "**Apps Script API**"
@@ -49,6 +60,21 @@ https://console.cloud.google.com
 4. Click "**ENABLE**"
 
 ✅ **Checkpoint:** Apps Script API should now show as "Enabled"
+
+### 1.4 Enable Apps Script API (User Level) 🆕 CRITICAL!
+
+**THIS STEP IS OFTEN MISSED BUT REQUIRED!**
+
+1. Visit: **https://script.google.com/home/usersettings**
+2. Toggle ON: **"Google Apps Script API"**
+3. You should see: ✅ "Google Apps Script API: ON"
+
+⚠️ **Why this matters:**
+- Even if the API is enabled in GCP Console, the PROJECT OWNER must also enable it in their user settings
+- Service accounts inherit this permission from the project owner
+- Without this, you'll get: "User has not enabled the Apps Script API"
+
+✅ **Checkpoint:** Both API settings should now be enabled
 
 ---
 
@@ -279,13 +305,34 @@ The pipeline will:
 
 ## Troubleshooting
 
+### ⚠️ Error: "User has not enabled the Apps Script API" (MOST COMMON)
+
+**This error means the user-level API setting is not enabled!**
+
+**Solution:**
+1. **Project owner** must visit: https://script.google.com/home/usersettings
+2. Toggle ON: "Google Apps Script API"
+3. Wait 2-5 minutes for propagation
+4. Retry deployment
+
+**Why it happens:**
+- The GCP API might be enabled (project level)
+- But the user setting is still disabled (user level)
+- **BOTH must be enabled!**
+
+**Verification:**
+- ✅ If pre-flight check passes but upload fails → This is your issue
+- ✅ If you see "Apps Script API is enabled and accessible" followed by upload failure → This is your issue
+
 ### Error: "Service account does not have permission"
 
 **Solution:** Make sure you completed Step 4.2 - the service account MUST be added as an Editor to the Apps Script project.
 
 ### Error: "Apps Script API has not been used in project"
 
-**Solution:** Enable the Apps Script API in Google Cloud Console (Step 1.3)
+**Solution:**
+1. Enable the Apps Script API in Google Cloud Console (Step 1.3)
+2. **ALSO** enable it in user settings (Step 1.4) ← Often missed!
 
 ### Error: "Failed to parse SERVICE_ACCOUNT_JSON"
 
@@ -303,6 +350,20 @@ The pipeline will:
    - `APPS_SCRIPT_SERVICE_ACCOUNT_JSON` (not `SERVICE_ACCOUNT_JSON`)
    - `SCRIPT_ID`
 3. Ensure no extra spaces or newlines in secrets
+
+### Pre-flight check passes but deployment fails
+
+**This is the classic "user settings" issue!**
+
+**What's happening:**
+- ✅ Read access works (projects.get) → GCP API is enabled
+- ❌ Write access fails (projects.updateContent) → User setting is disabled
+
+**Solution:**
+1. Go to: https://script.google.com/home/usersettings
+2. Enable: "Google Apps Script API"
+3. Wait 2-5 minutes
+4. Retry
 
 ---
 
