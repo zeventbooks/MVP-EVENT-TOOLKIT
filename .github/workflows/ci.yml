@@ -75,13 +75,13 @@ jobs:
   # ============================================================================
 
   deploy:
-    name: 🚀 Deploy to Apps Script
+    name: 🚀 Deploy to Apps Script (API)
     runs-on: ubuntu-latest
     needs: [lint, test, contract-tests]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     outputs:
       deployment_id: ${{ steps.deploy.outputs.deployment_id }}
-      url: ${{ steps.url.outputs.url }}
+      url: ${{ steps.deploy.outputs.url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -94,185 +94,37 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Clasp
-        run: npm install -g @google/clasp
-
       - name: Validate secrets
         run: |
-          if [ -z "${{ secrets.CLASPRC_JSON }}" ]; then
-            echo "❌ ERROR: CLASPRC_JSON secret is not set!"
-            echo "Please configure the CLASPRC_JSON secret in your repository settings."
-            echo "See CLASP_SETUP.md for instructions."
+          if [ -z "${{ secrets.APPS_SCRIPT_SERVICE_ACCOUNT_JSON }}" ]; then
+            echo "❌ ERROR: APPS_SCRIPT_SERVICE_ACCOUNT_JSON secret is not set!"
+            echo ""
+            echo "You need to set up a service account for deployment."
+            echo "Please follow the setup guide: docs/APPS_SCRIPT_API_SETUP.md"
+            echo ""
+            echo "Quick setup:"
+            echo "  1. Create service account in Google Cloud Console"
+            echo "  2. Download JSON key"
+            echo "  3. Add JSON as GitHub secret: APPS_SCRIPT_SERVICE_ACCOUNT_JSON"
+            echo "  4. Grant service account Editor access to your Apps Script project"
             exit 1
           fi
           if [ -z "${{ secrets.SCRIPT_ID }}" ]; then
             echo "❌ ERROR: SCRIPT_ID secret is not set!"
-            echo "Please configure the SCRIPT_ID secret in your repository settings."
-            echo "See CLASP_SETUP.md for instructions."
+            echo "Please add your Apps Script project ID as SCRIPT_ID secret."
+            echo "Find it in: Apps Script → Project Settings → Script ID"
             exit 1
           fi
+          echo "✅ Required secrets are configured"
 
-      - name: Write .clasprc.json
-        run: |
-          # Write secret to file using heredoc to handle all special characters
-          cat > ~/.clasprc.json << 'EOF'
-          ${{ secrets.CLASPRC_JSON }}
-          EOF
-
-          # Validate JSON format
-          if ! jq empty ~/.clasprc.json 2>/dev/null; then
-            echo "❌ ERROR: CLASPRC_JSON is not valid JSON!"
-            echo "Please check the CLASPRC_JSON secret format."
-            echo "The secret must be valid JSON. Use 'jq' to validate locally before adding to GitHub secrets."
-            exit 1
-          fi
-
-          # Detect format and validate required fields
-          echo "🔍 Detecting Clasp format..."
-          if jq -e '.tokens.default' ~/.clasprc.json >/dev/null 2>&1; then
-            echo "✅ Detected Clasp 3.x format"
-
-            # Validate required fields for Clasp 3.x
-            if ! jq -e '.tokens.default.access_token' ~/.clasprc.json >/dev/null 2>&1 || \
-               [ "$(jq -r '.tokens.default.access_token' ~/.clasprc.json)" == "null" ]; then
-              echo "❌ ERROR: Clasp 3.x format requires '.tokens.default.access_token'"
-              exit 1
-            fi
-            if ! jq -e '.tokens.default.refresh_token' ~/.clasprc.json >/dev/null 2>&1 || \
-               [ "$(jq -r '.tokens.default.refresh_token' ~/.clasprc.json)" == "null" ]; then
-              echo "❌ ERROR: Clasp 3.x format requires '.tokens.default.refresh_token'"
-              exit 1
-            fi
-
-          elif jq -e '.token.access_token' ~/.clasprc.json >/dev/null 2>&1; then
-            echo "✅ Detected Clasp 2.x nested format"
-
-            # Validate required fields for Clasp 2.x nested
-            if ! jq -e '.token.refresh_token' ~/.clasprc.json >/dev/null 2>&1 || \
-               [ "$(jq -r '.token.refresh_token' ~/.clasprc.json)" == "null" ]; then
-              echo "❌ ERROR: CLASPRC_JSON is missing required 'refresh_token' field!"
-              echo "Your OAuth credentials are incomplete or expired."
-              echo ""
-              echo "To fix this:"
-              echo "  1. Run 'clasp logout && clasp login' on your local machine"
-              echo "  2. Copy the contents of ~/.clasprc.json"
-              echo "  3. Update the CLASPRC_JSON secret in GitHub"
-              echo ""
-              echo "See CLASP_SETUP.md for detailed instructions."
-              exit 1
-            fi
-
-            # Validate oauth2ClientSettings exist (needed for conversion)
-            if ! jq -e '.oauth2ClientSettings.clientId' ~/.clasprc.json >/dev/null 2>&1 || \
-               [ "$(jq -r '.oauth2ClientSettings.clientId' ~/.clasprc.json)" == "null" ]; then
-              echo "❌ ERROR: CLASPRC_JSON is missing 'oauth2ClientSettings.clientId' field!"
-              echo "Your OAuth credentials are incomplete."
-              echo ""
-              echo "To fix this:"
-              echo "  1. Run 'clasp logout && clasp login' on your local machine"
-              echo "  2. Ensure the generated ~/.clasprc.json includes oauth2ClientSettings"
-              echo "  3. Copy the contents of ~/.clasprc.json"
-              echo "  4. Update the CLASPRC_JSON secret in GitHub"
-              exit 1
-            fi
-
-            # Convert to Clasp 3.x format
-            echo "🔄 Converting from Clasp 2.x nested format to Clasp 3.x format..."
-            jq '{
-              tokens: {
-                default: {
-                  client_id: .oauth2ClientSettings.clientId,
-                  client_secret: .oauth2ClientSettings.clientSecret,
-                  type: "authorized_user",
-                  refresh_token: .token.refresh_token,
-                  access_token: .token.access_token
-                }
-              }
-            }' ~/.clasprc.json > ~/.clasprc.json.tmp && mv ~/.clasprc.json.tmp ~/.clasprc.json
-            echo "✅ Converted to Clasp 3.x format"
-
-          elif jq -e '.access_token' ~/.clasprc.json >/dev/null 2>&1; then
-            echo "✅ Detected Clasp 2.x flat format"
-
-            # Validate required fields for Clasp 2.x flat
-            if ! jq -e '.refresh_token' ~/.clasprc.json >/dev/null 2>&1 || \
-               [ "$(jq -r '.refresh_token' ~/.clasprc.json)" == "null" ]; then
-              echo "❌ ERROR: CLASPRC_JSON is missing required 'refresh_token' field!"
-              echo "Your OAuth credentials are incomplete or expired."
-              echo ""
-              echo "To fix this:"
-              echo "  1. Run 'clasp logout && clasp login' on your local machine"
-              echo "  2. Copy the contents of ~/.clasprc.json"
-              echo "  3. Update the CLASPRC_JSON secret in GitHub"
-              exit 1
-            fi
-
-            # Convert to Clasp 3.x format using default OAuth client
-            echo "🔄 Converting from Clasp 2.x flat format to Clasp 3.x format..."
-            jq '{
-              tokens: {
-                default: {
-                  client_id: "1072944905499-vm2v2i5dvn2a37k91vc9ii6lscm1un4p.apps.googleusercontent.com",
-                  client_secret: "v6V3fKV_zWU7iw1DrzzqOjh1",
-                  type: "authorized_user",
-                  refresh_token: .refresh_token,
-                  access_token: .access_token
-                }
-              }
-            }' ~/.clasprc.json > ~/.clasprc.json.tmp && mv ~/.clasprc.json.tmp ~/.clasprc.json
-            echo "✅ Converted to Clasp 3.x format"
-
-          else
-            echo "❌ ERROR: CLASPRC_JSON format not recognized!"
-            echo "Could not find access_token in any supported location."
-            echo ""
-            echo "Expected one of these structures:"
-            echo "  - Clasp 3.x: '.tokens.default.access_token'"
-            echo "  - Clasp 2.x nested: '.token.access_token'"
-            echo "  - Clasp 2.x flat: '.access_token'"
-            echo ""
-            echo "Please run 'clasp login' locally and copy the full contents of ~/.clasprc.json"
-            exit 1
-          fi
-
-          # Final validation
-          echo "🔍 Final validation of converted .clasprc.json..."
-          if ! jq -e '.tokens.default.access_token' ~/.clasprc.json >/dev/null 2>&1 || \
-             [ "$(jq -r '.tokens.default.access_token' ~/.clasprc.json)" == "null" ]; then
-            echo "❌ ERROR: Conversion failed - access_token is null or missing"
-            exit 1
-          fi
-          if ! jq -e '.tokens.default.refresh_token' ~/.clasprc.json >/dev/null 2>&1 || \
-             [ "$(jq -r '.tokens.default.refresh_token' ~/.clasprc.json)" == "null" ]; then
-            echo "❌ ERROR: Conversion failed - refresh_token is null or missing"
-            exit 1
-          fi
-
-          echo "✅ .clasprc.json ready for Clasp (all required fields validated)"
-
-      - name: Write .clasp.json
-        run: |
-          echo '{
-            "scriptId": "${{ secrets.SCRIPT_ID }}",
-            "rootDir": "."
-          }' > .clasp.json
-          echo "✅ .clasp.json created successfully"
-
-      - name: Push to Apps Script
-        run: clasp push --force
-
-      - name: Deploy
+      - name: Deploy to Apps Script via API
         id: deploy
+        env:
+          SERVICE_ACCOUNT_JSON: ${{ secrets.APPS_SCRIPT_SERVICE_ACCOUNT_JSON }}
+          SCRIPT_ID: ${{ secrets.SCRIPT_ID }}
         run: |
-          DEPLOYMENT_ID=$(clasp deploy --description "CI Deploy $(date)" | grep -oP '(?<=@)\S+')
-          echo "deployment_id=$DEPLOYMENT_ID" >> $GITHUB_OUTPUT
-
-      - name: Get deployment URL
-        id: url
-        run: |
-          URL=$(clasp deployments | grep "${{ steps.deploy.outputs.deployment_id }}" | grep -oP 'https://\S+')
-          echo "url=$URL" >> $GITHUB_OUTPUT
-          echo "Deployed to: $URL"
+          echo "🚀 Deploying via Apps Script API (service account authentication)..."
+          npm run deploy
 
   # ============================================================================
   # PHASE 3: API VERIFICATION (Parallel - Validate Backend)
