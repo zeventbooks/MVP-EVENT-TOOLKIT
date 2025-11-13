@@ -149,6 +149,7 @@ jobs:
         env:
           SERVICE_ACCOUNT_JSON: ${{ secrets.APPS_SCRIPT_SERVICE_ACCOUNT_JSON }}
           SCRIPT_ID: ${{ secrets.SCRIPT_ID }}
+          IMPERSONATE_USER: ${{ secrets.IMPERSONATE_USER }}
         run: |
           echo "🚀 Deploying via Apps Script API (service account authentication)..."
           npm run deploy

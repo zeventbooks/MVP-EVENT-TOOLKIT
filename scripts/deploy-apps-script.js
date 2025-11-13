@@ -21,6 +21,7 @@ const path = require('path');
 // Configuration
 const SCRIPT_ID = process.env.SCRIPT_ID;
 const SERVICE_ACCOUNT_JSON = process.env.SERVICE_ACCOUNT_JSON;
+const IMPERSONATE_USER = process.env.IMPERSONATE_USER; // Optional: email of Apps Script project owner
 
 // Apps Script file extensions and their types
 const FILE_TYPE_MAP = {
@@ -140,14 +141,22 @@ async function getAuthenticatedClient() {
     throw new Error(`Failed to parse SERVICE_ACCOUNT_JSON: ${error.message}`);
   }
 
-  const auth = new google.auth.GoogleAuth({
+  const authConfig = {
     credentials,
     scopes: [
       'https://www.googleapis.com/auth/script.projects',
       'https://www.googleapis.com/auth/script.deployments',
       'https://www.googleapis.com/auth/script.webapp.deploy'
     ]
-  });
+  };
+
+  // If IMPERSONATE_USER is set, configure domain-wide delegation
+  if (IMPERSONATE_USER) {
+    console.log(`🔄 Impersonating user: ${IMPERSONATE_USER}`);
+    authConfig.clientOptions = { subject: IMPERSONATE_USER };
+  }
+
+  const auth = new google.auth.GoogleAuth(authConfig);
 
   const authClient = await auth.getClient();
   console.log('✅ Authentication successful');
