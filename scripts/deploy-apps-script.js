@@ -156,6 +156,42 @@ async function getAuthenticatedClient() {
 }
 
 /**
+ * Verify Apps Script API is enabled and accessible
+ */
+async function verifyApiAccess(scriptClient) {
+  console.log('🔍 Verifying Apps Script API access...');
+
+  try {
+    // Try to get project metadata to verify API access
+    await scriptClient.projects.get({
+      scriptId: SCRIPT_ID
+    });
+    console.log('✅ Apps Script API is enabled and accessible');
+    return true;
+  } catch (error) {
+    if (error.message && error.message.includes('Apps Script API')) {
+      console.error('\n' + '═'.repeat(55));
+      console.error('  ❌ Apps Script API Not Enabled');
+      console.error('═'.repeat(55));
+      console.error('\nThe Apps Script API is not enabled in your Google Cloud Project.');
+      console.error('\n📋 To fix this:\n');
+      console.error('1. Go to: https://console.cloud.google.com\n');
+      console.error('2. Select your project (linked to your Apps Script)\n');
+      console.error('3. Go to: APIs & Services → Library\n');
+      console.error('4. Search: "Apps Script API"\n');
+      console.error('5. Click: "Google Apps Script API"\n');
+      console.error('6. Click: "ENABLE"\n');
+      console.error('7. Wait 2-5 minutes for propagation\n');
+      console.error('8. Retry deployment\n');
+      console.error('\n📖 Full guide: docs/APPS_SCRIPT_API_SETUP.md (Step 1.3)\n');
+      console.error('═'.repeat(55));
+      throw new Error('Apps Script API not enabled. Follow steps above to enable it.');
+    }
+    throw error;
+  }
+}
+
+/**
  * Upload project files to Apps Script
  */
 async function uploadFiles(scriptClient, files) {
@@ -177,6 +213,27 @@ async function uploadFiles(scriptClient, files) {
     if (error.response) {
       console.error('Error details:', JSON.stringify(error.response.data, null, 2));
     }
+
+    // Provide specific guidance for common errors
+    if (error.message && error.message.includes('Apps Script API')) {
+      console.error('\n' + '═'.repeat(55));
+      console.error('  ⚠️  Apps Script API Not Enabled');
+      console.error('═'.repeat(55));
+      console.error('\nThe Apps Script API needs to be enabled in your Google Cloud Project.');
+      console.error('\n📋 Required Steps:\n');
+      console.error('1. Go to Google Cloud Console:');
+      console.error('   https://console.cloud.google.com\n');
+      console.error('2. Select your project (the one linked to your Apps Script)\n');
+      console.error('3. Navigate to: APIs & Services → Library\n');
+      console.error('4. Search for: "Apps Script API"\n');
+      console.error('5. Click: "Google Apps Script API"\n');
+      console.error('6. Click: "ENABLE"\n');
+      console.error('7. Wait 2-5 minutes for the change to propagate\n');
+      console.error('8. Retry this deployment\n');
+      console.error('📖 Detailed guide: docs/APPS_SCRIPT_API_SETUP.md (Step 1.3)\n');
+      console.error('═'.repeat(55));
+    }
+
     throw error;
   }
 }
@@ -248,6 +305,9 @@ async function deploy() {
   try {
     // Get authenticated client
     const scriptClient = await getAuthenticatedClient();
+
+    // Verify API access before proceeding
+    await verifyApiAccess(scriptClient);
 
     // Get project files
     const files = getProjectFiles();
