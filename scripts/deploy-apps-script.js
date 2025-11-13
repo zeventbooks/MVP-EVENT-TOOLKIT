@@ -93,8 +93,11 @@ function getProjectFiles() {
         const content = fs.readFileSync(fullPath, 'utf8');
 
         // Apps Script API expects files without extension in the name
+        // For appsscript.json, the name must be exactly "appsscript" (no extension)
         let name = relativePath;
-        if (entry.name !== 'appsscript.json') {
+        if (entry.name === 'appsscript.json') {
+          name = 'appsscript';
+        } else {
           // Remove extension for .gs and .html files
           name = relativePath.replace(ext, '');
         }
