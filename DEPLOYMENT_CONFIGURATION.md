@@ -6,6 +6,8 @@
 > **Purpose:** This document contains ALL critical IDs, URLs, and configuration needed for deployment.
 > **Keep this updated!** When anything changes, update this file immediately.
 
+> **🆕 Setting up for the first time?** See [Google Cloud Secrets Setup Guide](GOOGLE_CLOUD_SECRETS_SETUP.md) for step-by-step instructions to configure GitHub Actions secrets.
+
 ---
 
 ## 📋 Quick Reference
