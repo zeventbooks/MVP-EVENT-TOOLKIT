@@ -219,12 +219,27 @@ async function checkWriteAccess(authClient) {
   const scriptClient = google.script({ version: 'v1', auth: authClient });
 
   try {
-    await scriptClient.projects.getContent({
+    // First, get the current content
+    const currentContent = await scriptClient.projects.getContent({
       scriptId: SCRIPT_ID
+    });
+
+    printCheck('pass', 'Can read project content');
+
+    // Now test ACTUAL write access by doing a no-op update
+    printInfo('Testing actual write access (updateContent)...');
+
+    await scriptClient.projects.updateContent({
+      scriptId: SCRIPT_ID,
+      requestBody: {
+        files: currentContent.data.files,
+        scriptId: SCRIPT_ID
+      }
     });
 
     printCheck('pass', 'Apps Script API write access is enabled');
     printCheck('pass', 'User settings are correctly configured');
+    printCheck('pass', 'Deployment will work!');
 
     return true;
   } catch (error) {
@@ -242,16 +257,25 @@ async function checkWriteAccess(authClient) {
       printAction(4, 'Wait 2-5 minutes for the change to propagate');
       printAction(5, 'Retry this diagnostic script');
 
-      console.log(`\n${colors.yellow}Why this matters:${colors.reset}`);
+      console.log(`\n${colors.yellow}Important notes:${colors.reset}`);
       printInfo('The GCP API setting enables the API at the project level');
       printInfo('The user setting enables the API for the project OWNER');
       printInfo('Service accounts inherit permissions from the project owner');
       printInfo('BOTH settings must be enabled!');
 
+      console.log(`\n${colors.yellow}Verify the correct account:${colors.reset}`);
+      printAction(1, `Open: https://script.google.com/home/projects/${SCRIPT_ID}/edit`);
+      printAction(2, 'Click "Share" and check who the OWNER is (not just Editor)');
+      printAction(3, 'The OWNER must enable the API in THEIR user settings');
+      printAction(4, 'If you have multiple Google accounts, make sure you\'re logged in as the owner');
+
       return false;
     } else {
       printCheck('warn', `Unexpected error: ${error.message}`);
       printInfo('This may indicate a different access issue');
+      if (error.response?.data) {
+        printInfo(`Full error: ${JSON.stringify(error.response.data)}`);
+      }
       return false;
     }
   }
