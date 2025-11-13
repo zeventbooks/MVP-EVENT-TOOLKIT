@@ -215,9 +215,11 @@ async function verifyApiAccess(scriptClient) {
       console.error('   → Open Apps Script → Share → Add service account as Editor\n');
       console.error('3. Wrong SCRIPT_ID:');
       console.error(`   → Current ID: ${SCRIPT_ID}\n`);
+      console.error('🔍 Run diagnostic tool to identify the exact issue:');
+      console.error('   → npm run deploy:diagnose\n');
       console.error('📖 Full setup guide: docs/APPS_SCRIPT_API_SETUP.md\n');
       console.error('═'.repeat(55));
-      throw new Error('Apps Script API access denied. Follow steps above to fix.');
+      throw new Error('Apps Script API access denied. Run "npm run deploy:diagnose" for detailed diagnostics.');
     }
     throw error;
   }
@@ -264,6 +266,8 @@ async function uploadFiles(scriptClient, files) {
       console.error('   https://console.cloud.google.com/apis/library\n');
       console.error('B. Grant service account Editor access to Apps Script:');
       console.error('   → Apps Script → Share → Add service account email\n');
+      console.error('🔍 Run diagnostic tool to identify the exact issue:');
+      console.error('   → npm run deploy:diagnose\n');
       console.error('📖 Complete guide: docs/APPS_SCRIPT_API_SETUP.md\n');
       console.error('═'.repeat(55));
     }

@@ -156,9 +156,9 @@ This is the critical step that many guides miss!
 
 ### 4.1 Get Your Apps Script Project ID
 
-1. Open your Apps Script project: https://script.google.com
+1. Open your Apps Script project: https://script.google.com/home/projects/1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l/edit
 2. Click "**Project Settings**" (gear icon on left)
-3. Copy the "**Script ID**" (e.g., `1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l`)
+3. Verify the "**Script ID**": `1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l`
 
 ### 4.2 Add Service Account as Project Editor
 
@@ -167,7 +167,7 @@ This is the critical step that many guides miss!
 1. In Apps Script project, click "**Share**" (top right)
 2. Add the service account email:
    ```
-   apps-script-deployer@YOUR_PROJECT.iam.gserviceaccount.com
+   apps-script-deployer@zeventbooks.iam.gserviceaccount.com
    ```
 3. Set role to "**Editor**"
 4. **Uncheck** "Notify people"
@@ -185,8 +185,8 @@ If the UI method doesn't work, use the API:
 gcloud auth login
 
 # Grant permission
-gcloud projects add-iam-policy-binding YOUR_PROJECT_ID \
-  --member="serviceAccount:apps-script-deployer@YOUR_PROJECT.iam.gserviceaccount.com" \
+gcloud projects add-iam-policy-binding zeventbooks \
+  --member="serviceAccount:apps-script-deployer@zeventbooks.iam.gserviceaccount.com" \
   --role="roles/owner"
 ```
 
@@ -211,12 +211,12 @@ Open the downloaded JSON file and copy its **entire contents**.
 
 3. Create first secret:
    - **Name:** `APPS_SCRIPT_SERVICE_ACCOUNT_JSON`
-   - **Value:** Paste the entire JSON file contents
+   - **Value:** Paste the entire JSON file contents (service account key from zeventbooks project)
    - Click "**Add secret**"
 
 4. Create second secret (if not already exists):
    - **Name:** `SCRIPT_ID`
-   - **Value:** Your Apps Script project ID (from Step 4.1)
+   - **Value:** `1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l`
    - Click "**Add secret**"
 
 ✅ **Checkpoint:** You should have 2 secrets:
@@ -240,8 +240,8 @@ This installs the `googleapis` package needed for the deployment script.
 ### 6.2 Set Environment Variables
 
 ```bash
-# Copy your service account JSON content
-export SERVICE_ACCOUNT_JSON='{"type":"service_account",...}'
+# Copy your service account JSON content (from zeventbooks GCP project)
+export SERVICE_ACCOUNT_JSON='{"type":"service_account","project_id":"zeventbooks",...}'
 
 # Set your script ID
 export SCRIPT_ID='1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l'
