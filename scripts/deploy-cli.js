@@ -622,7 +622,7 @@ class SetupWizard {
     if (verifier.failed > 0) {
       print('\n⚠️  Some checks failed. Please fix the issues above.', 'yellow');
     } else {
-      print(`\n${emoji.party} Setup looks good! You\'re ready to deploy!`, 'green');
+      print(`\n${emoji.party} Setup looks good! You're ready to deploy!`, 'green');
       print('\nNext steps:', 'cyan');
       print('  1. Run deployment: npm run deploy:auto');
       print('  2. Or push to main: git push origin main\n');
@@ -714,43 +714,50 @@ async function main() {
   try {
     switch (command) {
       case 'auto':
-      case 'automatic':
+      case 'automatic': {
         const deployer = new Deployer();
         await deployer.deploy(false);
         break;
+      }
 
-      case 'deploy':
+      case 'deploy': {
         const quickDeployer = new Deployer();
         await quickDeployer.deploy(true); // Skip pre-flight
         break;
+      }
 
       case 'verify':
-      case 'check':
+      case 'check': {
         const verifier = new PreFlightVerifier();
         await verifier.runAllChecks();
         break;
+      }
 
       case 'setup':
-      case 'init':
+      case 'init': {
         const wizard = new SetupWizard();
         await wizard.run();
         break;
+      }
 
-      case 'status':
+      case 'status': {
         const checker = new StatusChecker();
         await checker.check();
         break;
+      }
 
-      case 'history':
+      case 'history': {
         const count = parseInt(args[1]) || 10;
         const viewer = new HistoryViewer();
         await viewer.show(count);
         break;
+      }
 
-      case 'rollback':
+      case 'rollback': {
         const rollbackDeployer = new Deployer();
         await rollbackDeployer.rollback();
         break;
+      }
 
       case 'help':
       case '--help':
