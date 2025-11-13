@@ -1,16 +1,48 @@
 # Test Suite Documentation
 
+## 📂 Reorganized Test Structure
+
+The test suite has been reorganized for better clarity and organization:
+
+```
+tests/
+├── unit/               # Unit tests for backend logic
+├── contract/           # General API contract tests
+├── triangle/           # 🔺 Triangle framework (organized by event phase)
+│   ├── before-event/   # 📋 Pre-event preparation (Green)
+│   ├── during-event/   # ▶️ Live execution (Orange)
+│   ├── after-event/    # 📊 Post-event analytics (Purple)
+│   └── all-phases/     # ⚡ Always available (Blue)
+├── e2e/                # End-to-end tests (Playwright)
+├── smoke/              # Smoke tests
+├── shared/             # Shared utilities, fixtures, config
+└── docs/               # Test documentation
+```
+
+**Key Changes:**
+- ✅ Tests now organized by event lifecycle phase
+- ✅ Triangle framework tests separated by phase
+- ✅ Shared utilities consolidated in `shared/`
+- ✅ Contract tests include triangle-specific tests
+- ✅ CI/CD updated to run all test phases
+- ✅ Apps Script deployment excludes all test files
+
 ## 📊 Test Coverage Overview
 
 The MVP Event Toolkit has **comprehensive test coverage** across unit, contract, and E2E tests:
 
 ```
-Total Tests: 130+ tests
-├── Unit Tests (Jest): 73 tests
-├── Contract Tests (Jest): 21 tests
+Total Tests: 150+ tests
+├── Unit Tests (Jest): 78 tests
+├── Contract Tests (Jest): 16 tests
+├── Triangle Contract Tests (Jest): 56 tests
+│   ├── Before Event: 15 tests
+│   ├── During Event: 14 tests
+│   ├── After Event: 13 tests
+│   └── All Phases: 14 tests
 └── E2E Tests (Playwright): 40+ tests
-    ├── Authentication: 25+ tests ✨ NEW!
-    ├── API Docs Page: 15+ tests ✨ NEW!
+    ├── Authentication: 25+ tests
+    ├── API Docs Page: 15+ tests
     ├── Admin Workflows: 10 tests
     ├── Test Page: 8 tests
     ├── Diagnostics Page: 5 tests
@@ -58,7 +90,71 @@ Tests API response contracts for all 11 endpoints:
 npm run test:contract
 ```
 
-### 3. E2E Tests (Playwright)
+### 3. Triangle Contract Tests (Jest)
+**Location:** `tests/triangle/*/contract/*.contract.test.js`
+
+Tests organized by the Triangle Framework event lifecycle phases:
+
+#### 📋 Before Event (Green Phase)
+Pre-event preparation APIs:
+- **Event Creation** (`api_create`) - Create new events with full configuration
+- **Shortlink Generation** (`api_createShortlink`) - Generate trackable sponsor links
+- **Use Cases**: Event setup, sponsor onboarding, form templates
+
+**Run:**
+```bash
+npm run test:triangle:before:contract
+```
+
+#### ▶️ During Event (Orange Phase)
+Live event execution APIs:
+- **Event Details** (`api_get`) - Retrieve single event details with links
+- **Events List** (`api_list`) - List all events with etag caching
+- **Use Cases**: Display screens, public pages, attendee interactions
+
+**Run:**
+```bash
+npm run test:triangle:during:contract
+```
+
+#### 📊 After Event (Purple Phase)
+Post-event analytics and reporting APIs:
+- **Event Logging** (`api_logEvents`) - Track impressions, clicks, dwell time
+- **Analytics Reports** (`api_getReport`) - Aggregate sponsor performance metrics
+- **Use Cases**: ROI reports, sponsor insights, event analytics
+
+**Run:**
+```bash
+npm run test:triangle:after:contract
+```
+
+#### ⚡ All Phases (Blue Phase)
+Always-available cross-cutting APIs:
+- **System Status** (`api_status`) - Health checks, build info, contract version
+- **Error Handling** - Consistent error envelopes across all phases
+- **Use Cases**: Monitoring, diagnostics, system health
+
+**Run:**
+```bash
+npm run test:triangle:all:contract
+```
+
+**Run All Triangle Tests:**
+```bash
+# Sequential (default)
+npm run test:triangle
+
+# Parallel (faster)
+npm run test:triangle:parallel
+
+# Individual phases
+npm run test:triangle:before
+npm run test:triangle:during
+npm run test:triangle:after
+npm run test:triangle:all
+```
+
+### 4. E2E Tests (Playwright)
 **Location:** `tests/e2e/*.spec.js`
 
 Tests complete user workflows on deployed application.
@@ -529,7 +625,17 @@ When adding new features:
 
 ---
 
-**Last Updated:** 2025-11-10
-**Total Tests:** 130+
+## 🔗 Additional Resources
+
+- [Triangle Test Organization README](../TRIANGLE_TEST_ORGANIZATION_README.md)
+- [Triangle Testing Summary](../TRIANGLE_TESTING_SUMMARY.md)
+- [Test Infrastructure Summary](../TEST_INFRASTRUCTURE_SUMMARY.md)
+- [Deployment Guide](../DEPLOYMENT-GUIDE.md)
+
+---
+
+**Last Updated:** 2025-11-13
+**Total Tests:** 150+
 **Test Coverage:** ~90%
-**Test Execution Time:** < 2 minutes (Jest), varies (Playwright)
+**Test Execution Time:** < 3 seconds (Jest), varies (Playwright)
+**Structure:** Reorganized by Triangle Framework event phases
