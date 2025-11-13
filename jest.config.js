@@ -11,7 +11,8 @@ module.exports = {
   ],
   testMatch: [
     '**/tests/unit/**/*.test.js',
-    '**/tests/contract/**/*.test.js'
+    '**/tests/contract/**/*.test.js',
+    '**/tests/triangle/**/contract/**/*.test.js'
   ],
   testPathIgnorePatterns: [
     '/node_modules/',
