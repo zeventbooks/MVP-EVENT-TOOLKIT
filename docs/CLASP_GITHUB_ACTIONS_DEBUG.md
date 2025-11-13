@@ -374,8 +374,8 @@ Edit `.github/workflows/ci.yml` after line 114:
   run: |
     echo "File size:"
     wc -c ~/.clasprc.json
-    echo "First 200 chars (credentials redacted):"
-    jq -r 'walk(if type == "string" and (.|length) > 10 then .[0:4] + "..." + .[-4:] else . end)' ~/.clasprc.json || head -c 200 ~/.clasprc.json
+    echo "Structure with redacted credentials:"
+    jq -r 'walk(if type == "string" and (.|length) > 10 then .[0:4] + "..." + .[-4:] else . end)' ~/.clasprc.json || echo "Failed to parse JSON - check secret format"
     echo "JSON structure:"
     jq 'keys' ~/.clasprc.json || echo "Invalid JSON"
 ```

@@ -98,10 +98,10 @@ if [ -f "$CLASPRC_PATH" ]; then
     info "No expiry_date found in token (may not be required)"
   fi
 
-  # Show file preview (first 200 chars, redacted)
+  # Show file preview (redacted)
   echo ""
   info "Preview of .clasprc.json (credentials redacted):"
-  jq -r 'walk(if type == "string" and (.|length) > 10 then .[0:4] + "..." + .[-4:] else . end)' "$CLASPRC_PATH" 2>/dev/null || cat "$CLASPRC_PATH"
+  jq -r 'walk(if type == "string" and (.|length) > 10 then .[0:4] + "..." + .[-4:] else . end)' "$CLASPRC_PATH" 2>/dev/null || echo "Failed to parse JSON - file may be corrupted"
 
 else
   error ".clasprc.json not found at $CLASPRC_PATH"

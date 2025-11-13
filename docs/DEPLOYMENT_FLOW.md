@@ -215,8 +215,8 @@ EOF
 # Validate JSON format
 if ! jq empty ~/.clasprc.json 2>/dev/null; then
   echo "❌ ERROR: CLASPRC_JSON is not valid JSON!"
-  echo "Current content preview (first 100 chars):"
-  head -c 100 ~/.clasprc.json
+  echo "Please check the CLASPRC_JSON secret format."
+  echo "The secret must be valid JSON. Use 'jq' to validate locally before adding to GitHub secrets."
   exit 1
 fi
 ```
