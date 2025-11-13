@@ -45,7 +45,8 @@ Project ID: 1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l
 
 ### Option 1: GitHub Actions (Recommended)
 Push to `main` branch - automatic deployment via CI/CD pipeline.
-- **First time setup:** See [CLASP_SETUP.md](./CLASP_SETUP.md) to configure secrets
+- **First time setup:** See [Google Cloud Secrets Setup Guide](./GOOGLE_CLOUD_SECRETS_SETUP.md) to configure GitHub Actions secrets
+- **Verify setup:** Run `npm run deploy:verify-secrets` to check configuration
 
 ### Option 2: clasp CLI
 ```bash
@@ -72,7 +73,9 @@ npm run deploy # Create new deployment
 - **[openapi.yaml](./openapi.yaml)** - 🆕 OpenAPI 3.0 specification
 
 ### For Deployment & DevOps
-- **[CLASP_SETUP.md](./CLASP_SETUP.md)** - 🆕 Configure clasp authentication for CI/CD
+- **[GOOGLE_CLOUD_SECRETS_SETUP.md](./GOOGLE_CLOUD_SECRETS_SETUP.md)** - 🆕 Configure Google Cloud secrets for GitHub Actions
+- **[DEPLOYMENT_AUTOMATION.md](./DEPLOYMENT_AUTOMATION.md)** - 🆕 Automated deployment CLI tool
+- **[DEPLOYMENT_CONFIGURATION.md](./DEPLOYMENT_CONFIGURATION.md)** - Single source of truth for deployment config
 - **[APPS_SCRIPT_PROJECT.md](./APPS_SCRIPT_PROJECT.md)** - Unified deployment configuration
 - **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Complete deployment guide
 - **[DEPLOYMENT_QUICK_START.md](./DEPLOYMENT_QUICK_START.md)** - DevOps quick start
