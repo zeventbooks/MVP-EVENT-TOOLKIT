@@ -41,3 +41,6 @@ test-results/
 # Build outputs
 dist/
 build/
+
+# Deployment history (local only)
+.deployment-history.json
