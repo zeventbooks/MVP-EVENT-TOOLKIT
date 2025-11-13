@@ -305,7 +305,7 @@ function pageFile_(page){
   if (page==='diagnostics') return 'Diagnostics';
   if (page==='sponsor') return 'Sponsor';
   if (page==='signup') return 'Signup';
-  if (page==='config') return 'Config';
+  if (page==='config') return 'ConfigHtml';
   return 'Public';
 }
 
