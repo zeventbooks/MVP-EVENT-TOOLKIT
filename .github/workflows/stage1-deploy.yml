@@ -106,16 +106,26 @@ jobs:
           echo "$DEPLOY_OUTPUT"
           VERSION_ID=$(echo "$DEPLOY_OUTPUT" | grep -oP 'Created version \K\d+' || echo "$DEPLOY_OUTPUT" | grep -oP 'Updated deployment \K\w+' || echo "unknown")
 
-          # Get the web app URL from clasp deployments
+          # Get the deployment ID and construct the web app URL
           echo "📋 Fetching deployment URL..."
           DEPLOYMENTS_OUTPUT=$(npx clasp deployments 2>&1)
           echo "$DEPLOYMENTS_OUTPUT"
 
-          # Extract the web app URL (look for @HEAD or latest deployment)
-          WEB_APP_URL=$(echo "$DEPLOYMENTS_OUTPUT" | grep -oP 'https://script\.google\.com/macros/s/[^/]+/exec' | head -1)
+          # Extract deployment ID from the deploy output first
+          DEPLOYMENT_ID_FROM_OUTPUT=$(echo "$DEPLOY_OUTPUT" | grep -oP 'AKfycb[a-zA-Z0-9_-]+' | head -1)
 
-          if [ -z "$WEB_APP_URL" ]; then
-            echo "⚠️ Warning: Could not extract web app URL from deployments"
+          # If not found in deploy output, try to get from deployments list
+          if [ -z "$DEPLOYMENT_ID_FROM_OUTPUT" ]; then
+            echo "Extracting deployment ID from deployments list..."
+            DEPLOYMENT_ID_FROM_OUTPUT=$(echo "$DEPLOYMENTS_OUTPUT" | grep -oP 'AKfycb[a-zA-Z0-9_-]+' | head -1)
+          fi
+
+          # Construct the Web App URL from the deployment ID
+          if [ -n "$DEPLOYMENT_ID_FROM_OUTPUT" ]; then
+            WEB_APP_URL="https://script.google.com/macros/s/${DEPLOYMENT_ID_FROM_OUTPUT}/exec"
+            echo "✅ Found deployment ID: ${DEPLOYMENT_ID_FROM_OUTPUT}"
+          else
+            echo "⚠️ Warning: Could not extract deployment ID from deployments"
             echo "Please check clasp deployments manually"
             exit 1
           fi
