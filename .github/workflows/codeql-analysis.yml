@@ -56,12 +56,8 @@ jobs:
       with:
         category: "/language:${{matrix.language}}"
 
-    - name: Upload SARIF results
-      if: always()
-      uses: github/codeql-action/upload-sarif@v3
-      with:
-        sarif_file: ../results
-        category: codeql-${{ matrix.language }}
+    # Note: analyze action automatically uploads SARIF results
+    # No need for separate upload-sarif step
 
     - name: Create analysis summary
       if: always()
