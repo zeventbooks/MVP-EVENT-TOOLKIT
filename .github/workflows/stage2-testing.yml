@@ -135,15 +135,40 @@ jobs:
           # Create reports directory
           mkdir -p newman-reports
 
-          # Run Newman tests
-          newman run postman/collections/mvp-event-toolkit-api.json \
-            -e postman/environments/ci-deployment.json \
-            --folder System \
-            -r cli,json,htmlextra \
-            --reporter-htmlextra-export newman-reports/api-report.html \
-            --reporter-json-export newman-reports/api-report.json
+          # Wait to avoid rate limits (Google Apps Script needs time between deployments and tests)
+          echo "⏳ Waiting 10 seconds to avoid rate limits..."
+          sleep 10
 
-          echo "✅ Newman API tests completed"
+          # Run Newman tests with retry logic for 429 errors
+          MAX_RETRIES=3
+          RETRY_COUNT=0
+          SUCCESS=false
+
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ] && [ "$SUCCESS" = false ]; do
+            echo "🔄 Attempt $((RETRY_COUNT + 1)) of $MAX_RETRIES"
+
+            if newman run postman/collections/mvp-event-toolkit-api.json \
+              -e postman/environments/ci-deployment.json \
+              --folder System \
+              --delay-request 2000 \
+              --timeout-request 10000 \
+              -r cli,json,htmlextra \
+              --reporter-htmlextra-export newman-reports/api-report.html \
+              --reporter-json-export newman-reports/api-report.json; then
+              SUCCESS=true
+              echo "✅ Newman API tests completed successfully"
+            else
+              RETRY_COUNT=$((RETRY_COUNT + 1))
+              if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+                WAIT_TIME=$((2 ** RETRY_COUNT * 5))
+                echo "⚠️ Tests failed. Waiting ${WAIT_TIME}s before retry..."
+                sleep $WAIT_TIME
+              else
+                echo "❌ Newman API tests failed after $MAX_RETRIES attempts"
+                exit 1
+              fi
+            fi
+          done
 
       - name: Upload Newman reports
         if: always()
