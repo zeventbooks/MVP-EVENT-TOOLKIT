@@ -90,12 +90,58 @@ echo "────────────────────────�
 echo -e "${YELLOW}⚠️  IMPORTANT: We must create a NEW deployment (not update existing)${NC}"
 echo "   The access level is set at deployment creation and CANNOT be changed."
 echo ""
+
+# Check deployment count first
+DEPLOYMENTS_CHECK=$(npx clasp deployments 2>&1)
+DEPLOYMENT_COUNT=$(echo "$DEPLOYMENTS_CHECK" | grep -E '^\s*@|^\s*-' | grep -v "Deployment Id" | grep -v "^--" | wc -l)
+
+if [ "$DEPLOYMENT_COUNT" -ge 20 ]; then
+    echo -e "${YELLOW}⚠️  You have $DEPLOYMENT_COUNT deployments (limit is 20)${NC}"
+    echo "We need to clean up old deployments first."
+    echo ""
+    echo "Running deployment cleanup helper..."
+    echo ""
+
+    # Run the deployment manager
+    if [ -f "./scripts/manage-deployments.sh" ]; then
+        ./scripts/manage-deployments.sh
+        exit $?
+    else
+        echo -e "${RED}❌ Deployment manager not found${NC}"
+        echo ""
+        echo "Please manually clean up old deployments:"
+        echo "  npx clasp deployments  # List all deployments"
+        echo "  npx clasp undeploy @1  # Remove old deployment (replace @1)"
+        echo ""
+        echo "Keep only the 3-5 most recent deployments."
+        exit 1
+    fi
+fi
+
 read -p "Press Enter to create new deployment (or Ctrl+C to cancel)..." -r
 echo ""
 
 DEPLOY_OUTPUT=$(npx clasp deploy -d "Anonymous Access Fix - $(date -Iseconds)" 2>&1)
 echo "$DEPLOY_OUTPUT"
 echo ""
+
+# Check if we hit the limit
+if echo "$DEPLOY_OUTPUT" | grep -q "may only have up to 20"; then
+    echo -e "${RED}❌ Hit 20 deployment limit${NC}"
+    echo ""
+    echo "Running deployment cleanup helper..."
+    echo ""
+
+    if [ -f "./scripts/manage-deployments.sh" ]; then
+        ./scripts/manage-deployments.sh
+        exit $?
+    else
+        echo "Please manually clean up old deployments:"
+        echo "  npx clasp deployments  # List all deployments"
+        echo "  npx clasp undeploy @1  # Remove old deployment"
+        exit 1
+    fi
+fi
 
 # Extract deployment ID from output
 if echo "$DEPLOY_OUTPUT" | grep -q "Created version"; then
@@ -108,6 +154,7 @@ else
     echo "Common issues:"
     echo "  1. Not authenticated - run: npx clasp login"
     echo "  2. No permission - check you own the Apps Script project"
+    echo "  3. Deployment limit reached - clean up old deployments"
     echo ""
     exit 1
 fi
