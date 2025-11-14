@@ -147,19 +147,42 @@ jobs:
         id: deploy
         env:
           CLASPRC_JSON: ${{ secrets.OAUTH_CREDENTIALS }}
+          DEPLOYMENT_ID: ${{ secrets.DEPLOYMENT_ID }}
         run: |
           echo "🔐 Setting up clasp credentials..."
           echo "$CLASPRC_JSON" > ~/.clasprc.json
           echo "🚀 Deploying to Apps Script..."
           npx clasp push --force
-          echo "📦 Creating deployment..."
-          DEPLOY_OUTPUT=$(npx clasp deploy --description "CI/CD Deploy $(date -Iseconds)" 2>&1)
+          echo "📦 Updating deployment..."
+
+          # Check if we have a deployment ID to update
+          if [ -n "$DEPLOYMENT_ID" ]; then
+            echo "Updating existing deployment: $DEPLOYMENT_ID"
+            DEPLOY_OUTPUT=$(npx clasp deploy -i "$DEPLOYMENT_ID" -d "CI/CD Deploy $(date -Iseconds)" 2>&1)
+          else
+            echo "Creating new deployment (no DEPLOYMENT_ID secret set)"
+            DEPLOY_OUTPUT=$(npx clasp deploy -d "CI/CD Deploy $(date -Iseconds)" 2>&1)
+          fi
+
           echo "$DEPLOY_OUTPUT"
-          DEPLOY_ID=$(echo "$DEPLOY_OUTPUT" | grep -oP 'Created version \K\d+' || echo "unknown")
-          echo "deployment_id=$DEPLOY_ID" >> $GITHUB_OUTPUT
-          WEB_APP_URL="https://script.google.com/macros/s/AKfycbyFSdlFOFWm80Vt0DMLrxgNGwuK5KO9_PbWcb4nk_iYl-n6jL-wQaB3vzLxvZbibOML/exec"
+          VERSION_ID=$(echo "$DEPLOY_OUTPUT" | grep -oP 'Created version \K\d+' || echo "$DEPLOY_OUTPUT" | grep -oP 'Updated deployment \K\w+' || echo "unknown")
+          echo "deployment_id=$VERSION_ID" >> $GITHUB_OUTPUT
+
+          # Get the web app URL from clasp deployments
+          echo "📋 Fetching deployment URL..."
+          DEPLOYMENTS_OUTPUT=$(npx clasp deployments 2>&1)
+          echo "$DEPLOYMENTS_OUTPUT"
+
+          # Extract the web app URL (look for @HEAD or latest deployment)
+          WEB_APP_URL=$(echo "$DEPLOYMENTS_OUTPUT" | grep -oP 'https://script\.google\.com/macros/s/[^/]+/exec' | head -1)
+
+          if [ -z "$WEB_APP_URL" ]; then
+            echo "⚠️ Warning: Could not extract web app URL from deployments"
+            WEB_APP_URL="https://script.google.com/macros/s/AKfycbyFSdlFOFWm80Vt0DMLrxgNGwuK5KO9_PbWcb4nk_iYl-n6jL-wQaB3vzLxvZbibOML/exec"
+          fi
+
           echo "url=$WEB_APP_URL" >> $GITHUB_OUTPUT
-          echo "✅ Deployment complete!"
+          echo "✅ Deployment complete! URL: $WEB_APP_URL"
 
   # ============================================================================
   # PHASE 3: API VERIFICATION (Parallel - Validate Backend)
