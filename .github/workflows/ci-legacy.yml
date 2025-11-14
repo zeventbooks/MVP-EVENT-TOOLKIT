@@ -290,7 +290,7 @@ jobs:
 
       - name: Upload Newman reports
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: newman-test-reports
           path: newman-reports/
@@ -329,7 +329,7 @@ jobs:
 
       - name: Upload smoke test results
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: smoke-test-report
           path: playwright-report/
@@ -364,7 +364,7 @@ jobs:
 
       - name: Upload page test results
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: page-test-report
           path: playwright-report/
@@ -399,7 +399,7 @@ jobs:
 
       - name: Upload flow test results
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: flow-test-report
           path: playwright-report/
