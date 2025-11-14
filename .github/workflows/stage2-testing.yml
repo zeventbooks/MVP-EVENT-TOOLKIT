@@ -42,23 +42,26 @@ jobs:
             "name": "CI Deployment",
             "values": [
               {
-                "key": "BASE_URL",
+                "key": "baseUrl",
                 "value": "$BASE_URL",
                 "enabled": true
               },
               {
-                "key": "ADMIN_KEY",
+                "key": "adminKey",
                 "value": "$ADMIN_KEY",
                 "enabled": true
               },
               {
-                "key": "tenant",
+                "key": "tenantId",
                 "value": "root",
                 "enabled": true
               }
             ]
           }
           EOF
+
+          # Create reports directory
+          mkdir -p newman-reports
 
           # Run Newman tests
           newman run postman/collections/mvp-event-toolkit-api.json \
