@@ -63,68 +63,90 @@ echo "🌐 Web App URL: $WEB_APP_URL"
 echo ""
 
 # Test the deployment
-echo "🧪 Testing deployment for 302 redirects..."
+echo "🧪 Testing deployment for 302 redirects - All Tenants"
 echo "========================================================"
 echo ""
 
-# Test status endpoint
-echo "📋 Test 1: Status Endpoint"
-echo "   GET $WEB_APP_URL?page=status"
-echo ""
+TENANTS=("root" "ABC" "CBC")
+FAILED=0
 
-STATUS_RESPONSE=$(curl -s -w "\n%{http_code}" "$WEB_APP_URL?page=status")
-HTTP_CODE=$(echo "$STATUS_RESPONSE" | tail -n 1)
-RESPONSE_BODY=$(echo "$STATUS_RESPONSE" | sed '$d')
+# Function to test a tenant
+test_tenant() {
+    local TENANT=$1
+    local TEST_NUM=$2
 
-if [ "$HTTP_CODE" = "200" ]; then
-    echo "✅ HTTP 200 OK - No redirect!"
+    echo "📋 Test $TEST_NUM: Status Endpoint - Tenant: $TENANT"
+    echo "   GET $WEB_APP_URL?page=status&tenant=$TENANT"
 
-    # Check if response is valid JSON
-    if echo "$RESPONSE_BODY" | jq empty 2>/dev/null; then
-        echo "✅ Valid JSON response"
+    STATUS_RESPONSE=$(curl -s -w "\n%{http_code}" "$WEB_APP_URL?page=status&tenant=$TENANT")
+    HTTP_CODE=$(echo "$STATUS_RESPONSE" | tail -n 1)
+    RESPONSE_BODY=$(echo "$STATUS_RESPONSE" | sed '$d')
 
-        # Show key info
-        BUILD=$(echo "$RESPONSE_BODY" | jq -r '.value.build // "unknown"')
-        CONTRACT=$(echo "$RESPONSE_BODY" | jq -r '.value.contract // "unknown"')
-        echo "   Build: $BUILD"
-        echo "   Contract: $CONTRACT"
-    else
-        echo "⚠️ Response is not JSON (might be HTML)"
+    if [ "$HTTP_CODE" = "200" ]; then
+        echo "   ✅ HTTP 200 - No redirect!"
+
+        # Check if response is valid JSON
+        if echo "$RESPONSE_BODY" | jq empty 2>/dev/null; then
+            BUILD=$(echo "$RESPONSE_BODY" | jq -r '.value.build // "unknown"')
+            CONTRACT=$(echo "$RESPONSE_BODY" | jq -r '.value.contract // "unknown"')
+            DB_OK=$(echo "$RESPONSE_BODY" | jq -r '.value.db.ok // false')
+
+            echo "   📦 Build: $BUILD | Contract: $CONTRACT | DB: $DB_OK"
+        else
+            echo "   ⚠️ Response is not JSON (might be HTML error)"
+            echo "$RESPONSE_BODY" | head -3
+        fi
+    elif [ "$HTTP_CODE" = "302" ]; then
+        echo "   ❌ HTTP 302 - Still redirecting!"
+        echo ""
+        echo "   Response:"
         echo "$RESPONSE_BODY" | head -5
+        echo ""
+        echo "   🔍 Troubleshooting:"
+        echo "   1. Make sure you deployed AFTER changing appsscript.json"
+        echo "   2. Verify appsscript.json has: \"executeAs\": \"USER_DEPLOYING\""
+        echo "   3. Try creating a brand new deployment instead of updating"
+        FAILED=1
+    else
+        echo "   ⚠️ HTTP $HTTP_CODE (unexpected)"
+        echo "$RESPONSE_BODY" | head -3
+        FAILED=1
     fi
-elif [ "$HTTP_CODE" = "302" ]; then
-    echo "❌ HTTP 302 - Still redirecting!"
-    echo ""
-    echo "Response:"
-    echo "$RESPONSE_BODY"
-    echo ""
-    echo "🔍 Troubleshooting:"
-    echo "1. Make sure you deployed AFTER changing appsscript.json"
-    echo "2. Verify appsscript.json has: \"executeAs\": \"USER_DEPLOYING\""
-    echo "3. Try creating a brand new deployment instead of updating"
-    exit 1
-else
-    echo "⚠️ HTTP $HTTP_CODE (unexpected)"
-    echo "$RESPONSE_BODY"
-fi
 
-echo ""
+    echo ""
+}
 
-# Test public page
-echo "📋 Test 2: Public Events Page"
+# Test each tenant
+for i in "${!TENANTS[@]}"; do
+    test_tenant "${TENANTS[$i]}" $((i+1))
+done
+
+# Test public events page for root tenant
+echo "📋 Test 4: Public Events Page - Tenant: root"
 echo "   GET $WEB_APP_URL?p=events&tenant=root"
-echo ""
 
 PUBLIC_RESPONSE=$(curl -s -w "\n%{http_code}" "$WEB_APP_URL?p=events&tenant=root")
 HTTP_CODE=$(echo "$PUBLIC_RESPONSE" | tail -n 1)
 
 if [ "$HTTP_CODE" = "200" ]; then
-    echo "✅ HTTP 200 OK - No redirect!"
+    echo "   ✅ HTTP 200 - Public page accessible!"
 elif [ "$HTTP_CODE" = "302" ]; then
-    echo "❌ HTTP 302 - Still redirecting!"
-    exit 1
+    echo "   ❌ HTTP 302 - Redirecting to login!"
+    FAILED=1
 else
-    echo "⚠️ HTTP $HTTP_CODE"
+    echo "   ⚠️ HTTP $HTTP_CODE"
+    FAILED=1
+fi
+
+echo ""
+
+# Check if any tests failed
+if [ $FAILED -eq 1 ]; then
+    echo "========================================================"
+    echo "❌ DEPLOYMENT TEST FAILED!"
+    echo "Some tenants returned 302 redirects"
+    echo "========================================================"
+    exit 1
 fi
 
 echo ""
@@ -132,8 +154,15 @@ echo "========================================================"
 echo "🎉 SUCCESS! 302 redirects are FIXED!"
 echo "========================================================"
 echo ""
+echo "All tenants (root, ABC, CBC) are accessible without redirects!"
+echo ""
 echo "Your deployment is working correctly at:"
 echo "  $WEB_APP_URL"
+echo ""
+echo "Tenant URLs:"
+echo "  Root:  $WEB_APP_URL?page=status&tenant=root"
+echo "  ABC:   $WEB_APP_URL?page=status&tenant=ABC"
+echo "  CBC:   $WEB_APP_URL?page=status&tenant=CBC"
 echo ""
 echo "Next steps:"
 echo "1. Save this deployment ID for GitHub secrets (optional)"
