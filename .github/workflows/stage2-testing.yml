@@ -70,6 +70,7 @@ jobs:
           else
             echo "⚠️ No deployment URL found from Stage 1"
             echo "This likely means Stage 1 didn't deploy (e.g., PR or non-main branch)"
+            echo "Defaulting to QA environment for testing"
             echo "url=https://qa.zeventbooks.com" >> $GITHUB_OUTPUT
           fi
         env:
@@ -85,18 +86,18 @@ jobs:
   # ============================================================================
 
   hostinger-health-check:
-    name: 🏥 Hostinger Health Check
+    name: 🏥 QA Environment Health Check
     runs-on: ubuntu-latest
     needs: setup
     if: needs.setup.outputs.skip_tests != 'true'
     steps:
-      - name: Verify Hostinger is accessible
+      - name: Verify QA environment is accessible
         run: |
-          echo "🏥 Health Check: Verifying zeventbooks.com is accessible..."
+          echo "🏥 Health Check: Verifying qa.zeventbooks.com is accessible..."
           echo ""
 
           # Test the status endpoint
-          HEALTH_URL="https://zeventbooks.com?p=status&tenant=root"
+          HEALTH_URL="https://qa.zeventbooks.com?p=status&tenant=root"
           echo "Testing: $HEALTH_URL"
 
           # Make request and capture HTTP status code
@@ -105,28 +106,28 @@ jobs:
           echo "HTTP Status Code: $HTTP_CODE"
 
           if [ "$HTTP_CODE" == "200" ]; then
-            echo "✅ SUCCESS: Hostinger is accessible and responding"
-            echo "   zeventbooks.com → Apps Script proxy is working"
+            echo "✅ SUCCESS: QA environment is accessible and responding"
+            echo "   qa.zeventbooks.com → Apps Script proxy is working"
             exit 0
           elif [ "$HTTP_CODE" == "000" ]; then
-            echo "❌ FAILURE: Cannot reach zeventbooks.com"
+            echo "❌ FAILURE: Cannot reach qa.zeventbooks.com"
             echo "   Possible issues:"
             echo "   - DNS not configured"
             echo "   - Hostinger hosting down"
             echo "   - Domain not pointing to correct server"
             echo ""
-            echo "💡 Fix: Check Hostinger hPanel and domain DNS settings"
+            echo "💡 Fix: Check Hostinger hPanel and domain DNS settings for qa subdomain"
             exit 1
           elif [ "$HTTP_CODE" == "404" ]; then
-            echo "❌ FAILURE: zeventbooks.com returns 404"
+            echo "❌ FAILURE: qa.zeventbooks.com returns 404"
             echo "   Possible issues:"
-            echo "   - index.php not uploaded to Hostinger"
-            echo "   - Uploaded to wrong directory (should be public_html/)"
+            echo "   - index.php not uploaded to Hostinger qa subdomain"
+            echo "   - Uploaded to wrong directory (should be public_html/qa/)"
             echo ""
-            echo "💡 Fix: Upload hostinger-proxy/index.php to Hostinger"
+            echo "💡 Fix: Upload hostinger-proxy/index.php to Hostinger qa subdomain"
             exit 1
           elif [ "$HTTP_CODE" == "500" ] || [ "$HTTP_CODE" == "502" ]; then
-            echo "❌ FAILURE: Hostinger proxy error (HTTP $HTTP_CODE)"
+            echo "❌ FAILURE: QA environment proxy error (HTTP $HTTP_CODE)"
             echo "   Possible issues:"
             echo "   - Apps Script backend is down"
             echo "   - Wrong deployment ID in index.php"
@@ -142,7 +143,7 @@ jobs:
       - name: Test Apps Script backend directly
         run: |
           echo ""
-          echo "🔍 Testing Apps Script backend (bypassing Hostinger proxy)..."
+          echo "🔍 Testing Apps Script backend (bypassing QA proxy)..."
 
           # Get the Apps Script URL from index.php configuration
           APPS_SCRIPT_URL="https://script.google.com/macros/s/AKfycbzu-U4UgdjdAiXHTg9TD5Y-1gDkc798YSTqQCdhOddG/exec?p=status&tenant=root"
@@ -156,11 +157,11 @@ jobs:
             echo "✅ Apps Script backend is working"
           else
             echo "⚠️  Apps Script backend issue (HTTP $HTTP_CODE)"
-            echo "   This may affect Hostinger proxy functionality"
+            echo "   This may affect QA environment proxy functionality"
           fi
 
   critical-tests:
-    name: 🔥 Critical - ${{ matrix.suite }} (Hostinger)
+    name: 🔥 Critical - ${{ matrix.suite }} (QA)
     runs-on: ubuntu-latest
     needs: [setup, hostinger-health-check]
     if: needs.setup.outputs.skip_tests != 'true'
@@ -185,15 +186,15 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
-      - name: Run ${{ matrix.suite }} tests on Hostinger
+      - name: Run ${{ matrix.suite }} tests on QA
         id: test-run
         continue-on-error: true
         env:
-          BASE_URL: https://zeventbooks.com
+          BASE_URL: https://qa.zeventbooks.com
           ADMIN_KEY: ${{ secrets.ADMIN_KEY_ROOT }}
         run: |
           echo "🔥 Running ${{ matrix.suite }} tests against: $BASE_URL"
-          echo "Platform: Hostinger (zeventbooks.com)"
+          echo "Environment: QA (qa.zeventbooks.com)"
 
           if [ "${{ matrix.suite }}" == "api" ]; then
             echo "⏳ Waiting 10 seconds to avoid rate limits..."
@@ -207,7 +208,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-${{ matrix.suite }}-hostinger-report
+          name: playwright-${{ matrix.suite }}-qa-report
           path: playwright-report/
           retention-days: 7
 
@@ -234,15 +235,15 @@ jobs:
           echo ""
           echo "Test Matrix:"
           echo "  - 2 suites (API + Smoke)"
-          echo "  - 1 platform (Hostinger)"
+          echo "  - 1 environment (QA)"
           echo "  - Total: 2 test runs"
           echo ""
 
-          # The critical-tests job runs 2 tests (2 suites on Hostinger)
+          # The critical-tests job runs 2 tests (2 suites on QA)
           # If the overall job succeeded, both passed
           # If it failed, at least one failed
 
-          TOTAL=2  # 2 suites on Hostinger
+          TOTAL=2  # 2 suites on QA
 
           if [[ "${{ needs.critical-tests.result }}" == "success" ]]; then
             FAILURES=0
@@ -278,7 +279,7 @@ jobs:
   # ============================================================================
 
   expensive-tests:
-    name: 💰 Expensive - ${{ matrix.suite }} (Hostinger)
+    name: 💰 Expensive - ${{ matrix.suite }} (QA)
     runs-on: ubuntu-latest
     needs: [setup, failure-gate]
     if: needs.failure-gate.outputs.should_run_expensive_tests == 'true'
@@ -303,13 +304,13 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
-      - name: Run ${{ matrix.suite }} tests on Hostinger
+      - name: Run ${{ matrix.suite }} tests on QA
         env:
-          BASE_URL: https://zeventbooks.com
+          BASE_URL: https://qa.zeventbooks.com
           ADMIN_KEY: ${{ secrets.ADMIN_KEY_ROOT }}
         run: |
           echo "💰 Running ${{ matrix.suite }} tests against: $BASE_URL"
-          echo "Platform: Hostinger (zeventbooks.com)"
+          echo "Environment: QA (qa.zeventbooks.com)"
           echo "   (Critical tests passed - proceeding with expensive tests)"
 
           if [ "${{ matrix.suite }}" == "flows" ]; then
@@ -322,7 +323,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-${{ matrix.suite }}-hostinger-report
+          name: playwright-${{ matrix.suite }}-qa-report
           path: playwright-report/
           retention-days: 7
 
@@ -344,12 +345,12 @@ jobs:
           echo "📊 Stage 2 Quality Gate Summary"
           echo "=============================================="
           echo ""
-          echo "Production Platform:"
-          echo "  🌐 Hostinger:               https://zeventbooks.com"
+          echo "QA Environment:"
+          echo "  🌐 QA:                      https://qa.zeventbooks.com"
           echo ""
           echo "Critical Tests (API + Smoke):"
           echo "  🔥 Critical Tests:          ${{ needs.critical-tests.result }}"
-          echo "     (2 test runs: API + Smoke on Hostinger)"
+          echo "     (2 test runs: API + Smoke on QA)"
           echo ""
           echo "Failure Gate:"
           echo "  🚦 Failure Rate:            ${{ needs.failure-gate.outputs.failure_rate }}%"
@@ -358,7 +359,7 @@ jobs:
           echo "Expensive Tests (Flows + Pages):"
           if [[ "${{ needs.failure-gate.outputs.should_run_expensive_tests }}" == "true" ]]; then
             echo "  💰 Expensive Tests:         ${{ needs.expensive-tests.result }}"
-            echo "     (2 test runs: Flows + Pages on Hostinger)"
+            echo "     (2 test runs: Flows + Pages on QA)"
           else
             echo "  💰 Expensive Tests:         ⏭️ SKIPPED (Failure rate >= 50%)"
           fi
@@ -406,9 +407,9 @@ jobs:
         run: |
           echo "## 🎯 Stage 2 Quality Gate Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 🌐 Production Platform Testing" >> $GITHUB_STEP_SUMMARY
+          echo "### 🌐 QA Environment Testing" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Platform:** Hostinger (\`https://zeventbooks.com\`)" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** QA (\`https://qa.zeventbooks.com\`)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Cost-Optimized Strategy:**" >> $GITHUB_STEP_SUMMARY
           echo "1. ✅ Run critical tests first (API + Smoke)" >> $GITHUB_STEP_SUMMARY
@@ -420,7 +421,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Result:** \`${{ needs.critical-tests.result }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Test Runs:** 2 (API + Smoke on Hostinger)" >> $GITHUB_STEP_SUMMARY
+          echo "**Test Runs:** 2 (API + Smoke on QA)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 🚦 Failure Gate" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -432,7 +433,7 @@ jobs:
           if [[ "${{ needs.failure-gate.outputs.should_run_expensive_tests }}" == "true" ]]; then
             echo "**Result:** \`${{ needs.expensive-tests.result }}\`" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Test Runs:** 2 (Flows + Pages on Hostinger)" >> $GITHUB_STEP_SUMMARY
+            echo "**Test Runs:** 2 (Flows + Pages on QA)" >> $GITHUB_STEP_SUMMARY
           else
             echo "**Result:** ⏭️ **SKIPPED** (Failure rate >= 50% - cost optimization)" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
@@ -462,19 +463,19 @@ jobs:
           if [[ "${{ steps.gate.outputs.approved }}" == "true" ]]; then
             echo "### ✅ Quality Gate: **PASSED**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "All executed tests passed successfully! Ready for QA deployment." >> $GITHUB_STEP_SUMMARY
+            echo "All executed tests passed successfully! QA environment verified." >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "**Benefits of Cost-Optimized Testing:**" >> $GITHUB_STEP_SUMMARY
-            echo "- 🌐 Tests production platform (Hostinger)" >> $GITHUB_STEP_SUMMARY
+            echo "- 🌐 Tests QA environment (qa.zeventbooks.com)" >> $GITHUB_STEP_SUMMARY
             echo "- 💰 Skips expensive tests when critical tests fail >50%" >> $GITHUB_STEP_SUMMARY
             echo "- 📱 Only 2 devices tested (iPhone 14 Pro + Chromium)" >> $GITHUB_STEP_SUMMARY
             echo "- ⚡ Critical tests run first (fast feedback)" >> $GITHUB_STEP_SUMMARY
             echo "- 🤖 Fully automated (no manual triggers)" >> $GITHUB_STEP_SUMMARY
-            echo "- 🎯 Focused testing on commercial platform" >> $GITHUB_STEP_SUMMARY
+            echo "- 🎯 Validates QA before production" >> $GITHUB_STEP_SUMMARY
           else
             echo "### ❌ Quality Gate: **FAILED**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "One or more tests failed. QA deployment blocked." >> $GITHUB_STEP_SUMMARY
+            echo "One or more tests failed. QA validation failed." >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "Please review the test reports and fix failing tests." >> $GITHUB_STEP_SUMMARY
           fi
