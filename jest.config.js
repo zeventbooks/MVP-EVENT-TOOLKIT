@@ -19,14 +19,14 @@ module.exports = {
     '/tests/e2e/',
     '/tests/smoke/'
   ],
-  // Coverage thresholds disabled for Apps Script project
-  // (code runs in Google's sandbox, not locally testable)
-  // coverageThreshold: {
-  //   global: {
-  //     branches: 70,
-  //     functions: 70,
-  //     lines: 70,
-  //     statements: 70
-  //   }
-  // }
+  // Coverage thresholds enabled (conservative initial values)
+  // Mock Google Apps Script APIs in tests to achieve coverage
+  coverageThreshold: {
+    global: {
+      branches: 50,      // Start conservative, increase gradually
+      functions: 50,
+      lines: 60,
+      statements: 60
+    }
+  }
 };

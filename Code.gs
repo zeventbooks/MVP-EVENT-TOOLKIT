@@ -53,9 +53,29 @@ function _ensureOk_(label, schema, obj) {
 // === Logger (append-only with caps) =======================================
 const DIAG_SHEET='DIAG', DIAG_MAX=3000, DIAG_PER_DAY=800;
 
-function diag_(level, where, msg, meta){
+/**
+ * Diagnostic logging with spreadsheet ID support for web app context
+ * @param {string} level - Log level (error, warn, info, debug)
+ * @param {string} where - Function/location name
+ * @param {string} msg - Log message
+ * @param {object} meta - Optional metadata object
+ * @param {string} spreadsheetId - Optional spreadsheet ID (uses root tenant if not provided)
+ */
+function diag_(level, where, msg, meta, spreadsheetId){
   try{
-    const ss = SpreadsheetApp.getActive();
+    // If spreadsheet ID not provided, try to get from root tenant
+    if (!spreadsheetId) {
+      const rootTenant = findTenant_('root');
+      if (rootTenant && rootTenant.store && rootTenant.store.spreadsheetId) {
+        spreadsheetId = rootTenant.store.spreadsheetId;
+      }
+    }
+
+    // Fall back to getActive() only if no spreadsheet ID available (UI context)
+    const ss = spreadsheetId
+      ? SpreadsheetApp.openById(spreadsheetId)
+      : SpreadsheetApp.getActive();
+
     let sh = ss.getSheetByName(DIAG_SHEET);
     if(!sh){
       sh = ss.insertSheet(DIAG_SHEET);
@@ -220,7 +240,7 @@ function handleRestApiPost_(e, action, body, tenant) {
   }
 
   const authenticatedTenant = authCheck.value.tenant;
-  const adminKey = body.adminKey || authenticatedTenant.adminSecret; // For backward compatibility
+  const adminKey = body.adminKey || getAdminSecret_(authenticatedTenant.id); // For backward compatibility
 
   // Route to appropriate API function
   if (action === 'create') {
@@ -331,7 +351,14 @@ function handleRedirect_(token) {
     return HtmlService.createHtmlOutput('<h1>Invalid shortlink</h1>');
   }
 
-  const ss = SpreadsheetApp.getActive();
+  // Use root tenant spreadsheet for shortlinks
+  const rootTenant = findTenant_('root');
+  if (!rootTenant || !rootTenant.store || !rootTenant.store.spreadsheetId) {
+    return HtmlService.createHtmlOutput('<h1>Configuration error</h1>');
+  }
+
+  const spreadsheetId = rootTenant.store.spreadsheetId;
+  const ss = SpreadsheetApp.openById(spreadsheetId);
   let sh = ss.getSheetByName('SHORTLINKS');
   if (!sh) {
     return HtmlService.createHtmlOutput('<h1>Shortlink not found</h1>');
@@ -341,7 +368,7 @@ function handleRedirect_(token) {
   const row = rows.find(r => r[0] === token);
 
   if (!row) {
-    diag_('warn', 'handleRedirect_', 'Token not found', {token});
+    diag_('warn', 'handleRedirect_', 'Token not found', {token}, spreadsheetId);
     return HtmlService.createHtmlOutput('<h1>Shortlink not found</h1>');
   }
 
@@ -359,10 +386,10 @@ function handleRedirect_(token) {
       }]
     });
   } catch(e) {
-    diag_('warn', 'handleRedirect_', 'Analytics log failed', {error: String(e)});
+    diag_('warn', 'handleRedirect_', 'Analytics log failed', {error: String(e)}, spreadsheetId);
   }
 
-  diag_('info', 'handleRedirect_', 'Redirect', {token, targetUrl, eventId, sponsorId});
+  diag_('info', 'handleRedirect_', 'Redirect', {token, targetUrl, eventId, sponsorId}, spreadsheetId);
 
   return HtmlService.createHtmlOutput(`
     <meta http-equiv="refresh" content="0;url=${targetUrl}">
@@ -386,7 +413,8 @@ function authenticateRequest_(e, body, tenantId) {
 
   // Method 1: adminKey in body (legacy, backward compatible)
   const adminKey = body?.adminKey || e?.parameter?.adminKey || '';
-  if (adminKey && adminKey === tenant.adminSecret) {
+  const tenantSecret = getAdminSecret_(tenant.id);
+  if (adminKey && tenantSecret && adminKey === tenantSecret) {
     return Ok({ tenant, method: 'adminKey' });
   }
 
@@ -402,7 +430,8 @@ function authenticateRequest_(e, body, tenantId) {
 
   // Method 3: API Key in header
   const apiKey = e?.headers?.['X-API-Key'] || e?.headers?.['x-api-key'] || '';
-  if (apiKey && apiKey === tenant.adminSecret) {
+  const tenantApiSecret = getAdminSecret_(tenant.id);
+  if (apiKey && tenantApiSecret && apiKey === tenantApiSecret) {
     return Ok({ tenant, method: 'apiKey' });
   }
 
@@ -436,7 +465,11 @@ function verifyJWT_(token, tenant) {
     }
 
     // Verify signature (simplified - use proper crypto in production)
-    const expectedSignature = generateJWTSignature_(parts[0] + '.' + parts[1], tenant.adminSecret);
+    const tenantSecret = getAdminSecret_(tenant.id);
+    if (!tenantSecret) {
+      return Err(ERR.INTERNAL, 'Tenant secret not configured');
+    }
+    const expectedSignature = generateJWTSignature_(parts[0] + '.' + parts[1], tenantSecret);
     if (parts[2] !== expectedSignature) {
       return Err(ERR.BAD_INPUT, 'Invalid token signature');
     }
@@ -471,7 +504,11 @@ function api_generateToken(req) {
 
   const headerB64 = Utilities.base64EncodeWebSafe(JSON.stringify(header));
   const payloadB64 = Utilities.base64EncodeWebSafe(JSON.stringify(payload));
-  const signature = generateJWTSignature_(headerB64 + '.' + payloadB64, tenant.adminSecret);
+  const tenantSecret = getAdminSecret_(tenant.id);
+  if (!tenantSecret) {
+    return Err(ERR.INTERNAL, 'Tenant secret not configured');
+  }
+  const signature = generateJWTSignature_(headerB64 + '.' + payloadB64, tenantSecret);
 
   const token = headerB64 + '.' + payloadB64 + '.' + signature;
 
@@ -494,7 +531,8 @@ const RATE_MAX_PER_MIN=20;
 function gate_(tenantId, adminKey){
   const tenant=findTenant_(tenantId);
   if(!tenant) return Err(ERR.NOT_FOUND,'Unknown tenant');
-  if (tenant.adminSecret && adminKey !== tenant.adminSecret)
+  const tenantSecret = getAdminSecret_(tenant.id);
+  if (tenantSecret && adminKey !== tenantSecret)
     return Err(ERR.BAD_INPUT,'Invalid admin key');
 
   // Rate limiting per tenant per minute
@@ -542,8 +580,19 @@ function getStoreSheet_(tenant, scope){
   return sh;
 }
 
-function _ensureAnalyticsSheet_(){
-  const ss = SpreadsheetApp.getActive();
+function _ensureAnalyticsSheet_(spreadsheetId){
+  // If no spreadsheet ID provided, use root tenant
+  if (!spreadsheetId) {
+    const rootTenant = findTenant_('root');
+    if (rootTenant && rootTenant.store && rootTenant.store.spreadsheetId) {
+      spreadsheetId = rootTenant.store.spreadsheetId;
+    }
+  }
+
+  const ss = spreadsheetId
+    ? SpreadsheetApp.openById(spreadsheetId)
+    : SpreadsheetApp.getActive();
+
   let sh = ss.getSheetByName('ANALYTICS');
   if (!sh){
     sh = ss.insertSheet('ANALYTICS');
@@ -553,8 +602,19 @@ function _ensureAnalyticsSheet_(){
   return sh;
 }
 
-function _ensureShortlinksSheet_(){
-  const ss = SpreadsheetApp.getActive();
+function _ensureShortlinksSheet_(spreadsheetId){
+  // If no spreadsheet ID provided, use root tenant
+  if (!spreadsheetId) {
+    const rootTenant = findTenant_('root');
+    if (rootTenant && rootTenant.store && rootTenant.store.spreadsheetId) {
+      spreadsheetId = rootTenant.store.spreadsheetId;
+    }
+  }
+
+  const ss = spreadsheetId
+    ? SpreadsheetApp.openById(spreadsheetId)
+    : SpreadsheetApp.getActive();
+
   let sh = ss.getSheetByName('SHORTLINKS');
   if (!sh){
     sh = ss.insertSheet('SHORTLINKS');
@@ -1031,7 +1091,7 @@ function api_runDiagnostics(){
         tenantId: 'root',
         scope: 'events',
         templateId: 'event',
-        adminKey: findTenant_('root').adminSecret,
+        adminKey: getAdminSecret_('root'),
         idemKey: `diag-${Date.now()}`,
         data: { name: 'Diagnostic Test Event', dateISO: '2025-12-31', signupUrl: '' }
       });
@@ -1044,7 +1104,7 @@ function api_runDiagnostics(){
         tenantId: 'root',
         scope: 'events',
         id: eventId,
-        adminKey: findTenant_('root').adminSecret,
+        adminKey: getAdminSecret_('root'),
         data: {
           display: { mode: 'static' },
           sponsors: [{ id: 'test-sp1', name: 'Test Sponsor', placements: { tvTop: true } }]

@@ -8,13 +8,16 @@ const ZEB = Object.freeze({
 });
 
 // Tenants (multi-tenant architecture, single DB for MVP)
+// SECURITY: Admin secrets moved to Script Properties for security
+// Set via: File > Project Properties > Script Properties in Apps Script UI
+// Or via: PropertiesService.getScriptProperties().setProperty('ADMIN_SECRET_ROOT', 'your-secret')
 const TENANTS = [
   {
     id: 'root',
     name: 'Zeventbook',
     hostnames: ['zeventbook.io','www.zeventbook.io'],
     logoUrl: '/My files/Linux files/zeventbook/assets/logos/ABCMainTransparent.webp',
-    adminSecret: '4a249d9791716c208479712c74aae27a',
+    // adminSecret: moved to Script Properties as 'ADMIN_SECRET_ROOT'
     store: { type: 'workbook', spreadsheetId: '1ixHd2iUc27UF0fJvKh9hXsRI1XZtNRKqbZYf0vgMbKrBFItxngd7L-VO' },
     scopesAllowed: ['events', 'sponsors']
   },
@@ -23,7 +26,7 @@ const TENANTS = [
     name: 'American Bocce Co.',
     hostnames: ['americanbocceco.zeventbooks.io'],
     logoUrl: '/My files/Linux files/zeventbook/assets/logos/ABCMainTransparent.webp',
-    adminSecret: 'CHANGE_ME_abc',
+    // adminSecret: moved to Script Properties as 'ADMIN_SECRET_ABC'
     store: { type: 'workbook', spreadsheetId: '1ixHd2iUc27UF0fJvKh9hXsRI1XZtNRKqbZYf0vgMbKrBFItxngd7L-VO' },
     scopesAllowed: ['events', 'sponsors']
   },
@@ -32,7 +35,7 @@ const TENANTS = [
     name: 'Chicago Bocce Club',
     hostnames: ['chicagobocceclub.zeventbooks.io'],
     logoUrl: '/My files/Linux files/zeventbook/assets/logos/ABCMainTransparent.webp',
-    adminSecret: 'CHANGE_ME_cbc',
+    // adminSecret: moved to Script Properties as 'ADMIN_SECRET_CBC'
     store: { type: 'workbook', spreadsheetId: '1ixHd2iUc27UF0fJvKh9hXsRI1XZtNRKqbZYf0vgMbKrBFItxngd7L-VO' },
     scopesAllowed: ['events', 'sponsors']
   },
@@ -41,7 +44,7 @@ const TENANTS = [
     name: 'Chicago Bocce League',
     hostnames: ['chicagobocceleague.zeventbooks.io'],
     logoUrl: '/My files/Linux files/zeventbook/assets/logos/ABCMainTransparent.webp',
-    adminSecret: 'CHANGE_ME_cbl',
+    // adminSecret: moved to Script Properties as 'ADMIN_SECRET_CBL'
     store: { type: 'workbook', spreadsheetId: '1ixHd2iUc27UF0fJvKh9hXsRI1XZtNRKqbZYf0vgMbKrBFItxngd7L-VO' },
     scopesAllowed: ['events', 'sponsors']
   }
@@ -152,3 +155,41 @@ function findTenantByHost_(host) {
 function findTemplate_(id) { return TEMPLATES.find(x => x.id === id) || null; }
 function findFormTemplate_(id) { return FORM_TEMPLATES.find(x => x.id === id) || null; }
 function listFormTemplates_() { return FORM_TEMPLATES; }
+
+/**
+ * Get admin secret for a tenant from Script Properties
+ * @param {string} tenantId - Tenant ID (root, abc, cbc, cbl)
+ * @returns {string|null} - Admin secret or null if not found
+ */
+function getAdminSecret_(tenantId) {
+  if (!tenantId) return null;
+
+  const props = PropertiesService.getScriptProperties();
+  const key = `ADMIN_SECRET_${tenantId.toUpperCase()}`;
+  const secret = props.getProperty(key);
+
+  // If not found, log warning
+  if (!secret) {
+    console.warn(`Admin secret not found for tenant: ${tenantId}. Set via Script Properties: ${key}`);
+  }
+
+  return secret;
+}
+
+/**
+ * Setup script - Initialize admin secrets in Script Properties
+ * Run this once manually to migrate from hardcoded secrets
+ * Example: setupAdminSecrets_({ root: 'secret1', abc: 'secret2', ... })
+ */
+function setupAdminSecrets_(secrets) {
+  const props = PropertiesService.getScriptProperties();
+
+  for (const [tenantId, secret] of Object.entries(secrets)) {
+    const key = `ADMIN_SECRET_${tenantId.toUpperCase()}`;
+    props.setProperty(key, secret);
+    console.log(`✅ Set admin secret for tenant: ${tenantId}`);
+  }
+
+  console.log('✅ Admin secrets migration complete!');
+  console.log('⚠️  Remove hardcoded secrets from Config.gs if not already done');
+}
