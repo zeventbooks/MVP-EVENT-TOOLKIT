@@ -4,9 +4,10 @@ on:
   workflow_dispatch:
     inputs:
       deployment_url:
-        description: 'Deployment URL from Stage 1 (e.g., https://script.google.com/macros/s/YOUR_ID/exec)'
+        description: 'Deployment URL to test (use qa.zeventbooks.com for QA environment)'
         required: true
         type: string
+        default: 'https://qa.zeventbooks.com'
 
 jobs:
   # ============================================================================
