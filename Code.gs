@@ -569,13 +569,18 @@ function _ensureShortlinksSheet_(){
 function api_status(tenantId){
   return runSafe('api_status', () => {
     try {
-      const ss = SpreadsheetApp.getActive();
-      const id = ss.getId();
-      const dbOk = !!id;
-
       // Get tenant info if provided
       const tenant = tenantId ? findTenant_(tenantId) : findTenant_('root');
-      const tenantInfo = tenant ? tenant.id : 'root';
+      if (!tenant) {
+        return Err(ERR.NOT_FOUND, `Tenant not found: ${tenantId}`);
+      }
+
+      const tenantInfo = tenant.id;
+
+      // Use tenant's spreadsheet ID instead of getActive() for web app context
+      const ss = SpreadsheetApp.openById(tenant.store.spreadsheetId);
+      const id = ss.getId();
+      const dbOk = !!id;
 
       return _ensureOk_('api_status', SC_STATUS, Ok({
         build: ZEB.BUILD_ID,
