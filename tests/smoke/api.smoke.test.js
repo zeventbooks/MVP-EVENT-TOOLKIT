@@ -12,8 +12,7 @@
 
 const { test, expect } = require('@playwright/test');
 
-const BASE_URL = process.env.BASE_URL || 'https://script.google.com/macros/s/.../exec';
-const TENANT_ID = 'root';
+const { BASE_URL, TENANT_ID } = require('../shared/config/test.config.js');
 
 test.describe('API Smoke Tests - Status & Health', () => {
 

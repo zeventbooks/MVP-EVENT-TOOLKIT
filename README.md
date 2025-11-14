@@ -83,9 +83,59 @@ npm run deploy # Create new deployment
 
 ### For Architecture & Testing
 - **[ARCHITECTURE_REVIEW.md](./ARCHITECTURE_REVIEW.md)** - System architecture
+- **[docs/architecture/ADR-001-centralized-test-config.md](./docs/architecture/ADR-001-centralized-test-config.md)** - 🆕 Architecture Decision Record for test configuration
 - **[TESTING.md](./TESTING.md)** - Test infrastructure (130+ tests)
-- **[tests/README.md](./tests/README.md)** - 🆕 Complete test suite documentation
+- **[tests/README.md](./tests/README.md)** - Complete test suite documentation
 - **[TEST_INFRASTRUCTURE_SUMMARY.md](./TEST_INFRASTRUCTURE_SUMMARY.md)** - Test coverage matrix
+
+### For Quality Assurance & Testing Teams
+- **[docs/testing/DEVELOPER_ONBOARDING.md](./docs/testing/DEVELOPER_ONBOARDING.md)** - 🆕 Quick start guide for developers (< 10 min)
+- **[docs/testing/TEST_CONFIGURATION.md](./docs/testing/TEST_CONFIGURATION.md)** - 🆕 Comprehensive test configuration guide
+- **[docs/testing/CI_CD_INTEGRATION.md](./docs/testing/CI_CD_INTEGRATION.md)** - 🆕 CI/CD integration for DevOps teams
+
+## Testing
+
+### Quick Start
+
+```bash
+# Set environment variables
+export BASE_URL="https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec"
+export ADMIN_KEY="your-admin-key"
+
+# Run tests
+npm run test:smoke        # Quick health check (30s)
+npm run test:api          # API contract tests (2m)
+npm run test:e2e          # All E2E tests (10m)
+```
+
+### Test Suites
+
+| Suite | Command | Runtime | Purpose |
+|-------|---------|---------|---------|
+| **Smoke** | `npm run test:smoke` | ~30s | Critical health checks |
+| **API** | `npm run test:api` | ~2m | API contract validation |
+| **Pages** | `npm run test:pages` | ~5m | UI component testing |
+| **Flows** | `npm run test:flows` | ~10m | End-to-end user journeys |
+| **All** | `npm run test:e2e` | ~15m | Complete test suite |
+
+### For Different Roles
+
+- **👨‍💼 Product Owners**: See [TEST_CONFIGURATION.md](./docs/testing/TEST_CONFIGURATION.md#for-different-roles) for metrics and business value
+- **🏗️ Architects**: See [ADR-001](./docs/architecture/ADR-001-centralized-test-config.md) for architecture decisions
+- **💻 Developers**: See [DEVELOPER_ONBOARDING.md](./docs/testing/DEVELOPER_ONBOARDING.md) for quick start (< 10 min)
+- **🧪 QA/SDET**: See [TEST_CONFIGURATION.md](./docs/testing/TEST_CONFIGURATION.md) for test suite details
+- **⚙️ DevOps**: See [CI_CD_INTEGRATION.md](./docs/testing/CI_CD_INTEGRATION.md) for pipeline integration
+
+### Recent Improvements
+
+**Nov 14, 2025** - Centralized Test Configuration:
+- ✅ Fixed "Invalid URL" errors in 32 test files
+- ✅ Single source of truth for test configuration
+- ✅ Clear error messages when BASE_URL not set
+- ✅ Comprehensive documentation for all team roles
+- ✅ Automated migration script for future updates
+
+See [ADR-001](./docs/architecture/ADR-001-centralized-test-config.md) for details.
 
 ## Notes
 - Poster shows a QR only when the server returns a verified `posterUrl`

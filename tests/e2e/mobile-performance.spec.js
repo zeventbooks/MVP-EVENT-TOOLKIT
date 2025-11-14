@@ -14,6 +14,7 @@
  */
 
 const { test, expect, devices } = require('@playwright/test');
+const { BASE_URL } = require('../shared/config/test.config.js');
 
 test.describe('📱 Mobile Performance Tests', () => {
 
@@ -32,7 +33,7 @@ test.describe('📱 Mobile Performance Tests', () => {
     test('should load admin page within mobile threshold', async ({ page }) => {
       const startTime = Date.now();
 
-      await page.goto(`${process.env.BASE_URL || ''}?page=admin`);
+      await page.goto(`${BASE_URL}?page=admin`);
       await page.waitForLoadState('networkidle');
 
       const loadTime = Date.now() - startTime;
@@ -43,7 +44,7 @@ test.describe('📱 Mobile Performance Tests', () => {
     test('should load public events page on mobile', async ({ page }) => {
       const startTime = Date.now();
 
-      await page.goto(`${process.env.BASE_URL || ''}?p=events`);
+      await page.goto(`${BASE_URL}?p=events`);
       await page.waitForLoadState('networkidle');
 
       const loadTime = Date.now() - startTime;
@@ -54,7 +55,7 @@ test.describe('📱 Mobile Performance Tests', () => {
     test('should render sponsor logos on mobile display', async ({ page }) => {
       const startTime = Date.now();
 
-      await page.goto(`${process.env.BASE_URL || ''}?page=display&testMode=true`);
+      await page.goto(`${BASE_URL}?page=display&testMode=true`);
       await page.waitForLoadState('networkidle');
 
       const loadTime = Date.now() - startTime;
@@ -76,7 +77,7 @@ test.describe('📱 Mobile Performance Tests', () => {
     test('should load display page on tablet', async ({ page }) => {
       const startTime = Date.now();
 
-      await page.goto(`${process.env.BASE_URL || ''}?page=display&testMode=true`);
+      await page.goto(`${BASE_URL}?page=display&testMode=true`);
       await page.waitForLoadState('networkidle');
 
       const loadTime = Date.now() - startTime;
@@ -101,7 +102,7 @@ test.describe('📱 Mobile Performance Tests', () => {
     test('should be usable on low-end Android device', async ({ page }) => {
       const startTime = Date.now();
 
-      await page.goto(`${process.env.BASE_URL || ''}?p=events`);
+      await page.goto(`${BASE_URL}?p=events`);
       await page.waitForLoadState('domcontentloaded'); // More lenient for low-end
 
       const loadTime = Date.now() - startTime;
@@ -111,7 +112,7 @@ test.describe('📱 Mobile Performance Tests', () => {
     });
 
     test('should handle simple interactions on low-end device', async ({ page }) => {
-      await page.goto(`${process.env.BASE_URL || ''}?page=admin`);
+      await page.goto(`${BASE_URL}?page=admin`);
       await page.waitForLoadState('domcontentloaded');
 
       // Test basic interaction works
@@ -124,7 +125,7 @@ test.describe('📱 Mobile Performance Tests', () => {
     test.use({ ...devices['Pixel 5'] });
 
     test('should respond to touch events quickly', async ({ page }) => {
-      await page.goto(`${process.env.BASE_URL || ''}?page=admin`);
+      await page.goto(`${BASE_URL}?page=admin`);
 
       // Find any clickable element
       const clickable = await page.$('button, a, input[type="submit"]').catch(() => null);
@@ -140,7 +141,7 @@ test.describe('📱 Mobile Performance Tests', () => {
     });
 
     test('should handle swipe gestures on display page', async ({ page }) => {
-      await page.goto(`${process.env.BASE_URL || ''}?page=display&testMode=true`);
+      await page.goto(`${BASE_URL}?page=display&testMode=true`);
       await page.waitForLoadState('networkidle');
 
       // Get viewport size
@@ -180,7 +181,7 @@ test.describe('📱 Mobile Performance Tests', () => {
 
       const startTime = Date.now();
 
-      await page.goto(`${process.env.BASE_URL || ''}?p=events`);
+      await page.goto(`${BASE_URL}?p=events`);
       await page.waitForLoadState('domcontentloaded');
 
       const loadTime = Date.now() - startTime;
@@ -190,7 +191,7 @@ test.describe('📱 Mobile Performance Tests', () => {
     });
 
     test('should handle slow API responses', async ({ page }) => {
-      await page.goto(`${process.env.BASE_URL || ''}?p=events`);
+      await page.goto(`${BASE_URL}?p=events`);
 
       // Wait for API response (with timeout)
       const response = await Promise.race([
@@ -226,7 +227,7 @@ test.describe('📱 Mobile Performance Tests', () => {
     test.use({ ...devices['Pixel 5'] });
 
     test('should meet Core Web Vitals for mobile', async ({ page }) => {
-      await page.goto(`${process.env.BASE_URL || ''}?p=events`);
+      await page.goto(`${BASE_URL}?p=events`);
       await page.waitForLoadState('networkidle');
 
       // Get performance metrics
@@ -249,7 +250,7 @@ test.describe('📱 Mobile Performance Tests', () => {
     });
 
     test('should have minimal JavaScript execution time', async ({ page }) => {
-      await page.goto(`${process.env.BASE_URL || ''}?page=display&testMode=true`);
+      await page.goto(`${BASE_URL}?page=display&testMode=true`);
       await page.waitForLoadState('networkidle');
 
       const jsHeapSize = await page.evaluate(() => {
@@ -264,7 +265,7 @@ test.describe('📱 Mobile Performance Tests', () => {
     });
 
     test('should minimize layout shifts on mobile', async ({ page }) => {
-      await page.goto(`${process.env.BASE_URL || ''}?p=events`);
+      await page.goto(`${BASE_URL}?p=events`);
 
       // Wait for page to settle
       await page.waitForTimeout(1000);
@@ -300,7 +301,7 @@ test.describe('📱 Mobile Performance Tests', () => {
     test('should be responsive on portrait mobile', async ({ page }) => {
       await page.setViewportSize({ width: 375, height: 667 }); // iPhone SE
 
-      await page.goto(`${process.env.BASE_URL || ''}?p=events`);
+      await page.goto(`${BASE_URL}?p=events`);
 
       const viewport = page.viewportSize();
       expect(viewport?.width).toBe(375);
@@ -316,7 +317,7 @@ test.describe('📱 Mobile Performance Tests', () => {
     test('should be responsive on landscape mobile', async ({ page }) => {
       await page.setViewportSize({ width: 667, height: 375 }); // Landscape
 
-      await page.goto(`${process.env.BASE_URL || ''}?page=display&testMode=true`);
+      await page.goto(`${BASE_URL}?page=display&testMode=true`);
 
       const viewport = page.viewportSize();
       expect(viewport?.width).toBe(667);
@@ -330,7 +331,7 @@ test.describe('📱 Mobile Performance Tests', () => {
       // Test on high-DPI mobile screen
       await page.setViewportSize({ width: 393, height: 851 }); // Pixel 5
 
-      await page.goto(`${process.env.BASE_URL || ''}?p=events`);
+      await page.goto(`${BASE_URL}?p=events`);
 
       // Images should be crisp on retina displays
       const images = await page.$$('img');
@@ -347,7 +348,7 @@ test.describe('📱 Mobile Performance Tests', () => {
         { timeout: PERFORMANCE_THRESHOLDS.apiResponse }
       );
 
-      await page.goto(`${process.env.BASE_URL || ''}?p=events`);
+      await page.goto(`${BASE_URL}?p=events`);
 
       const response = await apiPromise.catch(() => null);
 
@@ -358,7 +359,7 @@ test.describe('📱 Mobile Performance Tests', () => {
     });
 
     test('should handle concurrent API calls on mobile', async ({ page }) => {
-      await page.goto(`${process.env.BASE_URL || ''}?page=admin`);
+      await page.goto(`${BASE_URL}?page=admin`);
 
       // Make multiple API calls (simulating admin dashboard)
       const apiCalls = [
@@ -377,7 +378,7 @@ test.describe('📱 Mobile Performance Tests', () => {
     test.use({ ...devices['Pixel 5'] });
 
     test('should minimize repaints on display page', async ({ page }) => {
-      await page.goto(`${process.env.BASE_URL || ''}?page=display&testMode=true`);
+      await page.goto(`${BASE_URL}?page=display&testMode=true`);
       await page.waitForLoadState('networkidle');
 
       // Wait and check CPU isn't spinning
@@ -392,7 +393,7 @@ test.describe('📱 Mobile Performance Tests', () => {
     });
 
     test('should use CSS animations over JavaScript', async ({ page }) => {
-      await page.goto(`${process.env.BASE_URL || ''}?page=display&testMode=true`);
+      await page.goto(`${BASE_URL}?page=display&testMode=true`);
 
       // Check if animations use CSS (better for mobile battery)
       const usesCSS = await page.evaluate(() => {

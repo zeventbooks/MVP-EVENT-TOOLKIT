@@ -9,7 +9,13 @@
  * pm.sendRequest(createEventRequest(eventData));
  */
 
-const BASE_URL = process.env.BASE_URL || 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec';
+const {
+  BASE_URL,
+  DEV_URL,
+  STAGING_URL,
+  PROD_URL,
+  TENANT_ADMIN_KEYS
+} = require('../config/test.config.js');
 
 /**
  * Environment Configuration
@@ -21,17 +27,17 @@ const environments = {
     retries: 3
   },
   development: {
-    baseUrl: process.env.DEV_URL || BASE_URL,
+    baseUrl: DEV_URL,
     timeout: 10000,
     retries: 2
   },
   staging: {
-    baseUrl: process.env.STAGING_URL || BASE_URL,
+    baseUrl: STAGING_URL,
     timeout: 15000,
     retries: 2
   },
   production: {
-    baseUrl: process.env.PROD_URL || BASE_URL,
+    baseUrl: PROD_URL,
     timeout: 20000,
     retries: 1
   }
@@ -43,22 +49,22 @@ const environments = {
 const tenants = {
   root: {
     tenantId: 'root',
-    adminKey: process.env.ROOT_ADMIN_KEY || 'root-admin-key',
+    adminKey: TENANT_ADMIN_KEYS.root,
     description: 'Root tenant for system administration'
   },
   abc: {
     tenantId: 'abc',
-    adminKey: process.env.ABC_ADMIN_KEY || 'abc-admin-key',
+    adminKey: TENANT_ADMIN_KEYS.abc,
     description: 'ABC Corporation tenant'
   },
   cbc: {
     tenantId: 'cbc',
-    adminKey: process.env.CBC_ADMIN_KEY || 'cbc-admin-key',
+    adminKey: TENANT_ADMIN_KEYS.cbc,
     description: 'CBC Organization tenant'
   },
   cbl: {
     tenantId: 'cbl',
-    adminKey: process.env.CBL_ADMIN_KEY || 'cbl-admin-key',
+    adminKey: TENANT_ADMIN_KEYS.cbl,
     description: 'CBL Company tenant'
   }
 };
