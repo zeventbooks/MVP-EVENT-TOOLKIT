@@ -89,6 +89,7 @@
     "coverage/",
     "dist/",
     "build/",
-    "playwright-report/"
+    "playwright-report/",
+    "tests/load/**/*.js"
   ]
 }
