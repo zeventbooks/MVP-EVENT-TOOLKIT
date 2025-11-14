@@ -11,8 +11,7 @@
 
 const { test, expect } = require('@playwright/test');
 
-const BASE_URL = process.env.BASE_URL || 'https://script.google.com/macros/s/.../exec';
-const ADMIN_KEY = process.env.ADMIN_KEY || 'CHANGE_ME_root';
+const { BASE_URL, TENANT_ID, ADMIN_KEY } = require('../../shared/config/test.config.js');
 const TENANT_ID = 'root';
 
 test.describe('🖼️ POSTER: Edit and Propagate Back to Admin', () => {

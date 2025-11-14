@@ -9,8 +9,7 @@
 
 const { test, expect } = require('@playwright/test');
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:8080';
-const ADMIN_KEY = process.env.ADMIN_KEY || 'test-admin-key';
+const { BASE_URL, ADMIN_KEY } = require('../shared/config/test.config.js');
 
 test.describe('Authentication Methods', () => {
 

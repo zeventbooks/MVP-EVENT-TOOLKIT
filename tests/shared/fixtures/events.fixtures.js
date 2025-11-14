@@ -4,8 +4,7 @@
  * Shared event data for all test types across Triangle phases
  */
 
-const BASE_URL = process.env.BASE_URL || 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec';
-const TENANT_ID = process.env.TENANT_ID || 'root';
+const { BASE_URL, TENANT_ID } = require('../config/test.config.js');
 
 /**
  * Generate a unique timestamp-based event name

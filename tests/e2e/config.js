@@ -6,20 +6,19 @@
  * Mobile support: Device-specific URLs and settings
  */
 
-// Validate required environment variables
-if (!process.env.ADMIN_KEY) {
-  throw new Error('❌ ADMIN_KEY environment variable is required. Set it in .env file.');
-}
-
-if (!process.env.BASE_URL) {
-  throw new Error('❌ BASE_URL environment variable is required. Set it in .env file.');
-}
+// Import from shared centralized config
+// Note: The centralized config will validate BASE_URL
+const {
+  BASE_URL,
+  ADMIN_KEY,
+  TENANT_ID
+} = require('../shared/config/test.config.js');
 
 export const config = {
   // Deployment settings
-  baseUrl: process.env.BASE_URL,
-  adminKey: process.env.ADMIN_KEY,
-  tenantId: process.env.TENANT_ID || 'root',
+  baseUrl: BASE_URL,
+  adminKey: ADMIN_KEY,
+  tenantId: TENANT_ID,
 
   // Timeouts (mobile may need longer)
   timeout: {

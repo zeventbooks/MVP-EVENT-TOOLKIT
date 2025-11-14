@@ -4,12 +4,14 @@
  * Contains common methods and utilities for all page objects
  */
 
+const { BASE_URL, TENANT_ID, ADMIN_KEY } = require('../config/test.config.js');
+
 class BasePage {
   constructor(page) {
     this.page = page;
-    this.baseUrl = process.env.BASE_URL || 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec';
-    this.tenantId = process.env.TENANT_ID || 'root';
-    this.adminKey = process.env.ADMIN_KEY || 'CHANGE_ME_root';
+    this.baseUrl = BASE_URL;
+    this.tenantId = TENANT_ID;
+    this.adminKey = ADMIN_KEY;
   }
 
   /**

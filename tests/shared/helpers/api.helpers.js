@@ -4,9 +4,7 @@
  * Shared utilities for making API requests across all test types
  */
 
-const BASE_URL = process.env.BASE_URL || 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec';
-const ADMIN_KEY = process.env.ADMIN_KEY || 'CHANGE_ME_root';
-const TENANT_ID = process.env.TENANT_ID || 'root';
+const { BASE_URL, ADMIN_KEY, TENANT_ID } = require('../config/test.config.js');
 
 /**
  * Validate API response envelope
