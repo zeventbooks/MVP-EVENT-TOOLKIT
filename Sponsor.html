@@ -78,6 +78,7 @@
       border-radius: 8px;
       font-size: 1rem;
       transition: border-color 0.2s;
+      box-sizing: border-box;
     }
     .form-group input:focus,
     .form-group textarea:focus,
@@ -109,6 +110,17 @@
     }
     .btn-secondary:hover {
       background: #4b5563;
+    }
+    .btn-danger {
+      background: #ef4444;
+      color: white;
+    }
+    .btn-danger:hover {
+      background: #dc2626;
+    }
+    .btn-sm {
+      padding: 0.5rem 1rem;
+      font-size: 0.875rem;
     }
     .sponsor-list {
       display: grid;
@@ -150,44 +162,136 @@
       display: flex;
       gap: 0.5rem;
       margin-top: 1rem;
+      flex-wrap: wrap;
     }
-    .sponsor-card .btn-sm {
-      padding: 0.5rem 1rem;
-      font-size: 0.875rem;
+    .tier-badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
     }
-    .placement-options {
+    .tier-platinum {
+      background: #e5e7eb;
+      color: #1f2937;
+    }
+    .tier-gold {
+      background: #fef3c7;
+      color: #92400e;
+    }
+    .tier-silver {
+      background: #f3f4f6;
+      color: #374151;
+    }
+    .tier-bronze {
+      background: #fed7aa;
+      color: #7c2d12;
+    }
+    .alert {
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+    }
+    .alert-info {
+      background: #dbeafe;
+      border: 2px solid #93c5fd;
+      color: #1e40af;
+    }
+    .alert-success {
+      background: #d1fae5;
+      border: 2px solid #6ee7b7;
+      color: #065f46;
+    }
+    .alert-error {
+      background: #fee2e2;
+      border: 2px solid #fca5a5;
+      color: #991b1b;
+    }
+    .loading {
+      text-align: center;
+      padding: 2rem;
+      color: #6b7280;
+    }
+    .empty-state {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: #6b7280;
+    }
+    .empty-state-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+    .analytics-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
       gap: 1rem;
       margin-top: 1rem;
     }
-    .placement-option {
-      padding: 1rem;
+    .analytics-card {
+      background: #f9fafb;
       border: 2px solid #e5e7eb;
       border-radius: 8px;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    .placement-option:hover {
-      border-color: #667eea;
-      background: #f3f4f6;
-    }
-    .placement-option input[type="checkbox"] {
-      margin-right: 0.5rem;
-    }
-    .coming-soon {
+      padding: 1.5rem;
       text-align: center;
-      padding: 3rem;
-      color: #6b7280;
     }
-    .coming-soon-icon {
-      font-size: 4rem;
-      margin-bottom: 1rem;
+    .analytics-card .value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #1f2937;
+      margin-bottom: 0.5rem;
+    }
+    .analytics-card .label {
+      font-size: 0.875rem;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    #auth-prompt {
+      background: rgba(0,0,0,0.5);
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    #auth-prompt .auth-modal {
+      background: white;
+      border-radius: 16px;
+      padding: 2rem;
+      max-width: 400px;
+      width: 90%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    #auth-prompt h2 {
+      margin: 0 0 1rem 0;
+      color: #1f2937;
     }
   </style>
 </head>
 <body>
-  <div class="container">
+  <!-- Authentication Prompt (shown if no admin key) -->
+  <div id="auth-prompt" style="display: none;">
+    <div class="auth-modal">
+      <h2>🔐 Admin Authentication Required</h2>
+      <p>Enter your admin key to manage sponsors:</p>
+      <div class="form-group">
+        <input type="password" id="admin-key-input" placeholder="Enter admin key" />
+      </div>
+      <button class="btn btn-primary" onclick="authenticateAdmin()" style="width: 100%;">
+        Unlock Sponsor Management
+      </button>
+      <p style="margin-top: 1rem; font-size: 0.875rem; color: #6b7280;">
+        Don't have an admin key? Contact your system administrator.
+      </p>
+    </div>
+  </div>
+
+  <div class="container" id="main-content" style="display: none;">
     <!-- Header -->
     <div class="page-header">
       <div class="nav-breadcrumb">
@@ -197,7 +301,33 @@
         <span>🏢</span>
         Sponsor Management
       </h1>
-      <div class="subtitle">Manage sponsor relationships, logos, and placements across events</div>
+      <div class="subtitle">Manage sponsor relationships, logos, and placements</div>
+    </div>
+
+    <!-- Alert Container -->
+    <div id="alert-container"></div>
+
+    <!-- Analytics Section -->
+    <div class="section">
+      <h2>Sponsor Analytics</h2>
+      <div class="analytics-grid">
+        <div class="analytics-card">
+          <div class="value" id="total-sponsors">0</div>
+          <div class="label">Total Sponsors</div>
+        </div>
+        <div class="analytics-card">
+          <div class="value" id="platinum-count">0</div>
+          <div class="label">Platinum Tier</div>
+        </div>
+        <div class="analytics-card">
+          <div class="value" id="gold-count">0</div>
+          <div class="label">Gold Tier</div>
+        </div>
+        <div class="analytics-card">
+          <div class="value" id="active-sponsors">0</div>
+          <div class="label">Active</div>
+        </div>
+      </div>
     </div>
 
     <!-- Add New Sponsor Section -->
@@ -215,55 +345,44 @@
         </div>
 
         <div class="form-group">
-          <label for="sponsor-website">Website URL</label>
-          <input type="url" id="sponsor-website" name="website" placeholder="https://example.com" />
+          <label for="sponsor-website">Website URL *</label>
+          <input type="url" id="sponsor-website" name="website" placeholder="https://example.com" required />
         </div>
 
         <div class="form-group">
-          <label for="sponsor-description">Description</label>
+          <label for="sponsor-tier">Sponsorship Tier</label>
+          <select id="sponsor-tier" name="tier">
+            <option value="platinum">Platinum</option>
+            <option value="gold" selected>Gold</option>
+            <option value="silver">Silver</option>
+            <option value="bronze">Bronze</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="sponsor-description">Description (Optional)</label>
           <textarea id="sponsor-description" name="description" rows="3" placeholder="Brief description of the sponsor"></textarea>
         </div>
 
-        <div class="form-group">
-          <label>Default Placements</label>
-          <div class="placement-options">
-            <label class="placement-option">
-              <input type="checkbox" name="placement" value="poster-top" checked />
-              <span>Poster Top Banner</span>
-            </label>
-            <label class="placement-option">
-              <input type="checkbox" name="placement" value="tv-top" checked />
-              <span>TV Display Top</span>
-            </label>
-            <label class="placement-option">
-              <input type="checkbox" name="placement" value="tv-side" />
-              <span>TV Display Side</span>
-            </label>
-            <label class="placement-option">
-              <input type="checkbox" name="placement" value="mobile-banner" />
-              <span>Mobile Banner</span>
-            </label>
-          </div>
-        </div>
-
-        <button type="submit" class="btn btn-primary">Add Sponsor</button>
+        <button type="submit" class="btn btn-primary">
+          <span id="add-btn-text">Add Sponsor</span>
+          <span id="add-btn-loading" style="display: none;">Adding...</span>
+        </button>
       </form>
     </div>
 
     <!-- Existing Sponsors Section -->
     <div class="section">
-      <h2>Existing Sponsors</h2>
-      <div class="coming-soon">
-        <div class="coming-soon-icon">🏗️</div>
-        <h3>Coming Soon</h3>
-        <p>Sponsor management interface will be available in the next release.</p>
-        <p style="margin-top: 1rem;">For now, sponsors can be configured in the <a href="?page=admin&tenant=<?= tenantId ?>" style="color: #667eea;">Admin Dashboard</a> when creating events.</p>
+      <h2>Active Sponsors</h2>
+      <div id="loading-sponsors" class="loading">
+        <div>Loading sponsors...</div>
       </div>
-
-      <!-- Placeholder for sponsor cards -->
-      <div class="sponsor-list" id="sponsor-list" style="display:none;">
-        <!-- Dynamic sponsor cards will be inserted here -->
+      <div id="empty-sponsors" class="empty-state" style="display: none;">
+        <div class="empty-state-icon">📭</div>
+        <h3>No Sponsors Yet</h3>
+        <p>Add your first sponsor using the form above to get started.</p>
       </div>
+      <div class="sponsor-list" id="sponsor-list"></div>
     </div>
 
     <!-- Back to Dashboard Button -->
@@ -275,11 +394,293 @@
   </div>
 
   <script>
-    // Placeholder for sponsor management functionality
-    document.getElementById('add-sponsor-form').addEventListener('submit', function(e) {
-      e.preventDefault();
-      alert('Sponsor management functionality coming soon! This feature will allow you to:\n\n• Create and manage sponsors\n• Upload sponsor logos\n• Configure placement across all surfaces\n• Track sponsor analytics and ROI\n\nFor now, you can add sponsors when creating events in the Admin Dashboard.');
+    // Global state
+    let adminKey = null;
+    const tenantId = '<?= tenantId ?>';
+    let sponsors = [];
+
+    // Initialize on page load
+    window.addEventListener('DOMContentLoaded', function() {
+      // Check if admin key is stored in session
+      adminKey = sessionStorage.getItem('adminKey');
+
+      if (adminKey) {
+        showMainContent();
+        loadSponsors();
+      } else {
+        showAuthPrompt();
+      }
+
+      // Setup form handler
+      document.getElementById('add-sponsor-form').addEventListener('submit', handleAddSponsor);
     });
+
+    function showAuthPrompt() {
+      document.getElementById('auth-prompt').style.display = 'flex';
+      document.getElementById('main-content').style.display = 'none';
+
+      // Allow Enter key to submit
+      document.getElementById('admin-key-input').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+          authenticateAdmin();
+        }
+      });
+    }
+
+    function showMainContent() {
+      document.getElementById('auth-prompt').style.display = 'none';
+      document.getElementById('main-content').style.display = 'block';
+    }
+
+    function authenticateAdmin() {
+      const input = document.getElementById('admin-key-input');
+      const key = input.value.trim();
+
+      if (!key) {
+        showAlert('Please enter an admin key', 'error');
+        return;
+      }
+
+      adminKey = key;
+      sessionStorage.setItem('adminKey', key);
+
+      showMainContent();
+      loadSponsors();
+    }
+
+    function showAlert(message, type = 'info') {
+      const container = document.getElementById('alert-container');
+      const alert = document.createElement('div');
+      alert.className = `alert alert-${type}`;
+      alert.textContent = message;
+
+      container.innerHTML = '';
+      container.appendChild(alert);
+
+      // Auto-dismiss after 5 seconds
+      setTimeout(() => {
+        alert.remove();
+      }, 5000);
+    }
+
+    async function loadSponsors() {
+      const loadingEl = document.getElementById('loading-sponsors');
+      const emptyEl = document.getElementById('empty-sponsors');
+      const listEl = document.getElementById('sponsor-list');
+
+      loadingEl.style.display = 'block';
+      emptyEl.style.display = 'none';
+      listEl.innerHTML = '';
+
+      try {
+        const response = await fetch(`?p=api&action=list&tenantId=${tenantId}&scope=sponsors`);
+        const data = await response.json();
+
+        if (data.ok && data.value && data.value.items) {
+          sponsors = data.value.items;
+
+          if (sponsors.length === 0) {
+            loadingEl.style.display = 'none';
+            emptyEl.style.display = 'block';
+          } else {
+            renderSponsors(sponsors);
+            updateAnalytics(sponsors);
+            loadingEl.style.display = 'none';
+          }
+        } else {
+          throw new Error(data.err || 'Failed to load sponsors');
+        }
+      } catch (error) {
+        console.error('Error loading sponsors:', error);
+        showAlert('Failed to load sponsors: ' + error.message, 'error');
+        loadingEl.style.display = 'none';
+      }
+    }
+
+    function renderSponsors(sponsors) {
+      const listEl = document.getElementById('sponsor-list');
+      listEl.innerHTML = '';
+
+      sponsors.forEach(sponsor => {
+        const card = createSponsorCard(sponsor);
+        listEl.appendChild(card);
+      });
+    }
+
+    function createSponsorCard(sponsor) {
+      const card = document.createElement('div');
+      card.className = 'sponsor-card';
+      card.innerHTML = `
+        <h3>${escapeHtml(sponsor.name)}</h3>
+        ${sponsor.tier ? `<span class="tier-badge tier-${sponsor.tier}">${sponsor.tier}</span>` : ''}
+        ${sponsor.logo ? `<img src="${escapeHtml(sponsor.logo)}" alt="${escapeHtml(sponsor.name)} logo" class="sponsor-logo" onerror="this.style.display='none'">` : ''}
+        <div class="sponsor-info">
+          ${sponsor.website ? `🌐 <a href="${escapeHtml(sponsor.website)}" target="_blank" style="color: #667eea;">${escapeHtml(sponsor.website)}</a>` : ''}
+        </div>
+        ${sponsor.description ? `<div class="sponsor-info">${escapeHtml(sponsor.description)}</div>` : ''}
+        <div class="sponsor-info" style="font-size: 0.75rem; color: #9ca3af;">
+          ID: ${escapeHtml(sponsor.id)}
+        </div>
+        <div class="sponsor-actions">
+          <button class="btn btn-secondary btn-sm" onclick="editSponsor('${escapeHtml(sponsor.id)}')">
+            ✏️ Edit
+          </button>
+          <button class="btn btn-danger btn-sm" onclick="deleteSponsor('${escapeHtml(sponsor.id)}', '${escapeHtml(sponsor.name)}')">
+            🗑️ Delete
+          </button>
+        </div>
+      `;
+      return card;
+    }
+
+    function updateAnalytics(sponsors) {
+      document.getElementById('total-sponsors').textContent = sponsors.length;
+      document.getElementById('platinum-count').textContent = sponsors.filter(s => s.tier === 'platinum').length;
+      document.getElementById('gold-count').textContent = sponsors.filter(s => s.tier === 'gold').length;
+      document.getElementById('active-sponsors').textContent = sponsors.filter(s => !s.archived).length;
+    }
+
+    async function handleAddSponsor(e) {
+      e.preventDefault();
+
+      const form = e.target;
+      const submitBtn = form.querySelector('button[type="submit"]');
+      const btnText = document.getElementById('add-btn-text');
+      const btnLoading = document.getElementById('add-btn-loading');
+
+      // Disable form
+      submitBtn.disabled = true;
+      btnText.style.display = 'none';
+      btnLoading.style.display = 'inline';
+
+      try {
+        const formData = new FormData(form);
+        const sponsorData = {
+          name: formData.get('name'),
+          website: formData.get('website'),
+          tier: formData.get('tier'),
+          entity: 'sponsor'
+        };
+
+        // Optional fields
+        if (formData.get('logo')) sponsorData.logo = formData.get('logo');
+        if (formData.get('description')) sponsorData.description = formData.get('description');
+
+        const response = await google.script.run
+          .withSuccessHandler(function(result) {
+            if (result.ok) {
+              showAlert('Sponsor added successfully!', 'success');
+              form.reset();
+              loadSponsors();
+            } else {
+              throw new Error(result.err || 'Failed to create sponsor');
+            }
+
+            // Re-enable form
+            submitBtn.disabled = false;
+            btnText.style.display = 'inline';
+            btnLoading.style.display = 'none';
+          })
+          .withFailureHandler(function(error) {
+            showAlert('Error: ' + error.message, 'error');
+
+            // Re-enable form
+            submitBtn.disabled = false;
+            btnText.style.display = 'inline';
+            btnLoading.style.display = 'none';
+          })
+          .api_create({
+            tenantId: tenantId,
+            scope: 'sponsors',
+            templateId: 'sponsor',
+            adminKey: adminKey,
+            data: sponsorData
+          });
+
+      } catch (error) {
+        showAlert('Error adding sponsor: ' + error.message, 'error');
+
+        // Re-enable form
+        submitBtn.disabled = false;
+        btnText.style.display = 'inline';
+        btnLoading.style.display = 'none';
+      }
+    }
+
+    async function editSponsor(sponsorId) {
+      const sponsor = sponsors.find(s => s.id === sponsorId);
+      if (!sponsor) {
+        showAlert('Sponsor not found', 'error');
+        return;
+      }
+
+      const newName = prompt('Edit Sponsor Name:', sponsor.name);
+      if (!newName || newName === sponsor.name) return;
+
+      try {
+        const response = await google.script.run
+          .withSuccessHandler(function(result) {
+            if (result.ok) {
+              showAlert('Sponsor updated successfully!', 'success');
+              loadSponsors();
+            } else {
+              throw new Error(result.err || 'Failed to update sponsor');
+            }
+          })
+          .withFailureHandler(function(error) {
+            showAlert('Error updating sponsor: ' + error.message, 'error');
+          })
+          .api_update({
+            tenantId: tenantId,
+            scope: 'sponsors',
+            id: sponsorId,
+            adminKey: adminKey,
+            data: { name: newName }
+          });
+      } catch (error) {
+        showAlert('Error: ' + error.message, 'error');
+      }
+    }
+
+    async function deleteSponsor(sponsorId, sponsorName) {
+      if (!confirm(`Are you sure you want to delete "${sponsorName}"?\n\nThis action cannot be undone.`)) {
+        return;
+      }
+
+      try {
+        const response = await google.script.run
+          .withSuccessHandler(function(result) {
+            if (result.ok) {
+              showAlert('Sponsor deleted successfully!', 'success');
+              loadSponsors();
+            } else {
+              throw new Error(result.err || 'Failed to delete sponsor');
+            }
+          })
+          .withFailureHandler(function(error) {
+            showAlert('Error deleting sponsor: ' + error.message, 'error');
+          })
+          .api_delete({
+            tenantId: tenantId,
+            scope: 'sponsors',
+            id: sponsorId,
+            adminKey: adminKey
+          });
+      } catch (error) {
+        showAlert('Error: ' + error.message, 'error');
+      }
+    }
+
+    function escapeHtml(unsafe) {
+      if (!unsafe) return '';
+      return unsafe
+        .toString()
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
   </script>
 </body>
 </html>
