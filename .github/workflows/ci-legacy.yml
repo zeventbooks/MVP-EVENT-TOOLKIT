@@ -258,17 +258,17 @@ jobs:
             "name": "CI Deployment",
             "values": [
               {
-                "key": "BASE_URL",
+                "key": "baseUrl",
                 "value": "$BASE_URL",
                 "enabled": true
               },
               {
-                "key": "ADMIN_KEY",
+                "key": "adminKey",
                 "value": "$ADMIN_KEY",
                 "enabled": true
               },
               {
-                "key": "tenant",
+                "key": "tenantId",
                 "value": "root",
                 "enabled": true
               }
@@ -281,8 +281,8 @@ jobs:
           newman run postman/collections/mvp-event-toolkit-api.json \
             -e postman/environments/ci-deployment.json \
             --folder System \
-            -r cli,json,html \
-            --reporter-html-export newman-reports/ci-report.html \
+            -r cli,json,htmlextra \
+            --reporter-htmlextra-export newman-reports/ci-report.html \
             --reporter-json-export newman-reports/ci-report.json \
             || echo "⚠️ Newman smoke tests encountered issues"
 
