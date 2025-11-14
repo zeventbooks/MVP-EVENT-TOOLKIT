@@ -2,24 +2,27 @@
  * Contract Tests for API Responses
  *
  * Ensures all API endpoints return responses matching the documented contract
+ *
+ * REFACTORED: Now uses DRY helpers and fixtures
  */
 
+const {
+  validateEnvelope,
+  validateSuccessEnvelope,
+  validateErrorEnvelope,
+  validateEventStructure,
+  validateEventLinks,
+  validateAnalyticsStructure,
+  ERROR_CODES
+} = require('../shared/helpers/test.helpers');
+
+const {
+  createBasicEvent,
+  createEventResponse,
+  createEventListResponse
+} = require('../shared/fixtures/events.fixtures');
+
 describe('API Contract Tests', () => {
-
-  const validateEnvelope = (response) => {
-    expect(response).toHaveProperty('ok');
-    expect(typeof response.ok).toBe('boolean');
-
-    if (response.ok) {
-      // notModified responses don't have value property
-      if (!response.notModified) {
-        expect(response).toHaveProperty('value');
-      }
-    } else {
-      expect(response).toHaveProperty('code');
-      expect(response).toHaveProperty('message');
-    }
-  };
 
   describe('api_status', () => {
     it('should return valid Ok envelope', () => {
@@ -231,20 +234,20 @@ describe('API Contract Tests', () => {
   });
 
   describe('Error codes', () => {
-    const errorCodes = ['BAD_INPUT', 'NOT_FOUND', 'RATE_LIMITED', 'INTERNAL', 'CONTRACT'];
+    const errorCodes = Object.keys(ERROR_CODES);
 
     errorCodes.forEach(code => {
       it(`should have ${code} error code defined`, () => {
-        const ERR = Object.freeze({
-          BAD_INPUT:   'BAD_INPUT',
-          NOT_FOUND:   'NOT_FOUND',
-          RATE_LIMITED:'RATE_LIMITED',
-          INTERNAL:    'INTERNAL',
-          CONTRACT:    'CONTRACT'
-        });
-
-        expect(ERR[code]).toBe(code);
+        expect(ERROR_CODES[code]).toBe(code);
       });
+    });
+
+    it('should have all required error codes', () => {
+      expect(ERROR_CODES).toHaveProperty('BAD_INPUT');
+      expect(ERROR_CODES).toHaveProperty('NOT_FOUND');
+      expect(ERROR_CODES).toHaveProperty('RATE_LIMITED');
+      expect(ERROR_CODES).toHaveProperty('INTERNAL');
+      expect(ERROR_CODES).toHaveProperty('CONTRACT');
     });
   });
 });

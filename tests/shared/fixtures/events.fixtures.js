@@ -23,19 +23,101 @@ const generateEventId = () => {
 };
 
 /**
- * Basic event fixture (minimal required fields)
+ * Event Builder - Creates events with builder pattern to avoid timestamp collisions
  */
-const basicEvent = {
+class EventBuilder {
+  constructor() {
+    this.event = {
+      name: generateEventName('Test Event'),
+      dateISO: '2025-12-15',
+      location: 'Test Venue',
+      description: 'This is a test event for automated testing.',
+    };
+  }
+
+  withName(name) {
+    this.event.name = name;
+    return this;
+  }
+
+  withDate(dateISO) {
+    this.event.dateISO = dateISO;
+    return this;
+  }
+
+  withLocation(location) {
+    this.event.location = location;
+    return this;
+  }
+
+  withDescription(description) {
+    this.event.description = description;
+    return this;
+  }
+
+  withTime(timeStart, timeEnd) {
+    this.event.timeStart = timeStart;
+    this.event.timeEnd = timeEnd;
+    return this;
+  }
+
+  withAddress(address) {
+    this.event.address = address;
+    return this;
+  }
+
+  withSponsors(sponsors) {
+    this.event.sponsors = sponsors;
+    return this;
+  }
+
+  withForms(forms) {
+    this.event.registrationUrl = forms.registrationUrl;
+    this.event.checkinUrl = forms.checkinUrl;
+    this.event.walkinUrl = forms.walkinUrl;
+    this.event.surveyUrl = forms.surveyUrl;
+    return this;
+  }
+
+  withDisplay(mode, urls, interval = 15000) {
+    this.event.displayMode = mode;
+    this.event.displayUrls = urls;
+    this.event.displayInterval = interval;
+    return this;
+  }
+
+  withMap(mapUrl) {
+    this.event.mapUrl = mapUrl;
+    return this;
+  }
+
+  withStatus(status) {
+    this.event.status = status;
+    return this;
+  }
+
+  build() {
+    return { ...this.event };
+  }
+}
+
+/**
+ * Factory function for basic event (minimal required fields)
+ * Returns a NEW instance each time to avoid timestamp collisions
+ */
+const createBasicEvent = (overrides = {}) => ({
   name: generateEventName('Basic Event'),
   dateISO: '2025-12-15',
   location: 'Test Venue',
   description: 'This is a test event for automated testing.',
-};
+  ...overrides
+});
 
 /**
- * Complete event fixture (all fields)
+ * Factory function for complete event (all fields)
+ * Returns a NEW instance each time
  */
-const completeEvent = {
+const createCompleteEvent = (overrides = {}) => ({
   name: generateEventName('Complete Event'),
   dateISO: '2025-12-20',
   timeStart: '18:00',
@@ -65,12 +147,13 @@ const completeEvent = {
 
   // Map configuration
   mapUrl: 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3022.215121057468!2d-73.98656668459377!3d40.74844097932847!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zNDDCsDQ0JzU0LjQiTiA3M8KwNTknMTEuNiJX!5e0!3m2!1sen!2sus!4v1234567890123!5m2!1sen!2sus',
-};
+  ...overrides
+});
 
 /**
- * Event with sponsors (Before Event phase)
+ * Factory function for event with sponsors (Before Event phase)
  */
-const eventWithSponsors = {
+const createEventWithSponsors = (overrides = {}) => ({
   name: generateEventName('Sponsored Event'),
   dateISO: '2025-12-25',
   location: 'Sponsored Venue',
@@ -94,13 +177,14 @@ const eventWithSponsors = {
       logo: 'https://via.placeholder.com/300x100/CD7F32/000000?text=Silver+Solutions',
       website: 'https://silver-solutions.example.com'
     }
-  ]
-};
+  ],
+  ...overrides
+});
 
 /**
- * Event with display configuration (During Event phase)
+ * Factory function for event with display configuration (During Event phase)
  */
-const eventWithDisplay = {
+const createEventWithDisplay = (overrides = {}) => ({
   name: generateEventName('Display Event'),
   dateISO: '2025-12-30',
   location: 'Display Venue',
@@ -112,18 +196,28 @@ const eventWithDisplay = {
     'https://example.com/custom-content'
   ],
   displayInterval: 15000, // 15 seconds
-};
+  ...overrides
+});
 
 /**
- * Past event (After Event phase - for analytics)
+ * Factory function for past event (After Event phase - for analytics)
  */
-const pastEvent = {
+const createPastEvent = (overrides = {}) => ({
   name: generateEventName('Past Event'),
   dateISO: '2025-01-01',
   location: 'Past Venue',
   description: 'Event that has already occurred',
   status: 'completed',
-};
+  ...overrides
+});
+
+// DEPRECATED: Use factory functions instead (e.g., createBasicEvent())
+// These are kept for backwards compatibility but will cause timestamp collisions
+const basicEvent = createBasicEvent();
+const completeEvent = createCompleteEvent();
+const eventWithSponsors = createEventWithSponsors();
+const eventWithDisplay = createEventWithDisplay();
+const pastEvent = createPastEvent();
 
 /**
  * Event API response envelope
@@ -197,11 +291,19 @@ module.exports = {
   generateEventName,
   generateEventId,
 
-  // Basic fixtures
+  // Builder Pattern (RECOMMENDED)
+  EventBuilder,
+
+  // Factory Functions (RECOMMENDED - use these instead of deprecated constants)
+  createBasicEvent,
+  createCompleteEvent,
+  createEventWithSponsors,
+  createEventWithDisplay,
+  createPastEvent,
+
+  // DEPRECATED fixtures (use factory functions instead)
   basicEvent,
   completeEvent,
-
-  // Phase-specific fixtures
   eventWithSponsors,
   eventWithDisplay,
   pastEvent,

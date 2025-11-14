@@ -7,23 +7,25 @@
  * API Endpoint: ?action=create
  * Purpose: Create new events with full details
  * User Roles: Event Manager (primary)
+ *
+ * REFACTORED: Now uses DRY helpers and fixtures
  */
 
+const {
+  validateEnvelope,
+  validateSuccessEnvelope,
+  validateErrorEnvelope,
+  validateEventLinks,
+  ERROR_CODES
+} = require('../../../shared/helpers/test.helpers');
+
+const {
+  createBasicEvent,
+  createCompleteEvent,
+  EventBuilder
+} = require('../../../shared/fixtures/events.fixtures');
+
 describe('🔺 TRIANGLE [BEFORE EVENT]: Create Event API Contract', () => {
-
-  const validateEnvelope = (response) => {
-    expect(response).toHaveProperty('ok');
-    expect(typeof response.ok).toBe('boolean');
-
-    if (response.ok) {
-      if (!response.notModified) {
-        expect(response).toHaveProperty('value');
-      }
-    } else {
-      expect(response).toHaveProperty('code');
-      expect(response).toHaveProperty('message');
-    }
-  };
 
   describe('api_create - Success responses', () => {
     it('should return id and links on successful creation', () => {
