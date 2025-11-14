@@ -1,4 +1,8 @@
 const { defineConfig, devices } = require('@playwright/test');
+const { getCurrentEnvironment } = require('./tests/config/environments');
+
+// Get the current environment configuration
+const env = getCurrentEnvironment();
 
 module.exports = defineConfig({
   testDir: './tests/e2e',
@@ -7,11 +11,22 @@ module.exports = defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
+
   use: {
-    baseURL: process.env.BASE_URL || 'http://localhost:3000',
+    // Use environment-aware base URL
+    // Defaults to Hostinger, can be overridden with BASE_URL or TEST_ENV
+    baseURL: env.baseUrl,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
+
+    // Extra HTTP headers
+    extraHTTPHeaders: {
+      'Accept': 'text/html,application/json',
+    },
   },
+
+  // Global setup - print environment info before tests
+  globalSetup: require.resolve('./tests/config/global-setup.js'),
 
   projects: [
     // MOBILE-FIRST: Test mobile devices FIRST (priority)
@@ -75,5 +90,5 @@ module.exports = defineConfig({
     },
   ],
 
-  // No webServer needed - we test the deployed Google Apps Script URL directly
+  // No webServer needed - we test deployed URLs directly (Google Apps Script or Hostinger)
 });

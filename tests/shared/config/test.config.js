@@ -2,13 +2,20 @@
  * Global Test Configuration
  *
  * Shared configuration for all test types across Triangle phases
+ *
+ * IMPORTANT: BASE_URL behavior
+ * - Unit/Contract tests (Jest): BASE_URL is OPTIONAL - uses default mock URL if not set
+ * - E2E/API tests (Playwright): BASE_URL should be set to test real deployment
+ * - This allows `npm test` to run without environment variables
+ * - Playwright tests should validate BASE_URL is set before running
  */
 
 // Environment
 const ENV = process.env.NODE_ENV || 'test';
 const IS_CI = process.env.CI === 'true';
 
-// Base URLs
+// Base URLs - Provide defaults for unit/contract tests
+// These tests use mock data and don't make real API calls
 const BASE_URL = process.env.BASE_URL || 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec';
 const TENANT_ID = process.env.TENANT_ID || 'root';
 const ADMIN_KEY = process.env.ADMIN_KEY || 'CHANGE_ME_root';

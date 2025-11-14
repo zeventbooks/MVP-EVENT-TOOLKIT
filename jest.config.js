@@ -1,3 +1,14 @@
+/**
+ * Jest Configuration for Unit and Contract Tests
+ *
+ * These tests DO NOT require BASE_URL environment variable:
+ * - Unit tests use mocks and test logic in isolation
+ * - Contract tests validate response structures using mock data
+ * - All tests can run with default configuration values
+ *
+ * For E2E/API tests that require BASE_URL, see playwright.config.js
+ */
+
 module.exports = {
   testEnvironment: 'node',
   coverageDirectory: 'coverage',
