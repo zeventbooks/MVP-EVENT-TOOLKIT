@@ -1,10 +1,24 @@
-name: CI/CD Pipeline
+# ==============================================================================
+# LEGACY CI/CD PIPELINE (Replaced by Staged Deployment)
+# ==============================================================================
+# This file has been replaced by a two-stage deployment pipeline:
+#   - stage1-deploy.yml: Build, test, and deploy with URL outputs
+#   - stage2-testing.yml: Manual trigger for sequential testing + QA
+#
+# This legacy file is kept for reference. See docs/STAGED_DEPLOYMENT_GUIDE.md
+# for the new workflow documentation.
+#
+# You can safely delete this file if you don't need it for reference.
+# ==============================================================================
 
+name: CI/CD Pipeline (LEGACY - DISABLED)
+
+# Disabled by renaming - workflow won't run
 on:
   push:
-    branches: [ main, 'claude/**' ]
+    branches: [ DISABLED ]
   pull_request:
-    branches: [ main ]
+    branches: [ DISABLED ]
 
 jobs:
   # ============================================================================
