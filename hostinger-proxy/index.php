@@ -16,12 +16,11 @@
 // CONFIGURATION - UPDATE THIS WITH YOUR GOOGLE APPS SCRIPT DEPLOYMENT ID
 // ============================================================================
 
-define('GOOGLE_SCRIPT_URL', 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec');
+define('GOOGLE_SCRIPT_URL', 'https://script.google.com/macros/s/AKfycbzu-U4UgdjdAiXHTg9TD5Y-1gDkc798YSTqQCdhOddG/exec');
 
-// To find your deployment ID:
-// 1. Run: npx clasp deployments
-// 2. Or check your CI/CD deployment logs
-// 3. Look for: AKfycb... (the deployment ID)
+// ✅ CONFIGURED: Using @HEAD deployment
+// Deployment ID: AKfycbzu-U4UgdjdAiXHTg9TD5Y-1gDkc798YSTqQCdhOddG
+// If you need to update this, run: npx clasp deployments
 
 // ============================================================================
 // PROXY LOGIC - NO NEED TO MODIFY BELOW THIS LINE
