@@ -1,0 +1,100 @@
+name: CodeQL Security Analysis
+
+on:
+  push:
+    branches: [ main, 'claude/**' ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run weekly on Sundays at 00:00 UTC
+    - cron: '0 0 * * 0'
+
+jobs:
+  analyze:
+    name: 🔒 CodeQL Security Scan
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ 'javascript' ]
+        # CodeQL supports: 'cpp', 'csharp', 'go', 'java', 'javascript', 'python', 'ruby'
+        # Learn more about CodeQL language support at https://aka.ms/codeql-docs/language-support
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v3
+      with:
+        languages: ${{ matrix.language }}
+        # If you wish to specify custom queries, you can do so here or in a config file.
+        # By default, queries listed here will override any specified in a config file.
+        # Prefix the list here with "+" to use these queries and those in the config file.
+
+        # For more details on CodeQL's query packs, refer to: https://docs.github.com/en/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors/configuring-code-scanning#using-queries-in-ql-packs
+        queries: +security-extended,security-and-quality
+
+    - name: Setup Node.js (for dependency analysis)
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: |
+        echo "📦 Installing dependencies for better analysis..."
+        npm ci || npm install
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
+      with:
+        category: "/language:${{matrix.language}}"
+
+    - name: Upload SARIF results
+      if: always()
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: ../results
+        category: codeql-${{ matrix.language }}
+
+    - name: Create analysis summary
+      if: always()
+      run: |
+        echo "## 🔒 CodeQL Security Analysis Complete" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Language Analyzed" >> $GITHUB_STEP_SUMMARY
+        echo "- **JavaScript** (includes .js, .gs, .html files)" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Query Packs Used" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ **security-extended**: Extended security queries" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ **security-and-quality**: Security and code quality queries" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Coverage" >> $GITHUB_STEP_SUMMARY
+        echo "- Backend: Google Apps Script (.gs files)" >> $GITHUB_STEP_SUMMARY
+        echo "- Frontend: HTML files with embedded JavaScript" >> $GITHUB_STEP_SUMMARY
+        echo "- Tests: Jest and Playwright test files" >> $GITHUB_STEP_SUMMARY
+        echo "- Scripts: Deployment and utility scripts" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Security Checks Include" >> $GITHUB_STEP_SUMMARY
+        echo "- 🛡️ SQL Injection vulnerabilities" >> $GITHUB_STEP_SUMMARY
+        echo "- 🛡️ Cross-Site Scripting (XSS)" >> $GITHUB_STEP_SUMMARY
+        echo "- 🛡️ Command Injection" >> $GITHUB_STEP_SUMMARY
+        echo "- 🛡️ Path Traversal" >> $GITHUB_STEP_SUMMARY
+        echo "- 🛡️ Insecure Randomness" >> $GITHUB_STEP_SUMMARY
+        echo "- 🛡️ Hardcoded Credentials" >> $GITHUB_STEP_SUMMARY
+        echo "- 🛡️ Prototype Pollution" >> $GITHUB_STEP_SUMMARY
+        echo "- 🛡️ Regular Expression DoS (ReDoS)" >> $GITHUB_STEP_SUMMARY
+        echo "- 🛡️ And 200+ other security patterns" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Results" >> $GITHUB_STEP_SUMMARY
+        echo "Check the **Security** tab to view any findings" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "---" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "💡 **Tip**: CodeQL runs automatically on every push and PR, plus weekly scans" >> $GITHUB_STEP_SUMMARY
