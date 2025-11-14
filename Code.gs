@@ -120,7 +120,8 @@ function doGet(e){
 
   // Status endpoint
   if (pageParam === 'status') {
-    const status = api_status();
+    const tenantParam = (e?.parameter?.tenant || 'root').toString();
+    const status = api_status(tenantParam);
     return ContentService.createTextOutput(JSON.stringify(status, null, 2))
       .setMimeType(ContentService.MimeType.JSON);
   }
@@ -178,7 +179,7 @@ function handleRestApiGet_(e, action, tenant) {
 
   // Public endpoints (no auth required)
   if (action === 'status') {
-    return jsonResponse_(api_status());
+    return jsonResponse_(api_status(tenantId));
   }
 
   if (action === 'config') {
@@ -565,16 +566,21 @@ function _ensureShortlinksSheet_(){
 
 // === APIs (uniform envelopes + SWR) =======================================
 
-function api_status(){
+function api_status(tenantId){
   return runSafe('api_status', () => {
     try {
       const ss = SpreadsheetApp.getActive();
       const id = ss.getId();
       const dbOk = !!id;
 
+      // Get tenant info if provided
+      const tenant = tenantId ? findTenant_(tenantId) : findTenant_('root');
+      const tenantInfo = tenant ? tenant.id : 'root';
+
       return _ensureOk_('api_status', SC_STATUS, Ok({
         build: ZEB.BUILD_ID,
         contract: ZEB.CONTRACT_VER,
+        tenant: tenantInfo,
         time: new Date().toISOString(),
         db: { ok: dbOk, id }
       }));
@@ -1011,7 +1017,7 @@ function api_runDiagnostics(){
 
     try {
       // 1. Status check
-      const st = api_status();
+      const st = api_status('root');
       steps.push({ name: 'status', ok: st.ok, error: st.ok ? null : st.message });
       if (!st.ok) return Ok({ steps, ok: false });
 
