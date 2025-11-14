@@ -253,7 +253,8 @@ test.describe('📱 Mobile Performance Tests', () => {
       await page.waitForLoadState('networkidle');
 
       const jsHeapSize = await page.evaluate(() => {
-        return (performance as any).memory?.usedJSHeapSize || 0;
+        // eslint-disable-next-line no-undef
+        return performance.memory?.usedJSHeapSize || 0;
       });
 
       // Mobile devices have limited memory
@@ -276,8 +277,10 @@ test.describe('📱 Mobile Performance Tests', () => {
 
           const observer = new PerformanceObserver((list) => {
             for (const entry of list.getEntries()) {
-              if (!(entry as any).hadRecentInput) {
-                clsValue += (entry as any).value;
+              // eslint-disable-next-line no-undef
+              if (!entry.hadRecentInput) {
+                // eslint-disable-next-line no-undef
+                clsValue += entry.value;
               }
             }
           });

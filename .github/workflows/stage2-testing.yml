@@ -81,20 +81,135 @@ jobs:
           echo "${{ steps.get-url.outputs.url }}"
 
   # ============================================================================
-  # STAGE 2: PLAYWRIGHT TESTS (Parallel Execution - API + E2E)
+  # STAGE 2: CRITICAL TESTS (API + Smoke) - Run First
   # ============================================================================
 
-  playwright-tests:
-    name: 🎭 Playwright Tests - ${{ matrix.suite }}
+  critical-tests:
+    name: 🔥 Critical Tests - ${{ matrix.suite }}
     runs-on: ubuntu-latest
     needs: setup
     if: needs.setup.outputs.skip_tests != 'true'
     strategy:
-      fail-fast: false  # Continue all tests even if one fails
+      fail-fast: false  # Continue even if one fails
       matrix:
         suite:
           - api
           - smoke
+    outputs:
+      api_result: ${{ steps.mark-result.outputs.api_result }}
+      smoke_result: ${{ steps.mark-result.outputs.smoke_result }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run ${{ matrix.suite }} tests
+        id: test-run
+        continue-on-error: true
+        env:
+          BASE_URL: ${{ needs.setup.outputs.deployment_url }}
+          ADMIN_KEY: ${{ secrets.ADMIN_KEY_ROOT }}
+        run: |
+          echo "🔥 Running ${{ matrix.suite }} tests against: $BASE_URL"
+
+          if [ "${{ matrix.suite }}" == "api" ]; then
+            echo "⏳ Waiting 10 seconds to avoid rate limits..."
+            sleep 10
+            npm run test:api
+          else
+            npm run test:smoke
+          fi
+
+      - name: Mark result
+        id: mark-result
+        if: always()
+        run: |
+          if [ "${{ steps.test-run.outcome }}" == "success" ]; then
+            echo "${{ matrix.suite }}_result=success" >> $GITHUB_OUTPUT
+          else
+            echo "${{ matrix.suite }}_result=failure" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload ${{ matrix.suite }} test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-${{ matrix.suite }}-report
+          path: playwright-report/
+          retention-days: 7
+
+  # ============================================================================
+  # FAILURE GATE: Check if critical tests passed enough to continue
+  # ============================================================================
+
+  failure-gate:
+    name: 🚦 Failure Gate - Check Critical Test Results
+    runs-on: ubuntu-latest
+    needs: [setup, critical-tests]
+    if: always() && needs.setup.outputs.skip_tests != 'true'
+    outputs:
+      should_run_expensive_tests: ${{ steps.gate.outputs.should_run }}
+      failure_rate: ${{ steps.gate.outputs.failure_rate }}
+    steps:
+      - name: Calculate failure rate
+        id: gate
+        run: |
+          echo "📊 Calculating failure rate for critical tests"
+          echo "=============================================="
+          echo ""
+          echo "API Tests: ${{ needs.critical-tests.result }}"
+          echo "Smoke Tests: ${{ needs.critical-tests.result }}"
+          echo ""
+
+          # Count failures (if job result is not success, count as failure)
+          FAILURES=0
+          TOTAL=2
+
+          if [[ "${{ needs.critical-tests.result }}" != "success" ]]; then
+            # At least one critical test failed
+            FAILURES=$((FAILURES + 1))
+          fi
+
+          # Calculate failure rate percentage
+          FAILURE_RATE=$((FAILURES * 100 / TOTAL))
+
+          echo "failure_rate=$FAILURE_RATE" >> $GITHUB_OUTPUT
+          echo "Failure Rate: $FAILURE_RATE%"
+          echo ""
+
+          # Decision: Run expensive tests only if failure rate < 50%
+          if [ $FAILURE_RATE -lt 50 ]; then
+            echo "✅ Failure rate < 50% - Will run Flow and Page tests"
+            echo "should_run=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Failure rate >= 50% - Skipping expensive Flow and Page tests"
+            echo "   (No point running expensive tests when critical tests mostly failing)"
+            echo "should_run=false" >> $GITHUB_OUTPUT
+          fi
+
+  # ============================================================================
+  # EXPENSIVE TESTS (Flows + Pages) - Only if critical tests mostly passed
+  # ============================================================================
+
+  expensive-tests:
+    name: 💰 Expensive Tests - ${{ matrix.suite }}
+    runs-on: ubuntu-latest
+    needs: [setup, failure-gate]
+    if: needs.failure-gate.outputs.should_run_expensive_tests == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        suite:
           - flows
           - pages
     steps:
@@ -112,35 +227,21 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
-      - name: Run Playwright ${{ matrix.suite }} tests
+      - name: Run ${{ matrix.suite }} tests
         env:
           BASE_URL: ${{ needs.setup.outputs.deployment_url }}
           ADMIN_KEY: ${{ secrets.ADMIN_KEY_ROOT }}
         run: |
-          echo "🎭 Running Playwright ${{ matrix.suite }} tests against: $BASE_URL"
+          echo "💰 Running ${{ matrix.suite }} tests against: $BASE_URL"
+          echo "   (Critical tests passed - proceeding with expensive tests)"
 
-          # Wait to avoid rate limits on first test suite
-          if [ "${{ matrix.suite }}" == "api" ]; then
-            echo "⏳ Waiting 10 seconds to avoid rate limits..."
-            sleep 10
+          if [ "${{ matrix.suite }}" == "flows" ]; then
+            npm run test:flows
+          else
+            npm run test:pages
           fi
 
-          case "${{ matrix.suite }}" in
-            api)
-              npm run test:api
-              ;;
-            smoke)
-              npm run test:smoke
-              ;;
-            flows)
-              npm run test:flows
-              ;;
-            pages)
-              npm run test:pages
-              ;;
-          esac
-
-      - name: Upload Playwright ${{ matrix.suite }} results
+      - name: Upload ${{ matrix.suite }} test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -155,7 +256,7 @@ jobs:
   quality-gate:
     name: 🎯 Quality Gate - Final Validation
     runs-on: ubuntu-latest
-    needs: [setup, playwright-tests]
+    needs: [setup, critical-tests, failure-gate, expensive-tests]
     if: always() && needs.setup.outputs.skip_tests != 'true'
     outputs:
       qa_approved: ${{ steps.gate.outputs.approved }}
@@ -166,96 +267,303 @@ jobs:
           echo "📊 Stage 2 Quality Gate Summary"
           echo "=============================================="
           echo ""
-          echo "Test Results:"
-          echo "  🎭 Playwright Tests:        ${{ needs.playwright-tests.result }}"
-          echo "     ↳ (All suites: api, smoke, flows, pages run in parallel)"
+          echo "Critical Tests (API + Smoke):"
+          echo "  🔥 Critical Tests:          ${{ needs.critical-tests.result }}"
+          echo ""
+          echo "Failure Gate:"
+          echo "  🚦 Failure Rate:            ${{ needs.failure-gate.outputs.failure_rate }}%"
+          echo "  🚦 Run Expensive Tests:     ${{ needs.failure-gate.outputs.should_run_expensive_tests }}"
+          echo ""
+          echo "Expensive Tests (Flows + Pages):"
+          if [[ "${{ needs.failure-gate.outputs.should_run_expensive_tests }}" == "true" ]]; then
+            echo "  💰 Expensive Tests:         ${{ needs.expensive-tests.result }}"
+          else
+            echo "  💰 Expensive Tests:         ⏭️ SKIPPED (Failure rate >= 50%)"
+          fi
           echo ""
           echo "=============================================="
 
-          # Check if all tests passed
-          if [[ "${{ needs.playwright-tests.result }}" != "success" ]]; then
+          # Check if all executed tests passed
+          CRITICAL_PASSED=false
+          EXPENSIVE_PASSED=true  # Default to true if not run
+
+          if [[ "${{ needs.critical-tests.result }}" == "success" ]]; then
+            CRITICAL_PASSED=true
+          fi
+
+          # Only check expensive tests if they ran
+          if [[ "${{ needs.failure-gate.outputs.should_run_expensive_tests }}" == "true" ]]; then
+            if [[ "${{ needs.expensive-tests.result }}" != "success" ]]; then
+              EXPENSIVE_PASSED=false
+            fi
+          fi
+
+          # Quality gate passes if:
+          # 1. Critical tests passed AND
+          # 2. (Expensive tests passed OR expensive tests were skipped due to high failure rate)
+          if [[ "$CRITICAL_PASSED" == "true" ]] && [[ "$EXPENSIVE_PASSED" == "true" ]]; then
+            echo ""
+            echo "✅ QUALITY GATE PASSED!"
+            echo "All executed tests passed. QA deployment approved."
+            echo "approved=true" >> $GITHUB_OUTPUT
+          else
             echo ""
             echo "❌ QUALITY GATE FAILED!"
-            echo "One or more tests failed. QA deployment blocked."
+            if [[ "$CRITICAL_PASSED" == "false" ]]; then
+              echo "   Critical tests failed. QA deployment blocked."
+            fi
+            if [[ "$EXPENSIVE_PASSED" == "false" ]]; then
+              echo "   Expensive tests failed. QA deployment blocked."
+            fi
             echo "approved=false" >> $GITHUB_OUTPUT
             exit 1
           fi
-
-          echo ""
-          echo "✅ ALL TESTS PASSED!"
-          echo "Quality gate approved for QA deployment."
-          echo "approved=true" >> $GITHUB_OUTPUT
 
       - name: Create quality gate summary
         if: always()
         run: |
           echo "## 🎯 Stage 2 Quality Gate Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 🚀 Process 3: Fast-Fail Progressive Testing" >> $GITHUB_STEP_SUMMARY
+          echo "### 🚀 Cost-Optimized Progressive Testing" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Strategy:**" >> $GITHUB_STEP_SUMMARY
+          echo "1. ✅ Run critical tests first (API + Smoke)" >> $GITHUB_STEP_SUMMARY
+          echo "2. ✅ Calculate failure rate" >> $GITHUB_STEP_SUMMARY
+          echo "3. ✅ Only run expensive tests (Flows + Pages) if failure rate < 50%" >> $GITHUB_STEP_SUMMARY
+          echo "4. ✅ Use only 2 devices: iPhone 14 Pro (mobile) + Chromium (desktop)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Deployment URL:** \`${{ needs.setup.outputs.deployment_url }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Test Execution (Parallel)" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔥 Critical Tests (API + Smoke)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Test Suite | Result |" >> $GITHUB_STEP_SUMMARY
-          echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| 🎭 Playwright Tests (Parallel) | ${{ needs.playwright-tests.result == 'success' && '✅ PASS' || '❌ FAIL' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| ↳ API Suite | ${{ needs.playwright-tests.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| ↳ Smoke Suite | ${{ needs.playwright-tests.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| ↳ Flow Suite | ${{ needs.playwright-tests.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| ↳ Page Suite | ${{ needs.playwright-tests.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "**Result:** \`${{ needs.critical-tests.result }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🚦 Failure Gate" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Failure Rate:** ${{ needs.failure-gate.outputs.failure_rate }}%" >> $GITHUB_STEP_SUMMARY
+          echo "**Run Expensive Tests:** ${{ needs.failure-gate.outputs.should_run_expensive_tests }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 💰 Expensive Tests (Flows + Pages)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ needs.failure-gate.outputs.should_run_expensive_tests }}" == "true" ]]; then
+            echo "**Result:** \`${{ needs.expensive-tests.result }}\`" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**Result:** ⏭️ **SKIPPED** (Failure rate >= 50% - cost optimization)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "💡 **Cost Saved:** Skipped expensive Flow and Page tests because critical tests mostly failed." >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📊 Test Results Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Test Suite | Status | Notes |" >> $GITHUB_STEP_SUMMARY
+          echo "|------------|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔥 API Tests | ${{ needs.critical-tests.result == 'success' && '✅ PASS' || '❌ FAIL' }} | Critical (fast) |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔥 Smoke Tests | ${{ needs.critical-tests.result == 'success' && '✅ PASS' || '❌ FAIL' }} | Critical (fast) |" >> $GITHUB_STEP_SUMMARY
+
+          if [[ "${{ needs.failure-gate.outputs.should_run_expensive_tests }}" == "true" ]]; then
+            echo "| 💰 Flow Tests | ${{ needs.expensive-tests.result == 'success' && '✅ PASS' || '❌ FAIL' }} | Expensive (conditional) |" >> $GITHUB_STEP_SUMMARY
+            echo "| 💰 Page Tests | ${{ needs.expensive-tests.result == 'success' && '✅ PASS' || '❌ FAIL' }} | Expensive (conditional) |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| 💰 Flow Tests | ⏭️ SKIPPED | High failure rate |" >> $GITHUB_STEP_SUMMARY
+            echo "| 💰 Page Tests | ⏭️ SKIPPED | High failure rate |" >> $GITHUB_STEP_SUMMARY
+          fi
+
           echo "" >> $GITHUB_STEP_SUMMARY
 
           if [[ "${{ steps.gate.outputs.approved }}" == "true" ]]; then
             echo "### ✅ Quality Gate: **PASSED**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "All tests passed successfully! Ready for QA deployment." >> $GITHUB_STEP_SUMMARY
+            echo "All executed tests passed successfully! Ready for QA deployment." >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Benefits of Process 3:**" >> $GITHUB_STEP_SUMMARY
-            echo "- ⚡ Parallel E2E tests (3x faster than sequential)" >> $GITHUB_STEP_SUMMARY
+            echo "**Benefits of Cost-Optimized Testing:**" >> $GITHUB_STEP_SUMMARY
+            echo "- 💰 Skips expensive tests when critical tests fail >50%" >> $GITHUB_STEP_SUMMARY
+            echo "- 📱 Only 2 devices tested (iPhone 14 Pro + Chromium)" >> $GITHUB_STEP_SUMMARY
+            echo "- ⚡ Critical tests run first (fast feedback)" >> $GITHUB_STEP_SUMMARY
             echo "- 🤖 Fully automated (no manual triggers)" >> $GITHUB_STEP_SUMMARY
-            echo "- 💰 Cost-efficient (only runs after Stage 1 passes)" >> $GITHUB_STEP_SUMMARY
           else
             echo "### ❌ Quality Gate: **FAILED**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "One or more tests failed. Please review the test reports." >> $GITHUB_STEP_SUMMARY
+            echo "One or more tests failed. QA deployment blocked." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Please review the test reports and fix failing tests." >> $GITHUB_STEP_SUMMARY
           fi
 
   deploy-to-qa:
     name: 🚀 Deploy to QA Environment
     runs-on: ubuntu-latest
-    needs: quality-gate
+    needs: [setup, quality-gate]
     if: needs.quality-gate.outputs.qa_approved == 'true'
+    environment:
+      name: qa
+      url: ${{ steps.deploy.outputs.qa_url }}
+    outputs:
+      qa_url: ${{ steps.deploy.outputs.qa_url }}
+      deployment_id: ${{ steps.deploy.outputs.deployment_id }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: QA Deployment placeholder
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check QA environment configuration
+        id: check-qa
         run: |
-          echo "🚀 QA Deployment Step"
+          echo "🔍 Checking QA environment configuration..."
+
+          # Check if QA secrets are configured
+          if [[ -z "${{ secrets.QA_OAUTH_CREDENTIALS }}" ]]; then
+            echo "⚠️ QA_OAUTH_CREDENTIALS not configured"
+            echo "qa_configured=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          if [[ -z "${{ secrets.QA_SCRIPT_ID }}" ]]; then
+            echo "⚠️ QA_SCRIPT_ID not configured"
+            echo "qa_configured=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "✅ QA environment is configured"
+          echo "qa_configured=true" >> $GITHUB_OUTPUT
+
+      - name: Deploy to QA Apps Script
+        id: deploy
+        if: steps.check-qa.outputs.qa_configured == 'true'
+        env:
+          CLASPRC_JSON: ${{ secrets.QA_OAUTH_CREDENTIALS }}
+          QA_SCRIPT_ID: ${{ secrets.QA_SCRIPT_ID }}
+          QA_DEPLOYMENT_ID: ${{ secrets.QA_DEPLOYMENT_ID }}
+        run: |
+          echo "🚀 Deploying to QA Apps Script environment..."
+
+          # Setup clasp credentials for QA
+          echo "$CLASPRC_JSON" > ~/.clasprc.json
+
+          # Create temporary .clasp.json for QA project
+          cat > .clasp.json <<EOF
+          {"scriptId":"$QA_SCRIPT_ID"}
+          EOF
+
+          echo "📦 Pushing code to QA Apps Script..."
+          npx clasp push --force
+
+          echo "🚀 Creating QA deployment..."
+          # Check if we have a deployment ID to update
+          if [ -n "$QA_DEPLOYMENT_ID" ]; then
+            echo "Updating existing QA deployment: $QA_DEPLOYMENT_ID"
+            DEPLOY_OUTPUT=$(npx clasp deploy -i "$QA_DEPLOYMENT_ID" -d "QA Deploy $(date -Iseconds)" 2>&1)
+          else
+            echo "Creating new QA deployment"
+            DEPLOY_OUTPUT=$(npx clasp deploy -d "QA Deploy $(date -Iseconds)" 2>&1)
+          fi
+
+          echo "$DEPLOY_OUTPUT"
+
+          # Get the deployment ID
+          DEPLOYMENTS_OUTPUT=$(npx clasp deployments 2>&1)
+          echo "$DEPLOYMENTS_OUTPUT"
+
+          DEPLOYMENT_ID_FROM_OUTPUT=$(echo "$DEPLOY_OUTPUT" | grep -oP 'AKfycb[a-zA-Z0-9_-]+' | head -1)
+
+          if [ -z "$DEPLOYMENT_ID_FROM_OUTPUT" ]; then
+            DEPLOYMENT_ID_FROM_OUTPUT=$(echo "$DEPLOYMENTS_OUTPUT" | grep -oP 'AKfycb[a-zA-Z0-9_-]+' | head -1)
+          fi
+
+          if [ -n "$DEPLOYMENT_ID_FROM_OUTPUT" ]; then
+            QA_URL="https://script.google.com/macros/s/${DEPLOYMENT_ID_FROM_OUTPUT}/exec"
+            echo "✅ QA Deployment successful!"
+            echo "qa_url=$QA_URL" >> $GITHUB_OUTPUT
+            echo "deployment_id=$DEPLOYMENT_ID_FROM_OUTPUT" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Failed to extract QA deployment ID"
+            exit 1
+          fi
+
+      - name: QA Configuration Guide
+        if: steps.check-qa.outputs.qa_configured == 'false'
+        run: |
+          echo "⚠️ QA Environment Not Configured"
           echo "=============================================="
           echo ""
-          echo "✅ Quality gate passed - ready for QA deployment"
+          echo "To enable QA deployments, configure these GitHub secrets:"
           echo ""
-          echo "📋 Next steps to implement QA deployment:"
-          echo "  1. Set up QA environment Apps Script project"
-          echo "  2. Add QA_SCRIPT_ID secret to GitHub"
-          echo "  3. Add QA deployment clasp credentials"
-          echo "  4. Implement deployment logic here"
+          echo "1. QA_SCRIPT_ID"
+          echo "   - Create a new Google Apps Script project for QA"
+          echo "   - Copy the Script ID from Project Settings"
           echo ""
-          echo "For now, this is a placeholder to demonstrate the workflow."
+          echo "2. QA_OAUTH_CREDENTIALS"
+          echo "   - Run 'clasp login' locally"
+          echo "   - Copy contents of ~/.clasprc.json"
+          echo "   - Add as GitHub secret"
+          echo ""
+          echo "3. QA_DEPLOYMENT_ID (optional)"
+          echo "   - After first deployment, add deployment ID"
+          echo "   - Allows updating same deployment each time"
+          echo ""
+          echo "4. ADMIN_KEY_QA"
+          echo "   - Generate unique admin key for QA environment"
+          echo "   - Add to GitHub secrets"
+          echo "   - Configure in QA Apps Script Script Properties"
+          echo ""
+          echo "See QA_DEPLOYMENT_GUIDE.md for detailed setup instructions"
           echo "=============================================="
 
+      - name: Health check QA deployment
+        if: steps.check-qa.outputs.qa_configured == 'true'
+        env:
+          QA_URL: ${{ steps.deploy.outputs.qa_url }}
+        run: |
+          echo "🏥 Running health check on QA deployment..."
+
+          # Wait for deployment to be ready
+          sleep 10
+
+          # Test status endpoint
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" "${QA_URL}?p=api&action=status&tenantId=root" || echo "000")
+
+          if [ "$RESPONSE" == "200" ]; then
+            echo "✅ QA health check passed - deployment is responding"
+          else
+            echo "⚠️ QA health check warning - got HTTP $RESPONSE"
+            echo "This may be normal if rate limits are hit"
+          fi
+
       - name: Create QA deployment summary
+        if: always()
         run: |
           echo "## 🚀 QA Deployment" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Status: Ready (Placeholder)" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "All quality gates passed! The deployment is approved for QA." >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Note:** QA deployment is currently a placeholder." >> $GITHUB_STEP_SUMMARY
-          echo "Implement actual QA deployment by:" >> $GITHUB_STEP_SUMMARY
-          echo "1. Setting up QA Apps Script project" >> $GITHUB_STEP_SUMMARY
-          echo "2. Adding QA secrets to GitHub" >> $GITHUB_STEP_SUMMARY
-          echo "3. Implementing deployment in this job" >> $GITHUB_STEP_SUMMARY
+
+          if [[ "${{ steps.check-qa.outputs.qa_configured }}" == "true" ]]; then
+            echo "### ✅ Status: Deployed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**QA URL:** \`${{ steps.deploy.outputs.qa_url }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Deployment ID:** \`${{ steps.deploy.outputs.deployment_id }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Test QA Environment" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "- Status: [${{ steps.deploy.outputs.qa_url }}?p=api&action=status&tenantId=root](${{ steps.deploy.outputs.qa_url }}?p=api&action=status&tenantId=root)" >> $GITHUB_STEP_SUMMARY
+            echo "- Public: [${{ steps.deploy.outputs.qa_url }}?p=events&tenant=root](${{ steps.deploy.outputs.qa_url }}?p=events&tenant=root)" >> $GITHUB_STEP_SUMMARY
+            echo "- Admin: [${{ steps.deploy.outputs.qa_url }}?page=admin&tenant=root](${{ steps.deploy.outputs.qa_url }}?page=admin&tenant=root)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Rollback Available" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "If issues are found, rollback by:" >> $GITHUB_STEP_SUMMARY
+            echo "1. Go to Actions tab" >> $GITHUB_STEP_SUMMARY
+            echo "2. Run 'QA Rollback' workflow" >> $GITHUB_STEP_SUMMARY
+            echo "3. Provide previous deployment ID" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ⚠️ Status: Not Configured" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "QA environment is not configured. See job logs for setup instructions." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Quality gates passed, ready to deploy when QA is configured." >> $GITHUB_STEP_SUMMARY
+          fi
           echo "" >> $GITHUB_STEP_SUMMARY

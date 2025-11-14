@@ -86,6 +86,7 @@ npm run deploy # Create new deployment
 - **[TESTING.md](./TESTING.md)** - Test infrastructure (130+ tests)
 - **[tests/README.md](./tests/README.md)** - 🆕 Complete test suite documentation
 - **[TEST_INFRASTRUCTURE_SUMMARY.md](./TEST_INFRASTRUCTURE_SUMMARY.md)** - Test coverage matrix
+- **[LOAD_TESTING.md](./LOAD_TESTING.md)** - 🆕 Performance & load testing with k6
 
 ## Notes
 - Poster shows a QR only when the server returns a verified `posterUrl`
