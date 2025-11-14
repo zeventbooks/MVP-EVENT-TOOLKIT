@@ -147,10 +147,29 @@ jobs:
           echo "abc_url=$ABC_URL" >> $GITHUB_OUTPUT
           echo "cbc_url=$CBC_URL" >> $GITHUB_OUTPUT
 
-          echo "📋 Tenant URLs generated:"
-          echo "   🎯 ROOT: $ROOT_URL"
-          echo "   🎯 ABC:  $ABC_URL"
-          echo "   🎯 CBC:  $CBC_URL"
+          echo ""
+          echo "=============================================="
+          echo "📋 DEPLOYMENT URLS - READY FOR TESTING"
+          echo "=============================================="
+          echo ""
+          echo "Base URL:"
+          echo "$BASE_URL"
+          echo ""
+          echo "Tenant-specific test URLs:"
+          echo ""
+          echo "🎯 ROOT tenant:"
+          echo "$ROOT_URL"
+          echo ""
+          echo "🎯 ABC tenant:"
+          echo "$ABC_URL"
+          echo ""
+          echo "🎯 CBC tenant:"
+          echo "$CBC_URL"
+          echo ""
+          echo "=============================================="
+          echo "💡 Full clickable URLs available in Job Summary below"
+          echo "=============================================="
+          echo ""
 
       - name: Create deployment summary
         run: |
@@ -160,15 +179,46 @@ jobs:
           echo "- Unit Tests" >> $GITHUB_STEP_SUMMARY
           echo "- Contract Tests" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 🌐 Deployment URLs" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Base URL:** ${{ steps.deploy.outputs.url }}" >> $GITHUB_STEP_SUMMARY
+          echo "## 🌐 Deployment URLs (Full & Unmasked)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Tenant URLs for Manual Verification:**" >> $GITHUB_STEP_SUMMARY
+          echo "> **Note:** URLs may appear masked (***) in console logs due to GitHub's automatic secret detection, but the full URLs are displayed here for testing and record-keeping." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- 🎯 **ROOT:** [${{ steps.urls.outputs.root_url }}](${{ steps.urls.outputs.root_url }})" >> $GITHUB_STEP_SUMMARY
-          echo "- 🎯 **ABC:** [${{ steps.urls.outputs.abc_url }}](${{ steps.urls.outputs.abc_url }})" >> $GITHUB_STEP_SUMMARY
-          echo "- 🎯 **CBC:** [${{ steps.urls.outputs.cbc_url }}](${{ steps.urls.outputs.cbc_url }})" >> $GITHUB_STEP_SUMMARY
+          echo "### Base Deployment URL" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.deploy.outputs.url }}" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Tenant-Specific Test URLs" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Click any URL below to test directly in your browser:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Tenant | Test URL |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|----------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 🎯 **ROOT** | [${{ steps.urls.outputs.root_url }}](${{ steps.urls.outputs.root_url }}) |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🎯 **ABC** | [${{ steps.urls.outputs.abc_url }}](${{ steps.urls.outputs.abc_url }}) |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🎯 **CBC** | [${{ steps.urls.outputs.cbc_url }}](${{ steps.urls.outputs.cbc_url }}) |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Copy-Paste URLs" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**ROOT:**" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.urls.outputs.root_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**ABC:**" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.urls.outputs.abc_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**CBC:**" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.urls.outputs.cbc_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📋 Next Steps" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -176,5 +226,5 @@ jobs:
           echo "2. Once verified, trigger **Stage 2 Tests** manually:" >> $GITHUB_STEP_SUMMARY
           echo "   - Go to **Actions** → **Stage 2 - Testing & QA**" >> $GITHUB_STEP_SUMMARY
           echo "   - Click **Run workflow**" >> $GITHUB_STEP_SUMMARY
-          echo "   - Paste the Base URL: \`${{ steps.deploy.outputs.url }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "   - Paste the Base URL from above" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
