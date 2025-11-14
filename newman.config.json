@@ -1,9 +1,9 @@
 {
   "collection": "postman/collections/mvp-event-toolkit-api.json",
   "environment": "postman/environments/mvp-event-toolkit-dev.json",
-  "reporters": ["cli", "json", "html"],
+  "reporters": ["cli", "json", "htmlextra"],
   "reporter": {
-    "html": {
+    "htmlextra": {
       "export": "./newman-reports/report.html"
     },
     "json": {

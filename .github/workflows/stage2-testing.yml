@@ -67,8 +67,8 @@ jobs:
           newman run postman/collections/mvp-event-toolkit-api.json \
             -e postman/environments/ci-deployment.json \
             --folder System \
-            -r cli,json,html \
-            --reporter-html-export newman-reports/api-report.html \
+            -r cli,json,htmlextra \
+            --reporter-htmlextra-export newman-reports/api-report.html \
             --reporter-json-export newman-reports/api-report.json
 
           echo "✅ Newman API tests completed"

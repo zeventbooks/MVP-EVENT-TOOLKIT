@@ -21,10 +21,10 @@
     "test:playwright": "playwright test",
     "test:all": "npm run test:jest && npm run test:e2e",
     "test:quick": "npm run test:jest && npm run test:smoke",
-    "test:newman": "newman run postman/collections/mvp-event-toolkit-api.json -e postman/environments/mvp-event-toolkit-local.json -r cli,json,html --reporter-html-export newman-reports/report.html --reporter-json-export newman-reports/report.json",
+    "test:newman": "newman run postman/collections/mvp-event-toolkit-api.json -e postman/environments/mvp-event-toolkit-local.json -r cli,json,htmlextra --reporter-htmlextra-export newman-reports/report.html --reporter-json-export newman-reports/report.json",
     "test:newman:smoke": "newman run postman/collections/mvp-event-toolkit-api.json -e postman/environments/mvp-event-toolkit-local.json --folder System -r cli",
     "test:newman:forms": "newman run postman/collections/mvp-event-toolkit-api.json -e postman/environments/mvp-event-toolkit-local.json --folder 'Forms Templates' -r cli",
-    "test:newman:flow": "newman run postman/collections/mvp-event-toolkit-flows.json -e postman/environments/mvp-event-toolkit-local.json -r cli,json,html --reporter-html-export newman-reports/flow-report.html --reporter-json-export newman-reports/flow-report.json",
+    "test:newman:flow": "newman run postman/collections/mvp-event-toolkit-flows.json -e postman/environments/mvp-event-toolkit-local.json -r cli,json,htmlextra --reporter-htmlextra-export newman-reports/flow-report.html --reporter-json-export newman-reports/flow-report.json",
     "test:api:all": "npm run test:newman && npm run test:api",
     "test:triangle": "npm run test:triangle:before && npm run test:triangle:during && npm run test:triangle:after && npm run test:triangle:all",
     "test:triangle:parallel": "npm run test:triangle:before:parallel & npm run test:triangle:during:parallel & npm run test:triangle:after:parallel & npm run test:triangle:all:parallel",
@@ -84,7 +84,7 @@
     "googleapis": "^134.0.0",
     "jest": "^29.7.0",
     "newman": "^6.1.0",
-    "newman-reporter-html": "^1.0.5",
+    "newman-reporter-htmlextra": "^1.23.0",
     "playwright": "^1.40.0",
     "prettier": "^3.1.1"
   }
