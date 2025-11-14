@@ -81,6 +81,34 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Validate deployment secrets
+        env:
+          CLASPRC_JSON: ${{ secrets.OAUTH_CREDENTIALS }}
+        run: |
+          echo "🔍 Validating deployment secrets..."
+
+          # Check if OAUTH_CREDENTIALS is set
+          if [ -z "$CLASPRC_JSON" ]; then
+            echo "❌ ERROR: OAUTH_CREDENTIALS secret not set"
+            echo "Please configure the OAUTH_CREDENTIALS secret in GitHub repository settings"
+            exit 1
+          fi
+
+          # Validate JSON structure
+          if ! echo "$CLASPRC_JSON" | jq -e '.token.access_token' > /dev/null 2>&1; then
+            echo "❌ ERROR: Invalid OAUTH_CREDENTIALS format"
+            echo "Expected JSON with .token.access_token field"
+            exit 1
+          fi
+
+          # Check if refresh_token exists
+          if ! echo "$CLASPRC_JSON" | jq -e '.token.refresh_token' > /dev/null 2>&1; then
+            echo "⚠️  WARNING: No refresh_token found in OAUTH_CREDENTIALS"
+            echo "Token may expire and fail future deployments"
+          fi
+
+          echo "✅ Secrets validation passed"
+
       - name: Deploy to Apps Script via clasp
         id: deploy
         env:
