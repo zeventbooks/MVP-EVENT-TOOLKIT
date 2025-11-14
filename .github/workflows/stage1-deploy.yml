@@ -11,6 +11,27 @@ jobs:
   # STAGE 1: BUILD, TEST & DEPLOY
   # ============================================================================
 
+  lint:
+    name: 🔍 Code Quality (ESLint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: |
+          echo "🔍 Running ESLint to check code quality..."
+          npm run lint
+          echo "✅ Linting passed! Code quality verified."
+
   unit-tests:
     name: ✅ Unit Tests
     runs-on: ubuntu-latest
@@ -66,7 +87,7 @@ jobs:
   deploy-to-apps-script:
     name: 🚀 Deploy to Apps Script API
     runs-on: ubuntu-latest
-    needs: [unit-tests, contract-tests]
+    needs: [lint, unit-tests, contract-tests]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     outputs:
       deployment_url: ${{ steps.deploy.outputs.url }}
@@ -220,7 +241,8 @@ jobs:
         run: |
           echo "## 🚀 Stage 1 Deployment Complete!" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### ✅ Tests Passed" >> $GITHUB_STEP_SUMMARY
+          echo "### ✅ Quality Gates Passed" >> $GITHUB_STEP_SUMMARY
+          echo "- Code Quality (ESLint)" >> $GITHUB_STEP_SUMMARY
           echo "- Unit Tests" >> $GITHUB_STEP_SUMMARY
           echo "- Contract Tests" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -270,7 +292,7 @@ jobs:
           echo "🤖 **Stage 2 will auto-trigger in a few seconds!**" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Process 3: Fast-Fail Progressive Testing**" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Stage 1 Complete (Unit + Contract tests passed)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Stage 1 Complete (Linting + Unit + Contract tests passed)" >> $GITHUB_STEP_SUMMARY
           echo "- 🚀 Stage 2 Starting automatically..." >> $GITHUB_STEP_SUMMARY
           echo "  - Newman API Tests" >> $GITHUB_STEP_SUMMARY
           echo "  - Playwright Tests (Parallel: Smoke + Flow + Page)" >> $GITHUB_STEP_SUMMARY
