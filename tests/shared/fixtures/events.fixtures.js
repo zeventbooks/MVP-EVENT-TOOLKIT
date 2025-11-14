@@ -2,6 +2,9 @@
  * Event Fixtures for Testing
  *
  * Shared event data for all test types across Triangle phases
+ *
+ * NOTE: BASE_URL defaults to placeholder for unit/contract tests
+ * These tests use mock data and don't require a real deployment URL
  */
 
 const BASE_URL = process.env.BASE_URL || 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec';
