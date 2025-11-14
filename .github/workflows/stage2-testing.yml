@@ -85,7 +85,7 @@ jobs:
   # ============================================================================
 
   critical-tests:
-    name: 🔥 Critical - ${{ matrix.suite }} (${{ matrix.platform.name }})
+    name: 🔥 Critical - ${{ matrix.suite }} (Hostinger)
     runs-on: ubuntu-latest
     needs: setup
     if: needs.setup.outputs.skip_tests != 'true'
@@ -95,11 +95,6 @@ jobs:
         suite:
           - api
           - smoke
-        platform:
-          - name: Apps Script
-            base_url: ${{ needs.setup.outputs.deployment_url }}
-          - name: Hostinger
-            base_url: https://zeventbooks.com
     steps:
       - uses: actions/checkout@v4
 
@@ -115,15 +110,15 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
-      - name: Run ${{ matrix.suite }} tests on ${{ matrix.platform.name }}
+      - name: Run ${{ matrix.suite }} tests on Hostinger
         id: test-run
         continue-on-error: true
         env:
-          BASE_URL: ${{ matrix.platform.base_url }}
+          BASE_URL: https://zeventbooks.com
           ADMIN_KEY: ${{ secrets.ADMIN_KEY_ROOT }}
         run: |
           echo "🔥 Running ${{ matrix.suite }} tests against: $BASE_URL"
-          echo "Platform: ${{ matrix.platform.name }}"
+          echo "Platform: Hostinger (zeventbooks.com)"
 
           if [ "${{ matrix.suite }}" == "api" ]; then
             echo "⏳ Waiting 10 seconds to avoid rate limits..."
@@ -137,7 +132,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-${{ matrix.suite }}-${{ matrix.platform.name }}-report
+          name: playwright-${{ matrix.suite }}-hostinger-report
           path: playwright-report/
           retention-days: 7
 
@@ -162,26 +157,26 @@ jobs:
           echo ""
           echo "Critical Tests Job Result: ${{ needs.critical-tests.result }}"
           echo ""
-          echo "Matrix Test Results:"
+          echo "Test Matrix:"
           echo "  - 2 suites (API + Smoke)"
-          echo "  - 2 platforms (Apps Script + Hostinger)"
-          echo "  - Total: 4 test runs"
+          echo "  - 1 platform (Hostinger)"
+          echo "  - Total: 2 test runs"
           echo ""
 
-          # The critical-tests job runs 4 tests (2 suites × 2 platforms)
-          # If the overall job succeeded, all 4 passed
+          # The critical-tests job runs 2 tests (2 suites on Hostinger)
+          # If the overall job succeeded, both passed
           # If it failed, at least one failed
 
-          TOTAL=4  # 2 suites × 2 platforms
+          TOTAL=2  # 2 suites on Hostinger
 
           if [[ "${{ needs.critical-tests.result }}" == "success" ]]; then
             FAILURES=0
             echo "✅ All critical tests passed (0 failures)"
           else
             # Job failed - estimate at least 50% failure to be conservative
-            FAILURES=2
+            FAILURES=1
             echo "❌ Critical tests job failed (estimating 50% failure rate)"
-            echo "   Note: At least one test suite or platform failed"
+            echo "   Note: At least one test suite failed"
           fi
 
           # Calculate failure rate percentage
@@ -195,7 +190,7 @@ jobs:
 
           # Decision: Run expensive tests only if failure rate < 50%
           if [ $FAILURE_RATE -lt 50 ]; then
-            echo "✅ Failure rate < 50% - Will run Flow and Page tests on both platforms"
+            echo "✅ Failure rate < 50% - Will run Flow and Page tests"
             echo "should_run=true" >> $GITHUB_OUTPUT
           else
             echo "❌ Failure rate >= 50% - Skipping expensive Flow and Page tests"
@@ -208,7 +203,7 @@ jobs:
   # ============================================================================
 
   expensive-tests:
-    name: 💰 Expensive - ${{ matrix.suite }} (${{ matrix.platform.name }})
+    name: 💰 Expensive - ${{ matrix.suite }} (Hostinger)
     runs-on: ubuntu-latest
     needs: [setup, failure-gate]
     if: needs.failure-gate.outputs.should_run_expensive_tests == 'true'
@@ -218,11 +213,6 @@ jobs:
         suite:
           - flows
           - pages
-        platform:
-          - name: Apps Script
-            base_url: ${{ needs.setup.outputs.deployment_url }}
-          - name: Hostinger
-            base_url: https://zeventbooks.com
     steps:
       - uses: actions/checkout@v4
 
@@ -238,13 +228,13 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
-      - name: Run ${{ matrix.suite }} tests on ${{ matrix.platform.name }}
+      - name: Run ${{ matrix.suite }} tests on Hostinger
         env:
-          BASE_URL: ${{ matrix.platform.base_url }}
+          BASE_URL: https://zeventbooks.com
           ADMIN_KEY: ${{ secrets.ADMIN_KEY_ROOT }}
         run: |
           echo "💰 Running ${{ matrix.suite }} tests against: $BASE_URL"
-          echo "Platform: ${{ matrix.platform.name }}"
+          echo "Platform: Hostinger (zeventbooks.com)"
           echo "   (Critical tests passed - proceeding with expensive tests)"
 
           if [ "${{ matrix.suite }}" == "flows" ]; then
@@ -257,7 +247,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-${{ matrix.suite }}-${{ matrix.platform.name }}-report
+          name: playwright-${{ matrix.suite }}-hostinger-report
           path: playwright-report/
           retention-days: 7
 
@@ -279,22 +269,21 @@ jobs:
           echo "📊 Stage 2 Quality Gate Summary"
           echo "=============================================="
           echo ""
-          echo "Multi-Platform Testing:"
-          echo "  🚀 Apps Script URL:         ${{ needs.setup.outputs.deployment_url }}"
-          echo "  🌐 Hostinger URL:           https://zeventbooks.com"
+          echo "Production Platform:"
+          echo "  🌐 Hostinger:               https://zeventbooks.com"
           echo ""
-          echo "Critical Tests (API + Smoke on both platforms):"
+          echo "Critical Tests (API + Smoke):"
           echo "  🔥 Critical Tests:          ${{ needs.critical-tests.result }}"
-          echo "     (4 test runs: 2 suites × 2 platforms)"
+          echo "     (2 test runs: API + Smoke on Hostinger)"
           echo ""
           echo "Failure Gate:"
           echo "  🚦 Failure Rate:            ${{ needs.failure-gate.outputs.failure_rate }}%"
           echo "  🚦 Run Expensive Tests:     ${{ needs.failure-gate.outputs.should_run_expensive_tests }}"
           echo ""
-          echo "Expensive Tests (Flows + Pages on both platforms):"
+          echo "Expensive Tests (Flows + Pages):"
           if [[ "${{ needs.failure-gate.outputs.should_run_expensive_tests }}" == "true" ]]; then
             echo "  💰 Expensive Tests:         ${{ needs.expensive-tests.result }}"
-            echo "     (4 test runs: 2 suites × 2 platforms)"
+            echo "     (2 test runs: Flows + Pages on Hostinger)"
           else
             echo "  💰 Expensive Tests:         ⏭️ SKIPPED (Failure rate >= 50%)"
           fi
@@ -342,15 +331,13 @@ jobs:
         run: |
           echo "## 🎯 Stage 2 Quality Gate Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 🚀 Multi-Platform Testing Strategy" >> $GITHUB_STEP_SUMMARY
+          echo "### 🌐 Production Platform Testing" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Platforms Tested:**" >> $GITHUB_STEP_SUMMARY
-          echo "- 🚀 **Apps Script:** \`${{ needs.setup.outputs.deployment_url }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- 🌐 **Hostinger:** \`https://zeventbooks.com\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Platform:** Hostinger (\`https://zeventbooks.com\`)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Cost-Optimized Strategy:**" >> $GITHUB_STEP_SUMMARY
-          echo "1. ✅ Run critical tests first (API + Smoke) on **both platforms**" >> $GITHUB_STEP_SUMMARY
-          echo "2. ✅ Calculate failure rate across all platform tests" >> $GITHUB_STEP_SUMMARY
+          echo "1. ✅ Run critical tests first (API + Smoke)" >> $GITHUB_STEP_SUMMARY
+          echo "2. ✅ Calculate failure rate" >> $GITHUB_STEP_SUMMARY
           echo "3. ✅ Only run expensive tests (Flows + Pages) if failure rate < 50%" >> $GITHUB_STEP_SUMMARY
           echo "4. ✅ Use only 2 devices: iPhone 14 Pro (mobile) + Chromium (desktop)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -358,7 +345,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Result:** \`${{ needs.critical-tests.result }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Test Matrix:** 2 suites × 2 platforms = **4 test runs**" >> $GITHUB_STEP_SUMMARY
+          echo "**Test Runs:** 2 (API + Smoke on Hostinger)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 🚦 Failure Gate" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -369,6 +356,8 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           if [[ "${{ needs.failure-gate.outputs.should_run_expensive_tests }}" == "true" ]]; then
             echo "**Result:** \`${{ needs.expensive-tests.result }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Test Runs:** 2 (Flows + Pages on Hostinger)" >> $GITHUB_STEP_SUMMARY
           else
             echo "**Result:** ⏭️ **SKIPPED** (Failure rate >= 50% - cost optimization)" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
@@ -377,21 +366,21 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📊 Test Results Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Test Suite | Apps Script | Hostinger | Notes |" >> $GITHUB_STEP_SUMMARY
-          echo "|------------|-------------|-----------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| 🔥 API Tests | ${{ needs.critical-tests.result == 'success' && '✅ PASS' || '❌ FAIL' }} | ${{ needs.critical-tests.result == 'success' && '✅ PASS' || '❌ FAIL' }} | Critical (fast) |" >> $GITHUB_STEP_SUMMARY
-          echo "| 🔥 Smoke Tests | ${{ needs.critical-tests.result == 'success' && '✅ PASS' || '❌ FAIL' }} | ${{ needs.critical-tests.result == 'success' && '✅ PASS' || '❌ FAIL' }} | Critical (fast) |" >> $GITHUB_STEP_SUMMARY
+          echo "| Test Suite | Status | Notes |" >> $GITHUB_STEP_SUMMARY
+          echo "|------------|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔥 API Tests | ${{ needs.critical-tests.result == 'success' && '✅ PASS' || '❌ FAIL' }} | Critical (fast) |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔥 Smoke Tests | ${{ needs.critical-tests.result == 'success' && '✅ PASS' || '❌ FAIL' }} | Critical (fast) |" >> $GITHUB_STEP_SUMMARY
 
           if [[ "${{ needs.failure-gate.outputs.should_run_expensive_tests }}" == "true" ]]; then
-            echo "| 💰 Flow Tests | ${{ needs.expensive-tests.result == 'success' && '✅ PASS' || '❌ FAIL' }} | ${{ needs.expensive-tests.result == 'success' && '✅ PASS' || '❌ FAIL' }} | Expensive (conditional) |" >> $GITHUB_STEP_SUMMARY
-            echo "| 💰 Page Tests | ${{ needs.expensive-tests.result == 'success' && '✅ PASS' || '❌ FAIL' }} | ${{ needs.expensive-tests.result == 'success' && '✅ PASS' || '❌ FAIL' }} | Expensive (conditional) |" >> $GITHUB_STEP_SUMMARY
+            echo "| 💰 Flow Tests | ${{ needs.expensive-tests.result == 'success' && '✅ PASS' || '❌ FAIL' }} | Expensive (conditional) |" >> $GITHUB_STEP_SUMMARY
+            echo "| 💰 Page Tests | ${{ needs.expensive-tests.result == 'success' && '✅ PASS' || '❌ FAIL' }} | Expensive (conditional) |" >> $GITHUB_STEP_SUMMARY
           else
-            echo "| 💰 Flow Tests | ⏭️ SKIPPED | ⏭️ SKIPPED | High failure rate |" >> $GITHUB_STEP_SUMMARY
-            echo "| 💰 Page Tests | ⏭️ SKIPPED | ⏭️ SKIPPED | High failure rate |" >> $GITHUB_STEP_SUMMARY
+            echo "| 💰 Flow Tests | ⏭️ SKIPPED | High failure rate |" >> $GITHUB_STEP_SUMMARY
+            echo "| 💰 Page Tests | ⏭️ SKIPPED | High failure rate |" >> $GITHUB_STEP_SUMMARY
           fi
 
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Note:** Individual test reports for each platform available in workflow artifacts." >> $GITHUB_STEP_SUMMARY
+          echo "**Note:** Test reports available in workflow artifacts." >> $GITHUB_STEP_SUMMARY
 
           echo "" >> $GITHUB_STEP_SUMMARY
 
@@ -400,13 +389,13 @@ jobs:
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "All executed tests passed successfully! Ready for QA deployment." >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Benefits of Multi-Platform Cost-Optimized Testing:**" >> $GITHUB_STEP_SUMMARY
-            echo "- 🌐 Tests both Apps Script and Hostinger platforms in parallel" >> $GITHUB_STEP_SUMMARY
+            echo "**Benefits of Cost-Optimized Testing:**" >> $GITHUB_STEP_SUMMARY
+            echo "- 🌐 Tests production platform (Hostinger)" >> $GITHUB_STEP_SUMMARY
             echo "- 💰 Skips expensive tests when critical tests fail >50%" >> $GITHUB_STEP_SUMMARY
             echo "- 📱 Only 2 devices tested (iPhone 14 Pro + Chromium)" >> $GITHUB_STEP_SUMMARY
             echo "- ⚡ Critical tests run first (fast feedback)" >> $GITHUB_STEP_SUMMARY
             echo "- 🤖 Fully automated (no manual triggers)" >> $GITHUB_STEP_SUMMARY
-            echo "- 📊 Compare performance: Apps Script vs Hostinger proxy" >> $GITHUB_STEP_SUMMARY
+            echo "- 🎯 Focused testing on commercial platform" >> $GITHUB_STEP_SUMMARY
           else
             echo "### ❌ Quality Gate: **FAILED**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
