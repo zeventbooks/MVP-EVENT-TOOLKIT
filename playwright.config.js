@@ -10,7 +10,11 @@ module.exports = defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
-  reporter: 'html',
+  reporter: [
+    ['html'],
+    ['json', { outputFile: '.test-results/playwright-results.json' }],
+    ['list']
+  ],
 
   use: {
     // Use environment-aware base URL
@@ -23,6 +27,9 @@ module.exports = defineConfig({
     extraHTTPHeaders: {
       'Accept': 'text/html,application/json',
     },
+
+    // Bypass bot detection with realistic user agent
+    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
   },
 
   // Global setup - print environment info before tests
