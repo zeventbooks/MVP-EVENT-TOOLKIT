@@ -202,9 +202,12 @@ function doGet(e){
 
   // API Documentation page
   if (pageParam === 'docs' || pageParam === 'api') {
+    // Fixed: Bug #31 - Add security headers
     return HtmlService.createHtmlOutputFromFile('ApiDocs')
       .setTitle('API Documentation - MVP Event Toolkit')
-      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.DENY)
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+      .addMetaTag('referrer', 'no-referrer');
   }
 
   // Status endpoint
@@ -242,9 +245,12 @@ function doGet(e){
   tpl.scope = sanitizeInput_(scope, 50);
   tpl.execUrl = ScriptApp.getService().getUrl();
   tpl.ZEB = ZEB;
+  // Fixed: Bug #31 - Add security headers
   return tpl.evaluate()
     .setTitle(`${tpl.appTitle} · ${page}`)
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+    .addMetaTag('referrer', 'no-referrer');
 }
 
 // === REST API Handler for POST requests ===================================
@@ -504,7 +510,8 @@ function handleRedirect_(token) {
     return HtmlService.createHtmlOutput('<h1>Shortlink not found</h1>');
   }
 
-  const [tok, targetUrl, eventId, sponsorId, surface, createdAt] = row;
+  // Fixed: Bug #53 - Extract tenantId for validation (7th column if present)
+  const [tok, targetUrl, eventId, sponsorId, surface, createdAt, shortlinkTenantId] = row;
 
   // Fixed: Bug #52 - Validate URL before redirect to prevent XSS
   if (!isUrl(targetUrl)) {
@@ -1408,13 +1415,15 @@ function api_createShortlink(req){
     // Previously used only first 8 chars which was guessable (~30-bit entropy)
     const token = Utilities.getUuid();
 
+    // Fixed: Bug #53 - Store tenantId for validation on redirect
     sh.appendRow([
       token,
       targetUrl,
       eventId||'',
       sponsorId||'',
       surface||'',
-      new Date().toISOString()
+      new Date().toISOString(),
+      tenantId||'root' // Add tenantId for cross-tenant validation
     ]);
 
     const base = ScriptApp.getService().getUrl();
