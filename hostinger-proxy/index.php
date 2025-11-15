@@ -1,26 +1,70 @@
 <?php
 /**
- * Hostinger Proxy to Google Apps Script
+ * Hostinger Multi-Environment Proxy to Google Apps Script
  *
- * Routes all requests from zeventbooks.com to Google Apps Script
- * while preserving query parameters and maintaining the clean URL
+ * Automatically routes requests to QA or Production Google Apps Script deployments
+ * based on the domain (qa.zeventbooks.com vs zeventbooks.com)
  *
  * Setup Instructions:
- * 1. Replace YOUR_SCRIPT_ID below with your actual Google Apps Script deployment ID
- * 2. Upload this file to your Hostinger website root (public_html/)
- * 3. Upload the accompanying .htaccess file
- * 4. Test with: https://zeventbooks.com?p=status&tenant=root
+ * 1. Create two Apps Script deployments (QA and Production)
+ * 2. Update the deployment IDs below
+ * 3. Upload this SAME file to both sites:
+ *    - zeventbooks.com → public_html/index.php
+ *    - qa.zeventbooks.com → qa.zeventbooks.com/index.php
+ * 4. Upload the accompanying .htaccess file to both locations
+ * 5. Test both environments:
+ *    - QA: https://qa.zeventbooks.com?p=status&tenant=root
+ *    - Prod: https://zeventbooks.com?p=status&tenant=root
  */
 
 // ============================================================================
-// CONFIGURATION - UPDATE THIS WITH YOUR GOOGLE APPS SCRIPT DEPLOYMENT ID
+// ENVIRONMENT DETECTION & CONFIGURATION
 // ============================================================================
 
-define('GOOGLE_SCRIPT_URL', 'https://script.google.com/macros/s/AKfycbzu-U4UgdjdAiXHTg9TD5Y-1gDkc798YSTqQCdhOddG/exec');
+// Detect environment from the HTTP_HOST header
+$currentHost = $_SERVER['HTTP_HOST'] ?? '';
+$isQA = (strpos($currentHost, 'qa.zeventbooks.com') !== false);
+$isLocal = (strpos($currentHost, 'localhost') !== false || strpos($currentHost, '127.0.0.1') !== false);
 
-// ✅ CONFIGURED: Using @HEAD deployment
-// Deployment ID: AKfycbzu-U4UgdjdAiXHTg9TD5Y-1gDkc798YSTqQCdhOddG
-// If you need to update this, run: npx clasp deployments
+// Environment-specific Apps Script deployment IDs
+if ($isLocal) {
+    // Local Development - Uses QA deployment for testing
+    define('GOOGLE_SCRIPT_URL', 'https://script.google.com/macros/s/AKfycbzu-U4UgdjdAiXHTg9TD5Y-1gDkc798YSTqQCdhOddG/exec');
+    define('ENVIRONMENT', 'LOCAL');
+
+} elseif ($isQA) {
+    // QA Environment - Auto-updates with main branch (@HEAD deployment)
+    define('GOOGLE_SCRIPT_URL', 'https://script.google.com/macros/s/AKfycbzu-U4UgdjdAiXHTg9TD5Y-1gDkc798YSTqQCdhOddG/exec');
+    define('ENVIRONMENT', 'QA');
+
+} else {
+    // Production Environment - Manually promoted versioned deployment
+    // TODO: Replace with your production deployment ID after creating it
+    // Run: npx clasp deploy -d "Production v1.0"
+    define('GOOGLE_SCRIPT_URL', 'https://script.google.com/macros/s/AKfycbzu-U4UgdjdAiXHTg9TD5Y-1gDkc798YSTqQCdhOddG/exec');
+    define('ENVIRONMENT', 'PRODUCTION');
+}
+
+// ✅ Current Deployment Configuration:
+//
+// QA Deployment (Auto-updates):
+//   Deployment ID: AKfycbzu-U4UgdjdAiXHTg9TD5Y-1gDkc798YSTqQCdhOddG
+//   Update method: Automatic on push to main branch
+//   Used by: qa.zeventbooks.com
+//
+// Production Deployment (Stable):
+//   Deployment ID: AKfycbzu-U4UgdjdAiXHTg9TD5Y-1gDkc798YSTqQCdhOddG (TEMPORARY - REPLACE THIS)
+//   Update method: Manual promotion
+//   Used by: zeventbooks.com
+//
+// To create a separate production deployment:
+//   1. Run: npx clasp deploy -d "Production v1.0"
+//   2. Copy the new deployment ID
+//   3. Replace the PRODUCTION deployment ID above
+//   4. Re-upload this file to Hostinger
+//
+// To view all deployments:
+//   npx clasp deployments
 
 // ============================================================================
 // PROXY LOGIC - NO NEED TO MODIFY BELOW THIS LINE
@@ -99,6 +143,10 @@ header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
 
+// Add environment tracking header (useful for debugging)
+header('X-Zeventbooks-Environment: ' . ENVIRONMENT);
+header('X-Zeventbooks-Host: ' . $currentHost);
+
 // Handle preflight OPTIONS requests
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(204); // No Content
@@ -116,8 +164,10 @@ echo $response;
 /*
 $logFile = __DIR__ . '/proxy-debug.log';
 $logEntry = sprintf(
-    "[%s] %s %s → %s (Status: %d)\n",
+    "[%s] ENV:%s HOST:%s %s %s → %s (Status: %d)\n",
     date('Y-m-d H:i:s'),
+    ENVIRONMENT,
+    $currentHost,
     $_SERVER['REQUEST_METHOD'],
     $_SERVER['REQUEST_URI'],
     $targetUrl,
