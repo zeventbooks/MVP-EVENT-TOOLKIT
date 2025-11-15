@@ -49,7 +49,8 @@
         "findTenantByHost_": "readonly",
         "findTemplate_": "readonly",
         "findFormTemplate_": "readonly",
-        "listFormTemplates_": "readonly"
+        "listFormTemplates_": "readonly",
+        "getAdminSecret_": "readonly"
       }
     },
     {
