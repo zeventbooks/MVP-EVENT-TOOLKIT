@@ -7,7 +7,7 @@
 
 const { test, expect } = require('@playwright/test');
 
-const BASE_URL = process.env.BASE_URL || 'https://script.google.com/macros/s/.../exec';
+const BASE_URL = process.env.BASE_URL || 'https://zeventbooks.com';
 
 test.describe('🎨 SMOKE: Tenant Branding', () => {
 
