@@ -6,13 +6,13 @@
  * Mobile support: Device-specific URLs and settings
  */
 
-// Validate required environment variables
+// Validate environment variables (warnings only - allows read-only tests to run)
 if (!process.env.ADMIN_KEY) {
-  throw new Error('❌ ADMIN_KEY environment variable is required. Set it in .env file.');
+  console.warn('⚠️  ADMIN_KEY not set. Admin operations will be skipped.');
 }
 
 if (!process.env.BASE_URL) {
-  throw new Error('❌ BASE_URL environment variable is required. Set it in .env file.');
+  console.warn('⚠️  BASE_URL not set. Using default from playwright.config.js');
 }
 
 export const config = {
