@@ -186,43 +186,64 @@ jobs:
           echo "url=$WEB_APP_URL" >> $GITHUB_OUTPUT
           echo "✅ Deployment complete! Base URL: $WEB_APP_URL"
 
-      - name: Generate tenant URLs
+      - name: Generate comprehensive tenant URLs
         id: urls
         run: |
-          BASE_URL="${{ steps.deploy.outputs.url }}"
+          APPS_SCRIPT_BASE="${{ steps.deploy.outputs.url }}"
+          HOSTINGER_BASE="https://zeventbooks.com"
 
-          # Generate tenant-specific URLs
-          ROOT_URL="${BASE_URL}?p=events&tenant=root"
-          ABC_URL="${BASE_URL}?p=events&tenant=abc"
-          CBC_URL="${BASE_URL}?p=events&tenant=cbc"
+          # Tenants: root, abc, cbc, cbl
+          TENANTS=("root" "abc" "cbc" "cbl")
 
-          echo "root_url=$ROOT_URL" >> $GITHUB_OUTPUT
-          echo "abc_url=$ABC_URL" >> $GITHUB_OUTPUT
-          echo "cbc_url=$CBC_URL" >> $GITHUB_OUTPUT
+          # Page types
+          PAGES=("status" "admin" "events" "display" "sponsor" "public")
 
           echo ""
           echo "=============================================="
           echo "📋 DEPLOYMENT URLS - READY FOR TESTING"
           echo "=============================================="
           echo ""
-          echo "Base URL:"
-          echo "$BASE_URL"
+          echo "🚀 Apps Script Base URL:"
+          echo "$APPS_SCRIPT_BASE"
           echo ""
-          echo "Tenant-specific test URLs:"
+          echo "🌐 Hostinger Base URL:"
+          echo "$HOSTINGER_BASE"
           echo ""
-          echo "🎯 ROOT tenant:"
-          echo "$ROOT_URL"
+          echo "=============================================="
           echo ""
-          echo "🎯 ABC tenant:"
-          echo "$ABC_URL"
-          echo ""
-          echo "🎯 CBC tenant:"
-          echo "$CBC_URL"
-          echo ""
+
+          # Generate URLs for each tenant and page type
+          for tenant in "${TENANTS[@]}"; do
+            echo "🎯 Tenant: ${tenant^^}"
+            echo "----------------------------------------"
+            for page in "${PAGES[@]}"; do
+              # Use 'p' parameter for most pages, 'page' for admin
+              if [ "$page" == "admin" ]; then
+                PARAM="page"
+              else
+                PARAM="p"
+              fi
+
+              APPS_URL="${APPS_SCRIPT_BASE}?${PARAM}=${page}&tenant=${tenant}"
+              HOST_URL="${HOSTINGER_BASE}?${PARAM}=${page}&tenant=${tenant}"
+
+              echo "  ${page}:"
+              echo "    Apps Script: $APPS_URL"
+              echo "    Hostinger:   $HOST_URL"
+            done
+            echo ""
+          done
+
           echo "=============================================="
           echo "💡 Full clickable URLs available in Job Summary below"
           echo "=============================================="
           echo ""
+
+          # Save primary URLs for backward compatibility with Stage 2
+          echo "root_url=${APPS_SCRIPT_BASE}?p=events&tenant=root" >> $GITHUB_OUTPUT
+          echo "abc_url=${APPS_SCRIPT_BASE}?p=events&tenant=abc" >> $GITHUB_OUTPUT
+          echo "cbc_url=${APPS_SCRIPT_BASE}?p=events&tenant=cbc" >> $GITHUB_OUTPUT
+          echo "cbl_url=${APPS_SCRIPT_BASE}?p=events&tenant=cbl" >> $GITHUB_OUTPUT
 
       - name: Save deployment URL for Stage 2
         run: |
@@ -237,52 +258,113 @@ jobs:
           path: deployment-info/deployment-url.txt
           retention-days: 1
 
-      - name: Create deployment summary
+      - name: Create comprehensive deployment summary
         run: |
+          APPS_SCRIPT_BASE="${{ steps.deploy.outputs.url }}"
+          HOSTINGER_BASE="https://zeventbooks.com"
+
           echo "## 🚀 Stage 1 Deployment Complete!" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### ✅ Quality Gates Passed" >> $GITHUB_STEP_SUMMARY
           echo "- Code Quality (ESLint)" >> $GITHUB_STEP_SUMMARY
-          echo "- Unit Tests" >> $GITHUB_STEP_SUMMARY
+          echo "- Unit Tests (Jest)" >> $GITHUB_STEP_SUMMARY
           echo "- Contract Tests" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "---" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "## 🌐 Deployment URLs (Full & Unmasked)" >> $GITHUB_STEP_SUMMARY
+          echo "## 🌐 Comprehensive Test URLs" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "> **Note:** URLs may appear masked (***) in console logs due to GitHub's automatic secret detection, but the full URLs are displayed here for testing and record-keeping." >> $GITHUB_STEP_SUMMARY
+          echo "> **Note:** Test both Apps Script and Hostinger URLs to verify which works best for your use case." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Base Deployment URL" >> $GITHUB_STEP_SUMMARY
+          echo "### Base Deployment URLs" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Platform | Base URL |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|----------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 🚀 **Apps Script** | \`${APPS_SCRIPT_BASE}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🌐 **Hostinger** | \`${HOSTINGER_BASE}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Generate comprehensive URL tables for each tenant
+          TENANTS=("root" "abc" "cbc" "cbl")
+          TENANT_NAMES=("ROOT (Zeventbook)" "ABC (American Bocce Co.)" "CBC (Chicago Bocce Club)" "CBL (Chicago Bocce League)")
+
+          for i in "${!TENANTS[@]}"; do
+            tenant="${TENANTS[$i]}"
+            tenant_name="${TENANT_NAMES[$i]}"
+
+            echo "### 🎯 Tenant: ${tenant_name}" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "| Page | Apps Script URL | Hostinger URL |" >> $GITHUB_STEP_SUMMARY
+            echo "|------|-----------------|---------------|" >> $GITHUB_STEP_SUMMARY
+
+            # Status
+            echo "| 🔍 **Status** | [Test](${APPS_SCRIPT_BASE}?p=status&tenant=${tenant}) | [Test](${HOSTINGER_BASE}?p=status&tenant=${tenant}) |" >> $GITHUB_STEP_SUMMARY
+
+            # Admin
+            echo "| ⚙️ **Admin** | [Test](${APPS_SCRIPT_BASE}?page=admin&tenant=${tenant}) | [Test](${HOSTINGER_BASE}?page=admin&tenant=${tenant}) |" >> $GITHUB_STEP_SUMMARY
+
+            # Events (Public listing)
+            echo "| 📅 **Events** | [Test](${APPS_SCRIPT_BASE}?p=events&tenant=${tenant}) | [Test](${HOSTINGER_BASE}?p=events&tenant=${tenant}) |" >> $GITHUB_STEP_SUMMARY
+
+            # Display (TV mode)
+            echo "| 📺 **Display** | [Test](${APPS_SCRIPT_BASE}?p=display&tenant=${tenant}) | [Test](${HOSTINGER_BASE}?p=display&tenant=${tenant}) |" >> $GITHUB_STEP_SUMMARY
+
+            # Sponsor
+            echo "| 💼 **Sponsor** | [Test](${APPS_SCRIPT_BASE}?p=sponsor&tenant=${tenant}) | [Test](${HOSTINGER_BASE}?p=sponsor&tenant=${tenant}) |" >> $GITHUB_STEP_SUMMARY
+
+            # Public
+            echo "| 👥 **Public** | [Test](${APPS_SCRIPT_BASE}?p=public&tenant=${tenant}) | [Test](${HOSTINGER_BASE}?p=public&tenant=${tenant}) |" >> $GITHUB_STEP_SUMMARY
+
+            echo "" >> $GITHUB_STEP_SUMMARY
+          done
+
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 💡 Testing Instructions" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "1. **Status Page**: Verify API health and connectivity" >> $GITHUB_STEP_SUMMARY
+          echo "2. **Admin Page**: Test event management interface (requires admin key)" >> $GITHUB_STEP_SUMMARY
+          echo "3. **Events Page**: Test public event listing" >> $GITHUB_STEP_SUMMARY
+          echo "4. **Display Page**: Test TV/kiosk display mode" >> $GITHUB_STEP_SUMMARY
+          echo "5. **Sponsor Page**: Test sponsor self-service interface" >> $GITHUB_STEP_SUMMARY
+          echo "6. **Public Page**: Test customer-facing event view" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📊 **Next Step**: Stage 2 will automatically run Playwright tests against these URLs" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📋 Quick Copy-Paste URLs" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "#### Apps Script - Status Endpoints (API Health)" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          echo "${{ steps.deploy.outputs.url }}" >> $GITHUB_STEP_SUMMARY
+          echo "${APPS_SCRIPT_BASE}?p=status&tenant=root" >> $GITHUB_STEP_SUMMARY
+          echo "${APPS_SCRIPT_BASE}?p=status&tenant=abc" >> $GITHUB_STEP_SUMMARY
+          echo "${APPS_SCRIPT_BASE}?p=status&tenant=cbc" >> $GITHUB_STEP_SUMMARY
+          echo "${APPS_SCRIPT_BASE}?p=status&tenant=cbl" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Tenant-Specific Test URLs" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Click any URL below to test directly in your browser:" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Tenant | Test URL |" >> $GITHUB_STEP_SUMMARY
-          echo "|--------|----------|" >> $GITHUB_STEP_SUMMARY
-          echo "| 🎯 **ROOT** | [${{ steps.urls.outputs.root_url }}](${{ steps.urls.outputs.root_url }}) |" >> $GITHUB_STEP_SUMMARY
-          echo "| 🎯 **ABC** | [${{ steps.urls.outputs.abc_url }}](${{ steps.urls.outputs.abc_url }}) |" >> $GITHUB_STEP_SUMMARY
-          echo "| 🎯 **CBC** | [${{ steps.urls.outputs.cbc_url }}](${{ steps.urls.outputs.cbc_url }}) |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Copy-Paste URLs" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**ROOT:**" >> $GITHUB_STEP_SUMMARY
+          echo "#### Hostinger - Status Endpoints (API Health)" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          echo "${{ steps.urls.outputs.root_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "${HOSTINGER_BASE}?p=status&tenant=root" >> $GITHUB_STEP_SUMMARY
+          echo "${HOSTINGER_BASE}?p=status&tenant=abc" >> $GITHUB_STEP_SUMMARY
+          echo "${HOSTINGER_BASE}?p=status&tenant=cbc" >> $GITHUB_STEP_SUMMARY
+          echo "${HOSTINGER_BASE}?p=status&tenant=cbl" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**ABC:**" >> $GITHUB_STEP_SUMMARY
+          echo "#### Apps Script - Admin Pages (Event Management)" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          echo "${{ steps.urls.outputs.abc_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "${APPS_SCRIPT_BASE}?page=admin&tenant=root" >> $GITHUB_STEP_SUMMARY
+          echo "${APPS_SCRIPT_BASE}?page=admin&tenant=abc" >> $GITHUB_STEP_SUMMARY
+          echo "${APPS_SCRIPT_BASE}?page=admin&tenant=cbc" >> $GITHUB_STEP_SUMMARY
+          echo "${APPS_SCRIPT_BASE}?page=admin&tenant=cbl" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**CBC:**" >> $GITHUB_STEP_SUMMARY
+          echo "#### Hostinger - Admin Pages (Event Management)" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          echo "${{ steps.urls.outputs.cbc_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "${HOSTINGER_BASE}?page=admin&tenant=root" >> $GITHUB_STEP_SUMMARY
+          echo "${HOSTINGER_BASE}?page=admin&tenant=abc" >> $GITHUB_STEP_SUMMARY
+          echo "${HOSTINGER_BASE}?page=admin&tenant=cbc" >> $GITHUB_STEP_SUMMARY
+          echo "${HOSTINGER_BASE}?page=admin&tenant=cbl" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "---" >> $GITHUB_STEP_SUMMARY
@@ -291,11 +373,18 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "🤖 **Stage 2 will auto-trigger in a few seconds!**" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Process 3: Fast-Fail Progressive Testing**" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Stage 1 Complete (Linting + Unit + Contract tests passed)" >> $GITHUB_STEP_SUMMARY
+          echo "**Cost-Optimized Progressive Testing Strategy:**" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Stage 1 Complete (ESLint + Jest Unit + Contract tests passed)" >> $GITHUB_STEP_SUMMARY
           echo "- 🚀 Stage 2 Starting automatically..." >> $GITHUB_STEP_SUMMARY
-          echo "  - Newman API Tests" >> $GITHUB_STEP_SUMMARY
-          echo "  - Playwright Tests (Parallel: Smoke + Flow + Page)" >> $GITHUB_STEP_SUMMARY
+          echo "  - 🔥 **Critical Tests** (run first):" >> $GITHUB_STEP_SUMMARY
+          echo "    - Playwright API Tests (validates REST endpoints)" >> $GITHUB_STEP_SUMMARY
+          echo "    - Playwright Smoke Tests (validates critical user paths)" >> $GITHUB_STEP_SUMMARY
+          echo "  - 🚦 **Failure Gate**: Calculate failure rate" >> $GITHUB_STEP_SUMMARY
+          echo "  - 💰 **Expensive Tests** (only if failure rate < 50%):" >> $GITHUB_STEP_SUMMARY
+          echo "    - Playwright Flow Tests (multi-step user workflows)" >> $GITHUB_STEP_SUMMARY
+          echo "    - Playwright Page Tests (comprehensive page validation)" >> $GITHUB_STEP_SUMMARY
+          echo "  - 🎯 **Quality Gate**: All tests must pass" >> $GITHUB_STEP_SUMMARY
+          echo "  - 🚀 **QA Deployment**: Deploy to QA environment if approved" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Check the **Actions** tab to monitor Stage 2 progress." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY

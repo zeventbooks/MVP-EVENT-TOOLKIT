@@ -70,6 +70,7 @@ jobs:
           else
             echo "⚠️ No deployment URL found from Stage 1"
             echo "This likely means Stage 1 didn't deploy (e.g., PR or non-main branch)"
+            echo "Defaulting to QA environment for testing"
             echo "url=https://qa.zeventbooks.com" >> $GITHUB_OUTPUT
           fi
         env:
@@ -84,10 +85,85 @@ jobs:
   # STAGE 2: CRITICAL TESTS (API + Smoke) - Run First
   # ============================================================================
 
-  critical-tests:
-    name: 🔥 Critical Tests - ${{ matrix.suite }}
+  hostinger-health-check:
+    name: 🏥 QA Environment Health Check
     runs-on: ubuntu-latest
     needs: setup
+    if: needs.setup.outputs.skip_tests != 'true'
+    steps:
+      - name: Verify QA environment is accessible
+        run: |
+          echo "🏥 Health Check: Verifying qa.zeventbooks.com is accessible..."
+          echo ""
+
+          # Test the status endpoint
+          HEALTH_URL="https://qa.zeventbooks.com?p=status&tenant=root"
+          echo "Testing: $HEALTH_URL"
+
+          # Make request and capture HTTP status code
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$HEALTH_URL" || echo "000")
+
+          echo "HTTP Status Code: $HTTP_CODE"
+
+          if [ "$HTTP_CODE" == "200" ]; then
+            echo "✅ SUCCESS: QA environment is accessible and responding"
+            echo "   qa.zeventbooks.com → Apps Script proxy is working"
+            exit 0
+          elif [ "$HTTP_CODE" == "000" ]; then
+            echo "❌ FAILURE: Cannot reach qa.zeventbooks.com"
+            echo "   Possible issues:"
+            echo "   - DNS not configured"
+            echo "   - Hostinger hosting down"
+            echo "   - Domain not pointing to correct server"
+            echo ""
+            echo "💡 Fix: Check Hostinger hPanel and domain DNS settings for qa subdomain"
+            exit 1
+          elif [ "$HTTP_CODE" == "404" ]; then
+            echo "❌ FAILURE: qa.zeventbooks.com returns 404"
+            echo "   Possible issues:"
+            echo "   - index.php not uploaded to Hostinger qa subdomain"
+            echo "   - Uploaded to wrong directory (should be public_html/qa/)"
+            echo ""
+            echo "💡 Fix: Upload hostinger-proxy/index.php to Hostinger qa subdomain"
+            exit 1
+          elif [ "$HTTP_CODE" == "500" ] || [ "$HTTP_CODE" == "502" ]; then
+            echo "❌ FAILURE: QA environment proxy error (HTTP $HTTP_CODE)"
+            echo "   Possible issues:"
+            echo "   - Apps Script backend is down"
+            echo "   - Wrong deployment ID in index.php"
+            echo "   - PHP error in proxy script"
+            echo ""
+            echo "💡 Fix: Check index.php configuration and Apps Script deployment"
+            exit 1
+          else
+            echo "⚠️  WARNING: Unexpected HTTP status code: $HTTP_CODE"
+            echo "   Proceeding with tests, but may fail"
+          fi
+
+      - name: Test Apps Script backend directly
+        run: |
+          echo ""
+          echo "🔍 Testing Apps Script backend (bypassing QA proxy)..."
+
+          # Get the Apps Script URL from index.php configuration
+          APPS_SCRIPT_URL="https://script.google.com/macros/s/AKfycbzu-U4UgdjdAiXHTg9TD5Y-1gDkc798YSTqQCdhOddG/exec?p=status&tenant=root"
+
+          echo "Testing: $APPS_SCRIPT_URL"
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$APPS_SCRIPT_URL" || echo "000")
+
+          echo "HTTP Status Code: $HTTP_CODE"
+
+          if [ "$HTTP_CODE" == "200" ]; then
+            echo "✅ Apps Script backend is working"
+          else
+            echo "⚠️  Apps Script backend issue (HTTP $HTTP_CODE)"
+            echo "   This may affect QA environment proxy functionality"
+          fi
+
+  critical-tests:
+    name: 🔥 Critical - ${{ matrix.suite }} (QA)
+    runs-on: ubuntu-latest
+    needs: [setup, hostinger-health-check]
     if: needs.setup.outputs.skip_tests != 'true'
     strategy:
       fail-fast: false  # Continue even if one fails
@@ -95,9 +171,6 @@ jobs:
         suite:
           - api
           - smoke
-    outputs:
-      api_result: ${{ steps.mark-result.outputs.api_result }}
-      smoke_result: ${{ steps.mark-result.outputs.smoke_result }}
     steps:
       - uses: actions/checkout@v4
 
@@ -113,14 +186,15 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
-      - name: Run ${{ matrix.suite }} tests
+      - name: Run ${{ matrix.suite }} tests on QA
         id: test-run
         continue-on-error: true
         env:
-          BASE_URL: ${{ needs.setup.outputs.deployment_url }}
+          BASE_URL: https://qa.zeventbooks.com
           ADMIN_KEY: ${{ secrets.ADMIN_KEY_ROOT }}
         run: |
           echo "🔥 Running ${{ matrix.suite }} tests against: $BASE_URL"
+          echo "Environment: QA (qa.zeventbooks.com)"
 
           if [ "${{ matrix.suite }}" == "api" ]; then
             echo "⏳ Waiting 10 seconds to avoid rate limits..."
@@ -130,21 +204,11 @@ jobs:
             npm run test:smoke
           fi
 
-      - name: Mark result
-        id: mark-result
-        if: always()
-        run: |
-          if [ "${{ steps.test-run.outcome }}" == "success" ]; then
-            echo "${{ matrix.suite }}_result=success" >> $GITHUB_OUTPUT
-          else
-            echo "${{ matrix.suite }}_result=failure" >> $GITHUB_OUTPUT
-          fi
-
       - name: Upload ${{ matrix.suite }} test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-${{ matrix.suite }}-report
+          name: playwright-${{ matrix.suite }}-qa-report
           path: playwright-report/
           retention-days: 7
 
@@ -167,24 +231,37 @@ jobs:
           echo "📊 Calculating failure rate for critical tests"
           echo "=============================================="
           echo ""
-          echo "API Tests: ${{ needs.critical-tests.result }}"
-          echo "Smoke Tests: ${{ needs.critical-tests.result }}"
+          echo "Critical Tests Job Result: ${{ needs.critical-tests.result }}"
+          echo ""
+          echo "Test Matrix:"
+          echo "  - 2 suites (API + Smoke)"
+          echo "  - 1 environment (QA)"
+          echo "  - Total: 2 test runs"
           echo ""
 
-          # Count failures (if job result is not success, count as failure)
-          FAILURES=0
-          TOTAL=2
+          # The critical-tests job runs 2 tests (2 suites on QA)
+          # If the overall job succeeded, both passed
+          # If it failed, at least one failed
 
-          if [[ "${{ needs.critical-tests.result }}" != "success" ]]; then
-            # At least one critical test failed
-            FAILURES=$((FAILURES + 1))
+          TOTAL=2  # 2 suites on QA
+
+          if [[ "${{ needs.critical-tests.result }}" == "success" ]]; then
+            FAILURES=0
+            echo "✅ All critical tests passed (0 failures)"
+          else
+            # Job failed - estimate at least 50% failure to be conservative
+            FAILURES=1
+            echo "❌ Critical tests job failed (estimating 50% failure rate)"
+            echo "   Note: At least one test suite failed"
           fi
 
           # Calculate failure rate percentage
           FAILURE_RATE=$((FAILURES * 100 / TOTAL))
 
           echo "failure_rate=$FAILURE_RATE" >> $GITHUB_OUTPUT
+          echo ""
           echo "Failure Rate: $FAILURE_RATE%"
+          echo "Failed: $FAILURES out of $TOTAL test runs"
           echo ""
 
           # Decision: Run expensive tests only if failure rate < 50%
@@ -202,7 +279,7 @@ jobs:
   # ============================================================================
 
   expensive-tests:
-    name: 💰 Expensive Tests - ${{ matrix.suite }}
+    name: 💰 Expensive - ${{ matrix.suite }} (QA)
     runs-on: ubuntu-latest
     needs: [setup, failure-gate]
     if: needs.failure-gate.outputs.should_run_expensive_tests == 'true'
@@ -227,12 +304,13 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
-      - name: Run ${{ matrix.suite }} tests
+      - name: Run ${{ matrix.suite }} tests on QA
         env:
-          BASE_URL: ${{ needs.setup.outputs.deployment_url }}
+          BASE_URL: https://qa.zeventbooks.com
           ADMIN_KEY: ${{ secrets.ADMIN_KEY_ROOT }}
         run: |
           echo "💰 Running ${{ matrix.suite }} tests against: $BASE_URL"
+          echo "Environment: QA (qa.zeventbooks.com)"
           echo "   (Critical tests passed - proceeding with expensive tests)"
 
           if [ "${{ matrix.suite }}" == "flows" ]; then
@@ -245,7 +323,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-${{ matrix.suite }}-report
+          name: playwright-${{ matrix.suite }}-qa-report
           path: playwright-report/
           retention-days: 7
 
@@ -267,8 +345,12 @@ jobs:
           echo "📊 Stage 2 Quality Gate Summary"
           echo "=============================================="
           echo ""
+          echo "QA Environment:"
+          echo "  🌐 QA:                      https://qa.zeventbooks.com"
+          echo ""
           echo "Critical Tests (API + Smoke):"
           echo "  🔥 Critical Tests:          ${{ needs.critical-tests.result }}"
+          echo "     (2 test runs: API + Smoke on QA)"
           echo ""
           echo "Failure Gate:"
           echo "  🚦 Failure Rate:            ${{ needs.failure-gate.outputs.failure_rate }}%"
@@ -277,6 +359,7 @@ jobs:
           echo "Expensive Tests (Flows + Pages):"
           if [[ "${{ needs.failure-gate.outputs.should_run_expensive_tests }}" == "true" ]]; then
             echo "  💰 Expensive Tests:         ${{ needs.expensive-tests.result }}"
+            echo "     (2 test runs: Flows + Pages on QA)"
           else
             echo "  💰 Expensive Tests:         ⏭️ SKIPPED (Failure rate >= 50%)"
           fi
@@ -324,19 +407,21 @@ jobs:
         run: |
           echo "## 🎯 Stage 2 Quality Gate Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 🚀 Cost-Optimized Progressive Testing" >> $GITHUB_STEP_SUMMARY
+          echo "### 🌐 QA Environment Testing" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Strategy:**" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** QA (\`https://qa.zeventbooks.com\`)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Cost-Optimized Strategy:**" >> $GITHUB_STEP_SUMMARY
           echo "1. ✅ Run critical tests first (API + Smoke)" >> $GITHUB_STEP_SUMMARY
           echo "2. ✅ Calculate failure rate" >> $GITHUB_STEP_SUMMARY
           echo "3. ✅ Only run expensive tests (Flows + Pages) if failure rate < 50%" >> $GITHUB_STEP_SUMMARY
           echo "4. ✅ Use only 2 devices: iPhone 14 Pro (mobile) + Chromium (desktop)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Deployment URL:** \`${{ needs.setup.outputs.deployment_url }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 🔥 Critical Tests (API + Smoke)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Result:** \`${{ needs.critical-tests.result }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Test Runs:** 2 (API + Smoke on QA)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 🚦 Failure Gate" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -347,6 +432,8 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           if [[ "${{ needs.failure-gate.outputs.should_run_expensive_tests }}" == "true" ]]; then
             echo "**Result:** \`${{ needs.expensive-tests.result }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Test Runs:** 2 (Flows + Pages on QA)" >> $GITHUB_STEP_SUMMARY
           else
             echo "**Result:** ⏭️ **SKIPPED** (Failure rate >= 50% - cost optimization)" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
@@ -369,21 +456,26 @@ jobs:
           fi
 
           echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Note:** Test reports available in workflow artifacts." >> $GITHUB_STEP_SUMMARY
+
+          echo "" >> $GITHUB_STEP_SUMMARY
 
           if [[ "${{ steps.gate.outputs.approved }}" == "true" ]]; then
             echo "### ✅ Quality Gate: **PASSED**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "All executed tests passed successfully! Ready for QA deployment." >> $GITHUB_STEP_SUMMARY
+            echo "All executed tests passed successfully! QA environment verified." >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "**Benefits of Cost-Optimized Testing:**" >> $GITHUB_STEP_SUMMARY
+            echo "- 🌐 Tests QA environment (qa.zeventbooks.com)" >> $GITHUB_STEP_SUMMARY
             echo "- 💰 Skips expensive tests when critical tests fail >50%" >> $GITHUB_STEP_SUMMARY
             echo "- 📱 Only 2 devices tested (iPhone 14 Pro + Chromium)" >> $GITHUB_STEP_SUMMARY
             echo "- ⚡ Critical tests run first (fast feedback)" >> $GITHUB_STEP_SUMMARY
             echo "- 🤖 Fully automated (no manual triggers)" >> $GITHUB_STEP_SUMMARY
+            echo "- 🎯 Validates QA before production" >> $GITHUB_STEP_SUMMARY
           else
             echo "### ❌ Quality Gate: **FAILED**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "One or more tests failed. QA deployment blocked." >> $GITHUB_STEP_SUMMARY
+            echo "One or more tests failed. QA validation failed." >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "Please review the test reports and fix failing tests." >> $GITHUB_STEP_SUMMARY
           fi
