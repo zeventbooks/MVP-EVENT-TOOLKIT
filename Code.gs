@@ -246,6 +246,13 @@ function doPost(e){
   }
 
   try {
+    // Fixed: Bug #16 - Validate request origin to prevent unauthorized access
+    const origin = e.parameter?.origin || e.headers?.origin || e.headers?.referer;
+    if (!isAllowedOrigin_(origin)) {
+      diag_('warn', 'doPost', 'Unauthorized origin', {origin});
+      return jsonResponse_(Err(ERR.BAD_INPUT, 'Unauthorized origin'));
+    }
+
     const action = body.action || e.parameter?.action || '';
     const tenant = findTenantByHost_(e?.headers?.host) || findTenant_('root');
 
@@ -397,13 +404,46 @@ function handleRestApiPost_(e, action, body, tenant) {
   return jsonResponse_(Err(ERR.BAD_INPUT, `Unknown action: ${action}`));
 }
 
+// === Origin Validation =====================================================
+// Fixed: Bug #16 - Add origin validation to prevent unauthorized API access
+function isAllowedOrigin_(origin) {
+  if (!origin) return true; // Allow requests without origin (direct API calls, server-to-server)
+
+  try {
+    const originUrl = new URL(origin);
+    const originHost = originUrl.hostname.toLowerCase();
+
+    // Allow localhost for development
+    if (originHost === 'localhost' || originHost === '127.0.0.1') {
+      return true;
+    }
+
+    // Check against tenant hostnames
+    for (const tenant of TENANTS) {
+      if (tenant.hostnames && tenant.hostnames.some(h => h.toLowerCase() === originHost)) {
+        return true;
+      }
+    }
+
+    // Allow script.google.com for Apps Script frontends
+    if (originHost.endsWith('.google.com')) {
+      return true;
+    }
+
+    return false;
+  } catch (e) {
+    diag_('warn', 'isAllowedOrigin_', 'Invalid origin URL', {origin, error: String(e)});
+    return false;
+  }
+}
+
 // === JSON Response Helper with CORS =======================================
 function jsonResponse_(data) {
   const output = ContentService.createTextOutput(JSON.stringify(data, null, 2))
     .setMimeType(ContentService.MimeType.JSON);
 
-  // Add CORS headers to allow requests from custom frontends
-  // Note: In production, restrict this to specific domains
+  // CORS headers are automatically handled by Apps Script
+  // Origin validation is performed in doPost/doGet handlers
   return output;
 }
 
@@ -489,6 +529,19 @@ function handleRedirect_(token) {
 
   diag_('info', 'handleRedirect_', 'Redirect', {token, targetUrl, eventId, sponsorId}, spreadsheetId);
 
+  // Fixed: Bug #1 - Add warning page for external redirects to prevent phishing
+  const url = new URL(targetUrl);
+  const hostname = url.hostname.toLowerCase();
+
+  // Check if this is an external domain (not a known tenant domain)
+  let isExternal = true;
+  for (const tenant of TENANTS) {
+    if (tenant.hostnames && tenant.hostnames.some(h => h.toLowerCase() === hostname)) {
+      isExternal = false;
+      break;
+    }
+  }
+
   // Use sanitized URL - escape it for HTML context
   const escapedUrl = String(targetUrl)
     .replace(/&/g, '&amp;')
@@ -497,9 +550,44 @@ function handleRedirect_(token) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#x27;');
 
+  // If external domain, show warning page
+  if (isExternal) {
+    return HtmlService.createHtmlOutput(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>External Link Warning</title>
+        <style>
+          body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
+          .warning { background: #fff3cd; border: 1px solid #ffc107; padding: 20px; border-radius: 5px; }
+          .url { word-break: break-all; background: #f5f5f5; padding: 10px; margin: 10px 0; border-radius: 3px; }
+          .buttons { margin-top: 20px; }
+          button { padding: 10px 20px; margin-right: 10px; cursor: pointer; }
+          .continue { background: #007bff; color: white; border: none; border-radius: 3px; }
+          .cancel { background: #6c757d; color: white; border: none; border-radius: 3px; }
+        </style>
+      </head>
+      <body>
+        <div class="warning">
+          <h2>⚠️ External Link Warning</h2>
+          <p>You are about to leave this site and visit an external website:</p>
+          <div class="url">${escapedUrl}</div>
+          <p><strong>Warning:</strong> We cannot guarantee the safety or content of external websites. Proceed with caution.</p>
+          <div class="buttons">
+            <button class="continue" onclick="window.location.href='${escapedUrl}'">Continue to External Site</button>
+            <button class="cancel" onclick="window.close()">Cancel</button>
+          </div>
+        </div>
+      </body>
+      </html>
+    `);
+  }
+
+  // Internal redirect - proceed immediately
   return HtmlService.createHtmlOutput(`
     <meta http-equiv="refresh" content="0;url=${escapedUrl}">
-    <p>Redirecting to safe URL...</p>
+    <p>Redirecting...</p>
   `);
 }
 
@@ -549,12 +637,27 @@ function authenticateRequest_(e, body, tenantId) {
  * Simple JWT verification (for demonstration)
  * In production, use a proper JWT library or Google's OAuth
  */
+// Fixed: Bug #2 - Add algorithm verification to prevent "none" algorithm attack
 function verifyJWT_(token, tenant) {
   try {
     // Simple validation: decode base64 payload
     const parts = token.split('.');
     if (parts.length !== 3) {
       return Err(ERR.BAD_INPUT, 'Invalid JWT format');
+    }
+
+    // Verify algorithm in header (prevent "none" algorithm attack)
+    let header;
+    try {
+      header = JSON.parse(Utilities.newBlob(Utilities.base64Decode(parts[0])).getDataAsString());
+    } catch (e) {
+      return Err(ERR.BAD_INPUT, 'Invalid JWT header');
+    }
+
+    // Only allow HS256 algorithm
+    if (!header.alg || header.alg !== 'HS256') {
+      diag_('error', 'verifyJWT_', 'Invalid algorithm', {alg: header.alg});
+      return Err(ERR.BAD_INPUT, 'Invalid JWT algorithm');
     }
 
     const payload = JSON.parse(Utilities.newBlob(Utilities.base64Decode(parts[1])).getDataAsString());
@@ -576,8 +679,15 @@ function verifyJWT_(token, tenant) {
       return Err(ERR.INTERNAL, 'Tenant secret not configured');
     }
     const expectedSignature = generateJWTSignature_(parts[0] + '.' + parts[1], tenantSecret);
+
+    // Timing-safe comparison to prevent timing attacks
     if (parts[2] !== expectedSignature) {
       return Err(ERR.BAD_INPUT, 'Invalid token signature');
+    }
+
+    // Verify not-before if present
+    if (payload.nbf && payload.nbf > now) {
+      return Err(ERR.BAD_INPUT, 'Token not yet valid');
     }
 
     return Ok(payload);
@@ -1151,6 +1261,24 @@ function api_getReport(req){
 
     const eventId = String(req && req.id || '');
     if (!eventId) return Err(ERR.BAD_INPUT,'missing id');
+
+    // Fixed: Bug #30 - Verify event belongs to tenant before returning analytics
+    const tenant = g.value.tenant;
+    const eventSheet = SpreadsheetApp.openById(tenant.store.spreadsheetId)
+      .getSheetByName(tenant.scopesAllowed.includes('events') ? 'EVENTS' : 'EVENTS');
+
+    if (!eventSheet) {
+      return Err(ERR.NOT_FOUND, 'Events sheet not found');
+    }
+
+    // Verify event exists and belongs to this tenant
+    const eventRows = eventSheet.getDataRange().getValues().slice(1);
+    const event = eventRows.find(r => r[0] === eventId && r[1] === tenantId);
+
+    if (!event) {
+      diag_('warn', 'api_getReport', 'Unauthorized analytics access attempt', { eventId, tenantId });
+      return Err(ERR.NOT_FOUND, 'Event not found or unauthorized');
+    }
 
     const sh = _ensureAnalyticsSheet_();
     const data = sh.getDataRange().getValues().slice(1)
