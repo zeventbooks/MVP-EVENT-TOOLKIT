@@ -84,20 +84,30 @@ function diag_(level, where, msg, meta, spreadsheetId){
     }
     sh.appendRow([new Date().toISOString(), level, where, msg, meta ? JSON.stringify(meta) : '']);
 
-    // Hard cap cleanup
+    // Hard cap cleanup - Fixed: Bug #8
     const last = sh.getLastRow();
     if(last > DIAG_MAX){
-      sh.deleteRows(2, Math.min(last - DIAG_MAX, last - 1));
+      const rowsToDelete = last - DIAG_MAX;
+      if (rowsToDelete > 0) {
+        sh.deleteRows(2, rowsToDelete);
+      }
     }
 
-    // Lazy daily cleanup - only run periodically to avoid performance hit
+    // Lazy daily cleanup - only run periodically to avoid performance hit - Fixed: Bug #9
     const shouldCleanup = (Math.random() < 0.1); // 10% chance on each log
     if(shouldCleanup && last > DIAG_PER_DAY){
       const today = (new Date()).toISOString().slice(0,10);
-      const ts = sh.getRange(2, 1, Math.max(0, sh.getLastRow() - 1), 1).getValues().flat();
-      const idx = ts.map((t, i) => String(t).startsWith(today) ? i + 2 : null).filter(Boolean);
-      if(idx.length > DIAG_PER_DAY){
-        sh.deleteRows(idx[0], Math.min(idx.length - DIAG_PER_DAY, idx.length));
+      const lastRow = sh.getLastRow();
+      // Fixed: Bug #23 - Check if sheet has more than just header
+      if (lastRow > 1) {
+        const ts = sh.getRange(2, 1, lastRow - 1, 1).getValues().flat();
+        const idx = ts.map((t, i) => String(t).startsWith(today) ? i + 2 : null).filter(Boolean);
+        if(idx.length > DIAG_PER_DAY){
+          const rowsToDelete = idx.length - DIAG_PER_DAY;
+          if (rowsToDelete > 0) {
+            sh.deleteRows(idx[0], rowsToDelete);
+          }
+        }
       }
     }
   } catch(e) {
@@ -111,6 +121,27 @@ function runSafe(where, fn){
     diag_('error',where,'Exception',{err:String(e),stack:e&&e.stack});
     return Err(ERR.INTERNAL,'Unexpected error');
   }
+}
+
+// === CSRF Protection =======================================================
+// Fixed: Bug #4 - Add CSRF token generation and validation
+
+function generateCSRFToken_() {
+  const token = Utilities.getUuid();
+  const cache = CacheService.getUserCache();
+  cache.put('csrf_' + token, '1', 3600); // 1 hour expiry
+  return token;
+}
+
+function validateCSRFToken_(token) {
+  if (!token || typeof token !== 'string') return false;
+  const cache = CacheService.getUserCache();
+  const valid = cache.get('csrf_' + token);
+  if (valid) {
+    cache.remove('csrf_' + token); // One-time use
+    return true;
+  }
+  return false;
 }
 
 // === Router ================================================================
@@ -184,6 +215,14 @@ function doPost(e){
     const action = body.action || e.parameter?.action || '';
     const tenant = findTenantByHost_(e?.headers?.host) || findTenant_('root');
 
+    // Fixed: Bug #4 - CSRF protection for state-changing operations
+    const stateChangingActions = ['create', 'update', 'delete', 'updateEventData', 'createShortlink', 'createFormFromTemplate', 'generateFormShortlink'];
+    if (stateChangingActions.includes(action)) {
+      if (!validateCSRFToken_(body.csrfToken)) {
+        return jsonResponse_(Err(ERR.BAD_INPUT, 'Invalid or missing CSRF token. Please refresh the page and try again.'));
+      }
+    }
+
     return handleRestApiPost_(e, action, body, tenant);
   } catch(err) {
     return jsonResponse_(Err(ERR.BAD_INPUT, 'Invalid JSON body'));
@@ -202,17 +241,23 @@ function handleRestApiGet_(e, action, tenant) {
     return jsonResponse_(api_status(tenantId));
   }
 
+  // Fixed: Bug #4 - CSRF token generation endpoint
+  if (action === 'generateCSRFToken') {
+    const token = generateCSRFToken_();
+    return jsonResponse_(Ok({ csrfToken: token }));
+  }
+
   if (action === 'config') {
-    return jsonResponse_(api_getConfig({tenantId, scope}));
+    return jsonResponse_(api_getConfig({tenantId, scope, ifNoneMatch: etag}));
   }
 
   if (action === 'list') {
-    return jsonResponse_(api_list({tenantId, scope, etag}));
+    return jsonResponse_(api_list({tenantId, scope, ifNoneMatch: etag}));
   }
 
   if (action === 'get') {
     if (!id) return jsonResponse_(Err(ERR.BAD_INPUT, 'Missing id parameter'));
-    return jsonResponse_(api_get({tenantId, scope, id, etag}));
+    return jsonResponse_(api_get({tenantId, scope, id, ifNoneMatch: etag}));
   }
 
   return jsonResponse_(Err(ERR.BAD_INPUT, `Unknown action: ${action}`));
@@ -273,7 +318,7 @@ function handleRestApiPost_(e, action, body, tenant) {
     return jsonResponse_(api_getReport({
       tenantId,
       adminKey,
-      eventId: body.eventId || '',
+      id: body.eventId || '',  // Fixed: Changed eventId to id to match api_getReport
       startDate: body.startDate || '',
       endDate: body.endDate || ''
     }));
@@ -374,6 +419,24 @@ function handleRedirect_(token) {
 
   const [tok, targetUrl, eventId, sponsorId, surface, createdAt] = row;
 
+  // Fixed: Bug #52 - Validate URL before redirect to prevent XSS
+  if (!isUrl(targetUrl)) {
+    diag_('error', 'handleRedirect_', 'Invalid URL in shortlink', {token, targetUrl}, spreadsheetId);
+    return HtmlService.createHtmlOutput('<h1>Invalid shortlink URL</h1>');
+  }
+
+  // Additional validation: ensure HTTP(S) only
+  try {
+    const url = new URL(targetUrl);
+    if (!['http:', 'https:'].includes(url.protocol)) {
+      diag_('error', 'handleRedirect_', 'Non-HTTP protocol in shortlink', {token, protocol: url.protocol}, spreadsheetId);
+      return HtmlService.createHtmlOutput('<h1>Invalid shortlink protocol</h1>');
+    }
+  } catch(e) {
+    diag_('error', 'handleRedirect_', 'URL parsing failed', {token, targetUrl, error: String(e)}, spreadsheetId);
+    return HtmlService.createHtmlOutput('<h1>Invalid shortlink URL</h1>');
+  }
+
   // Log analytics
   try {
     api_logEvents({
@@ -391,9 +454,17 @@ function handleRedirect_(token) {
 
   diag_('info', 'handleRedirect_', 'Redirect', {token, targetUrl, eventId, sponsorId}, spreadsheetId);
 
+  // Use sanitized URL - escape it for HTML context
+  const escapedUrl = String(targetUrl)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;');
+
   return HtmlService.createHtmlOutput(`
-    <meta http-equiv="refresh" content="0;url=${targetUrl}">
-    <p>Redirecting...</p>
+    <meta http-equiv="refresh" content="0;url=${escapedUrl}">
+    <p>Redirecting to safe URL...</p>
   `);
 }
 
@@ -560,6 +631,19 @@ function isUrl(s) {
   }
 }
 
+// Fixed: Bug #28 - Safe JSON parsing helper
+function safeJSONParse_(jsonString, defaultValue = {}) {
+  try {
+    return JSON.parse(jsonString || '{}');
+  } catch (e) {
+    diag_('error', 'safeJSONParse_', 'JSON parse failed', {
+      error: e.message,
+      jsonString: String(jsonString).slice(0, 200)
+    });
+    return defaultValue;
+  }
+}
+
 function sanitizeInput_(input) {
   if (!input || typeof input !== 'string') return '';
   return String(input)
@@ -681,9 +765,13 @@ function api_list(payload){
     const a=assertScopeAllowed_(tenant, scope); if(!a.ok) return a;
 
     const sh = getStoreSheet_(tenant, scope);
-    const rows = sh.getRange(2,1,Math.max(0, sh.getLastRow()-1),6).getValues()
-      .filter(r => r[1]===tenantId)
-      .map(r => ({ id:r[0], templateId:r[2], data:JSON.parse(r[3]||'{}'), createdAt:r[4], slug:r[5] }));
+    // Fixed: Bug #24 - Check if sheet has more than just header before getRange
+    const lastRow = sh.getLastRow();
+    const rows = lastRow > 1
+      ? sh.getRange(2, 1, lastRow - 1, 6).getValues()
+          .filter(r => r[1]===tenantId)
+          .map(r => ({ id:r[0], templateId:r[2], data:safeJSONParse_(r[3], {}), createdAt:r[4], slug:r[5] }))
+      : [];
     const value = { items: rows };
     const etag = Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(value)));
     if (payload?.ifNoneMatch === etag) return { ok:true, notModified:true, etag };
@@ -703,7 +791,7 @@ function api_get(payload){
     const base = ScriptApp.getService().getUrl();
     const value = {
       id:r[0], tenantId:r[1], templateId:r[2],
-      data:JSON.parse(r[3]||'{}'),
+      data:safeJSONParse_(r[3], {}),
       createdAt:r[4], slug:r[5],
       links: {
         publicUrl: `${base}?p=events&tenant=${tenantId}&id=${r[0]}`,
@@ -794,7 +882,7 @@ function api_updateEventData(req){
 
     if (rowIdx === -1) return Err(ERR.NOT_FOUND,'Event not found');
 
-    const existingData = JSON.parse(rows[rowIdx][3] || '{}');
+    const existingData = safeJSONParse_(rows[rowIdx][3], {});
     const mergedData = Object.assign({}, existingData, data || {});
 
     sh.getRange(rowIdx + 1, 4).setValue(JSON.stringify(mergedData));
@@ -831,6 +919,12 @@ function api_logEvents(req){
 
 function api_getReport(req){
   return runSafe('api_getReport', () => {
+    const { tenantId, adminKey } = req || {};
+
+    // Fixed: Add authentication check - Bug #6
+    const g = gate_(tenantId || 'root', adminKey);
+    if (!g.ok) return g;
+
     const eventId = String(req && req.id || '');
     if (!eventId) return Err(ERR.BAD_INPUT,'missing id');
 

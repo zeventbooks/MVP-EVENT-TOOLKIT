@@ -413,14 +413,17 @@ function generateRecommendations_(metrics) {
     }
   });
 
-  // Sponsor-specific recommendations
+  // Sponsor-specific recommendations - Fixed: Bug #10
   if (metrics.bySponsor && metrics.bySponsor.length > 0) {
     const topSponsor = metrics.bySponsor[0];
-    recommendations.push({
-      type: 'sponsor',
-      priority: 'info',
-      message: `Top performing sponsor: ${topSponsor.sponsorId} with ${topSponsor.engagementRate} engagement across ${topSponsor.uniqueEvents} events.`
-    });
+    // Add null check to prevent crash
+    if (topSponsor && topSponsor.sponsorId) {
+      recommendations.push({
+        type: 'sponsor',
+        priority: 'info',
+        message: `Top performing sponsor: ${topSponsor.sponsorId} with ${topSponsor.engagementRate} engagement across ${topSponsor.uniqueEvents} events.`
+      });
+    }
   }
 
   return recommendations;
