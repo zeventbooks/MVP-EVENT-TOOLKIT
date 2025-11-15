@@ -426,13 +426,14 @@ async function cli() {
 
   try {
     switch (command) {
-      case 'analyze':
+      case 'analyze': {
         const database = await prioritizer.analyzeHistory();
         console.log('\n📊 Test Analysis:');
         console.log(JSON.stringify(database.stats, null, 2));
         break;
+      }
 
-      case 'prioritize':
+      case 'prioritize': {
         const plan = await prioritizer.generateExecutionPlan();
         console.log(`\n🎯 Test Execution Plan (Prioritized):`);
         console.log(`\n${plan.note}\n`);
@@ -445,8 +446,9 @@ async function cli() {
         console.log(`   Low:      ${plan.phases.low.length} tests (stable, run last)`);
         console.log(`\n⚠️ Note: This does NOT skip tests. All tests run, just in priority order.\n`);
         break;
+      }
 
-      case 'recommendations':
+      case 'recommendations': {
         const recs = await prioritizer.getOptimizationRecommendations();
         console.log('\n💡 Test Optimization Recommendations:');
         if (recs.length === 0) {
@@ -455,8 +457,9 @@ async function cli() {
           console.log(JSON.stringify(recs, null, 2));
         }
         break;
+      }
 
-      case 'flaky':
+      case 'flaky': {
         const db = await prioritizer.analyzeHistory();
         console.log('\n⚠️  Flaky Tests:');
         if (db.stats.flakyTests.length === 0) {
@@ -467,6 +470,7 @@ async function cli() {
           });
         }
         break;
+      }
 
       default:
         console.log(`

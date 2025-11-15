@@ -609,7 +609,7 @@ async function cli() {
 
   try {
     switch (command) {
-      case 'parse-jest':
+      case 'parse-jest': {
         const jestFile = args[1];
         if (!jestFile) {
           console.error('❌ Please provide Jest results file path');
@@ -618,8 +618,9 @@ async function cli() {
         await tracker.parseJestResults(jestFile);
         console.log('✓ Jest results parsed');
         break;
+      }
 
-      case 'parse-playwright':
+      case 'parse-playwright': {
         const playwrightFile = args[1];
         if (!playwrightFile) {
           console.error('❌ Please provide Playwright results file path');
@@ -628,8 +629,9 @@ async function cli() {
         await tracker.parsePlaywrightResults(playwrightFile);
         console.log('✓ Playwright results parsed');
         break;
+      }
 
-      case 'parse-k6':
+      case 'parse-k6': {
         const k6File = args[1];
         if (!k6File) {
           console.error('❌ Please provide k6 results file path');
@@ -638,21 +640,24 @@ async function cli() {
         await tracker.parseK6Results(k6File);
         console.log('✓ k6 results parsed');
         break;
+      }
 
-      case 'summary':
+      case 'summary': {
         const summary = await tracker.generateSummary();
         console.log('\n📊 Test Results Summary:');
         console.log(JSON.stringify(summary, null, 2));
         break;
+      }
 
-      case 'trends':
+      case 'trends': {
         const limit = parseInt(args[1]) || 30;
         const trends = await tracker.calculateTrends(limit);
         console.log('\n📈 Test Trends:');
         console.log(JSON.stringify(trends, null, 2));
         break;
+      }
 
-      case 'anomalies':
+      case 'anomalies': {
         const anomalies = await tracker.detectAnomalies();
         console.log('\n🚨 Detected Anomalies:');
         if (anomalies.length === 0) {
@@ -661,13 +666,15 @@ async function cli() {
           console.log(JSON.stringify(anomalies, null, 2));
         }
         break;
+      }
 
-      case 'export':
+      case 'export': {
         const exportLimit = parseInt(args[1]) || 100;
         await tracker.exportToCSV(exportLimit);
         break;
+      }
 
-      case 'history':
+      case 'history': {
         const historyLimit = parseInt(args[1]) || 10;
         const history = await tracker.getHistoricalResults(historyLimit);
         console.log(`\n📜 Last ${history.length} Test Runs:`);
@@ -679,6 +686,7 @@ async function cli() {
           console.log(`  Duration: ${run.duration}ms`);
         });
         break;
+      }
 
       default:
         console.log(`

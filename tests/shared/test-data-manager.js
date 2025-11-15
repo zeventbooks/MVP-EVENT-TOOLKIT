@@ -491,29 +491,31 @@ async function cli() {
 
   try {
     switch (command) {
-      case 'seed':
+      case 'seed': {
         const strategy = args[1] || 'standard';
         await manager.seed(strategy);
         console.log('\n📊 Seed Summary:');
         console.log(JSON.stringify(manager.getStats(), null, 2));
         break;
+      }
 
       case 'cleanup':
         await manager.cleanup();
         break;
 
-      case 'snapshots':
+      case 'snapshots': {
         const snapshots = await manager.listSnapshots();
         console.log('\n📸 Available Snapshots:');
         snapshots.forEach(s => console.log(`  - ${s}`));
         break;
+      }
 
       case 'stats':
         console.log('\n📊 Data Manager Statistics:');
         console.log(JSON.stringify(manager.getStats(), null, 2));
         break;
 
-      case 'validate':
+      case 'validate': {
         const snapshotName = args[1];
         if (!snapshotName) {
           console.error('❌ Please provide snapshot name');
@@ -529,6 +531,7 @@ async function cli() {
           process.exit(1);
         }
         break;
+      }
 
       default:
         console.log(`
