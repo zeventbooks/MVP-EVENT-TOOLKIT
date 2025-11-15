@@ -40,7 +40,13 @@ const SC_LIST = {type: 'object', props: {ok: {type: 'boolean', required: true}, 
 const SC_GET = {type: 'object', props: {ok: {type: 'boolean', required: true}, value: {type: 'object'}}};
 const SC_STATUS = {type: 'object', props: {ok: {type: 'boolean', required: true}, value: {type: 'object'}}};
 
+// Fixed: Bug #26 - Check if obj is error response before schema validation
 function _ensureOk_(label, schema, obj) {
+  // If already an error envelope, return as-is without validation
+  if (obj && obj.ok === false) {
+    return obj;
+  }
+
   try {
     schemaCheck(schema, obj, label);
     return obj;
@@ -61,6 +67,23 @@ const DIAG_SHEET='DIAG', DIAG_MAX=3000, DIAG_PER_DAY=800;
  * @param {object} meta - Optional metadata object
  * @param {string} spreadsheetId - Optional spreadsheet ID (uses root tenant if not provided)
  */
+// Fixed: Bug #17 - Sanitize sensitive data from metadata before logging
+function sanitizeMetaForLogging_(meta) {
+  if (!meta || typeof meta !== 'object') return meta;
+
+  const sanitized = { ...meta };
+  const sensitiveKeys = ['adminKey', 'token', 'password', 'secret', 'authorization', 'bearer', 'csrf', 'csrfToken'];
+
+  for (const key of Object.keys(sanitized)) {
+    const lowerKey = key.toLowerCase();
+    if (sensitiveKeys.some(sk => lowerKey.includes(sk))) {
+      sanitized[key] = '[REDACTED]';
+    }
+  }
+
+  return sanitized;
+}
+
 function diag_(level, where, msg, meta, spreadsheetId){
   try{
     // If spreadsheet ID not provided, try to get from root tenant
@@ -82,7 +105,10 @@ function diag_(level, where, msg, meta, spreadsheetId){
       sh.appendRow(['ts','level','where','msg','meta']);
       sh.setFrozenRows(1);
     }
-    sh.appendRow([new Date().toISOString(), level, where, msg, meta ? JSON.stringify(meta) : '']);
+
+    // Fixed: Bug #17 - Sanitize metadata before logging
+    const sanitizedMeta = sanitizeMetaForLogging_(meta);
+    sh.appendRow([new Date().toISOString(), level, where, msg, sanitizedMeta ? JSON.stringify(sanitizedMeta) : '']);
 
     // Hard cap cleanup - Fixed: Bug #8
     const last = sh.getLastRow();
@@ -597,21 +623,40 @@ function generateJWTSignature_(data, secret) {
 }
 
 // === Guards / Helpers ======================================================
-const RATE_MAX_PER_MIN=20;
+// Fixed: Bug #18 - Improved rate limiting with IP tracking and backoff
+const RATE_MAX_PER_MIN = 10; // Reduced from 20
+const RATE_LOCKOUT_MINS = 15;
+const MAX_FAILED_AUTH = 5;
 
-function gate_(tenantId, adminKey){
+function gate_(tenantId, adminKey, ipAddress = null){
   const tenant=findTenant_(tenantId);
   if(!tenant) return Err(ERR.NOT_FOUND,'Unknown tenant');
-  const tenantSecret = getAdminSecret_(tenant.id);
-  if (tenantSecret && adminKey !== tenantSecret)
-    return Err(ERR.BAD_INPUT,'Invalid admin key');
 
-  // Rate limiting per tenant per minute
-  const cache=CacheService.getScriptCache();
-  const key=`rate:${tenantId}:${new Date().toISOString().slice(0,16)}`;
-  const n = Number(cache.get(key)||'0');
-  if (n>=RATE_MAX_PER_MIN) return Err(ERR.RATE_LIMITED,'Too many requests');
-  cache.put(key,String(n+1),60);
+  const tenantSecret = getAdminSecret_(tenant.id);
+  const cache = CacheService.getScriptCache();
+
+  // Track failed authentication attempts per IP
+  if (tenantSecret && adminKey !== tenantSecret) {
+    if (ipAddress) {
+      const failKey = `auth_fail:${tenantId}:${ipAddress}`;
+      const fails = Number(cache.get(failKey) || '0');
+
+      if (fails >= MAX_FAILED_AUTH) {
+        return Err(ERR.RATE_LIMITED, `Too many failed authentication attempts. Try again in ${RATE_LOCKOUT_MINS} minutes.`);
+      }
+
+      cache.put(failKey, String(fails + 1), RATE_LOCKOUT_MINS * 60); // 15 min lockout
+    }
+    return Err(ERR.BAD_INPUT,'Invalid admin key');
+  }
+
+  // Rate limiting per tenant AND per IP (if available)
+  const identifier = ipAddress ? `${tenantId}:${ipAddress}` : tenantId;
+  const rateKey = `rate:${identifier}:${new Date().toISOString().slice(0,16)}`;
+  const n = Number(cache.get(rateKey)||'0');
+  if (n >= RATE_MAX_PER_MIN) return Err(ERR.RATE_LIMITED,'Too many requests. Please try again later.');
+  cache.put(rateKey, String(n+1), 60);
+
   return Ok({tenant});
 }
 
@@ -644,12 +689,35 @@ function safeJSONParse_(jsonString, defaultValue = {}) {
   }
 }
 
-function sanitizeInput_(input) {
+// Fixed: Bug #14 - Comprehensive input sanitization with context-aware escaping
+function sanitizeInput_(input, maxLength = 1000) {
   if (!input || typeof input !== 'string') return '';
-  return String(input)
-    .replace(/[<>"']/g, '')
-    .trim()
-    .slice(0, 1000);
+
+  let sanitized = String(input)
+    .replace(/[\x00-\x1F\x7F]/g, '') // Remove control characters
+    .replace(/[\u200B-\u200D\uFEFF]/g, '') // Remove zero-width characters
+    .trim();
+
+  // Remove dangerous characters and patterns
+  sanitized = sanitized
+    .replace(/[<>"'`&]/g, '') // Remove HTML special chars and backticks
+    .replace(/javascript:/gi, '') // Remove javascript: protocol
+    .replace(/data:/gi, '') // Remove data: protocol
+    .replace(/vbscript:/gi, '') // Remove vbscript: protocol
+    .replace(/on\w+=/gi, '') // Remove event handlers
+    .replace(/&#/g, '') // Remove HTML entity encoding
+    .replace(/\\x/g, '') // Remove hex encoding
+    .replace(/\\u/g, ''); // Remove unicode encoding
+
+  return sanitized.slice(0, maxLength);
+}
+
+// Fixed: Bug #19 - Add ID format validation
+function sanitizeId_(id) {
+  if (!id || typeof id !== 'string') return null;
+  // Ensure ID is valid UUID format or safe alphanumeric string
+  if (!/^[a-zA-Z0-9-_]{1,100}$/.test(id)) return null;
+  return id;
 }
 
 function getStoreSheet_(tenant, scope){
@@ -782,10 +850,15 @@ function api_list(payload){
 function api_get(payload){
   return runSafe('api_get', () => {
     const { tenantId, scope, id } = payload||{};
+
+    // Fixed: Bug #19 - Validate ID format
+    const sanitizedId = sanitizeId_(id);
+    if (!sanitizedId) return Err(ERR.BAD_INPUT, 'Invalid ID format');
+
     const tenant=findTenant_(tenantId); if(!tenant) return Err(ERR.NOT_FOUND,'Unknown tenant');
     const a=assertScopeAllowed_(tenant, scope); if(!a.ok) return a;
     const sh = getStoreSheet_(tenant, scope);
-    const r = sh.getDataRange().getValues().slice(1).find(row => row[0]===id && row[1]===tenantId);
+    const r = sh.getDataRange().getValues().slice(1).find(row => row[0]===sanitizedId && row[1]===tenantId);
     if (!r) return Err(ERR.NOT_FOUND,'Not found');
 
     const base = ScriptApp.getService().getUrl();
@@ -838,22 +911,32 @@ function api_create(payload){
       }
     }
 
-    // Write row with collision-safe slug
+    // Write row with collision-safe slug - Fixed: Bug #12 - Add LockService
     const tenant = findTenant_(tenantId);
     const sh = getStoreSheet_(tenant, scope);
     const id = Utilities.getUuid();
-    let slug = String((sanitizedData?.name || id)).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
 
-    // Handle slug collisions
-    const existingSlugs = sh.getDataRange().getValues().slice(1).map(r => r[5]);
-    let counter = 2;
-    let originalSlug = slug;
-    while (existingSlugs.includes(slug)) {
-      slug = `${originalSlug}-${counter}`;
-      counter++;
+    // Acquire lock for read-modify-write operation
+    const lock = LockService.getScriptLock();
+    try {
+      lock.waitLock(10000); // Wait up to 10 seconds
+
+      let slug = String((sanitizedData?.name || id)).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+
+      // Handle slug collisions - INSIDE lock
+      const existingSlugs = sh.getDataRange().getValues().slice(1).map(r => r[5]);
+      let counter = 2;
+      let originalSlug = slug;
+      while (existingSlugs.includes(slug)) {
+        slug = `${originalSlug}-${counter}`;
+        counter++;
+      }
+
+      sh.appendRow([id, tenantId, templateId, JSON.stringify(sanitizedData), new Date().toISOString(), slug]);
+
+    } finally {
+      lock.releaseLock();
     }
-
-    sh.appendRow([id, tenantId, templateId, JSON.stringify(sanitizedData), new Date().toISOString(), slug]);
 
     const base = ScriptApp.getService().getUrl();
     const links = {
@@ -872,24 +955,41 @@ function api_updateEventData(req){
     if(!req||typeof req!=='object') return Err(ERR.BAD_INPUT,'Missing payload');
     const { tenantId, scope, id, data, adminKey } = req;
 
+    // Fixed: Bug #19 - Validate ID format
+    const sanitizedId = sanitizeId_(id);
+    if (!sanitizedId) return Err(ERR.BAD_INPUT, 'Invalid ID format');
+
     const g=gate_(tenantId, adminKey); if(!g.ok) return g;
     const a=assertScopeAllowed_(findTenant_(tenantId), scope||'events'); if(!a.ok) return a;
 
     const tenant = findTenant_(tenantId);
     const sh = getStoreSheet_(tenant, scope||'events');
-    const rows = sh.getDataRange().getValues();
-    const rowIdx = rows.findIndex((r, i) => i > 0 && r[0]===id && r[1]===tenantId);
 
-    if (rowIdx === -1) return Err(ERR.NOT_FOUND,'Event not found');
+    // Fixed: Bug #13 - Add LockService for read-modify-write operation
+    const lock = LockService.getScriptLock();
+    try {
+      lock.waitLock(10000); // Wait up to 10 seconds
 
-    const existingData = safeJSONParse_(rows[rowIdx][3], {});
-    const mergedData = Object.assign({}, existingData, data || {});
+      const rows = sh.getDataRange().getValues();
+      const rowIdx = rows.findIndex((r, i) => i > 0 && r[0]===sanitizedId && r[1]===tenantId);
 
-    sh.getRange(rowIdx + 1, 4).setValue(JSON.stringify(mergedData));
+      if (rowIdx === -1) {
+        lock.releaseLock();
+        return Err(ERR.NOT_FOUND,'Event not found');
+      }
 
-    diag_('info','api_updateEventData','updated',{id,tenantId,scope,data});
+      const existingData = safeJSONParse_(rows[rowIdx][3], {});
+      const mergedData = Object.assign({}, existingData, data || {});
 
-    return api_get({ tenantId, scope: scope||'events', id });
+      sh.getRange(rowIdx + 1, 4).setValue(JSON.stringify(mergedData));
+
+    } finally {
+      lock.releaseLock();
+    }
+
+    diag_('info','api_updateEventData','updated',{id: sanitizedId,tenantId,scope,data});
+
+    return api_get({ tenantId, scope: scope||'events', id: sanitizedId });
   });
 }
 
@@ -1028,7 +1128,11 @@ function api_createShortlink(req){
     const g=gate_(tenantId||'root', adminKey); if(!g.ok) return g;
 
     const sh = _ensureShortlinksSheet_();
-    const token = Utilities.getUuid().split('-')[0]; // Short 8-char token
+
+    // Fixed: Bug #25 - UUID split with validation
+    const uuid = Utilities.getUuid();
+    const parts = uuid.split('-');
+    const token = parts.length > 0 ? parts[0] : uuid.substring(0, 8);
 
     sh.appendRow([
       token,
