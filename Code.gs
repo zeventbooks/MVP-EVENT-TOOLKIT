@@ -12,6 +12,34 @@ const ERR = Object.freeze({
 const Ok  = (value={}) => ({ ok:true,  value });
 const Err = (code, message) => ({ ok:false, code, message: message||code });
 
+// Fixed: Bug #48 - Sanitize error messages to prevent information disclosure
+/**
+ * Creates a user-friendly error response while logging detailed information internally
+ * @param {string} code - Error code (ERR.*)
+ * @param {string} internalMessage - Detailed internal message (logged, not shown to user)
+ * @param {object} logDetails - Additional details to log
+ * @param {string} where - Function name for logging context
+ * @returns {object} Error envelope with sanitized message
+ */
+function UserFriendlyErr_(code, internalMessage, logDetails = {}, where = 'API') {
+  // Log full details internally
+  diag_('error', where, internalMessage, logDetails);
+
+  // Map error codes to generic user-facing messages
+  const userMessages = {
+    'BAD_INPUT': 'Invalid request. Please check your input and try again.',
+    'NOT_FOUND': 'The requested resource was not found.',
+    'UNAUTHORIZED': 'Authentication failed. Please verify your credentials.',
+    'RATE_LIMITED': 'Too many requests. Please try again later.',
+    'INTERNAL': 'An internal error occurred. Please try again later.',
+    'CONTRACT': 'An unexpected error occurred. Please contact support.'
+  };
+
+  // Return sanitized error to user
+  const sanitizedMessage = userMessages[code] || 'An error occurred. Please try again.';
+  return Err(code, sanitizedMessage);
+}
+
 // === Schema validation (runtime contracts) =================================
 function schemaCheck(schema, obj, where='') {
   if (schema.type === 'object' && obj && typeof obj === 'object') {
@@ -695,7 +723,7 @@ function verifyJWT_(token, tenant) {
     // Verify signature (simplified - use proper crypto in production)
     const tenantSecret = getAdminSecret_(tenant.id);
     if (!tenantSecret) {
-      return Err(ERR.INTERNAL, 'Tenant secret not configured');
+      return UserFriendlyErr_(ERR.INTERNAL, 'Tenant secret not configured', { tenantId: tenant.id }, 'verifyJWT_');
     }
     const expectedSignature = generateJWTSignature_(parts[0] + '.' + parts[1], tenantSecret);
 
@@ -711,7 +739,7 @@ function verifyJWT_(token, tenant) {
 
     return Ok(payload);
   } catch (e) {
-    return Err(ERR.BAD_INPUT, 'Invalid JWT: ' + e.message);
+    return UserFriendlyErr_(ERR.BAD_INPUT, 'Invalid JWT verification', { error: e.message }, 'verifyJWT_');
   }
 }
 
@@ -741,7 +769,7 @@ function api_generateToken(req) {
   const payloadB64 = Utilities.base64EncodeWebSafe(JSON.stringify(payload));
   const tenantSecret = getAdminSecret_(tenant.id);
   if (!tenantSecret) {
-    return Err(ERR.INTERNAL, 'Tenant secret not configured');
+    return UserFriendlyErr_(ERR.INTERNAL, 'Tenant secret not configured', { tenantId: tenant.id }, 'api_generateToken');
   }
   const signature = generateJWTSignature_(headerB64 + '.' + payloadB64, tenantSecret);
 
@@ -801,7 +829,9 @@ function gate_(tenantId, adminKey, ipAddress = null){
 function assertScopeAllowed_(tenant, scope){
   const allowed = (tenant.scopesAllowed && tenant.scopesAllowed.length)
     ? tenant.scopesAllowed : ['events','leagues','tournaments'];
-  if (!allowed.includes(scope)) return Err(ERR.BAD_INPUT, `Scope not enabled: ${scope}`);
+  if (!allowed.includes(scope)) {
+    return UserFriendlyErr_(ERR.BAD_INPUT, `Scope not enabled: ${scope}`, { scope, tenantId: tenant.id, allowedScopes: allowed }, 'assertScopeAllowed_');
+  }
   return Ok();
 }
 
@@ -1005,7 +1035,7 @@ function api_status(tenantId){
         db: { ok: dbOk, id }
       }));
     } catch(e) {
-      return Err(ERR.INTERNAL, `Status check failed: ${e.message}`);
+      return UserFriendlyErr_(ERR.INTERNAL, 'Status check failed', { error: e.message, tenantId: req.tenantId }, 'api_status');
     }
   });
 }
@@ -1029,21 +1059,43 @@ function api_getConfig(arg){
   });
 }
 
+// Fixed: Bug #50 - Add pagination support to prevent loading all rows
 function api_list(payload){
   return runSafe('api_list', () => {
-    const { tenantId, scope } = payload||{};
+    const { tenantId, scope, limit, offset } = payload||{};
     const tenant=findTenant_(tenantId); if(!tenant) return Err(ERR.NOT_FOUND,'Unknown tenant');
     const a=assertScopeAllowed_(tenant, scope); if(!a.ok) return a;
+
+    // Pagination parameters (default: 100 items per page, max 1000)
+    const pageLimit = Math.min(parseInt(limit) || 100, 1000);
+    const pageOffset = Math.max(parseInt(offset) || 0, 0);
 
     const sh = getStoreSheet_(tenant, scope);
     // Fixed: Bug #24 - Check if sheet has more than just header before getRange
     const lastRow = sh.getLastRow();
-    const rows = lastRow > 1
+
+    // Load and filter rows (Apps Script doesn't support query-level filtering)
+    const allRows = lastRow > 1
       ? sh.getRange(2, 1, lastRow - 1, 6).getValues()
           .filter(r => r[1]===tenantId)
-          .map(r => ({ id:r[0], templateId:r[2], data:safeJSONParse_(r[3], {}), createdAt:r[4], slug:r[5] }))
       : [];
-    const value = { items: rows };
+
+    // Apply pagination after filtering
+    const totalCount = allRows.length;
+    const paginatedRows = allRows
+      .slice(pageOffset, pageOffset + pageLimit)
+      .map(r => ({ id:r[0], templateId:r[2], data:safeJSONParse_(r[3], {}), createdAt:r[4], slug:r[5] }));
+
+    const value = {
+      items: paginatedRows,
+      pagination: {
+        total: totalCount,
+        limit: pageLimit,
+        offset: pageOffset,
+        hasMore: (pageOffset + pageLimit) < totalCount
+      }
+    };
+
     const etag = Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(value)));
     if (payload?.ifNoneMatch === etag) return { ok:true, notModified:true, etag };
     return _ensureOk_('api_list', SC_LIST, { ok:true, etag, value });

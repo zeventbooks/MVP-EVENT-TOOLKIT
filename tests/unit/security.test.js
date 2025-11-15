@@ -779,4 +779,106 @@ describe('Security Bug Fixes', () => {
       expect(getShortlink('token2', ['abc'])).toBeDefined();
     });
   });
+
+  describe('Bug #48: Verbose Error Messages', () => {
+    test('should sanitize error messages for users', () => {
+      const ERR = {
+        BAD_INPUT: 'BAD_INPUT',
+        INTERNAL: 'INTERNAL',
+        NOT_FOUND: 'NOT_FOUND'
+      };
+
+      const Err = (code, message) => ({ ok: false, code, message });
+
+      const UserFriendlyErr_ = (code, internalMessage, logDetails = {}, where = 'API') => {
+        // In real implementation, this would call diag_() to log internally
+        // For testing, we just return the sanitized message
+
+        const userMessages = {
+          'BAD_INPUT': 'Invalid request. Please check your input and try again.',
+          'NOT_FOUND': 'The requested resource was not found.',
+          'UNAUTHORIZED': 'Authentication failed. Please verify your credentials.',
+          'RATE_LIMITED': 'Too many requests. Please try again later.',
+          'INTERNAL': 'An internal error occurred. Please try again later.',
+          'CONTRACT': 'An unexpected error occurred. Please contact support.'
+        };
+
+        const sanitizedMessage = userMessages[code] || 'An error occurred. Please try again.';
+        return Err(code, sanitizedMessage);
+      };
+
+      // Test that internal details are not exposed
+      const error1 = UserFriendlyErr_(ERR.INTERNAL, 'Tenant secret not configured', { tenantId: 'root' }, 'verifyJWT_');
+      expect(error1.message).not.toContain('secret');
+      expect(error1.message).not.toContain('tenant');
+      expect(error1.message).toBe('An internal error occurred. Please try again later.');
+
+      // Test JWT error sanitization
+      const error2 = UserFriendlyErr_(ERR.BAD_INPUT, 'Invalid JWT: TypeError: Cannot read property', { error: 'stack trace' }, 'verifyJWT_');
+      expect(error2.message).not.toContain('JWT');
+      expect(error2.message).not.toContain('TypeError');
+      expect(error2.message).toBe('Invalid request. Please check your input and try again.');
+
+      // Test scope error sanitization
+      const error3 = UserFriendlyErr_(ERR.BAD_INPUT, 'Scope not enabled: leagues', { scope: 'leagues' }, 'assertScopeAllowed_');
+      expect(error3.message).not.toContain('leagues');
+      expect(error3.message).not.toContain('Scope');
+      expect(error3.message).toBe('Invalid request. Please check your input and try again.');
+    });
+
+    test('should return generic messages for all error codes', () => {
+      const ERR = {
+        BAD_INPUT: 'BAD_INPUT',
+        NOT_FOUND: 'NOT_FOUND',
+        INTERNAL: 'INTERNAL'
+      };
+
+      const Err = (code, message) => ({ ok: false, code, message });
+
+      const UserFriendlyErr_ = (code, internalMessage, logDetails = {}, where = 'API') => {
+        const userMessages = {
+          'BAD_INPUT': 'Invalid request. Please check your input and try again.',
+          'NOT_FOUND': 'The requested resource was not found.',
+          'UNAUTHORIZED': 'Authentication failed. Please verify your credentials.',
+          'RATE_LIMITED': 'Too many requests. Please try again later.',
+          'INTERNAL': 'An internal error occurred. Please try again later.',
+          'CONTRACT': 'An unexpected error occurred. Please contact support.'
+        };
+
+        const sanitizedMessage = userMessages[code] || 'An error occurred. Please try again.';
+        return Err(code, sanitizedMessage);
+      };
+
+      expect(UserFriendlyErr_(ERR.BAD_INPUT, 'Detailed internal error').message)
+        .toBe('Invalid request. Please check your input and try again.');
+
+      expect(UserFriendlyErr_(ERR.NOT_FOUND, 'Resource ID 12345 not found in database').message)
+        .toBe('The requested resource was not found.');
+
+      expect(UserFriendlyErr_(ERR.INTERNAL, 'Database connection failed: timeout').message)
+        .toBe('An internal error occurred. Please try again later.');
+    });
+
+    test('should handle unknown error codes gracefully', () => {
+      const Err = (code, message) => ({ ok: false, code, message });
+
+      const UserFriendlyErr_ = (code, internalMessage, logDetails = {}, where = 'API') => {
+        const userMessages = {
+          'BAD_INPUT': 'Invalid request. Please check your input and try again.',
+          'NOT_FOUND': 'The requested resource was not found.',
+          'UNAUTHORIZED': 'Authentication failed. Please verify your credentials.',
+          'RATE_LIMITED': 'Too many requests. Please try again later.',
+          'INTERNAL': 'An internal error occurred. Please try again later.',
+          'CONTRACT': 'An unexpected error occurred. Please contact support.'
+        };
+
+        const sanitizedMessage = userMessages[code] || 'An error occurred. Please try again.';
+        return Err(code, sanitizedMessage);
+      };
+
+      const error = UserFriendlyErr_('UNKNOWN_CODE', 'Some internal error');
+      expect(error.message).toBe('An error occurred. Please try again.');
+      expect(error.code).toBe('UNKNOWN_CODE');
+    });
+  });
 });

@@ -44,7 +44,8 @@ describe('🔺 TRIANGLE [DURING EVENT]: Event Details API Contract', () => {
           links: {
             publicUrl: 'https://script.google.com/macros/s/.../exec?p=events&id=event-1',
             posterUrl: 'https://script.google.com/macros/s/.../exec?page=poster&id=event-1',
-            displayUrl: 'https://script.google.com/macros/s/.../exec?page=display&id=event-1'
+            displayUrl: 'https://script.google.com/macros/s/.../exec?page=display&id=event-1',
+            reportUrl: 'https://script.google.com/macros/s/.../exec?page=report&id=event-1'
           }
         }
       };
@@ -86,7 +87,8 @@ describe('🔺 TRIANGLE [DURING EVENT]: Event Details API Contract', () => {
           links: {
             publicUrl: 'https://script.google.com/macros/s/.../exec?p=events&id=event-1',
             posterUrl: 'https://script.google.com/macros/s/.../exec?page=poster&id=event-1',
-            displayUrl: 'https://script.google.com/macros/s/.../exec?page=display&id=event-1'
+            displayUrl: 'https://script.google.com/macros/s/.../exec?page=display&id=event-1',
+            reportUrl: 'https://script.google.com/macros/s/.../exec?page=report&id=event-1'
           }
         }
       };
@@ -94,6 +96,7 @@ describe('🔺 TRIANGLE [DURING EVENT]: Event Details API Contract', () => {
       expect(mockResponse.value.links).toHaveProperty('publicUrl');
       expect(mockResponse.value.links).toHaveProperty('posterUrl');
       expect(mockResponse.value.links).toHaveProperty('displayUrl');
+      expect(mockResponse.value.links).toHaveProperty('reportUrl');
     });
 
     it('should include etag for caching', () => {
