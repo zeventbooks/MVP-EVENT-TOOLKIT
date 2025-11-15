@@ -5,6 +5,7 @@
 
 import { test, expect } from '@playwright/test';
 import { ApiHelpers, EventBuilder } from './api-helpers.js';
+import { getCurrentEnvironment } from '../../config/environments.js';
 
 const TENANTS = ['root', 'abc', 'cbc', 'cbl'];
 
@@ -13,7 +14,8 @@ test.describe('Multi-Tenant APIs', () => {
   let adminKey;
 
   test.beforeEach(async ({ request }) => {
-    api = new ApiHelpers(request, process.env.BASE_URL);
+    const env = getCurrentEnvironment();
+    api = new ApiHelpers(request, env.baseUrl);
     adminKey = process.env.ADMIN_KEY;
 
     if (!adminKey) {
@@ -26,10 +28,11 @@ test.describe('Multi-Tenant APIs', () => {
 
     test.beforeAll(async ({ request }) => {
       // Create one event per tenant
-      const setupApi = new ApiHelpers(request, process.env.BASE_URL);
+      const env = getCurrentEnvironment();
+      const setupApi = new ApiHelpers(request, env.baseUrl);
 
       for (const tenant of TENANTS) {
-        const { eventId } = await setupApi.createTestEvent(tenant, adminKey, {
+        const { eventId } = await setupApi.createTestEvent(tenant, process.env.ADMIN_KEY, {
           name: `${tenant.toUpperCase()} Isolation Test`
         });
         createdEventIds[tenant] = eventId;
@@ -38,7 +41,8 @@ test.describe('Multi-Tenant APIs', () => {
 
     test.afterAll(async ({ request }) => {
       // Clean up
-      const cleanupApi = new ApiHelpers(request, process.env.BASE_URL);
+      const env = getCurrentEnvironment();
+      const cleanupApi = new ApiHelpers(request, env.baseUrl);
 
       for (const tenant of TENANTS) {
         const eventId = createdEventIds[tenant];
