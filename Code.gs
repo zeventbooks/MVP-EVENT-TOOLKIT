@@ -72,7 +72,7 @@ function sanitizeMetaForLogging_(meta) {
   if (!meta || typeof meta !== 'object') return meta;
 
   const sanitized = { ...meta };
-  const sensitiveKeys = ['adminKey', 'token', 'password', 'secret', 'authorization', 'bearer', 'csrf', 'csrfToken'];
+  const sensitiveKeys = ['adminkey', 'token', 'password', 'secret', 'authorization', 'bearer', 'csrf', 'csrftoken'];
 
   for (const key of Object.keys(sanitized)) {
     const lowerKey = key.toLowerCase();
