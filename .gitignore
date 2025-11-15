@@ -37,6 +37,8 @@ coverage/
 newman-reports/
 playwright-report/
 test-results/
+.test-results/
+test-dashboard/
 
 # Build outputs
 dist/

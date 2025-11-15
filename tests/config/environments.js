@@ -8,11 +8,11 @@
  */
 
 const ENVIRONMENTS = {
-  // Google Apps Script - Direct deployment
+  // Google Apps Script - Production deployment
   googleAppsScript: {
     name: 'Google Apps Script',
     baseUrl: process.env.GOOGLE_SCRIPT_URL || 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec',
-    description: 'Direct Google Apps Script deployment',
+    description: 'Direct Google Apps Script deployment (Production)',
     tenants: {
       root: 'root',
       abc: 'abc',
@@ -21,11 +21,37 @@ const ENVIRONMENTS = {
     }
   },
 
-  // Hostinger - Custom domain proxy
+  // Google Apps Script - QA deployment
+  qaAppsScript: {
+    name: 'QA Apps Script',
+    baseUrl: process.env.QA_SCRIPT_URL || 'https://script.google.com/macros/s/YOUR_QA_SCRIPT_ID/exec',
+    description: 'Direct Google Apps Script deployment (QA)',
+    tenants: {
+      root: 'root',
+      abc: 'abc',
+      cbc: 'cbc',
+      cbl: 'cbl'
+    }
+  },
+
+  // Hostinger - Production domain
   hostinger: {
     name: 'Hostinger',
     baseUrl: process.env.HOSTINGER_URL || 'https://zeventbooks.com',
-    description: 'Hostinger custom domain (proxies to Google Apps Script)',
+    description: 'Hostinger custom domain (Production)',
+    tenants: {
+      root: 'root',
+      abc: 'abc',
+      cbc: 'cbc',
+      cbl: 'cbl'
+    }
+  },
+
+  // Hostinger - QA domain
+  qaHostinger: {
+    name: 'QA Hostinger',
+    baseUrl: process.env.QA_HOSTINGER_URL || 'https://qa.zeventbooks.com',
+    description: 'Hostinger custom domain (QA)',
     tenants: {
       root: 'root',
       abc: 'abc',
@@ -70,34 +96,64 @@ function getCurrentEnvironment() {
     return { ...ENVIRONMENTS.hostinger }; // Default to Hostinger
   }
 
-  if (baseUrl.includes('zeventbooks.com')) {
+  // Parse URL securely to prevent substring injection attacks
+  try {
+    const url = new URL(baseUrl);
+    const hostname = url.hostname;
+
+    // Check for QA environments first (more specific)
+    if (hostname === 'qa.zeventbooks.com') {
+      return {
+        ...ENVIRONMENTS.qaHostinger,
+        baseUrl: baseUrl // Use actual BASE_URL
+      };
+    }
+
+    if (hostname === 'zeventbooks.com' || hostname === 'www.zeventbooks.com') {
+      return {
+        ...ENVIRONMENTS.hostinger,
+        baseUrl: baseUrl // Use actual BASE_URL
+      };
+    }
+
+    if (hostname === 'script.google.com') {
+      // Try to detect if it's QA based on deployment ID (if provided via env)
+      if (process.env.IS_QA === 'true' || envName === 'qaAppsScript') {
+        return {
+          ...ENVIRONMENTS.qaAppsScript,
+          baseUrl: baseUrl
+        };
+      }
+      return {
+        ...ENVIRONMENTS.googleAppsScript,
+        baseUrl: baseUrl // Use actual BASE_URL
+      };
+    }
+
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return {
+        ...ENVIRONMENTS.local,
+        baseUrl: baseUrl // Use actual BASE_URL
+      };
+    }
+
+    // Unknown environment - use BASE_URL as-is
     return {
-      ...ENVIRONMENTS.hostinger,
-      baseUrl: baseUrl // Use actual BASE_URL
+      name: 'Custom',
+      baseUrl: baseUrl,
+      description: 'Custom environment',
+      tenants: ENVIRONMENTS.hostinger.tenants
+    };
+  } catch (error) {
+    // If URL parsing fails, return custom environment
+    console.warn(`⚠️  Invalid BASE_URL format: ${baseUrl}`);
+    return {
+      name: 'Custom',
+      baseUrl: baseUrl,
+      description: 'Custom environment (invalid URL)',
+      tenants: ENVIRONMENTS.hostinger.tenants
     };
   }
-
-  if (baseUrl.includes('script.google.com')) {
-    return {
-      ...ENVIRONMENTS.googleAppsScript,
-      baseUrl: baseUrl // Use actual BASE_URL
-    };
-  }
-
-  if (baseUrl.includes('localhost')) {
-    return {
-      ...ENVIRONMENTS.local,
-      baseUrl: baseUrl // Use actual BASE_URL
-    };
-  }
-
-  // Unknown environment - use BASE_URL as-is
-  return {
-    name: 'Custom',
-    baseUrl: baseUrl,
-    description: 'Custom environment',
-    tenants: ENVIRONMENTS.hostinger.tenants
-  };
 }
 
 /**
