@@ -68,9 +68,6 @@ test.describe('🎨 SMOKE: Tenant Branding', () => {
   test('Admin page shows correct tenant identification for abc', async ({ page }) => {
     await page.goto(`${BASE_URL}?page=admin&tenant=abc`);
 
-    // Verify page contains tenant identifier
-    const pageContent = await page.content();
-
     // Check URL parameter is correct
     expect(page.url()).toContain('tenant=abc');
 
