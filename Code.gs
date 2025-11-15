@@ -110,31 +110,43 @@ function diag_(level, where, msg, meta, spreadsheetId){
     const sanitizedMeta = sanitizeMetaForLogging_(meta);
     sh.appendRow([new Date().toISOString(), level, where, msg, sanitizedMeta ? JSON.stringify(sanitizedMeta) : '']);
 
-    // Hard cap cleanup - Fixed: Bug #8
-    const last = sh.getLastRow();
-    if(last > DIAG_MAX){
-      const rowsToDelete = last - DIAG_MAX;
-      if (rowsToDelete > 0) {
-        sh.deleteRows(2, rowsToDelete);
+    // Fixed: Bug #47 - Add error handling for cleanup operations
+    try {
+      // Hard cap cleanup - Fixed: Bug #8
+      const last = sh.getLastRow();
+      if(last > DIAG_MAX){
+        const rowsToDelete = last - DIAG_MAX;
+        if (rowsToDelete > 0) {
+          sh.deleteRows(2, rowsToDelete);
+        }
       }
-    }
 
-    // Lazy daily cleanup - only run periodically to avoid performance hit - Fixed: Bug #9
-    const shouldCleanup = (Math.random() < 0.1); // 10% chance on each log
-    if(shouldCleanup && last > DIAG_PER_DAY){
-      const today = (new Date()).toISOString().slice(0,10);
-      const lastRow = sh.getLastRow();
-      // Fixed: Bug #23 - Check if sheet has more than just header
-      if (lastRow > 1) {
-        const ts = sh.getRange(2, 1, lastRow - 1, 1).getValues().flat();
-        const idx = ts.map((t, i) => String(t).startsWith(today) ? i + 2 : null).filter(Boolean);
-        if(idx.length > DIAG_PER_DAY){
-          const rowsToDelete = idx.length - DIAG_PER_DAY;
-          if (rowsToDelete > 0) {
-            sh.deleteRows(idx[0], rowsToDelete);
+      // Fixed: Bug #42 - Use counter instead of random for deterministic cleanup
+      // Run cleanup every 50 log entries instead of random 10% chance
+      const cache = CacheService.getScriptCache();
+      const cleanupCounterKey = 'diag_cleanup_counter';
+      const counter = parseInt(cache.get(cleanupCounterKey) || '0', 10) + 1;
+      cache.put(cleanupCounterKey, String(counter), 3600);
+
+      const shouldCleanup = (counter % 50 === 0); // Every 50th log entry
+      if(shouldCleanup && last > DIAG_PER_DAY){
+        const today = (new Date()).toISOString().slice(0,10);
+        const lastRow = sh.getLastRow();
+        // Fixed: Bug #23 - Check if sheet has more than just header
+        if (lastRow > 1) {
+          const ts = sh.getRange(2, 1, lastRow - 1, 1).getValues().flat();
+          const idx = ts.map((t, i) => String(t).startsWith(today) ? i + 2 : null).filter(Boolean);
+          if(idx.length > DIAG_PER_DAY){
+            const rowsToDelete = idx.length - DIAG_PER_DAY;
+            if (rowsToDelete > 0) {
+              sh.deleteRows(idx[0], rowsToDelete);
+            }
           }
         }
       }
+    } catch (cleanupErr) {
+      console.error('Diagnostic cleanup failed:', cleanupErr);
+      // Continue execution - don't fail logging due to cleanup error
     }
   } catch(e) {
     console.error('diag_ failed:', e, {level, where, msg, meta});
@@ -1291,8 +1303,13 @@ function api_getReport(req){
       byToken: {}
     };
 
+    // Fixed: Bug #39 - Use explicit null/undefined checks instead of || operator
     for (const r of data){
-      const surface = r[2], metric = r[3], sponsorId = r[4]||'-', value = Number(r[5]||0), token = r[6]||'-';
+      const surface = r[2];
+      const metric = r[3];
+      const sponsorId = (r[4] !== null && r[4] !== undefined && r[4] !== '') ? r[4] : '-';
+      const value = Number((r[5] !== null && r[5] !== undefined) ? r[5] : 0);
+      const token = (r[6] !== null && r[6] !== undefined && r[6] !== '') ? r[6] : '-';
 
       if (!agg.bySurface[surface]) agg.bySurface[surface] = {impressions:0, clicks:0, dwellSec:0};
       if (!agg.bySponsor[sponsorId]) agg.bySponsor[sponsorId] = {impressions:0, clicks:0, dwellSec:0};
@@ -1377,14 +1394,19 @@ function api_createShortlink(req){
 
     if (!targetUrl) return Err(ERR.BAD_INPUT,'Missing targetUrl');
 
+    // Fixed: Bug #45 & #51 - Validate targetUrl format and length
+    if (!isUrl(targetUrl, 2048)) {
+      diag_('warn', 'api_createShortlink', 'Invalid or too long URL', {targetUrl: targetUrl.substring(0, 100)});
+      return Err(ERR.BAD_INPUT, 'Invalid or too long targetUrl (max 2048 characters)');
+    }
+
     const g=gate_(tenantId||'root', adminKey); if(!g.ok) return g;
 
     const sh = _ensureShortlinksSheet_();
 
-    // Fixed: Bug #25 - UUID split with validation
-    const uuid = Utilities.getUuid();
-    const parts = uuid.split('-');
-    const token = parts.length > 0 ? parts[0] : uuid.substring(0, 8);
+    // Fixed: Bug #34 - Use full UUID for secure token generation (128-bit entropy)
+    // Previously used only first 8 chars which was guessable (~30-bit entropy)
+    const token = Utilities.getUuid();
 
     sh.appendRow([
       token,

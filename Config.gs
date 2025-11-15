@@ -148,9 +148,22 @@ const FORM_TEMPLATES = [
 // Accessors
 function loadTenants_() { return TENANTS; }
 function findTenant_(id) { return TENANTS.find(t => t.id === id) || null; }
+// Fixed: Bug #43 - Don't default to root tenant for unknown hosts
 function findTenantByHost_(host) {
   host = String(host || '').toLowerCase();
-  return TENANTS.find(t => (t.hostnames || []).includes(host)) || TENANTS.find(t => t.id === 'root');
+  const tenant = TENANTS.find(t => (t.hostnames || []).includes(host));
+
+  if (!tenant) {
+    // Log warning for unknown hostname
+    try {
+      const timestamp = new Date().toISOString();
+      console.warn(`[${timestamp}] Unknown hostname: ${host}`);
+    } catch (e) {
+      // Ignore logging errors
+    }
+  }
+
+  return tenant || null;
 }
 function findTemplate_(id) { return TEMPLATES.find(x => x.id === id) || null; }
 function findFormTemplate_(id) { return FORM_TEMPLATES.find(x => x.id === id) || null; }
