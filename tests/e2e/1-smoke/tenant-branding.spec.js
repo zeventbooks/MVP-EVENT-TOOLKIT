@@ -7,7 +7,9 @@
 
 const { test, expect } = require('@playwright/test');
 
-const BASE_URL = process.env.BASE_URL || 'https://zeventbooks.com';
+// Default to Apps Script since Hostinger deployment not complete yet
+// Override with BASE_URL env var when Hostinger is deployed
+const BASE_URL = process.env.BASE_URL || process.env.GOOGLE_SCRIPT_URL || 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec';
 
 test.describe('🎨 SMOKE: Tenant Branding', () => {
 
