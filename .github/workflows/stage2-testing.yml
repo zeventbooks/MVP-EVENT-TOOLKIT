@@ -32,7 +32,7 @@ jobs:
       deployment_url: ${{ steps.get-url.outputs.url }}
       skip_tests: ${{ steps.check.outputs.skip }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Check if Stage 1 failed
         id: check
@@ -172,7 +172,7 @@ jobs:
           - api
           - smoke
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -290,7 +290,7 @@ jobs:
           - flows
           - pages
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -492,7 +492,7 @@ jobs:
       qa_url: ${{ steps.deploy.outputs.qa_url }}
       deployment_id: ${{ steps.deploy.outputs.deployment_id }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
