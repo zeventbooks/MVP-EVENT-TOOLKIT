@@ -206,7 +206,7 @@ jobs:
 
       - name: Upload ${{ matrix.suite }} test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: playwright-${{ matrix.suite }}-qa-report
           path: playwright-report/
@@ -321,7 +321,7 @@ jobs:
 
       - name: Upload ${{ matrix.suite }} test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: playwright-${{ matrix.suite }}-qa-report
           path: playwright-report/
