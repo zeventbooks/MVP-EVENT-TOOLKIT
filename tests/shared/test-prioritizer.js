@@ -14,7 +14,6 @@
  * Purpose: Fast feedback (know about failures in 5 seconds, not 50 seconds)
  */
 
-const fs = require('fs').promises;
 const path = require('path');
 const { TestResultsTracker } = require('./test-results-tracker');
 

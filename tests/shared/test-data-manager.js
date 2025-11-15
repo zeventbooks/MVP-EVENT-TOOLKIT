@@ -10,7 +10,7 @@
  */
 
 const { EventBuilder, createBasicEvent, createCompleteEvent, createEventWithSponsors, createEventWithDisplay } = require('./fixtures/events.fixtures');
-const { createSponsor, createSponsorTier } = require('./fixtures/sponsors.fixtures');
+const { createSponsorTier } = require('./fixtures/sponsors.fixtures');
 const fs = require('fs').promises;
 const path = require('path');
 
@@ -45,14 +45,26 @@ class TestDataManager {
 
   /**
    * Detect environment based on BASE_URL
+   * Uses proper URL parsing to avoid substring matching vulnerabilities
    */
   detectEnvironment() {
     if (!this.baseUrl) return 'unknown';
-    if (this.baseUrl.includes('qa.zeventbooks.com')) return 'qa';
-    if (this.baseUrl.includes('zeventbooks.com')) return 'production';
-    if (this.baseUrl.includes('script.google.com')) return 'googleAppsScript';
-    if (this.baseUrl.includes('localhost')) return 'local';
-    return 'unknown';
+
+    try {
+      const url = new URL(this.baseUrl);
+      const hostname = url.hostname;
+
+      // Match exact hostname or subdomain
+      if (hostname === 'qa.zeventbooks.com') return 'qa';
+      if (hostname === 'zeventbooks.com' || hostname === 'www.zeventbooks.com') return 'production';
+      if (hostname === 'script.google.com') return 'googleAppsScript';
+      if (hostname === 'localhost' || hostname === '127.0.0.1') return 'local';
+
+      return 'unknown';
+    } catch (error) {
+      // Invalid URL format
+      return 'unknown';
+    }
   }
 
   /**
@@ -481,7 +493,7 @@ async function cli() {
     switch (command) {
       case 'seed':
         const strategy = args[1] || 'standard';
-        const data = await manager.seed(strategy);
+        await manager.seed(strategy);
         console.log('\n📊 Seed Summary:');
         console.log(JSON.stringify(manager.getStats(), null, 2));
         break;
