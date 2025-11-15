@@ -173,7 +173,7 @@ describe('Data Validation Bug Fixes', () => {
       };
 
       const validateUpdate = (data, tpl) => {
-        for (const [key, value] of Object.entries(data)) {
+        for (const [key, _value] of Object.entries(data)) {
           const field = tpl.fields.find(f => f.id === key);
           if (!field) {
             return { valid: false, error: `Unknown field: ${key}` };
@@ -191,7 +191,7 @@ describe('Data Validation Bug Fixes', () => {
       };
 
       const validateUpdate = (data, tpl) => {
-        for (const [key, value] of Object.entries(data)) {
+        for (const [key, _value] of Object.entries(data)) {
           const field = tpl.fields.find(f => f.id === key);
           if (!field) {
             return { valid: false, error: `Unknown field: ${key}` };
@@ -237,7 +237,7 @@ describe('Data Validation Bug Fixes', () => {
 
     test('should allow null/undefined values', () => {
       const validateUpdate = (data, tpl) => {
-        for (const [key, value] of Object.entries(data)) {
+        for (const [key, _value] of Object.entries(data)) {
           const field = tpl.fields.find(f => f.id === key);
           if (!field) {
             return { valid: false, error: `Unknown field: ${key}` };
@@ -413,8 +413,6 @@ describe('Data Validation Bug Fixes', () => {
 
   describe('Bug #42: Deterministic Cleanup Logic', () => {
     test('should use counter instead of random', () => {
-      let counter = 0;
-
       const shouldCleanup = (currentCounter) => {
         return (currentCounter % 50 === 0);
       };

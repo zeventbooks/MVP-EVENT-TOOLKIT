@@ -919,8 +919,18 @@ function sanitizeInput_(input, maxLength = 1000) {
     .replace(/[<>"'`&]/g, '') // Remove HTML special chars and backticks
     .replace(/javascript:/gi, '') // Remove javascript: protocol
     .replace(/data:/gi, '') // Remove data: protocol
-    .replace(/vbscript:/gi, '') // Remove vbscript: protocol
-    .replace(/on\w+=/gi, '') // Remove event handlers
+    .replace(/vbscript:/gi, ''); // Remove vbscript: protocol
+
+  // Remove event handlers - use loop to prevent bypass via nesting (e.g., ononclick==)
+  // This addresses CodeQL warning: Incomplete multi-character sanitization
+  let previousLength;
+  do {
+    previousLength = sanitized.length;
+    sanitized = sanitized.replace(/on\w+=/gi, '');
+  } while (sanitized.length !== previousLength);
+
+  // Remove encoding attempts
+  sanitized = sanitized
     .replace(/&#/g, '') // Remove HTML entity encoding
     .replace(/\\x/g, '') // Remove hex encoding
     .replace(/\\u/g, ''); // Remove unicode encoding

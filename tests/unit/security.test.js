@@ -111,8 +111,16 @@ describe('Security Bug Fixes', () => {
           .replace(/[<>"'`&]/g, '')
           .replace(/javascript:/gi, '')
           .replace(/data:/gi, '')
-          .replace(/vbscript:/gi, '')
-          .replace(/on\w+=/gi, '')
+          .replace(/vbscript:/gi, '');
+
+        // Remove event handlers - use loop to prevent bypass via nesting
+        let previousLength;
+        do {
+          previousLength = sanitized.length;
+          sanitized = sanitized.replace(/on\w+=/gi, '');
+        } while (sanitized.length !== previousLength);
+
+        sanitized = sanitized
           .replace(/&#/g, '')
           .replace(/\\x/g, '')
           .replace(/\\u/g, '');
@@ -672,8 +680,16 @@ describe('Security Bug Fixes', () => {
           .replace(/[<>"'`&]/g, '')
           .replace(/javascript:/gi, '')
           .replace(/data:/gi, '')
-          .replace(/vbscript:/gi, '')
-          .replace(/on\w+=/gi, '')
+          .replace(/vbscript:/gi, '');
+
+        // Remove event handlers - use loop to prevent bypass via nesting
+        let previousLength;
+        do {
+          previousLength = sanitized.length;
+          sanitized = sanitized.replace(/on\w+=/gi, '');
+        } while (sanitized.length !== previousLength);
+
+        sanitized = sanitized
           .replace(/&#/g, '')
           .replace(/\\x/g, '')
           .replace(/\\u/g, '');
