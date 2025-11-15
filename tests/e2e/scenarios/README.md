@@ -352,16 +352,60 @@ test('Track sponsor clicks', async ({ page }) => {
 
 ### Environment Variables
 
+The test framework uses environment variables for configuration. **Never hardcode secrets in tests!**
+
+#### Required Variables
+
 ```bash
-# Base URL (default: https://zeventbooks.com)
-BASE_URL=https://your-domain.com
+# Base URL for testing
+BASE_URL=https://zeventbooks.com
 
-# Admin key for protected operations
-ADMIN_KEY=your_admin_key
+# Admin authentication key (REQUIRED for Scenario 1)
+ADMIN_KEY=your_admin_key_here
 
-# Tenant ID (default: root)
+# Tenant ID (optional, defaults to 'root')
 TENANT_ID=root
 ```
+
+#### Local Development Setup
+
+**Option 1: Terminal Export** (Quick)
+```bash
+export BASE_URL=https://zeventbooks.com
+export ADMIN_KEY=your_admin_key_here
+npm run test:scenario:1
+```
+
+**Option 2: .env.local File** (Recommended)
+```bash
+# 1. Copy template
+cp .env.example .env.local
+
+# 2. Edit .env.local with your values
+# BASE_URL=https://zeventbooks.com
+# ADMIN_KEY=your_actual_admin_key
+
+# 3. Load and run
+source .env.local
+npm run test:scenario:1
+```
+
+**Option 3: One-liner**
+```bash
+BASE_URL=https://zeventbooks.com ADMIN_KEY=your_key npm run test:scenario:1
+```
+
+#### GitHub Actions / CI/CD Setup
+
+For GitHub Actions, configure **Repository Secrets**:
+
+1. Go to: `Settings` → `Secrets and variables` → `Actions`
+2. Add secrets:
+   - `ADMIN_KEY` (required)
+   - `TEST_BASE_URL` (optional, defaults to zeventbooks.com)
+   - `TENANT_ID` (optional, defaults to root)
+
+**📚 Full Guide**: See [`docs/SECRETS_SETUP.md`](../../../docs/SECRETS_SETUP.md) for detailed setup instructions.
 
 ### Playwright Config
 
