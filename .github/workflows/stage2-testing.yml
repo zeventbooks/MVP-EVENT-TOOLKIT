@@ -71,7 +71,7 @@ jobs:
             echo "⚠️ No deployment URL found from Stage 1"
             echo "This likely means Stage 1 didn't deploy (e.g., PR or non-main branch)"
             echo "Defaulting to QA environment for testing"
-            echo "url=https://qa.zeventbooks.com" >> $GITHUB_OUTPUT
+            echo "url=https://zeventbooks.com" >> $GITHUB_OUTPUT
           fi
         env:
           GH_TOKEN: ${{ github.token }}
@@ -93,11 +93,11 @@ jobs:
     steps:
       - name: Verify QA environment is accessible
         run: |
-          echo "🏥 Health Check: Verifying qa.zeventbooks.com is accessible..."
+          echo "🏥 Health Check: Verifying zeventbooks.com is accessible..."
           echo ""
 
           # Test the status endpoint
-          HEALTH_URL="https://qa.zeventbooks.com?p=status&tenant=root"
+          HEALTH_URL="https://zeventbooks.com?p=status&tenant=root"
           echo "Testing: $HEALTH_URL"
 
           # Make request and capture HTTP status code
@@ -107,10 +107,10 @@ jobs:
 
           if [ "$HTTP_CODE" == "200" ]; then
             echo "✅ SUCCESS: QA environment is accessible and responding"
-            echo "   qa.zeventbooks.com → Apps Script proxy is working"
+            echo "   zeventbooks.com → Apps Script proxy is working"
             exit 0
           elif [ "$HTTP_CODE" == "000" ]; then
-            echo "❌ FAILURE: Cannot reach qa.zeventbooks.com"
+            echo "❌ FAILURE: Cannot reach zeventbooks.com"
             echo "   Possible issues:"
             echo "   - DNS not configured"
             echo "   - Hostinger hosting down"
@@ -119,7 +119,7 @@ jobs:
             echo "💡 Fix: Check Hostinger hPanel and domain DNS settings for qa subdomain"
             exit 1
           elif [ "$HTTP_CODE" == "404" ]; then
-            echo "❌ FAILURE: qa.zeventbooks.com returns 404"
+            echo "❌ FAILURE: zeventbooks.com returns 404"
             echo "   Possible issues:"
             echo "   - index.php not uploaded to Hostinger qa subdomain"
             echo "   - Uploaded to wrong directory (should be public_html/qa/)"
@@ -190,11 +190,11 @@ jobs:
         id: test-run
         continue-on-error: true
         env:
-          BASE_URL: https://qa.zeventbooks.com
+          BASE_URL: https://zeventbooks.com
           ADMIN_KEY: ${{ secrets.ADMIN_KEY_ROOT }}
         run: |
           echo "🔥 Running ${{ matrix.suite }} tests against: $BASE_URL"
-          echo "Environment: QA (qa.zeventbooks.com)"
+          echo "Environment: QA (zeventbooks.com)"
 
           if [ "${{ matrix.suite }}" == "api" ]; then
             echo "⏳ Waiting 10 seconds to avoid rate limits..."
@@ -306,11 +306,11 @@ jobs:
 
       - name: Run ${{ matrix.suite }} tests on QA
         env:
-          BASE_URL: https://qa.zeventbooks.com
+          BASE_URL: https://zeventbooks.com
           ADMIN_KEY: ${{ secrets.ADMIN_KEY_ROOT }}
         run: |
           echo "💰 Running ${{ matrix.suite }} tests against: $BASE_URL"
-          echo "Environment: QA (qa.zeventbooks.com)"
+          echo "Environment: QA (zeventbooks.com)"
           echo "   (Critical tests passed - proceeding with expensive tests)"
 
           if [ "${{ matrix.suite }}" == "flows" ]; then
@@ -346,7 +346,7 @@ jobs:
           echo "=============================================="
           echo ""
           echo "QA Environment:"
-          echo "  🌐 QA:                      https://qa.zeventbooks.com"
+          echo "  🌐 QA:                      https://zeventbooks.com"
           echo ""
           echo "Critical Tests (API + Smoke):"
           echo "  🔥 Critical Tests:          ${{ needs.critical-tests.result }}"
@@ -409,7 +409,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 🌐 QA Environment Testing" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Environment:** QA (\`https://qa.zeventbooks.com\`)" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** QA (\`https://zeventbooks.com\`)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Cost-Optimized Strategy:**" >> $GITHUB_STEP_SUMMARY
           echo "1. ✅ Run critical tests first (API + Smoke)" >> $GITHUB_STEP_SUMMARY
@@ -466,7 +466,7 @@ jobs:
             echo "All executed tests passed successfully! QA environment verified." >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "**Benefits of Cost-Optimized Testing:**" >> $GITHUB_STEP_SUMMARY
-            echo "- 🌐 Tests QA environment (qa.zeventbooks.com)" >> $GITHUB_STEP_SUMMARY
+            echo "- 🌐 Tests QA environment (zeventbooks.com)" >> $GITHUB_STEP_SUMMARY
             echo "- 💰 Skips expensive tests when critical tests fail >50%" >> $GITHUB_STEP_SUMMARY
             echo "- 📱 Only 2 devices tested (iPhone 14 Pro + Chromium)" >> $GITHUB_STEP_SUMMARY
             echo "- ⚡ Critical tests run first (fast feedback)" >> $GITHUB_STEP_SUMMARY

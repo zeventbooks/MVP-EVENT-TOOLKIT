@@ -50,8 +50,8 @@ const ENVIRONMENTS = {
   // Hostinger - QA domain
   qaHostinger: {
     name: 'QA Hostinger',
-    baseUrl: process.env.QA_HOSTINGER_URL || 'https://qa.zeventbooks.com',
-    description: 'Hostinger custom domain (QA)',
+    baseUrl: process.env.QA_HOSTINGER_URL || 'https://zeventbooks.com',
+    description: 'Hostinger custom domain (QA) - Currently pointing to zeventbooks.com',
     tenants: {
       root: 'root',
       abc: 'abc',
