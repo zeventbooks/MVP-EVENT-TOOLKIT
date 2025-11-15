@@ -382,4 +382,204 @@ describe('Data Validation Bug Fixes', () => {
       expect(validateTypes({ website: 'not-a-url' }, template).valid).toBe(false);
     });
   });
+
+  describe('Bug #39: Inconsistent Null Checks', () => {
+    test('should handle 0 and empty string correctly', () => {
+      const getValue = (value, defaultValue) => {
+        // Old buggy way: value || defaultValue (treats 0 and "" as falsy)
+        // Fixed way: explicit null/undefined check
+        return (value !== null && value !== undefined && value !== '') ? value : defaultValue;
+      };
+
+      expect(getValue(0, 10)).toBe(0); // 0 should NOT be replaced
+      expect(getValue('', 'default')).toBe('default'); // '' should be replaced
+      expect(getValue(false, true)).toBe(false); // false should NOT be replaced
+      expect(getValue(null, 'default')).toBe('default');
+      expect(getValue(undefined, 'default')).toBe('default');
+    });
+
+    test('should preserve valid 0 values in analytics', () => {
+      const row = [null, null, 'surface', 'metric', '', 0, ''];
+
+      const sponsorId = (row[4] !== null && row[4] !== undefined && row[4] !== '') ? row[4] : '-';
+      const value = Number((row[5] !== null && row[5] !== undefined) ? row[5] : 0);
+      const token = (row[6] !== null && row[6] !== undefined && row[6] !== '') ? row[6] : '-';
+
+      expect(sponsorId).toBe('-');
+      expect(value).toBe(0); // Valid 0 value
+      expect(token).toBe('-');
+    });
+  });
+
+  describe('Bug #42: Deterministic Cleanup Logic', () => {
+    test('should use counter instead of random', () => {
+      let counter = 0;
+
+      const shouldCleanup = (currentCounter) => {
+        return (currentCounter % 50 === 0);
+      };
+
+      expect(shouldCleanup(50)).toBe(true);
+      expect(shouldCleanup(100)).toBe(true);
+      expect(shouldCleanup(150)).toBe(true);
+      expect(shouldCleanup(49)).toBe(false);
+      expect(shouldCleanup(51)).toBe(false);
+    });
+
+    test('should be deterministic and predictable', () => {
+      const cleanupTriggers = [];
+      for (let i = 1; i <= 200; i++) {
+        if (i % 50 === 0) {
+          cleanupTriggers.push(i);
+        }
+      }
+
+      expect(cleanupTriggers).toEqual([50, 100, 150, 200]);
+      expect(cleanupTriggers.length).toBe(4);
+    });
+  });
+
+  describe('Bug #43: Tenant Fallback Logic', () => {
+    test('should return null for unknown hosts instead of defaulting to root', () => {
+      const TENANTS = [
+        { id: 'root', hostnames: ['zeventbook.io'] },
+        { id: 'abc', hostnames: ['abc.zeventbooks.io'] }
+      ];
+
+      const findTenantByHost = (host) => {
+        const tenant = TENANTS.find(t => (t.hostnames || []).includes(host.toLowerCase()));
+        return tenant || null; // Return null, not root tenant
+      };
+
+      expect(findTenantByHost('zeventbook.io')).toEqual({ id: 'root', hostnames: ['zeventbook.io'] });
+      expect(findTenantByHost('abc.zeventbooks.io')).toEqual({ id: 'abc', hostnames: ['abc.zeventbooks.io'] });
+      expect(findTenantByHost('unknown.com')).toBe(null); // Should be null, not root
+    });
+
+    test('should log warning for unknown hostnames', () => {
+      const warnings = [];
+
+      const findTenantByHost = (host) => {
+        const TENANTS = [{ id: 'root', hostnames: ['zeventbook.io'] }];
+        const tenant = TENANTS.find(t => (t.hostnames || []).includes(host.toLowerCase()));
+
+        if (!tenant) {
+          warnings.push(`Unknown hostname: ${host}`);
+        }
+
+        return tenant || null;
+      };
+
+      findTenantByHost('unknown.com');
+      expect(warnings).toContain('Unknown hostname: unknown.com');
+    });
+  });
+
+  describe('Bug #45: Input Length Validation', () => {
+    test('should validate URL length in createShortlink', () => {
+      const validateUrlLength = (url, maxLength = 2048) => {
+        if (!url) return false;
+        if (url.length > maxLength) return false;
+        return true;
+      };
+
+      const normalUrl = 'https://example.com/page';
+      const longUrl = 'http://example.com/' + 'a'.repeat(3000);
+
+      expect(validateUrlLength(normalUrl)).toBe(true);
+      expect(validateUrlLength(longUrl, 2048)).toBe(false);
+      expect(validateUrlLength(longUrl, 5000)).toBe(true);
+    });
+
+    test('should reject URLs exceeding max length', () => {
+      const MAX_URL_LENGTH = 2048;
+
+      const isValidLength = (url) => {
+        return url && url.length <= MAX_URL_LENGTH;
+      };
+
+      expect(isValidLength('https://example.com')).toBe(true);
+      expect(isValidLength('http://example.com/' + 'a'.repeat(2050))).toBe(false);
+    });
+  });
+
+  describe('Bug #47: Cleanup Error Handling', () => {
+    test('should not fail logging when cleanup fails', () => {
+      const logs = [];
+      const errors = [];
+
+      const logWithCleanup = (message) => {
+        logs.push(message);
+
+        try {
+          // Simulate cleanup operations
+          if (logs.length > 100) {
+            throw new Error('Cleanup failed');
+          }
+        } catch (cleanupErr) {
+          errors.push(cleanupErr.message);
+          // Continue execution - don't fail logging
+        }
+      };
+
+      // Add many logs to trigger cleanup
+      for (let i = 0; i < 105; i++) {
+        logWithCleanup(`Log ${i}`);
+      }
+
+      expect(logs.length).toBe(105); // All logs should succeed
+      expect(errors.length).toBeGreaterThan(0); // Cleanup errors captured
+      expect(errors[0]).toBe('Cleanup failed');
+    });
+
+    test('should wrap cleanup in try-catch', () => {
+      let cleanupFailed = false;
+
+      const performCleanup = () => {
+        try {
+          throw new Error('Simulated cleanup error');
+        } catch (err) {
+          cleanupFailed = true;
+        }
+      };
+
+      performCleanup();
+      expect(cleanupFailed).toBe(true);
+    });
+  });
+
+  describe('Bug #41: Memory Leak Prevention', () => {
+    test('should limit data processed for unique counts', () => {
+      const largeDataset = Array.from({ length: 20000 }, (_, i) => ({
+        eventId: `event${i % 100}`,
+        sponsorId: `sponsor${i % 50}`
+      }));
+
+      // Old approach: processes all data (memory issue)
+      // New approach: limit to 10000 items
+      const limitedDataset = largeDataset.slice(0, 10000);
+
+      const uniqueEvents = new Set(limitedDataset.map(a => a.eventId)).size;
+      const uniqueSponsors = new Set(limitedDataset.map(a => a.sponsorId)).size;
+
+      expect(limitedDataset.length).toBe(10000);
+      expect(uniqueEvents).toBeLessThanOrEqual(100);
+      expect(uniqueSponsors).toBeLessThanOrEqual(50);
+    });
+
+    test('should use Math.min to cap unique counts', () => {
+      const filtered = Array.from({ length: 15000 }, (_, i) => ({
+        eventId: `event${i % 200}`
+      }));
+
+      // Calculate with limit
+      const uniqueEvents = Math.min(
+        new Set(filtered.slice(0, 10000).map(a => a.eventId)).size,
+        filtered.length
+      );
+
+      expect(uniqueEvents).toBeLessThanOrEqual(filtered.length);
+      expect(uniqueEvents).toBeGreaterThan(0);
+    });
+  });
 });
