@@ -224,9 +224,10 @@ function doGet(e){
   }
 
   const tpl = HtmlService.createTemplateFromFile(pageFile_(page));
-  tpl.appTitle = `${tenant.name} · ${scope}`;
-  tpl.tenantId = tenant.id;
-  tpl.scope = scope;
+  // Fixed: Bug #35 - Sanitize template variables to prevent injection
+  tpl.appTitle = sanitizeInput_(`${tenant.name} · ${scope}`, 200);
+  tpl.tenantId = sanitizeId_(tenant.id) || tenant.id;
+  tpl.scope = sanitizeInput_(scope, 50);
   tpl.execUrl = ScriptApp.getService().getUrl();
   tpl.ZEB = ZEB;
   return tpl.evaluate()
@@ -236,8 +237,15 @@ function doGet(e){
 
 // === REST API Handler for POST requests ===================================
 function doPost(e){
+  // Fixed: Bug #22 - Separate try-catch blocks for better error reporting
+  let body;
   try {
-    const body = JSON.parse(e.postData.contents || '{}');
+    body = JSON.parse(e.postData.contents || '{}');
+  } catch(jsonErr) {
+    return jsonResponse_(Err(ERR.BAD_INPUT, 'Invalid JSON body'));
+  }
+
+  try {
     const action = body.action || e.parameter?.action || '';
     const tenant = findTenantByHost_(e?.headers?.host) || findTenant_('root');
 
@@ -251,7 +259,8 @@ function doPost(e){
 
     return handleRestApiPost_(e, action, body, tenant);
   } catch(err) {
-    return jsonResponse_(Err(ERR.BAD_INPUT, 'Invalid JSON body'));
+    diag_('error', 'doPost', 'Request handler failed', {error: String(err), stack: err?.stack});
+    return jsonResponse_(Err(ERR.INTERNAL, 'Request processing failed'));
   }
 }
 
@@ -667,10 +676,57 @@ function assertScopeAllowed_(tenant, scope){
   return Ok();
 }
 
-function isUrl(s) {
+// Fixed: Bug #32 - Comprehensive URL validation
+function isUrl(s, maxLength = 2048) {
+  if (!s || typeof s !== 'string') return false;
+
+  const urlStr = String(s);
+
+  // Length check
+  if (urlStr.length > maxLength) return false;
+
   try {
-    const url = new URL(String(s));
-    return ['http:', 'https:'].includes(url.protocol);
+    const url = new URL(urlStr);
+
+    // Only allow http/https protocols
+    if (!['http:', 'https:'].includes(url.protocol)) {
+      return false;
+    }
+
+    // Blocklist dangerous patterns
+    const dangerous = ['javascript:', 'data:', 'vbscript:', 'file:'];
+    if (dangerous.some(d => urlStr.toLowerCase().includes(d))) {
+      return false;
+    }
+
+    // Prevent SSRF - block private IPs and localhost
+    const hostname = url.hostname.toLowerCase();
+    if (hostname === 'localhost' ||
+        hostname === '127.0.0.1' ||
+        hostname.startsWith('127.') ||
+        hostname.startsWith('10.') ||
+        hostname.startsWith('192.168.') ||
+        hostname.startsWith('172.16.') ||
+        hostname.startsWith('172.17.') ||
+        hostname.startsWith('172.18.') ||
+        hostname.startsWith('172.19.') ||
+        hostname.startsWith('172.20.') ||
+        hostname.startsWith('172.21.') ||
+        hostname.startsWith('172.22.') ||
+        hostname.startsWith('172.23.') ||
+        hostname.startsWith('172.24.') ||
+        hostname.startsWith('172.25.') ||
+        hostname.startsWith('172.26.') ||
+        hostname.startsWith('172.27.') ||
+        hostname.startsWith('172.28.') ||
+        hostname.startsWith('172.29.') ||
+        hostname.startsWith('172.30.') ||
+        hostname.startsWith('172.31.') ||
+        hostname.startsWith('169.254.')) { // Link-local
+      return false;
+    }
+
+    return true;
   } catch(_) {
     return false;
   }
@@ -718,6 +774,24 @@ function sanitizeId_(id) {
   // Ensure ID is valid UUID format or safe alphanumeric string
   if (!/^[a-zA-Z0-9-_]{1,100}$/.test(id)) return null;
   return id;
+}
+
+// Fixed: Bug #29 - Sanitize spreadsheet values to prevent formula injection
+function sanitizeSpreadsheetValue_(value) {
+  if (!value) return '';
+
+  const str = String(value);
+
+  // Prevent formula injection: strip leading special chars
+  const dangerous = ['=', '+', '-', '@', '\t', '\r', '\n'];
+  let sanitized = str;
+
+  // If starts with dangerous char, prefix with single quote to treat as text
+  while (dangerous.some(char => sanitized.startsWith(char))) {
+    sanitized = "'" + sanitized;
+  }
+
+  return sanitized;
 }
 
 function getStoreSheet_(tenant, scope){
@@ -895,11 +969,27 @@ function api_create(payload){
       if (v!=null && f.type==='url' && !isUrl(v)) return Err(ERR.BAD_INPUT,`Invalid URL: ${f.id}`);
     }
 
-    // Idempotency (10m)
+    // Idempotency (10m) - Fixed: Bug #38 - Add LockService for race condition
     if (idemKey){
-      const c=CacheService.getScriptCache(), k=`idem:${tenantId}:${scope}:${idemKey}`;
-      if (c.get(k)) return Err(ERR.BAD_INPUT,'Duplicate create');
-      c.put(k,'1',600);
+      // Validate idemKey format
+      if (!/^[a-zA-Z0-9-]{1,128}$/.test(idemKey)) {
+        return Err(ERR.BAD_INPUT, 'Invalid idempotency key format');
+      }
+
+      const lock = LockService.getScriptLock();
+      try {
+        lock.waitLock(5000); // Wait up to 5 seconds
+
+        const c=CacheService.getScriptCache(), k=`idem:${tenantId}:${scope}:${idemKey}`;
+        if (c.get(k)) {
+          lock.releaseLock();
+          return Err(ERR.BAD_INPUT,'Duplicate create');
+        }
+        c.put(k, JSON.stringify({ timestamp: Date.now(), status: 'processing' }), 86400); // 24 hours
+
+      } finally {
+        lock.releaseLock();
+      }
     }
 
     // Sanitize data inputs
@@ -979,6 +1069,38 @@ function api_updateEventData(req){
       }
 
       const existingData = safeJSONParse_(rows[rowIdx][3], {});
+      const templateId = rows[rowIdx][2];
+      const tpl = findTemplate_(templateId);
+
+      if (!tpl) {
+        lock.releaseLock();
+        return Err(ERR.INTERNAL, 'Template not found');
+      }
+
+      // Fixed: Bug #27 - Validate update data against template schema
+      for (const [key, value] of Object.entries(data || {})) {
+        const field = tpl.fields.find(f => f.id === key);
+
+        // Reject unknown fields
+        if (!field) {
+          lock.releaseLock();
+          return Err(ERR.BAD_INPUT, `Unknown field: ${key}`);
+        }
+
+        // Validate field type
+        if (value !== null && value !== undefined) {
+          if (field.type === 'url' && !isUrl(value)) {
+            lock.releaseLock();
+            return Err(ERR.BAD_INPUT, `Invalid URL for field: ${key}`);
+          }
+
+          // Sanitize non-URL fields
+          if (field.type !== 'url' && typeof value === 'string') {
+            data[key] = sanitizeInput_(value);
+          }
+        }
+      }
+
       const mergedData = Object.assign({}, existingData, data || {});
 
       sh.getRange(rowIdx + 1, 4).setValue(JSON.stringify(mergedData));
@@ -1000,15 +1122,17 @@ function api_logEvents(req){
 
     const sh = _ensureAnalyticsSheet_();
     const now = Date.now();
+
+    // Fixed: Bug #29 - Sanitize all values for spreadsheet to prevent formula injection
     const rows = items.map(it => [
       new Date(it.ts || now),
-      String(it.eventId||''),
-      String(it.surface||''),
-      String(it.metric||''),
-      String(it.sponsorId||''),
-      Number(it.value||0),
-      String(it.token||''),
-      String(it.ua||'').slice(0, 200)
+      sanitizeSpreadsheetValue_(it.eventId || ''),
+      sanitizeSpreadsheetValue_(it.surface || ''),
+      sanitizeSpreadsheetValue_(it.metric || ''),
+      sanitizeSpreadsheetValue_(it.sponsorId || ''),
+      Number(it.value || 0),
+      sanitizeSpreadsheetValue_(it.token || ''),
+      sanitizeSpreadsheetValue_((it.ua || '').slice(0, 200))
     ]);
     sh.getRange(sh.getLastRow()+1, 1, rows.length, 8).setValues(rows);
 
