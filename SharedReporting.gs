@@ -80,8 +80,9 @@ function api_getSharedAnalytics(params) {
       // Overview metrics (shared by both)
       totalImpressions: filtered.filter(a => a.metric === 'impression').length,
       totalClicks: filtered.filter(a => a.metric === 'click').length,
-      uniqueEvents: new Set(filtered.map(a => a.eventId)).size,
-      uniqueSponsors: new Set(filtered.filter(a => a.sponsorId).map(a => a.sponsorId)).size,
+      // Fixed: Bug #41 - Limit data size to prevent memory issues
+      uniqueEvents: Math.min(new Set(filtered.slice(0, 10000).map(a => a.eventId)).size, filtered.length),
+      uniqueSponsors: Math.min(new Set(filtered.slice(0, 10000).filter(a => a.sponsorId).map(a => a.sponsorId)).size, filtered.length),
 
       // Engagement rate (shared key metric)
       engagementRate: calculateEngagementRate_(filtered),
@@ -413,14 +414,17 @@ function generateRecommendations_(metrics) {
     }
   });
 
-  // Sponsor-specific recommendations
+  // Sponsor-specific recommendations - Fixed: Bug #10
   if (metrics.bySponsor && metrics.bySponsor.length > 0) {
     const topSponsor = metrics.bySponsor[0];
-    recommendations.push({
-      type: 'sponsor',
-      priority: 'info',
-      message: `Top performing sponsor: ${topSponsor.sponsorId} with ${topSponsor.engagementRate} engagement across ${topSponsor.uniqueEvents} events.`
-    });
+    // Add null check to prevent crash
+    if (topSponsor && topSponsor.sponsorId) {
+      recommendations.push({
+        type: 'sponsor',
+        priority: 'info',
+        message: `Top performing sponsor: ${topSponsor.sponsorId} with ${topSponsor.engagementRate} engagement across ${topSponsor.uniqueEvents} events.`
+      });
+    }
   }
 
   return recommendations;

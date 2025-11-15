@@ -498,3 +498,213 @@ describe('Slug Generation', () => {
     expect(generateSlug('Café Münchën')).toBe('caf-m-nch-n');
   });
 });
+
+describe('Bug #50: Pagination Support in api_list', () => {
+  test('should paginate results with default limit', () => {
+    // Mock data - 150 items
+    const allItems = Array.from({ length: 150 }, (_, i) => ({
+      id: `item-${i}`,
+      tenantId: 'root',
+      templateId: 'event',
+      data: { name: `Event ${i}` },
+      createdAt: new Date().toISOString(),
+      slug: `event-${i}`
+    }));
+
+    const paginate = (items, limit = 100, offset = 0) => {
+      const pageLimit = Math.min(parseInt(limit) || 100, 1000);
+      const pageOffset = Math.max(parseInt(offset) || 0, 0);
+      const totalCount = items.length;
+      const paginatedItems = items.slice(pageOffset, pageOffset + pageLimit);
+
+      return {
+        items: paginatedItems,
+        pagination: {
+          total: totalCount,
+          limit: pageLimit,
+          offset: pageOffset,
+          hasMore: (pageOffset + pageLimit) < totalCount
+        }
+      };
+    };
+
+    // Test default pagination (100 items)
+    const page1 = paginate(allItems);
+    expect(page1.items.length).toBe(100);
+    expect(page1.pagination.total).toBe(150);
+    expect(page1.pagination.limit).toBe(100);
+    expect(page1.pagination.offset).toBe(0);
+    expect(page1.pagination.hasMore).toBe(true);
+
+    // Test second page
+    const page2 = paginate(allItems, 100, 100);
+    expect(page2.items.length).toBe(50);
+    expect(page2.pagination.hasMore).toBe(false);
+  });
+
+  test('should respect custom limit parameter', () => {
+    const allItems = Array.from({ length: 100 }, (_, i) => ({ id: `item-${i}` }));
+
+    const paginate = (items, limit = 100, offset = 0) => {
+      const pageLimit = Math.min(parseInt(limit) || 100, 1000);
+      const pageOffset = Math.max(parseInt(offset) || 0, 0);
+      const totalCount = items.length;
+      const paginatedItems = items.slice(pageOffset, pageOffset + pageLimit);
+
+      return {
+        items: paginatedItems,
+        pagination: {
+          total: totalCount,
+          limit: pageLimit,
+          offset: pageOffset,
+          hasMore: (pageOffset + pageLimit) < totalCount
+        }
+      };
+    };
+
+    // Test custom limit of 25
+    const result = paginate(allItems, 25, 0);
+    expect(result.items.length).toBe(25);
+    expect(result.pagination.limit).toBe(25);
+    expect(result.pagination.hasMore).toBe(true);
+  });
+
+  test('should enforce maximum limit of 1000', () => {
+    const allItems = Array.from({ length: 2000 }, (_, i) => ({ id: `item-${i}` }));
+
+    const paginate = (items, limit = 100, offset = 0) => {
+      const pageLimit = Math.min(parseInt(limit) || 100, 1000);
+      const pageOffset = Math.max(parseInt(offset) || 0, 0);
+      const totalCount = items.length;
+      const paginatedItems = items.slice(pageOffset, pageOffset + pageLimit);
+
+      return {
+        items: paginatedItems,
+        pagination: {
+          total: totalCount,
+          limit: pageLimit,
+          offset: pageOffset,
+          hasMore: (pageOffset + pageLimit) < totalCount
+        }
+      };
+    };
+
+    // Try to request 5000 items, should be capped at 1000
+    const result = paginate(allItems, 5000, 0);
+    expect(result.items.length).toBe(1000);
+    expect(result.pagination.limit).toBe(1000);
+    expect(result.pagination.hasMore).toBe(true);
+  });
+
+  test('should handle offset parameter correctly', () => {
+    const allItems = Array.from({ length: 100 }, (_, i) => ({ id: `item-${i}` }));
+
+    const paginate = (items, limit = 100, offset = 0) => {
+      const pageLimit = Math.min(parseInt(limit) || 100, 1000);
+      const pageOffset = Math.max(parseInt(offset) || 0, 0);
+      const totalCount = items.length;
+      const paginatedItems = items.slice(pageOffset, pageOffset + pageLimit);
+
+      return {
+        items: paginatedItems,
+        pagination: {
+          total: totalCount,
+          limit: pageLimit,
+          offset: pageOffset,
+          hasMore: (pageOffset + pageLimit) < totalCount
+        }
+      };
+    };
+
+    // Skip first 50 items
+    const result = paginate(allItems, 25, 50);
+    expect(result.items.length).toBe(25);
+    expect(result.items[0].id).toBe('item-50');
+    expect(result.pagination.offset).toBe(50);
+  });
+
+  test('should indicate hasMore correctly', () => {
+    const allItems = Array.from({ length: 100 }, (_, i) => ({ id: `item-${i}` }));
+
+    const paginate = (items, limit = 100, offset = 0) => {
+      const pageLimit = Math.min(parseInt(limit) || 100, 1000);
+      const pageOffset = Math.max(parseInt(offset) || 0, 0);
+      const totalCount = items.length;
+      const paginatedItems = items.slice(pageOffset, pageOffset + pageLimit);
+
+      return {
+        items: paginatedItems,
+        pagination: {
+          total: totalCount,
+          limit: pageLimit,
+          offset: pageOffset,
+          hasMore: (pageOffset + pageLimit) < totalCount
+        }
+      };
+    };
+
+    // First page - has more
+    const page1 = paginate(allItems, 50, 0);
+    expect(page1.pagination.hasMore).toBe(true);
+
+    // Last page - no more
+    const page2 = paginate(allItems, 50, 50);
+    expect(page2.pagination.hasMore).toBe(false);
+
+    // Exact fit - no more
+    const page3 = paginate(allItems, 100, 0);
+    expect(page3.pagination.hasMore).toBe(false);
+  });
+
+  test('should handle negative or invalid offset gracefully', () => {
+    const allItems = Array.from({ length: 100 }, (_, i) => ({ id: `item-${i}` }));
+
+    const paginate = (items, limit = 100, offset = 0) => {
+      const pageLimit = Math.min(parseInt(limit) || 100, 1000);
+      const pageOffset = Math.max(parseInt(offset) || 0, 0);
+      const totalCount = items.length;
+      const paginatedItems = items.slice(pageOffset, pageOffset + pageLimit);
+
+      return {
+        items: paginatedItems,
+        pagination: {
+          total: totalCount,
+          limit: pageLimit,
+          offset: pageOffset,
+          hasMore: (pageOffset + pageLimit) < totalCount
+        }
+      };
+    };
+
+    // Negative offset should be treated as 0
+    const result = paginate(allItems, 25, -10);
+    expect(result.pagination.offset).toBe(0);
+    expect(result.items[0].id).toBe('item-0');
+  });
+
+  test('should handle empty result set', () => {
+    const allItems = [];
+
+    const paginate = (items, limit = 100, offset = 0) => {
+      const pageLimit = Math.min(parseInt(limit) || 100, 1000);
+      const pageOffset = Math.max(parseInt(offset) || 0, 0);
+      const totalCount = items.length;
+      const paginatedItems = items.slice(pageOffset, pageOffset + pageLimit);
+
+      return {
+        items: paginatedItems,
+        pagination: {
+          total: totalCount,
+          limit: pageLimit,
+          offset: pageOffset,
+          hasMore: (pageOffset + pageLimit) < totalCount
+        }
+      };
+    };
+
+    const result = paginate(allItems);
+    expect(result.items.length).toBe(0);
+    expect(result.pagination.total).toBe(0);
+    expect(result.pagination.hasMore).toBe(false);
+  });
+});

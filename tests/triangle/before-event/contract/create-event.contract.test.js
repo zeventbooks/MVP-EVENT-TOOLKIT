@@ -36,7 +36,8 @@ describe('🔺 TRIANGLE [BEFORE EVENT]: Create Event API Contract', () => {
           links: {
             publicUrl: 'https://script.google.com/macros/s/.../exec?p=events&id=new-event-123',
             posterUrl: 'https://script.google.com/macros/s/.../exec?page=poster&id=new-event-123',
-            displayUrl: 'https://script.google.com/macros/s/.../exec?page=display&id=new-event-123'
+            displayUrl: 'https://script.google.com/macros/s/.../exec?page=display&id=new-event-123',
+            reportUrl: 'https://script.google.com/macros/s/.../exec?page=report&id=new-event-123'
           }
         }
       };
@@ -55,7 +56,8 @@ describe('🔺 TRIANGLE [BEFORE EVENT]: Create Event API Contract', () => {
           links: {
             publicUrl: 'https://...',
             posterUrl: 'https://...',
-            displayUrl: 'https://...'
+            displayUrl: 'https://...',
+            reportUrl: 'https://...'
           }
         }
       };
@@ -63,6 +65,7 @@ describe('🔺 TRIANGLE [BEFORE EVENT]: Create Event API Contract', () => {
       expect(mockResponse.value.links).toHaveProperty('publicUrl');
       expect(mockResponse.value.links).toHaveProperty('posterUrl');
       expect(mockResponse.value.links).toHaveProperty('displayUrl');
+      expect(mockResponse.value.links).toHaveProperty('reportUrl');
     });
 
     it('should return valid URLs for all link types', () => {
@@ -109,15 +112,24 @@ describe('🔺 TRIANGLE [BEFORE EVENT]: Create Event API Contract', () => {
       expect(mockResponse.code).toBe('BAD_INPUT');
     });
 
-    it('should return error for invalid location', () => {
+    // Fixed: Bug #37 - Location is optional, not required
+    it('should accept events without location (optional field)', () => {
       const mockResponse = {
-        ok: false,
-        code: 'BAD_INPUT',
-        message: 'Missing field: location'
+        ok: true,
+        value: {
+          id: 'new-event-456',
+          links: {
+            publicUrl: 'https://...',
+            posterUrl: 'https://...',
+            displayUrl: 'https://...',
+            reportUrl: 'https://...'
+          }
+        }
       };
 
       validateEnvelope(mockResponse);
-      expect(mockResponse.code).toBe('BAD_INPUT');
+      expect(mockResponse.ok).toBe(true);
+      expect(mockResponse.value).toHaveProperty('id');
     });
   });
 

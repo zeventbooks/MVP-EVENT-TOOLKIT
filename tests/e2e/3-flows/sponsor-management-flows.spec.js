@@ -5,6 +5,7 @@
 
 import { test, expect } from '@playwright/test';
 import { ApiHelpers } from '../api/api-helpers.js';
+import { getCurrentEnvironment } from '../../config/environments.js';
 
 test.describe('Sponsor Management Workflows', () => {
   let api;
@@ -14,8 +15,9 @@ test.describe('Sponsor Management Workflows', () => {
   const createdSponsorIds = [];
 
   test.beforeEach(async ({ request }) => {
-    api = new ApiHelpers(request, process.env.BASE_URL);
-    baseUrl = process.env.BASE_URL;
+    const env = getCurrentEnvironment();
+    api = new ApiHelpers(request, env.baseUrl);
+    baseUrl = env.baseUrl;
     adminKey = process.env.ADMIN_KEY;
 
     if (!adminKey) {

@@ -368,27 +368,47 @@
         html += '</div>';
       }
 
-      // Video Section
+      // Video Section - Fixed: Bug #3 - XSS via video URL injection
       if (data.videoUrl) {
         html += '<div class="event-section">';
         html += '<h2>Video</h2>';
-        const videoUrl = esc(data.videoUrl);
-        // Try to embed YouTube/Vimeo videos
-        if (videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be')) {
-          let embedUrl = videoUrl;
-          if (videoUrl.includes('watch?v=')) {
-            const videoId = videoUrl.split('watch?v=')[1].split('&')[0];
-            embedUrl = `https://www.youtube.com/embed/${videoId}`;
-          } else if (videoUrl.includes('youtu.be/')) {
-            const videoId = videoUrl.split('youtu.be/')[1].split('?')[0];
-            embedUrl = `https://www.youtube.com/embed/${videoId}`;
+
+        // Validate and sanitize video URL with strict regex
+        const videoUrl = String(data.videoUrl);
+        let embedUrl = null;
+        let isValidVideo = false;
+
+        // YouTube validation with strict regex
+        const youtubeRegex = /^https?:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11}).*$/;
+        const youtubeMatch = videoUrl.match(youtubeRegex);
+        if (youtubeMatch) {
+          const videoId = youtubeMatch[3];
+          // Additional validation: ensure videoId is exactly 11 chars and alphanumeric
+          if (videoId && videoId.length === 11 && /^[a-zA-Z0-9_-]+$/.test(videoId)) {
+            embedUrl = `https://www.youtube.com/embed/${esc(videoId)}`;
+            isValidVideo = true;
           }
+        }
+
+        // Vimeo validation with strict regex
+        if (!isValidVideo) {
+          const vimeoRegex = /^https?:\/\/(www\.)?vimeo\.com\/(\d+).*$/;
+          const vimeoMatch = videoUrl.match(vimeoRegex);
+          if (vimeoMatch) {
+            const videoId = vimeoMatch[2];
+            // Additional validation: ensure videoId is numeric
+            if (videoId && /^\d+$/.test(videoId)) {
+              embedUrl = `https://player.vimeo.com/video/${esc(videoId)}`;
+              isValidVideo = true;
+            }
+          }
+        }
+
+        if (isValidVideo && embedUrl) {
           html += `<iframe src="${embedUrl}" class="event-video" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
-        } else if (videoUrl.includes('vimeo.com')) {
-          const videoId = videoUrl.split('vimeo.com/')[1].split('?')[0];
-          html += `<iframe src="https://player.vimeo.com/video/${videoId}" class="event-video" frameborder="0" allow="autoplay; fullscreen" allowfullscreen></iframe>`;
         } else {
-          html += `<p><a href="${videoUrl}" target="_blank" rel="noopener">Watch Video →</a></p>`;
+          // Fallback to link for invalid or unsupported videos
+          html += `<p><a href="${esc(videoUrl)}" target="_blank" rel="noopener">Watch Video →</a></p>`;
         }
         html += '</div>';
       }

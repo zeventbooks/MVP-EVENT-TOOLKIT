@@ -5,6 +5,7 @@
 
 import { test, expect } from '@playwright/test';
 import { ApiHelpers, EventBuilder } from './api-helpers.js';
+import { getCurrentEnvironment } from '../../config/environments.js';
 
 test.describe('Events CRUD APIs', () => {
   let api;
@@ -13,7 +14,8 @@ test.describe('Events CRUD APIs', () => {
   const createdEventIds = []; // Track for cleanup
 
   test.beforeEach(async ({ request }) => {
-    api = new ApiHelpers(request, process.env.BASE_URL);
+    const env = getCurrentEnvironment();
+    api = new ApiHelpers(request, env.baseUrl);
     adminKey = process.env.ADMIN_KEY;
 
     if (!adminKey) {
