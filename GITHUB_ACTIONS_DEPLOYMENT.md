@@ -6,82 +6,27 @@
 
 ## 🔐 Required GitHub Secrets
 
-Before GitHub Actions can deploy, you need to add 3 secrets to your repository:
+Before GitHub Actions can deploy, add these secrets to **Settings → Secrets and variables → Actions**:
 
-### 1. Navigate to GitHub Secrets
+### 1. `OAUTH_CREDENTIALS`
+- Copy the entire contents of `~/.clasprc.json` after running `npx clasp login`
+- Stage 1 writes this JSON to `~/.clasprc.json` on the runner so `npx clasp push/deploy` can run headlessly
 
-1. Go to: https://github.com/zeventbooks/MVP-EVENT-TOOLKIT/settings/secrets/actions
-2. Click **New repository secret** for each of the following:
+### 2. `DEPLOYMENT_ID`
+- Copy the ID shown in Apps Script → Deploy → Manage deployments (format: `AKfycb...`)
+- Must be the deployment you created with **Execute as: Me** + **Access: Anyone, even anonymous** via `./fix-anonymous-access.sh`
 
----
+### 3. `SCRIPT_ID`
+- Value: `1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l`
 
-### 2. Add CLASPRC_JSON Secret
+### 4. `ADMIN_KEY_ROOT`
+- Value: The `adminSecret` for the `root` tenant (Stage 2 API/smoke tests use it)
 
-**Name:** `CLASPRC_JSON`
+### Optional
+- `BASE_URL_QA` if QA isn’t `https://zeventbooks.com`
+- `PLAYWRIGHT_RETRIES` to override the default retry logic
 
-**Value:** Your Google Apps Script credentials
-
-**How to get it:**
-
-```bash
-# Login to Google Apps Script (if not already logged in)
-clasp login
-
-# Get the credentials file content
-cat ~/.clasprc.json
-```
-
-Copy the **entire JSON output** and paste it as the secret value.
-
-Example format:
-```json
-{
-  "token": {
-    "access_token": "ya29.a0AfH6...",
-    "refresh_token": "1//0g...",
-    "scope": "https://www.googleapis.com/auth/...",
-    "token_type": "Bearer",
-    "expiry_date": 1234567890123
-  },
-  "oauth2ClientSettings": {
-    "clientId": "...",
-    "clientSecret": "...",
-    "redirectUri": "..."
-  },
-  "isLocalCreds": false
-}
-```
-
-**⚠️ Important:** Make sure it's valid JSON (no newlines, properly formatted)
-
----
-
-### 3. Add SCRIPT_ID Secret
-
-**Name:** `SCRIPT_ID`
-
-**Value:** `1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l`
-
-This is your Google Apps Script project ID (already in `.clasp.json`)
-
----
-
-### 4. Add ADMIN_KEY_ROOT Secret
-
-**Name:** `ADMIN_KEY_ROOT`
-
-**Value:** Your admin secret for the 'root' tenant
-
-**How to get it:**
-
-```bash
-# Check Config.gs line 17
-grep "adminSecret" Config.gs | head -1
-```
-
-Copy the actual secret value (not `CHANGE_ME_root` - you should have changed this!)
-
----
+> 💡 Run `npm run deploy:verify-secrets` locally to confirm all secrets are populated before pushing to `main`.
 
 ## 🚀 Trigger Deployment
 
@@ -167,9 +112,10 @@ Check if secrets are configured:
 gh secret list
 
 # Expected output:
-# ADMIN_KEY_ROOT    Updated 2025-11-10
-# CLASPRC_JSON      Updated 2025-11-10
-# SCRIPT_ID         Updated 2025-11-10
+# ADMIN_KEY_ROOT     Updated 2025-11-10
+# DEPLOYMENT_ID      Updated 2025-11-10
+# OAUTH_CREDENTIALS  Updated 2025-11-10
+# SCRIPT_ID          Updated 2025-11-10
 ```
 
 Or check manually:
@@ -180,13 +126,13 @@ Or check manually:
 
 ## 🐛 Troubleshooting
 
-### Issue 1: "CLASPRC_JSON is not set"
+### Issue 1: "OAUTH_CREDENTIALS is not set"
 
 **Solution:** Add the secret at https://github.com/zeventbooks/MVP-EVENT-TOOLKIT/settings/secrets/actions
 
 ### Issue 2: "clasp push failed - Unauthorized"
 
-**Cause:** Invalid or expired CLASPRC_JSON
+**Cause:** Invalid or expired `OAUTH_CREDENTIALS`
 
 **Solution:**
 ```bash
@@ -196,7 +142,7 @@ clasp login
 
 # Update secret with new credentials
 cat ~/.clasprc.json
-# Copy output and update CLASPRC_JSON secret
+# Copy output and update OAUTH_CREDENTIALS secret
 ```
 
 ### Issue 3: "Deploy job skipped"
@@ -209,9 +155,12 @@ cat ~/.clasprc.json
 
 ### Issue 4: "E2E tests failed - Cannot find BASE_URL"
 
-**Cause:** Deploy job didn't output URL correctly
+**Cause:** Stage 2 could not download the Stage 1 artifact (no deployment URL) or `BASE_URL_QA` secret missing when testing non-default domains
 
-**Solution:** Check deploy job logs for deployment URL, then manually set it in e2e-tests job
+**Solution:**
+1. Check Stage 1 logs to confirm deployment succeeded and `deployment-info/deployment-url.txt` uploaded
+2. Re-run Stage 2 with the same artifact or provide `deployment_url` via workflow dispatch
+3. If QA domain differs, set `BASE_URL_QA`
 
 ### Issue 5: "Admin key invalid"
 
@@ -227,7 +176,8 @@ cat ~/.clasprc.json
 
 Before merging to main and deploying:
 
-- [ ] **CLASPRC_JSON** secret configured in GitHub
+- [ ] **OAUTH_CREDENTIALS** secret configured in GitHub
+- [ ] **DEPLOYMENT_ID** secret configured in GitHub
 - [ ] **SCRIPT_ID** secret configured in GitHub
 - [ ] **ADMIN_KEY_ROOT** secret configured in GitHub
 - [ ] Admin secrets changed in `Config.gs` (not CHANGE_ME_*)
@@ -243,16 +193,20 @@ Before merging to main and deploying:
 
 ```mermaid
 graph TD
-    A[Push to main] --> B[Lint Code]
-    B --> C[Run Unit Tests - 94 tests]
-    C --> D[Run Contract Tests]
-    D --> E{All tests pass?}
-    E -->|Yes| F[Deploy to Apps Script]
-    E -->|No| G[❌ Fail - Fix tests]
-    F --> H[Get Deployment URL]
-    H --> I[Run E2E Tests - 15 scenarios]
-    I --> J[Upload Test Reports]
-    J --> K[✅ Success - Deployment Live]
+    A[Push to main] --> B[Stage 1 · ESLint]
+    B --> C[Stage 1 · Jest Unit Tests]
+    C --> D[Stage 1 · Contract Tests]
+    D --> E{All Stage 1 tests pass?}
+    E -->|Yes| F[Stage 1 · clasp push + deploy]
+    E -->|No| G[❌ Fix tests]
+    F --> H[Stage 1 · Publish tenant URLs]
+    H --> I[Stage 2 · Hostinger Health]
+    I --> J[Stage 2 · API + Smoke]
+    J --> K{Failure rate < 50%?}
+    K -->|Yes| L[Stage 2 · Page + Flow suites]
+    K -->|No| M[⚠️ Stop - Investigate]
+    L --> N[Stage 2 · Upload Playwright reports]
+    N --> O[✅ URLs approved for QA/Prod]
 ```
 
 ---
@@ -262,7 +216,7 @@ graph TD
 ```bash
 # 1. Set up GitHub Secrets (one-time setup)
 # Go to: https://github.com/zeventbooks/MVP-EVENT-TOOLKIT/settings/secrets/actions
-# Add: CLASPRC_JSON, SCRIPT_ID, ADMIN_KEY_ROOT
+# Add: OAUTH_CREDENTIALS, DEPLOYMENT_ID, SCRIPT_ID, ADMIN_KEY_ROOT
 
 # 2. Create Pull Request
 gh pr create --title "Deploy architecture review" --body "Deploy test infrastructure"

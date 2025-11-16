@@ -47,16 +47,17 @@
 # - Test.html (if present)
 # - appsscript.json
 
-# 3. Deploy as Web App
+# 3. Deploy as Web App (create a brand-new deployment)
 # Deploy → New deployment → Web app
-# Execute as: "User accessing the web app"
-# Who has access: "Anyone"
+# Execute as: "Me" (User deploying)
+# Who has access: "Anyone, even anonymous"
+# ⚠️ Updating an old deployment does NOT fix Gmail prompts; delete/recreate instead
 # Copy the deployment URL (ends with /exec)
 
 # 4. Test immediately
-# Open: <DEPLOYMENT_URL>?page=admin
-# Run Diagnostics → Status (should show green)
-# Run Diagnostics → Self-Test (all checks should pass)
+# export BASE_URL=<DEPLOYMENT_URL>
+# ./verify-deployment.sh (runs Status/Public/Admin/Display checks across tenants)
+# Open: $BASE_URL?page=admin&tenant=root in an incognito tab – it should load directly without Google login
 ```
 
 ---
@@ -167,8 +168,8 @@ Generate strong secrets (20+ characters, mix of alphanumeric + symbols).
 
 1. **Deploy → New deployment**
 2. Type: **Web app**
-3. Execute as: **User accessing the web app**
-4. Who has access: **Anyone**
+3. Execute as: **Me (User deploying)**
+4. Who has access: **Anyone, even anonymous**
 5. Click **Deploy**
 6. **Copy the deployment URL** (ends with `/exec`)
 
@@ -223,6 +224,12 @@ Ensure Apps Script returns pages with:
 ---
 
 ## Testing & Verification
+
+### Multi-agent verification stack
+1. **Local script (`./verify-deployment.sh`)** – hits `/status`, `/public`, `/admin`, and `/display` for every tenant using `BASE_URL=<new_exec_url>` to confirm the fresh deployment is anonymous before it becomes public.
+2. **Stage 1 GitHub Action** – once code merges into `main`, ESLint/Jest/contract suites pass, clasp pushes with `OAUTH_CREDENTIALS`, and the workflow updates the `DEPLOYMENT_ID` deployment. It prints every tenant/page URL so manual testers can copy/paste.
+3. **Stage 2 GitHub Action** – auto-triggered when Stage 1 succeeds. It downloads the Stage 1 artifact, health-checks `https://zeventbooks.com?p=status&tenant=root`, then runs Playwright API + smoke tests. If failures < 50 %, it escalates to page + flow suites to cover Admin/Public/Display/Diagnostics before QA releases the URLs.
+4. **Hostinger proxy smoke** – `hostinger-proxy/index.php`/`.htaccess` simply forward to the Stage 1 deployment; `npm run test:hostinger:smoke` confirms those proxies continue to work.
 
 ### 1. Status Check
 
@@ -419,7 +426,7 @@ In Admin:
 ### Issue: Analytics not logging
 
 **Cause:** google.script.run calls failing
-**Fix:** Open browser console; check for errors; verify deployment is "User accessing" mode
+**Fix:** Open browser console; check for errors; ensure the deployment was created as **Me → Anyone, even anonymous** (use `./fix-anonymous-access.sh` to recreate if needed)
 
 ### Issue: Domain redirect loop
 

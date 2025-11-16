@@ -52,26 +52,28 @@
 
 These MUST be set in GitHub repository settings for CI/CD to work:
 
-### 1. APPS_SCRIPT_SERVICE_ACCOUNT_JSON
-- **Type:** JSON (service account key)
-- **Source:** Google Cloud Console → Service Accounts → Keys
-- **How to get:**
-  1. Go to https://console.cloud.google.com/iam-admin/serviceaccounts?project=zeventbooks
-  2. Click `apps-script-deployer@zeventbooks.iam.gserviceaccount.com`
-  3. Go to **KEYS** tab
-  4. Click **ADD KEY** → **Create new key** → **JSON**
-  5. Copy entire contents of downloaded file
-  6. Paste as GitHub secret
+### 1. OAUTH_CREDENTIALS
+- **Type:** JSON (copy of `~/.clasprc.json` after `npx clasp login`)
+- **Purpose:** Authenticates Stage 1 so `npx clasp push/deploy` can run headlessly
 - **Status:** ⚠️ VERIFY THIS IS SET
 
-### 2. SCRIPT_ID
+### 2. DEPLOYMENT_ID
+- **Type:** String (e.g., `AKfycb...`)
+- **Purpose:** Forces Stage 1 to update the anonymous deployment you created via the Apps Script UI; avoids spawning login-only deployments
+- **Status:** ⚠️ VERIFY THIS IS SET (generate/update via `./fix-anonymous-access.sh`)
+
+### 3. SCRIPT_ID
 - **Value:** `1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l`
 - **Status:** ✅ Known value
 
-### 3. ADMIN_KEY_ROOT (for E2E tests)
-- **Source:** Check `Config.gs` line 17
+### 4. ADMIN_KEY_ROOT (for E2E tests)
+- **Source:** Check `Config.gs` line 17 (root tenant `adminSecret`)
 - **Security:** Never commit this to git!
 - **Status:** ⚠️ VERIFY THIS IS SET
+
+### Optional Secrets
+- `BASE_URL_QA` – override `https://zeventbooks.com` if QA points elsewhere
+- `PLAYWRIGHT_RETRIES` – adjust retry count without editing workflow files
 
 ---
 
@@ -82,8 +84,7 @@ These MUST be set in GitHub repository settings for CI/CD to work:
 - [ ] **Google Cloud Project configured**
   - [ ] Project: `zeventbooks` exists and is accessible
   - [ ] Apps Script API enabled in GCP Console
-  - [ ] Service account `apps-script-deployer` created
-  - [ ] Service account key downloaded (JSON)
+  - [ ] (Optional) Service account `apps-script-deployer` created for future API automation
 
 - [ ] **Apps Script API - User Settings (CRITICAL!)**
   - [ ] Visit: https://script.google.com/home/usersettings
@@ -92,16 +93,18 @@ These MUST be set in GitHub repository settings for CI/CD to work:
   - [ ] **⚠️ This must be done by the PROJECT OWNER**
   - [ ] **⚠️ Without this, ALL deployments will fail!**
 
-- [ ] **Service Account Access to Apps Script**
-  - [ ] Go to: https://script.google.com/home/projects/1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l/edit
-  - [ ] Click "Share" (top right)
-  - [ ] Add: `apps-script-deployer@zeventbooks.iam.gserviceaccount.com`
-  - [ ] Role: **Editor**
-  - [ ] Uncheck "Notify people"
-  - [ ] Click "Share"
+- [ ] **clasp authenticated locally**
+  - [ ] Run `npx clasp login`
+  - [ ] Confirm `~/.clasprc.json` exists (copy into `OAUTH_CREDENTIALS` secret)
+
+- [ ] **Anonymous deployment created**
+  - [ ] Run `./fix-anonymous-access.sh`
+  - [ ] Create new deployment with **Execute as: Me** + **Access: Anyone, even anonymous**
+  - [ ] Copy the Deployment ID into GitHub (`DEPLOYMENT_ID` secret) and Hostinger proxy files
 
 - [ ] **GitHub Secrets configured**
-  - [ ] `APPS_SCRIPT_SERVICE_ACCOUNT_JSON` set
+  - [ ] `OAUTH_CREDENTIALS` set
+  - [ ] `DEPLOYMENT_ID` set
   - [ ] `SCRIPT_ID` set
   - [ ] `ADMIN_KEY_ROOT` set
 
@@ -125,14 +128,16 @@ git push origin main
 ```
 
 **What happens:**
-1. ✅ Lint code
-2. ✅ Run unit tests (94 tests)
-3. ✅ Run contract tests
-4. ✅ Deploy to Apps Script via API
-5. ✅ Run E2E tests on deployed URL
-6. ✅ Upload test reports
+1. ✅ Stage 1 – ESLint, Jest, contract suites
+2. ✅ Stage 1 – `npx clasp push` + `npx clasp deploy -i $DEPLOYMENT_ID`
+3. ✅ Stage 1 – Deployment URLs emitted + stored as artifacts
+4. ✅ Stage 2 – Hostinger health check + Playwright API + smoke suites
+5. ✅ Stage 2 – Conditional Page/Flow suites if failure rate < 50 %
+6. ✅ Stage 2 – Playwright HTML report + traces uploaded
 
-**Monitor:** https://github.com/zeventbooks/MVP-EVENT-TOOLKIT/actions
+**Monitor:**
+- Stage 1: https://github.com/zeventbooks/MVP-EVENT-TOOLKIT/actions/workflows/stage1-deploy.yml
+- Stage 2: https://github.com/zeventbooks/MVP-EVENT-TOOLKIT/actions/workflows/stage2-testing.yml
 
 ### Method 2: Manual Deployment via API (Local)
 
@@ -237,8 +242,9 @@ curl "https://script.google.com/macros/s/AKfycbx6ZTFD8H3NiAlagCLHa9DPzhgxcqWRmGX
 
 **Solution:**
 1. Check secrets: https://github.com/zeventbooks/MVP-EVENT-TOOLKIT/settings/secrets/actions
-2. Verify `APPS_SCRIPT_SERVICE_ACCOUNT_JSON` exists and is valid JSON
-3. Verify `SCRIPT_ID` matches: `1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l`
+2. Verify `OAUTH_CREDENTIALS` contains valid JSON copied from `~/.clasprc.json`
+3. Verify `DEPLOYMENT_ID` matches the anonymous deployment created via the Apps Script UI
+4. Verify `SCRIPT_ID` matches: `1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l`
 
 **Prevention:**
 - ✅ Test locally with `npm run deploy:diagnose` before pushing
@@ -255,8 +261,9 @@ curl "https://script.google.com/macros/s/AKfycbx6ZTFD8H3NiAlagCLHa9DPzhgxcqWRmGX
 1. Go to: https://script.google.com/home/projects/1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l/deployments
 2. Click on active deployment
 3. Verify settings:
-   - Execute as: **Me** (project owner)
-   - Who has access: **Anyone**
+   - Execute as: **Me (User deploying)**
+   - Who has access: **Anyone, even anonymous**
+   - If settings are wrong, delete and recreate deployment (updating an old one will not fix Gmail prompts)
 
 **Prevention:**
 - ✅ Check deployment settings after first deployment

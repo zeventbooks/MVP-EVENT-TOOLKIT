@@ -44,9 +44,14 @@ Project ID: 1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l
 ## Quick Deploy Options
 
 ### Option 1: GitHub Actions (Recommended)
-Push to `main` branch - automatic deployment via CI/CD pipeline.
-- **First time setup:** See [Google Cloud Secrets Setup Guide](./GOOGLE_CLOUD_SECRETS_SETUP.md) to configure GitHub Actions secrets
-- **Verify setup:** Run `npm run deploy:verify-secrets` to check configuration
+Push to `main` – Stage 1 (lint + Jest + contract + clasp deploy) and Stage 2 (API + smoke + full Playwright) run automatically.
+- **Required secrets (repository → Settings → Secrets and variables → Actions):**
+  - `OAUTH_CREDENTIALS` → contents of `~/.clasprc.json` (keeps Stage 1 authenticated)
+  - `DEPLOYMENT_ID` → anonymous deployment ID created via the Apps Script UI (keeps the pipeline reusing the “Anyone, even anonymous” deployment instead of creating a login-gated one)
+  - `ADMIN_KEY_ROOT` → current `adminSecret` for the root tenant (Stage 2 smoke/API tests use this)
+- **Optional secrets:** `BASE_URL_QA` if QA doesn’t live at `https://zeventbooks.com`
+- **Verify setup:** `npm run deploy:verify-secrets` confirms every secret/action matches the workflow expectations before you push
+- **Anonymous access guard:** run `./fix-anonymous-access.sh` once to create the new deployment the secrets will target
 
 ### Option 2: clasp CLI
 ```bash
@@ -58,9 +63,15 @@ npm run deploy # Create new deployment
 ### Option 3: Manual Copy-Paste
 1. Open [Apps Script Editor](https://script.google.com/home/projects/1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l/edit)
 2. Edit `Config.gs`: set real `adminSecret` values
-3. Deploy → New deployment → Web app → Execute as **User accessing**, Access **Anyone**
-4. Open `/exec?page=test` → all ✅
-5. Open `/exec?page=admin&p=events&tenant=root` → create an event → get Public/Poster links
+3. Deploy → **New deployment** → Web app → Execute as **Me (User deploying)** → Who has access **Anyone, even anonymous** (old deployments must be deleted; updating an old “Anyone” deployment will still yield Gmail login prompts)
+4. Copy the `/exec` URL → export `BASE_URL=<url>` → run `./verify-deployment.sh` to ensure Status/Public/Admin/Display return HTTP 200
+5. Update the `DEPLOYMENT_ID` GitHub secret and Hostinger proxy files with the new ID so Stage 1/Stage 2 can keep testing the same anonymous deployment
+
+### Multi-agent verification flow
+1. **Local agent – `verify-deployment.sh`:** Hits `/status`, `/public`, `/admin`, and `/display` for every tenant to confirm the newly created deployment is anonymous before it is referenced anywhere else.
+2. **CI Agent Stage 1:** ESLint → Jest → contract → clasp deploy (using `OAUTH_CREDENTIALS` + `DEPLOYMENT_ID`). Outputs every tenant/page URL plus the base Apps Script link for manual checks.
+3. **CI Agent Stage 2:** Consumes the Stage 1 artifact, health-checks Hostinger (`https://zeventbooks.com?p=status&tenant=root`), then runs Playwright API + smoke suites first. If failure rate < 50 % it unlocks the full page/flow suites, making sure the shared admin URLs work before releasing them.
+4. **Hostinger proxy agent:** `hostinger-proxy/index.php` and `.htaccess` simply forward `/` or `?p=admin&tenant=root` requests to the Stage 1 deployment URL so that QA/Production always map back to the verified anonymous Apps Script web app.
 
 ## Documentation
 
