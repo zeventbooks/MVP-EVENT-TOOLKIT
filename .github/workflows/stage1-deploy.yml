@@ -184,7 +184,91 @@ jobs:
           fi
 
           echo "url=$WEB_APP_URL" >> $GITHUB_OUTPUT
+          echo "deployment_id=$DEPLOYMENT_ID_FROM_OUTPUT" >> $GITHUB_OUTPUT
           echo "✅ Deployment complete! Base URL: $WEB_APP_URL"
+
+      - name: Update Hostinger Proxy (Automated)
+        if: success()
+        env:
+          FTP_SERVER: ${{ secrets.HOSTINGER_FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.HOSTINGER_FTP_USERNAME }}
+          FTP_PASSWORD: ${{ secrets.HOSTINGER_FTP_PASSWORD }}
+          DEPLOYMENT_ID: ${{ steps.deploy.outputs.deployment_id }}
+        run: |
+          echo "🔄 Updating Hostinger proxy with new deployment ID..."
+
+          # Check if FTP secrets are configured
+          if [ -z "$FTP_SERVER" ] || [ -z "$FTP_USERNAME" ] || [ -z "$FTP_PASSWORD" ]; then
+            echo "⚠️ FTP secrets not configured - skipping Hostinger update"
+            echo "ℹ️ To enable automated Hostinger updates, add these secrets:"
+            echo "   - HOSTINGER_FTP_SERVER"
+            echo "   - HOSTINGER_FTP_USERNAME"
+            echo "   - HOSTINGER_FTP_PASSWORD"
+            echo ""
+            echo "📝 Manual update required:"
+            echo "   1. Edit hostinger-proxy/index.php line 19"
+            echo "   2. Update deployment ID to: $DEPLOYMENT_ID"
+            echo "   3. Upload to Hostinger via FTP"
+            exit 0
+          fi
+
+          # Update index.php with new deployment ID
+          sed -i "s|define('GOOGLE_SCRIPT_URL', 'https://script.google.com/macros/s/[^/]*/exec');|define('GOOGLE_SCRIPT_URL', 'https://script.google.com/macros/s/${DEPLOYMENT_ID}/exec');|" hostinger-proxy/index.php
+
+          # Update the comment with deployment ID
+          sed -i "s|// Deployment ID: AKfycb[a-zA-Z0-9_-]*|// Deployment ID: ${DEPLOYMENT_ID}|" hostinger-proxy/index.php
+
+          # Update the timestamp
+          sed -i "s|// Last updated: [0-9-]*|// Last updated: $(date -I)|" hostinger-proxy/index.php
+
+          echo "✅ Updated index.php with deployment ID: $DEPLOYMENT_ID"
+
+          # Install FTP client
+          npm install -g basic-ftp
+
+          # Upload to Hostinger via FTP
+          node << 'FTPSCRIPT'
+          const ftp = require("basic-ftp");
+          const fs = require("fs");
+
+          async function uploadToHostinger() {
+            const client = new ftp.Client();
+            client.ftp.verbose = true;
+
+            try {
+              console.log("📡 Connecting to FTP server...");
+              await client.access({
+                host: process.env.FTP_SERVER,
+                user: process.env.FTP_USERNAME,
+                password: process.env.FTP_PASSWORD,
+                secure: false
+              });
+
+              console.log("✅ Connected to FTP server");
+
+              // Upload index.php
+              console.log("📤 Uploading index.php to public_html/...");
+              await client.uploadFrom("hostinger-proxy/index.php", "public_html/index.php");
+
+              console.log("✅ Hostinger proxy updated successfully!");
+              console.log("🌐 Changes will be live at https://zeventbooks.com in ~30 seconds");
+
+            } catch (err) {
+              console.error("❌ FTP upload failed:", err.message);
+              process.exit(1);
+            } finally {
+              client.close();
+            }
+          }
+
+          uploadToHostinger();
+          FTPSCRIPT
+
+          echo ""
+          echo "✅ Automated Hostinger deployment complete!"
+          echo "🔗 Test URLs:"
+          echo "   https://zeventbooks.com?p=status&tenant=root"
+          echo "   https://zeventbooks.com?p=admin&tenant=root"
 
       - name: Generate comprehensive tenant URLs
         id: urls
