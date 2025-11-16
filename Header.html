@@ -1,11 +1,11 @@
 <header class="site-header">
   <div class="header-content">
     <div class="logo">
-      <img src="<?= findTenant_(tenantId)?.logoUrl || '/My files/Linux files/zeventbook/assets/logos/ABCMainTransparent.webp' ?>" alt="<?= appTitle ?>" class="header-logo">
+      <img src="" alt="" class="header-logo" id="headerLogo">
     </div>
     <div class="header-title">
-      <h1><?= appTitle ?></h1>
-      <span class="build-info">Build: <?= ZEB.BUILD_ID ?></span>
+      <h1 id="headerTitle"></h1>
+      <span class="build-info" id="headerBuild"></span>
     </div>
   </div>
 </header>
