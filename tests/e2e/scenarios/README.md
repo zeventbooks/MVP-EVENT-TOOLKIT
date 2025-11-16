@@ -401,8 +401,8 @@ For GitHub Actions, configure **Repository Secrets**:
 
 1. Go to: `Settings` → `Secrets and variables` → `Actions`
 2. Add secrets:
-   - `ADMIN_KEY` (required)
-   - `TEST_BASE_URL` (optional, defaults to zeventbooks.com)
+   - `ADMIN_KEY_ROOT` (required for Scenario 1)
+   - `PROD_BASE_URL` (optional, defaults to zeventbooks.com)
    - `TENANT_ID` (optional, defaults to root)
 
 **📚 Full Guide**: See [`docs/SECRETS_SETUP.md`](../../../docs/SECRETS_SETUP.md) for detailed setup instructions.

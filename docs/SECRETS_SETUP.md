@@ -18,12 +18,12 @@ The test automation framework requires the following GitHub secrets to be config
 - **ADMIN_KEY_CBL**: Admin key for CBL tenant
 - **Your Setup**: ✅ Already configured in repository
 
-### **3. TEST_BASE_URL** (Optional)
+### **3. PROD_BASE_URL** (Optional)
 - **Purpose**: Override default test environment URL
 - **Default**: `https://zeventbooks.com` (if not set)
 - **Used in**: All scenario tests
-- **Example**: `https://qa.zeventbooks.com`
-- **Note**: You're currently using zeventbooks.com as QA
+- **Example**: `https://zeventbooks.com`
+- **Note**: You're currently using zeventbooks.com for testing
 
 ### **4. Additional Deployment Secrets** (Already Configured)
 Your repository also has these secrets configured for Apps Script deployment:
@@ -66,16 +66,16 @@ Your repository already has these secrets configured:
 2. You should see all the secrets listed above
 3. No action needed - your secrets are ready! ✅
 
-### **Optional: Add TEST_BASE_URL** (If Not Already Set)
+### **Optional: Add PROD_BASE_URL** (If Not Already Set)
 
 If you want to override the default test URL:
 
 ```
-Name: TEST_BASE_URL
-Secret: https://zeventbooks.com  (or your QA environment)
+Name: PROD_BASE_URL
+Secret: https://zeventbooks.com
 ```
 
-**Note**: Currently using zeventbooks.com as QA environment
+**Note**: Currently using zeventbooks.com for testing
 
 ---
 
@@ -107,7 +107,7 @@ The `.github/workflows/quality-gates-scenarios.yml` file references your existin
 - name: Run Scenario 1 Tests
   run: npm run test:scenario:1
   env:
-    BASE_URL: ${{ secrets.TEST_BASE_URL || 'https://zeventbooks.com' }}
+    BASE_URL: ${{ secrets.PROD_BASE_URL || 'https://zeventbooks.com' }}
     ADMIN_KEY: ${{ secrets.ADMIN_KEY_ROOT }}  # Uses your ROOT tenant key
     TENANT_ID: root
 ```
@@ -291,7 +291,7 @@ npm run test:scenario:1
 | Secret | Rotation Frequency | Last Updated | Next Rotation |
 |--------|-------------------|--------------|---------------|
 | ADMIN_KEY | Every 90 days | [Set date] | [Set date] |
-| TEST_BASE_URL | As needed | - | - |
+| PROD_BASE_URL | As needed | - | - |
 | TENANT_ID | As needed | - | - |
 
 ---
