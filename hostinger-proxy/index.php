@@ -16,10 +16,10 @@
 // CONFIGURATION - UPDATE THIS WITH YOUR GOOGLE APPS SCRIPT DEPLOYMENT ID
 // ============================================================================
 
-define('GOOGLE_SCRIPT_URL', 'https://script.google.com/macros/s/AKfycbzu-U4UgdjdAiXHTg9TD5Y-1gDkc798YSTqQCdhOddG/exec');
+define('GOOGLE_SCRIPT_URL', 'https://script.google.com/macros/s/AKfycbx89HcV07ze-1OlQDEByqlF5TBPZRfabwHUdQN1865Iyi9KJw0hKIm9p3I-ceqJyH-t3Q/exec');
 
-// ✅ CONFIGURED: Using @HEAD deployment
-// Deployment ID: AKfycbzu-U4UgdjdAiXHTg9TD5Y-1gDkc798YSTqQCdhOddG
+// ✅ CONFIGURED: Using current deployment
+// Deployment ID: AKfycbx89HcV07ze-1OlQDEByqlF5TBPZRfabwHUdQN1865Iyi9KJw0hKIm9p3I-ceqJyH-t3Q
 // If you need to update this, run: npx clasp deployments
 
 // ============================================================================
