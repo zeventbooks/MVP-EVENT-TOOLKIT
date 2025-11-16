@@ -6,62 +6,76 @@ This document explains how to configure GitHub repository secrets for the Agile 
 
 The test automation framework requires the following GitHub secrets to be configured:
 
-### **1. ADMIN_KEY** (Required)
-- **Purpose**: Admin authentication for creating events, configuring sponsors
+### **1. ADMIN_KEY_ROOT** (Required for Scenario 1)
+- **Purpose**: Admin authentication for ROOT tenant (creating events, configuring sponsors)
 - **Used in**: Scenario 1 (First-Time Admin), Admin workflow tests
-- **Example**: `CHANGE_ME_root` or your custom admin key
 - **Security**: ⚠️ **CRITICAL** - Never commit this value to code
+- **Your Setup**: ✅ Already configured in repository
 
-### **2. TEST_BASE_URL** (Optional)
+### **2. Multi-Tenant Admin Keys** (Optional - for tenant-specific testing)
+- **ADMIN_KEY_ABC**: Admin key for ABC tenant
+- **ADMIN_KEY_CBC**: Admin key for CBC tenant
+- **ADMIN_KEY_CBL**: Admin key for CBL tenant
+- **Your Setup**: ✅ Already configured in repository
+
+### **3. TEST_BASE_URL** (Optional)
 - **Purpose**: Override default test environment URL
 - **Default**: `https://zeventbooks.com` (if not set)
 - **Used in**: All scenario tests
 - **Example**: `https://qa.zeventbooks.com`
+- **Note**: You're currently using zeventbooks.com as QA
 
-### **3. TENANT_ID** (Optional)
-- **Purpose**: Specify which tenant to test
-- **Default**: `root` (if not set)
-- **Used in**: All scenario tests
-- **Example**: `root`, `abc`, `cbc`, `cbl`
+### **4. Additional Deployment Secrets** (Already Configured)
+Your repository also has these secrets configured for Apps Script deployment:
+- `DEPLOYMENT_ID` - Apps Script deployment identifier
+- `SCRIPT_ID` - Apps Script project ID
+- `APPS_SCRIPT_SERVICE_ACCOUNT_JSON` - Service account credentials
+- `CLASPRC_JSON` - Clasp authentication
+- `CLASP_CREDENTIALS` - Clasp credentials
+- `CLASP_TOKEN` - Clasp token
+- `OAUTH_CREDENTIALS` - OAuth credentials
+- `SERVICE_ACCOUNT_JSON` - Service account JSON
 
 ---
 
-## 📝 How to Set Up GitHub Secrets
+## 📝 Verify Your GitHub Secrets
 
-### **Step 1: Navigate to Repository Settings**
+### **Your Existing Secrets** ✅
 
-1. Go to your GitHub repository: https://github.com/zeventbooks/MVP-EVENT-TOOLKIT
-2. Click **Settings** tab
-3. In the left sidebar, click **Secrets and variables** → **Actions**
+Your repository already has these secrets configured:
 
-### **Step 2: Add Repository Secrets**
+**Admin Keys (Multi-Tenant):**
+- ✅ `ADMIN_KEY_ROOT` - For root tenant testing
+- ✅ `ADMIN_KEY_ABC` - For ABC tenant testing
+- ✅ `ADMIN_KEY_CBC` - For CBC tenant testing
+- ✅ `ADMIN_KEY_CBL` - For CBL tenant testing
 
-Click **New repository secret** for each secret:
+**Deployment Secrets:**
+- ✅ `DEPLOYMENT_ID` - Apps Script deployment ID
+- ✅ `SCRIPT_ID` - Apps Script project ID
+- ✅ `APPS_SCRIPT_SERVICE_ACCOUNT_JSON`
+- ✅ `CLASPRC_JSON`
+- ✅ `CLASP_CREDENTIALS`
+- ✅ `CLASP_TOKEN`
+- ✅ `OAUTH_CREDENTIALS`
+- ✅ `SERVICE_ACCOUNT_JSON`
 
-#### **Secret 1: ADMIN_KEY**
-```
-Name: ADMIN_KEY
-Secret: [Your actual admin key - DO NOT SHARE]
-```
+### **To Verify Your Secrets**
 
-#### **Secret 2: TEST_BASE_URL** (Optional)
+1. Go to: https://github.com/zeventbooks/MVP-EVENT-TOOLKIT/settings/secrets/actions
+2. You should see all the secrets listed above
+3. No action needed - your secrets are ready! ✅
+
+### **Optional: Add TEST_BASE_URL** (If Not Already Set)
+
+If you want to override the default test URL:
+
 ```
 Name: TEST_BASE_URL
-Secret: https://zeventbooks.com
+Secret: https://zeventbooks.com  (or your QA environment)
 ```
 
-#### **Secret 3: TENANT_ID** (Optional)
-```
-Name: TENANT_ID
-Secret: root
-```
-
-### **Step 3: Verify Secrets**
-
-After adding secrets, you should see:
-- ✅ ADMIN_KEY
-- ✅ TEST_BASE_URL (optional)
-- ✅ TENANT_ID (optional)
+**Note**: Currently using zeventbooks.com as QA environment
 
 ---
 
@@ -87,16 +101,21 @@ After adding secrets, you should see:
 
 ### **GitHub Actions Workflow**
 
-The `.github/workflows/quality-gates-scenarios.yml` file references secrets:
+The `.github/workflows/quality-gates-scenarios.yml` file references your existing secrets:
 
 ```yaml
 - name: Run Scenario 1 Tests
   run: npm run test:scenario:1
   env:
     BASE_URL: ${{ secrets.TEST_BASE_URL || 'https://zeventbooks.com' }}
-    ADMIN_KEY: ${{ secrets.ADMIN_KEY }}
-    TENANT_ID: ${{ secrets.TENANT_ID || 'root' }}
+    ADMIN_KEY: ${{ secrets.ADMIN_KEY_ROOT }}  # Uses your ROOT tenant key
+    TENANT_ID: root
 ```
+
+**Multi-Tenant Testing**: To test different tenants, you can modify the workflow to use:
+- `ADMIN_KEY_ABC` for ABC tenant
+- `ADMIN_KEY_CBC` for CBC tenant
+- `ADMIN_KEY_CBL` for CBL tenant
 
 ### **Test Files**
 
@@ -119,11 +138,15 @@ For local testing, use environment variables instead of hardcoding secrets.
 ```bash
 # Set for current session only
 export BASE_URL=https://zeventbooks.com
-export ADMIN_KEY=your_admin_key_here
+export ADMIN_KEY=your_root_admin_key_here  # Use value from ADMIN_KEY_ROOT secret
 export TENANT_ID=root
 
 # Run tests
 npm run test:scenario:1
+
+# For other tenants:
+# export ADMIN_KEY=your_abc_admin_key_here  # Use value from ADMIN_KEY_ABC
+# export TENANT_ID=abc
 ```
 
 ### **Option 2: Create `.env.local` File** (Recommended)

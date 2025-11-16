@@ -70,7 +70,8 @@ jobs:
         run: npm run test:scenario:1
         env:
           BASE_URL: ${{ secrets.TEST_BASE_URL || 'https://zeventbooks.com' }}
-          ADMIN_KEY: ${{ secrets.ADMIN_KEY }}
+          ADMIN_KEY: ${{ secrets.ADMIN_KEY_ROOT }}
+          TENANT_ID: root
 
       - name: Upload Scenario 1 Results
         if: always()
