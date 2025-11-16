@@ -39,6 +39,7 @@ playwright-report/
 test-results/
 .test-results/
 test-dashboard/
+.quality-gate-report.json
 
 # Build outputs
 dist/

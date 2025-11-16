@@ -398,14 +398,15 @@
     // Global state
     let adminKey = null;
     const tenantId = '<?= tenantId ?>';
+    const ADMIN_SESSION_KEY = 'ADMIN_SESSION:' + tenantId;
     let sponsors = [];
 
     // Initialize on page load
     window.addEventListener('DOMContentLoaded', function() {
-      // Check if admin key is stored in session
-      adminKey = sessionStorage.getItem('adminKey');
+      const cachedSession = getCachedAdminSession();
 
-      if (adminKey) {
+      if (cachedSession) {
+        adminKey = cachedSession;
         showMainContent();
         loadSponsors();
       } else {
@@ -442,11 +443,30 @@
         return;
       }
 
-      adminKey = key;
-      sessionStorage.setItem('adminKey', key);
+      input.disabled = true;
 
-      showMainContent();
-      loadSponsors();
+      google.script.run
+        .withSuccessHandler(function(result) {
+          input.disabled = false;
+          if (result.ok) {
+            adminKey = `token:${result.value.token}`;
+            storeAdminSession(result.value);
+            showMainContent();
+            loadSponsors();
+            input.value = '';
+          } else {
+            showAlert('Authentication failed: ' + (result.message || 'Unknown error'), 'error');
+          }
+        })
+        .withFailureHandler(function(error) {
+          input.disabled = false;
+          showAlert('Error verifying admin key: ' + error.message, 'error');
+        })
+        .api_createAdminSession({
+          tenantId: tenantId,
+          adminKey: key,
+          scope: 'sponsors'
+        });
     }
 
     function showAlert(message, type = 'info') {
@@ -555,6 +575,10 @@
       btnLoading.style.display = 'inline';
 
       try {
+        if (!ensureAdminSession()) {
+          throw new Error('Admin session expired. Please authenticate again.');
+        }
+
         const formData = new FormData(form);
         const sponsorData = {
           name: formData.get('name'),
@@ -619,6 +643,10 @@
       if (!newName || newName === sponsor.name) return;
 
       try {
+        if (!ensureAdminSession()) {
+          throw new Error('Admin session expired. Please authenticate again.');
+        }
+
         const response = await google.script.run
           .withSuccessHandler(function(result) {
             if (result.ok) {
@@ -649,6 +677,10 @@
       }
 
       try {
+        if (!ensureAdminSession()) {
+          throw new Error('Admin session expired. Please authenticate again.');
+        }
+
         const response = await google.script.run
           .withSuccessHandler(function(result) {
             if (result.ok) {
@@ -681,6 +713,41 @@
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
+    }
+
+    function storeAdminSession(session) {
+      sessionStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify({
+        token: `token:${session.token}`,
+        expiresAt: session.expiresAt
+      }));
+      sessionStorage.removeItem('adminKey');
+    }
+
+    function getCachedAdminSession() {
+      const raw = sessionStorage.getItem(ADMIN_SESSION_KEY);
+      if (!raw) return null;
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed.token && parsed.expiresAt && new Date(parsed.expiresAt).getTime() > Date.now() + 5000) {
+          return parsed.token;
+        }
+      } catch (error) {
+        console.warn('Invalid admin session cache', error);
+      }
+      sessionStorage.removeItem(ADMIN_SESSION_KEY);
+      return null;
+    }
+
+    function ensureAdminSession() {
+      if (adminKey) return true;
+      const cached = getCachedAdminSession();
+      if (cached) {
+        adminKey = cached;
+        return true;
+      }
+      showAlert('Admin session expired. Please re-authenticate.', 'error');
+      showAuthPrompt();
+      return false;
     }
   </script>
 </body>

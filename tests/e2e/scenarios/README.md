@@ -173,11 +173,11 @@ npm run test:bug:report
 ### Environment-Specific Testing
 
 ```bash
-# Test against production (Hostinger)
-BASE_URL=https://zeventbooks.com npm run test:scenario:1
+# Test against production deployment
+BASE_URL=https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec npm run test:scenario:1
 
-# Test against QA environment
-BASE_URL=https://qa.zeventbooks.com npm run test:scenario:2
+# Test against a QA Apps Script deployment (optional)
+BASE_URL=https://script.google.com/macros/s/YOUR_QA_DEPLOYMENT_ID/exec npm run test:scenario:2
 
 # Test with admin key
 ADMIN_KEY=your_admin_key npm run test:scenario:1
@@ -358,7 +358,7 @@ The test framework uses environment variables for configuration. **Never hardcod
 
 ```bash
 # Base URL for testing
-BASE_URL=https://zeventbooks.com
+BASE_URL=https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec
 
 # Admin authentication key (REQUIRED for Scenario 1)
 ADMIN_KEY=your_admin_key_here
@@ -371,7 +371,7 @@ TENANT_ID=root
 
 **Option 1: Terminal Export** (Quick)
 ```bash
-export BASE_URL=https://zeventbooks.com
+export BASE_URL=https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec
 export ADMIN_KEY=your_admin_key_here
 npm run test:scenario:1
 ```
@@ -382,7 +382,7 @@ npm run test:scenario:1
 cp .env.example .env.local
 
 # 2. Edit .env.local with your values
-# BASE_URL=https://zeventbooks.com
+# BASE_URL=https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec
 # ADMIN_KEY=your_actual_admin_key
 
 # 3. Load and run
@@ -392,7 +392,7 @@ npm run test:scenario:1
 
 **Option 3: One-liner**
 ```bash
-BASE_URL=https://zeventbooks.com ADMIN_KEY=your_key npm run test:scenario:1
+BASE_URL=https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec ADMIN_KEY=your_key npm run test:scenario:1
 ```
 
 #### GitHub Actions / CI/CD Setup
@@ -402,7 +402,7 @@ For GitHub Actions, configure **Repository Secrets**:
 1. Go to: `Settings` → `Secrets and variables` → `Actions`
 2. Add secrets:
    - `ADMIN_KEY_ROOT` (required for Scenario 1)
-   - `PROD_BASE_URL` (optional, defaults to zeventbooks.com)
+   - `PROD_BASE_URL` (optional, defaults to your Apps Script deployment URL)
    - `TENANT_ID` (optional, defaults to root)
 
 **📚 Full Guide**: See [`docs/SECRETS_SETUP.md`](../../../docs/SECRETS_SETUP.md) for detailed setup instructions.

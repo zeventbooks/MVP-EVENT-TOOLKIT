@@ -68,6 +68,45 @@ const response = await fetch(BASE_URL, {
 - Server-to-server communication
 - Trusted environments
 
+### Method 1.5: Admin Session Tokens (UI default)
+
+Short-lived session tokens are now the default for all in-product admin surfaces. They keep the ergonomic prompt-based workflow but avoid storing the raw admin key in the browser.
+
+#### How It Works
+1. The admin enters the tenant secret once.
+2. The client calls `api_createAdminSession`:
+
+```json
+{
+  "tenantId": "root",
+  "adminKey": "YOUR_ADMIN_SECRET",
+  "scope": "events"
+}
+```
+
+3. The Apps Script backend validates the admin key, generates a token, and caches it server-side:
+
+```json
+{
+  "ok": true,
+  "value": {
+    "token": "m5Q9...",
+    "expiresIn": 3600,
+    "expiresAt": "2025-01-31T05:00:00.000Z"
+  }
+}
+```
+
+4. Clients send the opaque credential (`token:m5Q9...`) as the `adminKey` for future RPCs. `gate_()` automatically detects the `token:` prefix and validates the cached session instead of the raw secret.
+
+#### Why Use It?
+- No raw secrets in `sessionStorage`
+- Tokens expire automatically (default 60 minutes)
+- Works with every existing endpoint because the API still receives an `adminKey` field
+- The CLI/automation flows can continue to use the long-lived admin key without changes
+
+> ℹ️ **Tip:** All legacy `ADMIN_KEY:*` entries are purged automatically so you can safely roll this out without manual cleanup.
+
 ---
 
 ## Method 2: Bearer Token (JWT)

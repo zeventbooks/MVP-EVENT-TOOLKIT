@@ -29,6 +29,9 @@ const { execSync, spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
+const { runHealthMonitor } = require('./monitor-health');
+const { runDeployAccessGuard } = require('./deploy-access-guard');
+const { verifyDomains } = require('./verify-domains');
 
 // Configuration
 const CONFIG = {
@@ -201,6 +204,7 @@ class PreFlightVerifier {
     await this.checkTests();
     await this.checkLinting();
     await this.checkGitStatus();
+    await this.checkAutomationGuard();
 
     this.printSummary();
     return this.failed === 0;
@@ -281,13 +285,13 @@ class PreFlightVerifier {
   async checkTests() {
     print('\n🧪 Running Tests...', 'blue');
 
-    const result = execCommand('npm test', { silent: true });
+    const result = execCommand('npm run quality:gate', { silent: false });
 
     if (result.success) {
-      printSuccess('All tests passed');
+      printSuccess('Quality gate passed (tests + coverage)');
       this.passed++;
     } else {
-      printError('Tests failed');
+      printError('Quality gate failed');
       this.failed++;
       if (result.output) {
         console.log(result.output);
@@ -336,6 +340,23 @@ class PreFlightVerifier {
     if (branchResult.success) {
       const branch = branchResult.output.trim();
       printInfo(`Current branch: ${branch}`);
+    }
+  }
+
+  async checkAutomationGuard() {
+    print('\n🛡️  Validating Deployment Automation...', 'blue');
+    try {
+      const guard = await runDeployAccessGuard({ quiet: true });
+      if (guard.success) {
+        printSuccess('Deployment access guard passed');
+        this.passed++;
+      } else {
+        printError('Deployment access guard failed — service account or API access blocked');
+        this.failed++;
+      }
+    } catch (error) {
+      printError(`Deployment access guard error: ${error.message}`);
+      this.failed++;
     }
   }
 
@@ -442,9 +463,10 @@ class Deployer {
       }
 
       try {
-        const result = await execCommandAsync('npm', ['run', 'deploy']);
+        const result = execCommand('npm run deploy', { silent: true });
         if (result.success) {
-          return { success: true };
+          console.log(result.output);
+          return { success: true, output: result.output };
         }
       } catch (error) {
         if (attempt === CONFIG.MAX_RETRIES) {
@@ -478,39 +500,22 @@ class Deployer {
     }
 
     print('\n🏥 Health Check Tests:', 'blue');
+    const healthResult = await runHealthMonitor({ baseUrl: url, label: 'post-deploy' });
 
-    const checks = [
-      { name: 'Status Endpoint', path: '?page=status' },
-    ];
-
-    let allPassed = true;
-
-    for (const check of checks) {
-      const fullUrl = url + check.path;
-
-      try {
-        // Try to fetch with curl
-        const result = execCommand(`curl -s -o /dev/null -w "%{http_code}" "${fullUrl}" -m 10`, { silent: true });
-
-        if (result.success) {
-          const statusCode = result.output.trim();
-          if (statusCode === '200') {
-            printSuccess(`${check.name}: OK (200)`);
-          } else {
-            printWarning(`${check.name}: ${statusCode}`);
-            allPassed = false;
-          }
-        } else {
-          printError(`${check.name}: Failed to connect`);
-          allPassed = false;
-        }
-      } catch (error) {
-        printError(`${check.name}: ${error.message}`);
-        allPassed = false;
+    let dnsResult = { success: true };
+    try {
+      dnsResult = await verifyDomains({ quiet: true });
+      if (dnsResult.success) {
+        printSuccess('Domain redirects verified');
+      } else {
+        printWarning('Domain verification reported issues, see ops/domains/dns-status.json');
       }
+    } catch (error) {
+      dnsResult = { success: false, error: error.message };
+      printError(`Domain verification error: ${error.message}`);
     }
 
-    return { success: allPassed };
+    return { success: healthResult.success && dnsResult.success, healthResult, dnsResult };
   }
 
   async shouldRollback() {

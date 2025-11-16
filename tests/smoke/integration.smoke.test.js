@@ -344,10 +344,10 @@ test.describe('Integration Smoke - RPC Communication', () => {
 
 test.describe('Integration Smoke - State Management', () => {
 
-  test('Admin key persists in sessionStorage', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&tenant=${TENANT_ID}`);
+test('Admin session persists in sessionStorage', async ({ page }) => {
+  await page.goto(`${BASE_URL}?page=admin&tenant=${TENANT_ID}`);
 
-    page.on('dialog', async dialog => await dialog.accept(ADMIN_KEY));
+  page.on('dialog', async dialog => await dialog.accept(ADMIN_KEY));
 
     await page.fill('#name', 'Session Test');
     await page.fill('#dateISO', '2025-12-31');
@@ -356,12 +356,12 @@ test.describe('Integration Smoke - State Management', () => {
     await page.waitForTimeout(2000);
 
     // Check if admin key is in sessionStorage
-    const adminKeyStored = await page.evaluate((tenant) => {
-      return sessionStorage.getItem(`ADMIN_KEY:${tenant}`) !== null;
-    }, TENANT_ID);
+  const adminSessionStored = await page.evaluate((tenant) => {
+    return sessionStorage.getItem(`ADMIN_SESSION:${tenant}`) !== null;
+  }, TENANT_ID);
 
-    expect(adminKeyStored).toBe(true);
-  });
+  expect(adminSessionStored).toBe(true);
+});
 
   test('Event data persists across page navigation', async ({ page, context }) => {
     const uniqueName = `Persistence Test ${Date.now()}`;

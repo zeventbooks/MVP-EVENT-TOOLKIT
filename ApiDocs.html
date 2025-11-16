@@ -489,6 +489,36 @@
           <div id="token-response"></div>
         </div>
       </div>
+
+      <h3>Create Admin Session Token</h3>
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method method-post">POST</span>
+          <code class="endpoint-url">?action=createAdminSession</code>
+          <span class="auth-required">🔒 Auth Required</span>
+        </div>
+        <p class="endpoint-desc">Exchange a tenant admin key for a short-lived session token to use in browser UIs.</p>
+
+        <h5>Request Body:</h5>
+        <pre>{
+  "action": "createAdminSession",
+  "tenantId": "root",
+  "adminKey": "YOUR_ADMIN_SECRET",
+  "scope": "events"
+}</pre>
+
+        <h5>Response:</h5>
+        <pre>{
+  "ok": true,
+  "value": {
+    "token": "m5Q9w...",
+    "expiresIn": 3600,
+    "expiresAt": "2025-01-31T05:00:00.000Z"
+  }
+}</pre>
+
+        <p class="endpoint-note">Send <code>adminKey: "token:m5Q9w..."</code> on subsequent calls. The backend resolves the cached session, so the raw admin key never needs to live in sessionStorage.</p>
+      </div>
     </section>
 
     <!-- Endpoints -->

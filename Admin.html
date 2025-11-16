@@ -330,11 +330,15 @@
   <script>
     const TENANT = '<?= tenantId ?>';
     const SCOPE = '<?= scope ?>';
+    const ADMIN_SESSION_KEY = 'ADMIN_SESSION:' + TENANT;
     let currentEventId = null;
 
     // Create Event
     document.getElementById('createForm').addEventListener('submit', async (e) => {
       e.preventDefault();
+      const adminKey = await getAdminKey();
+      if (!adminKey) return;
+
       overlay(true);
 
       const data = {
@@ -356,7 +360,7 @@
         tenantId: TENANT,
         scope: SCOPE,
         templateId: 'event',
-        adminKey: getAdminKey(),
+        adminKey,
         idemKey: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         data
       });
@@ -531,12 +535,15 @@
         surveyUrl: document.getElementById('surveyUrl').value.trim()
       };
 
+      const adminKey = await getAdminKey();
+      if (!adminKey) return;
+
       overlay(true);
       const res = await NU.rpc('api_updateEventData', {
         tenantId: TENANT,
         scope: SCOPE,
         id: currentEventId,
-        adminKey: getAdminKey(),
+        adminKey,
         data
       });
       overlay(false);
@@ -580,6 +587,9 @@
       const displayDiv = document.getElementById(displayId);
       displayDiv.innerHTML = '<p class="muted">Creating form...</p>';
 
+      const adminKey = await getAdminKey();
+      if (!adminKey) return;
+
       overlay(true);
 
       // Get event data for context
@@ -596,7 +606,7 @@
       // Create form from template
       const formRes = await NU.rpc('api_createFormFromTemplate', {
         tenantId: TENANT,
-        adminKey: getAdminKey(),
+        adminKey,
         templateType,
         eventName,
         eventId: currentEventId
@@ -613,7 +623,7 @@
       // Generate shortlink for the published form
       const shortlinkRes = await NU.rpc('api_generateFormShortlink', {
         tenantId: TENANT,
-        adminKey: getAdminKey(),
+        adminKey,
         formUrl: publishedUrl,
         formType: templateType,
         eventId: currentEventId
@@ -798,12 +808,15 @@
         });
       });
 
+      const adminKey = await getAdminKey();
+      if (!adminKey) return;
+
       overlay(true);
       const res = await NU.rpc('api_updateEventData', {
         tenantId: TENANT,
         scope: SCOPE,
         id: currentEventId,
-        adminKey: getAdminKey(),
+        adminKey,
         data: { display: { mode, urls }, sponsors }
       });
       overlay(false);
@@ -824,10 +837,53 @@
       document.getElementById('overlay').style.display = on ? 'flex' : 'none';
     }
 
-    function getAdminKey() {
-      const k = sessionStorage.getItem('ADMIN_KEY:' + TENANT) || prompt('Admin key for ' + TENANT);
-      if (k) sessionStorage.setItem('ADMIN_KEY:' + TENANT, k);
-      return k || '';
+    function getCachedAdminSession_() {
+      const raw = sessionStorage.getItem(ADMIN_SESSION_KEY);
+      if (!raw) return null;
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed.token && parsed.expiresAt && new Date(parsed.expiresAt).getTime() > Date.now() + 5000) {
+          return parsed.token;
+        }
+      } catch (err) {
+        console.warn('Invalid admin session cache', err);
+      }
+      sessionStorage.removeItem(ADMIN_SESSION_KEY);
+      return null;
+    }
+
+    async function getAdminKey(forceRefresh = false) {
+      if (!forceRefresh) {
+        const cached = getCachedAdminSession_();
+        if (cached) return cached;
+      }
+
+      const secret = prompt('Admin secret for ' + TENANT);
+      if (!secret) {
+        alert('Admin access is required to continue.');
+        return '';
+      }
+
+      overlay(true);
+      const session = await NU.rpc('api_createAdminSession', {
+        tenantId: TENANT,
+        adminKey: secret,
+        scope: SCOPE
+      });
+      overlay(false);
+
+      if (!session.ok) {
+        alert(`Authentication failed: ${session.message}`);
+        return '';
+      }
+
+      const tokenValue = `token:${session.value.token}`;
+      sessionStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify({
+        token: tokenValue,
+        expiresAt: session.value.expiresAt
+      }));
+      sessionStorage.removeItem('ADMIN_KEY:' + TENANT);
+      return tokenValue;
     }
   </script>
 </body>

@@ -18,6 +18,16 @@ tests/
 
 ## Quick Start
 
+### Enforced Quality Gate (CI default)
+
+```bash
+npm run quality:gate
+```
+
+- Runs Jest with coverage and fails if coverage < 60% lines/statements, 55% functions, 40% branches
+- Writes `.quality-gate-report.json` for audit evidence
+- Used automatically by `npm run deploy:auto` and `deploy:verify`
+
 ### Run All Tests
 
 ```bash
