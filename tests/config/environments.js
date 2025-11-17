@@ -2,9 +2,12 @@
  * Test Environment Configuration
  *
  * Supports testing against multiple deployment targets:
- * - Google Apps Script (production)
+ * - Google Apps Script (production) - DEFAULT for testing
  * - Hostinger (proxy/CDN)
  * - Local development
+ *
+ * Tests default to Google Apps Script endpoint for direct API testing.
+ * Set BASE_URL or TEST_ENV environment variable to override.
  */
 
 const ENVIRONMENTS = {
@@ -93,7 +96,8 @@ function getCurrentEnvironment() {
 
   // Auto-detect based on BASE_URL
   if (!baseUrl) {
-    return { ...ENVIRONMENTS.hostinger }; // Default to Hostinger
+    // Default to Google Apps Script for direct API testing
+    return { ...ENVIRONMENTS.googleAppsScript };
   }
 
   // Parse URL securely to prevent substring injection attacks
