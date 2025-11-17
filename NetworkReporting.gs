@@ -70,6 +70,9 @@ function getNetworkSponsorReport_(parentTenantId, sponsorId, options = {}) {
     const childTenant = findTenant_(childId);
     if (!childTenant) return;
 
+    // Skip child tenants not included in network reports
+    if (childTenant.includeInNetworkReports === false) return;
+
     const childData = getSponsorDataForTenant_(childId, sponsorId, options);
     if (childData) {
       report.networkSummary.totalImpressions += childData.impressions || 0;
@@ -215,13 +218,17 @@ function getTopPerformingEventsAcrossNetwork_(parentTenantId, sponsorId, childTe
 
   // Collect events from children
   childTenantIds.forEach(childId => {
+    const childTenant = findTenant_(childId);
+    // Skip child tenants not included in network reports
+    if (!childTenant || childTenant.includeInNetworkReports === false) return;
+
     const childData = getSponsorDataForTenant_(childId, sponsorId);
     if (childData && childData.eventsList) {
       childData.eventsList.forEach(event => {
         allEvents.push({
           ...event,
           tenantId: childId,
-          tenantName: findTenant_(childId)?.name || childId
+          tenantName: childTenant.name || childId
         });
       });
     }
@@ -295,6 +302,9 @@ function getNetworkSummary_(parentTenantId) {
   childTenantIds.forEach(childId => {
     const childTenant = findTenant_(childId);
     if (!childTenant) return;
+
+    // Skip child tenants not included in network reports
+    if (childTenant.includeInNetworkReports === false) return;
 
     summary.network.children.push({
       id: childId,
@@ -383,6 +393,9 @@ function getNetworkSponsors_(parentTenantId) {
   childTenantIds.forEach(childId => {
     const childTenant = findTenant_(childId);
     if (!childTenant) return;
+
+    // Skip child tenants not included in network reports
+    if (childTenant.includeInNetworkReports === false) return;
 
     const childDb = getDb_(childTenant);
     const childSponsors = childDb.list('sponsors') || [];

@@ -260,9 +260,9 @@
         <h3>📋 Configured Tenants</h3>
         <ul>
           <li><strong>root</strong> - Zeventbook (Primary tenant)</li>
-          <li><strong>abc</strong> - American Bocce Co.</li>
-          <li><strong>cbc</strong> - Chicago Bocce Club</li>
-          <li><strong>cbl</strong> - Chicago Bocce League</li>
+          <li><strong>abc</strong> - American Bocce Co. (Parent organization)</li>
+          <li><strong>cbc</strong> - Chicago Bocce Club (Child of ABC)</li>
+          <li><strong>cbl</strong> - Chicago Bocce League (Child of ABC)</li>
         </ul>
         <p style="margin-top: 1rem; color: #6b7280; font-size: 0.875rem;">
           Each tenant has its own configuration including hostnames, logos, admin credentials, and allowed scopes.
@@ -270,6 +270,126 @@
         </p>
       </div>
     </div>
+
+    <!-- Network Relationships Section (Parent Organizations Only) -->
+    <? if (typeof tenant !== 'undefined' && tenant.type === 'parent') { ?>
+    <div class="section">
+      <h2>🔗 Network Relationships</h2>
+      <p style="color: #6b7280; margin-bottom: 1.5rem;">
+        As a parent organization, you can manage relationships with child brands and configure which children are included in network analytics.
+      </p>
+
+      <div class="config-grid" id="networkRelationshipsList">
+        <!-- Will be populated by JavaScript -->
+      </div>
+
+      <div class="info-box" style="margin-top: 1.5rem;">
+        <h3>💡 How to Manage Network Relationships</h3>
+        <p style="color: #1f2937; margin-top: 0.5rem;">
+          To include or exclude a child organization from network reports:
+        </p>
+        <ol style="margin: 0.75rem 0 0 1.5rem; color: #1f2937; line-height: 1.8;">
+          <li>Open Google Apps Script Editor (Extensions → Apps Script)</li>
+          <li>Navigate to <code>Config.gs</code></li>
+          <li>Find the child tenant configuration (e.g., 'cbc' or 'cbl')</li>
+          <li>Set <code>includeInNetworkReports: true</code> or <code>false</code></li>
+          <li>Save and deploy to see changes</li>
+        </ol>
+      </div>
+    </div>
+
+    <!-- Network Analytics Dashboard (Parent Organizations Only) -->
+    <div class="section" id="networkAnalyticsSection">
+      <h2>📊 Network Analytics</h2>
+      <p style="color: #6b7280; margin-bottom: 1.5rem;">
+        Consolidated sponsor performance metrics across all brands in your network
+      </p>
+
+      <div class="config-grid" style="margin-bottom: 2rem;">
+        <div class="config-card">
+          <h3>📈 Network Summary</h3>
+          <div class="config-item">
+            <span class="config-label">Total Events</span>
+            <span class="config-value" id="networkTotalEvents">-</span>
+          </div>
+          <div class="config-item">
+            <span class="config-label">Total Sponsors</span>
+            <span class="config-value" id="networkTotalSponsors">-</span>
+          </div>
+          <div class="config-item">
+            <span class="config-label">Active Sponsors</span>
+            <span class="config-value" id="networkActiveSponsors">-</span>
+          </div>
+          <div class="config-item">
+            <span class="config-label">Total Impressions</span>
+            <span class="config-value" id="networkTotalImpressions">-</span>
+          </div>
+        </div>
+
+        <div class="config-card">
+          <h3>🏢 Brand Performance</h3>
+          <div id="networkBrandsList">
+            <!-- Will be populated by JavaScript -->
+          </div>
+        </div>
+      </div>
+
+      <h3 style="margin-top: 1.5rem; color: #1f2937;">Sponsor Reports</h3>
+      <p style="color: #6b7280; margin-bottom: 1rem;">View consolidated sponsor performance across all brands</p>
+
+      <div style="max-width: 400px; margin-bottom: 1.5rem;">
+        <label style="display: block; font-weight: 600; margin-bottom: 0.5rem; color: #374151;">Select Sponsor</label>
+        <select id="networkSponsorSelect" onchange="loadNetworkSponsorReport()"
+                style="width: 100%; padding: 0.75rem; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 0.875rem;">
+          <option value="">-- Select a sponsor --</option>
+        </select>
+      </div>
+
+      <div id="networkSponsorReport" style="display:none;">
+        <div style="background: #f9fafb; border: 2px solid #e5e7eb; border-radius: 12px; padding: 1.5rem;">
+          <h3 id="reportSponsorName" style="margin: 0 0 1.5rem 0; color: #1f2937; font-size: 1.25rem;">Sponsor Report</h3>
+
+          <div class="config-grid" style="margin-bottom: 1.5rem;">
+            <div class="config-item">
+              <span class="config-label">Total Events</span>
+              <span class="config-value" id="reportTotalEvents">-</span>
+            </div>
+            <div class="config-item">
+              <span class="config-label">Total Impressions</span>
+              <span class="config-value" id="reportTotalImpressions">-</span>
+            </div>
+            <div class="config-item">
+              <span class="config-label">Total Clicks</span>
+              <span class="config-value" id="reportTotalClicks">-</span>
+            </div>
+            <div class="config-item">
+              <span class="config-label">Network CTR</span>
+              <span class="config-value" id="reportNetworkCTR">-</span>
+            </div>
+          </div>
+
+          <h4 style="margin: 1.5rem 0 1rem 0; color: #1f2937;">Performance by Brand</h4>
+          <div id="reportByBrand">
+            <!-- Will be populated by JavaScript -->
+          </div>
+
+          <h4 style="margin: 1.5rem 0 1rem 0; color: #1f2937;">Top Performing Events</h4>
+          <div id="reportTopEvents">
+            <!-- Will be populated by JavaScript -->
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+        <button class="btn-secondary" onclick="refreshNetworkSummary()">
+          🔄 Refresh Data
+        </button>
+        <button class="btn-secondary" onclick="exportNetworkReport()">
+          📥 Export Report
+        </button>
+      </div>
+    </div>
+    <? } ?>
 
     <!-- Configuration Guide Section -->
     <div class="section">
@@ -351,5 +471,280 @@
       </a>
     </div>
   </div>
+
+  <script>
+    const TENANT = '<?= tenantId ?>';
+    let networkSponsorsCache = [];
+
+    // Network Relationships Management
+    async function loadNetworkRelationships() {
+      const relationshipsList = document.getElementById('networkRelationshipsList');
+      if (!relationshipsList) return;
+
+      // Get tenant configuration (this would come from an API in a real implementation)
+      // For now, show static configuration based on what we know from Config.gs
+      const children = [
+        { id: 'cbc', name: 'Chicago Bocce Club', includeInNetworkReports: true },
+        { id: 'cbl', name: 'Chicago Bocce League', includeInNetworkReports: true }
+      ];
+
+      relationshipsList.innerHTML = '';
+
+      children.forEach(child => {
+        const card = document.createElement('div');
+        card.className = 'config-card';
+
+        const statusColor = child.includeInNetworkReports ? '#10b981' : '#ef4444';
+        const statusText = child.includeInNetworkReports ? '✓ Included' : '✗ Excluded';
+
+        card.innerHTML = `
+          <h3>${escapeHtml(child.name)}</h3>
+          <div class="config-item">
+            <span class="config-label">Tenant ID</span>
+            <span class="config-value">${child.id}</span>
+          </div>
+          <div class="config-item">
+            <span class="config-label">Network Reports</span>
+            <span class="config-value" style="background: ${statusColor}; color: white; font-weight: 600;">
+              ${statusText}
+            </span>
+          </div>
+          <div class="config-item">
+            <span class="config-label">Relationship</span>
+            <span class="config-value">Child Brand</span>
+          </div>
+        `;
+
+        relationshipsList.appendChild(card);
+      });
+    }
+
+    // Network Analytics Functions
+    async function refreshNetworkSummary() {
+      const analyticsSection = document.getElementById('networkAnalyticsSection');
+      if (!analyticsSection) return;
+
+      // Show loading state
+      document.getElementById('networkTotalEvents').textContent = '...';
+      document.getElementById('networkTotalSponsors').textContent = '...';
+      document.getElementById('networkActiveSponsors').textContent = '...';
+      document.getElementById('networkTotalImpressions').textContent = '...';
+
+      try {
+        const summaryRes = await NU.rpc('api_getNetworkSummary', {
+          tenantId: TENANT,
+          adminKey: getAdminKey()
+        });
+
+        if (!summaryRes.ok) {
+          alert(`Error loading network summary: ${summaryRes.message}`);
+          return;
+        }
+
+        const summary = summaryRes.value;
+
+        // Update stats
+        document.getElementById('networkTotalEvents').textContent = summary.metrics.totalEvents.toLocaleString();
+        document.getElementById('networkTotalSponsors').textContent = summary.metrics.totalSponsors.toLocaleString();
+        document.getElementById('networkActiveSponsors').textContent = summary.metrics.activeSponsors.toLocaleString();
+        document.getElementById('networkTotalImpressions').textContent = summary.metrics.totalImpressions.toLocaleString();
+
+        // Render brands list
+        const brandsList = document.getElementById('networkBrandsList');
+        brandsList.innerHTML = '';
+
+        // Parent brand
+        const parentBrand = summary.byBrand[summary.network.parent.id];
+        const parentDiv = document.createElement('div');
+        parentDiv.className = 'config-item';
+        parentDiv.style.borderLeft = '4px solid #2563eb';
+        parentDiv.innerHTML = `
+          <div>
+            <div class="config-label">${escapeHtml(summary.network.parent.name)} (Parent)</div>
+            <div style="font-size: 0.75rem; color: #6b7280; margin-top: 0.25rem;">
+              ${parentBrand.events} events · ${parentBrand.sponsors} sponsors
+            </div>
+          </div>
+        `;
+        brandsList.appendChild(parentDiv);
+
+        // Child brands
+        summary.network.children.forEach(child => {
+          const childBrand = summary.byBrand[child.id];
+          const childDiv = document.createElement('div');
+          childDiv.className = 'config-item';
+          childDiv.innerHTML = `
+            <div>
+              <div class="config-label">${escapeHtml(child.name)}</div>
+              <div style="font-size: 0.75rem; color: #6b7280; margin-top: 0.25rem;">
+                ${childBrand.events} events · ${childBrand.sponsors} sponsors
+              </div>
+            </div>
+          `;
+          brandsList.appendChild(childDiv);
+        });
+
+        // Load network sponsors for dropdown
+        await loadNetworkSponsors();
+
+      } catch (error) {
+        console.error('Error loading network summary:', error);
+        alert('Error loading network data');
+      }
+    }
+
+    async function loadNetworkSponsors() {
+      const selectEl = document.getElementById('networkSponsorSelect');
+      if (!selectEl) return;
+
+      const sponsorsRes = await NU.rpc('api_getNetworkSponsors', {
+        tenantId: TENANT,
+        adminKey: getAdminKey()
+      });
+
+      if (!sponsorsRes.ok) {
+        console.error('Error loading sponsors:', sponsorsRes.message);
+        return;
+      }
+
+      networkSponsorsCache = sponsorsRes.value.sponsors;
+
+      // Clear and populate dropdown
+      selectEl.innerHTML = '<option value="">-- Select a sponsor --</option>';
+      networkSponsorsCache.forEach(sponsor => {
+        const option = document.createElement('option');
+        option.value = sponsor.id;
+        option.textContent = `${sponsor.name} (${sponsor.brands.length} brands)`;
+        selectEl.appendChild(option);
+      });
+    }
+
+    async function loadNetworkSponsorReport() {
+      const selectEl = document.getElementById('networkSponsorSelect');
+      const sponsorId = selectEl.value;
+
+      const reportDiv = document.getElementById('networkSponsorReport');
+      if (!sponsorId) {
+        reportDiv.style.display = 'none';
+        return;
+      }
+
+      try {
+        const reportRes = await NU.rpc('api_getNetworkSponsorReport', {
+          tenantId: TENANT,
+          adminKey: getAdminKey(),
+          sponsorId: sponsorId,
+          options: {}
+        });
+
+        if (!reportRes.ok) {
+          alert(`Error loading sponsor report: ${reportRes.message}`);
+          return;
+        }
+
+        const report = reportRes.value;
+
+        // Update report header
+        document.getElementById('reportSponsorName').textContent =
+          `${report.sponsor.name || 'Sponsor'} - Network Report`;
+
+        // Update stats
+        document.getElementById('reportTotalEvents').textContent = report.networkSummary.totalEvents;
+        document.getElementById('reportTotalImpressions').textContent =
+          report.networkSummary.totalImpressions.toLocaleString();
+        document.getElementById('reportTotalClicks').textContent =
+          report.networkSummary.totalClicks.toLocaleString();
+        document.getElementById('reportNetworkCTR').textContent =
+          report.networkSummary.networkCTR + '%';
+
+        // Render by-brand breakdown
+        const byBrandDiv = document.getElementById('reportByBrand');
+        byBrandDiv.innerHTML = '';
+
+        Object.keys(report.byBrand).forEach(brandId => {
+          const brand = report.byBrand[brandId];
+          const brandCard = document.createElement('div');
+          brandCard.className = 'config-item';
+          brandCard.style.marginBottom = '8px';
+          brandCard.innerHTML = `
+            <div>
+              <div class="config-label">${escapeHtml(brand.name)}</div>
+              <div style="font-size: 0.75rem; color: #6b7280; margin-top: 0.25rem;">
+                ${brand.impressions.toLocaleString()} impressions · ${brand.clicks.toLocaleString()} clicks · ${brand.events} events · ${brand.ctr}% CTR
+              </div>
+            </div>
+          `;
+          byBrandDiv.appendChild(brandCard);
+        });
+
+        // Render top performing events
+        const topEventsDiv = document.getElementById('reportTopEvents');
+        topEventsDiv.innerHTML = '';
+
+        if (report.topPerformingEvents.length === 0) {
+          topEventsDiv.innerHTML = '<p style="color: #6b7280; font-style: italic;">No events found for this sponsor</p>';
+        } else {
+          report.topPerformingEvents.forEach((event, idx) => {
+            const eventCard = document.createElement('div');
+            eventCard.className = 'config-item';
+            eventCard.style.marginBottom = '8px';
+            eventCard.innerHTML = `
+              <div>
+                <div class="config-label">${idx + 1}. ${escapeHtml(event.name)}</div>
+                <div style="font-size: 0.75rem; color: #6b7280; margin-top: 0.25rem;">
+                  ${escapeHtml(event.tenantName)} · ${event.date} · ${event.impressions.toLocaleString()} views · ${event.clicks} clicks · ${event.ctr}% CTR
+                </div>
+              </div>
+            `;
+            topEventsDiv.appendChild(eventCard);
+          });
+        }
+
+        reportDiv.style.display = 'block';
+      } catch (error) {
+        console.error('Error loading sponsor report:', error);
+        alert('Error loading sponsor report');
+      }
+    }
+
+    function exportNetworkReport() {
+      const selectEl = document.getElementById('networkSponsorSelect');
+      const sponsorId = selectEl.value;
+
+      if (!sponsorId) {
+        alert('Please select a sponsor first');
+        return;
+      }
+
+      alert('Export functionality coming soon! This will generate a PDF report with all network sponsor metrics.');
+    }
+
+    // Helper Functions
+    function getAdminKey() {
+      const k = sessionStorage.getItem('ADMIN_KEY:' + TENANT) || prompt('Admin key for ' + TENANT);
+      if (k) sessionStorage.setItem('ADMIN_KEY:' + TENANT, k);
+      return k || '';
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // Auto-load on page load for parent tenants
+    document.addEventListener('DOMContentLoaded', function() {
+      const relationshipsList = document.getElementById('networkRelationshipsList');
+      const analyticsSection = document.getElementById('networkAnalyticsSection');
+
+      if (relationshipsList) {
+        loadNetworkRelationships();
+      }
+
+      if (analyticsSection) {
+        refreshNetworkSummary();
+      }
+    });
+  </script>
 </body>
 </html>

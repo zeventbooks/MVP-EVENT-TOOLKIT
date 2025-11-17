@@ -163,6 +163,7 @@ const TENANTS = [
     name: 'Chicago Bocce Club',
     type: 'child',  // Child brand of ABC
     parentTenant: 'abc',  // Parent organization
+    includeInNetworkReports: true,  // Include this child in parent's network analytics
     hostnames: ['chicagobocceclub.zeventbooks.io'],
     logoUrl: '/My files/Linux files/zeventbook/assets/logos/ABCMainTransparent.webp',
     // adminSecret: moved to Script Properties as 'ADMIN_SECRET_CBC'
@@ -174,6 +175,7 @@ const TENANTS = [
     name: 'Chicago Bocce League',
     type: 'child',  // Child brand of ABC
     parentTenant: 'abc',  // Parent organization
+    includeInNetworkReports: true,  // Include this child in parent's network analytics
     hostnames: ['chicagobocceleague.zeventbooks.io'],
     logoUrl: '/My files/Linux files/zeventbook/assets/logos/ABCMainTransparent.webp',
     // adminSecret: moved to Script Properties as 'ADMIN_SECRET_CBL'
