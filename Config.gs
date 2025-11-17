@@ -4,7 +4,133 @@
 const ZEB = Object.freeze({
   APP_TITLE: 'Zeventbook',
   BUILD_ID: 'triangle-extended-v1.3',
-  CONTRACT_VER: '1.0.3'
+  CONTRACT_VER: '1.0.3',
+
+  // Customer-Friendly URL Routing
+  // Maps friendly URLs to technical parameters for better UX
+  // Example: /abc/events → ?tenant=abc&p=public
+  //          /abc/manage → ?tenant=abc&p=admin
+  URL_ALIASES: {
+    // Public-facing aliases (no authentication required)
+    'events': { page: 'public', label: 'Events', public: true },
+    'schedule': { page: 'public', label: 'Schedule', public: true },
+    'calendar': { page: 'public', label: 'Calendar', public: true },
+
+    // Admin/Management aliases (authentication required)
+    'manage': { page: 'admin', mode: 'advanced', label: 'Management', public: false },
+    'admin': { page: 'admin', mode: 'advanced', label: 'Admin', public: false },
+    'create': { page: 'wizard', label: 'Create Event', public: false },
+    'dashboard': { page: 'admin', label: 'Dashboard', public: false },
+
+    // Display aliases (for TV/kiosks)
+    'display': { page: 'display', label: 'Display', public: true },
+    'tv': { page: 'display', label: 'TV Display', public: true },
+    'kiosk': { page: 'display', label: 'Kiosk', public: true },
+    'screen': { page: 'display', label: 'Screen', public: true },
+
+    // Marketing/Promotional aliases
+    'posters': { page: 'poster', label: 'Posters', public: true },
+    'poster': { page: 'poster', label: 'Poster', public: true },
+    'flyers': { page: 'poster', label: 'Flyers', public: true },
+
+    // Analytics aliases
+    'analytics': { page: 'report', label: 'Analytics', public: false },
+    'reports': { page: 'report', label: 'Reports', public: false },
+    'insights': { page: 'report', label: 'Insights', public: false },
+    'stats': { page: 'report', label: 'Statistics', public: false },
+
+    // Utility aliases
+    'status': { page: 'status', label: 'Status', public: true },
+    'health': { page: 'status', label: 'Health Check', public: true },
+    'docs': { page: 'api', label: 'API Docs', public: true },
+    'api': { page: 'api', label: 'API Documentation', public: true }
+  },
+
+  // Tenant URL Templates
+  // Defines how tenants can customize their URLs
+  TENANT_URL_PATTERNS: {
+    // Pattern: /{tenant}/{alias}
+    // Example: /abc/events, /cbc/manage
+    enableTenantPrefix: true,
+
+    // Pattern: subdomain routing (requires DNS)
+    // Example: abc.zeventbooks.com/events
+    enableSubdomainRouting: false,
+
+    // Custom aliases per tenant (optional)
+    // Allows tenants to create branded URLs
+    customAliases: {
+      // ABC (Parent Organization) - Custom URLs
+      'abc': {
+        'tournaments': { page: 'public', label: 'Tournaments', public: true },
+        'leagues': { page: 'public', label: 'Leagues', public: true },
+        'bocce': { page: 'public', label: 'Bocce Events', public: true },
+        'network': { page: 'report', label: 'Network Analytics', public: false }  // Parent-level reporting
+      },
+
+      // CBC (Child Brand) - Custom URLs
+      'cbc': {
+        'tournaments': { page: 'public', label: 'CBC Tournaments', public: true },
+        'club-events': { page: 'public', label: 'Club Events', public: true },
+        'register': { page: 'wizard', label: 'Register Event', public: false }
+      },
+
+      // CBL (Child Brand) - Custom URLs
+      'cbl': {
+        'seasons': { page: 'public', label: 'Seasons', public: true },
+        'league-events': { page: 'public', label: 'League Events', public: true },
+        'schedule': { page: 'public', label: 'Schedule', public: true }
+      }
+    }
+  },
+
+  // Demo Mode Configuration
+  // Activated via ?demo=true URL parameter
+  // Use cases: Development testing, UAT, stakeholder demos, screenshots/videos
+  DEMO_MODE: {
+    // Visual indicators
+    showBadge: true,              // Show "DEMO MODE" badge
+    badgeText: '🧪 DEMO MODE',    // Badge text
+    badgeColor: '#667eea',        // Badge color
+
+    // Development & UAT features
+    showDebugPanel: true,         // Show debug info panel
+    showApiTiming: true,          // Log API response times
+    showErrorDetails: true,       // Show detailed error messages
+    enableConsoleLogging: true,   // Enhanced console logs
+
+    // Sample data features
+    enablePrefill: true,          // Enable sample data auto-fill
+    showPrefillButton: true,      // Show "Fill Sample Data" button
+
+    // Feature highlighting (for stakeholder demos)
+    highlightNewFeatures: true,   // Add badges/glow to new features
+    showHelpTooltips: true,       // Extra help tooltips
+
+    // Screenshot/video mode
+    showWatermark: false,         // Optional "DEMO" watermark (set to true for videos)
+    hideRealData: true,           // Hide real user data in demo mode
+
+    // Sample data templates
+    sampleEvent: {
+      name: 'Summer Bocce Tournament 2025',
+      dateISO: '2025-08-15',
+      timeISO: '18:00',
+      location: 'Chicago Bocce Club - North Avenue Courts',
+      entity: 'Chicago Bocce League',
+      summary: 'Join us for the annual summer tournament! Open to all skill levels.',
+      imageUrl: 'https://picsum.photos/800/400?random=1',
+      sponsorIds: ''
+    },
+
+    sampleSponsor: {
+      name: 'Local Pizza Co.',
+      website: 'https://example.com',
+      tier: 'Gold',
+      entity: 'Chicago Bocce League',
+      logoUrl: 'https://picsum.photos/200/200?random=2'
+    }
+  }
 });
 
 // Tenants (multi-tenant architecture, single DB for MVP)
@@ -24,6 +150,8 @@ const TENANTS = [
   {
     id: 'abc',
     name: 'American Bocce Co.',
+    type: 'parent',  // Parent organization
+    childTenants: ['cbc', 'cbl'],  // Child brands under ABC
     hostnames: ['americanbocceco.zeventbooks.io'],
     logoUrl: '/My files/Linux files/zeventbook/assets/logos/ABCMainTransparent.webp',
     // adminSecret: moved to Script Properties as 'ADMIN_SECRET_ABC'
@@ -33,6 +161,9 @@ const TENANTS = [
   {
     id: 'cbc',
     name: 'Chicago Bocce Club',
+    type: 'child',  // Child brand of ABC
+    parentTenant: 'abc',  // Parent organization
+    includeInPortfolioReports: true,  // Include this child in parent's brand portfolio analytics
     hostnames: ['chicagobocceclub.zeventbooks.io'],
     logoUrl: '/My files/Linux files/zeventbook/assets/logos/ABCMainTransparent.webp',
     // adminSecret: moved to Script Properties as 'ADMIN_SECRET_CBC'
@@ -42,6 +173,9 @@ const TENANTS = [
   {
     id: 'cbl',
     name: 'Chicago Bocce League',
+    type: 'child',  // Child brand of ABC
+    parentTenant: 'abc',  // Parent organization
+    includeInPortfolioReports: true,  // Include this child in parent's brand portfolio analytics
     hostnames: ['chicagobocceleague.zeventbooks.io'],
     logoUrl: '/My files/Linux files/zeventbook/assets/logos/ABCMainTransparent.webp',
     // adminSecret: moved to Script Properties as 'ADMIN_SECRET_CBL'
@@ -219,4 +353,132 @@ function setupAdminSecrets_(secrets) {
 
   console.log('✅ Admin secrets migration complete!');
   console.log('⚠️  Remove hardcoded secrets from Config.gs if not already done');
+}
+
+/**
+ * URL Alias Resolution
+ * Converts friendly URLs to technical parameters
+ *
+ * Examples:
+ *   resolveUrlAlias_('events') → { page: 'public', label: 'Events' }
+ *   resolveUrlAlias_('manage') → { page: 'admin', mode: 'advanced', label: 'Management' }
+ *   resolveUrlAlias_('tournaments', 'abc') → { page: 'public', label: 'Tournaments' }
+ *
+ * @param {string} alias - Friendly URL alias
+ * @param {string} tenantId - Optional tenant ID for custom aliases
+ * @returns {object|null} - Alias configuration or null if not found
+ */
+function resolveUrlAlias_(alias, tenantId) {
+  if (!alias) return null;
+
+  const aliasLower = alias.toLowerCase();
+
+  // Check tenant-specific custom aliases first
+  if (tenantId && ZEB.TENANT_URL_PATTERNS.customAliases[tenantId]) {
+    const customAlias = ZEB.TENANT_URL_PATTERNS.customAliases[tenantId][aliasLower];
+    if (customAlias) {
+      return { ...customAlias, source: 'tenant-custom' };
+    }
+  }
+
+  // Check global aliases
+  const globalAlias = ZEB.URL_ALIASES[aliasLower];
+  if (globalAlias) {
+    return { ...globalAlias, source: 'global' };
+  }
+
+  return null;
+}
+
+/**
+ * Generate friendly URL for a page
+ *
+ * Examples:
+ *   getFriendlyUrl_('public', 'abc') → '/abc/events'
+ *   getFriendlyUrl_('admin', 'cbc') → '/cbc/manage'
+ *   getFriendlyUrl_('display', 'root') → '/display'
+ *
+ * @param {string} page - Technical page name
+ * @param {string} tenantId - Tenant ID (optional)
+ * @param {object} options - Additional options (mode, etc.)
+ * @returns {string} - Friendly URL path
+ */
+function getFriendlyUrl_(page, tenantId, options = {}) {
+  // Find matching alias
+  let matchingAlias = null;
+
+  // Check tenant custom aliases first
+  if (tenantId && ZEB.TENANT_URL_PATTERNS.customAliases[tenantId]) {
+    for (const [alias, config] of Object.entries(ZEB.TENANT_URL_PATTERNS.customAliases[tenantId])) {
+      if (config.page === page &&
+          (!options.mode || config.mode === options.mode)) {
+        matchingAlias = alias;
+        break;
+      }
+    }
+  }
+
+  // Check global aliases
+  if (!matchingAlias) {
+    for (const [alias, config] of Object.entries(ZEB.URL_ALIASES)) {
+      if (config.page === page &&
+          (!options.mode || config.mode === options.mode)) {
+        matchingAlias = alias;
+        break;
+      }
+    }
+  }
+
+  // Build URL
+  if (matchingAlias) {
+    if (ZEB.TENANT_URL_PATTERNS.enableTenantPrefix && tenantId && tenantId !== 'root') {
+      return `/${tenantId}/${matchingAlias}`;
+    }
+    return `/${matchingAlias}`;
+  }
+
+  // Fallback to query parameters
+  let url = `?p=${page}`;
+  if (tenantId) url += `&tenant=${tenantId}`;
+  if (options.mode) url += `&mode=${options.mode}`;
+  return url;
+}
+
+/**
+ * Get list of all available aliases
+ * Useful for documentation and navigation menus
+ *
+ * @param {string} tenantId - Optional tenant ID to include custom aliases
+ * @param {boolean} publicOnly - Only return public aliases
+ * @returns {array} - Array of alias objects
+ */
+function listUrlAliases_(tenantId, publicOnly = false) {
+  const aliases = [];
+
+  // Add global aliases
+  for (const [alias, config] of Object.entries(ZEB.URL_ALIASES)) {
+    if (!publicOnly || config.public) {
+      aliases.push({
+        alias: alias,
+        ...config,
+        url: getFriendlyUrl_(config.page, tenantId, { mode: config.mode })
+      });
+    }
+  }
+
+  // Add tenant custom aliases
+  if (tenantId && ZEB.TENANT_URL_PATTERNS.customAliases[tenantId]) {
+    for (const [alias, config] of Object.entries(ZEB.TENANT_URL_PATTERNS.customAliases[tenantId])) {
+      if (!publicOnly || config.public) {
+        aliases.push({
+          alias: alias,
+          ...config,
+          url: getFriendlyUrl_(config.page, tenantId, { mode: config.mode }),
+          custom: true
+        });
+      }
+    }
+  }
+
+  return aliases;
 }

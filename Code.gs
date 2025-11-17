@@ -215,7 +215,65 @@ function doGet(e){
   const pageParam = (e?.parameter?.page || e?.parameter?.p || '').toString();
   const actionParam = (e?.parameter?.action || '').toString();
   const hostHeader = (e?.headers?.host || e?.parameter?.host || '').toString();
-  const tenant = findTenantByHost_(hostHeader) || findTenant_('root');
+  let tenant = findTenantByHost_(hostHeader) || findTenant_('root');
+
+  // Demo mode detection (for testing, UAT, demos, and screenshots)
+  const demoMode = (e?.parameter?.demo === 'true' || e?.parameter?.test === 'true');
+
+  // ===== Customer-Friendly URL Routing =====
+  // Supports patterns like:
+  //   /abc/events → tenant=abc, page=public
+  //   /abc/manage → tenant=abc, page=admin, mode=advanced
+  //   /events → tenant=root, page=public
+  //   /display → tenant=root, page=display
+  const pathInfo = (e?.pathInfo || '').toString().replace(/^\/+|\/+$/g, '');
+
+  if (pathInfo) {
+    const pathParts = pathInfo.split('/').filter(p => p);
+
+    // Check if first part is a tenant ID
+    let tenantFromPath = null;
+    let aliasFromPath = null;
+
+    if (pathParts.length >= 2) {
+      // Pattern: /{tenant}/{alias}
+      const possibleTenant = findTenant_(pathParts[0]);
+      if (possibleTenant) {
+        tenantFromPath = possibleTenant;
+        aliasFromPath = pathParts[1];
+      }
+    }
+
+    if (!tenantFromPath && pathParts.length >= 1) {
+      // Pattern: /{alias} (use default tenant)
+      aliasFromPath = pathParts[0];
+    }
+
+    // Resolve alias to page configuration
+    if (aliasFromPath) {
+      const aliasConfig = resolveUrlAlias_(aliasFromPath, tenantFromPath?.id || tenant.id);
+
+      if (aliasConfig) {
+        // Override tenant if specified in path
+        if (tenantFromPath) {
+          tenant = tenantFromPath;
+        }
+
+        // Set page and mode from alias
+        const resolvedPage = aliasConfig.page;
+        const resolvedMode = aliasConfig.mode;
+
+        // Continue routing with resolved values
+        return routePage_(
+          e,
+          resolvedPage,
+          tenant,
+          demoMode,
+          { mode: resolvedMode, fromAlias: true, alias: aliasFromPath }
+        );
+      }
+    }
+  }
 
   // REST API Routes (for custom frontends)
   if (actionParam) {
@@ -256,12 +314,36 @@ function doGet(e){
   // Admin mode selection: default to wizard for simplicity, allow advanced mode via URL parameter
   let page = (pageParam==='admin' || pageParam==='wizard' || pageParam==='poster' || pageParam==='test' || pageParam==='display' || pageParam==='report' || pageParam==='analytics' || pageParam==='diagnostics' || pageParam==='sponsor' || pageParam==='signup' || pageParam==='config') ? pageParam : 'public';
 
+  // Route using helper function
+  return routePage_(e, page, tenant, demoMode, { mode: e?.parameter?.mode });
+}
+
+/**
+ * Route to a specific page with tenant and options
+ * Centralizes page routing logic for both query params and friendly URLs
+ *
+ * @param {object} e - Request event object
+ * @param {string} page - Page to route to
+ * @param {object} tenant - Tenant configuration
+ * @param {boolean} demoMode - Demo mode flag
+ * @param {object} options - Additional routing options (mode, fromAlias, etc.)
+ * @returns {HtmlOutput} - Rendered page
+ */
+function routePage_(e, page, tenant, demoMode, options = {}) {
   // Route admin to wizard by default (simple mode), unless mode=advanced is specified
   if (page === 'admin') {
-    const mode = (e?.parameter?.mode || '').toString();
+    const mode = options.mode || '';
     if (mode !== 'advanced') {
       page = 'wizard'; // Default to wizard (simple mode)
     }
+  }
+
+  const scope = (e?.parameter?.p || e?.parameter?.scope || 'events').toString();
+  const allowed = tenant.scopesAllowed?.length ? tenant.scopesAllowed : ['events','leagues','tournaments'];
+
+  if (!allowed.includes(scope) && page === 'public'){
+    const first = allowed[0] || 'events';
+    return HtmlService.createHtmlOutput(`<meta http-equiv="refresh" content="0;url=?p=${first}&tenant=${tenant.id}">`);
   }
 
   const tpl = HtmlService.createTemplateFromFile(pageFile_(page));
@@ -271,9 +353,17 @@ function doGet(e){
   tpl.scope = sanitizeInput_(scope, 50);
   tpl.execUrl = ScriptApp.getService().getUrl();
   tpl.ZEB = ZEB;
+  tpl.demoMode = demoMode; // Pass demo mode flag to templates
+
+  // Pass friendly URL info if routed via alias
+  if (options.fromAlias) {
+    tpl.friendlyUrl = true;
+    tpl.urlAlias = options.alias || '';
+  }
+
   // Fixed: Bug #31 - Add security headers
   return tpl.evaluate()
-    .setTitle(`${tpl.appTitle} · ${page}`)
+    .setTitle(`${tpl.appTitle} · ${page}${demoMode ? ' (Demo)' : ''}`)
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
@@ -440,6 +530,30 @@ function handleRestApiPost_(e, action, body, tenant) {
       formUrl: body.formUrl,
       formType: body.formType || '',
       eventId: body.eventId || ''
+    }));
+  }
+
+  // Brand Portfolio Analytics (Parent Organizations)
+  if (action === 'api_getPortfolioSponsorReport') {
+    return jsonResponse_(api_getPortfolioSponsorReport({
+      tenantId,
+      adminKey,
+      sponsorId: body.sponsorId || '',
+      options: body.options || {}
+    }));
+  }
+
+  if (action === 'api_getPortfolioSummary') {
+    return jsonResponse_(api_getPortfolioSummary({
+      tenantId,
+      adminKey
+    }));
+  }
+
+  if (action === 'api_getPortfolioSponsors') {
+    return jsonResponse_(api_getPortfolioSponsors({
+      tenantId,
+      adminKey
     }));
   }
 
@@ -1614,6 +1728,113 @@ function api_generateFormShortlink(req){
   });
 }
 
+// === Brand Portfolio Analytics API (Parent Organizations) =================
+
+/**
+ * Get consolidated sponsor report across brand portfolio
+ * @param {object} req - Request with tenantId, adminKey, sponsorId, options
+ * @returns {object} - Portfolio-wide sponsor analytics
+ */
+function api_getPortfolioSponsorReport(req) {
+  return runSafe('api_getPortfolioSponsorReport', () => {
+    const { tenantId, adminKey, sponsorId, options } = req;
+
+    // Validate parent tenant
+    const tenant = findTenant_(tenantId);
+    if (!tenant) {
+      return Err(ERR.NOT_FOUND, 'Tenant not found');
+    }
+
+    if (tenant.type !== 'parent') {
+      return Err(ERR.BAD_INPUT, 'Only parent organizations can access portfolio reports');
+    }
+
+    // Verify admin access
+    if (!isValidAdminKey_(adminKey, tenantId)) {
+      return Err(ERR.BAD_INPUT, 'Invalid admin key');
+    }
+
+    // Get portfolio report
+    const result = getPortfolioSponsorReport_(tenantId, sponsorId, options || {});
+
+    if (!result.ok) {
+      return Err(ERR.INTERNAL, result.error || 'Failed to generate portfolio report');
+    }
+
+    return Ok(result.value);
+  });
+}
+
+/**
+ * Get brand portfolio summary for parent organization
+ * @param {object} req - Request with tenantId, adminKey
+ * @returns {object} - Portfolio summary
+ */
+function api_getPortfolioSummary(req) {
+  return runSafe('api_getPortfolioSummary', () => {
+    const { tenantId, adminKey } = req;
+
+    // Validate parent tenant
+    const tenant = findTenant_(tenantId);
+    if (!tenant) {
+      return Err(ERR.NOT_FOUND, 'Tenant not found');
+    }
+
+    if (tenant.type !== 'parent') {
+      return Err(ERR.BAD_INPUT, 'Only parent organizations can access portfolio summary');
+    }
+
+    // Verify admin access
+    if (!isValidAdminKey_(adminKey, tenantId)) {
+      return Err(ERR.BAD_INPUT, 'Invalid admin key');
+    }
+
+    // Get portfolio summary
+    const result = getPortfolioSummary_(tenantId);
+
+    if (!result.ok) {
+      return Err(ERR.INTERNAL, result.error || 'Failed to generate portfolio summary');
+    }
+
+    return Ok(result.value);
+  });
+}
+
+/**
+ * Get list of all sponsors across brand portfolio
+ * @param {object} req - Request with tenantId, adminKey
+ * @returns {object} - Portfolio sponsors list
+ */
+function api_getPortfolioSponsors(req) {
+  return runSafe('api_getPortfolioSponsors', () => {
+    const { tenantId, adminKey } = req;
+
+    // Validate parent tenant
+    const tenant = findTenant_(tenantId);
+    if (!tenant) {
+      return Err(ERR.NOT_FOUND, 'Tenant not found');
+    }
+
+    if (tenant.type !== 'parent') {
+      return Err(ERR.BAD_INPUT, 'Only parent organizations can access portfolio sponsors');
+    }
+
+    // Verify admin access
+    if (!isValidAdminKey_(adminKey, tenantId)) {
+      return Err(ERR.BAD_INPUT, 'Invalid admin key');
+    }
+
+    // Get portfolio sponsors
+    const result = getPortfolioSponsors_(tenantId);
+
+    if (!result.ok) {
+      return Err(ERR.INTERNAL, result.error || 'Failed to get portfolio sponsors');
+    }
+
+    return Ok(result.value);
+  });
+}
+
 function api_runDiagnostics(){
   return runSafe('api_runDiagnostics', () => {
     const steps = [];
@@ -1689,4 +1910,410 @@ function api_runDiagnostics(){
       return Ok({ steps, ok: false });
     }
   });
+}
+
+// === Brand Portfolio Analytics =============================================
+// Multi-brand sponsorship reporting for parent organizations
+
+/**
+ * Get consolidated sponsor report across brand portfolio
+ *
+ * @param {string} parentTenantId - Parent organization (e.g., 'abc')
+ * @param {string} sponsorId - Sponsor ID to report on
+ * @param {object} options - Optional filters (dateRange, etc.)
+ * @returns {object} - Aggregated sponsor metrics
+ */
+function getPortfolioSponsorReport_(parentTenantId, sponsorId, options = {}) {
+  const parentTenant = findTenant_(parentTenantId);
+
+  if (!parentTenant || parentTenant.type !== 'parent') {
+    return {
+      ok: false,
+      error: 'Invalid parent tenant or not a parent organization'
+    };
+  }
+
+  const report = {
+    parentOrg: {
+      id: parentTenantId,
+      name: parentTenant.name
+    },
+    sponsor: {
+      id: sponsorId,
+      name: null  // Will be populated from data
+    },
+    portfolioSummary: {
+      totalImpressions: 0,
+      totalClicks: 0,
+      totalEvents: 0,
+      portfolioCTR: 0,
+      dateRange: options.dateRange || { start: null, end: null }
+    },
+    byBrand: {},
+    topPerformingEvents: [],
+    generatedAt: new Date().toISOString()
+  };
+
+  // Get sponsor data from parent tenant
+  const parentData = getSponsorDataForTenant_(parentTenantId, sponsorId, options);
+  if (parentData) {
+    report.portfolioSummary.totalImpressions += parentData.impressions || 0;
+    report.portfolioSummary.totalClicks += parentData.clicks || 0;
+    report.portfolioSummary.totalEvents += parentData.events || 0;
+    report.byBrand[parentTenantId] = {
+      name: parentTenant.name,
+      ...parentData
+    };
+
+    // Set sponsor name if found
+    if (parentData.sponsorName) {
+      report.sponsor.name = parentData.sponsorName;
+    }
+  }
+
+  // Get sponsor data from child tenants
+  const childTenantIds = parentTenant.childTenants || [];
+  childTenantIds.forEach(childId => {
+    const childTenant = findTenant_(childId);
+    if (!childTenant) return;
+
+    // Skip child tenants not included in portfolio reports
+    if (childTenant.includeInPortfolioReports === false) return;
+
+    const childData = getSponsorDataForTenant_(childId, sponsorId, options);
+    if (childData) {
+      report.portfolioSummary.totalImpressions += childData.impressions || 0;
+      report.portfolioSummary.totalClicks += childData.clicks || 0;
+      report.portfolioSummary.totalEvents += childData.events || 0;
+      report.byBrand[childId] = {
+        name: childTenant.name,
+        ...childData
+      };
+
+      // Set sponsor name if not yet set
+      if (!report.sponsor.name && childData.sponsorName) {
+        report.sponsor.name = childData.sponsorName;
+      }
+    }
+  });
+
+  // Calculate portfolio CTR
+  if (report.portfolioSummary.totalImpressions > 0) {
+    report.portfolioSummary.portfolioCTR = (
+      (report.portfolioSummary.totalClicks / report.portfolioSummary.totalImpressions) * 100
+    ).toFixed(2);
+  }
+
+  // Aggregate top performing events across all brands
+  report.topPerformingEvents = getTopPerformingEventsAcrossPortfolio_(
+    parentTenantId,
+    sponsorId,
+    childTenantIds,
+    5  // Top 5 events
+  );
+
+  return {
+    ok: true,
+    value: report
+  };
+}
+
+/**
+ * Get sponsor data for a specific tenant
+ *
+ * @param {string} tenantId - Tenant ID
+ * @param {string} sponsorId - Sponsor ID
+ * @param {object} options - Optional filters
+ * @returns {object|null} - Sponsor data or null
+ */
+function getSponsorDataForTenant_(tenantId, sponsorId, options = {}) {
+  try {
+    // Get all events for this tenant
+    const tenant = findTenant_(tenantId);
+    if (!tenant) return null;
+
+    const db = getDb_(tenant);
+    const events = db.list('events') || [];
+
+    // Get sponsors to find sponsor name
+    const sponsors = db.list('sponsors') || [];
+    const sponsor = sponsors.find(s => s.id === sponsorId);
+    const sponsorName = sponsor ? sponsor.name : null;
+
+    // Filter events that have this sponsor
+    const sponsoredEvents = events.filter(event => {
+      const eventSponsorIds = (event.sponsorIds || '').split(',').map(id => id.trim());
+      return eventSponsorIds.includes(sponsorId);
+    });
+
+    if (sponsoredEvents.length === 0) {
+      return {
+        sponsorName: sponsorName,
+        impressions: 0,
+        clicks: 0,
+        events: 0,
+        ctr: 0,
+        eventsList: []
+      };
+    }
+
+    // Aggregate metrics
+    let totalImpressions = 0;
+    let totalClicks = 0;
+    const eventsList = [];
+
+    sponsoredEvents.forEach(event => {
+      // Get analytics for this event (if available)
+      const eventImpressions = event.analytics?.impressions || 0;
+      const eventClicks = event.analytics?.clicks || 0;
+
+      totalImpressions += eventImpressions;
+      totalClicks += eventClicks;
+
+      eventsList.push({
+        id: event.id,
+        name: event.name,
+        date: event.dateISO,
+        impressions: eventImpressions,
+        clicks: eventClicks,
+        ctr: eventImpressions > 0 ? ((eventClicks / eventImpressions) * 100).toFixed(2) : 0
+      });
+    });
+
+    const ctr = totalImpressions > 0 ? ((totalClicks / totalImpressions) * 100).toFixed(2) : 0;
+
+    return {
+      sponsorName: sponsorName,
+      impressions: totalImpressions,
+      clicks: totalClicks,
+      events: sponsoredEvents.length,
+      ctr: ctr,
+      eventsList: eventsList
+    };
+
+  } catch (error) {
+    console.error(`Error getting sponsor data for tenant ${tenantId}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Get top performing events across brand portfolio
+ *
+ * @param {string} parentTenantId - Parent tenant ID
+ * @param {string} sponsorId - Sponsor ID
+ * @param {array} childTenantIds - Child tenant IDs
+ * @param {number} limit - Number of top events to return
+ * @returns {array} - Top performing events
+ */
+function getTopPerformingEventsAcrossPortfolio_(parentTenantId, sponsorId, childTenantIds, limit = 5) {
+  const allEvents = [];
+
+  // Collect events from parent
+  const parentData = getSponsorDataForTenant_(parentTenantId, sponsorId);
+  if (parentData && parentData.eventsList) {
+    parentData.eventsList.forEach(event => {
+      allEvents.push({
+        ...event,
+        tenantId: parentTenantId,
+        tenantName: findTenant_(parentTenantId)?.name || parentTenantId
+      });
+    });
+  }
+
+  // Collect events from children
+  childTenantIds.forEach(childId => {
+    const childTenant = findTenant_(childId);
+    // Skip child tenants not included in portfolio reports
+    if (!childTenant || childTenant.includeInPortfolioReports === false) return;
+
+    const childData = getSponsorDataForTenant_(childId, sponsorId);
+    if (childData && childData.eventsList) {
+      childData.eventsList.forEach(event => {
+        allEvents.push({
+          ...event,
+          tenantId: childId,
+          tenantName: childTenant.name || childId
+        });
+      });
+    }
+  });
+
+  // Sort by impressions (descending) and return top N
+  return allEvents
+    .sort((a, b) => b.impressions - a.impressions)
+    .slice(0, limit);
+}
+
+/**
+ * Get brand portfolio summary for parent organization
+ * Shows overall portfolio health and activity
+ *
+ * @param {string} parentTenantId - Parent tenant ID
+ * @returns {object} - Portfolio summary
+ */
+function getPortfolioSummary_(parentTenantId) {
+  const parentTenant = findTenant_(parentTenantId);
+
+  if (!parentTenant || parentTenant.type !== 'parent') {
+    return {
+      ok: false,
+      error: 'Invalid parent tenant or not a parent organization'
+    };
+  }
+
+  const summary = {
+    portfolio: {
+      parent: {
+        id: parentTenantId,
+        name: parentTenant.name
+      },
+      children: []
+    },
+    metrics: {
+      totalEvents: 0,
+      totalSponsors: 0,
+      totalImpressions: 0,
+      activeSponsors: new Set()
+    },
+    byBrand: {}
+  };
+
+  // Get parent metrics
+  const parentDb = getDb_(parentTenant);
+  const parentEvents = parentDb.list('events') || [];
+  const parentSponsors = parentDb.list('sponsors') || [];
+
+  summary.metrics.totalEvents += parentEvents.length;
+  summary.metrics.totalSponsors += parentSponsors.length;
+
+  // Track active sponsors (sponsors with events)
+  parentEvents.forEach(event => {
+    const sponsorIds = (event.sponsorIds || '').split(',').map(id => id.trim()).filter(id => id);
+    sponsorIds.forEach(sid => summary.metrics.activeSponsors.add(sid));
+
+    const eventImpressions = event.analytics?.impressions || 0;
+    summary.metrics.totalImpressions += eventImpressions;
+  });
+
+  summary.byBrand[parentTenantId] = {
+    name: parentTenant.name,
+    events: parentEvents.length,
+    sponsors: parentSponsors.length
+  };
+
+  // Get child metrics
+  const childTenantIds = parentTenant.childTenants || [];
+  childTenantIds.forEach(childId => {
+    const childTenant = findTenant_(childId);
+    if (!childTenant) return;
+
+    // Skip child tenants not included in portfolio reports
+    if (childTenant.includeInPortfolioReports === false) return;
+
+    summary.portfolio.children.push({
+      id: childId,
+      name: childTenant.name
+    });
+
+    const childDb = getDb_(childTenant);
+    const childEvents = childDb.list('events') || [];
+    const childSponsors = childDb.list('sponsors') || [];
+
+    summary.metrics.totalEvents += childEvents.length;
+    summary.metrics.totalSponsors += childSponsors.length;
+
+    // Track active sponsors
+    childEvents.forEach(event => {
+      const sponsorIds = (event.sponsorIds || '').split(',').map(id => id.trim()).filter(id => id);
+      sponsorIds.forEach(sid => summary.metrics.activeSponsors.add(sid));
+
+      const eventImpressions = event.analytics?.impressions || 0;
+      summary.metrics.totalImpressions += eventImpressions;
+    });
+
+    summary.byBrand[childId] = {
+      name: childTenant.name,
+      events: childEvents.length,
+      sponsors: childSponsors.length
+    };
+  });
+
+  // Convert Set to count
+  summary.metrics.activeSponsors = summary.metrics.activeSponsors.size;
+
+  return {
+    ok: true,
+    value: summary
+  };
+}
+
+/**
+ * Get list of all sponsors across brand portfolio
+ * Useful for parent organizations to see all sponsors
+ *
+ * @param {string} parentTenantId - Parent tenant ID
+ * @returns {object} - List of sponsors with brand breakdown
+ */
+function getPortfolioSponsors_(parentTenantId) {
+  const parentTenant = findTenant_(parentTenantId);
+
+  if (!parentTenant || parentTenant.type !== 'parent') {
+    return {
+      ok: false,
+      error: 'Invalid parent tenant or not a parent organization'
+    };
+  }
+
+  const sponsorsMap = new Map();
+
+  // Helper to add sponsor to map
+  const addSponsor = (sponsor, tenantId, tenantName) => {
+    const key = sponsor.id;
+    if (!sponsorsMap.has(key)) {
+      sponsorsMap.set(key, {
+        id: sponsor.id,
+        name: sponsor.name,
+        logoUrl: sponsor.logoUrl,
+        website: sponsor.website,
+        tier: sponsor.tier,
+        brands: []
+      });
+    }
+    sponsorsMap.get(key).brands.push({
+      tenantId: tenantId,
+      tenantName: tenantName
+    });
+  };
+
+  // Get sponsors from parent
+  const parentDb = getDb_(parentTenant);
+  const parentSponsors = parentDb.list('sponsors') || [];
+  parentSponsors.forEach(sponsor => {
+    addSponsor(sponsor, parentTenantId, parentTenant.name);
+  });
+
+  // Get sponsors from children
+  const childTenantIds = parentTenant.childTenants || [];
+  childTenantIds.forEach(childId => {
+    const childTenant = findTenant_(childId);
+    if (!childTenant) return;
+
+    // Skip child tenants not included in portfolio reports
+    if (childTenant.includeInPortfolioReports === false) return;
+
+    const childDb = getDb_(childTenant);
+    const childSponsors = childDb.list('sponsors') || [];
+    childSponsors.forEach(sponsor => {
+      addSponsor(sponsor, childId, childTenant.name);
+    });
+  });
+
+  return {
+    ok: true,
+    value: {
+      sponsors: Array.from(sponsorsMap.values()),
+      totalCount: sponsorsMap.size
+    }
+  };
 }
