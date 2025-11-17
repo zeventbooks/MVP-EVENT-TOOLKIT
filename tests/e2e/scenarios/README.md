@@ -68,6 +68,8 @@ Tests complete admin workflow:
 npm run test:scenario:1
 ```
 
+> ⚠️ If the suite reports "Deployment requires Google authentication" it means the Apps Script web app is still restricted to your Google account or domain. Publish it as "Anyone" or point `BASE_URL` at a deployment with anonymous access (see `TESTING.md`).
+
 **Focus Areas**:
 - Form validation and UX
 - Admin workflow efficiency

@@ -191,6 +191,8 @@ npm run test:smoke tests/smoke/pages.smoke.test.js
 **Duration:** ~3 minutes
 **Requires:** BASE_URL + ADMIN_KEY environment variables
 
+> ℹ️ **Anonymous access guard** – The scenario suites now auto-detect the Google login wall. If your Apps Script deployment is still restricted to "Only myself" or your Workspace domain, the tests will be skipped with a message reminding you to publish the web app as "Anyone" (per `DEPLOYMENT.md`) or to point `BASE_URL` at a head deployment that already allows anonymous access. This prevents false failures while still surfacing the remediation steps.
+
 **What they test:**
 - Admin creates event and views on public page
 - Configure display with sponsors
