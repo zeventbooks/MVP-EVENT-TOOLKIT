@@ -7,6 +7,8 @@ const ZEB = Object.freeze({
   CONTRACT_VER: '1.0.3'
 });
 
+const DEFAULT_LOGO_URL = '/My files/Linux files/zeventbook/assets/logos/ABCMainTransparent.webp';
+
 // Tenants (multi-tenant architecture, single DB for MVP)
 // SECURITY: Admin secrets moved to Script Properties for security
 // Set via: File > Project Properties > Script Properties in Apps Script UI
