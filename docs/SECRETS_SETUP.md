@@ -20,10 +20,10 @@ The test automation framework requires the following GitHub secrets to be config
 
 ### **3. PROD_BASE_URL** (Optional)
 - **Purpose**: Override default test environment URL
-- **Default**: `https://zeventbooks.com` (if not set)
+- **Default**: `https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec` (if not set)
 - **Used in**: All scenario tests
-- **Example**: `https://zeventbooks.com`
-- **Note**: You're currently using zeventbooks.com for testing
+- **Example**: `https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec`
+- **Note**: You're currently using the Apps Script deployment for testing
 
 ### **4. Additional Deployment Secrets** (Already Configured)
 Your repository also has these secrets configured for Apps Script deployment:
@@ -72,10 +72,10 @@ If you want to override the default test URL:
 
 ```
 Name: PROD_BASE_URL
-Secret: https://zeventbooks.com
+Secret: https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec
 ```
 
-**Note**: Currently using zeventbooks.com for testing
+**Note**: Currently using the Apps Script deployment for testing
 
 ---
 
@@ -107,7 +107,7 @@ The `.github/workflows/quality-gates-scenarios.yml` file references your existin
 - name: Run Scenario 1 Tests
   run: npm run test:scenario:1
   env:
-    BASE_URL: ${{ secrets.PROD_BASE_URL || 'https://zeventbooks.com' }}
+    BASE_URL: ${{ secrets.PROD_BASE_URL || 'https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec' }}
     ADMIN_KEY: ${{ secrets.ADMIN_KEY_ROOT }}  # Uses your ROOT tenant key
     TENANT_ID: root
 ```
@@ -122,7 +122,7 @@ The `.github/workflows/quality-gates-scenarios.yml` file references your existin
 Test files use `process.env` to access secrets:
 
 ```javascript
-const BASE_URL = process.env.BASE_URL || 'https://zeventbooks.com';
+const BASE_URL = process.env.BASE_URL || 'https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec';
 const ADMIN_KEY = process.env.ADMIN_KEY || 'CHANGE_ME_root';
 const TENANT_ID = process.env.TENANT_ID || 'root';
 ```
@@ -137,7 +137,7 @@ For local testing, use environment variables instead of hardcoding secrets.
 
 ```bash
 # Set for current session only
-export BASE_URL=https://zeventbooks.com
+export BASE_URL=https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec
 export ADMIN_KEY=your_root_admin_key_here  # Use value from ADMIN_KEY_ROOT secret
 export TENANT_ID=root
 
@@ -155,7 +155,7 @@ npm run test:scenario:1
 
 ```bash
 # .env.local (DO NOT COMMIT THIS FILE)
-BASE_URL=https://zeventbooks.com
+BASE_URL=https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec
 ADMIN_KEY=your_admin_key_here
 TENANT_ID=root
 ```
@@ -182,7 +182,7 @@ Add to `~/.bashrc` or `~/.zshrc`:
 
 ```bash
 # Add to ~/.bashrc or ~/.zshrc
-export BASE_URL=https://zeventbooks.com
+export BASE_URL=https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec
 export ADMIN_KEY=your_admin_key_here
 export TENANT_ID=root
 ```
@@ -198,14 +198,14 @@ source ~/.bashrc  # or source ~/.zshrc
 
 ### **Production Environment**
 ```bash
-BASE_URL=https://zeventbooks.com
+BASE_URL=https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec
 ADMIN_KEY=[Production Admin Key]
 TENANT_ID=root
 ```
 
 ### **QA Environment**
 ```bash
-BASE_URL=https://qa.zeventbooks.com
+BASE_URL=https://script.google.com/macros/s/YOUR_QA_DEPLOYMENT_ID/exec
 ADMIN_KEY=[QA Admin Key]
 TENANT_ID=root
 ```
@@ -260,7 +260,7 @@ If tests fail with authentication errors:
 ### **Error: "Cannot navigate to invalid URL"**
 ```bash
 # Fix: Set BASE_URL
-export BASE_URL=https://zeventbooks.com
+export BASE_URL=https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec
 npm run test:scenario:1
 ```
 

@@ -19,7 +19,8 @@ test.describe('Multi-Tenant APIs', () => {
     adminKey = process.env.ADMIN_KEY;
 
     if (!adminKey) {
-      test.skip('ADMIN_KEY not set');
+      test.skip(true, 'ADMIN_KEY not set');
+      return;
     }
   });
 

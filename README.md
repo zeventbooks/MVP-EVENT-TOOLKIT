@@ -64,6 +64,10 @@ npm run deploy # Create new deployment
 
 ## Documentation
 
+> 🧠 **New:** Start with [SYSTEM_MIND_MAP.md](./SYSTEM_MIND_MAP.md) for a single-page overview of how the code, scripts, and docs interlock.
+>
+> 🛠️ **Need the exact commands + owners?** See [EXECUTION_COMMAND_MAP.md](./EXECUTION_COMMAND_MAP.md) for the traceability tree that links every environment (Local, Apps Script, clasp, GitHub Actions, Hostinger) to the shell commands, automation level, artifacts, and reference docs.
+
 ### For Developers Building Custom Frontends
 - **[Interactive API Docs](?page=docs)** - 🆕 Test API endpoints in your browser!
 - **[AUTHENTICATION_GUIDE.md](./AUTHENTICATION_GUIDE.md)** - 🆕 3 authentication methods explained

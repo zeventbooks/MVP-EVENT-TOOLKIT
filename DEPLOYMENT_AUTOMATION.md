@@ -29,12 +29,16 @@ npm run deploy:auto
 ```
 
 That's it! This single command:
-1. ✅ Runs pre-flight checks (tests, linting, config)
-2. ✅ Deploys to Apps Script (with automatic retries)
-3. ✅ Waits for changes to propagate
-4. ✅ Runs health checks on deployed app
-5. ✅ Records deployment history
-6. ✅ Offers rollback if health checks fail
+1. ✅ Verifies configuration, runs the **quality gate** (tests + coverage) and linting
+2. ✅ Confirms your service account + admin secrets are ready
+3. ✅ Runs the deployment access guard to ensure the service account can read/write the Apps Script project
+4. ✅ Deploys to Apps Script (with automatic retries)
+5. ✅ Waits for changes to propagate
+6. ✅ Runs the **full health monitor** (status, diagnostics, self-test, API docs) **plus custom-domain verification**
+7. ✅ Records deployment history (including health + coverage metadata)
+8. ✅ Offers rollback if health checks fail
+
+> 🆕 **Uniform automation:** pair `npm run secrets:sync`, `npm run quality:gate`, and `npm run monitor:health` for every release. The CLI now runs/records each step automatically so the final mile no longer depends on manual uploads or ad‑hoc checks.
 
 ---
 
@@ -72,9 +76,10 @@ npm run deploy:verify
 - ✅ Dependencies installed (node_modules, googleapis)
 - ✅ Project files exist (Code.gs, appsscript.json)
 - ✅ Configuration valid (SERVICE_ACCOUNT_JSON, SCRIPT_ID)
-- ✅ Tests pass (npm test)
+- ✅ `npm run quality:gate` (tests + coverage enforcement)
 - ✅ Linting passes (npm run lint)
 - ✅ Git status clean
+- ✅ Deployment access guard (service account + Apps Script API permissions)
 
 **When to use:** Before committing, to catch issues early
 
@@ -115,6 +120,67 @@ npm run deploy:setup
 
 ---
 
+### `npm run secrets:sync` 🔐
+
+**Push Script Properties + enforce rotation policy**
+
+```bash
+ADMIN_SECRETS_JSON='{"root":"NewSecret2024!", "abc":"Another#2024"}' \
+SERVICE_ACCOUNT_JSON='…' SCRIPT_ID='…' npm run secrets:sync
+```
+
+**What it does:**
+- Validates each admin secret against the minimum policy (length + complexity + banned words)
+- Calls `setupAdminSecrets_` through the Apps Script Execution API (no UI clicking)
+- Updates `ops/security/admin-secret-rotation.json` so we always know the last rotation date per tenant
+
+**When to use:**
+- Rotating secrets (monthly/after incidents)
+- Preparing a new Apps Script project or tenant
+- Before `deploy:auto` to guarantee Script Properties match GitHub secrets
+
+---
+
+### `npm run quality:gate` 📊
+
+**Quality enforcement = unit tests + coverage threshold**
+
+```bash
+npm run quality:gate
+```
+
+**What it does:**
+- Executes `npm run test:jest` with coverage
+- Parses `coverage/coverage-summary.json` and enforces minimums (60% lines/statements, 55% functions, 40% branches)
+- Emits `.quality-gate-report.json` for CI evidence
+
+**When to use:**
+- Before opening a PR
+- Inside CI (required for `deploy:auto` pre-flight)
+- Whenever leadership requests objective readiness proof
+
+---
+
+### `npm run monitor:health` 🩺
+
+**Continuous observability for every surface**
+
+```bash
+MONITOR_BASE_URL="https://script.google.com/macros/s/.../exec" npm run monitor:health
+```
+
+**What it does:**
+- Hits the production web app root, Status, Diagnostics, Self-Test, and API Docs pages
+- Persists historical results in `ops/monitoring/health-history.json` (latest 50 runs)
+- Returns non-zero exit when any endpoint deviates from HTTP 200
+
+**When to use:**
+- After every deployment (automatically triggered inside `deploy:auto`)
+- On a schedule (Cron/GitHub Actions) for real observability
+- During incidents to capture a timeline of failures/recoveries
+
+---
+
 ### `npm run deploy:status` 📊
 
 **Check current deployment status**
@@ -132,6 +198,49 @@ npm run deploy:status
 - To verify deployment is live and healthy
 - When troubleshooting production issues
 - After deployment to confirm success
+
+---
+
+### `npm run deploy:guard` 🛡️
+
+**Validate service account + Apps Script access without deploying**
+
+```bash
+npm run deploy:guard
+```
+
+**What it does:**
+- Authenticates with the configured service account
+- Confirms the Apps Script API is enabled and reachable
+- Reads project metadata + source to verify read/write permissions
+- Lists versions/deployments to prove the automation path works
+- Writes results to `ops/deploy/guardian-status.json` for audits
+
+**When to use:**
+- Any time a service account, SCRIPT_ID, or Apps Script sharing change occurs
+- Before disabling the manual deployment appendix—you now have an automated proof
+- Inside CI to block merges if the deployment path regresses
+
+---
+
+### `npm run dns:verify` 🌐
+
+**Check custom domains and redirects point at the deployed Apps Script URL**
+
+```bash
+npm run dns:verify
+```
+
+**What it does:**
+- Reads `ops/domains/config.json` for the required host/path combinations
+- Resolves DNS + performs HTTP requests (with redirects) for each entry
+- Fails if the final URL does not contain your Apps Script deployment or required query params
+- Persists the latest run in `ops/domains/dns-status.json`
+
+**When to use:**
+- Post-deployment verification (automatically triggered by `deploy:auto`)
+- When migrating DNS/redirect ownership (e.g., Hostinger → Google Domains)
+- During incident response to prove whether `zeventbooks.io` still points at the script URL
 
 ---
 

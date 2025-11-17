@@ -4,39 +4,29 @@ This document outlines security considerations, known limitations, and recommend
 
 ## Known Security Limitations
 
-### 1. Admin Key Storage (Bug #15)
+### 1. Admin Session Tokens (Bug #15 mitigation)
 
-**Issue:** Admin keys are stored in `sessionStorage` in the browser (Admin.html, Display.html, etc.)
+**Issue:** The platform previously stored raw admin keys in `sessionStorage`, exposing long‑lived credentials to any XSS defect.
 
-**Risk:** If an XSS vulnerability exists, an attacker could potentially read the admin key from sessionStorage.
+**Current State:** All privileged surfaces now exchange the admin key for a short‑lived session token via `api_createAdminSession`. The browser only stores the opaque `token:xyz` handle plus its expiration timestamp, and the server revokes it automatically when the cache entry expires.
 
-**Why This Exists:**
-- Google Apps Script web apps run entirely in the browser
-- Apps Script doesn't support HTTP-only cookies for web app contexts
-- The admin key must be passed with each API request for authentication
-- Server-side sessions are not available in Apps Script's stateless architecture
+**Residual Risk:** The token still lives in sessionStorage (Apps Script does not support HTTP-only cookies), so XSS remains the primary threat. Tokens last 5–60 minutes instead of indefinitely, reducing blast radius for stolen secrets.
 
 **Mitigations in Place:**
-1. ✅ Comprehensive XSS prevention (input sanitization, URL validation, CSP headers where possible)
-2. ✅ CSRF token protection on all POST endpoints
-3. ✅ Admin key validation on every authenticated request
-4. ✅ Rate limiting to prevent brute force attacks
-5. ✅ Session timeout (sessionStorage clears on tab close)
+1. ✅ `api_createAdminSession` issues tenant-scoped tokens with enforced TTL and metadata logging
+2. ✅ Front-end pages purge legacy `ADMIN_KEY:*` entries and store only the short-lived session token
+3. ✅ `gate_()` validates either the admin key or a cached session token and rejects expired/mismatched tenants
+4. ✅ Rate limiting and lockouts still apply when exchanging the admin key for a token
+5. ✅ Diagnostics/Admin/Sponsor UI automatically invalidate sessions and prompt for re-auth when the token expires
 
 **Recommended Additional Measures:**
-- Use HTTPS only (enforced by Apps Script)
-- Rotate admin keys regularly
-- Monitor diagnostic logs for suspicious access patterns
-- Consider implementing IP whitelisting for admin access
-- Use separate admin keys per environment (dev/staging/prod)
-- Implement admin key expiration and rotation policies
+- Keep rotating admin keys via `npm run secrets:sync` (session tokens inherit the server-side secret)
+- Enable Content Security Policy + strict sanitization to minimize XSS vectors
+- Monitor `ops/security/admin-secret-rotation.json` and the new session issuance logs for anomalies
 
 **Future Improvements:**
-If migrating away from Google Apps Script, consider:
-- HTTP-only cookies for session management
-- Server-side session storage (Redis, database)
-- OAuth2/OIDC for admin authentication
-- Multi-factor authentication (MFA)
+- Add MFA or OAuth brokering once Apps Script is replaced with a server that supports HTTP-only cookies
+- Store the session state in an external datastore to allow server-side revocation lists
 
 ### 2. Multi-Tenant Database Separation (Bug #11)
 
@@ -72,6 +62,12 @@ If migrating away from Google Apps Script, consider:
 
 ## Security Features Implemented
 
+### Automated Secret Management
+- ✅ `npm run secrets:sync` pushes admin secrets directly to Script Properties via the Apps Script Execution API (no manual copy/paste)
+- ✅ `ops/security/admin-secret-rotation.json` tracks the last rotation timestamp per tenant so audits have proof
+- ✅ Enforcement policy rejects weak secrets (length < 16, missing upper/lower/number, or containing banned words)
+- ✅ Rotation log updates on every sync, enabling scripted reminders + CI enforcement
+
 ### Input Validation & Sanitization
 - ✅ XSS prevention via `sanitizeInput_()` function
 - ✅ SQL injection prevention via `sanitizeId_()` validation
@@ -81,6 +77,7 @@ If migrating away from Google Apps Script, consider:
 
 ### Authentication & Authorization
 - ✅ Admin key validation via `gate_()` function
+- ✅ Short-lived admin session tokens minted via `api_createAdminSession`
 - ✅ JWT implementation with algorithm verification (HS256 only)
 - ✅ Token expiration and not-before (nbf) validation
 - ✅ Timing-safe signature comparison
@@ -143,6 +140,7 @@ If you discover a security vulnerability:
 Before deploying to production:
 
 - [ ] Rotate all admin keys
+- [ ] Run `npm run secrets:sync` and commit the updated rotation log
 - [ ] Enable rate limiting
 - [ ] Configure CORS allowed origins
 - [ ] Set up monitoring and alerting

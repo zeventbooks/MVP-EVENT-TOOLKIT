@@ -26,7 +26,7 @@
 ### Root Cause
 
 1. **Missing Dependencies:** `npm install` was never run - node_modules/ didn't exist
-2. **Network Isolation:** E2E tests configured for production (zeventbooks.com) which is unreachable from test environment
+2. **Network Isolation:** E2E tests configured for the production Apps Script deployment which is unreachable from the test environment without credentials
 3. **Test Count Discrepancy:** Documentation counts differ from actual implementation (276 vs 382 unit tests)
 
 ---
@@ -176,26 +176,26 @@ Running 22 tests using 8 workers
 
 **Failure Reason:**
 ```
-Error: apiRequestContext.get: getaddrinfo EAI_AGAIN zeventbooks.com
+Error: apiRequestContext.get: getaddrinfo EAI_AGAIN script.google.com
 ```
 
 **Analysis:**
-- ❌ **Network connectivity issue:** Cannot reach zeventbooks.com from test environment
+- ❌ **Network connectivity issue:** BASE_URL not configured for an accessible Apps Script deployment
 - ✅ **Tests are well-written:** Code structure and assertions are correct
 - ✅ **Multi-browser support:** Tests run on iPhone 14 Pro, Chromium, and others
-- ⚠️ **Environment configuration:** Tests default to Hostinger production (zeventbooks.com)
+- ⚠️ **Environment configuration:** Tests default to an Apps Script web app placeholder when BASE_URL is missing
 
 **Environment Configuration:**
 ```
-Environment: Hostinger
-Description: Hostinger custom domain (Production)
-Base URL: https://zeventbooks.com
+Environment: Google Apps Script
+Description: Direct Apps Script web app (production)
+Base URL: https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec
 ```
 
 **Why Tests Can't Run:**
 1. **No .env file:** Only `.env.example` exists (template)
 2. **No deployment URL:** Tests need actual Google Apps Script deployment
-3. **Network restrictions:** zeventbooks.com unreachable from current environment
+3. **Network restrictions:** script.google.com unreachable without explicit BASE_URL
 4. **DNS resolution failure:** `EAI_AGAIN` error indicates DNS lookup failed
 
 ---
@@ -339,21 +339,21 @@ Base URL: https://zeventbooks.com
 **Status:** ⚠️ BY DESIGN (but misleading documentation)
 
 **Problem:**
-- E2E tests are configured to hit production (zeventbooks.com)
+- E2E tests are configured to hit the production Apps Script deployment
 - No local mock server exists
 - Cannot run E2E tests without deployed Google Apps Script
-- DNS errors prevent any E2E test from passing
+- DNS errors prevent any E2E test from passing when BASE_URL is missing
 
 **Root Cause:**
 ```javascript
-// tests/config/environments.js line 96
+// tests/config/environments.js
 if (!baseUrl) {
-  return { ...ENVIRONMENTS.hostinger }; // Default to Hostinger
+  return { ...ENVIRONMENTS.googleAppsScript }; // Default to direct Apps Script
 }
 ```
 
 **Current Configuration:**
-- Default environment: Hostinger (zeventbooks.com)
+- Default environment: Apps Script web app placeholder
 - No .env file with deployment URL
 - No mock server for offline testing
 
@@ -496,7 +496,7 @@ sed -i 's|CHANGE_ME_root|actual_admin_key|' .env
 
 **Failure Reason:**
 ```
-Error: apiRequestContext.get: getaddrinfo EAI_AGAIN zeventbooks.com
+Error: apiRequestContext.get: getaddrinfo EAI_AGAIN script.google.com
 ```
 
 **What This Means:**

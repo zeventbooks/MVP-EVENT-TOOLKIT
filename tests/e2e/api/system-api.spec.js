@@ -81,7 +81,7 @@ test.describe('System APIs', () => {
       const adminKey = process.env.ADMIN_KEY;
 
       if (!adminKey) {
-        test.skip('ADMIN_KEY not set');
+        test.skip(true, 'ADMIN_KEY not set');
         return;
       }
 
