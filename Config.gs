@@ -106,6 +106,20 @@ const TEMPLATES = [
 // Google Forms Templates - Pre-built form configurations
 const FORM_TEMPLATES = [
   {
+    id: 'sign-up',
+    label: 'Sign-Up Form',
+    description: 'Pre-registration for upcoming events',
+    questions: [
+      { title: 'Full Name', type: 'TEXT', required: true },
+      { title: 'Email Address', type: 'TEXT', required: true },
+      { title: 'Phone Number', type: 'TEXT', required: false },
+      { title: 'Number of Attendees', type: 'MULTIPLE_CHOICE', choices: ['1', '2', '3', '4', '5+'], required: true },
+      { title: 'Dietary Restrictions', type: 'TEXT', required: false },
+      { title: 'How did you hear about this event?', type: 'MULTIPLE_CHOICE', choices: ['Social Media', 'Friend/Family', 'Website', 'Email', 'Other'], required: false },
+      { title: 'Special Requests or Comments', type: 'PARAGRAPH_TEXT', required: false }
+    ]
+  },
+  {
     id: 'check-in',
     label: 'Check-In Form',
     description: 'Quick check-in for registered attendees',
