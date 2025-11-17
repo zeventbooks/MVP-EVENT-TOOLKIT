@@ -233,9 +233,7 @@ function doGet(e){
     // Fixed: Bug #31 - Add security headers
     return HtmlService.createHtmlOutputFromFile('ApiDocs')
       .setTitle('API Documentation - MVP Event Toolkit')
-      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.DENY)
-      .addMetaTag('viewport', 'width=device-width, initial-scale=1')
-      .addMetaTag('referrer', 'no-referrer');
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.DENY);
   }
 
   // Status endpoint
@@ -276,9 +274,7 @@ function doGet(e){
   // Fixed: Bug #31 - Add security headers
   return tpl.evaluate()
     .setTitle(`${tpl.appTitle} · ${page}`)
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
-    .addMetaTag('referrer', 'no-referrer');
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
 // === REST API Handler for POST requests ===================================
