@@ -69,7 +69,8 @@ jobs:
       - name: Run Scenario 1 Tests
         run: npm run test:scenario:1
         env:
-          BASE_URL: ${{ secrets.PROD_BASE_URL || 'https://zeventbooks.com' }}
+          # Use Google Apps Script endpoint for direct API testing
+          GOOGLE_SCRIPT_URL: ${{ secrets.GOOGLE_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbzu-U4UgdjdAiXHTg9TD5Y-1gDkc798YSTqQCdhOddG/exec' }}
           ADMIN_KEY: ${{ secrets.ADMIN_KEY_ROOT }}
           TENANT_ID: root
 
@@ -126,7 +127,8 @@ jobs:
       - name: Run Scenario 2 Tests
         run: npm run test:scenario:2
         env:
-          BASE_URL: ${{ secrets.PROD_BASE_URL || 'https://zeventbooks.com' }}
+          # Use Google Apps Script endpoint for direct API testing
+          GOOGLE_SCRIPT_URL: ${{ secrets.GOOGLE_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbzu-U4UgdjdAiXHTg9TD5Y-1gDkc798YSTqQCdhOddG/exec' }}
 
       - name: Upload Scenario 2 Results
         if: always()
@@ -161,7 +163,8 @@ jobs:
       - name: Run Scenario 3 Tests
         run: npm run test:scenario:3
         env:
-          BASE_URL: ${{ secrets.PROD_BASE_URL || 'https://zeventbooks.com' }}
+          # Use Google Apps Script endpoint for direct API testing
+          GOOGLE_SCRIPT_URL: ${{ secrets.GOOGLE_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbzu-U4UgdjdAiXHTg9TD5Y-1gDkc798YSTqQCdhOddG/exec' }}
 
       - name: Upload Scenario 3 Results
         if: always()
@@ -255,7 +258,8 @@ jobs:
       - name: Run Performance Tests
         run: npm run test:scenario:2  # Mobile performance tests
         env:
-          BASE_URL: ${{ secrets.PROD_BASE_URL || 'https://zeventbooks.com' }}
+          # Use Google Apps Script endpoint for direct API testing
+          GOOGLE_SCRIPT_URL: ${{ secrets.GOOGLE_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbzu-U4UgdjdAiXHTg9TD5Y-1gDkc798YSTqQCdhOddG/exec' }}
 
       - name: Check Performance Budgets
         run: |
