@@ -60,7 +60,7 @@ npm run deploy # Create new deployment
 2. Edit `Config.gs`: set real `adminSecret` values
 3. Deploy → New deployment → Web app → Execute as **User accessing**, Access **Anyone**
 4. Open `/exec?page=test` → all ✅
-5. Open `/exec?page=admin&p=events&tenant=root` → create an event → get Public/Poster links
+5. Open `/exec?page=admin&p=events&brand=root` → create an event → get Public/Poster links
 
 ## Documentation
 
@@ -92,5 +92,21 @@ npm run deploy # Create new deployment
 - Poster shows a QR only when the server returns a verified `posterUrl`
 - `EVENTS` & `DIAG` sheets are created on-demand in the bound spreadsheet
 - Add tenants by extending `TENANTS` in `Config.gs`; later enable more scopes by adding `'leagues'` or `'tournaments'`
+  - Treat tenants as customer-facing **brands**—prefer sharing URLs that use the `brand=` parameter (`?page=admin&brand=root`,
+    `?page=admin&brand=ABC`). Legacy `tenant=` links continue to work for backwards compatibility, but the UI and docs
+    should promote `brand` terminology.
+
+## Documentation freshness & source of truth
+
+This repository intentionally keeps historical analyses for auditing purposes, so some PDFs/markdown files describe superseded
+behaviors. For the current, implementation-aligned references use:
+
+- [`FRONTEND_TEMPLATE_REFACTOR.md`](./FRONTEND_TEMPLATE_REFACTOR.md) for the active Apps Script routing + templating analysis
+  (includes code citations and `brand=` guidance).
+- This `README.md` for deploy/run quick-start details.
+- The deployment guides listed above for CI/CD automation.
+
+See [`DOCUMENTATION_SOURCE_OF_TRUTH.md`](./DOCUMENTATION_SOURCE_OF_TRUTH.md) for a living checklist that tracks which docs have
+been recently validated against the codebase and which are strictly archival.
 
 # Deployment test - Thu Nov 13 05:41:27 PM CST 2025
