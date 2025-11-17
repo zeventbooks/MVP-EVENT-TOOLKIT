@@ -157,13 +157,13 @@ function getCurrentEnvironment() {
 }
 
 /**
- * Get tenant-specific URLs for testing
- * @param {string} tenant - Tenant ID
+ * Get brand-specific URLs for testing
+ * @param {string} tenant - Tenant/brand ID
  * @param {string} page - Page name (admin, status, display, etc.)
  */
 function getTenantUrl(tenant = 'root', page = 'status') {
   const env = getCurrentEnvironment();
-  return `${env.baseUrl}?p=${page}&tenant=${tenant}`;
+  return `${env.baseUrl}?p=${page}&brand=${tenant}`;
 }
 
 /**
@@ -192,11 +192,11 @@ function printEnvironmentInfo() {
   console.log(`Environment: ${env.name}`);
   console.log(`Description: ${env.description}`);
   console.log(`Base URL: ${env.baseUrl}`);
-  console.log('\nTenant URLs (status page):');
+  console.log('\nBrand URLs (status page):');
   Object.keys(env.tenants).forEach(tenant => {
     console.log(`  ${tenant}: ${getTenantUrl(tenant, 'status')}`);
   });
-  console.log('\nTenant URLs (admin page):');
+  console.log('\nBrand URLs (admin page):');
   Object.keys(env.tenants).forEach(tenant => {
     console.log(`  ${tenant}: ${getTenantUrl(tenant, 'admin')}`);
   });

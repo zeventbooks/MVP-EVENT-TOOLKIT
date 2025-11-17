@@ -4,7 +4,7 @@
   <meta charset="utf-8"/>
   <title><?= appTitle ?> · System Configuration</title>
   <?!= include('Header'); ?>
-  <?!= include('HeaderInit'); ?>
+  <?!= renderHeaderInit(appTitle, tenantId); ?>
   <?!= include('NUSDK'); ?>
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <meta name="referrer" content="no-referrer"/>
