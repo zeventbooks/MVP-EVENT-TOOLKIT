@@ -57,21 +57,40 @@ const DEFAULT_TARGETS_FILE = path.join(MONITORING_DIR, 'targets.json');
 const DEFAULT_TIMEOUT_MS = Number(process.env.HEALTH_TIMEOUT || 10_000);
 const DEFAULT_INTERVAL_MS = Number(process.env.HEALTH_INTERVAL || 300_000); // 5 minutes
 const HISTORY_LIMIT = Number(process.env.HEALTH_HISTORY_LIMIT || 40);
+const DEFAULT_APPS_SCRIPT_DEPLOYMENT_URL =
+  process.env.DEFAULT_APPS_SCRIPT_URL ||
+  'https://script.google.com/macros/s/AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw/exec';
 
 const DEFAULT_TARGETS = [
   {
     name: 'QA Events (root tenant)',
-    url: process.env.QA_EVENTS_URL || 'https://qa.zeventbooks.com?p=events&tenant=root',
+    url:
+      process.env.QA_EVENTS_URL ||
+      `${DEFAULT_APPS_SCRIPT_DEPLOYMENT_URL}?p=events&tenant=root`,
+    // Legacy Hostinger QA reference retained for future diagnostics:
+    // url:
+    //   process.env.QA_EVENTS_URL ||
+    //   'https://qa.zeventbooks.com?p=events&tenant=root',
   },
   {
     name: 'QA Admin (root tenant)',
-    url: process.env.QA_ADMIN_URL || 'https://qa.zeventbooks.com?p=admin&tenant=root',
+    url:
+      process.env.QA_ADMIN_URL ||
+      `${DEFAULT_APPS_SCRIPT_DEPLOYMENT_URL}?p=admin&tenant=root`,
+    // Legacy Hostinger QA reference retained for future diagnostics:
+    // url:
+    //   process.env.QA_ADMIN_URL ||
+    //   'https://qa.zeventbooks.com?p=admin&tenant=root',
   },
   {
     name: 'Production Events (root tenant)',
     url:
       process.env.PROD_EVENTS_URL ||
-      'https://zeventbooks.com?p=events&tenant=root',
+      `${DEFAULT_APPS_SCRIPT_DEPLOYMENT_URL}?p=events&tenant=root`,
+    // Legacy Hostinger production reference retained for future diagnostics:
+    // url:
+    //   process.env.PROD_EVENTS_URL ||
+    //   'https://zeventbooks.com?p=events&tenant=root',
   },
 ];
 
