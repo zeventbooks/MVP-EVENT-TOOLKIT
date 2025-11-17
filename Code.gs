@@ -189,6 +189,23 @@ function runSafe(where, fn){
   }
 }
 
+/**
+ * Helper to grab the first defined query parameter value from a list of aliases.
+ * Keeps backwards compatibility (old `tenant`) while preferring friendlier names like `brand`.
+ * @param {Object<string,string>} params
+ * @param {string[]} keys
+ * @param {string} defaultValue
+ */
+function firstParam_(params, keys, defaultValue=''){
+  if(!params) return defaultValue;
+  for (const key of keys){
+    if (key in params && params[key] !== undefined && params[key] !== null && String(params[key]).length){
+      return params[key];
+    }
+  }
+  return defaultValue;
+}
+
 // === CSRF Protection =======================================================
 // Fixed: Bug #4 - Add CSRF token generation and validation
 
@@ -215,7 +232,11 @@ function doGet(e){
   const pageParam = (e?.parameter?.page || e?.parameter?.p || '').toString();
   const actionParam = (e?.parameter?.action || '').toString();
   const hostHeader = (e?.headers?.host || e?.parameter?.host || '').toString();
-  const tenantParamRaw = (e?.parameter?.tenant || e?.parameter?.Tenant || e?.parameter?.tenantId || e?.parameter?.tenant_id || e?.parameter?.t || '').toString().trim();
+  const tenantParamRaw = firstParam_(
+    e?.parameter,
+    ['brand','Brand','experience','Experience','tenant','Tenant','tenantId','tenant_id','t'],
+    ''
+  ).toString().trim();
   const normalizedTenantId = tenantParamRaw ? tenantParamRaw.toLowerCase() : '';
   const sanitizedTenantId = normalizedTenantId ? sanitizeId_(normalizedTenantId) : null;
   let tenant = sanitizedTenantId ? findTenant_(sanitizedTenantId) : null;
@@ -259,7 +280,7 @@ function doGet(e){
 
   if (!allowed.includes(scope)){
     const first = allowed[0] || 'events';
-    return HtmlService.createHtmlOutput(`<meta http-equiv="refresh" content="0;url=?p=${first}&tenant=${tenant.id}">`);
+    return HtmlService.createHtmlOutput(`<meta http-equiv="refresh" content="0;url=?p=${first}&brand=${tenant.id}">`);
   }
 
   // Admin mode selection: default to wizard for simplicity, allow advanced mode via URL parameter
@@ -1148,10 +1169,10 @@ function api_get(payload){
       data:safeJSONParse_(r[3], {}),
       createdAt:r[4], slug:r[5],
       links: {
-        publicUrl: `${base}?p=events&tenant=${tenantId}&id=${r[0]}`,
-        posterUrl: `${base}?page=poster&p=events&tenant=${tenantId}&id=${r[0]}`,
-        displayUrl: `${base}?page=display&p=events&tenant=${tenantId}&id=${r[0]}&tv=1`,
-        reportUrl: `${base}?page=report&tenant=${tenantId}&id=${r[0]}`
+        publicUrl: `${base}?p=events&brand=${tenantId}&id=${r[0]}`,
+        posterUrl: `${base}?page=poster&p=events&brand=${tenantId}&id=${r[0]}`,
+        displayUrl: `${base}?page=display&p=events&brand=${tenantId}&id=${r[0]}&tv=1`,
+        reportUrl: `${base}?page=report&brand=${tenantId}&id=${r[0]}`
       }
     };
     const etag = Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(value)));
@@ -1237,10 +1258,10 @@ function api_create(payload){
 
     const base = ScriptApp.getService().getUrl();
     const links = {
-      publicUrl: `${base}?p=events&tenant=${tenantId}&id=${id}`,
-      posterUrl: `${base}?page=poster&p=events&tenant=${tenantId}&id=${id}`,
-      displayUrl: `${base}?page=display&p=events&tenant=${tenantId}&id=${id}&tv=1`,
-      reportUrl: `${base}?page=report&tenant=${tenantId}&id=${id}`
+      publicUrl: `${base}?p=events&brand=${tenantId}&id=${id}`,
+      posterUrl: `${base}?page=poster&p=events&brand=${tenantId}&id=${id}`,
+      displayUrl: `${base}?page=display&p=events&brand=${tenantId}&id=${id}&tv=1`,
+      reportUrl: `${base}?page=report&brand=${tenantId}&id=${id}`
     };
     diag_('info','api_create','created',{id,tenantId,scope});
     return Ok({ id, links });

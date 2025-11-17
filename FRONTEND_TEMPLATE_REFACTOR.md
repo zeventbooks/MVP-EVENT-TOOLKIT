@@ -1,8 +1,8 @@
 # Front-End Template Architecture Modernization
 
 This document evaluates the current server-side include (SSI) templating approach that powers the published admin experience at
-`https://script.google.com/macros/s/AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw/exec?page=admin&Tenant=root`
-(and tenant overrides such as `Tenant=ABC`), and prescribes a modernized, modular structure that preserves the existing deployment URL and UX while improving maintainability.
+`https://script.google.com/macros/s/AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw/exec?page=admin&brand=root`
+(and branded overrides such as `brand=ABC`), and prescribes a modernized, modular structure that preserves the existing deployment URL and UX while improving maintainability. The legacy `Tenant` query parameter is still accepted for backwards compatibility, but documentation/scripts should prefer the consumer-friendly `brand` alias.
 
 ## 1. Systematic analysis of the current approach
 
@@ -21,7 +21,7 @@ This document evaluates the current server-side include (SSI) templating approac
 
 Adopt a **layout + view + partial registry** backed by a lightweight module system:
 
-1. **Front controller remains `doGet`:** Continue using the existing deployment URL and query parameters (`page`, `Tenant`, `scope`, etc.) to build a `RequestContext` (tenant, page, scope, host, feature flags).
+1. **Front controller remains `doGet`:** Continue using the existing deployment URL and query parameters (`page`, `brand`, `scope`, etc.) to build a `RequestContext` (tenant, page, scope, host, feature flags).
 2. **Central view registry:** Replace the `if/else` in `pageFile_` with a registry object that maps logical routes to view metadata `{ file, layout, partials, dataBuilder }`.
 3. **Layout template:** Introduce `Layout.html` that owns the `<html>/<head>/<body>` skeleton and injects page-specific content via a placeholder (`<?= content ?>`). The layout is responsible for standard includes (styles, adapters, shared scripts), ensuring consistent UI framing regardless of the view.
 4. **Composable partials:** Register partial snippets (Header, Footer, Toasts, etc.) as reusable modules rendered through a single helper so they stay deduplicated and testable.
@@ -126,8 +126,8 @@ renderDashboard(bootstrap.datasets.dashboard);
 
 ### 3.3 UI consistency & tenant handling
 
-- **Header module:** Move the logic currently inside `HeaderInit.html` into a reusable ES module (`modules/header.js`) so every page calls `initHeader(bootstrap.app, bootstrap.tenant)` during hydration. This ensures the root tenant (`Tenant=root`) and branded tenants (`Tenant=ABC`) share identical initialization steps.
-- **Tenant-aware assets:** Extend the tenant config with `themeTokens` (colors, logos) that feed both CSS custom properties (set via `<style>:root { --brand-primary: ... }</style>`) and runtime modules. Because the bootstrap object already contains the resolved tenant from `doGet`, both `Tenant=root` and `Tenant=ABC` URLs render the correct skin without double-loading the root shell.
+- **Header module:** Move the logic currently inside `HeaderInit.html` into a reusable ES module (`modules/header.js`) so every page calls `initHeader(bootstrap.app, bootstrap.tenant)` during hydration. This ensures the root brand (`brand=root`) and branded tenants (`brand=ABC`) share identical initialization steps.
+- **Tenant-aware assets:** Extend the tenant config with `themeTokens` (colors, logos) that feed both CSS custom properties (set via `<style>:root { --brand-primary: ... }</style>`) and runtime modules. Because the bootstrap object already contains the resolved tenant from `doGet`, both `brand=root` and `brand=ABC` URLs render the correct skin without double-loading the root shell.
 
 ## 4. Best-practice recommendations
 
@@ -141,7 +141,19 @@ renderDashboard(bootstrap.datasets.dashboard);
 ### Migration steps
 1. **Introduce `Layout.html`, `MainLayout`, and the view registry without deleting existing pages.** Toggle usage with a feature flag so you can A/B test root vs. ABC tenants.
 2. **Incrementally convert templates:** Start with `Admin.html` because it exercises most partials; once stable, port other views.
-3. **Refactor `HeaderInit` into modules:** After confirming parity for `Tenant=root`, switch the `Tenant=ABC` URL and verify that branding assets, app title, and build info still hydrate correctly.
+3. **Refactor `HeaderInit` into modules:** After confirming parity for `brand=root`, switch the `brand=ABC` URL and verify that branding assets, app title, and build info still hydrate correctly.
 4. **Automate deployment:** Keep the current `ScriptApp` URL but ensure the build pipeline lints/tests the modular JS before pushing to Apps Script.
 
 Following this architecture yields a consistent, modular, and modern front-end stack that preserves the current deployment URL/UX while making it significantly easier to extend tenant-specific skins such as ABC without copy/pasting template scaffolding.
+
+## Brand parameter permeation checklist
+
+The modernization effort only succeeds if the friendlier `brand` query parameter becomes the single source of truth across every artifact:
+
+1. **Code:** `doGet` (and redirect helpers) should emit `brand=` links while still accepting `Tenant` for backwards compatibility. Shared helpers that build event URLs (public, poster, display, report) must also prefer `brand` so deep links remain user-friendly.
+2. **Documentation:** Replace support docs, runbooks, and onboarding guides that previously referenced `?tenant=` with `?brand=` so support engineers and customers copy URLs that match the UI language.
+3. **Automated tests:** Centralize Playwright/Newman URL builders so end-to-end suites cover both the new parameter and the deprecated alias. Add one regression test that hits `tenant=` explicitly to ensure the fallback never breaks.
+4. **Shell scripts & CI:** Update deployment scripts (`deploy-and-get-urls.sh`, `verify-deployment.sh`, `update-deployment-url.sh`, etc.) plus cron monitors to use `brand=`. This keeps console output and alerting consistent with what stakeholders expect to see.
+5. **Release notes:** Communicate the rename in release documentation so partner teams know that `brand` is now the preferred vocabulary.
+
+By driving the rename through every category (code, docs, tests, automation, communications), the admin interface accessed via `...?page=admin&brand=root` or `...?page=admin&brand=ABC` remains fully functional while presenting a friendlier, marketing-aligned URL surface.
