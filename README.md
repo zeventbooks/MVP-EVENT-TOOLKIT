@@ -108,6 +108,10 @@ npm run monitor:health -- --config=.monitoring/targets.json --scenario=deploymen
 
 📘 For an end-to-end workflow see the stage-aware observability section inside [DEVOPS-WORKFLOW.md](./DEVOPS-WORKFLOW.md#stage-health-monitoring) plus the showcase routine baked into [PRE_DEPLOY_CHECKLIST.md](./PRE_DEPLOY_CHECKLIST.md#client-showcase-routine).
 
+### Apps Script Safety Checks
+
+- `npm run lint:apps-script-meta` – scans `Code.gs` and every HtmlService template to ensure only safe `<meta>` tags (viewport) are shipped, guaranteeing that the "meta tag ... is not allowed" exception never resurfaces in production deployments.
+
 ### For Architecture & Testing
 - **[ARCHITECTURE_REVIEW.md](./ARCHITECTURE_REVIEW.md)** - System architecture
 - **[TESTING.md](./TESTING.md)** - Test infrastructure (130+ tests)

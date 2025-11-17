@@ -128,6 +128,7 @@ Google Apps Script blocks certain `<meta>` tags (for example `referrer`, `Conten
 - Only use safe tags such as `viewport` when configuring HtmlOutput instances.
 - Enforce stricter policies via HTTP headers at the reverse proxy or hosting layer instead of within Apps Script templates.
 - Document any future HtmlService constraints in this file so deployment owners know what is safe to ship.
+- Run `npm run lint:apps-script-meta` before deploying; it scans `Code.gs` (line 239 for API docs and line 281 for admin/public templates) plus every HtmlService template to guarantee no disallowed meta tag sneaks back in, preventing the runtime exception entirely.
 
 See: [SECURITY_SETUP.md](./SECURITY_SETUP.md)
 

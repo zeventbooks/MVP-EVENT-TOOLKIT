@@ -103,6 +103,7 @@
     "deploy:history": "node scripts/deploy-cli.js history",
     "deploy:rollback": "node scripts/deploy-cli.js rollback",
     "docs:lint": "node scripts/validate-doc-hierarchy.js",
+    "lint:apps-script-meta": "node scripts/lint-apps-script-meta.js",
     "monitor:health": "node scripts/monitor-health.js run",
     "monitor:health:watch": "node scripts/monitor-health.js watch",
     "monitor:health:history": "node scripts/monitor-health.js history",
