@@ -789,13 +789,65 @@ function generateJWTSignature_(data, secret) {
 const RATE_MAX_PER_MIN = 10; // Reduced from 20
 const RATE_LOCKOUT_MINS = 15;
 const MAX_FAILED_AUTH = 5;
+const ADMIN_SESSION_CACHE_PREFIX = 'adminSession:';
+const ADMIN_SESSION_DEFAULT_TTL = 3600; // 60 minutes
+const ADMIN_SESSION_MIN_TTL = 300; // 5 minutes
+const ADMIN_SESSION_MAX_TTL = 21600; // 6 hours (CacheService limit)
+
+function clamp_(value, minValue, maxValue) {
+  const numeric = Number(value) || 0;
+  return Math.max(minValue, Math.min(maxValue, numeric));
+}
+
+function issueAdminSessionToken_(tenantId, ttlSeconds, metadata = {}) {
+  const raw = Utilities.base64EncodeWebSafe(Utilities.getUuid() + Utilities.getUuid()).replace(/=+$/g, '');
+  const expiresAt = new Date(Date.now() + ttlSeconds * 1000).toISOString();
+  const payload = {
+    tenant: tenantId,
+    issuedAt: new Date().toISOString(),
+    expiresAt,
+    meta: metadata
+  };
+  const cache = CacheService.getScriptCache();
+  cache.put(ADMIN_SESSION_CACHE_PREFIX + raw, JSON.stringify(payload), ttlSeconds);
+  return { token: raw, expiresIn: ttlSeconds, expiresAt };
+}
+
+function getAdminSession_(token) {
+  if (!token) return null;
+  try {
+    const cache = CacheService.getScriptCache();
+    const raw = cache.get(ADMIN_SESSION_CACHE_PREFIX + token);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch (err) {
+    diag_('warn', 'getAdminSession_', 'Failed to parse admin session payload', { error: String(err) });
+    return null;
+  }
+}
+
+function isSessionToken_(value) {
+  return typeof value === 'string' && value.startsWith('token:');
+}
 
 function gate_(tenantId, adminKey, ipAddress = null){
   const tenant=findTenant_(tenantId);
   if(!tenant) return Err(ERR.NOT_FOUND,'Unknown tenant');
 
-  const tenantSecret = getAdminSecret_(tenant.id);
   const cache = CacheService.getScriptCache();
+
+  if (isSessionToken_(adminKey)) {
+    const session = getAdminSession_(adminKey.slice(6));
+    if (!session) {
+      return Err(ERR.BAD_INPUT, 'Admin session expired or invalid');
+    }
+    if (session.tenant !== tenant.id) {
+      return Err(ERR.BAD_INPUT, 'Admin session tenant mismatch');
+    }
+    return Ok({ tenant, session });
+  }
+
+  const tenantSecret = getAdminSecret_(tenant.id);
 
   // Track failed authentication attempts per IP
   if (tenantSecret && adminKey !== tenantSecret) {
@@ -820,6 +872,26 @@ function gate_(tenantId, adminKey, ipAddress = null){
   cache.put(rateKey, String(n+1), 60);
 
   return Ok({tenant});
+}
+
+function api_createAdminSession(req) {
+  return runSafe('api_createAdminSession', () => {
+    if (!req || typeof req !== 'object') return Err(ERR.BAD_INPUT, 'Missing payload');
+    const tenantId = req.tenantId || 'root';
+    if (!req.adminKey) return Err(ERR.BAD_INPUT, 'Missing adminKey');
+
+    const gateResult = gate_(tenantId, req.adminKey);
+    if (!gateResult.ok) return gateResult;
+
+    const ttl = clamp_(req.durationSeconds || req.duration || req.expiresIn || ADMIN_SESSION_DEFAULT_TTL,
+      ADMIN_SESSION_MIN_TTL,
+      ADMIN_SESSION_MAX_TTL);
+
+    const session = issueAdminSessionToken_(gateResult.value.tenant.id, ttl, { scope: req.scope || 'events' });
+    diag_('info', 'api_createAdminSession', 'issued', { tenantId: gateResult.value.tenant.id, expiresAt: session.expiresAt });
+
+    return Ok(session);
+  });
 }
 
 function assertScopeAllowed_(tenant, scope){

@@ -1,0 +1,24 @@
+{
+  "domains": [
+    {
+      "host": "zeventbooks.io",
+      "path": "/",
+      "expectedTargetContains": "script.google.com/macros/s/"
+    },
+    {
+      "host": "www.zeventbooks.io",
+      "path": "/",
+      "expectedTargetContains": "script.google.com/macros/s/"
+    },
+    {
+      "host": "zeventbooks.io",
+      "path": "/admin",
+      "expectedTargetContains": "page=admin"
+    },
+    {
+      "host": "zeventbooks.io",
+      "path": "/display",
+      "expectedTargetContains": "page=display"
+    }
+  ]
+}

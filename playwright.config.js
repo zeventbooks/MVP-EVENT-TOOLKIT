@@ -18,7 +18,7 @@ module.exports = defineConfig({
 
   use: {
     // Use environment-aware base URL
-    // Defaults to Hostinger, can be overridden with BASE_URL or TEST_ENV
+    // Defaults to the Apps Script deployment, can be overridden with BASE_URL or TEST_ENV
     baseURL: env.baseUrl,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
@@ -118,5 +118,5 @@ module.exports = defineConfig({
   //   },
   // ],
 
-  // No webServer needed - we test deployed URLs directly (Google Apps Script or Hostinger)
+  // No webServer needed - we test deployed URLs directly (Google Apps Script deployments)
 });

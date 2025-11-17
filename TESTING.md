@@ -18,6 +18,16 @@ tests/
 
 ## Quick Start
 
+### Enforced Quality Gate (CI default)
+
+```bash
+npm run quality:gate
+```
+
+- Runs Jest with coverage and fails if coverage < 60% lines/statements, 55% functions, 40% branches
+- Writes `.quality-gate-report.json` for audit evidence
+- Used automatically by `npm run deploy:auto` and `deploy:verify`
+
 ### Run All Tests
 
 ```bash
@@ -56,6 +66,28 @@ npm run test:smoke
 # E2E tests only (requires BASE_URL)
 npm run test:e2e
 ```
+
+---
+
+## Test Command Matrix (Systematic View)
+
+| Suite | Command | Required Env | Automation/Guards | Primary Evidence |
+| --- | --- | --- | --- | --- |
+| **Quality Gate** | `npm run quality:gate` | None | Enforces 60/55/40 coverage floor before any deploy | `.quality-gate-report.json`, Jest coverage |
+| **Unit** | `npm run test:unit` | None | Jest only | Terminal output, `coverage/` (when run w/ `--coverage`) |
+| **Contract** | `npm run test:contract` | None | Jest only | Terminal output |
+| **Smoke** | `npm run test:smoke` | `BASE_URL` | Repo-wide Playwright login-wall guard skips if deployment is private | `playwright-report/`, traces |
+| **Pages / Flows** | `npm run test:pages`, `npm run test:flows` | `BASE_URL`, `ADMIN_KEY` | Login-wall guard + admin-key guard (skips if missing) | `playwright-report/`, traces |
+| **API** | `npm run test:api` / `test:api:*` | `BASE_URL`, optional `ADMIN_KEY` | Login-wall guard handles anonymous access, suites fail only after authenticated call passes | `playwright-report/`, traces |
+| **Scenario 1–3** | `npm run test:scenario:{1,2,3}` | `BASE_URL`, `ADMIN_KEY` | Shared guard auto-skips on Google login wall; scenario code stops immediately | `test-results/scenarios/*` |
+| **All Scenarios** | `npm run test:scenarios` / `npm run test:scenarios:all` | `BASE_URL`, `ADMIN_KEY` | Inherits guard + scenario-specific skip messages | `.test-results/scenarios/bug-tracker.json` |
+| **Triangle Suites** | `npm run test:triangle:*` | `BASE_URL`, `ADMIN_KEY` | Guard + data seeding (via `qa:seed:triangle:*`) | Terminal output, Playwright reports |
+| **Load Tests** | `npm run test:load:{smoke,average,stress,spike}` | `BASE_URL` | k6 CLI (manual) | `k6-results/` (if exported) |
+
+> 📌 **Standard practice:** All Playwright entry points import `tests/shared/register-login-wall-guard.js` via
+> `tests/config/global-setup.js`, so every `page.goto` automatically checks for the Google login wall and
+> calls `test.skip(true, LOGIN_WALL_SKIP_MESSAGE)` before any assertions run. Admin-only suites also run
+> an admin-key guard and skip (instead of fail) when `ADMIN_KEY` is missing to prevent noisy reports.
 
 ---
 
@@ -180,6 +212,8 @@ npm run test:smoke tests/smoke/pages.smoke.test.js
 **Count:** 8 critical flows
 **Duration:** ~3 minutes
 **Requires:** BASE_URL + ADMIN_KEY environment variables
+
+> ℹ️ **Anonymous access guard** – Every Playwright suite (scenarios, smoke, flows, API docs, etc.) now auto-detects the Google login wall. If your Apps Script deployment is still restricted to "Only myself" or your Workspace domain, the tests are skipped with guidance to publish the web app as "Anyone" (per `DEPLOYMENT.md`) or point `BASE_URL` at an anonymous deployment. This prevents false failures while still surfacing the remediation steps.
 
 **What they test:**
 - Admin creates event and views on public page

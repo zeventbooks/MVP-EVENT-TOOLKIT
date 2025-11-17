@@ -3,8 +3,8 @@
  *
  * Supports testing against multiple deployment targets:
  * - Google Apps Script (production)
- * - Hostinger (proxy/CDN)
- * - Local development
+ * - Google Apps Script (QA deployments)
+ * - Local development servers
  */
 
 const ENVIRONMENTS = {
@@ -26,32 +26,6 @@ const ENVIRONMENTS = {
     name: 'QA Apps Script',
     baseUrl: process.env.QA_SCRIPT_URL || 'https://script.google.com/macros/s/YOUR_QA_SCRIPT_ID/exec',
     description: 'Direct Google Apps Script deployment (QA)',
-    tenants: {
-      root: 'root',
-      abc: 'abc',
-      cbc: 'cbc',
-      cbl: 'cbl'
-    }
-  },
-
-  // Hostinger - Production domain
-  hostinger: {
-    name: 'Hostinger',
-    baseUrl: process.env.HOSTINGER_URL || 'https://zeventbooks.com',
-    description: 'Hostinger custom domain (Production)',
-    tenants: {
-      root: 'root',
-      abc: 'abc',
-      cbc: 'cbc',
-      cbl: 'cbl'
-    }
-  },
-
-  // Hostinger - QA domain
-  qaHostinger: {
-    name: 'QA Hostinger',
-    baseUrl: process.env.QA_HOSTINGER_URL || 'https://zeventbooks.com',
-    description: 'Hostinger custom domain (QA) - Currently pointing to zeventbooks.com',
     tenants: {
       root: 'root',
       abc: 'abc',
@@ -93,28 +67,13 @@ function getCurrentEnvironment() {
 
   // Auto-detect based on BASE_URL
   if (!baseUrl) {
-    return { ...ENVIRONMENTS.hostinger }; // Default to Hostinger
+    return { ...ENVIRONMENTS.googleAppsScript }; // Default to direct Apps Script
   }
 
   // Parse URL securely to prevent substring injection attacks
   try {
     const url = new URL(baseUrl);
     const hostname = url.hostname;
-
-    // Check for QA environments first (more specific)
-    if (hostname === 'qa.zeventbooks.com') {
-      return {
-        ...ENVIRONMENTS.qaHostinger,
-        baseUrl: baseUrl // Use actual BASE_URL
-      };
-    }
-
-    if (hostname === 'zeventbooks.com' || hostname === 'www.zeventbooks.com') {
-      return {
-        ...ENVIRONMENTS.hostinger,
-        baseUrl: baseUrl // Use actual BASE_URL
-      };
-    }
 
     if (hostname === 'script.google.com') {
       // Try to detect if it's QA based on deployment ID (if provided via env)
@@ -142,7 +101,7 @@ function getCurrentEnvironment() {
       name: 'Custom',
       baseUrl: baseUrl,
       description: 'Custom environment',
-      tenants: ENVIRONMENTS.hostinger.tenants
+      tenants: ENVIRONMENTS.googleAppsScript.tenants
     };
   } catch (error) {
     // If URL parsing fails, return custom environment
@@ -151,7 +110,7 @@ function getCurrentEnvironment() {
       name: 'Custom',
       baseUrl: baseUrl,
       description: 'Custom environment (invalid URL)',
-      tenants: ENVIRONMENTS.hostinger.tenants
+      tenants: ENVIRONMENTS.googleAppsScript.tenants
     };
   }
 }

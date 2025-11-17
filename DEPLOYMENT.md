@@ -27,37 +27,24 @@
 - Admin secrets configured (change default values in `Config.gs`)
 - Domain `zeventbooks.io` with redirect/DNS capabilities
 
-### 5-Minute Deploy
+### 5-Minute Deploy (Zero Manual Uploads)
 
 ```bash
-# 1. Open Apps Script
-# Go to: https://script.google.com/home/projects/1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l
+# 1. Enforce quality + coverage
+npm run quality:gate
 
-# 2. Upload all files from this repository (keep exact filenames):
-# - Code.gs
-# - Config.gs
-# - Admin.html
-# - Display.html
-# - Public.html
-# - Poster.html
-# - Styles.html
-# - NUSDK.html (if using the SDK)
-# - Header.html (if present)
-# - DesignAdapter.html (if present)
-# - Test.html (if present)
-# - appsscript.json
+# 2. Sync admin secrets straight to Script Properties (records rotation)
+SERVICE_ACCOUNT_JSON='…' SCRIPT_ID='…' \
+ADMIN_SECRETS_JSON='{"root":"ProdSecret2024!"}' npm run secrets:sync
 
-# 3. Deploy as Web App
-# Deploy → New deployment → Web app
-# Execute as: "User accessing the web app"
-# Who has access: "Anyone"
-# Copy the deployment URL (ends with /exec)
+# 3. Deploy + verify in one step
+SERVICE_ACCOUNT_JSON='…' SCRIPT_ID='…' npm run deploy:auto
 
-# 4. Test immediately
-# Open: <DEPLOYMENT_URL>?page=admin
-# Run Diagnostics → Status (should show green)
-# Run Diagnostics → Self-Test (all checks should pass)
+# 4. (Optional) Stand-alone health monitor for dashboards / CRON
+MONITOR_BASE_URL="https://script.google.com/macros/s/.../exec" npm run monitor:health
 ```
+
+> Need to fall back to the Apps Script UI? Skip to [Manual Upload Fallback](#manual-upload-fallback). Otherwise, rely on the automation—every run logs coverage, rotation time, access-guard results, domain verification, and health history so we always have auditable evidence.
 
 ---
 
@@ -138,44 +125,47 @@
 
 ## Apps Script Deployment
 
-### Step 1: Upload Files
+### Step 1: Automated Upload + Deploy (recommended)
 
-1. Go to [Apps Script Project](https://script.google.com/home/projects/1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l/edit)
-2. **Enable manifest:** Project Settings → Show "appsscript.json" manifest
-3. Add each file (exact names required):
-   - `Code.gs` (server backend)
-   - `Config.gs` (tenant config)
-   - `Admin.html`, `Display.html`, `Public.html`, `Poster.html`
-   - `Styles.html`, `NUSDK.html`, `Header.html`, `DesignAdapter.html`, `Test.html`
-   - `appsscript.json`
-
-### Step 2: Configure Admin Secrets
-
-Edit `Config.gs`:
-
-```javascript
-{
-  id: 'root',
-  adminSecret: 'YOUR_STRONG_SECRET_HERE',  // ⚠️ CHANGE THIS!
-  ...
-}
+```bash
+SERVICE_ACCOUNT_JSON='…' SCRIPT_ID='…' npm run deploy:auto
 ```
 
-Generate strong secrets (20+ characters, mix of alphanumeric + symbols).
+The CLI uses the Apps Script REST API to push every `.gs/.html` file, deploy a new version, wait for propagation, and run the health monitor. No manual file uploads are required.
 
-### Step 3: Deploy
+### Step 2: Configure Admin Secrets (automated)
 
-1. **Deploy → New deployment**
-2. Type: **Web app**
-3. Execute as: **User accessing the web app**
-4. Who has access: **Anyone**
-5. Click **Deploy**
-6. **Copy the deployment URL** (ends with `/exec`)
+```bash
+SERVICE_ACCOUNT_JSON='…' SCRIPT_ID='…' \
+ADMIN_SECRETS_JSON='{"root":"MyProdSecret2024!","abc":"TenantABC#24"}' npm run secrets:sync
+```
+
+- Validates strength policy (length + complexity + banned words)
+- Calls `setupAdminSecrets_` to set Script Properties
+- Updates `ops/security/admin-secret-rotation.json` for audit records
+
+### Step 3: Deploy URL + Access
+
+After `deploy:auto` completes, the CLI extracts the deployment URL for you. You can also redeploy via:
+
+```bash
+SERVICE_ACCOUNT_JSON='…' SCRIPT_ID='…' npm run deploy:quick
+```
 
 Example URL:
 ```
 https://script.google.com/macros/s/AKfycbx.../exec
 ```
+
+### Manual Upload Fallback
+
+If service-account automation is unavailable, follow the classic UI steps:
+
+1. Go to [Apps Script Project](https://script.google.com/home/projects/1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l/edit)
+2. Project Settings → enable "Show appsscript.json"
+3. Upload `Code.gs`, `Config.gs`, every `.html` surface, and `appsscript.json` exactly as named
+4. Deploy → New Deployment → Web app (execute as *User accessing the web app*, access *Anyone*)
+5. Open the Admin page and run Diagnostics → Status/Self-Test
 
 ---
 
@@ -183,7 +173,7 @@ https://script.google.com/macros/s/AKfycbx.../exec
 
 ### Option A: HTTP Redirects (Recommended for MVP)
 
-In Hostinger → Domains → Redirects:
+In your DNS/hosting provider → Domains → Redirects:
 
 ```
 https://zeventbooks.io/ → https://script.google.com/macros/s/<DEPLOYMENT_ID>/exec?p=events&tenant=root
@@ -192,7 +182,9 @@ https://zeventbooks.io/admin → https://script.google.com/macros/s/<DEPLOYMENT_
 https://zeventbooks.io/display → https://script.google.com/macros/s/<DEPLOYMENT_ID>/exec?page=display&tenant=root
 ```
 
-**Force HTTPS:** Enable in Hostinger SSL settings.
+**Force HTTPS:** Enable in your provider's SSL settings.
+
+**Verify automatically:** Run `npm run dns:verify` after every DNS/redirect change. The script walks all entries from `ops/domains/config.json`, follows redirects, and writes the result to `ops/domains/dns-status.json` so the deployment CLI can fail fast if a domain drifts.
 
 ### Option B: iframe Wrapper (if domain must stay in browser)
 
@@ -423,7 +415,7 @@ In Admin:
 
 ### Issue: Domain redirect loop
 
-**Cause:** Circular redirect in Hostinger
+**Cause:** Circular redirect configured at the domain host
 **Fix:** Ensure target URL is different from source; check HTTPS enforcement
 
 ---

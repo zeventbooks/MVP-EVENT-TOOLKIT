@@ -9,14 +9,22 @@
  */
 
 const { test, expect } = require('@playwright/test');
+const { isGoogleLoginWall, LOGIN_WALL_SKIP_MESSAGE } = require('../../shared/environment-guards');
 
-const BASE_URL = process.env.BASE_URL || 'https://zeventbooks.com';
+const BASE_URL = process.env.BASE_URL || 'https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec';
 const TENANT_ID = 'root';
 
 // Mobile viewport configuration
 const MOBILE_VIEWPORT = { width: 375, height: 667 }; // iPhone SE
 
 test.describe('SCENARIO 2: Mobile User at Event', () => {
+  async function gotoTenantPageOrSkip(page, query) {
+    await page.goto(`${BASE_URL}?${query}&tenant=${TENANT_ID}`);
+    if (await isGoogleLoginWall(page)) {
+      test.skip(true, LOGIN_WALL_SKIP_MESSAGE);
+      return;
+    }
+  }
 
   test.beforeEach(async ({ page }) => {
     // Set mobile viewport for all tests
@@ -27,7 +35,7 @@ test.describe('SCENARIO 2: Mobile User at Event', () => {
     // Performance test: Measure page load time
     const startTime = Date.now();
 
-    await page.goto(`${BASE_URL}?p=events&tenant=${TENANT_ID}`);
+    await gotoTenantPageOrSkip(page, 'p=events');
 
     // Wait for DOMContentLoaded (interactive state)
     await page.waitForLoadState('domcontentloaded');
@@ -62,7 +70,7 @@ test.describe('SCENARIO 2: Mobile User at Event', () => {
   });
 
   test('2.2 Confirm Sponsor is present → Should display sponsor banner', async ({ page }) => {
-    await page.goto(`${BASE_URL}?p=events&tenant=${TENANT_ID}`);
+    await gotoTenantPageOrSkip(page, 'p=events');
     await page.waitForLoadState('networkidle');
 
     // VERIFY: Sponsor elements exist in DOM
@@ -100,7 +108,7 @@ test.describe('SCENARIO 2: Mobile User at Event', () => {
   });
 
   test('2.3 Tap sponsor banner → Should log click + redirect', async ({ page }) => {
-    await page.goto(`${BASE_URL}?p=events&tenant=${TENANT_ID}`);
+    await gotoTenantPageOrSkip(page, 'p=events');
     await page.waitForLoadState('networkidle');
 
     // Track network requests for analytics
@@ -182,7 +190,7 @@ test.describe('SCENARIO 2: Mobile User at Event', () => {
   });
 
   test('2.4 Tap "Check In" → Should open Google Form', async ({ page }) => {
-    await page.goto(`${BASE_URL}?p=events&tenant=${TENANT_ID}`);
+    await gotoTenantPageOrSkip(page, 'p=events');
     await page.waitForLoadState('networkidle');
 
     // Find check-in button/link
@@ -247,7 +255,7 @@ test.describe('SCENARIO 2: Mobile User at Event', () => {
   });
 
   test('2.5 View gallery → Images should lazy load', async ({ page }) => {
-    await page.goto(`${BASE_URL}?p=events&tenant=${TENANT_ID}`);
+    await gotoTenantPageOrSkip(page, 'p=events');
     await page.waitForLoadState('networkidle');
 
     // Find gallery section
@@ -321,7 +329,7 @@ test.describe('SCENARIO 2: Complete Mobile User Journey (Integration)', () => {
   test('Complete mobile event experience', async ({ page, context }) => {
     // Step 1: Fast page load
     const startTime = Date.now();
-    await page.goto(`${BASE_URL}?p=events&tenant=${TENANT_ID}`);
+    await gotoTenantPageOrSkip(page, 'p=events');
     await page.waitForLoadState('domcontentloaded');
     const loadTime = Date.now() - startTime;
 
@@ -368,7 +376,7 @@ test.describe('SCENARIO 2: Complete Mobile User Journey (Integration)', () => {
     });
 
     const startTime = Date.now();
-    await page.goto(`${BASE_URL}?p=events&tenant=${TENANT_ID}`);
+    await gotoTenantPageOrSkip(page, 'p=events');
     await page.waitForLoadState('domcontentloaded');
     const loadTime = Date.now() - startTime;
 
