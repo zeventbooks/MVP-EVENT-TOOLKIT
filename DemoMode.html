@@ -245,12 +245,12 @@
 
   // Demo mode configuration from backend
   window.DEMO_CONFIG = {
-    showBadge: <?= ZEB.DEMO_MODE.showBadge ?>,
-    showDebugPanel: <?= ZEB.DEMO_MODE.showDebugPanel ?>,
-    showApiTiming: <?= ZEB.DEMO_MODE.showApiTiming ?>,
-    showErrorDetails: <?= ZEB.DEMO_MODE.showErrorDetails ?>,
-    enableConsoleLogging: <?= ZEB.DEMO_MODE.enableConsoleLogging ?>,
-    enablePrefill: <?= ZEB.DEMO_MODE.enablePrefill ?>,
+    showBadge: <?!= JSON.stringify(Boolean(ZEB.DEMO_MODE.showBadge)) ?>,
+    showDebugPanel: <?!= JSON.stringify(Boolean(ZEB.DEMO_MODE.showDebugPanel)) ?>,
+    showApiTiming: <?!= JSON.stringify(Boolean(ZEB.DEMO_MODE.showApiTiming)) ?>,
+    showErrorDetails: <?!= JSON.stringify(Boolean(ZEB.DEMO_MODE.showErrorDetails)) ?>,
+    enableConsoleLogging: <?!= JSON.stringify(Boolean(ZEB.DEMO_MODE.enableConsoleLogging)) ?>,
+    enablePrefill: <?!= JSON.stringify(Boolean(ZEB.DEMO_MODE.enablePrefill)) ?>,
     sampleEvent: <?!= JSON.stringify(ZEB.DEMO_MODE.sampleEvent) ?>,
     sampleSponsor: <?!= JSON.stringify(ZEB.DEMO_MODE.sampleSponsor) ?>
   };

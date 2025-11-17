@@ -77,9 +77,6 @@ test.describe('📄 PAGE: Config - Brand Portfolio (Parent Org)', () => {
 
     await page.waitForTimeout(3000);
 
-    // Look for status badges showing "Included in Reports" or "Not Included"
-    const includedBadge = page.locator('text=Included in Reports').first();
-
     // At least one child should have an inclusion status badge
     const badgeCount = await page.locator('text=/Included|Not Included/').count();
     expect(badgeCount).toBeGreaterThan(0);
