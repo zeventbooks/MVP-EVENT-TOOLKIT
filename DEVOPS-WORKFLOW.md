@@ -535,3 +535,42 @@ This process ensures:
 - ✅ Easy rollback if needed
 - ✅ Clear audit trail (git tags)
 - ✅ No surprises in production
+
+## Stage Health Monitoring
+
+Tie every phase of the workflow back to the same monitoring CLI so you can prove readiness with data instead of guesswork.
+
+### Configure stage-aware targets
+1. Copy the tracked template so your private URLs stay in `.gitignore`:
+   ```bash
+   mkdir -p .monitoring
+   cp monitoring.targets.example.json .monitoring/targets.json
+   ```
+2. Edit `.monitoring/targets.json` with your real endpoints. Each target can define:
+   - `category` (development, testing, clasp, deployment, ci, etc.)
+   - `expectStatus`, `contains`, and optional `headers`
+3. Under `"scenarios"` map each stage to a set of categories or explicit targets. Add a `description` so reports explain what you just tested.
+
+### Commands per stage
+| Stage | Scenario flag | Example command |
+| --- | --- | --- |
+| Development smoke | `development` | `npm run monitor:health -- --config=.monitoring/targets.json --scenario=development --report` |
+| Hosted QA / regression | `testing` | `npm run monitor:health -- --config=.monitoring/targets.json --scenario=testing` |
+| Apps Script/clasp deploys | `clasp` | `npm run monitor:health -- --config=.monitoring/targets.json --scenario=clasp` |
+| Production verification | `deployment` | `npm run monitor:health -- --config=.monitoring/targets.json --scenario=deployment --report=prod.md` |
+| CI/CD dependencies | `ci` | `npm run monitor:health -- --config=.monitoring/targets.json --scenario=ci --dry-run` |
+| Full pipeline sweep | `pipeline` | `npm run monitor:health -- --config=.monitoring/targets.json --scenario=pipeline --report=.monitoring/full.md` |
+
+Set `HEALTH_SCENARIO=<name>` (and optionally `HEALTH_CONFIG=.monitoring/targets.json`) in your shell or workflow file if you want the scenario baked into automation without repeating CLI flags.
+
+### Interpret and capture results
+- `npm run monitor:health:watch -- --scenario=testing --interval=60000 --report=.monitoring/live.md` keeps a live pulse during releases.
+- `npm run monitor:health:history -- --limit=15` pulls the last runs from `.monitoring/health-history.json` so you can correlate failures with deployments.
+- Adding `--report` to any run drops a Markdown table (including scenario metadata and target sources) for stakeholders.
+
+### Automation hooks
+- **Local dev:** Run the development scenario with `--dry-run` inside pre-commit hooks to ensure config typos are caught early.
+- **clasp / Apps Script:** After `npm run deploy:clasp`, run the `clasp` scenario and attach the Markdown report to your deployment notes.
+- **CI/CD:** Post-deploy jobs can run the `ci` or `pipeline` scenario and upload `.monitoring/latest-report.md` as an artifact for traceability.
+
+With stage-aware targets living next to the DevOps workflow, you can now iterate, deploy, and prove system health using one cohesive source of truth.
