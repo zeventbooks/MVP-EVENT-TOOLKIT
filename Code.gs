@@ -215,10 +215,65 @@ function doGet(e){
   const pageParam = (e?.parameter?.page || e?.parameter?.p || '').toString();
   const actionParam = (e?.parameter?.action || '').toString();
   const hostHeader = (e?.headers?.host || e?.parameter?.host || '').toString();
-  const tenant = findTenantByHost_(hostHeader) || findTenant_('root');
+  let tenant = findTenantByHost_(hostHeader) || findTenant_('root');
 
   // Demo mode detection (for testing, UAT, demos, and screenshots)
   const demoMode = (e?.parameter?.demo === 'true' || e?.parameter?.test === 'true');
+
+  // ===== Customer-Friendly URL Routing =====
+  // Supports patterns like:
+  //   /abc/events → tenant=abc, page=public
+  //   /abc/manage → tenant=abc, page=admin, mode=advanced
+  //   /events → tenant=root, page=public
+  //   /display → tenant=root, page=display
+  const pathInfo = (e?.pathInfo || '').toString().replace(/^\/+|\/+$/g, '');
+
+  if (pathInfo) {
+    const pathParts = pathInfo.split('/').filter(p => p);
+
+    // Check if first part is a tenant ID
+    let tenantFromPath = null;
+    let aliasFromPath = null;
+
+    if (pathParts.length >= 2) {
+      // Pattern: /{tenant}/{alias}
+      const possibleTenant = findTenant_(pathParts[0]);
+      if (possibleTenant) {
+        tenantFromPath = possibleTenant;
+        aliasFromPath = pathParts[1];
+      }
+    }
+
+    if (!tenantFromPath && pathParts.length >= 1) {
+      // Pattern: /{alias} (use default tenant)
+      aliasFromPath = pathParts[0];
+    }
+
+    // Resolve alias to page configuration
+    if (aliasFromPath) {
+      const aliasConfig = resolveUrlAlias_(aliasFromPath, tenantFromPath?.id || tenant.id);
+
+      if (aliasConfig) {
+        // Override tenant if specified in path
+        if (tenantFromPath) {
+          tenant = tenantFromPath;
+        }
+
+        // Set page and mode from alias
+        const resolvedPage = aliasConfig.page;
+        const resolvedMode = aliasConfig.mode;
+
+        // Continue routing with resolved values
+        return routePage_(
+          e,
+          resolvedPage,
+          tenant,
+          demoMode,
+          { mode: resolvedMode, fromAlias: true, alias: aliasFromPath }
+        );
+      }
+    }
+  }
 
   // REST API Routes (for custom frontends)
   if (actionParam) {
@@ -259,12 +314,36 @@ function doGet(e){
   // Admin mode selection: default to wizard for simplicity, allow advanced mode via URL parameter
   let page = (pageParam==='admin' || pageParam==='wizard' || pageParam==='poster' || pageParam==='test' || pageParam==='display' || pageParam==='report' || pageParam==='analytics' || pageParam==='diagnostics' || pageParam==='sponsor' || pageParam==='signup' || pageParam==='config') ? pageParam : 'public';
 
+  // Route using helper function
+  return routePage_(e, page, tenant, demoMode, { mode: e?.parameter?.mode });
+}
+
+/**
+ * Route to a specific page with tenant and options
+ * Centralizes page routing logic for both query params and friendly URLs
+ *
+ * @param {object} e - Request event object
+ * @param {string} page - Page to route to
+ * @param {object} tenant - Tenant configuration
+ * @param {boolean} demoMode - Demo mode flag
+ * @param {object} options - Additional routing options (mode, fromAlias, etc.)
+ * @returns {HtmlOutput} - Rendered page
+ */
+function routePage_(e, page, tenant, demoMode, options = {}) {
   // Route admin to wizard by default (simple mode), unless mode=advanced is specified
   if (page === 'admin') {
-    const mode = (e?.parameter?.mode || '').toString();
+    const mode = options.mode || '';
     if (mode !== 'advanced') {
       page = 'wizard'; // Default to wizard (simple mode)
     }
+  }
+
+  const scope = (e?.parameter?.p || e?.parameter?.scope || 'events').toString();
+  const allowed = tenant.scopesAllowed?.length ? tenant.scopesAllowed : ['events','leagues','tournaments'];
+
+  if (!allowed.includes(scope) && page === 'public'){
+    const first = allowed[0] || 'events';
+    return HtmlService.createHtmlOutput(`<meta http-equiv="refresh" content="0;url=?p=${first}&tenant=${tenant.id}">`);
   }
 
   const tpl = HtmlService.createTemplateFromFile(pageFile_(page));
@@ -275,6 +354,13 @@ function doGet(e){
   tpl.execUrl = ScriptApp.getService().getUrl();
   tpl.ZEB = ZEB;
   tpl.demoMode = demoMode; // Pass demo mode flag to templates
+
+  // Pass friendly URL info if routed via alias
+  if (options.fromAlias) {
+    tpl.friendlyUrl = true;
+    tpl.urlAlias = options.alias || '';
+  }
+
   // Fixed: Bug #31 - Add security headers
   return tpl.evaluate()
     .setTitle(`${tpl.appTitle} · ${page}${demoMode ? ' (Demo)' : ''}`)
