@@ -6,6 +6,7 @@
   <?!= include('Styles'); ?>
   <?!= include('DesignAdapter'); ?>
   <?!= include('NUSDK'); ?>
+  <?!= include('DemoMode'); ?>
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <meta name="referrer" content="no-referrer"/>
 </head>
@@ -157,6 +158,11 @@
         <div class="button-group">
           <button class="btn-primary" type="submit">Create Event</button>
           <button class="btn-secondary" type="button" onclick="clearForm()">Clear</button>
+          <? if (demoMode && ZEB.DEMO_MODE.showPrefillButton) { ?>
+          <button class="demo-prefill-btn" type="button" onclick="window.demoFillSampleEvent && window.demoFillSampleEvent()">
+            ✨ Fill Sample Data
+          </button>
+          <? } ?>
         </div>
       </form>
     </section>
@@ -193,7 +199,10 @@
       <div class="button-group">
         <button class="btn-primary" onclick="configureDisplay()">Configure Display & Sponsors</button>
         <button class="btn-secondary" onclick="configureSignup()">Configure Sign-Up Forms</button>
-        <button class="btn-secondary" onclick="openFormsTemplates()">Create Forms from Templates</button>
+        <button class="btn-secondary <? if (demoMode && ZEB.DEMO_MODE.highlightNewFeatures) { ?>demo-new-feature<? } ?>" onclick="openFormsTemplates()">
+          Create Forms from Templates
+          <? if (demoMode && ZEB.DEMO_MODE.highlightNewFeatures) { ?><span class="demo-new-badge">NEW</span><? } ?>
+        </button>
       </div>
     </section>
 

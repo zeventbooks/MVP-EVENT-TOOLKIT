@@ -4,7 +4,55 @@
 const ZEB = Object.freeze({
   APP_TITLE: 'Zeventbook',
   BUILD_ID: 'triangle-extended-v1.3',
-  CONTRACT_VER: '1.0.3'
+  CONTRACT_VER: '1.0.3',
+
+  // Demo Mode Configuration
+  // Activated via ?demo=true URL parameter
+  // Use cases: Development testing, UAT, stakeholder demos, screenshots/videos
+  DEMO_MODE: {
+    // Visual indicators
+    showBadge: true,              // Show "DEMO MODE" badge
+    badgeText: '🧪 DEMO MODE',    // Badge text
+    badgeColor: '#667eea',        // Badge color
+
+    // Development & UAT features
+    showDebugPanel: true,         // Show debug info panel
+    showApiTiming: true,          // Log API response times
+    showErrorDetails: true,       // Show detailed error messages
+    enableConsoleLogging: true,   // Enhanced console logs
+
+    // Sample data features
+    enablePrefill: true,          // Enable sample data auto-fill
+    showPrefillButton: true,      // Show "Fill Sample Data" button
+
+    // Feature highlighting (for stakeholder demos)
+    highlightNewFeatures: true,   // Add badges/glow to new features
+    showHelpTooltips: true,       // Extra help tooltips
+
+    // Screenshot/video mode
+    showWatermark: false,         // Optional "DEMO" watermark (set to true for videos)
+    hideRealData: true,           // Hide real user data in demo mode
+
+    // Sample data templates
+    sampleEvent: {
+      name: 'Summer Bocce Tournament 2025',
+      dateISO: '2025-08-15',
+      timeISO: '18:00',
+      location: 'Chicago Bocce Club - North Avenue Courts',
+      entity: 'Chicago Bocce League',
+      summary: 'Join us for the annual summer tournament! Open to all skill levels.',
+      imageUrl: 'https://picsum.photos/800/400?random=1',
+      sponsorIds: ''
+    },
+
+    sampleSponsor: {
+      name: 'Local Pizza Co.',
+      website: 'https://example.com',
+      tier: 'Gold',
+      entity: 'Chicago Bocce League',
+      logoUrl: 'https://picsum.photos/200/200?random=2'
+    }
+  }
 });
 
 // Tenants (multi-tenant architecture, single DB for MVP)

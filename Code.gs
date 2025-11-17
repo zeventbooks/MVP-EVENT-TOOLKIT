@@ -217,6 +217,9 @@ function doGet(e){
   const hostHeader = (e?.headers?.host || e?.parameter?.host || '').toString();
   const tenant = findTenantByHost_(hostHeader) || findTenant_('root');
 
+  // Demo mode detection (for testing, UAT, demos, and screenshots)
+  const demoMode = (e?.parameter?.demo === 'true' || e?.parameter?.test === 'true');
+
   // REST API Routes (for custom frontends)
   if (actionParam) {
     return handleRestApiGet_(e, actionParam, tenant);
@@ -271,9 +274,10 @@ function doGet(e){
   tpl.scope = sanitizeInput_(scope, 50);
   tpl.execUrl = ScriptApp.getService().getUrl();
   tpl.ZEB = ZEB;
+  tpl.demoMode = demoMode; // Pass demo mode flag to templates
   // Fixed: Bug #31 - Add security headers
   return tpl.evaluate()
-    .setTitle(`${tpl.appTitle} · ${page}`)
+    .setTitle(`${tpl.appTitle} · ${page}${demoMode ? ' (Demo)' : ''}`)
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
