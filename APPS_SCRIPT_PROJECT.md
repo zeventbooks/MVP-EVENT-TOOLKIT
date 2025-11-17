@@ -105,8 +105,22 @@ See: [DEPLOYMENT.md](./DEPLOYMENT.md)
 
 ### Web App Deployment Settings
 
-- **Execute as:** User accessing the web app
-- **Who has access:** Anyone
+⚠️ **CRITICAL:** These settings must be configured when creating a NEW deployment in the Apps Script UI.
+
+- **Execute as:** Me (the script owner/deployer)
+- **Who has access:** Anyone, even anonymous
+
+**Why "Execute as: Me" is required:**
+- Allows the script to access your spreadsheets and resources
+- Runs with owner permissions (not visitor permissions)
+- Enables anonymous access without requiring user authentication
+
+**Why "Anyone, even anonymous" is required:**
+- Allows access without Google login (no 302 redirects)
+- Enables public API access for external integrations
+- Matches the `"access": "ANYONE_ANONYMOUS"` setting in appsscript.json
+
+**Note:** Simply updating `appsscript.json` does NOT change existing deployments. You must create a new deployment for settings to take effect.
 
 ---
 
