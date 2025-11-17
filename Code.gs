@@ -234,8 +234,7 @@ function doGet(e){
     return HtmlService.createHtmlOutputFromFile('ApiDocs')
       .setTitle('API Documentation - MVP Event Toolkit')
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.DENY)
-      .addMetaTag('viewport', 'width=device-width, initial-scale=1')
-      .addMetaTag('referrer', 'no-referrer');
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1');
   }
 
   // Status endpoint
@@ -277,8 +276,7 @@ function doGet(e){
   return tpl.evaluate()
     .setTitle(`${tpl.appTitle} · ${page}`)
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
-    .addMetaTag('referrer', 'no-referrer');
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
 
 // === REST API Handler for POST requests ===================================
