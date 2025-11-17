@@ -31,9 +31,11 @@ This repository follows a **single-source-of-truth** deployment model:
 
 The CI/CD pipeline automatically deploys to this project when code is merged to `main`.
 
-**Required GitHub Secret:**
+**Required GitHub Secrets:**
 ```
-SCRIPT_ID = 1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l
+SCRIPT_ID         = 1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l
+OAUTH_CREDENTIALS = <contents of ~/.clasprc.json>
+DEPLOYMENT_ID     = <Apps Script deployment created with “Anyone, even anonymous”>
 ```
 
 See: [GITHUB_ACTIONS_DEPLOYMENT.md](./GITHUB_ACTIONS_DEPLOYMENT.md)
@@ -105,8 +107,9 @@ See: [DEPLOYMENT.md](./DEPLOYMENT.md)
 
 ### Web App Deployment Settings
 
-- **Execute as:** User accessing the web app
-- **Who has access:** Anyone
+- **Execute as:** Me (User deploying)
+- **Who has access:** Anyone, even anonymous
+- **Important:** Always create a **new** deployment after updating `appsscript.json`; editing an old deployment does **not** apply manifest access changes and will continue to show Gmail prompts
 
 ---
 
@@ -128,11 +131,15 @@ See: [SECURITY_SETUP.md](./SECURITY_SETUP.md)
 After deployment, verify the app is working:
 
 ```bash
-# Run automated verification
-./verify-deployment.sh <YOUR_DEPLOYMENT_URL>
+# Push latest files
+npm run push
 
-# Or manually test:
-curl https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec?action=status
+# Run automated verification against the new deployment URL
+BASE_URL=https://script.google.com/macros/s/<DEPLOYMENT_ID>/exec \
+  ./verify-deployment.sh
+
+# Or manually test
+curl "$BASE_URL?p=status&tenant=root"
 ```
 
 Expected response:
@@ -170,14 +177,15 @@ The CI/CD pipeline outputs the deployment URL in the workflow logs.
 - Verify you're using the correct project ID: `1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l`
 - Check your Google account has access to this project
 
-### "Unauthorized" error
-- Run `npx clasp login` to authenticate
-- Ensure your `.clasprc.json` has valid OAuth tokens
+### "Unauthorized" / Gmail prompt on admin URLs
+- Run `./fix-anonymous-access.sh` to push the manifest and walk through creating a brand-new deployment with **Anyone, even anonymous** selected
+- Update the `DEPLOYMENT_ID` GitHub secret and Hostinger proxy files with the new ID so Stage 1/Stage 2 deploy/test agents hit the correct URL
+- Use an incognito window to confirm `/exec?page=admin&tenant=root` loads immediately instead of redirecting to Google login
 
 ### Deployment fails in GitHub Actions
-- Verify `SCRIPT_ID` secret is set correctly in GitHub repository settings
-- Check `CLASPRC_JSON` secret contains valid credentials
-- Review GitHub Actions logs for specific errors
+- Verify `OAUTH_CREDENTIALS`, `DEPLOYMENT_ID`, and `ADMIN_KEY_ROOT` secrets are present
+- Run `npm run deploy:verify-secrets` locally to replicate the GitHub validation logic
+- Review GitHub Actions logs for Stage 1 (clasp push/deploy) and Stage 2 (Playwright) failures
 
 ---
 
