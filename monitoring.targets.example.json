@@ -1,0 +1,106 @@
+{
+  "targets": [
+    {
+      "name": "Local Dev Admin",
+      "url": "http://localhost:3000?p=admin&tenant=root",
+      "category": "development",
+      "expectStatus": 200,
+      "contains": ["Zeventbook", "Admin"],
+      "headers": {
+        "x-monitor-stage": "dev"
+      }
+    },
+    {
+      "name": "Local Diagnostics",
+      "url": "http://localhost:3000?p=diagnostics&tenant=root",
+      "category": "development",
+      "expectStatus": 200,
+      "contains": ["Diagnostics"]
+    },
+    {
+      "name": "QA Admin (root tenant)",
+      "url": "https://script.google.com/macros/s/AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw/exec?p=admin&tenant=root",
+      "legacyUrl": "https://qa.zeventbooks.com?p=admin&tenant=root",
+      "category": "testing",
+      "expectStatus": 200,
+      "contains": ["Zeventbook", "Create Event"]
+    },
+    {
+      "name": "QA Diagnostics",
+      "url": "https://script.google.com/macros/s/AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw/exec?p=diagnostics&tenant=root",
+      "legacyUrl": "https://qa.zeventbooks.com?p=diagnostics&tenant=root",
+      "category": "testing",
+      "expectStatus": 200,
+      "contains": ["Diagnostics"]
+    },
+    {
+      "name": "Apps Script WebApp",
+      "url": "https://script.google.com/macros/s/AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw/exec?page=test",
+      "category": "clasp",
+      "expectStatus": 200,
+      "contains": ["Zeventbook", "Test Harness"]
+    },
+    {
+      "name": "Production Admin",
+      "url": "https://script.google.com/macros/s/AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw/exec?p=admin&tenant=root",
+      "legacyUrl": "https://zeventbooks.com?p=admin&tenant=root",
+      "category": "deployment",
+      "expectStatus": 200,
+      "contains": ["Zeventbook", "Admin"]
+    },
+    {
+      "name": "Production Diagnostics",
+      "url": "https://script.google.com/macros/s/AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw/exec?p=diagnostics&tenant=root",
+      "legacyUrl": "https://zeventbooks.com?p=diagnostics&tenant=root",
+      "category": "deployment",
+      "expectStatus": 200,
+      "contains": ["Diagnostics"]
+    },
+    {
+      "name": "GitHub Status API",
+      "url": "https://www.githubstatus.com/api/v2/status.json",
+      "category": "ci",
+      "expectStatus": 200,
+      "contains": ["status"]
+    },
+    {
+      "name": "Google Cloud Status",
+      "url": "https://status.cloud.google.com/incidents.json",
+      "category": "ci",
+      "expectStatus": 200,
+      "contains": ["incidents"]
+    }
+  ],
+  "scenarios": {
+    "development": {
+      "description": "Local stack and feature testing before publishing",
+      "categories": ["development"]
+    },
+    "testing": {
+      "description": "Hosted QA tenant URLs with regression diagnostics",
+      "categories": ["testing"]
+    },
+    "clasp": {
+      "description": "Apps Script WebApp deployments pushed via clasp",
+      "categories": ["clasp"]
+    },
+    "deployment": {
+      "description": "Production Hostinger endpoints post-release",
+      "categories": ["deployment"]
+    },
+    "ci": {
+      "description": "External CI/CD dependencies (GitHub + Google Cloud)",
+      "categories": ["ci"]
+    },
+    "pipeline": {
+      "description": "Full pipeline sweep across every stage",
+      "targets": [
+        "Local Dev Admin",
+        "QA Admin (root tenant)",
+        "Apps Script WebApp",
+        "Production Admin",
+        "GitHub Status API"
+      ]
+    }
+  }
+}

@@ -80,6 +80,37 @@ npm run deploy # Create new deployment
 - **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Complete deployment guide
 - **[DEPLOYMENT_QUICK_START.md](./DEPLOYMENT_QUICK_START.md)** - DevOps quick start
 - **[GITHUB_ACTIONS_DEPLOYMENT.md](./GITHUB_ACTIONS_DEPLOYMENT.md)** - CI/CD setup
+- **[CODEBASE_CONSOLIDATION_STRATEGY.md](./CODEBASE_CONSOLIDATION_STRATEGY.md)** - Canonical reference for repo alignment, documentation order, and monitoring mandates
+- **[mind_mapping.md](./mind_mapping.md)** - Visual index mirroring the consolidation plan for quick cross-team onboarding
+
+### Live Environment Health Monitoring
+
+Run continuous health checks for QA/production (or custom) URLs directly from the repository:
+
+```
+# Run a single round of checks (supports --dry-run for offline validation)
+npm run monitor:health -- --config=.monitoring/targets.json --report
+
+# Watch mode (defaults to every 5 minutes)
+npm run monitor:health:watch -- --config=.monitoring/targets.json --interval=60000 --report=.monitoring/live.md
+
+# View recent results without running new checks
+npm run monitor:health:history -- --limit=10
+
+# Stage-specific sweeps (targets must define scenarios)
+npm run monitor:health -- --config=.monitoring/targets.json --scenario=deployment --report=.monitoring/prod.md
+```
+
+- **Personal targets** – copy `monitoring.targets.example.json` to `.monitoring/targets.json` (gitignored) and tweak URLs, `contains`, `expectStatus`, and optional `category` labels.
+- **Pipeline scenarios** – define stage buckets under `"scenarios"` inside your JSON config, then call `--scenario=<name>` (or export `HEALTH_SCENARIO=<name>`) to focus on just that slice of the pipeline.
+- **One-off overrides** – still supported through `--targets="Name|https://url"` or `HEALTH_TARGETS` env vars.
+- **Shareable reports** – add `--report` (or `--report=client.md`) to automatically drop a Markdown table in `.monitoring/latest-report.md` after each run.
+
+📘 For an end-to-end workflow see the stage-aware observability section inside [DEVOPS-WORKFLOW.md](./DEVOPS-WORKFLOW.md#stage-health-monitoring) plus the showcase routine baked into [PRE_DEPLOY_CHECKLIST.md](./PRE_DEPLOY_CHECKLIST.md#client-showcase-routine).
+
+### Apps Script Safety Checks
+
+- `npm run lint:apps-script-meta` – scans `Code.gs` and every HtmlService template to ensure only safe `<meta>` tags (viewport) are shipped, guaranteeing that the "meta tag ... is not allowed" exception never resurfaces in production deployments.
 
 ### For Architecture & Testing
 - **[ARCHITECTURE_REVIEW.md](./ARCHITECTURE_REVIEW.md)** - System architecture

@@ -46,3 +46,6 @@ build/
 
 # Deployment history (local only)
 .deployment-history.json
+
+# Health monitor history
+.monitoring/

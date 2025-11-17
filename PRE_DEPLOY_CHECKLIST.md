@@ -198,6 +198,42 @@ git push origin main
 
 ---
 
+## Client Showcase Routine
+
+Keep your MVP demos predictable and impressive by layering a reusable showcase routine on top of the deployment checklist.
+
+### 1. Prime Your Toolkit (one-time per laptop)
+- Run `npm install` to ensure dependencies exist.
+- Copy `monitoring.targets.example.json` to `.monitoring/targets.json`, then add client-specific URLs and `contains` markers.
+- Execute `npm run deploy:verify-secrets` so CI credentials are ready before you travel.
+
+### 2. T-1 Day Confidence Pass (~30 minutes)
+| Step | Command | Why |
+| --- | --- | --- |
+| Sanity test suites | `npm run test:quick` | Confirms Jest + core Playwright stay green. |
+| Validate demo surfaces | `npm run monitor:health -- --config=.monitoring/targets.json --report` | Generates `.monitoring/latest-report.md` for proof. |
+| Review report | Open `.monitoring/latest-report.md` | Verify each row contains the expected CTA/sponsor copy. |
+| Confirm target deployment | `npm run deploy:status` | Ensures the Apps Script version you plan to show is still active. |
+| Refresh talking points | — | Update your deck/notes with anything notable from the run. |
+
+### 3. Day-of Warm-Up (60 minutes before clients join)
+1. Seed data if needed (`npm run qa:seed:triangle:before` or other scenario).
+2. Start live monitoring: `npm run monitor:health:watch -- --config=.monitoring/targets.json --interval=60000 --report=.monitoring/live.md`.
+3. Stage browser tabs (Admin, Public, Poster, Diagnostics, ApiDocs) using URLs stored in your monitoring config.
+4. Dry-run risky flows (Create Event, Add Sponsor, Download Poster) so caches are ready.
+
+### 4. During the Meeting
+- Share the latest Markdown report (from `.monitoring/live.md`) up front to demonstrate operational rigor.
+- Narrate with telemetry: if a row flips to ⚠️ during the meeting, acknowledge it and keep the watcher running.
+- Close with clear next steps (deployment timeline, docs, how they can run the same health scripts themselves).
+
+### 5. After the Call (~10 minutes)
+1. `npm run monitor:health:history -- --limit=10` and capture a screenshot/snippet of the success streak.
+2. Email the Markdown report, meeting recording, and any promised follow-ups.
+3. Create tickets or TODOs immediately while details are fresh.
+
+This showcase routine turns solo prep into a systematic, data-backed experience without adding another standalone document to maintain.
+
 ## 📝 DEPLOYMENT LOG
 
 Keep track of deployments:

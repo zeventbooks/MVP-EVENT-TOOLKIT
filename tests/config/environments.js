@@ -7,11 +7,15 @@
  * - Local development
  */
 
+const DEFAULT_APPS_SCRIPT_DEPLOYMENT_URL =
+  process.env.DEFAULT_APPS_SCRIPT_URL ||
+  'https://script.google.com/macros/s/AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw/exec';
+
 const ENVIRONMENTS = {
   // Google Apps Script - Production deployment
   googleAppsScript: {
     name: 'Google Apps Script',
-    baseUrl: process.env.GOOGLE_SCRIPT_URL || 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec',
+    baseUrl: process.env.GOOGLE_SCRIPT_URL || DEFAULT_APPS_SCRIPT_DEPLOYMENT_URL,
     description: 'Direct Google Apps Script deployment (Production)',
     tenants: {
       root: 'root',
@@ -24,7 +28,7 @@ const ENVIRONMENTS = {
   // Google Apps Script - QA deployment
   qaAppsScript: {
     name: 'QA Apps Script',
-    baseUrl: process.env.QA_SCRIPT_URL || 'https://script.google.com/macros/s/YOUR_QA_SCRIPT_ID/exec',
+    baseUrl: process.env.QA_SCRIPT_URL || DEFAULT_APPS_SCRIPT_DEPLOYMENT_URL,
     description: 'Direct Google Apps Script deployment (QA)',
     tenants: {
       root: 'root',
@@ -37,7 +41,10 @@ const ENVIRONMENTS = {
   // Hostinger - Production domain
   hostinger: {
     name: 'Hostinger',
-    baseUrl: process.env.HOSTINGER_URL || 'https://zeventbooks.com',
+    baseUrl:
+      process.env.HOSTINGER_URL || DEFAULT_APPS_SCRIPT_DEPLOYMENT_URL,
+    // Legacy Hostinger reference retained for future reactivation:
+    // baseUrl: process.env.HOSTINGER_URL || 'https://zeventbooks.com',
     description: 'Hostinger custom domain (Production)',
     tenants: {
       root: 'root',
@@ -50,7 +57,10 @@ const ENVIRONMENTS = {
   // Hostinger - QA domain
   qaHostinger: {
     name: 'QA Hostinger',
-    baseUrl: process.env.QA_HOSTINGER_URL || 'https://zeventbooks.com',
+    baseUrl:
+      process.env.QA_HOSTINGER_URL || DEFAULT_APPS_SCRIPT_DEPLOYMENT_URL,
+    // Legacy Hostinger QA reference retained for future reactivation:
+    // baseUrl: process.env.QA_HOSTINGER_URL || 'https://qa.zeventbooks.com',
     description: 'Hostinger custom domain (QA) - Currently pointing to zeventbooks.com',
     tenants: {
       root: 'root',
@@ -93,7 +103,7 @@ function getCurrentEnvironment() {
 
   // Auto-detect based on BASE_URL
   if (!baseUrl) {
-    return { ...ENVIRONMENTS.hostinger }; // Default to Hostinger
+    return { ...ENVIRONMENTS.googleAppsScript }; // Default to Apps Script deployment
   }
 
   // Parse URL securely to prevent substring injection attacks
