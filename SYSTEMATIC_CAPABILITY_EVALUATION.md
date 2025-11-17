@@ -1,0 +1,41 @@
+# Systematic Capability & Experience Evaluation
+
+## 1. Architectural Traceability & Command Coverage
+- **Execution maps are comprehensive but still rely on manual updates.** `EXECUTION_COMMAND_MAP.md` enumerates every workflow (local, Apps Script automation, clasp, GitHub Actions, DNS guard, and the entire test matrix) together with commands, artifacts, and owning docs, so any contributor can see how to build, test, and deploy from a single tree.【F:EXECUTION_COMMAND_MAP.md†L1-L121】 Maintaining this file alongside the mind map ensures command drift is caught early.
+- **Mind map aligns surfaces, automation, and security.** `SYSTEM_MIND_MAP.md` already links unified deployment, runtime surfaces, authentication layers, automation CLIs, and quality gates, so onboarding flows from "what is the product" to "which script enforces it."【F:SYSTEM_MIND_MAP.md†L1-L56】 The addition of the command map branch means both documents now form a double-entry ledger for configuration and scripts.
+- **Gap:** Neither artifact currently auto-validates that referenced commands exist in `package.json`. Adding a lint (e.g., `npm run doc:verify-commands`) would keep the tree evergreen and further reduce the "single Apps Script ID" blast radius the user called out.
+
+## 2. Event, Sponsor, and Metric Flow (Back-End to Front-End)
+- **Event creation path is deterministic.** Admin UI gathers lifecycle details, media, and summary inputs before surfacing the generated public/display/poster/report links, providing a visual audit trail for event managers.【F:Admin.html†L17-L197】 Those buttons invoke Apps Script RPCs (`api_updateEventData`) that sanitize IDs, lock the sheet, validate template schemas, and persist JSON payloads so every front-end field maps to a vetted backend column.【F:Code.gs†L1307-L1379】
+- **Sponsor telemetry is logged at render time.** The TV Display surface renders sponsors in top/side placements, records impressions when each placement is drawn, and batches analytics writes through `api_logEvents`, ensuring sponsor visibility is tied to actual user-facing render events.【F:Display.html†L141-L200】【F:Code.gs†L1382-L1405】
+- **Shared analytics API unifies event + sponsor metrics.** `api_getSharedAnalytics` collates impressions, clicks, engagement rates, per-surface breakdowns, per-event rollups, and top event-sponsor combinations while filtering data for sponsor-only views, delivering a true shared source for sponsors and event managers.【F:SharedReporting.gs†L1-L165】
+- **Most efficient metrics for the shared dashboard:**
+  - _Impressions + clicks_ (per sponsor, per surface) already exist and provide mutual value for ROI tracking.【F:SharedReporting.gs†L78-L165】
+  - _Engagement rate_ (clicks/impressions) helps both parties gauge creative quality without exposing sensitive spend data.【F:SharedReporting.gs†L116-L129】
+  - _Surface distribution_ shows whether public pages, display loops, or posters drive most reach, informing on-site placement investments.【F:SharedReporting.gs†L131-L165】
+  - _Top event-sponsor pairs_ can be highlighted as success stories or upsell opportunities.【F:SharedReporting.gs†L78-L104】
+
+## 3. Reporting Templates & Source-of-Truth Experiences
+- **SharedReport.html already embodies the dual-view charter.** It provides a mobile-first dashboard with unified headers, key metric cards, responsive tables, and sections ready for sponsor and event manager narratives, reinforcing a single set of numbers rendered for both parties.【F:SharedReport.html†L1-L200】
+- **Recommendation:** Keep SharedReport as the canonical shared template, and generate sponsor- or event-manager-focused variants by filtering the same API payload (e.g., toggling the `isSponsorView` flag) while reusing the layout to avoid divergence.
+- **Diagnostics + Admin surfaces should deep-link into this shared report** so administrators don’t rely on spreadsheets for ad-hoc reporting; the event dashboard already references a "Shared Analytics" link but we should ensure it points to SharedReport instead of raw JSON.【F:Admin.html†L168-L190】
+
+## 4. Front-End Experience & DRY Considerations
+- **Admin experience strengths:** Card-based layout, lifecycle visualizations, compact sign-up templates, and CTA buttons offer clear segmentation, but success depends on consistently styled components from `Styles.html` and `DesignAdapter`. The multi-section card system keeps information dense yet scannable; ensuring each section has progressive disclosure (e.g., accordions for advanced sponsor settings) would reduce initial overwhelm.【F:Admin.html†L17-L200】
+- **Sign-up and sponsor modals must reuse shared components.** Reusing button classes (`btn-primary`, `btn-secondary`) and grid layouts prevents drift and simplifies testing. Where multiple inline forms exist, convert repeated groups into custom elements or Handlebars-style templates for DRYness.
+- **Display (TV) experience** is optimized for 10-12 ft viewing distance, includes fallback messaging when iframe content fails, and logs sponsor impressions as soon as placements render, which is the right balance of UX polish and telemetry. The stage loader + toast notifications already provide instant feedback for operators.【F:Display.html†L1-L200】
+- **Shared reporting UI** demonstrates mobile-first responsiveness (stacked cards under 640px, fluid grid beyond) and should serve as the style reference for other analytics-heavy pages.【F:SharedReport.html†L32-L200】
+- **Designer-focused traceability:** Document how each HTML component maps to Apps Script services (e.g., Admin → `api_updateEventData`, Display → `api_logEvents`, Report → `api_getSharedAnalytics`) so designers understand backend contracts. Incorporating component inventories into `CUSTOM_FRONTEND_GUIDE.md` or a Storybook-like reference would anchor this trace.
+
+## 5. Automation & Test Coverage (Systematic View)
+- **Repo-wide guards keep Playwright deterministic.** The shared login-wall detector and auto-installed guard wrap every `page.goto`, skipping suites with a consistent remediation message whenever an Apps Script deployment redirects to Google login, preventing false negatives in CI and local runs.【F:tests/shared/environment-guards.js†L1-L46】【F:tests/shared/register-login-wall-guard.js†L1-L32】
+- **Integration smoke tests trace the full lifecycle.** Playwright scripts validate admin creation flows, link propagation to public/poster/display pages, sponsor configuration to TV display, and analytics logging, meaning every core HTML surface is tied to a backend expectation and can be traced during regressions.【F:tests/smoke/integration.smoke.test.js†L1-L195】
+- **Testing guide enforces quality gates.** Documented coverage floors, environment requirements, and guard behavior are spelled out in `TESTING.md`, so every engineer understands how to validate features before touching deployments.【F:TESTING.md†L1-L120】
+
+## 6. Recommendations to Further Reduce Apps Script Blast Radius
+1. **Automated doc verification:** Add a script that scans `package.json` for declared commands and checks that `EXECUTION_COMMAND_MAP.md` references them (and vice versa) to avoid stale instructions.
+2. **Component trace catalog:** Extend `SYSTEM_MIND_MAP.md` with a "Front-End Component Inventory" branch linking HTML fragments to their backend functions and telemetry, enabling designers to track from border/typography decisions back to data contracts.
+3. **Shared analytics CTA standardization:** Ensure Admin, Diagnostics, and Sponsor portals embed the same SharedReport view (with filters) rather than bespoke tables, reinforcing the single source of truth for metrics.
+4. **Design QA automation:** Enhance Playwright tests with visual regression (or Percy-like snapshots) for Admin cards, Display layout, and SharedReport tables so front-end styling decisions remain testable, aligning with the designer-first mandate.
+
+These steps preserve the unified Apps Script backbone while giving architects, designers, and sponsors consistent hooks to trace configurations, commands, and telemetry across the stack.
