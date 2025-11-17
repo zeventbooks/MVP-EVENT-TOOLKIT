@@ -134,16 +134,24 @@ npm run test:unit -- tests/unit/forms.test.js
 ### **E2E Tests (Requires Environment Setup)**
 
 ```bash
+# Set your Google Apps Script URL
+export GOOGLE_SCRIPT_URL="https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec"
+
 # With admin key for full workflow tests
 ADMIN_KEY=your-admin-key npx playwright test tests/e2e/3-flows/forms-shortlinks-qr.spec.js
 
 # Without admin key (read-only tests only)
 npx playwright test tests/e2e/3-flows/forms-shortlinks-qr.spec.js --grep "No Auth Required"
+
+# To test against Hostinger instead (override default)
+BASE_URL=https://zeventbooks.com npx playwright test tests/e2e/3-flows/forms-shortlinks-qr.spec.js
 ```
 
-**Current Status:** Tests structured correctly, require:
-1. **ADMIN_KEY environment variable** for write operations
-2. **Network access** to zeventbooks.com or configured BASE_URL
+**Current Status:** Tests default to **Google Apps Script endpoint** for direct API testing.
+
+Tests require:
+1. **GOOGLE_SCRIPT_URL environment variable** (or BASE_URL) pointing to your Apps Script deployment
+2. **ADMIN_KEY environment variable** for write operations
 3. **Google Apps Script environment** for actual form creation
 
 **Note:** Tests gracefully skip when ADMIN_KEY is not configured.
@@ -189,19 +197,24 @@ npx playwright test tests/e2e/3-flows/forms-shortlinks-qr.spec.js --grep "No Aut
 
 ### **Immediate (To Run Full Tests)**
 
-1. **Set ADMIN_KEY Environment Variable**
+1. **Set Google Apps Script URL**
+   ```bash
+   export GOOGLE_SCRIPT_URL="https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec"
+   ```
+
+2. **Set ADMIN_KEY Environment Variable**
    ```bash
    export ADMIN_KEY=your-root-tenant-admin-key
    ```
 
-2. **Configure Network Access**
-   - Ensure access to zeventbooks.com or
-   - Set `BASE_URL` to your Google Apps Script deployment
-
 3. **Run Full Test Suite**
    ```bash
-   ADMIN_KEY=xxx BASE_URL=https://your-script-url.exec npm run test:e2e
+   npm run test:e2e
+   # Or specific forms workflow test:
+   npx playwright test tests/e2e/3-flows/forms-shortlinks-qr.spec.js
    ```
+
+**Note:** Tests now default to Google Apps Script endpoint for direct API testing. To test against Hostinger proxy, set `BASE_URL=https://zeventbooks.com`
 
 ### **Short Term (Coverage Improvements)**
 
