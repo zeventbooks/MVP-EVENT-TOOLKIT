@@ -9,8 +9,9 @@
  */
 
 const { test, expect } = require('@playwright/test');
+const { isGoogleLoginWall } = require('../../shared/environment-guards');
 
-const BASE_URL = process.env.BASE_URL || 'https://zeventbooks.com';
+const BASE_URL = process.env.BASE_URL || 'https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec';
 const ADMIN_KEY = process.env.ADMIN_KEY || 'CHANGE_ME_root';
 const TENANT_ID = 'root';
 
@@ -24,9 +25,15 @@ test.describe('SCENARIO 1: First-Time Admin', () => {
     }
   });
 
-  test('1.1 Open admin page → Should see empty form', async ({ page }) => {
-    // Navigate to admin page
+  async function openAdminPageOrSkip(page) {
     await page.goto(`${BASE_URL}?p=admin&tenant=${TENANT_ID}`);
+    if (await isGoogleLoginWall(page)) {
+      test.skip('Deployment requires Google authentication. Publish the Apps Script as "Anyone" or set BASE_URL to a head deployment with anonymous access before running scenario tests.');
+    }
+  }
+
+  test('1.1 Open admin page → Should see empty form', async ({ page }) => {
+    await openAdminPageOrSkip(page);
 
     // VERIFY: Page loads successfully
     await expect(page).toHaveTitle(/Admin/);
@@ -56,7 +63,7 @@ test.describe('SCENARIO 1: First-Time Admin', () => {
   });
 
   test('1.2 Try to submit without admin key → Should prompt', async ({ page }) => {
-    await page.goto(`${BASE_URL}?p=admin&tenant=${TENANT_ID}`);
+    await openAdminPageOrSkip(page);
 
     let dialogShown = false;
     let dialogMessage = '';
@@ -88,7 +95,7 @@ test.describe('SCENARIO 1: First-Time Admin', () => {
   });
 
   test('1.3 Submit with invalid data → Should show error', async ({ page }) => {
-    await page.goto(`${BASE_URL}?p=admin&tenant=${TENANT_ID}`);
+    await openAdminPageOrSkip(page);
 
     // Handle admin key prompt
     page.on('dialog', async dialog => {
@@ -125,7 +132,7 @@ test.describe('SCENARIO 1: First-Time Admin', () => {
   });
 
   test('1.4 Submit valid event → Should see success + links', async ({ page }) => {
-    await page.goto(`${BASE_URL}?p=admin&tenant=${TENANT_ID}`);
+    await openAdminPageOrSkip(page);
 
     // Handle admin key prompt
     page.on('dialog', async dialog => {

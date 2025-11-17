@@ -10,7 +10,7 @@
 
 const { test, expect } = require('@playwright/test');
 
-const BASE_URL = process.env.BASE_URL || 'https://zeventbooks.com';
+const BASE_URL = process.env.BASE_URL || 'https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec';
 const TENANT_ID = 'root';
 
 // Mobile viewport configuration

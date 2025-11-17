@@ -64,6 +64,8 @@ npm run deploy # Create new deployment
 
 ## Documentation
 
+> 🧠 **New:** Start with [SYSTEM_MIND_MAP.md](./SYSTEM_MIND_MAP.md) for a single-page overview of how the code, scripts, and docs interlock.
+
 ### For Developers Building Custom Frontends
 - **[Interactive API Docs](?page=docs)** - 🆕 Test API endpoints in your browser!
 - **[AUTHENTICATION_GUIDE.md](./AUTHENTICATION_GUIDE.md)** - 🆕 3 authentication methods explained

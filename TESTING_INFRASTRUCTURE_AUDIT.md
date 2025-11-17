@@ -296,13 +296,13 @@ module.exports = defineConfig({
 // tests/config/environments.js
 ENVIRONMENTS = {
   googleAppsScript: { baseUrl: 'https://script.google.com/macros/s/.../exec' },
-  hostinger: { baseUrl: 'https://zeventbooks.com' },
+  qaAppsScript: { baseUrl: 'https://script.google.com/macros/s/.../exec' },
   local: { baseUrl: 'http://localhost:3000' }
 };
 
 // Multi-environment testing
-npm run test:hostinger:api      # Test against Hostinger
-npm run test:google-script      # Test Google Apps Script
+npm run test:google-script      # Test production Apps Script deployment
+npm run test:qa:script          # Test QA Apps Script deployment (optional)
 npm run test:e2e               # Test current environment
 ```
 
@@ -474,8 +474,8 @@ test('should reject expired JWT token', () => {
    - HTML reporting
 
 3. **tests/config/environments.js** - Multi-environment support
-   - Google Apps Script deployment
-   - Hostinger proxy/CDN
+   - Google Apps Script production deployment
+   - QA Apps Script deployment
    - Local development server
 
 ---
@@ -1052,7 +1052,7 @@ The MVP Event Toolkit has implemented a **comprehensive, mature testing infrastr
 ✅ **Strengths:**
 - 233+ tests across multiple frameworks
 - 90%+ backend logic coverage
-- Multi-environment support (Google Apps Script, Hostinger, local)
+- Multi-environment support (production Apps Script, QA Apps Script, local)
 - Strong security testing (multi-tenancy, JWT, rate limiting)
 - CI/CD integration with automated quality gates
 - DRY compliance with centralized fixtures/helpers

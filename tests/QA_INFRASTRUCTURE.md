@@ -380,4 +380,4 @@ It does **NOT**:
 
 **Version**: 1.3.1 (Refactored - Observability Focus)
 **Built for**: MVP Event Toolkit (Zeventbooks)
-**Environments**: qa.zeventbooks.com & zeventbooks.com
+**Environments**: QA Apps Script deployment & production Apps Script deployment

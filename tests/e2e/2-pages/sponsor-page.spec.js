@@ -105,7 +105,7 @@ test.describe('Sponsor Page', () => {
       await expect(page.locator('#main-content')).toBeVisible({ timeout: 10000 });
     });
 
-    test('persists admin key in session storage', async ({ page }) => {
+    test('persists admin session in storage', async ({ page }) => {
       await page.goto(`${baseUrl}?page=sponsor&tenant=${tenant}`);
 
       await page.waitForSelector('#admin-key-input');
@@ -115,8 +115,12 @@ test.describe('Sponsor Page', () => {
       await expect(page.locator('#main-content')).toBeVisible({ timeout: 10000 });
 
       // Check session storage
-      const storedKey = await page.evaluate(() => sessionStorage.getItem('adminKey'));
-      expect(storedKey).toBeTruthy();
+      const storedSession = await page.evaluate(() => sessionStorage.getItem('ADMIN_SESSION:root'));
+      expect(storedSession).toBeTruthy();
+
+      const parsed = JSON.parse(storedSession);
+      expect(parsed.token).toContain('token:');
+      expect(new Date(parsed.expiresAt).getTime()).toBeGreaterThan(Date.now());
 
       // Reload page - should not show auth prompt
       await page.reload();
