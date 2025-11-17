@@ -215,7 +215,16 @@ function doGet(e){
   const pageParam = (e?.parameter?.page || e?.parameter?.p || '').toString();
   const actionParam = (e?.parameter?.action || '').toString();
   const hostHeader = (e?.headers?.host || e?.parameter?.host || '').toString();
-  const tenant = findTenantByHost_(hostHeader) || findTenant_('root');
+  const tenantParamRaw = (e?.parameter?.tenant || e?.parameter?.Tenant || e?.parameter?.tenantId || e?.parameter?.tenant_id || e?.parameter?.t || '').toString().trim();
+  const normalizedTenantId = tenantParamRaw ? tenantParamRaw.toLowerCase() : '';
+  const sanitizedTenantId = normalizedTenantId ? sanitizeId_(normalizedTenantId) : null;
+  let tenant = sanitizedTenantId ? findTenant_(sanitizedTenantId) : null;
+  if (!tenant) {
+    tenant = findTenantByHost_(hostHeader);
+  }
+  if (!tenant) {
+    tenant = findTenant_('root');
+  }
 
   // REST API Routes (for custom frontends)
   if (actionParam) {
@@ -505,6 +514,16 @@ function pageFile_(page){
 
 function include(filename) {
   return HtmlService.createHtmlOutputFromFile(filename).getContent();
+}
+
+function renderHeaderInit(appTitle, tenantId) {
+  const tpl = HtmlService.createTemplateFromFile('HeaderInit');
+  tpl.headerAppTitle = sanitizeInput_(appTitle || '', 200);
+  tpl.headerBuildId = sanitizeInput_(ZEB.BUILD_ID || '', 100);
+  const normalizedTenantId = (tenantId || '').toString().toLowerCase();
+  const tenant = normalizedTenantId ? findTenant_(normalizedTenantId) : null;
+  tpl.headerLogoUrl = tenant?.logoUrl || DEFAULT_LOGO_URL;
+  return tpl.evaluate().getContent();
 }
 
 // === Shortlink redirect handler ============================================
