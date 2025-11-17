@@ -190,11 +190,13 @@ jobs:
         id: test-run
         continue-on-error: true
         env:
-          BASE_URL: https://zeventbooks.com
+          # Use Google Apps Script endpoint for direct API testing
+          GOOGLE_SCRIPT_URL: ${{ secrets.GOOGLE_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbzu-U4UgdjdAiXHTg9TD5Y-1gDkc798YSTqQCdhOddG/exec' }}
           ADMIN_KEY: ${{ secrets.ADMIN_KEY_ROOT }}
         run: |
-          echo "🔥 Running ${{ matrix.suite }} tests against: $BASE_URL"
-          echo "Environment: QA (zeventbooks.com)"
+          echo "🔥 Running ${{ matrix.suite }} tests against Google Apps Script endpoint"
+          echo "Environment: Direct Apps Script API (bypassing Hostinger proxy)"
+          echo "URL: $GOOGLE_SCRIPT_URL"
 
           if [ "${{ matrix.suite }}" == "api" ]; then
             echo "⏳ Waiting 10 seconds to avoid rate limits..."
@@ -306,11 +308,13 @@ jobs:
 
       - name: Run ${{ matrix.suite }} tests on QA
         env:
-          BASE_URL: https://zeventbooks.com
+          # Use Google Apps Script endpoint for direct API testing
+          GOOGLE_SCRIPT_URL: ${{ secrets.GOOGLE_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbzu-U4UgdjdAiXHTg9TD5Y-1gDkc798YSTqQCdhOddG/exec' }}
           ADMIN_KEY: ${{ secrets.ADMIN_KEY_ROOT }}
         run: |
-          echo "💰 Running ${{ matrix.suite }} tests against: $BASE_URL"
-          echo "Environment: QA (zeventbooks.com)"
+          echo "💰 Running ${{ matrix.suite }} tests against Google Apps Script endpoint"
+          echo "Environment: Direct Apps Script API (bypassing Hostinger proxy)"
+          echo "URL: $GOOGLE_SCRIPT_URL"
           echo "   (Critical tests passed - proceeding with expensive tests)"
 
           if [ "${{ matrix.suite }}" == "flows" ]; then
