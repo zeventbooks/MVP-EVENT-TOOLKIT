@@ -533,6 +533,30 @@ function handleRestApiPost_(e, action, body, tenant) {
     }));
   }
 
+  // Network Reporting (Parent-Level Analytics)
+  if (action === 'getNetworkSponsorReport') {
+    return jsonResponse_(api_getNetworkSponsorReport({
+      tenantId,
+      adminKey,
+      sponsorId: body.sponsorId || '',
+      options: body.options || {}
+    }));
+  }
+
+  if (action === 'getNetworkSummary') {
+    return jsonResponse_(api_getNetworkSummary({
+      tenantId,
+      adminKey
+    }));
+  }
+
+  if (action === 'getNetworkSponsors') {
+    return jsonResponse_(api_getNetworkSponsors({
+      tenantId,
+      adminKey
+    }));
+  }
+
   return jsonResponse_(Err(ERR.BAD_INPUT, `Unknown action: ${action}`));
 }
 
@@ -1701,6 +1725,113 @@ function api_generateFormShortlink(req){
       adminKey,
       tenantId
     });
+  });
+}
+
+// === Network Reporting API (Parent-Level Analytics) =======================
+
+/**
+ * Get consolidated sponsor report across parent and child tenants
+ * @param {object} req - Request with tenantId, adminKey, sponsorId, options
+ * @returns {object} - Network-wide sponsor analytics
+ */
+function api_getNetworkSponsorReport(req) {
+  return runSafe('api_getNetworkSponsorReport', () => {
+    const { tenantId, adminKey, sponsorId, options } = req;
+
+    // Validate parent tenant
+    const tenant = findTenant_(tenantId);
+    if (!tenant) {
+      return Err(ERR.NOT_FOUND, 'Tenant not found');
+    }
+
+    if (tenant.type !== 'parent') {
+      return Err(ERR.BAD_INPUT, 'Only parent organizations can access network reports');
+    }
+
+    // Verify admin access
+    if (!isValidAdminKey_(adminKey, tenantId)) {
+      return Err(ERR.BAD_INPUT, 'Invalid admin key');
+    }
+
+    // Get network report
+    const result = getNetworkSponsorReport_(tenantId, sponsorId, options || {});
+
+    if (!result.ok) {
+      return Err(ERR.INTERNAL, result.error || 'Failed to generate network report');
+    }
+
+    return Ok(result.value);
+  });
+}
+
+/**
+ * Get network summary for parent organization
+ * @param {object} req - Request with tenantId, adminKey
+ * @returns {object} - Network summary
+ */
+function api_getNetworkSummary(req) {
+  return runSafe('api_getNetworkSummary', () => {
+    const { tenantId, adminKey } = req;
+
+    // Validate parent tenant
+    const tenant = findTenant_(tenantId);
+    if (!tenant) {
+      return Err(ERR.NOT_FOUND, 'Tenant not found');
+    }
+
+    if (tenant.type !== 'parent') {
+      return Err(ERR.BAD_INPUT, 'Only parent organizations can access network summary');
+    }
+
+    // Verify admin access
+    if (!isValidAdminKey_(adminKey, tenantId)) {
+      return Err(ERR.BAD_INPUT, 'Invalid admin key');
+    }
+
+    // Get network summary
+    const result = getNetworkSummary_(tenantId);
+
+    if (!result.ok) {
+      return Err(ERR.INTERNAL, result.error || 'Failed to generate network summary');
+    }
+
+    return Ok(result.value);
+  });
+}
+
+/**
+ * Get list of all sponsors across network
+ * @param {object} req - Request with tenantId, adminKey
+ * @returns {object} - Network sponsors list
+ */
+function api_getNetworkSponsors(req) {
+  return runSafe('api_getNetworkSponsors', () => {
+    const { tenantId, adminKey } = req;
+
+    // Validate parent tenant
+    const tenant = findTenant_(tenantId);
+    if (!tenant) {
+      return Err(ERR.NOT_FOUND, 'Tenant not found');
+    }
+
+    if (tenant.type !== 'parent') {
+      return Err(ERR.BAD_INPUT, 'Only parent organizations can access network sponsors');
+    }
+
+    // Verify admin access
+    if (!isValidAdminKey_(adminKey, tenantId)) {
+      return Err(ERR.BAD_INPUT, 'Invalid admin key');
+    }
+
+    // Get network sponsors
+    const result = getNetworkSponsors_(tenantId);
+
+    if (!result.ok) {
+      return Err(ERR.INTERNAL, result.error || 'Failed to get network sponsors');
+    }
+
+    return Ok(result.value);
   });
 }
 

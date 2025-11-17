@@ -60,13 +60,26 @@ const ZEB = Object.freeze({
     // Custom aliases per tenant (optional)
     // Allows tenants to create branded URLs
     customAliases: {
+      // ABC (Parent Organization) - Custom URLs
       'abc': {
-        'tournaments': { page: 'public', label: 'Tournaments' },
-        'bocce': { page: 'public', label: 'Bocce Events' }
+        'tournaments': { page: 'public', label: 'Tournaments', public: true },
+        'leagues': { page: 'public', label: 'Leagues', public: true },
+        'bocce': { page: 'public', label: 'Bocce Events', public: true },
+        'network': { page: 'report', label: 'Network Analytics', public: false }  // Parent-level reporting
       },
+
+      // CBC (Child Brand) - Custom URLs
       'cbc': {
-        'club-events': { page: 'public', label: 'Club Events' },
-        'register': { page: 'wizard', label: 'Register Event' }
+        'tournaments': { page: 'public', label: 'CBC Tournaments', public: true },
+        'club-events': { page: 'public', label: 'Club Events', public: true },
+        'register': { page: 'wizard', label: 'Register Event', public: false }
+      },
+
+      // CBL (Child Brand) - Custom URLs
+      'cbl': {
+        'seasons': { page: 'public', label: 'Seasons', public: true },
+        'league-events': { page: 'public', label: 'League Events', public: true },
+        'schedule': { page: 'public', label: 'Schedule', public: true }
       }
     }
   },
@@ -137,6 +150,8 @@ const TENANTS = [
   {
     id: 'abc',
     name: 'American Bocce Co.',
+    type: 'parent',  // Parent organization
+    childTenants: ['cbc', 'cbl'],  // Child brands under ABC
     hostnames: ['americanbocceco.zeventbooks.io'],
     logoUrl: '/My files/Linux files/zeventbook/assets/logos/ABCMainTransparent.webp',
     // adminSecret: moved to Script Properties as 'ADMIN_SECRET_ABC'
@@ -146,6 +161,8 @@ const TENANTS = [
   {
     id: 'cbc',
     name: 'Chicago Bocce Club',
+    type: 'child',  // Child brand of ABC
+    parentTenant: 'abc',  // Parent organization
     hostnames: ['chicagobocceclub.zeventbooks.io'],
     logoUrl: '/My files/Linux files/zeventbook/assets/logos/ABCMainTransparent.webp',
     // adminSecret: moved to Script Properties as 'ADMIN_SECRET_CBC'
@@ -155,6 +172,8 @@ const TENANTS = [
   {
     id: 'cbl',
     name: 'Chicago Bocce League',
+    type: 'child',  // Child brand of ABC
+    parentTenant: 'abc',  // Parent organization
     hostnames: ['chicagobocceleague.zeventbooks.io'],
     logoUrl: '/My files/Linux files/zeventbook/assets/logos/ABCMainTransparent.webp',
     // adminSecret: moved to Script Properties as 'ADMIN_SECRET_CBL'

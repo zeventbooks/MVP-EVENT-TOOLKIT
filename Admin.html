@@ -16,6 +16,93 @@
 
   <main id="app" class="container">
 
+    <!-- Network Analytics Dashboard (Parent Organizations Only) -->
+    <? if (typeof tenant !== 'undefined' && tenant.type === 'parent') { ?>
+    <section class="card" id="networkCard">
+      <h2>🌐 Network Analytics</h2>
+      <p class="muted">Consolidated metrics across all brands in your network</p>
+
+      <div class="stats-grid" style="margin-top: 20px;">
+        <div class="stat-card blue">
+          <div class="stat-value" id="networkTotalEvents">-</div>
+          <div class="stat-label">Total Events</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-value" id="networkTotalSponsors">-</div>
+          <div class="stat-label">Total Sponsors</div>
+        </div>
+        <div class="stat-card purple">
+          <div class="stat-value" id="networkActiveSponsors">-</div>
+          <div class="stat-label">Active Sponsors</div>
+        </div>
+        <div class="stat-card orange">
+          <div class="stat-value" id="networkTotalImpressions">-</div>
+          <div class="stat-label">Total Impressions</div>
+        </div>
+      </div>
+
+      <h3 style="margin-top: 24px;">Network Brands</h3>
+      <div id="networkBrandsList" class="events-grid">
+        <!-- Will be populated by JavaScript -->
+      </div>
+
+      <h3 style="margin-top: 24px;">Sponsor Reports</h3>
+      <p class="muted">View consolidated sponsor performance across all brands</p>
+      <div class="form-group">
+        <label>Select Sponsor</label>
+        <select id="networkSponsorSelect" onchange="loadNetworkSponsorReport()">
+          <option value="">-- Select a sponsor --</option>
+        </select>
+      </div>
+
+      <div id="networkSponsorReport" style="display:none; margin-top: 20px;">
+        <div class="metric-card">
+          <div class="metric-header">
+            <span class="metric-title" id="reportSponsorName">Sponsor Report</span>
+          </div>
+
+          <div class="stats-grid" style="margin-top: 16px;">
+            <div class="stat-card blue">
+              <div class="stat-value" id="reportTotalEvents">-</div>
+              <div class="stat-label">Events</div>
+            </div>
+            <div class="stat-card green">
+              <div class="stat-value" id="reportTotalImpressions">-</div>
+              <div class="stat-label">Impressions</div>
+            </div>
+            <div class="stat-card purple">
+              <div class="stat-value" id="reportTotalClicks">-</div>
+              <div class="stat-label">Clicks</div>
+            </div>
+            <div class="stat-card orange">
+              <div class="stat-value" id="reportNetworkCTR">-</div>
+              <div class="stat-label">Network CTR</div>
+            </div>
+          </div>
+
+          <h4 style="margin-top: 20px;">Performance by Brand</h4>
+          <div id="reportByBrand">
+            <!-- Will be populated by JavaScript -->
+          </div>
+
+          <h4 style="margin-top: 20px;">Top Performing Events</h4>
+          <div id="reportTopEvents">
+            <!-- Will be populated by JavaScript -->
+          </div>
+        </div>
+      </div>
+
+      <div class="button-group" style="margin-top: 20px;">
+        <button class="btn-primary" onclick="refreshNetworkSummary()">
+          Refresh Network Data
+        </button>
+        <button class="btn-secondary" onclick="exportNetworkReport()">
+          Export Report
+        </button>
+      </div>
+    </section>
+    <? } ?>
+
     <!-- Event Lifecycle Dashboard -->
     <section class="card" id="dashboardCard" style="display:none;">
       <h2>Event Dashboard</h2>
@@ -839,6 +926,229 @@
       if (k) sessionStorage.setItem('ADMIN_KEY:' + TENANT, k);
       return k || '';
     }
+
+    // Network Analytics (Parent Organizations Only)
+    let networkSponsorsCache = [];
+
+    async function refreshNetworkSummary() {
+      const networkCard = document.getElementById('networkCard');
+      if (!networkCard) return; // Not a parent tenant
+
+      overlay(true);
+
+      try {
+        // Load network summary
+        const summaryRes = await NU.rpc('api_getNetworkSummary', {
+          tenantId: TENANT,
+          adminKey: getAdminKey()
+        });
+
+        if (!summaryRes.ok) {
+          overlay(false);
+          alert(`Error loading network summary: ${summaryRes.message}`);
+          return;
+        }
+
+        const summary = summaryRes.value;
+
+        // Update stats
+        document.getElementById('networkTotalEvents').textContent = summary.metrics.totalEvents.toLocaleString();
+        document.getElementById('networkTotalSponsors').textContent = summary.metrics.totalSponsors.toLocaleString();
+        document.getElementById('networkActiveSponsors').textContent = summary.metrics.activeSponsors.toLocaleString();
+        document.getElementById('networkTotalImpressions').textContent = summary.metrics.totalImpressions.toLocaleString();
+
+        // Render brands list
+        const brandsList = document.getElementById('networkBrandsList');
+        brandsList.innerHTML = '';
+
+        // Add parent brand
+        const parentDiv = document.createElement('div');
+        parentDiv.className = 'event-card';
+        parentDiv.style.borderLeft = '4px solid #2563eb';
+        const parentBrand = summary.byBrand[summary.network.parent.id];
+        parentDiv.innerHTML = `
+          <h3>${NU.esc(summary.network.parent.name)} <span style="font-size:12px;color:#2563eb;">PARENT</span></h3>
+          <p><strong>Events:</strong> ${parentBrand.events}</p>
+          <p><strong>Sponsors:</strong> ${parentBrand.sponsors}</p>
+        `;
+        brandsList.appendChild(parentDiv);
+
+        // Add child brands
+        summary.network.children.forEach(child => {
+          const childDiv = document.createElement('div');
+          childDiv.className = 'event-card';
+          const childBrand = summary.byBrand[child.id];
+          childDiv.innerHTML = `
+            <h3>${NU.esc(child.name)}</h3>
+            <p><strong>Events:</strong> ${childBrand.events}</p>
+            <p><strong>Sponsors:</strong> ${childBrand.sponsors}</p>
+          `;
+          brandsList.appendChild(childDiv);
+        });
+
+        // Load network sponsors for dropdown
+        await loadNetworkSponsors();
+
+        overlay(false);
+      } catch (error) {
+        overlay(false);
+        console.error('Error loading network summary:', error);
+        alert('Error loading network data');
+      }
+    }
+
+    async function loadNetworkSponsors() {
+      const selectEl = document.getElementById('networkSponsorSelect');
+      if (!selectEl) return;
+
+      const sponsorsRes = await NU.rpc('api_getNetworkSponsors', {
+        tenantId: TENANT,
+        adminKey: getAdminKey()
+      });
+
+      if (!sponsorsRes.ok) {
+        console.error('Error loading sponsors:', sponsorsRes.message);
+        return;
+      }
+
+      networkSponsorsCache = sponsorsRes.value.sponsors;
+
+      // Clear and populate dropdown
+      selectEl.innerHTML = '<option value="">-- Select a sponsor --</option>';
+      networkSponsorsCache.forEach(sponsor => {
+        const option = document.createElement('option');
+        option.value = sponsor.id;
+        option.textContent = `${sponsor.name} (${sponsor.brands.length} brands)`;
+        selectEl.appendChild(option);
+      });
+    }
+
+    async function loadNetworkSponsorReport() {
+      const selectEl = document.getElementById('networkSponsorSelect');
+      const sponsorId = selectEl.value;
+
+      const reportDiv = document.getElementById('networkSponsorReport');
+      if (!sponsorId) {
+        reportDiv.style.display = 'none';
+        return;
+      }
+
+      overlay(true);
+
+      try {
+        const reportRes = await NU.rpc('api_getNetworkSponsorReport', {
+          tenantId: TENANT,
+          adminKey: getAdminKey(),
+          sponsorId: sponsorId,
+          options: {}
+        });
+
+        if (!reportRes.ok) {
+          overlay(false);
+          alert(`Error loading sponsor report: ${reportRes.message}`);
+          return;
+        }
+
+        const report = reportRes.value;
+
+        // Update report header
+        document.getElementById('reportSponsorName').textContent =
+          `${report.sponsor.name || 'Sponsor'} - Network Report`;
+
+        // Update stats
+        document.getElementById('reportTotalEvents').textContent = report.networkSummary.totalEvents;
+        document.getElementById('reportTotalImpressions').textContent =
+          report.networkSummary.totalImpressions.toLocaleString();
+        document.getElementById('reportTotalClicks').textContent =
+          report.networkSummary.totalClicks.toLocaleString();
+        document.getElementById('reportNetworkCTR').textContent =
+          report.networkSummary.networkCTR + '%';
+
+        // Render by-brand breakdown
+        const byBrandDiv = document.getElementById('reportByBrand');
+        byBrandDiv.innerHTML = '';
+
+        Object.keys(report.byBrand).forEach(brandId => {
+          const brand = report.byBrand[brandId];
+          const brandCard = document.createElement('div');
+          brandCard.className = 'metric-card';
+          brandCard.style.marginBottom = '12px';
+          brandCard.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <strong>${NU.esc(brand.name)}</strong>
+              </div>
+              <div style="text-align: right; font-size: 13px; color: #64748b;">
+                <div><strong>${brand.impressions.toLocaleString()}</strong> impressions</div>
+                <div><strong>${brand.clicks.toLocaleString()}</strong> clicks</div>
+                <div><strong>${brand.events}</strong> events</div>
+                <div><strong>${brand.ctr}%</strong> CTR</div>
+              </div>
+            </div>
+          `;
+          byBrandDiv.appendChild(brandCard);
+        });
+
+        // Render top performing events
+        const topEventsDiv = document.getElementById('reportTopEvents');
+        topEventsDiv.innerHTML = '';
+
+        if (report.topPerformingEvents.length === 0) {
+          topEventsDiv.innerHTML = '<p class="muted">No events found for this sponsor</p>';
+        } else {
+          report.topPerformingEvents.forEach((event, idx) => {
+            const eventCard = document.createElement('div');
+            eventCard.className = 'event-card';
+            eventCard.innerHTML = `
+              <div style="display: flex; justify-content: space-between; align-items: start;">
+                <div>
+                  <strong>${idx + 1}. ${NU.esc(event.name)}</strong>
+                  <p style="color: #64748b; font-size: 13px; margin-top: 4px;">
+                    ${NU.esc(event.tenantName)} · ${event.date}
+                  </p>
+                </div>
+                <div style="text-align: right; font-size: 13px;">
+                  <div><strong>${event.impressions.toLocaleString()}</strong> views</div>
+                  <div><strong>${event.clicks}</strong> clicks</div>
+                  <div><strong>${event.ctr}%</strong> CTR</div>
+                </div>
+              </div>
+            `;
+            topEventsDiv.appendChild(eventCard);
+          });
+        }
+
+        reportDiv.style.display = 'block';
+        overlay(false);
+      } catch (error) {
+        overlay(false);
+        console.error('Error loading sponsor report:', error);
+        alert('Error loading sponsor report');
+      }
+    }
+
+    function exportNetworkReport() {
+      const selectEl = document.getElementById('networkSponsorSelect');
+      const sponsorId = selectEl.value;
+
+      if (!sponsorId) {
+        alert('Please select a sponsor first');
+        return;
+      }
+
+      // In a real implementation, this would generate a PDF or CSV
+      // For now, we'll show a placeholder
+      alert('Export functionality coming soon! This will generate a PDF report with all network sponsor metrics.');
+    }
+
+    // Auto-load network data on page load for parent tenants
+    document.addEventListener('DOMContentLoaded', function() {
+      const networkCard = document.getElementById('networkCard');
+      if (networkCard) {
+        // This is a parent tenant, load network data
+        refreshNetworkSummary();
+      }
+    });
   </script>
 </body>
 </html>
