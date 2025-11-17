@@ -1,0 +1,22 @@
+{
+  "documents": [
+    {
+      "file": "CODEBASE_CONSOLIDATION_STRATEGY.md",
+      "tier": "T0",
+      "parent": "none",
+      "path": "0",
+      "role": "canonical",
+      "token": "T0-CANON-STRATEGY",
+      "name": "Canonical Consolidation Strategy"
+    },
+    {
+      "file": "mind_mapping.md",
+      "tier": "T1",
+      "parent": "CODEBASE_CONSOLIDATION_STRATEGY.md",
+      "path": "0.1",
+      "role": "index",
+      "token": "T1-INDEX-MAP",
+      "name": "Mind Map Index"
+    }
+  ]
+}

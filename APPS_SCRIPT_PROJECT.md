@@ -119,6 +119,16 @@ See: [DEPLOYMENT.md](./DEPLOYMENT.md)
 3. Rotate admin secrets periodically
 4. Review tenant configurations for production use
 
+---
+
+## HTML Service Constraints
+
+Google Apps Script blocks certain `<meta>` tags (for example `referrer`, `Content-Security-Policy`, and `X-Frame-Options`) inside HTML Service responses. Attempting to add them with `.addMetaTag()` throws `Exception: The meta tag you specified is not allowed in this context.`
+
+- Only use safe tags such as `viewport` when configuring HtmlOutput instances.
+- Enforce stricter policies via HTTP headers at the reverse proxy or hosting layer instead of within Apps Script templates.
+- Document any future HtmlService constraints in this file so deployment owners know what is safe to ship.
+
 See: [SECURITY_SETUP.md](./SECURITY_SETUP.md)
 
 ---

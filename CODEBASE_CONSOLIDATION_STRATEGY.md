@@ -1,3 +1,12 @@
+<!-- DOC-HIERARCHY
+Tier: T0
+Parent: none
+Path: 0
+Name: Canonical Consolidation Strategy
+Role: canonical
+Token: T0-CANON-STRATEGY
+-->
+
 # 🏗️ MVP-EVENT-TOOLKIT: CODEBASE CONSOLIDATION STRATEGY
 
 ## Executive Summary
@@ -6,6 +15,82 @@
 **Repository:** https://github.com/zeventbooks/MVP-EVENT-TOOLKIT
 **Current State:** Two divergent codebases requiring consolidation
 **Risk Level:** 🔴 HIGH - Code drift between deployment infrastructure and application logic
+
+### Canonical References
+
+To keep future guidance discoverable, the consolidation strategy is now the *source of truth* for:
+
+- **Documentation hierarchy** – how this file, `mind_mapping.md`, and downstream runbooks relate.
+- **Stage-aware monitoring** – shared language for the `scripts/monitor-health.js` CLI, scenario filters, and report generation.
+- **Data-driven improvement loops** – where to store metrics, how to interpret them, and when to update artifacts.
+
+Every other guide should point back to these two artifacts so new contributors can land here first and fan out only as needed.
+
+## Documentation Governance System
+
+### Hierarchy tiers and naming tokens
+
+The documentation tree now adheres to a predictable taxonomy so anyone can instantly determine the weight of a file:
+
+| Tier | Meaning | Token prefix | Expected file naming pattern |
+| --- | --- | --- | --- |
+| **T0** | Canonical sources (this strategy) | `T0-CANON-*` | `T0-<DOMAIN>-<ARTIFACT>.md` |
+| **T1** | Visual indexes (`mind_mapping.md`) | `T1-INDEX-*` | `T1-<DOMAIN>-<ARTIFACT>.md` |
+| **T2** | Cross-cutting workflows (DevOps, monitoring, pre-deploy) | `T2-FLOW-*` | `T2-<DOMAIN>-<ARTIFACT>.md` |
+| **T3** | Runbooks for a single surface (e.g., `DEPLOYMENT.md`, `TESTING.md`) | `T3-RUN-*` | `T3-<DOMAIN>-<ARTIFACT>.md` |
+| **T4** | Leaf references (per-environment overrides, lab notes) | `T4-LEAF-*` | `T4-<DOMAIN>-<ARTIFACT>.md` |
+
+Existing filenames are grandfathered, but new files must follow the `Tier-Domain-Artifact` pattern. When touching a legacy document, add the tier token to its first-level heading (e.g., `# T3-RUN-DEPLOYMENT: Deployment Guide`) before landing any new content.
+
+### Hierarchy tags in every file
+
+Each Markdown document must start with a `<!-- DOC-HIERARCHY ... -->` comment block that records its tier, parent, path, friendly name, role, and the tier-token it advertises. Example template:
+
+```
+<!-- DOC-HIERARCHY
+Tier: T2
+Parent: CODEBASE_CONSOLIDATION_STRATEGY.md
+Path: 0.2
+Name: DevOps Workflow
+Role: workflow
+Token: T2-FLOW-DEVOPS
+-->
+```
+
+The `Path` represents the breadcrumb (e.g., `0.2.1` means "third child of the DevOps workflow"). `Token` must match the naming pattern above even if the underlying filename has not been renamed yet. The automation hook below enforces this metadata.
+
+### Update + verification workflow
+
+1. **Author here first** – document changes in this file using the correct tier token.
+2. **Reflect in the mind map** – add/update the same token under the relevant branch.
+3. **Update downstream guide** – prepend/update its hierarchy comment and adjust its top-level heading with the token prefix.
+4. **Validate** – run `npm run docs:lint` (see "Automation hooks" below) before committing. CI adopters should wire the same command into their workflows.
+
+### Automation hooks
+
+The repository contains two governance aids:
+
+1. `doc-hierarchy.manifest.json` – declares every top-level document, its tier, parent, and expected token.
+2. `scripts/validate-doc-hierarchy.js` – reads the manifest, ensures each file exists, and verifies that the on-disk metadata block matches the manifest. Run via `npm run docs:lint`.
+
+Any new documentation must be registered in the manifest so the validator can keep the hierarchy honest.
+
+### How other documents plug into the canon
+
+The repository already contains dozens of markdown guides (deployment, QA, testing, automation, etc.). Instead of duplicating
+instructions, follow this routing table whenever you touch or consume them:
+
+| Downstream document | Primary intent | How it must reference the canon |
+| --- | --- | --- |
+| `DEVOPS-WORKFLOW.md` | CI/CD playbooks, clasp automation, stage health monitoring hooks | Link back to the **Stage-Aware Monitoring Blueprint** for scenario definitions and to the **Consolidation Game Plan** for sequencing changes. |
+| `PRE_DEPLOY_CHECKLIST.md` | Demo/showcase prep, day-of validation rituals | Reference the **Documentation hierarchy** noted above so the checklist always points readers here for authoritative context. |
+| Deployment stack (`DEPLOYMENT.md`, `DEPLOYMENT_AUTOMATION.md`, `HOSTINGER_*`, `APPS_SCRIPT_PROJECT.md`) | Environment-specific procedures | Declare that configuration or version changes were first approved in this strategy file, then summarize deltas in `mind_mapping.md`. |
+| Testing stack (`TESTING.md`, `TEST_INFRASTRUCTURE_SUMMARY.md`, `LOAD_TESTING.md`, Playwright/Jest READMEs) | Coverage, lab results, tooling gaps | Cite the **SDET/SRE Assessment** for baseline expectations and update that section before changing the subordinate guides. |
+| Architecture & UX stack (`ARCHITECTURE_REVIEW*.md`, `FRONTEND-*`, `CUSTOM_FRONTEND_GUIDE.md`) | Systems analysis, frontend guidance | Carry forward the risks/opportunities captured under **Agile Team Analysis**; if they diverge, amend this document first. |
+| Security & secrets (`GOOGLE_CLOUD_SECRETS_SETUP.md`, `SECURITY*.md`) | Secret rotation, scanning, hardening | Add breadcrumbs back to the **Risk Level** and **Integration** sections any time mitigations evolve. |
+
+If a file is not listed above, treat it as a *leaf*—it still inherits terminology from this guide, but it does not redefine
+process. Authors should add themselves to the table before introducing new top-level docs.
 
 ### The Problem
 
@@ -17,6 +102,16 @@ This creates a **code synchronization crisis** where:
 - One codebase has the latest CI/CD, testing, and deployment automation
 - The other has the latest business logic, features, and UI improvements
 - Neither can be deployed safely without merging both
+
+---
+
+## Consolidation Game Plan
+
+1. **Establish authoring flow** – Create or update content in `CODEBASE_CONSOLIDATION_STRATEGY.md` → summarize visually in `mind_mapping.md` → reference from feature-specific docs.
+2. **Track updates with scenarios** – Any change to CI/CD, clasp deploy, or QA targets must ship with an updated scenario definition for the monitoring CLI (see "Stage-Aware Monitoring Blueprint" below).
+3. **Reconcile repositories** – Align Apps Script + static assets first, then merge deployment automation. Use `mind_mapping.md` as the canonical diff tracker between the two local directories until they are unified.
+
+> ✅ **Reminder:** If a document conflicts with this file or the mind map, this file wins. Update downstream docs instead of forking guidance.
 
 ---
 
@@ -158,6 +253,50 @@ Load Testing:     0% coverage ❌
 - ❌ Linting not enforced (configured but not in CI)
 - ❌ No security scanning (CodeQL, Dependabot)
 - ❌ No dependency vulnerability checks
+
+---
+
+## Stage-Aware Monitoring Blueprint
+
+The `scripts/monitor-health.js` CLI is the shared instrumentation layer. All pipeline stages **must** declare a scenario so they can be executed with:
+
+```bash
+npm run monitor:health -- --scenario=<stage> --report
+```
+
+| Stage | Targets | Expectations | Notes |
+| --- | --- | --- | --- |
+| `dev` | Local Apps Script web app, local static build | `expectStatus:200`, `contains:["MVP Toolkit"]` | Run automatically after every feature branch merge.
+| `test` | QA deployment endpoints, Postman mock, staging dashboards | Auth headers + latency thresholds (`maxMs`) | Hook into smoke tests.
+| `clasp` | GAS deployments (`/exec`, `/dev`) | `expectStatus:200`, `contains:["google.script.run"]` | Triggered after clasp push.
+| `deploy` | Hostinger/production public URLs | `contains:["Event Schedule"]` | Include CDN purge timestamp.
+| `ci` | GitHub Action artifacts (`/healthz`, `/report.json`) | Accepts `expectStatus:204` | Runs in workflow job.
+| `pipeline` | Aggregated dashboards (Looker Studio, Grafana) | `contains:["All Clear"]` | Used for leadership snapshots.
+
+**Data Discipline**
+
+- Store historical runs in `.monitoring/health-history.json` (already gitignored).
+- Attach Markdown reports to release notes and retro docs.
+- File bugs if a target flakes twice in 24h; link to history slices for context.
+
+**Documentation Hooks**
+
+- This section outlines the why/what. Implementation specifics (URLs, headers, expected strings) live alongside the config in `.monitoring/targets.json`.
+- `mind_mapping.md` visualizes the scenario graph so non-technical stakeholders can grok coverage quickly.
+
+---
+
+## Documentation Consolidation Rules
+
+1. **Single Authoring Point:** All new operational guidance starts here. Summaries roll up into the mind map, and other docs only reference or extend.
+2. **Bi-Directional Links:** If another guide elaborates on a topic introduced here (e.g., `DEVOPS-WORKFLOW.md` describing how to schedule monitor runs), it must link back to this section.
+3. **Change Logs:** Each commit touching pipeline process should add a bullet under "Recent Consolidation Updates" below so we can audit history.
+
+### Recent Consolidation Updates
+
+- **2025-01-15:** Introduced monitoring blueprint and canonical reference flow with `mind_mapping.md` v2.
+
+---
 
 ---
 

@@ -229,13 +229,14 @@ function doGet(e){
   }
 
   // API Documentation page
-  if (pageParam === 'docs' || pageParam === 'api') {
-    // Fixed: Bug #31 - Add security headers
-    return HtmlService.createHtmlOutputFromFile('ApiDocs')
-      .setTitle('API Documentation - MVP Event Toolkit')
-      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.DENY)
-      .addMetaTag('viewport', 'width=device-width, initial-scale=1')
-      .addMetaTag('referrer', 'no-referrer');
+    if (pageParam === 'docs' || pageParam === 'api') {
+      // Fixed: Bug #31 - Add security headers
+      // NOTE: Google Apps Script disallows some meta tags (referrer, CSP, etc.),
+      // so we only add the safe viewport tag here to avoid runtime errors.
+      return HtmlService.createHtmlOutputFromFile('ApiDocs')
+        .setTitle('API Documentation - MVP Event Toolkit')
+        .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.DENY)
+        .addMetaTag('viewport', 'width=device-width, initial-scale=1');
   }
 
   // Status endpoint
@@ -274,11 +275,10 @@ function doGet(e){
   tpl.execUrl = ScriptApp.getService().getUrl();
   tpl.ZEB = ZEB;
   // Fixed: Bug #31 - Add security headers
-  return tpl.evaluate()
-    .setTitle(`${tpl.appTitle} · ${page}`)
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
-    .addMetaTag('referrer', 'no-referrer');
+    return tpl.evaluate()
+      .setTitle(`${tpl.appTitle} · ${page}`)
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
 
 // === REST API Handler for POST requests ===================================
