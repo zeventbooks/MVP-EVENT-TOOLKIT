@@ -477,6 +477,284 @@ const SCHEMAS = {
     }
   },
 
+  // === Webhook Schemas =====================================================
+
+  webhooks: {
+    register: {
+      request: {
+        type: 'object',
+        required: ['tenantId', 'eventType', 'url'],
+        properties: {
+          tenantId: { $ref: '#/common/tenantId' },
+          eventType: {
+            type: 'string',
+            enum: [
+              'event.created', 'event.updated', 'event.deleted',
+              'analytics.report', 'analytics.threshold',
+              'sponsor.performance', 'sponsor.ctr.low', 'sponsor.ctr.high',
+              'form.submitted', 'registration.completed',
+              'system.error', 'system.warning'
+            ]
+          },
+          url: {
+            type: 'string',
+            pattern: '^https://.+',
+            maxLength: 2048
+          },
+          secret: {
+            type: 'string',
+            minLength: 16,
+            maxLength: 128
+          },
+          enabled: { type: 'boolean' },
+          filters: { type: 'object' }
+        }
+      },
+      response: {
+        type: 'object',
+        required: ['ok', 'value'],
+        properties: {
+          ok: { type: 'boolean' },
+          value: {
+            type: 'object',
+            required: ['id', 'tenantId', 'eventType', 'url', 'secret', 'enabled', 'createdAt'],
+            properties: {
+              id: { type: 'string' },
+              tenantId: { type: 'string' },
+              eventType: { type: 'string' },
+              url: { type: 'string' },
+              secret: { type: 'string' },
+              enabled: { type: 'boolean' },
+              createdAt: { type: 'string' }
+            }
+          }
+        }
+      }
+    },
+    unregister: {
+      request: {
+        type: 'object',
+        required: ['tenantId', 'webhookId'],
+        properties: {
+          tenantId: { $ref: '#/common/tenantId' },
+          webhookId: { type: 'string' }
+        }
+      },
+      response: {
+        type: 'object',
+        required: ['ok', 'value'],
+        properties: {
+          ok: { type: 'boolean' },
+          value: {
+            type: 'object',
+            required: ['id', 'deleted'],
+            properties: {
+              id: { type: 'string' },
+              deleted: { type: 'boolean' }
+            }
+          }
+        }
+      }
+    },
+    list: {
+      request: {
+        type: 'object',
+        required: ['tenantId'],
+        properties: {
+          tenantId: { $ref: '#/common/tenantId' }
+        }
+      },
+      response: {
+        type: 'object',
+        required: ['ok', 'value'],
+        properties: {
+          ok: { type: 'boolean' },
+          value: {
+            type: 'object',
+            required: ['webhooks'],
+            properties: {
+              webhooks: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    id: { type: 'string' },
+                    tenantId: { type: 'string' },
+                    eventType: { type: 'string' },
+                    url: { type: 'string' },
+                    enabled: { type: 'boolean' },
+                    createdAt: { type: 'string' },
+                    lastTriggered: { type: 'string' },
+                    deliveryCount: { type: 'number' }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    test: {
+      request: {
+        type: 'object',
+        required: ['tenantId', 'webhookId'],
+        properties: {
+          tenantId: { $ref: '#/common/tenantId' },
+          webhookId: { type: 'string' }
+        }
+      },
+      response: {
+        type: 'object',
+        required: ['ok', 'value'],
+        properties: {
+          ok: { type: 'boolean' },
+          value: {
+            type: 'object',
+            required: ['webhookId', 'url', 'success', 'statusCode', 'timestamp'],
+            properties: {
+              webhookId: { type: 'string' },
+              url: { type: 'string' },
+              success: { type: 'boolean' },
+              statusCode: { type: 'number' },
+              response: { type: 'string' },
+              timestamp: { type: 'string' }
+            }
+          }
+        }
+      }
+    },
+    getDeliveries: {
+      request: {
+        type: 'object',
+        required: ['tenantId'],
+        properties: {
+          tenantId: { $ref: '#/common/tenantId' },
+          webhookId: { type: 'string' },
+          limit: { type: 'number', minimum: 1, maximum: 500 }
+        }
+      },
+      response: {
+        type: 'object',
+        required: ['ok', 'value'],
+        properties: {
+          ok: { type: 'boolean' },
+          value: {
+            type: 'object',
+            required: ['deliveries', 'count'],
+            properties: {
+              deliveries: {
+                type: 'array',
+                items: {
+                  type: 'object'
+                }
+              },
+              count: { type: 'number' }
+            }
+          }
+        }
+      }
+    }
+  },
+
+  // === i18n Schemas ========================================================
+
+  i18n: {
+    translate: {
+      request: {
+        type: 'object',
+        required: ['key'],
+        properties: {
+          key: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 256
+          },
+          locale: {
+            type: 'string',
+            pattern: '^[a-z]{2}-[A-Z]{2}$'
+          },
+          params: {
+            type: 'object'
+          }
+        }
+      },
+      response: {
+        type: 'object',
+        required: ['ok', 'value'],
+        properties: {
+          ok: { type: 'boolean' },
+          value: {
+            type: 'object',
+            required: ['key', 'locale', 'translation'],
+            properties: {
+              key: { type: 'string' },
+              locale: { type: 'string' },
+              translation: { type: 'string' }
+            }
+          }
+        }
+      }
+    },
+    getSupportedLocales: {
+      request: {
+        type: 'object',
+        properties: {}
+      },
+      response: {
+        type: 'object',
+        required: ['ok', 'value'],
+        properties: {
+          ok: { type: 'boolean' },
+          value: {
+            type: 'object',
+            required: ['locales', 'default'],
+            properties: {
+              locales: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  required: ['code', 'name'],
+                  properties: {
+                    code: { type: 'string' },
+                    name: { type: 'string' },
+                    nativeName: { type: 'string' }
+                  }
+                }
+              },
+              default: { type: 'string' }
+            }
+          }
+        }
+      }
+    },
+    setUserLocale: {
+      request: {
+        type: 'object',
+        required: ['locale'],
+        properties: {
+          locale: {
+            type: 'string',
+            pattern: '^[a-z]{2}-[A-Z]{2}$'
+          }
+        }
+      },
+      response: {
+        type: 'object',
+        required: ['ok', 'value'],
+        properties: {
+          ok: { type: 'boolean' },
+          value: {
+            type: 'object',
+            required: ['locale'],
+            properties: {
+              locale: { type: 'string' }
+            }
+          }
+        }
+      }
+    }
+  },
+
   // === Error Schemas =======================================================
 
   error: {
