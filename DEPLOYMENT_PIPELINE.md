@@ -310,25 +310,25 @@ npm run test:e2e
 
 1. **Status Check:**
    ```
-   {BASE_URL}?p=status&tenant=root
+   {BASE_URL}?p=status&brand=root
    ```
    Should return: `{ ok: true, value: { build: "triangle-extended-v1.3" } }`
 
 2. **Admin Page:**
    ```
-   {BASE_URL}?page=admin&tenant=root
+   {BASE_URL}?page=admin&brand=root
    ```
    Should show event creation form
 
 3. **Public Page:**
    ```
-   {BASE_URL}?p=events&tenant=root
+   {BASE_URL}?p=events&brand=root
    ```
    Should show event listing
 
 4. **Display Page:**
    ```
-   {BASE_URL}?page=display&tenant=root
+   {BASE_URL}?page=display&brand=root
    ```
    Should show TV display layout
 

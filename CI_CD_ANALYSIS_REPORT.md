@@ -264,9 +264,9 @@ Stage 2 Tests (Parallel in Matrix):
    
 4. Generate Tenant URLs
    - BASE_URL from deployment
-   - ROOT: BASE_URL + ?p=events&tenant=root
-   - ABC: BASE_URL + ?p=events&tenant=abc
-   - CBC: BASE_URL + ?p=events&tenant=cbc
+   - ROOT: BASE_URL + ?p=events&brand=root
+   - ABC: BASE_URL + ?p=events&brand=abc
+   - CBC: BASE_URL + ?p=events&brand=cbc
    
 5. Outputs
    - Deployment URL artifact

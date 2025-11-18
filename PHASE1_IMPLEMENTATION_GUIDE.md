@@ -84,8 +84,8 @@ Value: your_ftp_password_here
 3. **Verify it worked:**
    ```bash
    # After workflow completes (5-7 min), test:
-   https://zeventbooks.com?p=status&tenant=root
-   https://zeventbooks.com?p=admin&tenant=root
+   https://zeventbooks.com?p=status&brand=root
+   https://zeventbooks.com?p=admin&brand=root
    ```
 
 **Expected behavior:**
@@ -363,7 +363,7 @@ If automated deployment breaks something:
 
 3. **Verify:**
    ```bash
-   https://zeventbooks.com?p=status&tenant=root
+   https://zeventbooks.com?p=status&brand=root
    ```
 
 ### Disable Automation (1 minute):

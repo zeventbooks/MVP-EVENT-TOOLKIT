@@ -14,7 +14,7 @@ const CBC_ADMIN_KEY = process.env.CBC_ADMIN_KEY || 'cbc-admin-key';
 test.describe('📄 PAGE: Config - Brand Portfolio (Parent Org)', () => {
 
   test('Portfolio section is visible for parent organization', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=config&tenant=abc`);
+    await page.goto(`${BASE_URL}?page=config&brand=abc`);
 
     // Provide admin key when prompted
     page.on('dialog', async dialog => {
@@ -32,7 +32,7 @@ test.describe('📄 PAGE: Config - Brand Portfolio (Parent Org)', () => {
   });
 
   test('Portfolio section is NOT visible for child organization', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=config&tenant=cbc`);
+    await page.goto(`${BASE_URL}?page=config&brand=cbc`);
 
     page.on('dialog', async dialog => {
       if (dialog.type() === 'prompt') {
@@ -49,7 +49,7 @@ test.describe('📄 PAGE: Config - Brand Portfolio (Parent Org)', () => {
   });
 
   test('Portfolio relationships list loads', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=config&tenant=abc`);
+    await page.goto(`${BASE_URL}?page=config&brand=abc`);
 
     page.on('dialog', async dialog => {
       if (dialog.type() === 'prompt') {
@@ -67,7 +67,7 @@ test.describe('📄 PAGE: Config - Brand Portfolio (Parent Org)', () => {
   });
 
   test('includeInPortfolioReports status badges display correctly', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=config&tenant=abc`);
+    await page.goto(`${BASE_URL}?page=config&brand=abc`);
 
     page.on('dialog', async dialog => {
       if (dialog.type() === 'prompt') {
@@ -86,7 +86,7 @@ test.describe('📄 PAGE: Config - Brand Portfolio (Parent Org)', () => {
 test.describe('📄 PAGE: Config - Brand Portfolio Analytics', () => {
 
   test('Portfolio Analytics section loads', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=config&tenant=abc`);
+    await page.goto(`${BASE_URL}?page=config&brand=abc`);
 
     page.on('dialog', async dialog => {
       if (dialog.type() === 'prompt') {
@@ -103,7 +103,7 @@ test.describe('📄 PAGE: Config - Brand Portfolio Analytics', () => {
   });
 
   test('Portfolio summary metrics display', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=config&tenant=abc`);
+    await page.goto(`${BASE_URL}?page=config&brand=abc`);
 
     page.on('dialog', async dialog => {
       if (dialog.type() === 'prompt') {
@@ -129,7 +129,7 @@ test.describe('📄 PAGE: Config - Brand Portfolio Analytics', () => {
   });
 
   test('Refresh Data button works', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=config&tenant=abc`);
+    await page.goto(`${BASE_URL}?page=config&brand=abc`);
 
     page.on('dialog', async dialog => {
       if (dialog.type() === 'prompt') {
@@ -155,7 +155,7 @@ test.describe('📄 PAGE: Config - Brand Portfolio Analytics', () => {
   });
 
   test('Brand breakdown section displays', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=config&tenant=abc`);
+    await page.goto(`${BASE_URL}?page=config&brand=abc`);
 
     page.on('dialog', async dialog => {
       if (dialog.type() === 'prompt') {
@@ -176,7 +176,7 @@ test.describe('📄 PAGE: Config - Brand Portfolio Analytics', () => {
 test.describe('📄 PAGE: Config - Portfolio Sponsor Reports', () => {
 
   test('Sponsor selector dropdown populates', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=config&tenant=abc`);
+    await page.goto(`${BASE_URL}?page=config&brand=abc`);
 
     page.on('dialog', async dialog => {
       if (dialog.type() === 'prompt') {
@@ -203,7 +203,7 @@ test.describe('📄 PAGE: Config - Portfolio Sponsor Reports', () => {
   });
 
   test('Sponsor report loads when sponsor selected', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=config&tenant=abc`);
+    await page.goto(`${BASE_URL}?page=config&brand=abc`);
 
     page.on('dialog', async dialog => {
       if (dialog.type() === 'prompt') {
@@ -233,7 +233,7 @@ test.describe('📄 PAGE: Config - Portfolio Sponsor Reports', () => {
   });
 
   test('Sponsor report displays performance metrics', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=config&tenant=abc`);
+    await page.goto(`${BASE_URL}?page=config&brand=abc`);
 
     page.on('dialog', async dialog => {
       if (dialog.type() === 'prompt') {
@@ -261,7 +261,7 @@ test.describe('📄 PAGE: Config - Portfolio Sponsor Reports', () => {
   });
 
   test('Export Report button is available', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=config&tenant=abc`);
+    await page.goto(`${BASE_URL}?page=config&brand=abc`);
 
     page.on('dialog', async dialog => {
       if (dialog.type() === 'prompt') {
@@ -291,7 +291,7 @@ test.describe('📄 PAGE: Config - Portfolio Sponsor Reports', () => {
   });
 
   test('Top performing events section displays', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=config&tenant=abc`);
+    await page.goto(`${BASE_URL}?page=config&brand=abc`);
 
     page.on('dialog', async dialog => {
       if (dialog.type() === 'prompt') {
@@ -320,7 +320,7 @@ test.describe('📄 PAGE: Config - Portfolio Sponsor Reports', () => {
 test.describe('📄 PAGE: Config - Portfolio Configuration Management', () => {
 
   test('Portfolio configuration cards are interactive', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=config&tenant=abc`);
+    await page.goto(`${BASE_URL}?page=config&brand=abc`);
 
     page.on('dialog', async dialog => {
       if (dialog.type() === 'prompt') {
@@ -338,7 +338,7 @@ test.describe('📄 PAGE: Config - Portfolio Configuration Management', () => {
   });
 
   test('Child brand links navigate correctly', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=config&tenant=abc`);
+    await page.goto(`${BASE_URL}?page=config&brand=abc`);
 
     page.on('dialog', async dialog => {
       if (dialog.type() === 'prompt') {
@@ -364,7 +364,7 @@ test.describe('📄 PAGE: Config - Responsive Design', () => {
 
   test('Mobile: Portfolio section is usable on small screens', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 667 });
-    await page.goto(`${BASE_URL}?page=config&tenant=abc`);
+    await page.goto(`${BASE_URL}?page=config&brand=abc`);
 
     page.on('dialog', async dialog => {
       if (dialog.type() === 'prompt') {
@@ -392,7 +392,7 @@ test.describe('📄 PAGE: Config - Responsive Design', () => {
 
   test('Tablet: Portfolio analytics layout adapts', async ({ page }) => {
     await page.setViewportSize({ width: 768, height: 1024 });
-    await page.goto(`${BASE_URL}?page=config&tenant=abc`);
+    await page.goto(`${BASE_URL}?page=config&brand=abc`);
 
     page.on('dialog', async dialog => {
       if (dialog.type() === 'prompt') {
@@ -410,7 +410,7 @@ test.describe('📄 PAGE: Config - Responsive Design', () => {
 test.describe('📄 PAGE: Config - Error Handling', () => {
 
   test('Handles missing admin key gracefully', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=config&tenant=abc`);
+    await page.goto(`${BASE_URL}?page=config&brand=abc`);
 
     let dialogShown = false;
 
@@ -428,7 +428,7 @@ test.describe('📄 PAGE: Config - Error Handling', () => {
   });
 
   test('Handles network errors when loading portfolio data', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=config&tenant=abc`);
+    await page.goto(`${BASE_URL}?page=config&brand=abc`);
 
     page.on('dialog', async dialog => {
       if (dialog.type() === 'prompt') {
@@ -447,7 +447,7 @@ test.describe('📄 PAGE: Config - Error Handling', () => {
 test.describe('📄 PAGE: Config - Accessibility', () => {
 
   test('Portfolio section has proper headings hierarchy', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=config&tenant=abc`);
+    await page.goto(`${BASE_URL}?page=config&brand=abc`);
 
     page.on('dialog', async dialog => {
       if (dialog.type() === 'prompt') {
@@ -466,7 +466,7 @@ test.describe('📄 PAGE: Config - Accessibility', () => {
   });
 
   test('Sponsor selector is keyboard navigable', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=config&tenant=abc`);
+    await page.goto(`${BASE_URL}?page=config&brand=abc`);
 
     page.on('dialog', async dialog => {
       if (dialog.type() === 'prompt') {
@@ -492,7 +492,7 @@ test.describe('📄 PAGE: Config - Accessibility', () => {
   });
 
   test('Buttons have appropriate ARIA labels', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=config&tenant=abc`);
+    await page.goto(`${BASE_URL}?page=config&brand=abc`);
 
     page.on('dialog', async dialog => {
       if (dialog.type() === 'prompt') {

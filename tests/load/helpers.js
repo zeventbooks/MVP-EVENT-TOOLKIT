@@ -86,7 +86,7 @@ export class SystemAPI {
    * Get system status
    */
   getStatus() {
-    const url = `${this.baseUrl}?p=status&tenant=${this.tenantId}`;
+    const url = `${this.baseUrl}?p=status&brand=${this.tenantId}`;
     return http.get(url, { headers });
   }
 

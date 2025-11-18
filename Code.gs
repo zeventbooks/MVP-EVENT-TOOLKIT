@@ -315,7 +315,7 @@ function doGet(e){
 
   // Status endpoint
   if (pageParam === 'status') {
-    const tenantParam = (e?.parameter?.tenant || 'root').toString();
+    const tenantParam = (e?.parameter?.brand || 'root').toString();
     const status = api_status(tenantParam);
     return ContentService.createTextOutput(JSON.stringify(status, null, 2))
       .setMimeType(ContentService.MimeType.JSON);
@@ -323,7 +323,7 @@ function doGet(e){
 
   // Setup check endpoint - comprehensive diagnostics for first-time setup
   if (pageParam === 'setup' || pageParam === 'setupcheck') {
-    const tenantParam = (e?.parameter?.tenant || 'root').toString();
+    const tenantParam = (e?.parameter?.brand || 'root').toString();
     const setupResult = api_setupCheck(tenantParam);
     return ContentService.createTextOutput(JSON.stringify(setupResult, null, 2))
       .setMimeType(ContentService.MimeType.JSON);
@@ -335,7 +335,7 @@ function doGet(e){
 
   if (!allowed.includes(scope)){
     const first = allowed[0] || 'events';
-    return HtmlService.createHtmlOutput(`<meta http-equiv="refresh" content="0;url=?p=${first}&tenant=${tenant.id}">`);
+    return HtmlService.createHtmlOutput(`<meta http-equiv="refresh" content="0;url=?p=${first}&brand=${tenant.id}">`);
   }
 
   // Admin mode selection: default to wizard for simplicity, allow advanced mode via URL parameter
@@ -373,7 +373,7 @@ function routePage_(e, page, tenant, demoMode, options = {}) {
 
   if (!allowed.includes(scope) && page === 'public'){
     const first = allowed[0] || 'events';
-    return HtmlService.createHtmlOutput(`<meta http-equiv="refresh" content="0;url=?p=${first}&tenant=${tenant.id}">`);
+    return HtmlService.createHtmlOutput(`<meta http-equiv="refresh" content="0;url=?p=${first}&brand=${tenant.id}">`);
   }
 
   const tpl = HtmlService.createTemplateFromFile(pageFile_(page));
@@ -435,7 +435,7 @@ function doPost(e){
 
 // === REST API GET Handler (read-only operations) ==========================
 function handleRestApiGet_(e, action, tenant) {
-  const tenantId = e.parameter.tenant || tenant.id;
+  const tenantId = e.parameter.brand || tenant.id;
   const scope = e.parameter.scope || 'events';
   const etag = e.parameter.etag || '';
   const id = e.parameter.id || '';
@@ -1620,7 +1620,7 @@ function api_setupCheck(tenantId) {
       fixes,
       nextSteps: fixes.length > 0 ? fixes : [
         'Your setup is complete!',
-        'Test the API: ' + ScriptApp.getService().getUrl() + '?p=status&tenant=' + tenant.id,
+        'Test the API: ' + ScriptApp.getService().getUrl() + '?p=status&brand=' + tenant.id,
         'View documentation: ' + ScriptApp.getService().getUrl() + '?p=docs'
       ]
     });
@@ -1709,10 +1709,10 @@ function api_get(payload){
       data:safeJSONParse_(r[3], {}),
       createdAt:r[4], slug:r[5],
       links: {
-        publicUrl: `${base}?p=events&tenant=${tenantId}&id=${r[0]}`,
-        posterUrl: `${base}?page=poster&p=events&tenant=${tenantId}&id=${r[0]}`,
-        displayUrl: `${base}?page=display&p=events&tenant=${tenantId}&id=${r[0]}&tv=1`,
-        reportUrl: `${base}?page=report&tenant=${tenantId}&id=${r[0]}`
+        publicUrl: `${base}?p=events&brand=${tenantId}&id=${r[0]}`,
+        posterUrl: `${base}?page=poster&p=events&brand=${tenantId}&id=${r[0]}`,
+        displayUrl: `${base}?page=display&p=events&brand=${tenantId}&id=${r[0]}&tv=1`,
+        reportUrl: `${base}?page=report&brand=${tenantId}&id=${r[0]}`
       }
     };
     const etag = Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(value)));
@@ -1798,10 +1798,10 @@ function api_create(payload){
 
     const base = ScriptApp.getService().getUrl();
     const links = {
-      publicUrl: `${base}?p=events&tenant=${tenantId}&id=${id}`,
-      posterUrl: `${base}?page=poster&p=events&tenant=${tenantId}&id=${id}`,
-      displayUrl: `${base}?page=display&p=events&tenant=${tenantId}&id=${id}&tv=1`,
-      reportUrl: `${base}?page=report&tenant=${tenantId}&id=${id}`
+      publicUrl: `${base}?p=events&brand=${tenantId}&id=${id}`,
+      posterUrl: `${base}?page=poster&p=events&brand=${tenantId}&id=${id}`,
+      displayUrl: `${base}?page=display&p=events&brand=${tenantId}&id=${id}&tv=1`,
+      reportUrl: `${base}?page=report&brand=${tenantId}&id=${id}`
     };
     diag_('info','api_create','created',{id,tenantId,scope});
     return Ok({ id, links });

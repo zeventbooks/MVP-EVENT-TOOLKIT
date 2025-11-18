@@ -12,12 +12,12 @@ The MVP Event Toolkit now includes comprehensive setup diagnostics to help first
 
 ```bash
 # Replace YOUR_DEPLOYMENT_URL with your actual deployment URL
-curl "YOUR_DEPLOYMENT_URL?p=setup&tenant=root"
+curl "YOUR_DEPLOYMENT_URL?p=setup&brand=root"
 ```
 
 Or open in browser:
 ```
-YOUR_DEPLOYMENT_URL?p=setup&tenant=root
+YOUR_DEPLOYMENT_URL?p=setup&brand=root
 ```
 
 ---
@@ -208,7 +208,7 @@ openssl rand -base64 32
     "fixes": [],
     "nextSteps": [
       "Your setup is complete!",
-      "Test the API: https://script.google.com/.../exec?p=status&tenant=root",
+      "Test the API: https://script.google.com/.../exec?p=status&brand=root",
       "View documentation: https://script.google.com/.../exec?p=docs"
     ]
   }
@@ -297,7 +297,7 @@ The overall status is determined by:
 The standard status endpoint now includes helpful error messages when setup is incomplete:
 
 ```bash
-curl "YOUR_DEPLOYMENT_URL?p=status&tenant=root"
+curl "YOUR_DEPLOYMENT_URL?p=status&brand=root"
 ```
 
 **Before (unhelpful):**
@@ -326,7 +326,7 @@ curl "YOUR_DEPLOYMENT_URL?p=status&tenant=root"
 
 After completing initial configuration:
 ```bash
-curl "YOUR_DEPLOYMENT_URL?p=setup&tenant=root"
+curl "YOUR_DEPLOYMENT_URL?p=setup&brand=root"
 ```
 
 Ensure all checks show `"status": "ok"`
@@ -338,7 +338,7 @@ Ensure all checks show `"status": "ok"`
 When API returns errors:
 ```bash
 # Run diagnostics
-curl "YOUR_DEPLOYMENT_URL?p=setup&tenant=root"
+curl "YOUR_DEPLOYMENT_URL?p=setup&brand=root"
 
 # Review the "fixes" array for specific instructions
 ```
@@ -350,7 +350,7 @@ curl "YOUR_DEPLOYMENT_URL?p=setup&tenant=root"
 After updating configuration:
 ```bash
 # Verify changes didn't break anything
-curl "YOUR_DEPLOYMENT_URL?p=setup&tenant=root"
+curl "YOUR_DEPLOYMENT_URL?p=setup&brand=root"
 ```
 
 ---
@@ -378,15 +378,15 @@ Provide new team members with setup checklist:
 # 4. Deploy as web app
 
 # 5. Run diagnostics
-curl "YOUR_DEPLOYMENT_URL?p=setup&tenant=root"
+curl "YOUR_DEPLOYMENT_URL?p=setup&brand=root"
 
 # 6. Fix any issues listed in "fixes" array
 
 # 7. Re-run until all green
-curl "YOUR_DEPLOYMENT_URL?p=setup&tenant=root"
+curl "YOUR_DEPLOYMENT_URL?p=setup&brand=root"
 
 # 8. Test status endpoint
-curl "YOUR_DEPLOYMENT_URL?p=status&tenant=root"
+curl "YOUR_DEPLOYMENT_URL?p=status&brand=root"
 ```
 
 ---
@@ -397,14 +397,14 @@ curl "YOUR_DEPLOYMENT_URL?p=status&tenant=root"
 # 1. Error occurs during API call
 
 # 2. Check detailed diagnostics
-curl "YOUR_DEPLOYMENT_URL?p=setup&tenant=root" | jq '.value'
+curl "YOUR_DEPLOYMENT_URL?p=setup&brand=root" | jq '.value'
 
 # 3. Review "issues" array for problems
 
 # 4. Follow "fixes" array instructions
 
 # 5. Verify fix worked
-curl "YOUR_DEPLOYMENT_URL?p=setup&tenant=root"
+curl "YOUR_DEPLOYMENT_URL?p=setup&brand=root"
 ```
 
 ---
@@ -444,7 +444,7 @@ curl "YOUR_DEPLOYMENT_URL?p=setup&tenant=root"
 **A:** Include in CI/CD pipeline:
 ```bash
 #!/bin/bash
-RESPONSE=$(curl -s "YOUR_DEPLOYMENT_URL?p=setup&tenant=root")
+RESPONSE=$(curl -s "YOUR_DEPLOYMENT_URL?p=setup&brand=root")
 STATUS=$(echo "$RESPONSE" | jq -r '.value.status')
 
 if [ "$STATUS" != "ok" ]; then

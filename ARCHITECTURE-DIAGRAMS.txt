@@ -103,7 +103,7 @@ MVP-EVENT-TOOLKIT: ARCHITECTURE DIAGRAMS & VISUAL MAPPINGS
        └─ sponsor: 8 fields
 
 
-    User Request: GET /?page=admin&tenant=root&scope=events
+    User Request: GET /?page=admin&brand=root&scope=events
            │
            ▼
     doGet(e) in Code.gs
@@ -308,7 +308,7 @@ Display Phase (Multiple Surfaces):
 
 Tenant Lookup:
 
-  GET /?tenant=root  OR
+  GET /?brand=root  OR
   GET via hostname: zeventbook.io
 
            │

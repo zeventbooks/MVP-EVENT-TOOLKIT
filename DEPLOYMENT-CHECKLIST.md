@@ -89,7 +89,7 @@ Created version 8.
 
 **Open in incognito window:**
 ```
-https://script.google.com/macros/s/[DEPLOYMENT_URL_FROM_STEP_3]/exec?p=status&tenant=root&adminKey=4a249d9791716c208479712c74aae27a
+https://script.google.com/macros/s/[DEPLOYMENT_URL_FROM_STEP_3]/exec?p=status&brand=root&adminKey=4a249d9791716c208479712c74aae27a
 ```
 
 **Expected:** JSON response (not "Access denied", not error about coverage files)

@@ -47,7 +47,7 @@ I've completed a **comprehensive systematic analysis** from 6 different team per
 
 5. **Test in Incognito:**
    ```
-   https://script.google.com/macros/s/NEW_URL/exec?p=status&tenant=root&adminKey=4a249d9791716c208479712c74aae27a
+   https://script.google.com/macros/s/NEW_URL/exec?p=status&brand=root&adminKey=4a249d9791716c208479712c74aae27a
    ```
 
 ### Once Working

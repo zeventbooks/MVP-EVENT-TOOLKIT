@@ -30,7 +30,7 @@
 ### Newman Tests to Migrate
 
 **System Tests (System folder):**
-- Status check (`?p=status&tenant=root`)
+- Status check (`?p=status&brand=root`)
 - Diagnostics (`?action=runDiagnostics`)
 
 **Event CRUD Tests:**
@@ -134,7 +134,7 @@ test.describe('System APIs', () => {
   });
 
   test('Status endpoint returns correct structure', async () => {
-    const response = await api.get('?p=status&tenant=root');
+    const response = await api.get('?p=status&brand=root');
 
     // Verify response
     expect(response.status()).toBe(200);
@@ -230,7 +230,7 @@ test.describe('API to UI Flows', () => {
     const eventId = eventData.value.id;
 
     // Step 2: Verify event appears in UI
-    await page.goto(`${process.env.BASE_URL}?p=events&tenant=root`);
+    await page.goto(`${process.env.BASE_URL}?p=events&brand=root`);
 
     // Should see the event in the list
     await expect(page.locator(`[data-event-id="${eventId}"]`)).toBeVisible();
@@ -277,14 +277,14 @@ test.describe('Multi-Tenant Flows', () => {
       const eventId = eventData.value.id;
 
       // Verify event appears in this tenant's view
-      await page.goto(`${process.env.BASE_URL}?p=events&tenant=${tenant}`);
+      await page.goto(`${process.env.BASE_URL}?p=events&brand=${tenant}`);
       await expect(page.locator(`[data-event-id="${eventId}"]`)).toBeVisible();
 
       // Verify event does NOT appear in other tenants' views
       for (const otherTenant of TENANTS) {
         if (otherTenant === tenant) continue;
 
-        await page.goto(`${process.env.BASE_URL}?p=events&tenant=${otherTenant}`);
+        await page.goto(`${process.env.BASE_URL}?p=events&brand=${otherTenant}`);
         await expect(page.locator(`[data-event-id="${eventId}"]`)).not.toBeVisible();
       }
     });
@@ -306,7 +306,7 @@ test.describe('Event Lifecycle Flow', () => {
 
     // PHASE 1: Pre-Event (Admin creates event)
     test.step('Admin creates event with sponsors', async () => {
-      await page.goto(`${process.env.BASE_URL}?p=wizard&tenant=root`);
+      await page.goto(`${process.env.BASE_URL}?p=wizard&brand=root`);
       await page.fill('[name="eventName"]', 'Lifecycle Test Event');
       await page.fill('[name="eventDate"]', '2025-12-20');
       await page.fill('[name="location"]', 'Test Venue');
@@ -329,7 +329,7 @@ test.describe('Event Lifecycle Flow', () => {
       // Switch to mobile context
       await page.setViewportSize({ width: 375, height: 667 });
 
-      await page.goto(`${process.env.BASE_URL}?p=events&tenant=root&event=${eventId}`);
+      await page.goto(`${process.env.BASE_URL}?p=events&brand=root&event=${eventId}`);
 
       // Verify event details visible
       await expect(page.locator('.event-name')).toContainText('Lifecycle Test Event');
@@ -343,7 +343,7 @@ test.describe('Event Lifecycle Flow', () => {
       // Switch to TV display size
       await page.setViewportSize({ width: 1920, height: 1080 });
 
-      await page.goto(`${process.env.BASE_URL}?p=display&tenant=root`);
+      await page.goto(`${process.env.BASE_URL}?p=display&brand=root`);
 
       // Verify event appears in display
       await expect(page.locator(`[data-event-id="${eventId}"]`)).toBeVisible();
@@ -354,7 +354,7 @@ test.describe('Event Lifecycle Flow', () => {
     });
 
     test.step('Customer signs up for event', async () => {
-      await page.goto(`${process.env.BASE_URL}?p=signup&tenant=root&event=${eventId}`);
+      await page.goto(`${process.env.BASE_URL}?p=signup&brand=root&event=${eventId}`);
 
       // Fill signup form
       await page.fill('[name="name"]', 'Test Customer');
@@ -366,7 +366,7 @@ test.describe('Event Lifecycle Flow', () => {
 
     // PHASE 3: Post-Event (Admin views analytics)
     test.step('Admin views event report', async () => {
-      await page.goto(`${process.env.BASE_URL}?p=report&tenant=root&adminKey=${process.env.ADMIN_KEY}`);
+      await page.goto(`${process.env.BASE_URL}?p=report&brand=root&adminKey=${process.env.ADMIN_KEY}`);
 
       // Verify event metrics
       await expect(page.locator(`[data-event-id="${eventId}"] [data-metric="views"]`)).toContainText(/\d+/);

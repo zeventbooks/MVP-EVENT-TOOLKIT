@@ -54,7 +54,7 @@ test.describe('Sponsor Management Workflows', () => {
 
   test('Complete sponsor lifecycle: create → view → edit → delete', async ({ page }) => {
     // Step 1: Access Sponsor Management
-    await page.goto(`${baseUrl}?page=sponsor&tenant=${tenant}`);
+    await page.goto(`${baseUrl}?page=sponsor&brand=${tenant}`);
 
     // Step 2: Authenticate
     await page.waitForSelector('#admin-key-input');
@@ -125,7 +125,7 @@ test.describe('Sponsor Management Workflows', () => {
 
   test('Manage multiple sponsors of different tiers', async ({ page }) => {
     // Access and authenticate
-    await page.goto(`${baseUrl}?page=sponsor&tenant=${tenant}`);
+    await page.goto(`${baseUrl}?page=sponsor&brand=${tenant}`);
     await page.waitForSelector('#admin-key-input');
     await page.fill('#admin-key-input', adminKey);
     await page.press('#admin-key-input', 'Enter');
@@ -181,7 +181,7 @@ test.describe('Sponsor Management Workflows', () => {
     await context.clearCookies();
 
     // Access page
-    await page.goto(`${baseUrl}?page=sponsor&tenant=${tenant}`);
+    await page.goto(`${baseUrl}?page=sponsor&brand=${tenant}`);
 
     // Should see auth prompt (first time)
     await expect(page.locator('#auth-prompt')).toBeVisible();
@@ -224,7 +224,7 @@ test.describe('Sponsor Management Workflows', () => {
 
   test('Returning user workflow: automatic auth → manage sponsors', async ({ page }) => {
     // Access page
-    await page.goto(`${baseUrl}?page=sponsor&tenant=${tenant}`);
+    await page.goto(`${baseUrl}?page=sponsor&brand=${tenant}`);
 
     // First visit: authenticate
     await page.waitForSelector('#admin-key-input');
@@ -258,7 +258,7 @@ test.describe('Sponsor Management Workflows', () => {
 
   test('Bulk operations workflow: create multiple → verify all → delete all', async ({ page }) => {
     // Access and authenticate
-    await page.goto(`${baseUrl}?page=sponsor&tenant=${tenant}`);
+    await page.goto(`${baseUrl}?page=sponsor&brand=${tenant}`);
     await page.waitForSelector('#admin-key-input');
     await page.fill('#admin-key-input', adminKey);
     await page.press('#admin-key-input', 'Enter');
@@ -324,7 +324,7 @@ test.describe('Sponsor Management Workflows', () => {
 
   test('Error recovery workflow: handle invalid data → retry with valid data', async ({ page }) => {
     // Access and authenticate
-    await page.goto(`${baseUrl}?page=sponsor&tenant=${tenant}`);
+    await page.goto(`${baseUrl}?page=sponsor&brand=${tenant}`);
     await page.waitForSelector('#admin-key-input');
     await page.fill('#admin-key-input', adminKey);
     await page.press('#admin-key-input', 'Enter');

@@ -170,7 +170,7 @@ sed -i "s|https://script.google.com/macros/s/[^\"]*|<PREVIOUS_URL>|g" postman/en
 
 ```bash
 # Test in incognito browser
-https://script.google.com/macros/s/<DEPLOYMENT_ID>/exec?p=status&tenant=root
+https://script.google.com/macros/s/<DEPLOYMENT_ID>/exec?p=status&brand=root
 
 # Should return JSON, not HTML redirect
 # If redirect, edit deployment:

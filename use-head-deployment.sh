@@ -23,7 +23,7 @@ fi
 
 echo ""
 echo "Testing @HEAD deployment..."
-RESPONSE=$(curl -s "$HEAD_URL?p=status&tenant=root" 2>&1)
+RESPONSE=$(curl -s "$HEAD_URL?p=status&brand=root" 2>&1)
 
 if [[ $RESPONSE == *'"ok":true'* ]]; then
     echo "✅ SUCCESS! @HEAD deployment is working!"

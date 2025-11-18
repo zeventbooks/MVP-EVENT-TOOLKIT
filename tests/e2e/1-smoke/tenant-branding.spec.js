@@ -14,7 +14,7 @@ const BASE_URL = process.env.BASE_URL || process.env.GOOGLE_SCRIPT_URL || 'https
 test.describe('🎨 SMOKE: Tenant Branding', () => {
 
   test('Admin page loads tenant logo for root tenant', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&tenant=root`);
+    await page.goto(`${BASE_URL}?page=admin&brand=root`);
 
     // Page should load successfully
     expect(page.url()).toContain('tenant=root');
@@ -37,7 +37,7 @@ test.describe('🎨 SMOKE: Tenant Branding', () => {
   });
 
   test('Admin page loads tenant logo for abc tenant', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&tenant=abc`);
+    await page.goto(`${BASE_URL}?page=admin&brand=abc`);
 
     // Page should load successfully
     expect(page.url()).toContain('tenant=abc');
@@ -66,7 +66,7 @@ test.describe('🎨 SMOKE: Tenant Branding', () => {
   });
 
   test('Admin page shows correct tenant identification for abc', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&tenant=abc`);
+    await page.goto(`${BASE_URL}?page=admin&brand=abc`);
 
     // Check URL parameter is correct
     expect(page.url()).toContain('tenant=abc');
@@ -84,7 +84,7 @@ test.describe('🎨 SMOKE: Tenant Branding', () => {
   });
 
   test('Public page loads tenant logo for abc tenant', async ({ page }) => {
-    await page.goto(`${BASE_URL}?p=events&tenant=abc`);
+    await page.goto(`${BASE_URL}?p=events&brand=abc`);
 
     // Check for logo element
     const logo = page.locator('img[alt*="logo"], img.logo, .tenant-logo img, header img').first();
@@ -103,7 +103,7 @@ test.describe('🎨 SMOKE: Tenant Branding', () => {
   });
 
   test('Display page loads tenant branding for abc tenant', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=display&tenant=abc`);
+    await page.goto(`${BASE_URL}?page=display&brand=abc`);
 
     // Check for logo or branding element
     const brandingElements = page.locator('img[alt*="logo"], img.logo, .tenant-logo img, .branding img, header img');
@@ -123,12 +123,12 @@ test.describe('🎨 SMOKE: Tenant Branding', () => {
 
   test('Different tenants show different branding (isolation)', async ({ page }) => {
     // Load root tenant admin page
-    await page.goto(`${BASE_URL}?page=admin&tenant=root`);
+    await page.goto(`${BASE_URL}?page=admin&brand=root`);
     const rootUrl = page.url();
     expect(rootUrl).toContain('tenant=root');
 
     // Load abc tenant admin page
-    await page.goto(`${BASE_URL}?page=admin&tenant=abc`);
+    await page.goto(`${BASE_URL}?page=admin&brand=abc`);
     const abcUrl = page.url();
     expect(abcUrl).toContain('tenant=abc');
 
@@ -146,7 +146,7 @@ test.describe('🎨 SMOKE: Logo Performance', () => {
   test('Tenant logo loads within acceptable time', async ({ page }) => {
     const startTime = Date.now();
 
-    await page.goto(`${BASE_URL}?page=admin&tenant=abc`);
+    await page.goto(`${BASE_URL}?page=admin&brand=abc`);
 
     const logo = page.locator('img[alt*="logo"], img.logo, .tenant-logo img, header img').first();
     const logoCount = await logo.count();
@@ -164,7 +164,7 @@ test.describe('🎨 SMOKE: Logo Performance', () => {
   });
 
   test('Logo image has valid dimensions', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&tenant=abc`);
+    await page.goto(`${BASE_URL}?page=admin&brand=abc`);
 
     const logo = page.locator('img[alt*="logo"], img.logo, .tenant-logo img, header img').first();
     const logoCount = await logo.count();

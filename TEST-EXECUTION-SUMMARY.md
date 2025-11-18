@@ -176,7 +176,7 @@ npx playwright install
    ```
 
 3. **Test manually in browser:**
-   Open: `https://script.google.com/macros/s/AKfycby8kFVIiNl40hwlegMyHIA9XpOktseFP3svLU9zLoQ7V9H-2NPwFiAeS02u5RCAVP4iGQ/exec?page=admin&tenant=root`
+   Open: `https://script.google.com/macros/s/AKfycby8kFVIiNl40hwlegMyHIA9XpOktseFP3svLU9zLoQ7V9H-2NPwFiAeS02u5RCAVP4iGQ/exec?page=admin&brand=root`
 
    Should load the Admin page without redirects.
 

@@ -74,7 +74,7 @@ https://script.google.com/macros/s/AKfycbXXXXXXXXXXXXXXXXXX/exec
 
 Open in your browser:
 ```
-https://qa.zeventbooks.com?p=events&tenant=root
+https://qa.zeventbooks.com?p=events&brand=root
 ```
 
 **Expected:** Should redirect to your Apps Script deployment and show the admin page.

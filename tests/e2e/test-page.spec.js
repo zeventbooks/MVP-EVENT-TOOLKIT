@@ -15,7 +15,7 @@ const TENANT_ID = 'root';
 test.describe('Test Page - Health & Contract Validation', () => {
 
   test('Test page loads and runs all checks', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=test&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=test&brand=${TENANT_ID}`);
 
     // Verify page loaded
     await expect(page).toHaveTitle(/Test/);
@@ -39,7 +39,7 @@ test.describe('Test Page - Health & Contract Validation', () => {
   });
 
   test('Health check test passes', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=test&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=test&brand=${TENANT_ID}`);
     await page.waitForTimeout(3000);
 
     // Verify "Health alive" test exists and passes
@@ -52,7 +52,7 @@ test.describe('Test Page - Health & Contract Validation', () => {
   });
 
   test('SWR (Stale-While-Revalidate) test passes', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=test&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=test&brand=${TENANT_ID}`);
     await page.waitForTimeout(3000);
 
     // Verify "SWR notModified" test exists and passes
@@ -65,7 +65,7 @@ test.describe('Test Page - Health & Contract Validation', () => {
   });
 
   test('Scope validation test passes (leagues blocked)', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=test&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=test&brand=${TENANT_ID}`);
     await page.waitForTimeout(3000);
 
     // Verify "Leagues blocked (MVP)" test exists and passes
@@ -80,7 +80,7 @@ test.describe('Test Page - Health & Contract Validation', () => {
   test('All tests complete within reasonable time', async ({ page }) => {
     const start = Date.now();
 
-    await page.goto(`${BASE_URL}?page=test&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=test&brand=${TENANT_ID}`);
 
     // Wait for all tests to complete
     await page.waitForTimeout(3000);
@@ -96,7 +96,7 @@ test.describe('Test Page - Health & Contract Validation', () => {
   });
 
   test('Test results are visible and readable', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=test&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=test&brand=${TENANT_ID}`);
     await page.waitForTimeout(3000);
 
     // Check visual appearance of test cards
@@ -118,7 +118,7 @@ test.describe('Test Page - Health & Contract Validation', () => {
 
   test('Page handles failures gracefully', async ({ page }) => {
     // If backend is down or errors occur, page should still render
-    await page.goto(`${BASE_URL}?page=test&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=test&brand=${TENANT_ID}`);
 
     // Page title should be visible regardless
     await expect(page.locator('h2:has-text("Health & Contracts")')).toBeVisible();
@@ -134,7 +134,7 @@ test.describe('Test Page - Health & Contract Validation', () => {
   test('Test page is responsive on mobile', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 667 }); // iPhone SE
 
-    await page.goto(`${BASE_URL}?page=test&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=test&brand=${TENANT_ID}`);
     await page.waitForTimeout(3000);
 
     // Page should be readable
@@ -146,7 +146,7 @@ test.describe('Test Page - Health & Contract Validation', () => {
   });
 
   test('NUSDK is loaded and available', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=test&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=test&brand=${TENANT_ID}`);
 
     // Check if NU SDK is available
     const hasNUSDK = await page.evaluate(() => {
@@ -158,7 +158,7 @@ test.describe('Test Page - Health & Contract Validation', () => {
   });
 
   test('Test page contract validation works', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=test&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=test&brand=${TENANT_ID}`);
     await page.waitForTimeout(3000);
 
     // All three contract tests should pass
@@ -177,7 +177,7 @@ test.describe('Test Page - Edge Cases', () => {
     const tenants = ['root', 'abc', 'cbc', 'cbl'];
 
     for (const tenant of tenants) {
-      await page.goto(`${BASE_URL}?page=test&tenant=${tenant}`);
+      await page.goto(`${BASE_URL}?page=test&brand=${tenant}`);
       await page.waitForTimeout(3000);
 
       // Tests should run for all tenants
@@ -192,7 +192,7 @@ test.describe('Test Page - Edge Cases', () => {
       setTimeout(() => route.continue(), 500);
     });
 
-    await page.goto(`${BASE_URL}?page=test&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=test&brand=${TENANT_ID}`);
 
     // Should eventually complete despite delays
     await page.waitForTimeout(5000);
@@ -205,7 +205,7 @@ test.describe('Test Page - Edge Cases', () => {
     const errors = [];
     page.on('pageerror', error => errors.push(error));
 
-    await page.goto(`${BASE_URL}?page=test&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=test&brand=${TENANT_ID}`);
     await page.waitForTimeout(3000);
 
     // Filter out google.script.run errors (expected in test environment)

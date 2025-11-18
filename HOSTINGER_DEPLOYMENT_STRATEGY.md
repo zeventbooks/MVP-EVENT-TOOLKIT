@@ -43,16 +43,16 @@ Pages (13 types):
 ### URL Pattern Examples
 ```
 Production:
-https://zeventbooks.com/?p=events&tenant=root
-https://zeventbooks.com/?p=admin&tenant=abc
-https://zeventbooks.com/?p=display&tenant=cbc
+https://zeventbooks.com/?p=events&brand=root
+https://zeventbooks.com/?p=admin&brand=abc
+https://zeventbooks.com/?p=display&brand=cbc
 
 QA:
-https://qa.zeventbooks.com/?p=events&tenant=root
-https://qa.zeventbooks.com/?p=admin&tenant=abc
+https://qa.zeventbooks.com/?p=events&brand=root
+https://qa.zeventbooks.com/?p=admin&brand=abc
 
 Development (Direct Apps Script):
-https://script.google.com/macros/s/AKfycb.../exec?p=events&tenant=root
+https://script.google.com/macros/s/AKfycb.../exec?p=events&brand=root
 ```
 
 ---
@@ -264,7 +264,7 @@ test('Event Organizer: Create event with sponsors', async ({ authenticatedAdminP
 });
 
 test('Sponsor: Verify logo placement', async ({ publicPage }) => {
-  await publicPage.goto('?p=events&tenant=abc');
+  await publicPage.goto('?p=events&brand=abc');
   await expect(page.locator('[data-sponsor-logo]')).toBeVisible();
 });
 ```
@@ -280,7 +280,7 @@ test('Sponsor: Verify logo placement', async ({ publicPage }) => {
 // tests/triangle/during-event.spec.js
 test('Customer: Scan QR code and view event', async ({ mobile }) => {
   // Simulate QR code scan (direct URL navigation)
-  await mobile.goto('?p=events&tenant=abc&event=123');
+  await mobile.goto('?p=events&brand=abc&event=123');
 
   // Mobile-optimized display
   await expect(page.locator('.event-details')).toBeVisible();
@@ -288,7 +288,7 @@ test('Customer: Scan QR code and view event', async ({ mobile }) => {
 });
 
 test('Event Staff: Display page shows live updates', async ({ displayPage }) => {
-  await displayPage.goto('?p=display&tenant=abc');
+  await displayPage.goto('?p=display&brand=abc');
 
   // Auto-refresh every 30s
   await page.waitForTimeout(31000);
@@ -305,7 +305,7 @@ test('Event Staff: Display page shows live updates', async ({ displayPage }) => 
 ```javascript
 // tests/triangle/post-event.spec.js
 test('Event Organizer: View event analytics', async ({ authenticatedAdminPage }) => {
-  await authenticatedAdminPage.goto('?p=report&tenant=abc');
+  await authenticatedAdminPage.goto('?p=report&brand=abc');
 
   // Verify metrics
   await expect(page.locator('[data-metric="views"]')).toContainText(/\d+/);
@@ -313,7 +313,7 @@ test('Event Organizer: View event analytics', async ({ authenticatedAdminPage })
 });
 
 test('Sponsor: Verify ROI metrics', async ({ authenticatedAdminPage }) => {
-  await authenticatedAdminPage.goto('?p=report&tenant=abc&sponsor=cbc');
+  await authenticatedAdminPage.goto('?p=report&brand=abc&sponsor=cbc');
 
   // Sponsor-specific metrics
   await expect(page.locator('[data-sponsor-impressions]')).toBeVisible();

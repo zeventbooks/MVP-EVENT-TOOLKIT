@@ -21,7 +21,7 @@ The tests are returning **403 Forbidden** errors because:
 **Problem:**
 All Google Apps Script deployment URLs return `403 Access denied`:
 ```bash
-curl "https://script.google.com/macros/s/AKfycbzu-U4UgdjdAiXHTg9TD5Y-1gDkc798YSTqQCdhOddG/exec?p=status&tenant=root"
+curl "https://script.google.com/macros/s/AKfycbzu-U4UgdjdAiXHTg9TD5Y-1gDkc798YSTqQCdhOddG/exec?p=status&brand=root"
 # Returns: Access denied (HTTP 403)
 ```
 
@@ -109,7 +109,7 @@ Open your terminal and test the URL:
 
 ```bash
 # Replace YOUR_DEPLOYMENT_ID with the actual ID from step 1.3
-curl "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec?p=status&tenant=root"
+curl "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec?p=status&brand=root"
 ```
 
 **Expected Response (Success):**
@@ -290,7 +290,7 @@ Full URL: https://script.google.com/macros/s/YOUR_ID/exec
 
 ```bash
 # Replace YOUR_DEPLOYMENT_ID with your actual ID
-curl "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec?p=status&tenant=root"
+curl "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec?p=status&brand=root"
 ```
 
 **Expected:**
@@ -311,7 +311,7 @@ curl "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec?p=status&tenant
 
 **In your browser, open:**
 ```
-https://zeventbooks.com?p=status&tenant=root
+https://zeventbooks.com?p=status&brand=root
 ```
 
 **Expected:**
@@ -319,7 +319,7 @@ You should see JSON response (same as Test 3.1)
 
 **Or use curl:**
 ```bash
-curl "https://zeventbooks.com?p=status&tenant=root"
+curl "https://zeventbooks.com?p=status&brand=root"
 ```
 
 **If 403 or blank page:** See Troubleshooting section below
@@ -328,16 +328,16 @@ curl "https://zeventbooks.com?p=status&tenant=root"
 
 ```bash
 # Root tenant
-curl "https://zeventbooks.com?p=status&tenant=root"
+curl "https://zeventbooks.com?p=status&brand=root"
 
 # ABC tenant
-curl "https://zeventbooks.com?p=status&tenant=abc"
+curl "https://zeventbooks.com?p=status&brand=abc"
 
 # CBC tenant
-curl "https://zeventbooks.com?p=status&tenant=cbc"
+curl "https://zeventbooks.com?p=status&brand=cbc"
 
 # CBL tenant
-curl "https://zeventbooks.com?p=status&tenant=cbl"
+curl "https://zeventbooks.com?p=status&brand=cbl"
 ```
 
 All should return JSON with the correct tenant ID.
@@ -346,7 +346,7 @@ All should return JSON with the correct tenant ID.
 
 Open in browser:
 ```
-https://zeventbooks.com?p=admin&tenant=root
+https://zeventbooks.com?p=admin&brand=root
 ```
 
 Should show the admin interface (not a 404 or 403).
@@ -424,7 +424,7 @@ Tests should pass! No more 403 errors.
 
 ### Problem: Query Parameters Don't Work
 
-**Example:** `?p=status&tenant=root` doesn't change the page
+**Example:** `?p=status&brand=root` doesn't change the page
 
 **Check:**
 1. Edit `.htaccess`
@@ -465,8 +465,8 @@ Use this checklist to verify everything is working:
 - [ ] Hidden files are shown in File Manager
 
 ### Testing
-- [ ] Google Apps Script URL works: `curl https://script.google.com/macros/s/YOUR_ID/exec?p=status&tenant=root`
-- [ ] zeventbooks.com works: `curl https://zeventbooks.com?p=status&tenant=root`
+- [ ] Google Apps Script URL works: `curl https://script.google.com/macros/s/YOUR_ID/exec?p=status&brand=root`
+- [ ] zeventbooks.com works: `curl https://zeventbooks.com?p=status&brand=root`
 - [ ] All tenants return correct JSON (root, abc, cbc, cbl)
 - [ ] Admin page loads in browser
 - [ ] Playwright tests pass: `npm run test:smoke`
@@ -498,9 +498,9 @@ public_html/
 |---------|-----|
 | Apps Script Editor | https://script.google.com/home/projects/1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l/edit |
 | Hostinger Panel | https://hpanel.hostinger.com/ |
-| Test Status (Apps Script) | https://script.google.com/macros/s/YOUR_ID/exec?p=status&tenant=root |
-| Test Status (zeventbooks.com) | https://zeventbooks.com?p=status&tenant=root |
-| Test Admin Page | https://zeventbooks.com?p=admin&tenant=root |
+| Test Status (Apps Script) | https://script.google.com/macros/s/YOUR_ID/exec?p=status&brand=root |
+| Test Status (zeventbooks.com) | https://zeventbooks.com?p=status&brand=root |
+| Test Admin Page | https://zeventbooks.com?p=admin&brand=root |
 
 ### Deployment ID Format
 

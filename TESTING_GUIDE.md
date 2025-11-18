@@ -81,7 +81,7 @@ Deployment is set to **"Only myself"** instead of **"Anyone"**
 
 **Verify it works:**
 ```bash
-curl "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec?p=status&tenant=root"
+curl "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec?p=status&brand=root"
 
 # Expected response (JSON):
 {"ok":true,"value":{"build":"triangle-extended-v1.3","tenant":"root"}}
@@ -353,7 +353,7 @@ npm run test:coverage
 1. Check deployment settings (must be "Anyone")
 2. Test URL with curl:
    ```bash
-   curl "YOUR_GOOGLE_SCRIPT_URL?p=status&tenant=root"
+   curl "YOUR_GOOGLE_SCRIPT_URL?p=status&brand=root"
    ```
 3. If you see HTML (not JSON), deployment needs fixing
 4. See `APPS_SCRIPT_AUTH_FIX.md` for complete fix
@@ -382,7 +382,7 @@ npm run test:env:print  # Verify it changed
 **Debug:**
 ```bash
 # Test URL directly
-curl -v "YOUR_GOOGLE_SCRIPT_URL?p=status&tenant=root"
+curl -v "YOUR_GOOGLE_SCRIPT_URL?p=status&brand=root"
 
 # Check for redirects (should be 200, not 302)
 ```

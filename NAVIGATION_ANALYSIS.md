@@ -9,7 +9,7 @@ The MVP-EVENT-TOOLKIT is a Google Apps Script-based event management system with
 
 ### 1.1 **Public.html** (Default / Entry Point)
 - **Router Logic**: `pageParam !== 'admin|poster|test|display|report|analytics'` → defaults to 'public'
-- **URL**: `?p=events&tenant=root` (or just base URL)
+- **URL**: `?p=events&brand=root` (or just base URL)
 - **Purpose**: Public-facing event listing and detail pages
 - **Features**:
   - Lists all events for a tenant/scope
@@ -22,7 +22,7 @@ The MVP-EVENT-TOOLKIT is a Google Apps Script-based event management system with
 
 ### 1.2 **Admin.html** (Admin Dashboard)
 - **Router Logic**: `pageParam === 'admin'`
-- **URL**: `?page=admin&tenant=root`
+- **URL**: `?page=admin&brand=root`
 - **Purpose**: Admin control center for event management
 - **Features**:
   - **Create Event Form** - Core event details (name, date, time, location, entity)
@@ -33,10 +33,10 @@ The MVP-EVENT-TOOLKIT is a Google Apps Script-based event management system with
     - Post-Event Phase (Analytics)
   - **Event Details Card** - Shows created event with 4 generated links
   - **Links Generated**:
-    - Public (Mobile) - `?p=events&tenant=...&id=...`
-    - Display (TV) - `?page=display&tenant=...&id=...&tv=1`
-    - Poster (Print/QR) - `?page=poster&tenant=...&id=...`
-    - Shared Analytics - `?page=report&tenant=...&id=...`
+    - Public (Mobile) - `?p=events&brand=...&id=...`
+    - Display (TV) - `?page=display&brand=...&id=...&tv=1`
+    - Poster (Print/QR) - `?page=poster&brand=...&id=...`
+    - Shared Analytics - `?page=report&brand=...&id=...`
   - **Configuration Dialogs**:
     - Sign-Up Forms (Register, Check-in, Walk-in, Survey)
     - Display & Sponsors (Mode selection, carousel URLs, sponsor management)
@@ -44,7 +44,7 @@ The MVP-EVENT-TOOLKIT is a Google Apps Script-based event management system with
 
 ### 1.3 **Display.html** (TV Screen / Kiosk Display)
 - **Router Logic**: `pageParam === 'display'`
-- **URL**: `?page=display&tenant=root&id=EVENT_ID&tv=1`
+- **URL**: `?page=display&brand=root&id=EVENT_ID&tv=1`
 - **Purpose**: TV screen display for event promotion and sponsor rotation
 - **Features**:
   - **Sponsor Top Banner** - Featured sponsors rotating
@@ -62,7 +62,7 @@ The MVP-EVENT-TOOLKIT is a Google Apps Script-based event management system with
 
 ### 1.4 **Poster.html** (Print / QR Code Page)
 - **Router Logic**: `pageParam === 'poster'`
-- **URL**: `?page=poster&tenant=root&id=EVENT_ID`
+- **URL**: `?page=poster&brand=root&id=EVENT_ID`
 - **Purpose**: Printable poster with QR codes for event promotion
 - **Features**:
   - **Sponsor Strip** - Top sponsor branding
@@ -78,7 +78,7 @@ The MVP-EVENT-TOOLKIT is a Google Apps Script-based event management system with
 
 ### 1.5 **SharedReport.html** (Analytics Dashboard)
 - **Router Logic**: `pageParam === 'report' || pageParam === 'analytics'`
-- **URL**: `?page=report&tenant=root&id=EVENT_ID`
+- **URL**: `?page=report&brand=root&id=EVENT_ID`
 - **Purpose**: Public/shared analytics and event reporting
 - **Features**:
   - **Key Metrics Grid** (Mobile-first responsive):
@@ -98,7 +98,7 @@ The MVP-EVENT-TOOLKIT is a Google Apps Script-based event management system with
 
 ### 1.6 **Test.html** (Internal Testing / QA)
 - **Router Logic**: `pageParam === 'test'`
-- **URL**: `?page=test&tenant=root`
+- **URL**: `?page=test&brand=root`
 - **Purpose**: Testing hub with navigation cards for all flows
 - **Features**:
   - Navigation cards to test each page/flow:
@@ -192,14 +192,14 @@ Template Variables Passed:
 
 #### Admin.html → Other Pages
 - Generates direct links to:
-  - Public page: `${execUrl}?p=events&tenant=...&id=...`
-  - Display page: `${execUrl}?page=display&tenant=...&id=...&tv=1`
-  - Poster page: `${execUrl}?page=poster&tenant=...&id=...`
-  - Report page: `${execUrl}?page=report&tenant=...&id=...`
+  - Public page: `${execUrl}?p=events&brand=...&id=...`
+  - Display page: `${execUrl}?page=display&brand=...&id=...&tv=1`
+  - Poster page: `${execUrl}?page=poster&brand=...&id=...`
+  - Report page: `${execUrl}?page=report&brand=...&id=...`
 
 #### Public.html → Public Detail
-- Click event card: `href="${EXEC_URL}?p=events&tenant=${TENANT}&id=${ev.id}"`
-- Back link: `${EXEC_URL}?p=events&tenant=${TENANT}`
+- Click event card: `href="${EXEC_URL}?p=events&brand=${TENANT}&id=${ev.id}"`
+- Back link: `${EXEC_URL}?p=events&brand=${TENANT}`
 
 #### Display.html → N/A
 - Standalone page, no navigation
@@ -285,7 +285,7 @@ TENANTS = [
 
 ### URL Structure
 ```
-?page=admin&tenant=root&p=events
+?page=admin&brand=root&p=events
         ↑          ↑          ↑
      page type   tenant      scope
 ```

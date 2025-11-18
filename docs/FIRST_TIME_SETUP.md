@@ -165,7 +165,7 @@ Now let's make sure everything works!
 
 ```bash
 # Replace YOUR_DEPLOYMENT_URL with the URL from Step 5
-curl "YOUR_DEPLOYMENT_URL?p=setup&tenant=root"
+curl "YOUR_DEPLOYMENT_URL?p=setup&brand=root"
 ```
 
 **Expected response:**
@@ -190,7 +190,7 @@ curl "YOUR_DEPLOYMENT_URL?p=setup&tenant=root"
 ### Test 2: Status Endpoint
 
 ```bash
-curl "YOUR_DEPLOYMENT_URL?p=status&tenant=root"
+curl "YOUR_DEPLOYMENT_URL?p=status&brand=root"
 ```
 
 **Expected response:**
@@ -359,7 +359,7 @@ Once your setup check passes:
 
 3. **Explore the admin interface:**
    ```
-   YOUR_DEPLOYMENT_URL?p=admin&tenant=root
+   YOUR_DEPLOYMENT_URL?p=admin&brand=root
    ```
 
 4. **Read the full documentation:**
@@ -388,7 +388,7 @@ If you're stuck:
 
 1. **Run the setup check:**
    ```bash
-   curl "YOUR_DEPLOYMENT_URL?p=setup&tenant=root"
+   curl "YOUR_DEPLOYMENT_URL?p=setup&brand=root"
    ```
 
 2. **Read the error message carefully** - it includes specific fix instructions
@@ -417,8 +417,8 @@ Setup Workflow:
 3. Update Config.gs with spreadsheet ID
 4. Add ADMIN_SECRET_ROOT to Script Properties
 5. Deploy as Web App (Execute as: Me, Access: Anyone)
-6. Test: ?p=setup&tenant=root
-7. Verify: ?p=status&tenant=root
+6. Test: ?p=setup&brand=root
+7. Verify: ?p=status&brand=root
 8. Start using the API!
 ```
 

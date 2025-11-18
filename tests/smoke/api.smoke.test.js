@@ -18,7 +18,7 @@ const TENANT_ID = 'root';
 test.describe('API Smoke Tests - Status & Health', () => {
 
   test('api_status - Returns system status', async ({ page }) => {
-    const response = await page.goto(`${BASE_URL}?p=status&tenant=${TENANT_ID}`);
+    const response = await page.goto(`${BASE_URL}?p=status&brand=${TENANT_ID}`);
 
     expect(response.status()).toBe(200);
     const json = await response.json();
@@ -32,7 +32,7 @@ test.describe('API Smoke Tests - Status & Health', () => {
   });
 
   test('Health check page - Returns OK response', async ({ page }) => {
-    const response = await page.goto(`${BASE_URL}?page=test&tenant=${TENANT_ID}`);
+    const response = await page.goto(`${BASE_URL}?page=test&brand=${TENANT_ID}`);
 
     expect(response.status()).toBe(200);
     // Test page should load without errors
@@ -43,7 +43,7 @@ test.describe('API Smoke Tests - Status & Health', () => {
 test.describe('API Smoke Tests - Error Handling', () => {
 
   test('Invalid page parameter - Returns 404 or error page', async ({ page }) => {
-    const response = await page.goto(`${BASE_URL}?page=nonexistent&tenant=${TENANT_ID}`);
+    const response = await page.goto(`${BASE_URL}?page=nonexistent&brand=${TENANT_ID}`);
 
     // Should either return 200 with error message or 404
     expect([200, 404]).toContain(response.status());
@@ -69,7 +69,7 @@ test.describe('API Smoke Tests - Error Handling', () => {
 test.describe('API Smoke Tests - Response Format', () => {
 
   test('Status endpoint - Follows OK envelope format', async ({ page }) => {
-    const response = await page.goto(`${BASE_URL}?p=status&tenant=${TENANT_ID}`);
+    const response = await page.goto(`${BASE_URL}?p=status&brand=${TENANT_ID}`);
     const json = await response.json();
 
     // OK envelope: { ok: true, value: {...} }
@@ -82,7 +82,7 @@ test.describe('API Smoke Tests - Response Format', () => {
   test('Error responses - Follow Err envelope format', async ({ page }) => {
     // This would need to trigger an error condition
     // For now, verify the page handles errors gracefully
-    await page.goto(`${BASE_URL}?page=admin&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
 
     // Should load without throwing
     await expect(page.locator('body')).toBeVisible();
@@ -97,7 +97,7 @@ test.describe('API Smoke Tests - Performance', () => {
     // Make 3 requests to check consistency
     for (let i = 0; i < 3; i++) {
       const start = Date.now();
-      await page.goto(`${BASE_URL}?p=status&tenant=${TENANT_ID}`);
+      await page.goto(`${BASE_URL}?p=status&brand=${TENANT_ID}`);
       times.push(Date.now() - start);
     }
 
@@ -109,7 +109,7 @@ test.describe('API Smoke Tests - Performance', () => {
 test.describe('API Smoke Tests - Multi-tenant', () => {
 
   test('Root tenant - Accessible', async ({ page }) => {
-    const response = await page.goto(`${BASE_URL}?page=admin&tenant=root`);
+    const response = await page.goto(`${BASE_URL}?page=admin&brand=root`);
 
     expect(response.status()).toBe(200);
     await expect(page).toHaveTitle(/Admin/);
@@ -120,7 +120,7 @@ test.describe('API Smoke Tests - Multi-tenant', () => {
     const tenants = ['root', 'abc', 'cbc', 'cbl'];
 
     for (const tenant of tenants) {
-      const response = await page.goto(`${BASE_URL}?page=admin&tenant=${tenant}`);
+      const response = await page.goto(`${BASE_URL}?page=admin&brand=${tenant}`);
       expect(response.status()).toBe(200);
     }
   });
@@ -132,7 +132,7 @@ test.describe('API Smoke Tests - Rate Limiting', () => {
     // Make 5 rapid status requests
     const requests = [];
     for (let i = 0; i < 5; i++) {
-      requests.push(page.goto(`${BASE_URL}?p=status&tenant=${TENANT_ID}`));
+      requests.push(page.goto(`${BASE_URL}?p=status&brand=${TENANT_ID}`));
     }
 
     const responses = await Promise.all(requests);

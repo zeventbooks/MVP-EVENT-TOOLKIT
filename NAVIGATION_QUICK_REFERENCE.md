@@ -4,13 +4,13 @@
 
 | Page | Route | File | Purpose | URL Example |
 |------|-------|------|---------|-------------|
-| **Public** | Default | `Public.html` | Event listing/detail | `?p=events&tenant=root` |
-| **Admin** | `?page=admin` | `Admin.html` | Event creation/config | `?page=admin&tenant=root` |
-| **Display** | `?page=display` | `Display.html` | TV screen | `?page=display&tenant=root&id=EVT123&tv=1` |
-| **Poster** | `?page=poster` | `Poster.html` | Print/QR codes | `?page=poster&tenant=root&id=EVT123` |
-| **Report** | `?page=report` | `SharedReport.html` | Analytics | `?page=report&tenant=root&id=EVT123` |
-| **Analytics** | `?page=analytics` | `SharedReport.html` | Analytics (alias) | `?page=analytics&tenant=root&id=EVT123` |
-| **Test Hub** | `?page=test` | `Test.html` | Testing navigation | `?page=test&tenant=root` |
+| **Public** | Default | `Public.html` | Event listing/detail | `?p=events&brand=root` |
+| **Admin** | `?page=admin` | `Admin.html` | Event creation/config | `?page=admin&brand=root` |
+| **Display** | `?page=display` | `Display.html` | TV screen | `?page=display&brand=root&id=EVT123&tv=1` |
+| **Poster** | `?page=poster` | `Poster.html` | Print/QR codes | `?page=poster&brand=root&id=EVT123` |
+| **Report** | `?page=report` | `SharedReport.html` | Analytics | `?page=report&brand=root&id=EVT123` |
+| **Analytics** | `?page=analytics` | `SharedReport.html` | Analytics (alias) | `?page=analytics&brand=root&id=EVT123` |
+| **Test Hub** | `?page=test` | `Test.html` | Testing navigation | `?page=test&brand=root` |
 | **API Docs** | `?page=docs` or `?page=api` | `ApiDocs.html` | REST API docs | `?page=docs` |
 | **Status** | `?p=status` | N/A (JSON) | Health check | `?p=status` |
 | **Redirect** | `?p=r&t=TOKEN` | N/A (Redirect) | Shortlink tracking | `?p=r&t=abc123def` |
@@ -23,7 +23,7 @@
 ```
 ?page=PAGENAME       Page identifier (admin, poster, test, display, report, analytics)
 ?p=SCOPE             Scope identifier (events, leagues, tournaments) - controls which sheet
-?tenant=TENANTID     Tenant identifier (root, abc, cbc, cbl, etc.)
+?brand=TENANTID     Tenant identifier (root, abc, cbc, cbl, etc.)
 ?id=EVENTID          Event identifier (UUID) - for event-specific pages
 ?tv=1                TV mode flag (for Display.html to use TV-optimized layout)
 ```
@@ -72,7 +72,7 @@ function doGet(e){
   const allowed = tenant.scopesAllowed?.length ? tenant.scopesAllowed : ['events','leagues','tournaments'];
   if (!allowed.includes(scope)){
     // Redirect to first allowed scope if invalid
-    return HtmlService.createHtmlOutput(`<meta http-equiv="refresh" content="0;url=?p=${first}&tenant=${tenant.id}">`);
+    return HtmlService.createHtmlOutput(`<meta http-equiv="refresh" content="0;url=?p=${first}&brand=${tenant.id}">`);
   }
 
   // 6. Named page routes
@@ -145,10 +145,10 @@ const { publicUrl, posterUrl, displayUrl, reportUrl } = event.links;
 
 // Example links structure:
 {
-  publicUrl:  "?p=events&tenant=root&id=evt-uuid-here",
-  posterUrl:  "?page=poster&p=events&tenant=root&id=evt-uuid-here",
-  displayUrl: "?page=display&p=events&tenant=root&id=evt-uuid-here&tv=1",
-  reportUrl:  "?page=report&tenant=root&id=evt-uuid-here"
+  publicUrl:  "?p=events&brand=root&id=evt-uuid-here",
+  posterUrl:  "?page=poster&p=events&brand=root&id=evt-uuid-here",
+  displayUrl: "?page=display&p=events&brand=root&id=evt-uuid-here&tv=1",
+  reportUrl:  "?page=report&brand=root&id=evt-uuid-here"
 }
 
 // These are shown to admin with copy buttons
@@ -172,7 +172,7 @@ List of all events for tenant/scope
            ├─ "Check In" button → External URL (checkinUrl)
            ├─ "Walk-in" button → External URL (walkinUrl)
            ├─ "Survey" button → External URL (surveyUrl)
-           └─ "← Back to Events" → Reload event list (?p=events&tenant=...)
+           └─ "← Back to Events" → Reload event list (?p=events&brand=...)
 ```
 
 ---
@@ -222,7 +222,7 @@ const TENANTS = [
 
 // Tenant detection order:
 1. findTenantByHost_(e.headers.host)  // Match hostname first
-2. findTenant_(e.parameter.tenant)    // Or use ?tenant=ID parameter
+2. findTenant_(e.parameter.tenant)    // Or use ?brand=ID parameter
 3. Default to 'root' tenant
 ```
 
@@ -262,19 +262,19 @@ const SHEET_NAME = scope.toUpperCase();  // 'EVENTS', 'LEAGUES', 'TOURNAMENTS'
 
 ### Current (Mixed)
 ```
-Admin:   ?page=admin&tenant=root
-Public:  ?p=events&tenant=root
-Display: ?page=display&tenant=root&id=...
-Report:  ?page=report&tenant=root&id=...
+Admin:   ?page=admin&brand=root
+Public:  ?p=events&brand=root
+Display: ?page=display&brand=root&id=...
+Report:  ?page=report&brand=root&id=...
 Status:  ?p=status
 ```
 
 ### Proposed (Consistent)
 ```
-Admin:   ?page=admin&tenant=root&scope=events
-Public:  ?page=public&tenant=root&scope=events&id=... (optional)
-Display: ?page=display&tenant=root&id=...
-Report:  ?page=report&tenant=root&id=...
+Admin:   ?page=admin&brand=root&scope=events
+Public:  ?page=public&brand=root&scope=events&id=... (optional)
+Display: ?page=display&brand=root&id=...
+Report:  ?page=report&brand=root&id=...
 Status:  ?page=status
 Docs:    ?page=docs
 Redirect:?page=redirect&token=...

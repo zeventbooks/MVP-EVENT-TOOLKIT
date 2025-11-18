@@ -126,10 +126,10 @@ curl "https://script.google.com/macros/s/AKfycbx6ZTFD8H3NiAlagCLHa9DPzhgxcqWRmGX
 Open in browser and verify:
 
 - [ ] **Status:** `?page=status` loads
-- [ ] **Admin:** `?page=admin&tenant=root` loads (with key)
-- [ ] **Public:** `?p=events&tenant=root` loads
-- [ ] **Display:** `?page=display&tenant=root&tv=1` loads
-- [ ] **Poster:** `?page=poster&tenant=root` loads
+- [ ] **Admin:** `?page=admin&brand=root` loads (with key)
+- [ ] **Public:** `?p=events&brand=root` loads
+- [ ] **Display:** `?page=display&brand=root&tv=1` loads
+- [ ] **Poster:** `?page=poster&brand=root` loads
 
 ### 3. E2E Tests
 

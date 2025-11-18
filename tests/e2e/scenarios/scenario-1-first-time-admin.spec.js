@@ -29,7 +29,7 @@ test.describe('SCENARIO 1: First-Time Admin', () => {
 
   test('1.1 Open admin page → Should see empty form', async ({ page }) => {
     // Navigate to admin page
-    await page.goto(`${BASE_URL}?p=admin&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?p=admin&brand=${TENANT_ID}`);
 
     // VERIFY: Page loads successfully
     await expect(page).toHaveTitle(/Admin/);
@@ -59,7 +59,7 @@ test.describe('SCENARIO 1: First-Time Admin', () => {
   });
 
   test('1.2 Try to submit without admin key → Should prompt', async ({ page }) => {
-    await page.goto(`${BASE_URL}?p=admin&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?p=admin&brand=${TENANT_ID}`);
 
     let dialogShown = false;
     let dialogMessage = '';
@@ -91,7 +91,7 @@ test.describe('SCENARIO 1: First-Time Admin', () => {
   });
 
   test('1.3 Submit with invalid data → Should show error', async ({ page }) => {
-    await page.goto(`${BASE_URL}?p=admin&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?p=admin&brand=${TENANT_ID}`);
 
     // Handle admin key prompt
     page.on('dialog', async dialog => {
@@ -128,7 +128,7 @@ test.describe('SCENARIO 1: First-Time Admin', () => {
   });
 
   test('1.4 Submit valid event → Should see success + links', async ({ page }) => {
-    await page.goto(`${BASE_URL}?p=admin&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?p=admin&brand=${TENANT_ID}`);
 
     // Handle admin key prompt
     page.on('dialog', async dialog => {
@@ -176,7 +176,7 @@ test.describe('SCENARIO 1: First-Time Admin', () => {
   });
 
   test('1.5 Submit Sponsor → Should configure sponsor successfully', async ({ page }) => {
-    await page.goto(`${BASE_URL}?p=admin&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?p=admin&brand=${TENANT_ID}`);
 
     // Handle admin key prompt
     page.on('dialog', async dialog => {
@@ -233,7 +233,7 @@ test.describe('SCENARIO 1: First-Time Admin', () => {
   });
 
   test('1.6 Create Google sign-up forms → Should have form creation options', async ({ page }) => {
-    await page.goto(`${BASE_URL}?p=admin&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?p=admin&brand=${TENANT_ID}`);
 
     // Handle admin key prompt
     page.on('dialog', async dialog => {
@@ -276,7 +276,7 @@ test.describe('SCENARIO 1: First-Time Admin', () => {
   });
 
   test('1.7 Create Poster → Should generate poster link', async ({ page }) => {
-    await page.goto(`${BASE_URL}?p=admin&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?p=admin&brand=${TENANT_ID}`);
 
     // Handle admin key prompt
     page.on('dialog', async dialog => {
@@ -323,7 +323,7 @@ test.describe('SCENARIO 1: First-Time Admin', () => {
  */
 test.describe('SCENARIO 1: Complete Admin Workflow (Integration)', () => {
   test('Complete first-time admin experience', async ({ page }) => {
-    await page.goto(`${BASE_URL}?p=admin&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?p=admin&brand=${TENANT_ID}`);
 
     // Handle admin key throughout
     page.on('dialog', async dialog => {

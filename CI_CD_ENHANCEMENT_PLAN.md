@@ -62,7 +62,7 @@ lighthouse:
         npm install -g @lhci/cli@0.12.x
 
         # Test public page
-        lhci autorun --collect.url="$BASE_URL?p=events&tenant=root" \
+        lhci autorun --collect.url="$BASE_URL?p=events&brand=root" \
           --assert.preset=lighthouse:no-pwa \
           --upload.target=temporary-public-storage
 

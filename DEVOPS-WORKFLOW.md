@@ -307,7 +307,7 @@ When creating any new deployment (@HEAD or versioned):
 3. **Verify**
    ```bash
    # Test in incognito browser
-   curl "https://script.google.com/macros/s/[DEPLOYMENT_ID]/exec?p=status&tenant=root"
+   curl "https://script.google.com/macros/s/[DEPLOYMENT_ID]/exec?p=status&brand=root"
    # Should return JSON, not HTML
    ```
 
@@ -421,7 +421,7 @@ git push origin main
 **Automated Monitoring (Set up cron job)**
 ```bash
 # Every 15 minutes
-*/15 * * * * curl -f "https://script.google.com/macros/s/[PROD_ID]/exec?p=status&tenant=root" || echo "ALERT: Production down"
+*/15 * * * * curl -f "https://script.google.com/macros/s/[PROD_ID]/exec?p=status&brand=root" || echo "ALERT: Production down"
 ```
 
 **Manual Checks**

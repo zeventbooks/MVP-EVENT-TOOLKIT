@@ -83,22 +83,22 @@ Try these URLs (replace `{URL}` with your deployment URL):
 
 2. **Public Event Page:**
    ```
-   {URL}?p=events&tenant=root
+   {URL}?p=events&brand=root
    ```
 
 3. **Admin Dashboard:**
    ```
-   {URL}?page=admin&tenant=root
+   {URL}?page=admin&brand=root
    ```
 
 4. **Display Mode:**
    ```
-   {URL}?page=display&tenant=root&tv=1
+   {URL}?page=display&brand=root&tv=1
    ```
 
 5. **Poster (with QR codes):**
    ```
-   {URL}?page=poster&tenant=root&id={event-id}
+   {URL}?page=poster&brand=root&id={event-id}
    ```
 
 ---
@@ -172,7 +172,7 @@ Once deployed, share these URLs with ABC for winter testing:
 
 1. **Test the public page first:**
    ```
-   {URL}?p=events&tenant=root
+   {URL}?p=events&brand=root
    ```
 
 2. **Test mobile responsiveness:**
@@ -182,7 +182,7 @@ Once deployed, share these URLs with ABC for winter testing:
 
 3. **Test the admin dashboard:**
    ```
-   {URL}?page=admin&tenant=root
+   {URL}?page=admin&brand=root
    ```
    - View Event Lifecycle phases
    - Check data visualization cards

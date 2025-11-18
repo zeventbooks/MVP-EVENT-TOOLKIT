@@ -10,7 +10,7 @@
 ### Main Admin
 ```
 https://zeventbooks.com/admin
-https://zeventbooks.com/admin?tenant=abc
+https://zeventbooks.com/admin?brand=abc
 ```
 
 ### Common Admin Subpages
@@ -146,10 +146,10 @@ https://zeventbooks.com/test                       # Test page
 
 **For Event Organizer (Admin):**
 ```
-https://zeventbooks.com/admin?tenant=abc
-https://zeventbooks.com/admin/my-events?tenant=abc
-https://zeventbooks.com/admin/team-roster?tenant=abc&event=fall-league-2024
-https://zeventbooks.com/admin/results?tenant=abc&event=fall-league-2024
+https://zeventbooks.com/admin?brand=abc
+https://zeventbooks.com/admin/my-events?brand=abc
+https://zeventbooks.com/admin/team-roster?brand=abc&event=fall-league-2024
+https://zeventbooks.com/admin/results?brand=abc&event=fall-league-2024
 ```
 
 **For TV Display at Venue:**
@@ -211,20 +211,20 @@ https://zeventbooks.com/championship-signup/confirmation
 
 **American Bocce Co. (ABC):**
 ```
-https://zeventbooks.com/admin?tenant=abc
-https://zeventbooks.com/summer-league-display/scoreboard?tenant=abc
+https://zeventbooks.com/admin?brand=abc
+https://zeventbooks.com/summer-league-display/scoreboard?brand=abc
 ```
 
 **Chicago Bocce Club (CBC):**
 ```
-https://zeventbooks.com/admin?tenant=cbc
-https://zeventbooks.com/weekly-tournament-display/bracket?tenant=cbc
+https://zeventbooks.com/admin?brand=cbc
+https://zeventbooks.com/weekly-tournament-display/bracket?brand=cbc
 ```
 
 **Chicago Bocce League (CBL):**
 ```
-https://zeventbooks.com/admin?tenant=cbl
-https://zeventbooks.com/city-championship-poster/download?tenant=cbl
+https://zeventbooks.com/admin?brand=cbl
+https://zeventbooks.com/city-championship-poster/download?brand=cbl
 ```
 
 ---
@@ -249,9 +249,9 @@ https://zeventbooks.com/city-championship-poster/download?tenant=cbl
 
 ### Query Parameter Pattern (For Admin & Tenants)
 ```
-/admin?tenant={tenant-id}
-/admin/{subpage}?tenant={tenant-id}
-?p=admin&tenant={tenant-id}
+/admin?brand={tenant-id}
+/admin/{subpage}?brand={tenant-id}
+?p=admin&brand={tenant-id}
 ```
 
 ---

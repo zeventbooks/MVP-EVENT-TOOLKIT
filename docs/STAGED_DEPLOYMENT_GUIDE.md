@@ -67,9 +67,9 @@ Automatically runs on:
 2. **Contract Tests** - Validates API contracts and Triangle tests
 3. **Deploy to Apps Script** - Deploys to your Google Apps Script API
 4. **Generate URLs** - Creates tenant-specific URLs for verification:
-   - **ROOT**: `https://script.google.com/...?p=events&tenant=root`
-   - **ABC**: `https://script.google.com/...?p=events&tenant=abc`
-   - **CBC**: `https://script.google.com/...?p=events&tenant=cbc`
+   - **ROOT**: `https://script.google.com/...?p=events&brand=root`
+   - **ABC**: `https://script.google.com/...?p=events&brand=abc`
+   - **CBC**: `https://script.google.com/...?p=events&brand=cbc`
 
 ### Success Criteria
 - ✅ All tests must pass

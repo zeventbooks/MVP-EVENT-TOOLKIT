@@ -391,7 +391,7 @@ describe('📁 Config.gs - Tenant Management', () => {
         url += '/display';
       } else {
         // Fallback to query params
-        return `${BASE_URL}?p=${page}&tenant=${tenantId}`;
+        return `${BASE_URL}?p=${page}&brand=${tenantId}`;
       }
 
       // Add additional params
@@ -417,7 +417,7 @@ describe('📁 Config.gs - Tenant Management', () => {
     test('falls back to query params for unknown page', () => {
       const url = getFriendlyUrl_('unknown', 'abc');
 
-      expect(url).toContain('?p=unknown&tenant=abc');
+      expect(url).toContain('?p=unknown&brand=abc');
     });
 
     test('includes additional options', () => {

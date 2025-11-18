@@ -422,7 +422,7 @@ Tests run sequentially in GitHub Actions:
 For questions or issues:
 - Review `tests/e2e/README.md` for detailed documentation
 - Check test output in GitHub Actions artifacts
-- Access Test.html for live testing: `?page=test&tenant=root`
+- Access Test.html for live testing: `?page=test&brand=root`
 - Compare environments: Open `test-dashboard.html` locally
 
 ---

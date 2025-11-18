@@ -342,7 +342,7 @@ HOSTINGER_FTP_PASSWORD=<your_password>
       echo "Attempt $i/5..."
 
       # Test via Hostinger proxy
-      STATUS=$(curl -sf "https://zeventbooks.com?p=status&tenant=root" | jq -r '.ok')
+      STATUS=$(curl -sf "https://zeventbooks.com?p=status&brand=root" | jq -r '.ok')
 
       if [ "$STATUS" == "true" ]; then
         echo "✅ Deployment verified via zeventbooks.com!"

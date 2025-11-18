@@ -110,7 +110,7 @@ When creating/editing deployments, ensure:
 
 **Manual test in browser (incognito):**
 ```
-https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec?p=status&tenant=root
+https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec?p=status&brand=root
 ```
 
 **Expected response:**
