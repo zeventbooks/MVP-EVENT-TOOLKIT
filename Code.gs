@@ -236,15 +236,23 @@ function doGet(e){
   const hostHeader = (e?.headers?.host || e?.parameter?.host || '').toString();
   let tenant = findTenantByHost_(hostHeader) || findTenant_('root');
 
+  // Allow brand parameter to override tenant
+  if (e?.parameter?.brand) {
+    const brandTenant = findTenant_(e.parameter.brand);
+    if (brandTenant) {
+      tenant = brandTenant;
+    }
+  }
+
   // Demo mode detection (for testing, UAT, demos, and screenshots)
   const demoMode = (e?.parameter?.demo === 'true' || e?.parameter?.test === 'true');
 
   // ===== Customer-Friendly URL Routing =====
   // Supports patterns like:
-  //   /abc/events → tenant=abc, page=public
-  //   /abc/manage → tenant=abc, page=admin, mode=advanced
-  //   /events → tenant=root, page=public
-  //   /display → tenant=root, page=display
+  //   /abc/events → brand=abc, page=public
+  //   /abc/manage → brand=abc, page=admin, mode=advanced
+  //   /events → brand=root, page=public
+  //   /display → brand=root, page=display
   const pathInfo = (e?.pathInfo || '').toString().replace(/^\/+|\/+$/g, '');
 
   if (pathInfo) {
