@@ -1,7 +1,3 @@
-
-  const backwardCompatRedirect = handleBackwardCompatibility(e);
-  if (backwardCompatRedirect) return backwardCompatRedirect;
-  
 // === Zeventbook Production-Grade Backend ===
 // Build: triangle-prod-v1.2
 
@@ -234,25 +230,6 @@ function validateCSRFToken_(token) {
 }
 
 // === Router ================================================================
-
-// BACKWARD COMPATIBILITY LAYER
-function handleBackwardCompatibility(e) {
-  const oldPage = e.parameter.p || e.parameter.page;
-  const tenant = e.parameter.tenant;
-  if (!oldPage || !tenant) return null;
-  Logger.log('🔄 Backward compat: ?p=' + oldPage + '&tenant=' + tenant);
-  const pageMapping = {'status':'status','admin':'manage','events':'events','display':'display','poster':'poster','public':'public','sponsor':'sponsors','config':'config','reports':'reports','diagnostics':'diagnostics'};
-  const newPath = pageMapping[oldPage] || oldPage;
-  let newUrl = (oldPage === 'status') ? '/status?tenant=' + tenant : '/' + tenant + '/' + newPath;
-  for (const key in e.parameter) {
-    if (key !== 'p' && key !== 'page' && key !== 'tenant') {
-      newUrl += (newUrl.indexOf('?') > 0 ? '&' : '?') + key + '=' + e.parameter[key];
-    }
-  }
-  Logger.log('   → Redirecting to: ' + newUrl);
-  return HtmlService.createHtmlOutput('<!DOCTYPE html><html><head><meta http-equiv="refresh" content="0;url=' + newUrl + '"></head><body>Redirecting...</body></html>').setTitle('Redirecting');
-}
-
 function doGet(e){
   const pageParam = (e?.parameter?.page || e?.parameter?.p || '').toString();
   const actionParam = (e?.parameter?.action || '').toString();
