@@ -9,8 +9,11 @@
  */
 
 const { test, expect } = require('@playwright/test');
+const { getCurrentEnvironment } = require('../../config/environments');
 
-const BASE_URL = process.env.BASE_URL || 'https://zeventbooks.com';
+// Get environment configuration
+const env = getCurrentEnvironment();
+const BASE_URL = env.baseUrl;
 const TENANT_ID = 'root';
 
 // Mobile viewport configuration

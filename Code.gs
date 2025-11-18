@@ -320,7 +320,7 @@ function doGet(e){
   }
 
   // Admin mode selection: default to wizard for simplicity, allow advanced mode via URL parameter
-  let page = (pageParam==='admin' || pageParam==='wizard' || pageParam==='poster' || pageParam==='test' || pageParam==='display' || pageParam==='report' || pageParam==='analytics' || pageParam==='diagnostics' || pageParam==='sponsor' || pageParam==='signup' || pageParam==='config') ? pageParam : 'public';
+  let page = (pageParam==='admin' || pageParam==='wizard' || pageParam==='planner' || pageParam==='poster' || pageParam==='test' || pageParam==='display' || pageParam==='report' || pageParam==='analytics' || pageParam==='diagnostics' || pageParam==='sponsor' || pageParam==='signup' || pageParam==='config') ? pageParam : 'public';
 
   // Route using helper function
   return routePage_(e, page, tenant, demoMode, { mode: e?.parameter?.mode });
@@ -614,6 +614,7 @@ function jsonResponse_(data) {
 function pageFile_(page){
   if (page==='admin') return 'Admin';
   if (page==='wizard') return 'AdminWizard';
+  if (page==='planner') return 'PlannerCards';
   if (page==='poster') return 'Poster';
   if (page==='test') return 'Test';
   if (page==='display') return 'Display';
@@ -1836,6 +1837,283 @@ function api_exportReport(req){
     diag_('info','api_exportReport','exported',{eventId, sheetId: sh.getSheetId()});
     return Ok({sheetUrl: ss.getUrl() + '#gid=' + sh.getSheetId()});
   });
+}
+
+/**
+ * Get sponsor-specific analytics data
+ * Allows sponsors to view their performance metrics across events
+ * @param {object} req - Request object with sponsorId, eventId (optional), dateFrom/dateTo (optional)
+ * @returns {object} Sponsor analytics including impressions, clicks, CTR, ROI by surface
+ */
+function api_getSponsorAnalytics(req) {
+  return runSafe('api_getSponsorAnalytics', () => {
+    if (!req || typeof req !== 'object') return Err(ERR.BAD_INPUT, 'Missing payload');
+
+    const { sponsorId, eventId, dateFrom, dateTo, tenantId, adminKey } = req;
+
+    if (!sponsorId) return Err(ERR.BAD_INPUT, 'Missing sponsorId');
+
+    // Optional authentication - sponsors can view their own data
+    // Admin key allows viewing any sponsor's data
+    if (adminKey) {
+      const g = gate_(tenantId || 'root', adminKey);
+      if (!g.ok) return g;
+    }
+
+    // Get analytics data
+    const sh = _ensureAnalyticsSheet_();
+    let data = sh.getDataRange().getValues().slice(1);
+
+    // Filter by sponsor ID
+    data = data.filter(r => r[4] === sponsorId);
+
+    // Filter by event ID if provided
+    if (eventId) {
+      data = data.filter(r => r[1] === eventId);
+    }
+
+    // Filter by date range if provided
+    if (dateFrom || dateTo) {
+      const fromDate = dateFrom ? new Date(dateFrom) : new Date(0);
+      const toDate = dateTo ? new Date(dateTo) : new Date();
+
+      data = data.filter(r => {
+        const rowDate = new Date(r[0]); // timestamp column
+        return rowDate >= fromDate && rowDate <= toDate;
+      });
+    }
+
+    // Aggregate metrics
+    const agg = {
+      sponsorId: sponsorId,
+      totals: { impressions: 0, clicks: 0, dwellSec: 0, ctr: 0 },
+      bySurface: {}, // poster, display, public, etc.
+      byEvent: {},
+      timeline: [] // Daily breakdown
+    };
+
+    // Process each analytics row
+    for (const r of data) {
+      const timestamp = r[0];
+      const evtId = r[1];
+      const surface = r[2];
+      const metric = r[3];
+      const value = Number((r[5] !== null && r[5] !== undefined) ? r[5] : 0);
+
+      // Initialize surface if not exists
+      if (!agg.bySurface[surface]) {
+        agg.bySurface[surface] = { impressions: 0, clicks: 0, dwellSec: 0, ctr: 0 };
+      }
+
+      // Initialize event if not exists
+      if (!agg.byEvent[evtId]) {
+        agg.byEvent[evtId] = { impressions: 0, clicks: 0, dwellSec: 0, ctr: 0 };
+      }
+
+      const surf = agg.bySurface[surface];
+      const evt = agg.byEvent[evtId];
+
+      // Aggregate metrics
+      if (metric === 'impression') {
+        agg.totals.impressions++;
+        surf.impressions++;
+        evt.impressions++;
+      }
+      if (metric === 'click') {
+        agg.totals.clicks++;
+        surf.clicks++;
+        evt.clicks++;
+      }
+      if (metric === 'dwellSec') {
+        agg.totals.dwellSec += value;
+        surf.dwellSec += value;
+        evt.dwellSec += value;
+      }
+
+      // Track daily timeline
+      const date = new Date(timestamp).toISOString().split('T')[0];
+      let dayData = agg.timeline.find(d => d.date === date);
+      if (!dayData) {
+        dayData = { date, impressions: 0, clicks: 0, dwellSec: 0 };
+        agg.timeline.push(dayData);
+      }
+
+      if (metric === 'impression') dayData.impressions++;
+      if (metric === 'click') dayData.clicks++;
+      if (metric === 'dwellSec') dayData.dwellSec += value;
+    }
+
+    // Calculate CTR (Click-Through Rate) for all aggregations
+    agg.totals.ctr = agg.totals.impressions > 0
+      ? +(agg.totals.clicks / agg.totals.impressions * 100).toFixed(2)
+      : 0;
+
+    for (const surface in agg.bySurface) {
+      const s = agg.bySurface[surface];
+      s.ctr = s.impressions > 0 ? +(s.clicks / s.impressions * 100).toFixed(2) : 0;
+    }
+
+    for (const evtId in agg.byEvent) {
+      const e = agg.byEvent[evtId];
+      e.ctr = e.impressions > 0 ? +(e.clicks / e.impressions * 100).toFixed(2) : 0;
+    }
+
+    for (const day of agg.timeline) {
+      day.ctr = day.impressions > 0 ? +(day.clicks / day.impressions * 100).toFixed(2) : 0;
+    }
+
+    // Sort timeline by date
+    agg.timeline.sort((a, b) => a.date.localeCompare(b.date));
+
+    // Add engagement score (weighted average of CTR and dwell time)
+    agg.totals.engagementScore = calculateEngagementScore_(
+      agg.totals.ctr,
+      agg.totals.dwellSec,
+      agg.totals.impressions
+    );
+
+    // Add performance insights
+    agg.insights = generateSponsorInsights_(agg);
+
+    diag_('info', 'api_getSponsorAnalytics', 'Analytics retrieved', {
+      sponsorId,
+      eventId: eventId || 'all',
+      totalImpressions: agg.totals.impressions
+    });
+
+    return Ok(agg);
+  });
+}
+
+/**
+ * Calculate engagement score from CTR and dwell time
+ * @param {number} ctr - Click-through rate (percentage)
+ * @param {number} dwellSec - Total dwell time in seconds
+ * @param {number} impressions - Total impressions
+ * @returns {number} Engagement score (0-100)
+ */
+function calculateEngagementScore_(ctr, dwellSec, impressions) {
+  if (impressions === 0) return 0;
+
+  // Normalize dwell time (assuming 5 seconds is good engagement per impression)
+  const avgDwellPerImpression = dwellSec / impressions;
+  const normalizedDwell = Math.min(avgDwellPerImpression / 5 * 100, 100);
+
+  // Weight: 60% CTR, 40% dwell time
+  const score = (ctr * 0.6) + (normalizedDwell * 0.4);
+
+  return +score.toFixed(2);
+}
+
+/**
+ * Generate performance insights for sponsors
+ * @param {object} agg - Aggregated analytics data
+ * @returns {array} Array of insight objects
+ */
+function generateSponsorInsights_(agg) {
+  const insights = [];
+
+  // Insight 1: Best performing surface
+  let bestSurface = null;
+  let bestCTR = 0;
+
+  for (const [surface, data] of Object.entries(agg.bySurface)) {
+    if (data.ctr > bestCTR && data.impressions >= 10) { // Need at least 10 impressions for statistical relevance
+      bestCTR = data.ctr;
+      bestSurface = surface;
+    }
+  }
+
+  if (bestSurface) {
+    insights.push({
+      type: 'success',
+      title: 'Top Performing Surface',
+      message: `Your ${bestSurface} ads have the highest CTR at ${bestCTR}%. Consider increasing investment in this channel.`,
+      metric: { surface: bestSurface, ctr: bestCTR }
+    });
+  }
+
+  // Insight 2: Low CTR warning
+  if (agg.totals.impressions >= 100 && agg.totals.ctr < 1) {
+    insights.push({
+      type: 'warning',
+      title: 'Low Click-Through Rate',
+      message: `Your overall CTR is ${agg.totals.ctr}%. Consider refreshing your ad creative or targeting to improve engagement.`,
+      metric: { ctr: agg.totals.ctr }
+    });
+  }
+
+  // Insight 3: Surface comparison
+  const surfaces = Object.keys(agg.bySurface);
+  if (surfaces.length > 1) {
+    const surfacePerformance = surfaces.map(s => ({
+      name: s,
+      ...agg.bySurface[s]
+    })).sort((a, b) => b.ctr - a.ctr);
+
+    if (surfacePerformance.length >= 2) {
+      const top = surfacePerformance[0];
+      const bottom = surfacePerformance[surfacePerformance.length - 1];
+
+      if (top.ctr > bottom.ctr * 2 && bottom.impressions >= 10) {
+        insights.push({
+          type: 'info',
+          title: 'Surface Performance Gap',
+          message: `${top.name} performs ${(top.ctr / bottom.ctr).toFixed(1)}x better than ${bottom.name}. Consider reallocating budget.`,
+          metric: { topSurface: top.name, topCTR: top.ctr, bottomSurface: bottom.name, bottomCTR: bottom.ctr }
+        });
+      }
+    }
+  }
+
+  // Insight 4: Engagement quality
+  if (agg.totals.impressions > 0) {
+    const avgDwell = agg.totals.dwellSec / agg.totals.impressions;
+    if (avgDwell > 5) {
+      insights.push({
+        type: 'success',
+        title: 'High Engagement Quality',
+        message: `Users spend an average of ${avgDwell.toFixed(1)} seconds viewing your ads, indicating strong interest.`,
+        metric: { avgDwellSec: avgDwell }
+      });
+    } else if (avgDwell < 2 && agg.totals.impressions >= 50) {
+      insights.push({
+        type: 'warning',
+        title: 'Short View Duration',
+        message: `Average view time is only ${avgDwell.toFixed(1)} seconds. Your ad creative may not be capturing attention.`,
+        metric: { avgDwellSec: avgDwell }
+      });
+    }
+  }
+
+  // Insight 5: Recent trend
+  if (agg.timeline.length >= 7) {
+    const recent = agg.timeline.slice(-7);
+    const older = agg.timeline.slice(-14, -7);
+
+    if (older.length >= 7) {
+      const recentAvgCTR = recent.reduce((sum, d) => sum + d.ctr, 0) / recent.length;
+      const olderAvgCTR = older.reduce((sum, d) => sum + d.ctr, 0) / older.length;
+
+      if (recentAvgCTR > olderAvgCTR * 1.2) {
+        insights.push({
+          type: 'success',
+          title: 'Improving Trend',
+          message: `Your CTR has increased by ${((recentAvgCTR / olderAvgCTR - 1) * 100).toFixed(0)}% in the last week compared to the previous week.`,
+          metric: { recentCTR: recentAvgCTR, previousCTR: olderAvgCTR, change: recentAvgCTR - olderAvgCTR }
+        });
+      } else if (olderAvgCTR > recentAvgCTR * 1.2) {
+        insights.push({
+          type: 'warning',
+          title: 'Declining Performance',
+          message: `Your CTR has decreased by ${((1 - recentAvgCTR / olderAvgCTR) * 100).toFixed(0)}% in the last week. Consider refreshing your ad creative.`,
+          metric: { recentCTR: recentAvgCTR, previousCTR: olderAvgCTR, change: recentAvgCTR - olderAvgCTR }
+        });
+      }
+    }
+  }
+
+  return insights;
 }
 
 function api_createShortlink(req){

@@ -20,6 +20,8 @@ const ZEB = Object.freeze({
     'manage': { page: 'admin', mode: 'advanced', label: 'Management', public: false },
     'admin': { page: 'admin', mode: 'advanced', label: 'Admin', public: false },
     'create': { page: 'wizard', label: 'Create Event', public: false },
+    'planner': { page: 'planner', label: 'Event Planner', public: false },
+    'cards': { page: 'planner', label: 'Card Interface', public: false },
     'dashboard': { page: 'admin', label: 'Dashboard', public: false },
 
     // Display aliases (for TV/kiosks)
