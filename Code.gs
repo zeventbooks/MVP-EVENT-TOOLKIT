@@ -201,13 +201,32 @@ function generateCSRFToken_() {
 
 function validateCSRFToken_(token) {
   if (!token || typeof token !== 'string') return false;
-  const cache = CacheService.getUserCache();
-  const valid = cache.get('csrf_' + token);
-  if (valid) {
-    cache.remove('csrf_' + token); // One-time use
-    return true;
+
+  // Fixed: Bug #4 - Use LockService for atomic check-and-remove to prevent race condition
+  const lock = LockService.getUserLock();
+  try {
+    // Acquire lock with 5 second timeout
+    if (!lock.tryLock(5000)) {
+      diag_('warn', 'validateCSRFToken_', 'Failed to acquire lock', { token: token.substring(0, 8) + '...' });
+      return false;
+    }
+
+    const cache = CacheService.getUserCache();
+    const valid = cache.get('csrf_' + token);
+
+    if (valid) {
+      cache.remove('csrf_' + token); // One-time use (now atomic)
+      return true;
+    }
+    return false;
+  } finally {
+    // Always release lock
+    try {
+      lock.releaseLock();
+    } catch (e) {
+      // Lock might have expired, ignore
+    }
   }
-  return false;
 }
 
 // === Router ================================================================
@@ -388,9 +407,9 @@ function doPost(e){
   try {
     // Fixed: Bug #16 - Validate request origin to prevent unauthorized access
     const origin = e.parameter?.origin || e.headers?.origin || e.headers?.referer;
-    if (!isAllowedOrigin_(origin)) {
-      diag_('warn', 'doPost', 'Unauthorized origin', {origin});
-      return jsonResponse_(Err(ERR.BAD_INPUT, 'Unauthorized origin'));
+    if (!isAllowedOrigin_(origin, e.headers)) {
+      diag_('warn', 'doPost', 'Unauthorized origin or missing auth headers', {origin});
+      return jsonResponse_(Err(ERR.BAD_INPUT, 'Unauthorized origin or missing authentication headers'));
     }
 
     const action = body.action || e.parameter?.action || '';
@@ -570,8 +589,26 @@ function handleRestApiPost_(e, action, body, tenant) {
 
 // === Origin Validation =====================================================
 // Fixed: Bug #16 - Add origin validation to prevent unauthorized API access
-function isAllowedOrigin_(origin) {
-  if (!origin) return true; // Allow requests without origin (direct API calls, server-to-server)
+function isAllowedOrigin_(origin, authHeaders) {
+  // Fixed: Bug #16 Part 2 - Requests without origin (curl, Postman, server-to-server)
+  // must have authentication headers (JWT token or Authorization header)
+  if (!origin) {
+    // Non-browser requests must provide authentication
+    const hasAuth = authHeaders && (
+      authHeaders.authorization ||
+      authHeaders.Authorization ||
+      authHeaders['x-api-key'] ||
+      authHeaders['X-API-Key']
+    );
+
+    if (!hasAuth) {
+      diag_('warn', 'isAllowedOrigin_', 'Non-browser request without auth headers', {});
+      return false;
+    }
+
+    // Has auth headers, allow to proceed to authentication layer
+    return true;
+  }
 
   try {
     const originUrl = new URL(origin);
@@ -804,6 +841,32 @@ function authenticateRequest_(e, body, tenantId) {
  * In production, use a proper JWT library or Google's OAuth
  */
 // Fixed: Bug #2 - Add algorithm verification to prevent "none" algorithm attack
+/**
+ * Timing-safe string comparison to prevent timing attacks
+ * Returns true if strings are equal, false otherwise
+ * Always takes constant time regardless of where strings differ
+ */
+function timingSafeCompare_(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string') {
+    return false;
+  }
+
+  // Different lengths = not equal, but still compare all bytes to maintain constant time
+  const aLen = a.length;
+  const bLen = b.length;
+  let result = aLen === bLen ? 0 : 1;
+
+  // Compare all bytes, using modulo to handle different lengths
+  const maxLen = Math.max(aLen, bLen);
+  for (let i = 0; i < maxLen; i++) {
+    const aChar = i < aLen ? a.charCodeAt(i) : 0;
+    const bChar = i < bLen ? b.charCodeAt(i) : 0;
+    result |= aChar ^ bChar;
+  }
+
+  return result === 0;
+}
+
 function verifyJWT_(token, tenant) {
   try {
     // Simple validation: decode base64 payload
@@ -847,7 +910,7 @@ function verifyJWT_(token, tenant) {
     const expectedSignature = generateJWTSignature_(parts[0] + '.' + parts[1], tenantSecret);
 
     // Timing-safe comparison to prevent timing attacks
-    if (parts[2] !== expectedSignature) {
+    if (!timingSafeCompare_(parts[2], expectedSignature)) {
       return Err(ERR.BAD_INPUT, 'Invalid token signature');
     }
 
