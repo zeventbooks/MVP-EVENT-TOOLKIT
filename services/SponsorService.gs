@@ -430,6 +430,223 @@ function SponsorService_generateROIInsights(metrics) {
   return insights;
 }
 
+// === Configuration Operations =============================================
+
+/**
+ * Get sponsor placement settings and configurations
+ *
+ * Returns available placement positions, allowed positions per surface,
+ * and upsell opportunities (e.g., dedicated TV pane).
+ *
+ * @param {object} params - Settings parameters
+ * @param {string} [params.tenantId] - Tenant ID for tenant-specific settings
+ * @returns {object} Result envelope with sponsor settings
+ */
+function SponsorService_getSettings(params) {
+  const { tenantId } = params || {};
+
+  // Default placement settings
+  const settings = {
+    placements: {
+      posterTop: {
+        name: 'Poster Top Banner',
+        description: 'Large banner at the top of printed posters',
+        surface: 'poster',
+        maxSponsors: 1,
+        dimensions: { width: 800, height: 120 },
+        recommended: true
+      },
+      posterBottom: {
+        name: 'Poster Bottom Banner',
+        description: 'Banner at the bottom of printed posters',
+        surface: 'poster',
+        maxSponsors: 1,
+        dimensions: { width: 800, height: 100 }
+      },
+      tvTop: {
+        name: 'TV Display Top Banner',
+        description: 'Banner at the top of TV displays',
+        surface: 'display',
+        maxSponsors: 1,
+        dimensions: { width: 1920, height: 200 },
+        recommended: true
+      },
+      tvSide: {
+        name: 'TV Display Side Cards',
+        description: 'Rotating sponsor cards in sidebar',
+        surface: 'display',
+        maxSponsors: 5,
+        dimensions: { width: 300, height: 250 }
+      },
+      tvDedicated: {
+        name: 'Dedicated TV Pane (Premium)',
+        description: 'Full-screen sponsor rotation',
+        surface: 'display',
+        maxSponsors: 3,
+        premium: true,
+        upsell: true,
+        dimensions: { width: 1920, height: 1080 }
+      },
+      mobileBanner: {
+        name: 'Mobile Banner',
+        description: 'Banner on mobile public page',
+        surface: 'public',
+        maxSponsors: 1,
+        dimensions: { width: 375, height: 90 },
+        recommended: true
+      },
+      mobileInline: {
+        name: 'Mobile Inline Card',
+        description: 'Inline sponsor card in mobile content',
+        surface: 'public',
+        maxSponsors: 3,
+        dimensions: { width: 375, height: 200 }
+      }
+    },
+    surfaces: {
+      poster: {
+        name: 'Poster/Print',
+        allowedPlacements: ['posterTop', 'posterBottom']
+      },
+      display: {
+        name: 'TV Display',
+        allowedPlacements: ['tvTop', 'tvSide', 'tvDedicated']
+      },
+      public: {
+        name: 'Mobile/Public Page',
+        allowedPlacements: ['mobileBanner', 'mobileInline']
+      }
+    },
+    features: {
+      analytics: {
+        enabled: true,
+        metrics: ['impressions', 'clicks', 'ctr', 'dwellTime', 'engagementScore']
+      },
+      rotation: {
+        enabled: true,
+        minDuration: 5,
+        maxDuration: 300,
+        defaultDuration: 10
+      },
+      upsells: {
+        tvDedicated: {
+          available: true,
+          description: 'Upgrade to dedicated TV pane rotation for maximum visibility',
+          benefits: [
+            'Full-screen sponsor visibility',
+            'Dedicated rotation slot',
+            'Premium analytics dashboard',
+            'Higher engagement rates'
+          ]
+        }
+      }
+    }
+  };
+
+  // If tenant-specific settings exist, merge them
+  if (tenantId) {
+    const tenant = findTenant_(tenantId);
+    if (tenant && tenant.sponsorSettings) {
+      // Merge tenant-specific overrides
+      Object.assign(settings, tenant.sponsorSettings);
+    }
+  }
+
+  diag_('info', 'SponsorService_getSettings', 'Settings retrieved', {
+    tenantId: tenantId || 'default',
+    placementsCount: Object.keys(settings.placements).length
+  });
+
+  return Ok(settings);
+}
+
+/**
+ * Validate sponsor placement configuration
+ *
+ * Ensures sponsors are assigned to valid placements and don't exceed limits.
+ *
+ * @param {object} params - Validation parameters
+ * @param {array} params.sponsors - Array of sponsor objects with placements
+ * @param {string} [params.tenantId] - Tenant ID for settings lookup
+ * @returns {object} Result envelope with validation results
+ */
+function SponsorService_validatePlacements(params) {
+  const { sponsors, tenantId } = params || {};
+
+  if (!Array.isArray(sponsors)) {
+    return Err(ERR.BAD_INPUT, 'Sponsors must be an array');
+  }
+
+  // Get settings
+  const settingsResult = SponsorService_getSettings({ tenantId });
+  if (!settingsResult.ok) return settingsResult;
+
+  const settings = settingsResult.value;
+  const placementSettings = settings.placements;
+
+  const errors = [];
+  const warnings = [];
+  const placementCounts = {};
+
+  // Count sponsors per placement
+  for (const sponsor of sponsors) {
+    const placements = sponsor.placements || {};
+
+    for (const [placementId, enabled] of Object.entries(placements)) {
+      if (!enabled) continue;
+
+      // Check if placement exists
+      if (!placementSettings[placementId]) {
+        errors.push({
+          sponsorId: sponsor.id,
+          sponsorName: sponsor.name,
+          placement: placementId,
+          message: `Invalid placement: ${placementId}`
+        });
+        continue;
+      }
+
+      // Count placement usage
+      placementCounts[placementId] = (placementCounts[placementId] || 0) + 1;
+    }
+  }
+
+  // Check placement limits
+  for (const [placementId, count] of Object.entries(placementCounts)) {
+    const setting = placementSettings[placementId];
+    const maxSponsors = setting.maxSponsors || 999;
+
+    if (count > maxSponsors) {
+      errors.push({
+        placement: placementId,
+        count: count,
+        max: maxSponsors,
+        message: `Placement ${placementId} has ${count} sponsors but only allows ${maxSponsors}`
+      });
+    }
+  }
+
+  // Check for recommended placements not used
+  for (const [placementId, setting] of Object.entries(placementSettings)) {
+    if (setting.recommended && !placementCounts[placementId]) {
+      warnings.push({
+        placement: placementId,
+        message: `Recommended placement ${setting.name} is not being used`
+      });
+    }
+  }
+
+  const isValid = errors.length === 0;
+
+  return Ok({
+    valid: isValid,
+    errors,
+    warnings,
+    placementCounts,
+    totalSponsors: sponsors.length
+  });
+}
+
 // === Portfolio Operations =================================================
 
 /**
