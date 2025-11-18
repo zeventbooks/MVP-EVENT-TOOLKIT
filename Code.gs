@@ -347,7 +347,7 @@ function doGet(e){
   }
 
   // Admin mode selection: default to wizard for simplicity, allow advanced mode via URL parameter
-  let page = (pageParam==='admin' || pageParam==='wizard' || pageParam==='planner' || pageParam==='poster' || pageParam==='test' || pageParam==='display' || pageParam==='report' || pageParam==='analytics' || pageParam==='diagnostics' || pageParam==='sponsor' || pageParam==='signup' || pageParam==='config') ? pageParam : 'public';
+  let page = (pageParam==='admin' || pageParam==='wizard' || pageParam==='planner' || pageParam==='poster' || pageParam==='test' || pageParam==='display' || pageParam==='report' || pageParam==='analytics' || pageParam==='diagnostics' || pageParam==='sponsor' || pageParam==='sponsor-roi' || pageParam==='signup' || pageParam==='config') ? pageParam : 'public';
 
   // Route using helper function
   return routePage_(e, page, tenant, demoMode, { mode: e?.parameter?.mode });
@@ -797,6 +797,7 @@ function pageFile_(page){
   if (page==='report' || page==='analytics') return 'SharedReport';
   if (page==='diagnostics') return 'Diagnostics';
   if (page==='sponsor') return 'Sponsor';
+  if (page==='sponsor-roi') return 'SponsorDashboard';
   if (page==='signup') return 'Signup';
   if (page==='config') return 'ConfigHtml';
   return 'Public';
