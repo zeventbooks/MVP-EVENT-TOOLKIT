@@ -87,7 +87,7 @@ npx @google/clasp deployments
 Once deployed, your URLs follow this pattern:
 
 ```
-https://script.google.com/macros/s/{SCRIPT_ID}/exec?page={PAGE}&tenant={TENANT}
+https://script.google.com/macros/s/{SCRIPT_ID}/exec?page={PAGE}&brand={TENANT}
 ```
 
 ### Pages Available:
@@ -115,27 +115,27 @@ After deployment, test in this order:
 
 1. **Admin Page** - Create test events
    ```
-   {URL}?page=admin&tenant=root
+   {URL}?page=admin&brand=root
    ```
 
 2. **Shared Analytics** - View analytics dashboard (NEW!)
    ```
-   {URL}?page=report&tenant=root
+   {URL}?page=report&brand=root
    ```
 
 3. **Public Page** - Mobile experience
    ```
-   {URL}?page=public&tenant=root
+   {URL}?page=public&brand=root
    ```
 
 4. **Display Page** - TV display
    ```
-   {URL}?page=display&tenant=root&tv=1
+   {URL}?page=display&brand=root&tv=1
    ```
 
 5. **Poster Page** - Print version
    ```
-   {URL}?page=poster&tenant=root
+   {URL}?page=poster&brand=root
    ```
 
 ---

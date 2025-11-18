@@ -28,7 +28,7 @@ fi
 
 echo ""
 echo "Testing new URL..."
-RESPONSE=$(curl -s "$NEW_URL?p=status&tenant=root" 2>&1)
+RESPONSE=$(curl -s "$NEW_URL?p=status&brand=root" 2>&1)
 
 if [[ $RESPONSE == *'"ok":true'* ]]; then
     echo "✅ SUCCESS! Deployment is working!"

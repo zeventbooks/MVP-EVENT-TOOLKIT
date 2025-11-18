@@ -201,7 +201,7 @@ npm run test:all
 ### Test.html Dashboard
 Access the visual test dashboard at:
 ```
-https://your-deployment-url.com?page=test&tenant=root
+https://your-deployment-url.com?page=test&brand=root
 ```
 
 The dashboard shows:

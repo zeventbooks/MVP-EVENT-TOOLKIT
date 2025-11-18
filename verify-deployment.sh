@@ -60,10 +60,10 @@ echo ""
 
 # Test 2: Public Page
 echo "📋 Test 2: Public Page"
-echo "   GET $BASE_URL?p=events&tenant=root"
+echo "   GET $BASE_URL?p=events&brand=root"
 echo ""
 
-PUBLIC_RESPONSE=$(curl -s -w "\n%{http_code}" "$BASE_URL?p=events&tenant=root")
+PUBLIC_RESPONSE=$(curl -s -w "\n%{http_code}" "$BASE_URL?p=events&brand=root")
 HTTP_CODE=$(echo "$PUBLIC_RESPONSE" | tail -n 1)
 
 if [ "$HTTP_CODE" = "200" ]; then
@@ -78,10 +78,10 @@ echo ""
 
 # Test 3: Admin Page
 echo "📋 Test 3: Admin Page"
-echo "   GET $BASE_URL?page=admin&tenant=root"
+echo "   GET $BASE_URL?page=admin&brand=root"
 echo ""
 
-ADMIN_RESPONSE=$(curl -s -w "\n%{http_code}" "$BASE_URL?page=admin&tenant=root")
+ADMIN_RESPONSE=$(curl -s -w "\n%{http_code}" "$BASE_URL?page=admin&brand=root")
 HTTP_CODE=$(echo "$ADMIN_RESPONSE" | tail -n 1)
 
 if [ "$HTTP_CODE" = "200" ]; then
@@ -96,10 +96,10 @@ echo ""
 
 # Test 4: Display Page
 echo "📋 Test 4: Display Page"
-echo "   GET $BASE_URL?page=display&tenant=root&tv=1"
+echo "   GET $BASE_URL?page=display&brand=root&tv=1"
 echo ""
 
-DISPLAY_RESPONSE=$(curl -s -w "\n%{http_code}" "$BASE_URL?page=display&tenant=root&tv=1")
+DISPLAY_RESPONSE=$(curl -s -w "\n%{http_code}" "$BASE_URL?page=display&brand=root&tv=1")
 HTTP_CODE=$(echo "$DISPLAY_RESPONSE" | tail -n 1)
 
 if [ "$HTTP_CODE" = "200" ]; then

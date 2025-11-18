@@ -7,14 +7,14 @@
 ├────────────────────────────────────────────────────────────────────────────────────────┤
 │                                                                                        │
 │  🔴 Base URL                          🟠 Admin                                         │
-│  ?p=events&tenant=root                ?page=admin&tenant=root                         │
+│  ?p=events&brand=root                ?page=admin&brand=root                         │
 │  ↓                                     ↓                                               │
 │  PUBLIC.HTML (Default)                ADMIN.HTML (Control Center)                     │
 │  Event Listing & Details              Event Creation & Configuration                  │
 │                                       Event Lifecycle Dashboard                       │
 │                                                                                        │
 │  🔵 Test Hub                          🟡 Special Routes                               │
-│  ?page=test&tenant=root               ?page=docs     (ApiDocs.html)                  │
+│  ?page=test&brand=root               ?page=docs     (ApiDocs.html)                  │
 │  ↓                                     ?p=status      (JSON endpoint)                  │
 │  TEST.HTML (Testing Navigation)        ?p=r&t=TOKEN   (Shortlink redirect)            │
 │                                                                                        │
@@ -43,10 +43,10 @@
 │                      10-12ft font                                                    │
 │                                                                                        │
 │  Generated URLs:                                                                      │
-│  ?p=events&tenant=...&id=...                                                         │
-│  ?page=display&tenant=...&id=...&tv=1                                                │
-│  ?page=poster&tenant=...&id=...                                                      │
-│  ?page=report&tenant=...&id=...                                                      │
+│  ?p=events&brand=...&id=...                                                         │
+│  ?page=display&brand=...&id=...&tv=1                                                │
+│  ?page=poster&brand=...&id=...                                                      │
+│  ?page=report&brand=...&id=...                                                      │
 │                                                                                        │
 └────────────────────────────────────────────────────────────────────────────────────────┘
 

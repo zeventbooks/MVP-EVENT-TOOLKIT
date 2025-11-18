@@ -159,7 +159,7 @@ test.describe('Forms → Shortlinks → QR Codes Workflow', () => {
           console.log(`✓ Step 4: Generated QR code URL`);
 
           // ===== STEP 5: Verify QR Code on Poster Page =====
-          const posterUrl = `${baseUrl}?page=poster&p=events&tenant=root&id=${testEventId}`;
+          const posterUrl = `${baseUrl}?page=poster&p=events&brand=root&id=${testEventId}`;
           await page.goto(posterUrl);
 
           // Wait for poster to load
@@ -400,7 +400,7 @@ test.describe('Forms → Shortlinks → QR Codes Workflow', () => {
       });
 
       // Visit poster page
-      const posterUrl = `${baseUrl}?page=poster&p=events&tenant=root&id=${testEventId}`;
+      const posterUrl = `${baseUrl}?page=poster&p=events&brand=root&id=${testEventId}`;
       await page.goto(posterUrl);
 
       await page.waitForSelector('.qr-section');
@@ -444,7 +444,7 @@ test.describe('Forms → Shortlinks → QR Codes Workflow', () => {
       const emptyEventId = data.value.id;
 
       // Visit poster
-      const posterUrl = `${baseUrl}?page=poster&p=events&tenant=root&id=${emptyEventId}`;
+      const posterUrl = `${baseUrl}?page=poster&p=events&brand=root&id=${emptyEventId}`;
       await page.goto(posterUrl);
 
       await page.waitForSelector('.qr-section');

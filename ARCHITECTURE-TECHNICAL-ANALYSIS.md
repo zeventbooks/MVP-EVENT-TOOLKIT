@@ -1022,7 +1022,7 @@ Code.gs (routing)
 ```
 USER (Admin)
     │
-    ├─ Visits Admin.html?page=admin&tenant=root
+    ├─ Visits Admin.html?page=admin&brand=root
     │
     ├─ Fills form: name, dateISO, etc
     │

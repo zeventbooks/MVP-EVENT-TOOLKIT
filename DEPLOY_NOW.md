@@ -270,9 +270,9 @@ Expected output:
 Open these URLs in your browser:
 
 1. **Status:** `{BASE_URL}?page=status`
-2. **Public:** `{BASE_URL}?p=events&tenant=root`
-3. **Admin:** `{BASE_URL}?page=admin&tenant=root`
-4. **Display:** `{BASE_URL}?page=display&tenant=root&tv=1`
+2. **Public:** `{BASE_URL}?p=events&brand=root`
+3. **Admin:** `{BASE_URL}?page=admin&brand=root`
+4. **Display:** `{BASE_URL}?page=display&brand=root&tv=1`
 
 All should load successfully!
 

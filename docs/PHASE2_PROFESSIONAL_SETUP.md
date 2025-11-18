@@ -205,7 +205,7 @@ KV = Key-Value store for configuration data.
 
 3. **Test:**
    ```bash
-   curl https://qa.zeventbooks.com?p=events&tenant=root
+   curl https://qa.zeventbooks.com?p=events&brand=root
    ```
 
 ---
@@ -298,7 +298,7 @@ Stage 2 already defaults to `https://qa.zeventbooks.com`, so no changes needed!
 
 3. **Verify QA URL:**
    ```bash
-   curl https://qa.zeventbooks.com?p=events&tenant=root
+   curl https://qa.zeventbooks.com?p=events&brand=root
    ```
 
 4. **Trigger Stage 2:**

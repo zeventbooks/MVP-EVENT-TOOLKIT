@@ -478,7 +478,7 @@ test.describe('Public Endpoints (No Auth Required)', () => {
   });
 
   test('should list events without authentication', async ({ request }) => {
-    const response = await request.get(`${BASE_URL}?action=list&tenant=root&scope=events`);
+    const response = await request.get(`${BASE_URL}?action=list&brand=root&scope=events`);
 
     expect(response.ok()).toBeTruthy();
     const result = await response.json();
@@ -489,7 +489,7 @@ test.describe('Public Endpoints (No Auth Required)', () => {
   });
 
   test('should get config without authentication', async ({ request }) => {
-    const response = await request.get(`${BASE_URL}?action=config&tenant=root&scope=events`);
+    const response = await request.get(`${BASE_URL}?action=config&brand=root&scope=events`);
 
     expect(response.ok()).toBeTruthy();
     const result = await response.json();

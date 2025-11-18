@@ -15,7 +15,7 @@ test.describe('🔄 FLOW: Sponsor - Display Visibility', () => {
 
   test('Complete flow: Configure sponsors → View on TV display → Verify visibility', async ({ page, context }) => {
     // Step 1: Create event with sponsors
-    await page.goto(`${BASE_URL}?page=admin&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
 
     page.on('dialog', async dialog => {
       await dialog.accept(ADMIN_KEY);
@@ -71,7 +71,7 @@ test.describe('🔄 FLOW: Sponsor - Display Visibility', () => {
 
   test('Complete flow: Multiple sponsor tiers → Verify display order → Check rotation', async ({ page, context }) => {
     // Step 1: Create event
-    await page.goto(`${BASE_URL}?page=admin&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
 
     page.on('dialog', async dialog => {
       await dialog.accept(ADMIN_KEY);
@@ -135,7 +135,7 @@ test.describe('🔄 FLOW: Sponsor - Click Tracking', () => {
 
   test('Complete flow: View sponsor on public page → Click sponsor link → Track analytics', async ({ page }) => {
     // Step 1: Navigate to public page
-    await page.goto(`${BASE_URL}?p=events&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?p=events&brand=${TENANT_ID}`);
 
     // Step 2: Look for event with sponsors
     const eventCards = page.locator('.event-card');
@@ -176,7 +176,7 @@ test.describe('🔄 FLOW: Sponsor - Click Tracking', () => {
 
   test('Complete flow: Multiple sponsor clicks → Verify analytics increment', async ({ page }) => {
     // Step 1: Navigate to event with sponsors
-    await page.goto(`${BASE_URL}?p=events&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?p=events&brand=${TENANT_ID}`);
 
     const eventCards = page.locator('.event-card');
     const count = await eventCards.count();
@@ -219,7 +219,7 @@ test.describe('🔄 FLOW: Sponsor - Carousel Behavior', () => {
   test('Complete flow: TV display → Auto-rotate sponsors → Verify smooth transitions', async ({ page }) => {
     // Step 1: Open display in TV mode
     await page.setViewportSize({ width: 1920, height: 1080 });
-    await page.goto(`${BASE_URL}?page=display&tenant=${TENANT_ID}&tv=1`);
+    await page.goto(`${BASE_URL}?page=display&brand=${TENANT_ID}&tv=1`);
     await page.waitForLoadState('networkidle');
 
     // Step 2: Verify TV mode active
@@ -251,7 +251,7 @@ test.describe('🔄 FLOW: Sponsor - Carousel Behavior', () => {
 
   test('Complete flow: Manual carousel control → Next → Previous → Pause', async ({ page }) => {
     // Step 1: Open display
-    await page.goto(`${BASE_URL}?page=display&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=display&brand=${TENANT_ID}`);
 
     // Step 2: Find carousel controls
     const nextBtn = page.locator('button:has-text("next"), button.next, button[aria-label*="next" i]');
@@ -310,7 +310,7 @@ test.describe('🔄 FLOW: Sponsor - Mobile Banner Display', () => {
     await page.setViewportSize({ width: 375, height: 667 });
 
     // Step 2: Navigate to public page
-    await page.goto(`${BASE_URL}?p=events&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?p=events&brand=${TENANT_ID}`);
 
     // Step 3: Open event with sponsors
     const eventCards = page.locator('.event-card');
@@ -351,7 +351,7 @@ test.describe('🔄 FLOW: Sponsor - Mobile Banner Display', () => {
   test('Complete flow: Mobile → Rotate device → Banner adapts orientation', async ({ page }) => {
     // Step 1: Portrait orientation
     await page.setViewportSize({ width: 375, height: 667 });
-    await page.goto(`${BASE_URL}?p=events&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?p=events&brand=${TENANT_ID}`);
 
     const eventCards = page.locator('.event-card');
     const count = await eventCards.count();
@@ -382,7 +382,7 @@ test.describe('🔄 FLOW: Sponsor - Multi-Position Display', () => {
 
   test('Complete flow: Configure sponsors in all positions → Verify each position renders', async ({ page, context }) => {
     // Step 1: Create event
-    await page.goto(`${BASE_URL}?page=admin&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
 
     page.on('dialog', async dialog => {
       await dialog.accept(ADMIN_KEY);
@@ -444,7 +444,7 @@ test.describe('🔄 FLOW: Sponsor - Performance & Loading', () => {
 
   test('Complete flow: Display with many sponsors → Verify fast loading → Check memory', async ({ page }) => {
     // Step 1: Open display page
-    await page.goto(`${BASE_URL}?page=display&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=display&brand=${TENANT_ID}`);
     await page.waitForLoadState('networkidle');
 
     // Step 2: Check initial load time
@@ -473,7 +473,7 @@ test.describe('🔄 FLOW: Sponsor - Performance & Loading', () => {
 
   test('Complete flow: Lazy load sponsor images → Verify progressive enhancement', async ({ page }) => {
     // Step 1: Navigate to public page
-    await page.goto(`${BASE_URL}?p=events&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?p=events&brand=${TENANT_ID}`);
 
     // Step 2: Check for sponsor images
     const sponsorImages = page.locator('img[data-sponsor], .sponsor-card img');

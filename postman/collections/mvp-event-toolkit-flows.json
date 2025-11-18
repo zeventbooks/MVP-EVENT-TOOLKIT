@@ -38,7 +38,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}?p=status&tenant={{tenantId}}",
+              "raw": "{{baseUrl}}?p=status&brand={{tenantId}}",
               "host": ["{{baseUrl}}"],
               "query": [
                 {"key": "p", "value": "status"},
@@ -582,7 +582,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}?p=status&tenant={{tenantId}}",
+              "raw": "{{baseUrl}}?p=status&brand={{tenantId}}",
               "host": ["{{baseUrl}}"],
               "query": [
                 {"key": "p", "value": "status"},

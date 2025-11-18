@@ -60,7 +60,7 @@ npm run deploy # Create new deployment
 2. Edit `Config.gs`: set real `adminSecret` values
 3. Deploy → New deployment → Web app → Execute as **User accessing**, Access **Anyone**
 4. Open `/exec?page=test` → all ✅
-5. Open `/exec?page=admin&p=events&tenant=root` → create an event → get Public/Poster links
+5. Open `/exec?page=admin&p=events&brand=root` → create an event → get Public/Poster links
 
 ## Documentation
 

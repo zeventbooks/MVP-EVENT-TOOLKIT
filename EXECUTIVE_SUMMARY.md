@@ -11,11 +11,11 @@ The MVP-EVENT-TOOLKIT is a **multi-page event management system** built on Googl
 | # | Page | Role | Purpose | Current Entry Point |
 |---|------|------|---------|---------------------|
 | 1 | **Public.html** | Attendees | Event listing & details | Default (base URL) |
-| 2 | **Admin.html** | Organizers | Event creation & configuration | `?page=admin&tenant=root` |
-| 3 | **Display.html** | Staff/TV | TV screen display with sponsors | `?page=display&tenant=root&id=...&tv=1` |
-| 4 | **Poster.html** | Marketing | Printable poster with QR codes | `?page=poster&tenant=root&id=...` |
-| 5 | **SharedReport.html** | Sponsors | Analytics & performance metrics | `?page=report&tenant=root&id=...` |
-| 6 | **Test.html** | Developers | Testing hub (navigation center) | `?page=test&tenant=root` |
+| 2 | **Admin.html** | Organizers | Event creation & configuration | `?page=admin&brand=root` |
+| 3 | **Display.html** | Staff/TV | TV screen display with sponsors | `?page=display&brand=root&id=...&tv=1` |
+| 4 | **Poster.html** | Marketing | Printable poster with QR codes | `?page=poster&brand=root&id=...` |
+| 5 | **SharedReport.html** | Sponsors | Analytics & performance metrics | `?page=report&brand=root&id=...` |
+| 6 | **Test.html** | Developers | Testing hub (navigation center) | `?page=test&brand=root` |
 
 ---
 
@@ -121,7 +121,7 @@ ZEB: { BUILD_ID, CONTRACT_VER }  (metadata)
 
 **Tenants** (Config.gs):
 - root, abc (American Bocce Co.), cbc (Chicago Bocce Club), cbl (Chicago Bocce League)
-- Detection: hostname first, then `?tenant=` parameter, default to root
+- Detection: hostname first, then `?brand=` parameter, default to root
 
 **Scopes** (Data segregation):
 - events, leagues, tournaments

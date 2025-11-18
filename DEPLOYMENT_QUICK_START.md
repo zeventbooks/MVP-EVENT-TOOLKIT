@@ -143,10 +143,10 @@ https://script.google.com/macros/s/{DEPLOYMENT_ID}/exec
 
 **Test Endpoints:**
 - Health Check: `?page=status`
-- Admin: `?page=admin&tenant=root`
-- Public: `?p=events&tenant=root`
-- Display: `?page=display&tenant=root&tv=1`
-- Poster: `?page=poster&tenant=root`
+- Admin: `?page=admin&brand=root`
+- Public: `?p=events&brand=root`
+- Display: `?page=display&brand=root&tv=1`
+- Poster: `?page=poster&brand=root`
 
 ---
 

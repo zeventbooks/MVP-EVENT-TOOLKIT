@@ -63,35 +63,35 @@ The test framework automatically detects the environment based on the `BASE_URL`
 All environments support multi-tenant URLs with the same pattern:
 
 ```
-{BASE_URL}?p={page}&tenant={tenant}
+{BASE_URL}?p={page}&brand={tenant}
 ```
 
 #### Hostinger Examples
 
 ```bash
 # Root tenant
-https://zeventbooks.com?p=status&tenant=root
-https://zeventbooks.com?p=admin&tenant=root
+https://zeventbooks.com?p=status&brand=root
+https://zeventbooks.com?p=admin&brand=root
 
 # ABC tenant
-https://zeventbooks.com?p=status&tenant=abc
-https://zeventbooks.com?p=admin&tenant=abc
+https://zeventbooks.com?p=status&brand=abc
+https://zeventbooks.com?p=admin&brand=abc
 
 # CBC tenant
-https://zeventbooks.com?p=status&tenant=cbc
-https://zeventbooks.com?p=admin&tenant=cbc
+https://zeventbooks.com?p=status&brand=cbc
+https://zeventbooks.com?p=admin&brand=cbc
 ```
 
 #### Google Apps Script Examples
 
 ```bash
 # Root tenant
-https://script.google.com/macros/s/AKfycb.../exec?p=status&tenant=root
-https://script.google.com/macros/s/AKfycb.../exec?p=admin&tenant=root
+https://script.google.com/macros/s/AKfycb.../exec?p=status&brand=root
+https://script.google.com/macros/s/AKfycb.../exec?p=admin&brand=root
 
 # ABC tenant
-https://script.google.com/macros/s/AKfycb.../exec?p=status&tenant=abc
-https://script.google.com/macros/s/AKfycb.../exec?p=admin&tenant=abc
+https://script.google.com/macros/s/AKfycb.../exec?p=status&brand=abc
+https://script.google.com/macros/s/AKfycb.../exec?p=admin&brand=abc
 ```
 
 ### Available Pages
@@ -174,16 +174,16 @@ Description: Hostinger custom domain (proxies to Google Apps Script)
 Base URL: https://zeventbooks.com
 
 Tenant URLs (status page):
-  root: https://zeventbooks.com?p=status&tenant=root
-  abc: https://zeventbooks.com?p=status&tenant=abc
-  cbc: https://zeventbooks.com?p=status&tenant=cbc
-  cbl: https://zeventbooks.com?p=status&tenant=cbl
+  root: https://zeventbooks.com?p=status&brand=root
+  abc: https://zeventbooks.com?p=status&brand=abc
+  cbc: https://zeventbooks.com?p=status&brand=cbc
+  cbl: https://zeventbooks.com?p=status&brand=cbl
 
 Tenant URLs (admin page):
-  root: https://zeventbooks.com?p=admin&tenant=root
-  abc: https://zeventbooks.com?p=admin&tenant=abc
-  cbc: https://zeventbooks.com?p=admin&tenant=cbc
-  cbl: https://zeventbooks.com?p=admin&tenant=cbl
+  root: https://zeventbooks.com?p=admin&brand=root
+  abc: https://zeventbooks.com?p=admin&brand=abc
+  cbc: https://zeventbooks.com?p=admin&brand=cbc
+  cbl: https://zeventbooks.com?p=admin&brand=cbl
 ==============================================
 ```
 
@@ -255,7 +255,7 @@ Verify the Hostinger proxy is configured correctly:
 
 ```bash
 # Test status endpoint
-curl -I "https://zeventbooks.com?p=status&tenant=root"
+curl -I "https://zeventbooks.com?p=status&brand=root"
 
 # Should return 200 OK, not 404
 ```
@@ -319,12 +319,12 @@ The test framework constructs URLs consistently:
 
 ```javascript
 // API Helper
-const url = `${baseUrl}?p=status&tenant=${tenant}`;
-// Result: https://zeventbooks.com?p=status&tenant=root
+const url = `${baseUrl}?p=status&brand=${tenant}`;
+// Result: https://zeventbooks.com?p=status&brand=root
 
 // Page Test
-await page.goto(`${BASE_URL}?page=admin&tenant=${TENANT_ID}`);
-// Result: https://zeventbooks.com?page=admin&tenant=root
+await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
+// Result: https://zeventbooks.com?page=admin&brand=root
 ```
 
 ### Environment Detection

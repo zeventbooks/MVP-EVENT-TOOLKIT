@@ -69,7 +69,7 @@ echo "----------------------------------------"
 echo "Testing deployment access..."
 echo ""
 
-RESPONSE=$(curl -s "$HEAD_URL?p=status&tenant=root" 2>&1)
+RESPONSE=$(curl -s "$HEAD_URL?p=status&brand=root" 2>&1)
 
 if [[ $RESPONSE == *'"ok":true'* ]]; then
     echo "✅ SUCCESS! @HEAD deployment is authorized and working!"

@@ -147,8 +147,8 @@ jobs:
           echo "Test the QA environment to ensure rollback was successful:" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- [Status API](${{ steps.rollback.outputs.qa_url }}?p=api&action=status&tenantId=root)" >> $GITHUB_STEP_SUMMARY
-          echo "- [Public Page](${{ steps.rollback.outputs.qa_url }}?p=events&tenant=root)" >> $GITHUB_STEP_SUMMARY
-          echo "- [Admin Page](${{ steps.rollback.outputs.qa_url }}?page=admin&tenant=root)" >> $GITHUB_STEP_SUMMARY
+          echo "- [Public Page](${{ steps.rollback.outputs.qa_url }}?p=events&brand=root)" >> $GITHUB_STEP_SUMMARY
+          echo "- [Admin Page](${{ steps.rollback.outputs.qa_url }}?page=admin&brand=root)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY

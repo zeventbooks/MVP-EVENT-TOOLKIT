@@ -57,12 +57,12 @@ Response:
 
 #### 2. GET Configuration
 ```
-GET {BASE_URL}?action=config&tenant=root&scope=events
+GET {BASE_URL}?action=config&brand=root&scope=events
 ```
 
 #### 3. GET List Events
 ```
-GET {BASE_URL}?action=list&tenant=root&scope=events&etag=abc123
+GET {BASE_URL}?action=list&brand=root&scope=events&etag=abc123
 ```
 Response:
 ```json
@@ -77,7 +77,7 @@ Response:
 
 #### 4. GET Single Event
 ```
-GET {BASE_URL}?action=get&tenant=root&scope=events&id=evt_123
+GET {BASE_URL}?action=get&brand=root&scope=events&id=evt_123
 ```
 
 ---
@@ -234,7 +234,7 @@ These tests:
 
 ### Option 3: Browser DevTools
 
-1. Open the Admin page: `{BASE_URL}?page=admin&p=events&tenant=root`
+1. Open the Admin page: `{BASE_URL}?page=admin&p=events&brand=root`
 2. Open Browser DevTools Console (F12)
 3. Call API functions directly:
 
@@ -298,7 +298,7 @@ if (e.parameter.action) {
 
 **Then test with Postman:**
 ```
-GET {BASE_URL}?action=list&tenant=root&scope=events&adminKey=SECRET
+GET {BASE_URL}?action=list&brand=root&scope=events&adminKey=SECRET
 ```
 
 ⚠️ **Security Warning:** This exposes admin keys in URLs (visible in logs). Use POST with body instead.

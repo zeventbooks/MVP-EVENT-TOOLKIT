@@ -167,7 +167,7 @@
 
     function startPublicMode() {
       const base = location.origin + location.pathname;
-      const tvPublicUrl = `${base}?p=public&tenant=${encodeURIComponent(tenantId)}&id=${encodeURIComponent(eventId)}&tv=1`;
+      const tvPublicUrl = `${base}?p=public&brand=${encodeURIComponent(tenantId)}&id=${encodeURIComponent(eventId)}&tv=1`;
       loadIframe(tvPublicUrl);
       showToast('TV: Public mode (mirroring event page)');
     }

@@ -76,9 +76,9 @@ test_tenant() {
     local TEST_NUM=$2
 
     echo "📋 Test $TEST_NUM: Status Endpoint - Tenant: $TENANT"
-    echo "   GET $WEB_APP_URL?page=status&tenant=$TENANT"
+    echo "   GET $WEB_APP_URL?page=status&brand=$TENANT"
 
-    STATUS_RESPONSE=$(curl -s -w "\n%{http_code}" "$WEB_APP_URL?page=status&tenant=$TENANT")
+    STATUS_RESPONSE=$(curl -s -w "\n%{http_code}" "$WEB_APP_URL?page=status&brand=$TENANT")
     HTTP_CODE=$(echo "$STATUS_RESPONSE" | tail -n 1)
     RESPONSE_BODY=$(echo "$STATUS_RESPONSE" | sed '$d')
 
@@ -123,9 +123,9 @@ done
 
 # Test public events page for root tenant
 echo "📋 Test 4: Public Events Page - Tenant: root"
-echo "   GET $WEB_APP_URL?p=events&tenant=root"
+echo "   GET $WEB_APP_URL?p=events&brand=root"
 
-PUBLIC_RESPONSE=$(curl -s -w "\n%{http_code}" "$WEB_APP_URL?p=events&tenant=root")
+PUBLIC_RESPONSE=$(curl -s -w "\n%{http_code}" "$WEB_APP_URL?p=events&brand=root")
 HTTP_CODE=$(echo "$PUBLIC_RESPONSE" | tail -n 1)
 
 if [ "$HTTP_CODE" = "200" ]; then
@@ -160,9 +160,9 @@ echo "Your deployment is working correctly at:"
 echo "  $WEB_APP_URL"
 echo ""
 echo "Tenant URLs:"
-echo "  Root:  $WEB_APP_URL?page=status&tenant=root"
-echo "  ABC:   $WEB_APP_URL?page=status&tenant=ABC"
-echo "  CBC:   $WEB_APP_URL?page=status&tenant=CBC"
+echo "  Root:  $WEB_APP_URL?page=status&brand=root"
+echo "  ABC:   $WEB_APP_URL?page=status&brand=ABC"
+echo "  CBC:   $WEB_APP_URL?page=status&brand=CBC"
 echo ""
 echo "Next steps:"
 echo "1. Save this deployment ID for GitHub secrets (optional)"

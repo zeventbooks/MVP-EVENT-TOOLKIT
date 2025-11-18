@@ -278,7 +278,7 @@
           <h3>${esc(ev.data?.name || '(untitled)')}</h3>
           <p>${esc(ev.data?.dateISO || '')}</p>
           <div style="margin-top:12px;">
-            <a class="btn secondary" href="${EXEC_URL}?p=events&tenant=${TENANT}&id=${ev.id}">Open</a>
+            <a class="btn secondary" href="${EXEC_URL}?p=events&brand=${TENANT}&id=${ev.id}">Open</a>
           </div>
         `;
         root.appendChild(d);
@@ -349,7 +349,7 @@
       if (data.checkinUrl) {
         html += `<a class="btn-secondary" href="${esc(data.checkinUrl)}" target="_blank" rel="noopener">Check In</a>`;
       }
-      html += `<a class="btn-secondary" href="${EXEC_URL}?p=events&tenant=${TENANT}">← Back to Events</a>`;
+      html += `<a class="btn-secondary" href="${EXEC_URL}?p=events&brand=${TENANT}">← Back to Events</a>`;
       html += '</div>';
 
       // Event Image

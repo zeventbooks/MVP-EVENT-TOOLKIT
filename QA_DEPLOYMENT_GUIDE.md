@@ -229,7 +229,7 @@ After QA deployment completes:
 
 **QA URLs will be in format:**
 ```
-https://script.google.com/macros/s/AKfycb.../exec?p=events&tenant=root
+https://script.google.com/macros/s/AKfycb.../exec?p=events&brand=root
 ```
 
 ---

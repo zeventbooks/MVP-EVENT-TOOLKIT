@@ -70,14 +70,14 @@ zeventbooks.com (Cloudflare)
 Each environment supports multi-tenant access via query parameters:
 
 ### QA Environment Examples
-- **ROOT tenant:** `https://qa.zeventbooks.com?p=events&tenant=root`
-- **ABC tenant:** `https://qa.zeventbooks.com?p=events&tenant=abc`
-- **CBC tenant:** `https://qa.zeventbooks.com?p=events&tenant=cbc`
+- **ROOT tenant:** `https://qa.zeventbooks.com?p=events&brand=root`
+- **ABC tenant:** `https://qa.zeventbooks.com?p=events&brand=abc`
+- **CBC tenant:** `https://qa.zeventbooks.com?p=events&brand=cbc`
 
 ### Production (Future)
-- **ROOT tenant:** `https://app.zeventbooks.com?p=events&tenant=root`
-- **ABC tenant:** `https://app.zeventbooks.com?p=events&tenant=abc`
-- **CBC tenant:** `https://app.zeventbooks.com?p=events&tenant=cbc`
+- **ROOT tenant:** `https://app.zeventbooks.com?p=events&brand=root`
+- **ABC tenant:** `https://app.zeventbooks.com?p=events&brand=abc`
+- **CBC tenant:** `https://app.zeventbooks.com?p=events&brand=cbc`
 
 ---
 
@@ -88,10 +88,10 @@ Each environment supports multi-tenant access via query parameters:
 **QA:**
 ```bash
 # Health check
-curl https://qa.zeventbooks.com?p=events&tenant=root
+curl https://qa.zeventbooks.com?p=events&brand=root
 
 # API test
-curl https://qa.zeventbooks.com?p=events&tenant=root \
+curl https://qa.zeventbooks.com?p=events&brand=root \
   -H "Authorization: Bearer YOUR_ADMIN_KEY"
 ```
 

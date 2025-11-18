@@ -186,10 +186,10 @@ https://script.google.com/macros/s/AKfycbx.../exec
 In Hostinger → Domains → Redirects:
 
 ```
-https://zeventbooks.io/ → https://script.google.com/macros/s/<DEPLOYMENT_ID>/exec?p=events&tenant=root
-https://www.zeventbooks.io/ → https://script.google.com/macros/s/<DEPLOYMENT_ID>/exec?p=events&tenant=root
-https://zeventbooks.io/admin → https://script.google.com/macros/s/<DEPLOYMENT_ID>/exec?page=admin&tenant=root
-https://zeventbooks.io/display → https://script.google.com/macros/s/<DEPLOYMENT_ID>/exec?page=display&tenant=root
+https://zeventbooks.io/ → https://script.google.com/macros/s/<DEPLOYMENT_ID>/exec?p=events&brand=root
+https://www.zeventbooks.io/ → https://script.google.com/macros/s/<DEPLOYMENT_ID>/exec?p=events&brand=root
+https://zeventbooks.io/admin → https://script.google.com/macros/s/<DEPLOYMENT_ID>/exec?page=admin&brand=root
+https://zeventbooks.io/display → https://script.google.com/macros/s/<DEPLOYMENT_ID>/exec?page=display&brand=root
 ```
 
 **Force HTTPS:** Enable in Hostinger SSL settings.

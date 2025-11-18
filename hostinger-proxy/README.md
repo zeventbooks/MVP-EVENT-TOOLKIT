@@ -51,10 +51,10 @@ define('GOOGLE_SCRIPT_URL', 'https://script.google.com/macros/s/AKfycbXXXXXXXXXX
 
 ```bash
 # Test in browser
-https://zeventbooks.com?p=status&tenant=root
+https://zeventbooks.com?p=status&brand=root
 
 # Or with curl
-curl -i https://zeventbooks.com?p=status&tenant=root
+curl -i https://zeventbooks.com?p=status&brand=root
 
 # Expected: 200 OK with JSON response
 {
@@ -81,7 +81,7 @@ npm run test:hostinger:all
 ### index.php
 - Receives all requests to zeventbooks.com
 - Forwards them to your Google Apps Script URL
-- Preserves all query parameters (?p=status&tenant=root)
+- Preserves all query parameters (?p=status&brand=root)
 - Handles GET and POST requests
 - Returns responses back to the client
 
@@ -98,23 +98,23 @@ All these URLs work automatically:
 
 ```bash
 # Status pages
-https://zeventbooks.com?p=status&tenant=root
-https://zeventbooks.com?p=status&tenant=abc
-https://zeventbooks.com?p=status&tenant=cbc
+https://zeventbooks.com?p=status&brand=root
+https://zeventbooks.com?p=status&brand=abc
+https://zeventbooks.com?p=status&brand=cbc
 
 # Admin pages
-https://zeventbooks.com?p=admin&tenant=root
-https://zeventbooks.com?p=admin&tenant=abc
-https://zeventbooks.com?p=admin&tenant=cbc
+https://zeventbooks.com?p=admin&brand=root
+https://zeventbooks.com?p=admin&brand=abc
+https://zeventbooks.com?p=admin&brand=cbc
 
 # Events pages
-https://zeventbooks.com?p=events&tenant=root
-https://zeventbooks.com?p=events&tenant=abc
-https://zeventbooks.com?p=events&tenant=cbc
+https://zeventbooks.com?p=events&brand=root
+https://zeventbooks.com?p=events&brand=abc
+https://zeventbooks.com?p=events&brand=cbc
 
 # Display pages
-https://zeventbooks.com?p=display&tenant=root
-https://zeventbooks.com?p=display&tenant=abc
+https://zeventbooks.com?p=display&brand=root
+https://zeventbooks.com?p=display&brand=abc
 
 # API endpoints
 https://zeventbooks.com?p=api&action=list&tenantId=root&scope=events

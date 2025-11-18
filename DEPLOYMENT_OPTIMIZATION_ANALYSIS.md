@@ -112,7 +112,7 @@ jobs:
 
           # Test the Hostinger URL
           RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
-            "https://zeventbooks.com?p=status&tenant=root")
+            "https://zeventbooks.com?p=status&brand=root")
 
           if [ "$RESPONSE" == "200" ]; then
             echo "✅ Hostinger proxy updated successfully"
@@ -256,7 +256,7 @@ class DeploymentHealthCheck {
     // Check 1: Apps Script Status Endpoint
     await this.runCheck(
       'Apps Script Status API',
-      `${CONFIG.DEPLOYMENT_URL}?p=status&tenant=root`,
+      `${CONFIG.DEPLOYMENT_URL}?p=status&brand=root`,
       async (response) => {
         if (response.statusCode !== 200) {
           return { passed: false, reason: `HTTP ${response.statusCode}` };
@@ -278,7 +278,7 @@ class DeploymentHealthCheck {
     // Check 2: Hostinger Proxy
     await this.runCheck(
       'Hostinger Proxy',
-      `${CONFIG.HOSTINGER_URL}?p=status&tenant=root`,
+      `${CONFIG.HOSTINGER_URL}?p=status&brand=root`,
       async (response) => {
         if (response.statusCode !== 200) {
           return { passed: false, reason: `HTTP ${response.statusCode}` };
@@ -292,7 +292,7 @@ class DeploymentHealthCheck {
     // Check 3: Admin Page Load
     await this.runCheck(
       'Admin Page Load',
-      `${CONFIG.DEPLOYMENT_URL}?page=admin&tenant=root`,
+      `${CONFIG.DEPLOYMENT_URL}?page=admin&brand=root`,
       async (response) => {
         if (response.statusCode !== 200) {
           return { passed: false, reason: `HTTP ${response.statusCode}` };
@@ -314,7 +314,7 @@ class DeploymentHealthCheck {
     for (const tenant of tenants) {
       await this.runCheck(
         `Tenant: ${tenant}`,
-        `${CONFIG.DEPLOYMENT_URL}?p=status&tenant=${tenant}`,
+        `${CONFIG.DEPLOYMENT_URL}?p=status&brand=${tenant}`,
         async (response) => {
           if (response.statusCode !== 200) {
             return { passed: false, reason: `HTTP ${response.statusCode}` };
@@ -334,11 +334,11 @@ class DeploymentHealthCheck {
     // Check 5: Performance Check
     await this.runCheck(
       'Performance - Response Time',
-      `${CONFIG.DEPLOYMENT_URL}?p=status&tenant=root`,
+      `${CONFIG.DEPLOYMENT_URL}?p=status&brand=root`,
       async (response) => {
         const startTime = Date.now();
         await this.fetchWithTimeout(
-          `${CONFIG.DEPLOYMENT_URL}?p=status&tenant=root`,
+          `${CONFIG.DEPLOYMENT_URL}?p=status&brand=root`,
           5000
         );
         const responseTime = Date.now() - startTime;
@@ -573,9 +573,9 @@ echo -e "  🌐 Apps Script URL: ${GREEN}${DEPLOYMENT_URL}${NC}"
 echo -e "  🌐 Hostinger URL: ${GREEN}https://zeventbooks.com${NC}"
 echo -e ""
 echo -e "Test URLs:"
-echo -e "  Status: ${DEPLOYMENT_URL}?p=status&tenant=root"
-echo -e "  Admin: ${DEPLOYMENT_URL}?page=admin&tenant=root"
-echo -e "  Events: ${DEPLOYMENT_URL}?p=events&tenant=root"
+echo -e "  Status: ${DEPLOYMENT_URL}?p=status&brand=root"
+echo -e "  Admin: ${DEPLOYMENT_URL}?page=admin&brand=root"
+echo -e "  Events: ${DEPLOYMENT_URL}?p=events&brand=root"
 echo -e ""
 echo -e "Next steps:"
 echo -e "  1. ✅ Test manually at: https://zeventbooks.com"
@@ -673,9 +673,9 @@ class DeploymentConfig {
         timeout: 30000,
         retries: 5,
         endpoints: [
-          { path: '?p=status&tenant=root', expect: 200 },
-          { path: '?page=admin&tenant=root', expect: 200 },
-          { path: '?p=events&tenant=root', expect: 200 }
+          { path: '?p=status&brand=root', expect: 200 },
+          { path: '?page=admin&brand=root', expect: 200 },
+          { path: '?p=events&brand=root', expect: 200 }
         ]
       },
       deployment: {

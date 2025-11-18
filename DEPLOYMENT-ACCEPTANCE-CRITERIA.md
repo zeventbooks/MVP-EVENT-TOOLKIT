@@ -12,7 +12,7 @@ A deployment is considered "working" when ALL of the following pass:
 
 **Test Command:**
 ```bash
-curl -s "DEPLOYMENT_URL?p=status&tenant=root&adminKey=ADMIN_KEY"
+curl -s "DEPLOYMENT_URL?p=status&brand=root&adminKey=ADMIN_KEY"
 ```
 
 **Expected Output:**

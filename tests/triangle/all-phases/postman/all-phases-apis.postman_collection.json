@@ -101,7 +101,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}?action=config&tenant={{tenant_id}}&scope=events",
+              "raw": "{{base_url}}?action=config&brand={{tenant_id}}&scope=events",
               "host": ["{{base_url}}"],
               "query": [
                 {
@@ -109,7 +109,7 @@
                   "value": "config"
                 },
                 {
-                  "key": "tenant",
+                  "key": "brand",
                   "value": "{{tenant_id}}"
                 },
                 {
@@ -132,7 +132,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}?action=diagnostics&tenant={{tenant_id}}",
+              "raw": "{{base_url}}?action=diagnostics&brand={{tenant_id}}",
               "host": ["{{base_url}}"],
               "query": [
                 {
@@ -140,7 +140,7 @@
                   "value": "diagnostics"
                 },
                 {
-                  "key": "tenant",
+                  "key": "brand",
                   "value": "{{tenant_id}}"
                 }
               ]

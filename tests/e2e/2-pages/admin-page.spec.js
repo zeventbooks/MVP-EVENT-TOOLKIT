@@ -28,7 +28,7 @@ async function deleteTestEvent(page, eventId) {
 test.describe('📄 PAGE: Admin - Page Load', () => {
 
   test('Admin page renders all core elements', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
 
     // Page title
     await expect(page).toHaveTitle(/Admin/);
@@ -43,7 +43,7 @@ test.describe('📄 PAGE: Admin - Page Load', () => {
   });
 
   test('Create event form has all input fields', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
 
     await expect(page.locator('#name')).toBeVisible();
     await expect(page.locator('#dateISO')).toBeVisible();
@@ -54,7 +54,7 @@ test.describe('📄 PAGE: Admin - Page Load', () => {
   });
 
   test('Form labels are associated with inputs', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
 
     await expect(page.locator('label:has-text("Event Name")')).toBeVisible();
     await expect(page.locator('label:has-text("Date")')).toBeVisible();
@@ -65,7 +65,7 @@ test.describe('📄 PAGE: Admin - Page Load', () => {
 test.describe('📄 PAGE: Admin - Button Interactions', () => {
 
   test('Submit button is clickable', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
 
     const submitBtn = page.locator('button[type="submit"]');
     await expect(submitBtn).toBeVisible();
@@ -77,7 +77,7 @@ test.describe('📄 PAGE: Admin - Button Interactions', () => {
   });
 
   test('Submit button prompts for admin key', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
 
     let dialogShown = false;
     page.on('dialog', async dialog => {
@@ -96,7 +96,7 @@ test.describe('📄 PAGE: Admin - Button Interactions', () => {
   });
 
   test('Configure Display & Sponsors button appears after event creation', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
 
     page.on('dialog', async dialog => {
       await dialog.accept(ADMIN_KEY);
@@ -115,7 +115,7 @@ test.describe('📄 PAGE: Admin - Button Interactions', () => {
   });
 
   test('Configure button expands sponsor configuration panel', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
 
     page.on('dialog', async dialog => {
       await dialog.accept(ADMIN_KEY);
@@ -136,7 +136,7 @@ test.describe('📄 PAGE: Admin - Button Interactions', () => {
   });
 
   test('Add Sponsor button creates new sponsor input fields', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
 
     page.on('dialog', async dialog => {
       await dialog.accept(ADMIN_KEY);
@@ -162,7 +162,7 @@ test.describe('📄 PAGE: Admin - Button Interactions', () => {
   });
 
   test('Remove sponsor button works', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
 
     page.on('dialog', async dialog => {
       await dialog.accept(ADMIN_KEY);
@@ -189,7 +189,7 @@ test.describe('📄 PAGE: Admin - Button Interactions', () => {
   });
 
   test('Save Configuration button works', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
 
     page.on('dialog', async dialog => {
       await dialog.accept(ADMIN_KEY);
@@ -222,7 +222,7 @@ test.describe('📄 PAGE: Admin - Button Interactions', () => {
 test.describe('📄 PAGE: Admin - Navigation Links', () => {
 
   test('Public Page link navigates correctly', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
 
     const publicLink = page.locator('a:has-text("Public Page")');
     await expect(publicLink).toBeVisible();
@@ -233,7 +233,7 @@ test.describe('📄 PAGE: Admin - Navigation Links', () => {
   });
 
   test('Display Page link navigates correctly', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
 
     const displayLink = page.locator('a:has-text("Display Page")');
     await expect(displayLink).toBeVisible();
@@ -244,7 +244,7 @@ test.describe('📄 PAGE: Admin - Navigation Links', () => {
   });
 
   test('Event-specific links work after creation', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
 
     page.on('dialog', async dialog => {
       await dialog.accept(ADMIN_KEY);
@@ -270,7 +270,7 @@ test.describe('📄 PAGE: Admin - Navigation Links', () => {
 test.describe('📄 PAGE: Admin - Form Validation', () => {
 
   test('Form accepts valid input', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
 
     await page.fill('#name', 'Valid Event Name');
     await page.fill('#dateISO', '2025-12-31');
@@ -285,7 +285,7 @@ test.describe('📄 PAGE: Admin - Form Validation', () => {
   });
 
   test('Date field accepts ISO format', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
 
     await page.fill('#dateISO', '2025-12-31');
     const dateValue = await page.locator('#dateISO').inputValue();
@@ -293,7 +293,7 @@ test.describe('📄 PAGE: Admin - Form Validation', () => {
   });
 
   test('Time field accepts time format', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
 
     await page.fill('#timeISO', '19:30');
     const timeValue = await page.locator('#timeISO').inputValue();
@@ -305,7 +305,7 @@ test.describe('📄 PAGE: Admin - Responsive Design', () => {
 
   test('Mobile: Form is usable on small screens', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 667 });
-    await page.goto(`${BASE_URL}?page=admin&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
 
     await expect(page.locator('#name')).toBeVisible();
 
@@ -316,7 +316,7 @@ test.describe('📄 PAGE: Admin - Responsive Design', () => {
 
   test('Tablet: Form layout adapts', async ({ page }) => {
     await page.setViewportSize({ width: 768, height: 1024 });
-    await page.goto(`${BASE_URL}?page=admin&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
 
     await expect(page.locator('h2:has-text("Create Event")')).toBeVisible();
   });
@@ -325,7 +325,7 @@ test.describe('📄 PAGE: Admin - Responsive Design', () => {
 test.describe('📄 PAGE: Admin - Accessibility', () => {
 
   test('Keyboard navigation through form', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
 
     await page.keyboard.press('Tab');
     await page.keyboard.press('Tab');
@@ -335,7 +335,7 @@ test.describe('📄 PAGE: Admin - Accessibility', () => {
   });
 
   test('Form has proper ARIA labels', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
 
     const nameInput = page.locator('#name');
     await expect(nameInput).toBeVisible();

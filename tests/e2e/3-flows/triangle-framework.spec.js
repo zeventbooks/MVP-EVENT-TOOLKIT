@@ -25,7 +25,7 @@ test.describe('🔺 TRIANGLE: Sponsor → Admin → All Pages Propagation', () =
     // STEP 1: ADMIN - Create Event
     // ====================
     console.log('📝 STEP 1: Creating event in Admin...');
-    await page.goto(`${BASE_URL}?page=admin&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
 
     page.on('dialog', async dialog => {
       await dialog.accept(ADMIN_KEY);
@@ -226,7 +226,7 @@ test.describe('🔺 TRIANGLE: Sponsor → Admin → All Pages Propagation', () =
 test.describe('🔺 TRIANGLE: Admin Card-by-Card Flow', () => {
 
   test('Admin flow: Exercise all Admin.html cards', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
 
     page.on('dialog', async dialog => {
       await dialog.accept(ADMIN_KEY);
@@ -300,7 +300,7 @@ test.describe('🔺 TRIANGLE: Display.html Complete Feature Flow', () => {
 
   test('Display flow: All Display.html features and cards', async ({ page }) => {
     await page.setViewportSize({ width: 1920, height: 1080 });
-    await page.goto(`${BASE_URL}?page=display&tenant=${TENANT_ID}&tv=1`);
+    await page.goto(`${BASE_URL}?page=display&brand=${TENANT_ID}&tv=1`);
     await page.waitForLoadState('networkidle');
 
     // ====================
@@ -392,7 +392,7 @@ test.describe('🔺 TRIANGLE: Public.html Complete Feature Flow', () => {
     // FEATURE 1: Public page templates
     // ====================
     console.log('🎨 Testing Public templates...');
-    await page.goto(`${BASE_URL}?p=events&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?p=events&brand=${TENANT_ID}`);
     await page.waitForLoadState('networkidle');
 
     await expect(page.locator('main#app')).toBeVisible();
@@ -512,7 +512,7 @@ test.describe('🔺 TRIANGLE: Public.html Complete Feature Flow', () => {
 test.describe('🔺 TRIANGLE: Shared Reporting - Admin & Sponsors', () => {
 
   test('Shared reporting: Admin and Sponsor analytics', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&tenant=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
 
     page.on('dialog', async dialog => {
       await dialog.accept(ADMIN_KEY);

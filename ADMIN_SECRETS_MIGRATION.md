@@ -105,7 +105,7 @@ Test that API authentication still works:
 
 ```bash
 # Test health endpoint
-curl "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec?p=status&tenant=root"
+curl "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec?p=status&brand=root"
 
 # Test authenticated endpoint
 curl -X POST "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec" \

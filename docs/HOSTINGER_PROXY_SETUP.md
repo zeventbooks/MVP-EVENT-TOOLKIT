@@ -6,12 +6,12 @@ This guide explains how to configure Hostinger to proxy requests from `zeventboo
 
 Route requests from:
 ```
-https://zeventbooks.com?p=status&tenant=root
+https://zeventbooks.com?p=status&brand=root
 ```
 
 To your Google Apps Script URL:
 ```
-https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec?p=status&tenant=root
+https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec?p=status&brand=root
 ```
 
 While keeping `zeventbooks.com` visible in the browser (not redirecting).
@@ -145,10 +145,10 @@ define('GOOGLE_SCRIPT_URL', 'https://script.google.com/macros/s/AKfycbXXXXXXXXXX
 
 ```bash
 # Test status endpoint
-curl https://zeventbooks.com?p=status&tenant=root
+curl https://zeventbooks.com?p=status&brand=root
 
 # Test admin page
-curl https://zeventbooks.com?p=admin&tenant=abc
+curl https://zeventbooks.com?p=admin&brand=abc
 
 # Test POST request (create event)
 curl -X POST https://zeventbooks.com?action=create \
@@ -235,19 +235,19 @@ Your application already supports multi-tenant URLs correctly:
 ### URL Structure
 
 ```
-https://zeventbooks.com?p={page}&tenant={tenant}
+https://zeventbooks.com?p={page}&brand={tenant}
 ```
 
 ### All Pages Work Automatically
 
 | Page | Example URL |
 |------|-------------|
-| Status | `https://zeventbooks.com?p=status&tenant=root` |
-| Admin | `https://zeventbooks.com?p=admin&tenant=abc` |
-| Events | `https://zeventbooks.com?p=events&tenant=cbc` |
-| Display | `https://zeventbooks.com?p=display&tenant=root` |
-| Poster | `https://zeventbooks.com?p=poster&tenant=abc` |
-| Report | `https://zeventbooks.com?p=report&tenant=cbc` |
+| Status | `https://zeventbooks.com?p=status&brand=root` |
+| Admin | `https://zeventbooks.com?p=admin&brand=abc` |
+| Events | `https://zeventbooks.com?p=events&brand=cbc` |
+| Display | `https://zeventbooks.com?p=display&brand=root` |
+| Poster | `https://zeventbooks.com?p=poster&brand=abc` |
+| Report | `https://zeventbooks.com?p=report&brand=cbc` |
 
 ### All Tenants Work Automatically
 
@@ -255,16 +255,16 @@ No additional configuration needed! The proxy passes all query parameters:
 
 ```bash
 # Root tenant
-https://zeventbooks.com?p=admin&tenant=root
-  → https://script.google.com/.../exec?p=admin&tenant=root
+https://zeventbooks.com?p=admin&brand=root
+  → https://script.google.com/.../exec?p=admin&brand=root
 
 # ABC tenant
-https://zeventbooks.com?p=status&tenant=abc
-  → https://script.google.com/.../exec?p=status&tenant=abc
+https://zeventbooks.com?p=status&brand=abc
+  → https://script.google.com/.../exec?p=status&brand=abc
 
 # CBC tenant
-https://zeventbooks.com?p=events&tenant=cbc
-  → https://script.google.com/.../exec?p=events&tenant=cbc
+https://zeventbooks.com?p=events&brand=cbc
+  → https://script.google.com/.../exec?p=events&brand=cbc
 ```
 
 ---
@@ -327,10 +327,10 @@ define('GOOGLE_SCRIPT_URL', 'https://script.google.com/macros/s/AKfycbXXXXXXXXXX
 
 ```bash
 # Test in browser
-https://zeventbooks.com?p=status&tenant=root
+https://zeventbooks.com?p=status&brand=root
 
 # Or with curl
-curl -i https://zeventbooks.com?p=status&tenant=root
+curl -i https://zeventbooks.com?p=status&brand=root
 ```
 
 Expected response:
@@ -552,7 +552,7 @@ Create `health.php`:
 
 ```php
 <?php
-$scriptUrl = 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec?p=status&tenant=root';
+$scriptUrl = 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec?p=status&brand=root';
 $ch = curl_init($scriptUrl);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 curl_setopt($ch, CURLOPT_TIMEOUT, 10);

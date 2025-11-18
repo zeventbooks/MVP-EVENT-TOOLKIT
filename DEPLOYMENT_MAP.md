@@ -86,10 +86,10 @@ The `index.php` file acts as a transparent proxy:
 ### Tenants
 | Tenant ID | Name | Hostname | Admin URLs |
 |-----------|------|----------|-----------|
-| `root` | Zeventbook | zeventbook.io | https://zeventbooks.com?p=admin&tenant=root |
-| `abc` | American Bocce Co. | americanbocceco.zeventbooks.io | https://zeventbooks.com?p=admin&tenant=abc |
-| `cbc` | Chicago Bocce Club | chicagobocceclub.zeventbooks.io | https://zeventbooks.com?p=admin&tenant=cbc |
-| `cbl` | Chicago Bocce League | chicagobocceleague.zeventbooks.io | https://zeventbooks.com?p=admin&tenant=cbl |
+| `root` | Zeventbook | zeventbook.io | https://zeventbooks.com?p=admin&brand=root |
+| `abc` | American Bocce Co. | americanbocceco.zeventbooks.io | https://zeventbooks.com?p=admin&brand=abc |
+| `cbc` | Chicago Bocce Club | chicagobocceclub.zeventbooks.io | https://zeventbooks.com?p=admin&brand=cbc |
+| `cbl` | Chicago Bocce League | chicagobocceleague.zeventbooks.io | https://zeventbooks.com?p=admin&brand=cbl |
 
 ### Data Storage
 All tenants share the same Google Spreadsheet:
@@ -100,7 +100,7 @@ All tenants share the same Google Spreadsheet:
 ## 5. Admin Page Access
 
 ### How It Works
-1. User visits: `https://zeventbooks.com?p=admin&tenant=root`
+1. User visits: `https://zeventbooks.com?p=admin&brand=root`
 2. Hostinger index.php proxies to Apps Script
 3. Apps Script `doGet()` function (Code.gs:214-282):
    - Checks `page` parameter (`p=admin`)
@@ -127,15 +127,15 @@ This means the deployment ID is incorrect or the deployment access is not set to
 
 ### Admin Pages (Should load WITHOUT Gmail login)
 ```bash
-https://zeventbooks.com?p=admin&tenant=root
-https://zeventbooks.com?p=admin&tenant=abc
-https://zeventbooks.com?p=admin&tenant=cbc
-https://zeventbooks.com?p=admin&tenant=cbl
+https://zeventbooks.com?p=admin&brand=root
+https://zeventbooks.com?p=admin&brand=abc
+https://zeventbooks.com?p=admin&brand=cbc
+https://zeventbooks.com?p=admin&brand=cbl
 ```
 
 ### Status Endpoint (Public)
 ```bash
-https://zeventbooks.com?p=status&tenant=root
+https://zeventbooks.com?p=status&brand=root
 ```
 
 ### API Documentation
@@ -221,7 +221,7 @@ Admin authentication keys are stored in Apps Script Script Properties (NOT in co
 | Apps Script Project ID | `1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l` |
 | Spreadsheet ID | `1ixHd2iUc27UF0fJvKh9hXsRI1XZtNRKqbZYf0vgMbKrBFItxngd7L-VO` |
 | Domain | zeventbooks.com |
-| Admin URL Template | `https://zeventbooks.com?p=admin&tenant={TENANT_ID}` |
+| Admin URL Template | `https://zeventbooks.com?p=admin&brand={TENANT_ID}` |
 
 ---
 

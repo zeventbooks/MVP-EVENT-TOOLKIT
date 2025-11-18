@@ -50,7 +50,7 @@ export class ApiHelpers {
    * @param {string} tenant - Tenant ID
    */
   async getStatus(tenant = 'root') {
-    return await this.get(`?p=status&tenant=${tenant}`);
+    return await this.get(`?p=status&brand=${tenant}`);
   }
 
   /**

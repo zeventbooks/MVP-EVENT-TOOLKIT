@@ -2,7 +2,7 @@
 
 ## Overview
 
-The friendly URL system makes your app URLs easy to remember, share, and understand. Instead of technical query parameters like `?p=admin&mode=advanced&tenant=abc`, users can access pages with clean, descriptive URLs like `/abc/manage` or `/events`.
+The friendly URL system makes your app URLs easy to remember, share, and understand. Instead of technical query parameters like `?p=admin&mode=advanced&brand=abc`, users can access pages with clean, descriptive URLs like `/abc/manage` or `/events`.
 
 **Business Benefits:**
 - ✅ Easy to remember and share
@@ -118,9 +118,9 @@ customAliases: {
 
 **Before (Technical):**
 ```
-https://zeventbooks.com?p=public&tenant=abc
-https://zeventbooks.com?p=display&tenant=cbc
-https://zeventbooks.com?p=admin&mode=advanced&tenant=abc
+https://zeventbooks.com?p=public&brand=abc
+https://zeventbooks.com?p=display&brand=cbc
+https://zeventbooks.com?p=admin&mode=advanced&brand=abc
 ```
 
 **After (Friendly):**
@@ -267,7 +267,7 @@ const publicAliases = listUrlAliases_('abc', true);
 
 Old query parameter URLs still work:
 ```
-?p=admin&tenant=abc&mode=advanced  ← Still works!
+?p=admin&brand=abc&mode=advanced  ← Still works!
 /abc/manage                        ← New friendly URL
 ```
 
@@ -365,7 +365,7 @@ Logger.log(listUrlAliases_('abc', true));
 
 1. **Check alias exists:** Look in `ZEB.URL_ALIASES` or tenant `customAliases`
 2. **Verify tenant ID:** Make sure tenant exists in `TENANTS` array
-3. **Test with query params:** Try `?p=public&tenant=abc` to isolate routing
+3. **Test with query params:** Try `?p=public&brand=abc` to isolate routing
 4. **Check console logs:** Look for routing errors in Apps Script logs
 
 ### How to Debug
@@ -396,7 +396,7 @@ Subject: New Easier URLs!
 
 We've simplified our event URLs:
 
-OLD: zeventbooks.com?p=public&tenant=abc
+OLD: zeventbooks.com?p=public&brand=abc
 NEW: zeventbooks.com/abc/events ✨
 
 Both URLs work - use whichever you prefer!

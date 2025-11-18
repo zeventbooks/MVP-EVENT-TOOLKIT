@@ -52,7 +52,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}?action=config&tenant={{tenant_id}}&scope=events",
+              "raw": "{{base_url}}?action=config&brand={{tenant_id}}&scope=events",
               "host": ["{{base_url}}"],
               "query": [
                 {
@@ -60,7 +60,7 @@
                   "value": "config"
                 },
                 {
-                  "key": "tenant",
+                  "key": "brand",
                   "value": "{{tenant_id}}"
                 },
                 {
@@ -79,7 +79,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}?action=list&tenant={{tenant_id}}&scope=events",
+              "raw": "{{base_url}}?action=list&brand={{tenant_id}}&scope=events",
               "host": ["{{base_url}}"],
               "query": [
                 {
@@ -87,7 +87,7 @@
                   "value": "list"
                 },
                 {
-                  "key": "tenant",
+                  "key": "brand",
                   "value": "{{tenant_id}}"
                 },
                 {
@@ -112,7 +112,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}?action=get&tenant={{tenant_id}}&scope=events&id=EVENT_ID",
+              "raw": "{{base_url}}?action=get&brand={{tenant_id}}&scope=events&id=EVENT_ID",
               "host": ["{{base_url}}"],
               "query": [
                 {
@@ -120,7 +120,7 @@
                   "value": "get"
                 },
                 {
-                  "key": "tenant",
+                  "key": "brand",
                   "value": "{{tenant_id}}"
                 },
                 {

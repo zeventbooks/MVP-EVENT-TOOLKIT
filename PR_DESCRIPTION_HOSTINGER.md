@@ -30,7 +30,7 @@ This PR documents what needs to be done **manually** to complete the setup:
 
 **Issue:**
 ```bash
-$ curl "https://script.google.com/macros/s/AKfycbzu-U4UgdjdAiXHTg9TD5Y-1gDkc798YSTqQCdhOddG/exec?p=status&tenant=root"
+$ curl "https://script.google.com/macros/s/AKfycbzu-U4UgdjdAiXHTg9TD5Y-1gDkc798YSTqQCdhOddG/exec?p=status&brand=root"
 Access denied
 ```
 
@@ -45,7 +45,7 @@ Access denied
 
 **Issue:**
 ```bash
-$ curl "https://zeventbooks.com?p=status&tenant=root"
+$ curl "https://zeventbooks.com?p=status&brand=root"
 Access denied
 ```
 
@@ -122,7 +122,7 @@ Complete checklist to ensure everything is configured correctly.
 4. **Test:**
    ```bash
    # Should return JSON (not 403)
-   curl "https://zeventbooks.com?p=status&tenant=root"
+   curl "https://zeventbooks.com?p=status&brand=root"
 
    # Run Playwright tests
    npm run test:smoke
@@ -176,16 +176,16 @@ Once you complete the setup instructions, verify everything works:
 
 ```bash
 # 1. Test Google Apps Script directly
-curl "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec?p=status&tenant=root"
+curl "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec?p=status&brand=root"
 
 # 2. Test zeventbooks.com proxy
-curl "https://zeventbooks.com?p=status&tenant=root"
+curl "https://zeventbooks.com?p=status&brand=root"
 
 # 3. Test all tenants
-curl "https://zeventbooks.com?p=status&tenant=root"
-curl "https://zeventbooks.com?p=status&tenant=abc"
-curl "https://zeventbooks.com?p=status&tenant=cbc"
-curl "https://zeventbooks.com?p=status&tenant=cbl"
+curl "https://zeventbooks.com?p=status&brand=root"
+curl "https://zeventbooks.com?p=status&brand=abc"
+curl "https://zeventbooks.com?p=status&brand=cbc"
+curl "https://zeventbooks.com?p=status&brand=cbl"
 
 # 4. Run Playwright smoke tests
 npm run test:smoke

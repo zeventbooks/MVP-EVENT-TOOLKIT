@@ -8,8 +8,8 @@ const ZEB = Object.freeze({
 
   // Customer-Friendly URL Routing
   // Maps friendly URLs to technical parameters for better UX
-  // Example: /abc/events → ?tenant=abc&p=public
-  //          /abc/manage → ?tenant=abc&p=admin
+  // Example: /abc/events → ?brand=abc&p=public
+  //          /abc/manage → ?brand=abc&p=admin
   URL_ALIASES: {
     // Public-facing aliases (no authentication required)
     'events': { page: 'public', label: 'Events', public: true },
@@ -441,7 +441,7 @@ function getFriendlyUrl_(page, tenantId, options = {}) {
 
   // Fallback to query parameters
   let url = `?p=${page}`;
-  if (tenantId) url += `&tenant=${tenantId}`;
+  if (tenantId) url += `&brand=${tenantId}`;
   if (options.mode) url += `&mode=${options.mode}`;
   return url;
 }

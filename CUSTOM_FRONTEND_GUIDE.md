@@ -28,7 +28,7 @@ https://script.google.com/macros/s/{DEPLOYMENT_ID}/exec
 curl "https://script.google.com/macros/s/{DEPLOYMENT_ID}/exec?action=status"
 
 # List events
-curl "https://script.google.com/macros/s/{DEPLOYMENT_ID}/exec?action=list&tenant=root&scope=events"
+curl "https://script.google.com/macros/s/{DEPLOYMENT_ID}/exec?action=list&brand=root&scope=events"
 ```
 
 ### 3. Build Your Frontend!
@@ -60,12 +60,12 @@ Response:
 
 #### GET Configuration
 ```
-GET {BASE_URL}?action=config&tenant=root&scope=events
+GET {BASE_URL}?action=config&brand=root&scope=events
 ```
 
 #### GET List Events
 ```
-GET {BASE_URL}?action=list&tenant=root&scope=events&etag=abc123
+GET {BASE_URL}?action=list&brand=root&scope=events&etag=abc123
 ```
 Response:
 ```json
@@ -92,7 +92,7 @@ Response:
 
 #### GET Single Event
 ```
-GET {BASE_URL}?action=get&tenant=root&scope=events&id=evt_123
+GET {BASE_URL}?action=get&brand=root&scope=events&id=evt_123
 ```
 
 ---
@@ -531,7 +531,7 @@ export default {
 const BASE_URL = 'https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec';
 
 export const listEvents = async () => {
-  const response = await fetch(`${BASE_URL}?action=list&tenant=root&scope=events`);
+  const response = await fetch(`${BASE_URL}?action=list&brand=root&scope=events`);
   return response.json();
 };
 
@@ -633,7 +633,7 @@ const styles = StyleSheet.create({
 
     async function loadEvents() {
       try {
-        const response = await fetch(`${BASE_URL}?action=list&tenant=root&scope=events`);
+        const response = await fetch(`${BASE_URL}?action=list&brand=root&scope=events`);
         const result = await response.json();
 
         if (result.ok) {
@@ -750,7 +750,7 @@ Import the Postman collection: `postman-collection.json`
 
 ```bash
 # List events
-curl "https://script.google.com/.../exec?action=list&tenant=root&scope=events"
+curl "https://script.google.com/.../exec?action=list&brand=root&scope=events"
 
 # Create event
 curl -X POST "https://script.google.com/.../exec" \

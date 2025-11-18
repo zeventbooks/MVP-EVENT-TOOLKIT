@@ -15,7 +15,7 @@ This document provides a comprehensive reference for all available UI flows and 
 ## Navigation Hub
 
 **Primary Entry Point:** Test Dashboard
-**URL:** `?page=test&tenant=root`
+**URL:** `?page=test&brand=root`
 **File:** `Test.html`
 
 The Triangle Framework Dashboard (Test.html) serves as the central navigation hub, organizing all application features by lifecycle phase.
@@ -31,7 +31,7 @@ The Triangle Framework Dashboard (Test.html) serves as the central navigation hu
 ### Available Pages
 
 #### 1. 🏢 Sponsors
-- **URL:** `?page=sponsor&tenant=root`
+- **URL:** `?page=sponsor&brand=root`
 - **File:** `Sponsor.html`
 - **Purpose:** Manage sponsor relationships and configurations
 - **Features:**
@@ -42,7 +42,7 @@ The Triangle Framework Dashboard (Test.html) serves as the central navigation hu
 - **Badge:** Setup
 
 #### 2. ➕ Create Event
-- **URL:** `?page=admin&tenant=root`
+- **URL:** `?page=admin&brand=root`
 - **File:** `Admin.html`
 - **Purpose:** Create new events with full details
 - **Features:**
@@ -56,7 +56,7 @@ The Triangle Framework Dashboard (Test.html) serves as the central navigation hu
 - **Badge:** Primary Action
 
 #### 3. 📅 Events
-- **URL:** `?page=admin&tenant=root#events-list`
+- **URL:** `?page=admin&brand=root#events-list`
 - **File:** `Admin.html`
 - **Purpose:** View and manage all events
 - **Features:**
@@ -67,7 +67,7 @@ The Triangle Framework Dashboard (Test.html) serves as the central navigation hu
 - **Badge:** Management
 
 #### 4. 📝 Sign-Up Forms
-- **URL:** `?page=signup&tenant=root`
+- **URL:** `?page=signup&brand=root`
 - **File:** `Signup.html`
 - **Purpose:** Create attendee registration forms
 - **Features:**
@@ -79,7 +79,7 @@ The Triangle Framework Dashboard (Test.html) serves as the central navigation hu
 - **Badge:** Registration
 
 #### 5. 🖼️ Posters
-- **URL:** `?page=poster&tenant=root`
+- **URL:** `?page=poster&brand=root`
 - **File:** `Poster.html`
 - **Purpose:** Generate promotional posters with QR codes
 - **Features:**
@@ -92,7 +92,7 @@ The Triangle Framework Dashboard (Test.html) serves as the central navigation hu
 - **Badge:** Marketing
 
 #### 6. 📺 Display (Preview)
-- **URL:** `?page=display&tenant=root`
+- **URL:** `?page=display&brand=root`
 - **File:** `Display.html`
 - **Purpose:** Preview TV/display mode for venue screens
 - **Features:**
@@ -104,7 +104,7 @@ The Triangle Framework Dashboard (Test.html) serves as the central navigation hu
 - **Badge:** Preview
 
 #### 7. 🌐 Public Page (Preview)
-- **URL:** `?p=events&tenant=root`
+- **URL:** `?p=events&brand=root`
 - **File:** `Public.html`
 - **Purpose:** Preview public event listings
 - **Features:**
@@ -117,7 +117,7 @@ The Triangle Framework Dashboard (Test.html) serves as the central navigation hu
 - **Badge:** Preview
 
 #### 8. 🔗 Links Generator
-- **URL:** `?page=admin&tenant=root#event-links`
+- **URL:** `?page=admin&brand=root#event-links`
 - **File:** `Admin.html`
 - **Purpose:** Generate shareable links for all pages
 - **Features:**
@@ -140,7 +140,7 @@ The Triangle Framework Dashboard (Test.html) serves as the central navigation hu
 ### Available Pages
 
 #### 1. 🔗 Quick Links
-- **URL:** `?page=admin&tenant=root#event-links`
+- **URL:** `?page=admin&brand=root#event-links`
 - **File:** `Admin.html`
 - **Purpose:** Access all event-specific URLs quickly
 - **Features:**
@@ -151,7 +151,7 @@ The Triangle Framework Dashboard (Test.html) serves as the central navigation hu
 - **Badge:** Quick Access
 
 #### 2. ⚙️ Admin Control
-- **URL:** `?page=admin&tenant=root`
+- **URL:** `?page=admin&brand=root`
 - **File:** `Admin.html`
 - **Purpose:** Make live updates and adjustments
 - **Features:**
@@ -163,7 +163,7 @@ The Triangle Framework Dashboard (Test.html) serves as the central navigation hu
 - **Badge:** Control
 
 #### 3. 📺 Display (TV Mode)
-- **URL:** `?page=display&tenant=root&tv=1`
+- **URL:** `?page=display&brand=root&tv=1`
 - **File:** `Display.html`
 - **Purpose:** Full-screen display for venue TVs (1080p/4K)
 - **Features:**
@@ -176,7 +176,7 @@ The Triangle Framework Dashboard (Test.html) serves as the central navigation hu
 - **Badge:** Live Display
 
 #### 4. 📱 Public Page (Live)
-- **URL:** `?p=events&tenant=root`
+- **URL:** `?p=events&brand=root`
 - **File:** `Public.html`
 - **Purpose:** Mobile-first page for attendees
 - **Features:**
@@ -199,7 +199,7 @@ The Triangle Framework Dashboard (Test.html) serves as the central navigation hu
 ### Available Pages
 
 #### 1. 📊 Shared Analytics
-- **URL:** `?page=report&tenant=root` or `?page=analytics&tenant=root`
+- **URL:** `?page=report&brand=root` or `?page=analytics&brand=root`
 - **File:** `SharedReport.html`
 - **Purpose:** Event & sponsor impressions, CTR, ROI metrics
 - **Features:**
@@ -215,7 +215,7 @@ The Triangle Framework Dashboard (Test.html) serves as the central navigation hu
 - **Badge:** Single Source of Truth
 
 #### 2. 🔜 Next Events
-- **URL:** `?page=admin&tenant=root#upcoming`
+- **URL:** `?page=admin&brand=root#upcoming`
 - **File:** `Admin.html`
 - **Purpose:** Plan and schedule upcoming events
 - **Features:**
@@ -225,7 +225,7 @@ The Triangle Framework Dashboard (Test.html) serves as the central navigation hu
 - **Badge:** Coming Soon
 
 #### 3. 🖼️ Next Posters
-- **URL:** `?page=poster&tenant=root#upcoming`
+- **URL:** `?page=poster&brand=root#upcoming`
 - **File:** `Poster.html`
 - **Purpose:** Prepare posters for future events
 - **Features:**
@@ -245,7 +245,7 @@ The Triangle Framework Dashboard (Test.html) serves as the central navigation hu
 ### Available Pages
 
 #### 1. ⚙️ Config Editor
-- **URL:** `?page=config&tenant=root`
+- **URL:** `?page=config&brand=root`
 - **File:** `Config.html`
 - **Purpose:** Configure app settings and tenant configuration
 - **Features:**
@@ -258,7 +258,7 @@ The Triangle Framework Dashboard (Test.html) serves as the central navigation hu
 - **Badge:** System
 
 #### 2. 🔍 Diagnostics
-- **URL:** `?page=diagnostics&tenant=root`
+- **URL:** `?page=diagnostics&brand=root`
 - **File:** `Diagnostics.html`
 - **Purpose:** System health checks and troubleshooting
 - **Features:**
@@ -271,7 +271,7 @@ The Triangle Framework Dashboard (Test.html) serves as the central navigation hu
 - **Badge:** System
 
 #### 3. 🧪 Test Dashboard
-- **URL:** `?page=test&tenant=root`
+- **URL:** `?page=test&brand=root`
 - **File:** `Test.html`
 - **Purpose:** Triangle Framework Dashboard (navigation hub)
 - **Features:**
@@ -284,7 +284,7 @@ The Triangle Framework Dashboard (Test.html) serves as the central navigation hu
 - **Badge:** You Are Here
 
 #### 4. 📖 API Documentation
-- **URL:** `?page=api&tenant=root` or `?page=docs&tenant=root`
+- **URL:** `?page=api&brand=root` or `?page=docs&brand=root`
 - **File:** `ApiDocs.html`
 - **Purpose:** API reference and integration guides
 - **Features:**
@@ -305,7 +305,7 @@ The Triangle Framework Dashboard (Test.html) serves as the central navigation hu
 - **Badge:** External
 
 #### 6. 💚 Status API
-- **URL:** `?p=status&tenant=root`
+- **URL:** `?p=status&brand=root`
 - **Purpose:** Build version and system status
 - **Features:**
   - JSON endpoint
@@ -321,7 +321,7 @@ The Triangle Framework Dashboard (Test.html) serves as the central navigation hu
 
 ### Event Manager (Primary Role)
 
-**Entry Point:** `?page=test&tenant=root` (Triangle Dashboard)
+**Entry Point:** `?page=test&brand=root` (Triangle Dashboard)
 
 **Typical Workflow:**
 
@@ -363,7 +363,7 @@ The Triangle Framework Dashboard (Test.html) serves as the central navigation hu
 
 ### Consumer/Attendee (Public Role)
 
-**Entry Point:** `?p=events&tenant=root` (Public page)
+**Entry Point:** `?p=events&brand=root` (Public page)
 
 **Typical Workflow:**
 
@@ -424,16 +424,16 @@ function pageFile_(page){
 **Parameters:**
 - `?page=PAGENAME` - Page identifier
 - `?p=SCOPE` - Scope (events/leagues/tournaments)
-- `?tenant=TENANTID` - Multi-tenant identifier
+- `?brand=TENANTID` - Multi-tenant identifier
 - `?id=EVENTID` - Event-specific content
 - `?tv=1` - TV mode flag
 
 **Example URLs:**
-- Test Dashboard: `?page=test&tenant=root`
-- Create Event: `?page=admin&tenant=root`
-- Public Events: `?p=events&tenant=root`
-- TV Display: `?page=display&tenant=root&id=EVENT123&tv=1`
-- Analytics: `?page=report&tenant=root&id=EVENT123`
+- Test Dashboard: `?page=test&brand=root`
+- Create Event: `?page=admin&brand=root`
+- Public Events: `?p=events&brand=root`
+- TV Display: `?page=display&brand=root&id=EVENT123&tv=1`
+- Analytics: `?page=report&brand=root&id=EVENT123`
 
 ### Template Variables
 
@@ -522,10 +522,10 @@ tpl.ZEB = ZEB;                                // Build ID + version
 
 ## Support & Resources
 
-- **Test Dashboard:** `?page=test&tenant=root`
-- **API Documentation:** `?page=api&tenant=root`
-- **Diagnostics:** `?page=diagnostics&tenant=root`
-- **System Status:** `?p=status&tenant=root`
+- **Test Dashboard:** `?page=test&brand=root`
+- **API Documentation:** `?page=api&brand=root`
+- **Diagnostics:** `?page=diagnostics&brand=root`
+- **System Status:** `?p=status&brand=root`
 - **GitHub Issues:** https://github.com/zeventbooks/MVP-EVENT-TOOLKIT/issues
 
 ---

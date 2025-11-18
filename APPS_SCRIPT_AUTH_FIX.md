@@ -88,7 +88,7 @@ export GOOGLE_SCRIPT_URL="https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/
 
 ```bash
 # Test the URL directly
-curl "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec?p=status&tenant=root"
+curl "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec?p=status&brand=root"
 
 # Should return JSON (not HTML login page):
 # {"ok":true,"value":{"build":"triangle-extended-v1.3","tenant":"root"}}
@@ -155,7 +155,7 @@ npm run test:env:print
 **Example: Public vs Admin**
 ```javascript
 // This works for everyone (public):
-GET https://script.google.com/.../exec?p=events&tenant=root
+GET https://script.google.com/.../exec?p=events&brand=root
 
 // This requires admin secret (protected):
 POST https://script.google.com/.../exec
@@ -188,7 +188,7 @@ If you don't want to modify the existing deployment:
 
 ### 1. Test with curl (No authentication)
 ```bash
-curl "https://script.google.com/macros/s/YOUR_ID/exec?p=status&tenant=root"
+curl "https://script.google.com/macros/s/YOUR_ID/exec?p=status&brand=root"
 ```
 
 **Expected (GOOD):**
@@ -276,7 +276,7 @@ If you see:
 **Check:**
 1. Environment variable is set: `echo $GOOGLE_SCRIPT_URL`
 2. Variable has correct URL (no typos)
-3. URL is accessible: `curl "$GOOGLE_SCRIPT_URL?p=status&tenant=root"`
+3. URL is accessible: `curl "$GOOGLE_SCRIPT_URL?p=status&brand=root"`
 
 ---
 
@@ -297,7 +297,7 @@ If you see:
 If you're still having issues:
 
 1. Share the error message you're seeing
-2. Share the output of: `curl -v "YOUR_APPS_SCRIPT_URL?p=status&tenant=root"`
+2. Share the output of: `curl -v "YOUR_APPS_SCRIPT_URL?p=status&brand=root"`
 3. Confirm deployment settings: "Who has access" = "Anyone"
 
 The key is: **Apps Script web apps need "Anyone" access to work with automated testing tools like Playwright.**

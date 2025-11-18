@@ -184,7 +184,7 @@ https://zeventbooks.com
 
 Open:
 ```
-https://zeventbooks.com?p=status&tenant=root
+https://zeventbooks.com?p=status&brand=root
 ```
 
 **Expected response (JSON):**
@@ -204,9 +204,9 @@ https://zeventbooks.com?p=status&tenant=root
 
 Try these URLs:
 ```
-https://zeventbooks.com?p=status&tenant=root
-https://zeventbooks.com?p=status&tenant=abc
-https://zeventbooks.com?p=status&tenant=cbc
+https://zeventbooks.com?p=status&brand=root
+https://zeventbooks.com?p=status&brand=abc
+https://zeventbooks.com?p=status&brand=cbc
 ```
 
 All should return JSON with the correct tenant ID.
@@ -215,7 +215,7 @@ All should return JSON with the correct tenant ID.
 
 Try opening (in browser):
 ```
-https://zeventbooks.com?p=admin&tenant=root
+https://zeventbooks.com?p=admin&brand=root
 ```
 
 Should show your admin interface (not a 404).
@@ -414,7 +414,7 @@ If you get stuck:
 5. ✅ Tested URLs in browser
 
 **What you get:**
-- Clean URLs: `zeventbooks.com?p=status&tenant=root`
+- Clean URLs: `zeventbooks.com?p=status&brand=root`
 - All tenants work automatically
 - All pages work automatically
 - Professional appearance

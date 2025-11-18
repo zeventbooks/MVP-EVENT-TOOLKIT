@@ -263,7 +263,7 @@ Use this checklist to verify the Forms workflow works end-to-end:
 
 ### **Manual Testing (Production)**
 
-1. [ ] Visit admin page: `https://zeventbooks.com?p=admin&tenant=root`
+1. [ ] Visit admin page: `https://zeventbooks.com?p=admin&brand=root`
 2. [ ] Create a test event with name, date, location
 3. [ ] In admin, create forms for the event:
    - [ ] Sign-up form
@@ -273,7 +273,7 @@ Use this checklist to verify the Forms workflow works end-to-end:
 4. [ ] Copy each form's published URL
 5. [ ] Generate shortlinks for each form URL
 6. [ ] Copy shortlink URLs
-7. [ ] Visit poster page: `https://zeventbooks.com?page=poster&p=events&tenant=root&id={event-id}`
+7. [ ] Visit poster page: `https://zeventbooks.com?page=poster&p=events&brand=root&id={event-id}`
 8. [ ] Verify QR codes display on poster
 9. [ ] Scan QR codes with phone - should redirect to forms
 10. [ ] Check analytics: `?action=getReport&tenantId=root&eventId={event-id}`

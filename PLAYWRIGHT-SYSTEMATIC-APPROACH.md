@@ -287,17 +287,17 @@ export const test = base.extend({
         await dialog.accept(config.adminKey);
       }
     });
-    await page.goto(`${config.baseUrl}?page=admin&tenant=${config.tenantId}`);
+    await page.goto(`${config.baseUrl}?page=admin&brand=${config.tenantId}`);
     await use(page);
   },
 
   publicPage: async ({ page }, use) => {
-    await page.goto(`${config.baseUrl}?page=events&tenant=${config.tenantId}`);
+    await page.goto(`${config.baseUrl}?page=events&brand=${config.tenantId}`);
     await use(page);
   },
 
   displayPage: async ({ page }, use) => {
-    await page.goto(`${config.baseUrl}?page=display&tenant=${config.tenantId}`);
+    await page.goto(`${config.baseUrl}?page=display&brand=${config.tenantId}`);
     await use(page);
   },
 });

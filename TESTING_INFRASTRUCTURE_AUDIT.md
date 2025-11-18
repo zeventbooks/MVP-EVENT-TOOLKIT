@@ -231,7 +231,7 @@ tests/e2e/
 ```javascript
 // ✅ Critical Smoke Test
 test('Status API responds with 200 and valid schema', async ({ page }) => {
-  const response = await page.goto(`${BASE_URL}?p=status&tenant=root`);
+  const response = await page.goto(`${BASE_URL}?p=status&brand=root`);
   expect(response.status()).toBe(200);
   
   const json = await response.json();
@@ -241,7 +241,7 @@ test('Status API responds with 200 and valid schema', async ({ page }) => {
 
 // ✅ Complete Customer Flow
 test('Complete flow: Browse events → View details → Check sponsors', async ({ page }) => {
-  await page.goto(`${BASE_URL}?p=events&tenant=root`);
+  await page.goto(`${BASE_URL}?p=events&brand=root`);
   
   const eventCards = page.locator('.event-card');
   const count = await eventCards.count();
