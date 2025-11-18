@@ -421,6 +421,18 @@
         <div id="sponsorPerformance"></div>
       </div>
 
+      <!-- ROI & Surface Breakdown (Sponsors Only) -->
+      <div class="section-card" id="sponsorROICard" style="display:none;">
+        <h2>💰 ROI & Performance Breakdown</h2>
+        <div id="sponsorROI"></div>
+      </div>
+
+      <!-- Event Breakdown (Sponsors Only) -->
+      <div class="section-card" id="sponsorEventsCard" style="display:none;">
+        <h2>🎯 Performance by Event</h2>
+        <div id="sponsorEvents"></div>
+      </div>
+
       <!-- Event Performance (Event Managers Only) -->
       <div class="section-card" id="eventPerformanceCard" style="display:none;">
         <h2>🎉 Event Performance</h2>
@@ -445,18 +457,33 @@
 
   <script>
     const TENANT_ID = '<?= tenantId ?>';
-    const IS_SPONSOR_VIEW = false; // Set via URL param if sponsor
+
+    // Detect sponsor view from URL params
+    const urlParams = new URLSearchParams(window.location.search);
+    const IS_SPONSOR_VIEW = urlParams.get('sponsor') === 'true';
+    const SPONSOR_ID = urlParams.get('sponsorId') || '';
+    const EVENT_ID = urlParams.get('eventId') || '';
 
     async function loadReport() {
       try {
         document.getElementById('loading').style.display = 'block';
         document.getElementById('metrics').style.display = 'none';
 
-        // Get shared analytics
-        const result = await NU.rpc('api_getSharedAnalytics', {
-          tenantId: TENANT_ID,
-          isSponsorView: IS_SPONSOR_VIEW
-        });
+        let result;
+
+        // Use different API endpoint for sponsor view
+        if (IS_SPONSOR_VIEW && SPONSOR_ID) {
+          result = await NU.rpc('api_getSponsorAnalytics', {
+            sponsorId: SPONSOR_ID,
+            eventId: EVENT_ID || null,
+            tenantId: TENANT_ID
+          });
+        } else {
+          result = await NU.rpc('api_getSharedAnalytics', {
+            tenantId: TENANT_ID,
+            isSponsorView: IS_SPONSOR_VIEW
+          });
+        }
 
         if (!result.ok) {
           throw new Error(result.message || 'Failed to load analytics');
@@ -481,17 +508,34 @@
       // Render surface performance
       renderSurfacePerformance(metrics.bySurface);
 
-      // Render sponsor performance
-      renderSponsorPerformance(metrics.bySponsor);
+      // Handle sponsor-specific view
+      if (IS_SPONSOR_VIEW && SPONSOR_ID) {
+        // Show sponsor-specific sections
+        document.getElementById('sponsorROICard').style.display = 'block';
+        document.getElementById('sponsorEventsCard').style.display = 'block';
 
-      // Render event performance (if not sponsor view)
-      if (!IS_SPONSOR_VIEW && metrics.byEvent) {
-        document.getElementById('eventPerformanceCard').style.display = 'block';
-        renderEventPerformance(metrics.byEvent);
+        // Render ROI and surface breakdown
+        renderSponsorROI(metrics);
+
+        // Render event breakdown for sponsor
+        renderSponsorEventBreakdown(metrics.byEvent);
+
+        // Render sponsor-specific insights
+        renderSponsorInsights(metrics.insights || []);
+      } else {
+        // Event manager view
+        // Render sponsor performance
+        renderSponsorPerformance(metrics.bySponsor);
+
+        // Render event performance (if not sponsor view)
+        if (metrics.byEvent) {
+          document.getElementById('eventPerformanceCard').style.display = 'block';
+          renderEventPerformance(metrics.byEvent);
+        }
+
+        // Render recommendations
+        renderRecommendations(metrics);
       }
-
-      // Render recommendations
-      renderRecommendations(metrics);
     }
 
     function renderMetrics(metrics) {
@@ -701,6 +745,198 @@
           <div class="recommendation-content">
             <div class="title">${rec.priority}</div>
             <div>${rec.message}</div>
+          </div>
+        </div>
+      `).join('');
+
+      container.innerHTML = html;
+    }
+
+    // Sponsor-specific rendering functions
+    function renderSponsorROI(metrics) {
+      const container = document.getElementById('sponsorROI');
+
+      if (!metrics || !metrics.bySurface) {
+        container.innerHTML = '<p style="color: #64748b;">No ROI data available.</p>';
+        return;
+      }
+
+      // Calculate ROI estimates (placeholder for actual cost data)
+      const totalImpressions = metrics.totals.impressions || 0;
+      const totalClicks = metrics.totals.clicks || 0;
+      const ctr = metrics.totals.ctr || 0;
+      const engagementScore = metrics.totals.engagementScore || 0;
+
+      // Surface breakdown with performance metrics
+      const surfaces = Object.entries(metrics.bySurface).map(([name, data]) => ({
+        name,
+        ...data,
+        percentage: totalImpressions > 0 ? ((data.impressions / totalImpressions) * 100).toFixed(1) : 0
+      })).sort((a, b) => b.ctr - a.ctr);
+
+      const html = `
+        <div style="margin-bottom: 2rem;">
+          <h3 style="margin-bottom: 1rem; color: #1e293b;">Performance Summary</h3>
+          <div class="metrics-grid" style="margin-bottom: 1.5rem;">
+            <div class="metric-card">
+              <div class="label">Overall CTR</div>
+              <div class="value">${ctr}%</div>
+              <div class="trend positive">${ctr >= 2 ? '↑ Good' : '→ Average'}</div>
+            </div>
+            <div class="metric-card">
+              <div class="label">Engagement Score</div>
+              <div class="value">${engagementScore}</div>
+              <div class="trend positive">${engagementScore >= 50 ? '↑ High' : '→ Moderate'}</div>
+            </div>
+            <div class="metric-card">
+              <div class="label">Cost per Click</div>
+              <div class="value">$${totalClicks > 0 ? (100 / totalClicks).toFixed(2) : '0.00'}</div>
+              <div class="trend neutral">Estimated</div>
+            </div>
+          </div>
+
+          <h3 style="margin-bottom: 1rem; color: #1e293b;">Performance by Surface</h3>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Surface</th>
+                <th>Impressions</th>
+                <th>Share</th>
+                <th>Clicks</th>
+                <th>CTR</th>
+                <th>Avg Dwell</th>
+                <th>Recommendation</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${surfaces.map(surface => {
+                const avgDwell = surface.impressions > 0 ? (surface.dwellSec / surface.impressions).toFixed(1) : 0;
+                const recommendation = surface.ctr >= ctr ? '✅ Maintain' : surface.ctr >= ctr * 0.5 ? '🔄 Optimize' : '⚠️ Review';
+
+                return `
+                  <tr>
+                    <td data-label="Surface"><strong>${surface.name}</strong></td>
+                    <td data-label="Impressions">${surface.impressions.toLocaleString()}</td>
+                    <td data-label="Share">
+                      <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${surface.percentage}%; background: #2563eb;"></div>
+                      </div>
+                      ${surface.percentage}%
+                    </td>
+                    <td data-label="Clicks">${surface.clicks.toLocaleString()}</td>
+                    <td data-label="CTR">
+                      <span class="badge ${surface.ctr >= ctr ? 'success' : 'warning'}">${surface.ctr}%</span>
+                    </td>
+                    <td data-label="Avg Dwell">${avgDwell}s</td>
+                    <td data-label="Recommendation">${recommendation}</td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+
+          <div style="margin-top: 1.5rem; padding: 1rem; background: #f0f9ff; border-left: 4px solid #2563eb; border-radius: 8px;">
+            <h4 style="margin: 0 0 0.5rem 0; color: #1e40af;">💡 ROI Insight</h4>
+            <p style="margin: 0; color: #1e293b;">
+              ${surfaces.length > 0 && surfaces[0].ctr > 0 ?
+                `Your best performing surface is <strong>${surfaces[0].name}</strong> with a ${surfaces[0].ctr}% CTR.
+                 ${surfaces[0].ctr > ctr * 1.5 ? 'Consider increasing your investment here for maximum ROI.' : 'This channel is performing well.'}` :
+                'Continue monitoring your performance metrics to optimize ROI.'}
+            </p>
+          </div>
+        </div>
+      `;
+
+      container.innerHTML = html;
+    }
+
+    function renderSponsorEventBreakdown(byEvent) {
+      const container = document.getElementById('sponsorEvents');
+
+      if (!byEvent || Object.keys(byEvent).length === 0) {
+        container.innerHTML = '<p style="color: #64748b;">No event data available.</p>';
+        return;
+      }
+
+      const events = Object.entries(byEvent).map(([eventId, data]) => ({
+        eventId,
+        ...data
+      })).sort((a, b) => b.impressions - a.impressions);
+
+      const html = `
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Event</th>
+              <th>Impressions</th>
+              <th>Clicks</th>
+              <th>CTR</th>
+              <th>Performance</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${events.map((event, index) => {
+              const rank = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`;
+
+              return `
+                <tr>
+                  <td data-label="Event">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <span style="font-size: 1.25rem;">${rank}</span>
+                      <strong>${event.eventId}</strong>
+                    </div>
+                  </td>
+                  <td data-label="Impressions">${event.impressions.toLocaleString()}</td>
+                  <td data-label="Clicks">${event.clicks.toLocaleString()}</td>
+                  <td data-label="CTR">
+                    <span class="badge ${event.ctr >= 2 ? 'success' : event.ctr >= 1 ? 'info' : 'warning'}">
+                      ${event.ctr}%
+                    </span>
+                  </td>
+                  <td data-label="Performance">
+                    ${event.ctr >= 2 ? '🔥 Excellent' : event.ctr >= 1 ? '✅ Good' : '📊 Average'}
+                  </td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+
+        <div style="margin-top: 1.5rem; padding: 1rem; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 8px;">
+          <h4 style="margin: 0 0 0.5rem 0; color: #92400e;">📊 Event Performance Insight</h4>
+          <p style="margin: 0; color: #1e293b;">
+            You are active in <strong>${events.length}</strong> event${events.length !== 1 ? 's' : ''}.
+            ${events.length > 0 ? `Your top event is <strong>${events[0].eventId}</strong> with ${events[0].impressions.toLocaleString()} impressions.` : ''}
+          </p>
+        </div>
+      `;
+
+      container.innerHTML = html;
+    }
+
+    function renderSponsorInsights(insights) {
+      const container = document.getElementById('recommendations');
+
+      if (!insights || insights.length === 0) {
+        container.innerHTML = '<p style="color: #64748b;">No insights available at this time. Keep monitoring your metrics!</p>';
+        return;
+      }
+
+      const iconMap = {
+        'success': '✅',
+        'warning': '⚠️',
+        'info': '💡',
+        'high': '🔴'
+      };
+
+      const html = insights.map(insight => `
+        <div class="recommendation ${insight.type}">
+          <div class="recommendation-icon">
+            ${iconMap[insight.type] || '💡'}
+          </div>
+          <div class="recommendation-content">
+            <div class="title">${insight.title}</div>
+            <div>${insight.message}</div>
           </div>
         </div>
       `).join('');
