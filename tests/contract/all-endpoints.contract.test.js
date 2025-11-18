@@ -11,9 +11,9 @@
  * 4. No unexpected fields (strict validation)
  */
 
-const { test, expect } = require('@playwright/test');
+// Jest is already available globally, no need to import
 
-// Mock helpers for unit-style contract testing
+// Mock helpers for contract testing
 const Ok = (value = {}) => ({ ok: true, value });
 const Err = (code, message) => ({ ok: false, code, message: message || code });
 
@@ -62,9 +62,9 @@ function validateContract(response, expectedContract) {
   }
 }
 
-test.describe('📋 CONTRACT: All API Endpoints', () => {
+describe('📋 CONTRACT: All API Endpoints', () => {
 
-  test.describe('System & Health Endpoints', () => {
+  describe('System & Health Endpoints', () => {
 
     test('api_status contract', () => {
       const response = Ok({
@@ -130,7 +130,7 @@ test.describe('📋 CONTRACT: All API Endpoints', () => {
     });
   });
 
-  test.describe('Authentication & Token Endpoints', () => {
+  describe('Authentication & Token Endpoints', () => {
 
     test('api_generateToken contract (success)', () => {
       const response = Ok({
@@ -157,7 +157,7 @@ test.describe('📋 CONTRACT: All API Endpoints', () => {
     });
   });
 
-  test.describe('CRUD Endpoints', () => {
+  describe('CRUD Endpoints', () => {
 
     test('api_list contract (events)', () => {
       const response = Ok({
@@ -249,7 +249,7 @@ test.describe('📋 CONTRACT: All API Endpoints', () => {
     });
   });
 
-  test.describe('Analytics & Reporting Endpoints', () => {
+  describe('Analytics & Reporting Endpoints', () => {
 
     test('api_logEvents contract', () => {
       const response = Ok({
@@ -366,7 +366,7 @@ test.describe('📋 CONTRACT: All API Endpoints', () => {
     });
   });
 
-  test.describe('Shortlink & Form Endpoints', () => {
+  describe('Shortlink & Form Endpoints', () => {
 
     test('api_createShortlink contract', () => {
       const response = Ok({
@@ -444,7 +444,7 @@ test.describe('📋 CONTRACT: All API Endpoints', () => {
     });
   });
 
-  test.describe('Portfolio & Multi-Sponsor Endpoints', () => {
+  describe('Portfolio & Multi-Sponsor Endpoints', () => {
 
     test('api_getPortfolioSponsorReport contract', () => {
       const response = Ok({
@@ -515,7 +515,7 @@ test.describe('📋 CONTRACT: All API Endpoints', () => {
     });
   });
 
-  test.describe('Diagnostics & Admin Endpoints', () => {
+  describe('Diagnostics & Admin Endpoints', () => {
 
     test('api_runDiagnostics contract', () => {
       const response = Ok({
@@ -542,7 +542,7 @@ test.describe('📋 CONTRACT: All API Endpoints', () => {
     });
   });
 
-  test.describe('Error Response Contracts', () => {
+  describe('Error Response Contracts', () => {
 
     test('BAD_INPUT error contract', () => {
       const response = Err('BAD_INPUT', 'Invalid request. Please check your input and try again.');
@@ -583,7 +583,7 @@ test.describe('📋 CONTRACT: All API Endpoints', () => {
   });
 });
 
-test.describe('📋 CONTRACT: SharedReporting.gs Specific', () => {
+describe('📋 CONTRACT: SharedReporting.gs Specific', () => {
 
   test('api_generateSharedReport contract', () => {
     const response = Ok({
