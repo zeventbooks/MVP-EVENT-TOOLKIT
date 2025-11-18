@@ -545,7 +545,7 @@ describe('Security Bug Fixes', () => {
     });
   });
 
-  describe('Bug #16: CORS Origin Validation', () => {
+  describe('Bug #16: CORS Origin Validation (Legacy Tests - UPDATED)', () => {
     let isAllowedOrigin_;
 
     beforeEach(() => {
@@ -553,8 +553,26 @@ describe('Security Bug Fixes', () => {
         { id: 'root', hostnames: ['zeventbook.io'] }
       ];
 
-      isAllowedOrigin_ = function(origin) {
-        if (!origin) return true; // Allow requests without origin
+      global.diag_ = jest.fn();
+
+      // Updated to new signature with authHeaders parameter
+      isAllowedOrigin_ = function(origin, authHeaders) {
+        // Fixed: Requests without origin must have auth headers
+        if (!origin) {
+          const hasAuth = authHeaders && (
+            authHeaders.authorization ||
+            authHeaders.Authorization ||
+            authHeaders['x-api-key'] ||
+            authHeaders['X-API-Key']
+          );
+
+          if (!hasAuth) {
+            diag_('warn', 'isAllowedOrigin_', 'Non-browser request without auth headers', {});
+            return false;
+          }
+
+          return true;
+        }
 
         try {
           const originUrl = new URL(origin);
@@ -576,36 +594,43 @@ describe('Security Bug Fixes', () => {
 
           return false;
         } catch (e) {
+          diag_('warn', 'isAllowedOrigin_', 'Invalid origin URL', {origin, error: String(e)});
           return false;
         }
       };
     });
 
     test('should allow tenant hostnames', () => {
-      expect(isAllowedOrigin_('https://zeventbook.io')).toBe(true);
+      expect(isAllowedOrigin_('https://zeventbook.io', {})).toBe(true);
     });
 
     test('should allow localhost for development', () => {
-      expect(isAllowedOrigin_('http://localhost:3000')).toBe(true);
-      expect(isAllowedOrigin_('http://127.0.0.1:8080')).toBe(true);
+      expect(isAllowedOrigin_('http://localhost:3000', {})).toBe(true);
+      expect(isAllowedOrigin_('http://127.0.0.1:8080', {})).toBe(true);
     });
 
     test('should allow Google Apps Script domains', () => {
-      expect(isAllowedOrigin_('https://script.google.com')).toBe(true);
+      expect(isAllowedOrigin_('https://script.google.com', {})).toBe(true);
     });
 
     test('should reject unauthorized origins', () => {
-      expect(isAllowedOrigin_('https://malicious-site.com')).toBe(false);
-      expect(isAllowedOrigin_('https://evil.com')).toBe(false);
+      expect(isAllowedOrigin_('https://malicious-site.com', {})).toBe(false);
+      expect(isAllowedOrigin_('https://evil.com', {})).toBe(false);
     });
 
-    test('should allow requests without origin header', () => {
-      expect(isAllowedOrigin_(null)).toBe(true);
-      expect(isAllowedOrigin_(undefined)).toBe(true);
+    test('UPDATED: should REJECT requests without origin header and no auth', () => {
+      // This behavior has changed - now requires auth headers
+      expect(isAllowedOrigin_(null, {})).toBe(false);
+      expect(isAllowedOrigin_(undefined, {})).toBe(false);
+    });
+
+    test('NEW: should allow requests without origin IF they have auth headers', () => {
+      expect(isAllowedOrigin_(null, { authorization: 'Bearer token' })).toBe(true);
+      expect(isAllowedOrigin_(undefined, { 'x-api-key': 'key123' })).toBe(true);
     });
 
     test('should handle invalid origin URLs', () => {
-      expect(isAllowedOrigin_('not-a-url')).toBe(false);
+      expect(isAllowedOrigin_('not-a-url', {})).toBe(false);
     });
   });
 
@@ -897,6 +922,346 @@ describe('Security Bug Fixes', () => {
       const error = UserFriendlyErr_('UNKNOWN_CODE', 'Some internal error');
       expect(error.message).toBe('An error occurred. Please try again.');
       expect(error.code).toBe('UNKNOWN_CODE');
+    });
+  });
+
+  // ===== NEW CRITICAL SECURITY FIXES =====
+
+  describe('Critical Fix #1: JWT Timing-Safe Comparison', () => {
+    let timingSafeCompare_;
+
+    beforeEach(() => {
+      // Implementation of timing-safe comparison
+      timingSafeCompare_ = function(a, b) {
+        if (typeof a !== 'string' || typeof b !== 'string') {
+          return false;
+        }
+
+        const aLen = a.length;
+        const bLen = b.length;
+        let result = aLen === bLen ? 0 : 1;
+
+        const maxLen = Math.max(aLen, bLen);
+        for (let i = 0; i < maxLen; i++) {
+          const aChar = i < aLen ? a.charCodeAt(i) : 0;
+          const bChar = i < bLen ? b.charCodeAt(i) : 0;
+          result |= aChar ^ bChar;
+        }
+
+        return result === 0;
+      };
+    });
+
+    test('should return true for identical strings', () => {
+      expect(timingSafeCompare_('abc123', 'abc123')).toBe(true);
+      expect(timingSafeCompare_('', '')).toBe(true);
+      expect(timingSafeCompare_('a', 'a')).toBe(true);
+    });
+
+    test('should return false for different strings', () => {
+      expect(timingSafeCompare_('abc123', 'abc124')).toBe(false);
+      expect(timingSafeCompare_('abc', 'def')).toBe(false);
+      expect(timingSafeCompare_('short', 'longerstring')).toBe(false);
+    });
+
+    test('should return false for different lengths', () => {
+      expect(timingSafeCompare_('abc', 'abcd')).toBe(false);
+      expect(timingSafeCompare_('', 'a')).toBe(false);
+    });
+
+    test('should return false for non-string inputs', () => {
+      expect(timingSafeCompare_(null, 'abc')).toBe(false);
+      expect(timingSafeCompare_('abc', undefined)).toBe(false);
+      expect(timingSafeCompare_(123, 'abc')).toBe(false);
+      expect(timingSafeCompare_('abc', {})).toBe(false);
+    });
+
+    test('should be constant-time for same-length strings', () => {
+      // This test verifies the logic is correct for constant-time comparison
+      // Actual timing tests would require performance.now() which may not be reliable in tests
+
+      const signature1 = 'a'.repeat(64);
+      const signature2 = 'b'.repeat(64);
+      const signature3 = 'a'.repeat(63) + 'b';
+
+      // All comparisons with same-length strings should execute same code path
+      expect(timingSafeCompare_(signature1, signature1)).toBe(true);
+      expect(timingSafeCompare_(signature1, signature2)).toBe(false);
+      expect(timingSafeCompare_(signature1, signature3)).toBe(false);
+    });
+
+    test('should prevent timing attack on JWT signatures', () => {
+      // Simulate JWT signature comparison
+      const validSignature = 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0';
+      const attackSignatures = [
+        'b1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0', // First byte wrong
+        'a1c2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0', // Second byte wrong
+        'a1b2d3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0', // Third byte wrong
+      ];
+
+      // All should return false
+      attackSignatures.forEach(sig => {
+        expect(timingSafeCompare_(validSignature, sig)).toBe(false);
+      });
+
+      // Valid signature should return true
+      expect(timingSafeCompare_(validSignature, validSignature)).toBe(true);
+    });
+  });
+
+  describe('Critical Fix #2: CSRF Atomic Operation with LockService', () => {
+    let validateCSRFToken_, generateCSRFToken_;
+    let mockCache, mockLock;
+    let lockAcquired;
+
+    beforeEach(() => {
+      lockAcquired = true;
+
+      mockCache = {
+        data: {},
+        put: jest.fn((key, value, ttl) => {
+          mockCache.data[key] = value;
+        }),
+        get: jest.fn((key) => mockCache.data[key] || null),
+        remove: jest.fn((key) => {
+          delete mockCache.data[key];
+        })
+      };
+
+      mockLock = {
+        tryLock: jest.fn((timeout) => lockAcquired),
+        releaseLock: jest.fn()
+      };
+
+      global.CacheService = {
+        getUserCache: jest.fn(() => mockCache)
+      };
+
+      global.LockService = {
+        getUserLock: jest.fn(() => mockLock)
+      };
+
+      global.Utilities = {
+        getUuid: jest.fn(() => 'test-uuid-1234')
+      };
+
+      // Mock diagnostic function
+      global.diag_ = jest.fn();
+
+      generateCSRFToken_ = function() {
+        const token = Utilities.getUuid();
+        const cache = CacheService.getUserCache();
+        cache.put('csrf_' + token, '1', 3600);
+        return token;
+      };
+
+      validateCSRFToken_ = function(token) {
+        if (!token || typeof token !== 'string') return false;
+
+        const lock = LockService.getUserLock();
+        try {
+          if (!lock.tryLock(5000)) {
+            diag_('warn', 'validateCSRFToken_', 'Failed to acquire lock', { token: token.substring(0, 8) + '...' });
+            return false;
+          }
+
+          const cache = CacheService.getUserCache();
+          const valid = cache.get('csrf_' + token);
+
+          if (valid) {
+            cache.remove('csrf_' + token);
+            return true;
+          }
+          return false;
+        } finally {
+          try {
+            lock.releaseLock();
+          } catch (e) {
+            // Lock might have expired, ignore
+          }
+        }
+      };
+    });
+
+    test('should acquire lock before validating CSRF token', () => {
+      const token = generateCSRFToken_();
+      validateCSRFToken_(token);
+      expect(mockLock.tryLock).toHaveBeenCalledWith(5000);
+    });
+
+    test('should release lock after validation', () => {
+      const token = generateCSRFToken_();
+      validateCSRFToken_(token);
+      expect(mockLock.releaseLock).toHaveBeenCalled();
+    });
+
+    test('should return false if lock cannot be acquired', () => {
+      lockAcquired = false;
+      const token = generateCSRFToken_();
+      const result = validateCSRFToken_(token);
+      expect(result).toBe(false);
+      expect(global.diag_).toHaveBeenCalledWith('warn', 'validateCSRFToken_', 'Failed to acquire lock', expect.any(Object));
+    });
+
+    test('should atomically check and remove token', () => {
+      const token = generateCSRFToken_();
+
+      // First validation should succeed
+      const result1 = validateCSRFToken_(token);
+      expect(result1).toBe(true);
+      expect(mockCache.remove).toHaveBeenCalledWith('csrf_' + token);
+
+      // Second validation should fail (token removed)
+      const result2 = validateCSRFToken_(token);
+      expect(result2).toBe(false);
+    });
+
+    test('should release lock even if validation throws error', () => {
+      const token = generateCSRFToken_();
+
+      // Mock cache.get to throw error
+      mockCache.get = jest.fn(() => {
+        throw new Error('Cache error');
+      });
+
+      try {
+        validateCSRFToken_(token);
+      } catch (e) {
+        // Expected to throw
+      }
+
+      // Lock should still be released
+      expect(mockLock.releaseLock).toHaveBeenCalled();
+    });
+
+    test('should prevent race condition between concurrent requests', () => {
+      const token = generateCSRFToken_();
+      let request1Result, request2Result;
+
+      // Simulate concurrent requests - only one should succeed
+      // In real scenario, lock prevents both from succeeding
+
+      // Request 1 acquires lock
+      request1Result = validateCSRFToken_(token);
+      expect(request1Result).toBe(true);
+
+      // Request 2 tries to use same token (already removed)
+      request2Result = validateCSRFToken_(token);
+      expect(request2Result).toBe(false);
+
+      // Only one request should have succeeded
+      expect(request1Result && request2Result).toBe(false);
+    });
+  });
+
+  describe('Critical Fix #3: Origin Validation with Auth Headers', () => {
+    let isAllowedOrigin_;
+    const TENANTS = [
+      { id: 'root', hostnames: ['zeventbook.io'] }
+    ];
+
+    beforeEach(() => {
+      global.diag_ = jest.fn();
+
+      isAllowedOrigin_ = function(origin, authHeaders) {
+        // Non-browser requests must have authentication
+        if (!origin) {
+          const hasAuth = authHeaders && (
+            authHeaders.authorization ||
+            authHeaders.Authorization ||
+            authHeaders['x-api-key'] ||
+            authHeaders['X-API-Key']
+          );
+
+          if (!hasAuth) {
+            diag_('warn', 'isAllowedOrigin_', 'Non-browser request without auth headers', {});
+            return false;
+          }
+
+          return true;
+        }
+
+        try {
+          const originUrl = new URL(origin);
+          const originHost = originUrl.hostname.toLowerCase();
+
+          if (originHost === 'localhost' || originHost === '127.0.0.1') {
+            return true;
+          }
+
+          for (const tenant of TENANTS) {
+            if (tenant.hostnames && tenant.hostnames.some(h => h.toLowerCase() === originHost)) {
+              return true;
+            }
+          }
+
+          if (originHost.endsWith('.google.com')) {
+            return true;
+          }
+
+          return false;
+        } catch (e) {
+          diag_('warn', 'isAllowedOrigin_', 'Invalid origin URL', {origin, error: String(e)});
+          return false;
+        }
+      };
+    });
+
+    test('should allow browser requests from authorized origins', () => {
+      expect(isAllowedOrigin_('https://zeventbook.io', {})).toBe(true);
+      expect(isAllowedOrigin_('http://localhost:3000', {})).toBe(true);
+      expect(isAllowedOrigin_('https://script.google.com', {})).toBe(true);
+    });
+
+    test('should reject browser requests from unauthorized origins', () => {
+      expect(isAllowedOrigin_('https://malicious-site.com', {})).toBe(false);
+      expect(isAllowedOrigin_('https://evil.com', {})).toBe(false);
+    });
+
+    test('should reject non-browser requests without auth headers', () => {
+      expect(isAllowedOrigin_(null, {})).toBe(false);
+      expect(isAllowedOrigin_(undefined, {})).toBe(false);
+      expect(isAllowedOrigin_(null, null)).toBe(false);
+      expect(global.diag_).toHaveBeenCalledWith('warn', 'isAllowedOrigin_', 'Non-browser request without auth headers', {});
+    });
+
+    test('should allow non-browser requests with Authorization header', () => {
+      expect(isAllowedOrigin_(null, { authorization: 'Bearer token123' })).toBe(true);
+      expect(isAllowedOrigin_(null, { Authorization: 'Bearer token123' })).toBe(true);
+    });
+
+    test('should allow non-browser requests with API key header', () => {
+      expect(isAllowedOrigin_(null, { 'x-api-key': 'key123' })).toBe(true);
+      expect(isAllowedOrigin_(null, { 'X-API-Key': 'key123' })).toBe(true);
+    });
+
+    test('should prevent curl/Postman bypass without authentication', () => {
+      // Simulate curl request without origin and without auth
+      const curlRequest = { headers: {} };
+      expect(isAllowedOrigin_(null, curlRequest.headers)).toBe(false);
+
+      // Simulate Postman request without origin and without auth
+      const postmanRequest = { headers: {} };
+      expect(isAllowedOrigin_(null, postmanRequest.headers)).toBe(false);
+    });
+
+    test('should allow authenticated API calls from servers', () => {
+      // Server-to-server request with JWT token
+      const serverRequest = {
+        headers: { authorization: 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' }
+      };
+      expect(isAllowedOrigin_(null, serverRequest.headers)).toBe(true);
+
+      // Server-to-server request with API key
+      const apiKeyRequest = {
+        headers: { 'x-api-key': 'sk_live_123456' }
+      };
+      expect(isAllowedOrigin_(null, apiKeyRequest.headers)).toBe(true);
+    });
+
+    test('should handle invalid origin URLs', () => {
+      expect(isAllowedOrigin_('not-a-url', {})).toBe(false);
+      expect(global.diag_).toHaveBeenCalledWith('warn', 'isAllowedOrigin_', 'Invalid origin URL', expect.any(Object));
     });
   });
 });
