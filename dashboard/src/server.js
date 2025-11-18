@@ -59,8 +59,8 @@ app.get('/api/status/local', async (req, res) => {
         status.uncommittedChanges = uncommittedLines.length;
 
         // Get unpushed commits
-        const unpushedResult = await executeCommand(`git log origin/${status.branch}..HEAD --oneline`);
-        const unpushedLines = unpushedResult.success ? unpushedResult.stdout.trim().split('\n').filter(line => line.length > 0) : [];
+        const unpushedResult = await executeCommand(`git log origin/${status.branch}..HEAD --oneline 2>/dev/null || git log HEAD --oneline`);
+        const unpushedLines = unpushedResult.success && unpushedResult.stdout.trim() ? unpushedResult.stdout.trim().split('\n').filter(line => line.length > 0) : [];
         status.unpushedCommits = unpushedLines.length;
 
         // Check node_modules

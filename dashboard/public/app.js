@@ -170,13 +170,17 @@ class DashboardApp {
             // Update status badge
             const badge = document.getElementById('badge-apps-script');
             const status = document.getElementById('status-apps-script');
+            const deployStatus = document.getElementById('status-deploy');
 
             if (data.health === 'healthy') {
                 this.setStatus(badge, status, 'synced', 'Healthy');
+                if (deployStatus) deployStatus.className = 'node-status status-synced';
             } else if (data.health === 'unhealthy') {
                 this.setStatus(badge, status, 'error', 'Unhealthy');
+                if (deployStatus) deployStatus.className = 'node-status status-error';
             } else {
                 this.setStatus(badge, status, 'unknown', 'Unknown');
+                if (deployStatus) deployStatus.className = 'node-status';
             }
         } catch (error) {
             console.error('Error loading Apps Script status:', error);
@@ -186,6 +190,8 @@ class DashboardApp {
                 'error',
                 'Error'
             );
+            const deployStatus = document.getElementById('status-deploy');
+            if (deployStatus) deployStatus.className = 'node-status status-error';
         }
     }
 
@@ -271,13 +277,17 @@ class DashboardApp {
             // Update status badge
             const badge = document.getElementById('badge-testing');
             const status = document.getElementById('status-testing');
+            const testSyncStatus = document.getElementById('status-test');
 
             if (data.allPassing) {
                 this.setStatus(badge, status, 'synced', 'Passing');
+                if (testSyncStatus) testSyncStatus.className = 'node-status status-synced';
             } else if (data.hasFailed) {
                 this.setStatus(badge, status, 'error', 'Failed');
+                if (testSyncStatus) testSyncStatus.className = 'node-status status-error';
             } else {
                 this.setStatus(badge, status, 'unknown', 'Unknown');
+                if (testSyncStatus) testSyncStatus.className = 'node-status';
             }
         } catch (error) {
             console.error('Error loading Testing status:', error);
@@ -287,6 +297,8 @@ class DashboardApp {
                 'error',
                 'Error'
             );
+            const testSyncStatus = document.getElementById('status-test');
+            if (testSyncStatus) testSyncStatus.className = 'node-status status-error';
         }
     }
 
