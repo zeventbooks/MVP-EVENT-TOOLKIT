@@ -91,7 +91,7 @@ export class ApiHelpers {
    * @param {string} eventId - Event ID
    */
   async getEvent(tenant, eventId) {
-    return await this.get(`?p=api&action=get&tenantId=${tenant}&scope=events&id=${eventId}`);
+    return await this.get(`?p=api&action=get&brand=${tenant}&scope=events&id=${eventId}`);
   }
 
   /**
@@ -99,7 +99,7 @@ export class ApiHelpers {
    * @param {string} tenant - Tenant ID
    */
   async listEvents(tenant) {
-    return await this.get(`?p=api&action=list&tenantId=${tenant}&scope=events`);
+    return await this.get(`?p=api&action=list&brand=${tenant}&scope=events`);
   }
 
   /**
@@ -160,7 +160,7 @@ export class ApiHelpers {
    * @param {string} sponsorId - Sponsor ID
    */
   async getSponsor(tenant, sponsorId) {
-    return await this.get(`?p=api&action=get&tenantId=${tenant}&scope=sponsors&id=${sponsorId}`);
+    return await this.get(`?p=api&action=get&brand=${tenant}&scope=sponsors&id=${sponsorId}`);
   }
 
   /**
@@ -168,7 +168,7 @@ export class ApiHelpers {
    * @param {string} tenant - Tenant ID
    */
   async listSponsors(tenant) {
-    return await this.get(`?p=api&action=list&tenantId=${tenant}&scope=sponsors`);
+    return await this.get(`?p=api&action=list&brand=${tenant}&scope=sponsors`);
   }
 
   /**
