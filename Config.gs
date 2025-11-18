@@ -144,7 +144,7 @@ const TENANTS = [
     hostnames: ['zeventbook.io','www.zeventbook.io'],
     logoUrl: '/My files/Linux files/zeventbook/assets/logos/ABCMainTransparent.webp',
     // adminSecret: moved to Script Properties as 'ADMIN_SECRET_ROOT'
-    store: { type: 'workbook', spreadsheetId: '1ixHd2iUc27UF0fJvKh9hXsRI1XZtNRKqbZYf0vgMbKrBFItxngd7L-VO' },
+    store: { type: 'workbook', spreadsheetId: '1SV1oZMq4GbZBaRc0YmTeV02Tl5KXWD8R6FZXC7TwVCQ' },
     scopesAllowed: ['events', 'sponsors']
   },
   {
@@ -155,7 +155,7 @@ const TENANTS = [
     hostnames: ['americanbocceco.zeventbooks.io'],
     logoUrl: '/My files/Linux files/zeventbook/assets/logos/ABCMainTransparent.webp',
     // adminSecret: moved to Script Properties as 'ADMIN_SECRET_ABC'
-    store: { type: 'workbook', spreadsheetId: '1ixHd2iUc27UF0fJvKh9hXsRI1XZtNRKqbZYf0vgMbKrBFItxngd7L-VO' },
+    store: { type: 'workbook', spreadsheetId: '1SV1oZMq4GbZBaRc0YmTeV02Tl5KXWD8R6FZXC7TwVCQ' },
     scopesAllowed: ['events', 'sponsors']
   },
   {
@@ -167,7 +167,7 @@ const TENANTS = [
     hostnames: ['chicagobocceclub.zeventbooks.io'],
     logoUrl: '/My files/Linux files/zeventbook/assets/logos/ABCMainTransparent.webp',
     // adminSecret: moved to Script Properties as 'ADMIN_SECRET_CBC'
-    store: { type: 'workbook', spreadsheetId: '1ixHd2iUc27UF0fJvKh9hXsRI1XZtNRKqbZYf0vgMbKrBFItxngd7L-VO' },
+    store: { type: 'workbook', spreadsheetId: '1SV1oZMq4GbZBaRc0YmTeV02Tl5KXWD8R6FZXC7TwVCQ' },
     scopesAllowed: ['events', 'sponsors']
   },
   {
@@ -179,7 +179,7 @@ const TENANTS = [
     hostnames: ['chicagobocceleague.zeventbooks.io'],
     logoUrl: '/My files/Linux files/zeventbook/assets/logos/ABCMainTransparent.webp',
     // adminSecret: moved to Script Properties as 'ADMIN_SECRET_CBL'
-    store: { type: 'workbook', spreadsheetId: '1ixHd2iUc27UF0fJvKh9hXsRI1XZtNRKqbZYf0vgMbKrBFItxngd7L-VO' },
+    store: { type: 'workbook', spreadsheetId: '1SV1oZMq4GbZBaRc0YmTeV02Tl5KXWD8R6FZXC7TwVCQ' },
     scopesAllowed: ['events', 'sponsors']
   }
 ];

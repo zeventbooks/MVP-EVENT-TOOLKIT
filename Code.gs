@@ -302,6 +302,14 @@ function doGet(e){
       .setMimeType(ContentService.MimeType.JSON);
   }
 
+  // Setup check endpoint - comprehensive diagnostics for first-time setup
+  if (pageParam === 'setup' || pageParam === 'setupcheck') {
+    const tenantParam = (e?.parameter?.tenant || 'root').toString();
+    const setupResult = api_setupCheck(tenantParam);
+    return ContentService.createTextOutput(JSON.stringify(setupResult, null, 2))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
   const path = (e?.pathInfo || '').toString().replace(/^\/+|\/+$/g,'');
   const scope = (e?.parameter?.p || e?.parameter?.scope || 'events').toString();
   const allowed = tenant.scopesAllowed?.length ? tenant.scopesAllowed : ['events','leagues','tournaments'];
@@ -1156,8 +1164,271 @@ function api_status(tenantId){
         db: { ok: dbOk, id }
       }));
     } catch(e) {
-      return UserFriendlyErr_(ERR.INTERNAL, 'Status check failed', { error: e.message, tenantId: req.tenantId }, 'api_status');
+      // Enhanced error handling with setup guidance
+      const errorMsg = String(e.message || e);
+      const setupUrl = ScriptApp.getService().getUrl() + '?p=setup';
+
+      if (errorMsg.includes('not found') || errorMsg.includes('does not exist')) {
+        return Err(ERR.INTERNAL,
+          `Spreadsheet not found or inaccessible. Please check:\n` +
+          `1. Spreadsheet ID is correct: ${tenant.store.spreadsheetId}\n` +
+          `2. Script owner has access to the spreadsheet\n` +
+          `3. Run setup check: ${setupUrl}`
+        );
+      }
+
+      if (errorMsg.includes('permission') || errorMsg.includes('authorization')) {
+        return Err(ERR.INTERNAL,
+          `Permission denied accessing spreadsheet. Please:\n` +
+          `1. Ensure script owner can edit the spreadsheet\n` +
+          `2. Check OAuth scopes include spreadsheets access\n` +
+          `3. Re-authorize the deployment if needed`
+        );
+      }
+
+      return Err(ERR.INTERNAL,
+        `Status check failed: ${errorMsg}\n` +
+        `Run setup diagnostics: ${setupUrl}`
+      );
     }
+  });
+}
+
+/**
+ * Comprehensive setup verification endpoint for first-time configuration
+ * Checks all critical setup requirements and provides actionable guidance
+ */
+function api_setupCheck(tenantId) {
+  return runSafe('api_setupCheck', () => {
+    const checks = [];
+    const issues = [];
+    const warnings = [];
+    const fixes = [];
+
+    const tenant = tenantId ? findTenant_(tenantId) : findTenant_('root');
+    if (!tenant) {
+      return Err(ERR.NOT_FOUND, `Tenant not found: ${tenantId || 'root'}`);
+    }
+
+    // Check 1: Tenant Configuration
+    checks.push({ name: 'Tenant Configuration', status: 'checking' });
+    try {
+      if (!tenant.id || !tenant.name || !tenant.store) {
+        issues.push('Tenant configuration incomplete');
+        fixes.push('Verify tenant configuration in Config.gs');
+        checks[0].status = 'error';
+      } else {
+        checks[0].status = 'ok';
+        checks[0].details = `Tenant: ${tenant.name} (${tenant.id})`;
+      }
+    } catch(e) {
+      checks[0].status = 'error';
+      checks[0].error = String(e.message);
+    }
+
+    // Check 2: Spreadsheet Access
+    checks.push({ name: 'Spreadsheet Access', status: 'checking' });
+    try {
+      const spreadsheetId = tenant.store.spreadsheetId;
+      if (!spreadsheetId) {
+        issues.push('Spreadsheet ID not configured');
+        fixes.push('Set spreadsheetId in Config.gs for tenant: ' + tenant.id);
+        checks[1].status = 'error';
+      } else {
+        try {
+          const ss = SpreadsheetApp.openById(spreadsheetId);
+          const name = ss.getName();
+          const id = ss.getId();
+          checks[1].status = 'ok';
+          checks[1].details = `Connected to: "${name}" (${id})`;
+
+          // Verify ownership/edit access
+          try {
+            ss.getSheetByName('TEST_PERMISSIONS');
+            const testSheet = ss.insertSheet('TEST_PERMISSIONS');
+            ss.deleteSheet(testSheet);
+            checks[1].permissions = 'owner/editor';
+          } catch(permErr) {
+            warnings.push('Limited spreadsheet permissions - may affect some operations');
+            checks[1].permissions = 'viewer/limited';
+          }
+
+        } catch(accessErr) {
+          const errMsg = String(accessErr.message);
+          checks[1].status = 'error';
+          checks[1].error = errMsg;
+
+          if (errMsg.includes('not found')) {
+            issues.push(`Spreadsheet not found: ${spreadsheetId}`);
+            fixes.push('Update spreadsheetId in Config.gs with a valid Google Sheets ID');
+            fixes.push('Ensure spreadsheet ID is from URL: https://docs.google.com/spreadsheets/d/SPREADSHEET_ID/edit');
+          } else if (errMsg.includes('permission')) {
+            issues.push('No permission to access spreadsheet');
+            fixes.push('Share the spreadsheet with script owner (zeventbook@gmail.com)');
+            fixes.push('Grant at least "Editor" access to the spreadsheet');
+          } else {
+            issues.push('Cannot access spreadsheet: ' + errMsg);
+            fixes.push('Verify spreadsheet ID and permissions');
+          }
+        }
+      }
+    } catch(e) {
+      checks[1].status = 'error';
+      checks[1].error = String(e.message);
+    }
+
+    // Check 3: Admin Secrets
+    checks.push({ name: 'Admin Secrets', status: 'checking' });
+    try {
+      const secret = getAdminSecret_(tenant.id);
+      if (!secret) {
+        warnings.push(`Admin secret not set for tenant: ${tenant.id}`);
+        fixes.push(`Set admin secret via Script Properties: ADMIN_SECRET_${tenant.id.toUpperCase()}`);
+        fixes.push('Go to: Project Settings > Script Properties > Add property');
+        checks[2].status = 'warning';
+        checks[2].details = 'Not configured (write operations will fail)';
+      } else {
+        checks[2].status = 'ok';
+        checks[2].details = 'Configured (length: ' + secret.length + ' chars)';
+      }
+    } catch(e) {
+      checks[2].status = 'error';
+      checks[2].error = String(e.message);
+    }
+
+    // Check 4: Deployment Settings
+    checks.push({ name: 'Deployment Configuration', status: 'checking' });
+    try {
+      const deploymentUrl = ScriptApp.getService().getUrl();
+      if (!deploymentUrl) {
+        issues.push('No active deployment found');
+        fixes.push('Deploy as Web App: Deploy > New deployment');
+        fixes.push('Set: Execute as = Me, Who has access = Anyone');
+        checks[3].status = 'error';
+      } else {
+        checks[3].status = 'ok';
+        checks[3].details = deploymentUrl;
+
+        // Check if deployment is accessible
+        try {
+          const isAnonymous = ScriptApp.getService().isEnabled();
+          checks[3].access = isAnonymous ? 'anonymous' : 'requires-auth';
+
+          if (!isAnonymous) {
+            warnings.push('Deployment may require authentication');
+            fixes.push('Edit deployment: Who has access = Anyone');
+          }
+        } catch(e) {
+          // Can't determine access level
+        }
+      }
+    } catch(e) {
+      checks[3].status = 'error';
+      checks[3].error = String(e.message);
+    }
+
+    // Check 5: OAuth Scopes
+    checks.push({ name: 'OAuth Scopes', status: 'checking' });
+    try {
+      // Try to access services to verify scopes
+      const scopeTests = [];
+
+      // Spreadsheets scope
+      try {
+        SpreadsheetApp.getActiveSpreadsheet();
+        scopeTests.push({ scope: 'spreadsheets', ok: true });
+      } catch(e) {
+        if (tenant.store.spreadsheetId) {
+          try {
+            SpreadsheetApp.openById(tenant.store.spreadsheetId);
+            scopeTests.push({ scope: 'spreadsheets', ok: true });
+          } catch(e2) {
+            scopeTests.push({ scope: 'spreadsheets', ok: false, error: 'Permission denied' });
+          }
+        }
+      }
+
+      // External requests scope
+      try {
+        UrlFetchApp.fetch('https://www.google.com', { muteHttpExceptions: true });
+        scopeTests.push({ scope: 'external_request', ok: true });
+      } catch(e) {
+        scopeTests.push({ scope: 'external_request', ok: false, error: String(e.message) });
+      }
+
+      const failedScopes = scopeTests.filter(t => !t.ok);
+      if (failedScopes.length > 0) {
+        warnings.push('Some OAuth scopes may not be authorized');
+        fixes.push('Re-authorize deployment to grant all permissions');
+        checks[4].status = 'warning';
+        checks[4].details = scopeTests;
+      } else {
+        checks[4].status = 'ok';
+        checks[4].details = 'All required scopes authorized';
+      }
+    } catch(e) {
+      checks[4].status = 'error';
+      checks[4].error = String(e.message);
+    }
+
+    // Check 6: Required Sheets Structure
+    checks.push({ name: 'Database Structure', status: 'checking' });
+    try {
+      if (checks[1].status === 'ok') {
+        const ss = SpreadsheetApp.openById(tenant.store.spreadsheetId);
+        const existingSheets = ss.getSheets().map(s => s.getName());
+
+        const requiredSheets = ['EVENTS', 'SPONSORS', 'ANALYTICS', 'SHORTLINKS', 'DIAG'];
+        const missingSheets = requiredSheets.filter(name => !existingSheets.includes(name));
+
+        if (missingSheets.length > 0) {
+          warnings.push('Some data sheets will be auto-created on first use');
+          checks[5].status = 'warning';
+          checks[5].details = `Missing sheets: ${missingSheets.join(', ')}`;
+          checks[5].note = 'These will be created automatically when needed';
+        } else {
+          checks[5].status = 'ok';
+          checks[5].details = 'All required sheets present';
+        }
+      } else {
+        checks[5].status = 'skipped';
+        checks[5].details = 'Spreadsheet not accessible';
+      }
+    } catch(e) {
+      checks[5].status = 'warning';
+      checks[5].error = String(e.message);
+    }
+
+    // Determine overall status
+    const hasErrors = checks.some(c => c.status === 'error');
+    const hasWarnings = checks.some(c => c.status === 'warning');
+
+    let overallStatus = 'ok';
+    let message = 'All setup checks passed! System is ready to use.';
+
+    if (hasErrors) {
+      overallStatus = 'error';
+      message = `Setup incomplete. Found ${issues.length} critical issue(s) that must be fixed.`;
+    } else if (hasWarnings) {
+      overallStatus = 'warning';
+      message = `Setup mostly complete. Found ${warnings.length} warning(s) that should be addressed.`;
+    }
+
+    return Ok({
+      status: overallStatus,
+      message,
+      tenant: tenant.id,
+      timestamp: new Date().toISOString(),
+      checks,
+      issues,
+      warnings,
+      fixes,
+      nextSteps: fixes.length > 0 ? fixes : [
+        'Your setup is complete!',
+        'Test the API: ' + ScriptApp.getService().getUrl() + '?p=status&tenant=' + tenant.id,
+        'View documentation: ' + ScriptApp.getService().getUrl() + '?p=docs'
+      ]
+    });
   });
 }
 
