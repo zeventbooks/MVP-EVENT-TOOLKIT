@@ -270,7 +270,7 @@ function EventService_update(params) {
 
     return Ok({ id: sanitizedId, data: sanitizedData });
   } catch (e) {
-    try { lock.releaseLock(); } catch (err) { }
+    try { lock.releaseLock(); } catch (err) { /* Lock may have expired */ }
     return UserFriendlyErr_(ERR.INTERNAL, 'Update failed', { error: e.message }, 'EventService_update');
   }
 }
@@ -355,7 +355,7 @@ function EventService_checkIdempotency(tenantId, scope, idemKey) {
 
     return Ok();
   } catch (e) {
-    try { lock.releaseLock(); } catch (err) { }
+    try { lock.releaseLock(); } catch (err) { /* Lock may have expired */ }
     return UserFriendlyErr_(ERR.INTERNAL, 'Idempotency check failed',
       { error: e.message }, 'EventService_checkIdempotency');
   }
@@ -406,7 +406,7 @@ function EventService_persistEvent(tenant, scope, templateId, data) {
 
     return Ok({ id, slug });
   } catch (e) {
-    try { lock.releaseLock(); } catch (err) { }
+    try { lock.releaseLock(); } catch (err) { /* Lock may have expired */ }
     return UserFriendlyErr_(ERR.INTERNAL, 'Event creation failed',
       { error: e.message }, 'EventService_persistEvent');
   }
