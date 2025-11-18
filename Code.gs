@@ -628,6 +628,92 @@ function handleRestApiPost_(e, action, body, tenant) {
     }));
   }
 
+  // Webhook Management Endpoints
+  if (action === 'registerWebhook' || action === 'api_registerWebhook') {
+    return jsonResponse_(WebhookService_register({
+      tenantId,
+      adminKey,
+      eventType: body.eventType || '',
+      url: body.url || '',
+      secret: body.secret || '',
+      enabled: body.enabled,
+      filters: body.filters
+    }));
+  }
+
+  if (action === 'unregisterWebhook' || action === 'api_unregisterWebhook') {
+    return jsonResponse_(WebhookService_unregister({
+      tenantId,
+      adminKey,
+      webhookId: body.webhookId || ''
+    }));
+  }
+
+  if (action === 'listWebhooks' || action === 'api_listWebhooks') {
+    return jsonResponse_(WebhookService_list({
+      tenantId,
+      adminKey
+    }));
+  }
+
+  if (action === 'testWebhook' || action === 'api_testWebhook') {
+    return jsonResponse_(WebhookService_test({
+      tenantId,
+      adminKey,
+      webhookId: body.webhookId || ''
+    }));
+  }
+
+  if (action === 'getWebhookDeliveries' || action === 'api_getWebhookDeliveries') {
+    return jsonResponse_(WebhookService_getDeliveries({
+      tenantId,
+      adminKey,
+      webhookId: body.webhookId || '',
+      limit: body.limit || 50
+    }));
+  }
+
+  // i18n (Internationalization) Endpoints
+  if (action === 'translate' || action === 'api_translate') {
+    return jsonResponse_(api_translate({
+      key: body.key || '',
+      locale: body.locale || '',
+      params: body.params || {}
+    }));
+  }
+
+  if (action === 'getSupportedLocales' || action === 'api_getSupportedLocales') {
+    return jsonResponse_(i18n_getSupportedLocales());
+  }
+
+  if (action === 'setUserLocale' || action === 'api_setUserLocale') {
+    return jsonResponse_(i18n_setUserLocale(body.locale || ''));
+  }
+
+  // Template Management Endpoints
+  if (action === 'getTemplate' || action === 'api_getTemplate') {
+    return jsonResponse_(api_getTemplate({
+      templateId: body.templateId || '',
+      locale: body.locale || ''
+    }));
+  }
+
+  if (action === 'listTemplates' || action === 'api_listTemplates') {
+    return jsonResponse_(api_listTemplates({
+      category: body.category || '',
+      locale: body.locale || '',
+      includeDeprecated: body.includeDeprecated || false
+    }));
+  }
+
+  if (action === 'validateTemplateData' || action === 'api_validateTemplateData') {
+    return jsonResponse_(api_validateTemplateData({
+      templateId: body.templateId || '',
+      data: body.data || {},
+      locale: body.locale || ''
+    }));
+  }
+
   return jsonResponse_(Err(ERR.BAD_INPUT, `Unknown action: ${action}`));
 }
 
