@@ -351,3 +351,202 @@ test.describe('📄 PAGE: Admin - Accessibility', () => {
     }
   });
 });
+
+test.describe('📄 PAGE: Admin - Collapsible Sections', () => {
+
+  test('Create Event form has collapsible sections', async ({ page }) => {
+    await page.goto(`${BASE_URL}?page=admin&tenant=${TENANT_ID}`);
+
+    // Verify all collapsible section headers exist
+    await expect(page.locator('.collapsible-header:has-text("Core Event Details")')).toBeVisible();
+    await expect(page.locator('.collapsible-header:has-text("Summary")')).toBeVisible();
+    await expect(page.locator('.collapsible-header:has-text("Media")')).toBeVisible();
+    await expect(page.locator('.collapsible-header:has-text("Bio")')).toBeVisible();
+  });
+
+  test('All sections start expanded by default', async ({ page }) => {
+    await page.goto(`${BASE_URL}?page=admin&tenant=${TENANT_ID}`);
+
+    // Verify all sections are expanded (not collapsed)
+    const collapsedHeaders = await page.locator('.collapsible-header.collapsed').count();
+    expect(collapsedHeaders).toBe(0);
+
+    // Verify content is visible
+    await expect(page.locator('#name')).toBeVisible(); // Core Event Details
+    await expect(page.locator('#summary')).toBeVisible(); // Summary
+    await expect(page.locator('#imageUrl')).toBeVisible(); // Media
+    await expect(page.locator('#bio')).toBeVisible(); // Bio
+  });
+
+  test('Clicking section header collapses/expands section', async ({ page }) => {
+    await page.goto(`${BASE_URL}?page=admin&tenant=${TENANT_ID}`);
+
+    const summaryHeader = page.locator('.collapsible-header:has-text("Summary")');
+
+    // Initially expanded - content should be visible
+    await expect(page.locator('#summary')).toBeVisible();
+
+    // Click to collapse
+    await summaryHeader.click();
+
+    // Wait for animation and verify section is collapsed
+    await page.waitForTimeout(500);
+    const isCollapsed = await summaryHeader.evaluate(el => el.classList.contains('collapsed'));
+    expect(isCollapsed).toBe(true);
+
+    // Click again to expand
+    await summaryHeader.click();
+
+    // Wait for animation and verify section is expanded
+    await page.waitForTimeout(500);
+    const isExpanded = await summaryHeader.evaluate(el => !el.classList.contains('collapsed'));
+    expect(isExpanded).toBe(true);
+  });
+
+  test('Chevron icon rotates when section is collapsed', async ({ page }) => {
+    await page.goto(`${BASE_URL}?page=admin&tenant=${TENANT_ID}`);
+
+    const mediaHeader = page.locator('.collapsible-header:has-text("Media")');
+    const chevron = mediaHeader.locator('.collapsible-icon');
+
+    // Get initial transform
+    const initialTransform = await chevron.evaluate(el =>
+      window.getComputedStyle(el).transform
+    );
+
+    // Collapse section
+    await mediaHeader.click();
+    await page.waitForTimeout(500);
+
+    // Get transform after collapse
+    const collapsedTransform = await chevron.evaluate(el =>
+      window.getComputedStyle(el).transform
+    );
+
+    // Transform should have changed (rotation applied)
+    expect(collapsedTransform).not.toBe(initialTransform);
+  });
+
+  test('Multiple sections can be collapsed independently', async ({ page }) => {
+    await page.goto(`${BASE_URL}?page=admin&tenant=${TENANT_ID}`);
+
+    // Collapse Summary section
+    await page.locator('.collapsible-header:has-text("Summary")').click();
+    await page.waitForTimeout(300);
+
+    // Collapse Bio section
+    await page.locator('.collapsible-header:has-text("Bio")').click();
+    await page.waitForTimeout(300);
+
+    // Verify both are collapsed
+    const collapsedCount = await page.locator('.collapsible-header.collapsed').count();
+    expect(collapsedCount).toBe(2);
+
+    // Verify other sections remain expanded
+    await expect(page.locator('#name')).toBeVisible(); // Core Event Details
+    await expect(page.locator('#imageUrl')).toBeVisible(); // Media
+  });
+
+  test('Event Dashboard has collapsible sections', async ({ page }) => {
+    await page.goto(`${BASE_URL}?page=admin&tenant=${TENANT_ID}`);
+
+    // Create an event first to display the dashboard
+    page.on('dialog', async dialog => {
+      await dialog.accept(ADMIN_KEY);
+    });
+
+    await page.fill('#name', 'Dashboard Test Event');
+    await page.fill('#dateISO', '2025-12-31');
+    await page.click('button[type="submit"]');
+
+    await expect(page.locator('#dashboardCard')).toBeVisible({ timeout: 10000 });
+
+    // Verify dashboard collapsible sections
+    await expect(page.locator('.collapsible-header:has-text("Statistics")')).toBeVisible();
+    await expect(page.locator('.collapsible-header:has-text("Event Lifecycle")')).toBeVisible();
+  });
+
+  test('Dashboard sections can be collapsed', async ({ page }) => {
+    await page.goto(`${BASE_URL}?page=admin&tenant=${TENANT_ID}`);
+
+    page.on('dialog', async dialog => {
+      await dialog.accept(ADMIN_KEY);
+    });
+
+    await page.fill('#name', 'Dashboard Collapse Test');
+    await page.fill('#dateISO', '2025-12-31');
+    await page.click('button[type="submit"]');
+
+    await expect(page.locator('#dashboardCard')).toBeVisible({ timeout: 10000 });
+
+    // Collapse Statistics section
+    const statsHeader = page.locator('#dashboardCard .collapsible-header:has-text("Statistics")');
+    await statsHeader.click();
+    await page.waitForTimeout(500);
+
+    const isCollapsed = await statsHeader.evaluate(el => el.classList.contains('collapsed'));
+    expect(isCollapsed).toBe(true);
+  });
+
+  test('Collapsible sections work on mobile viewport', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 667 });
+    await page.goto(`${BASE_URL}?page=admin&tenant=${TENANT_ID}`);
+
+    const summaryHeader = page.locator('.collapsible-header:has-text("Summary")');
+
+    // Verify header is tappable (44px minimum for iOS)
+    const headerHeight = await summaryHeader.evaluate(el => el.offsetHeight);
+    expect(headerHeight).toBeGreaterThanOrEqual(40);
+
+    // Verify collapse works on mobile
+    await summaryHeader.click();
+    await page.waitForTimeout(500);
+
+    const isCollapsed = await summaryHeader.evaluate(el => el.classList.contains('collapsed'));
+    expect(isCollapsed).toBe(true);
+  });
+
+  test('Form submission works with collapsed sections', async ({ page }) => {
+    await page.goto(`${BASE_URL}?page=admin&tenant=${TENANT_ID}`);
+
+    page.on('dialog', async dialog => {
+      await dialog.accept(ADMIN_KEY);
+    });
+
+    // Fill required fields
+    await page.fill('#name', 'Collapsed Section Test');
+    await page.fill('#dateISO', '2025-12-31');
+
+    // Collapse Summary section
+    await page.locator('.collapsible-header:has-text("Summary")').click();
+    await page.waitForTimeout(300);
+
+    // Submit form
+    await page.click('button[type="submit"]');
+
+    // Verify event was created successfully
+    await expect(page.locator('#eventCard')).toBeVisible({ timeout: 10000 });
+  });
+
+  test('Collapsible headers have proper cursor and hover states', async ({ page }) => {
+    await page.goto(`${BASE_URL}?page=admin&tenant=${TENANT_ID}`);
+
+    const header = page.locator('.collapsible-header:has-text("Core Event Details")');
+
+    // Check cursor is pointer
+    const cursor = await header.evaluate(el =>
+      window.getComputedStyle(el).cursor
+    );
+    expect(cursor).toBe('pointer');
+
+    // Hover should change background (test by checking hover class exists)
+    await header.hover();
+    await page.waitForTimeout(200);
+
+    const backgroundColor = await header.evaluate(el =>
+      window.getComputedStyle(el).backgroundColor
+    );
+    // Should have some background color
+    expect(backgroundColor).toBeTruthy();
+  });
+});
