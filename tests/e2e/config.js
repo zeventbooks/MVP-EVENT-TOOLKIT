@@ -6,18 +6,19 @@
  * Mobile support: Device-specific URLs and settings
  */
 
+const { getCurrentEnvironment } = require('../config/environments');
+
+// Get environment configuration
+const env = getCurrentEnvironment();
+
 // Validate environment variables (warnings only - allows read-only tests to run)
 if (!process.env.ADMIN_KEY) {
   console.warn('⚠️  ADMIN_KEY not set. Admin operations will be skipped.');
 }
 
-if (!process.env.BASE_URL) {
-  console.warn('⚠️  BASE_URL not set. Using default from playwright.config.js');
-}
-
 export const config = {
   // Deployment settings
-  baseUrl: process.env.BASE_URL,
+  baseUrl: env.baseUrl,
   adminKey: process.env.ADMIN_KEY,
   tenantId: process.env.TENANT_ID || 'root',
 
