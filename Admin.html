@@ -7,71 +7,9 @@
   <?!= include('DesignAdapter'); ?>
   <?!= include('NUSDK'); ?>
   <?!= include('DemoMode'); ?>
+  <?!= include('CollapsibleSections'); ?>
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <meta name="referrer" content="no-referrer"/>
-  <style>
-    /* Collapsible Section Styles */
-    .collapsible-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      cursor: pointer;
-      padding: 12px 16px;
-      background: #f8fafc;
-      border-radius: 8px;
-      margin-bottom: 16px;
-      transition: background-color 0.2s;
-      user-select: none;
-    }
-
-    .collapsible-header:hover {
-      background: #f1f5f9;
-    }
-
-    .collapsible-header h3 {
-      margin: 0;
-      font-size: 16px;
-      font-weight: 600;
-      color: #1e293b;
-    }
-
-    .collapsible-icon {
-      transition: transform 0.3s ease;
-      color: #64748b;
-      font-size: 20px;
-      font-weight: bold;
-    }
-
-    .collapsible-header.collapsed .collapsible-icon {
-      transform: rotate(-90deg);
-    }
-
-    .collapsible-content {
-      overflow: hidden;
-      transition: max-height 0.3s ease, opacity 0.3s ease;
-      max-height: 5000px;
-      opacity: 1;
-    }
-
-    .collapsible-content.collapsed {
-      max-height: 0;
-      opacity: 0;
-      margin-bottom: 0;
-    }
-
-    .subsection {
-      margin-bottom: 20px;
-    }
-
-    .subsection-header {
-      font-size: 14px;
-      font-weight: 600;
-      color: #475569;
-      margin-bottom: 12px;
-      padding-bottom: 8px;
-      border-bottom: 2px solid #e2e8f0;
-    }
-  </style>
 </head>
 <body>
   <?!= include('Header'); ?>
@@ -452,13 +390,6 @@
     const TENANT = '<?= tenantId ?>';
     const SCOPE = '<?= scope ?>';
     let currentEventId = null;
-
-    // Toggle collapsible sections
-    function toggleSection(header) {
-      header.classList.toggle('collapsed');
-      const content = header.nextElementSibling;
-      content.classList.toggle('collapsed');
-    }
 
     // Create Event
     document.getElementById('createForm').addEventListener('submit', async (e) => {
