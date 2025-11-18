@@ -371,7 +371,7 @@ describe('📋 CONTRACT: All API Endpoints', () => {
     test('api_createShortlink contract', () => {
       const response = Ok({
         shortId: 'abc123',
-        shortUrl: 'https://zeventbooks.com/s/abc123',
+        shortUrl: 'https://script.google.com/macros/s/AKfycbz.../exec?s=abc123',
         targetUrl: 'https://example.com',
         clicks: 0
       });
@@ -428,7 +428,7 @@ describe('📋 CONTRACT: All API Endpoints', () => {
     test('api_generateFormShortlink contract', () => {
       const response = Ok({
         shortId: 'form_abc',
-        shortUrl: 'https://zeventbooks.com/f/abc',
+        shortUrl: 'https://script.google.com/macros/s/AKfycbz.../exec?f=abc',
         formUrl: 'https://docs.google.com/forms/...',
         eventId: 'evt_123'
       });
