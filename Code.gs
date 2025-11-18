@@ -584,6 +584,33 @@ function handleRestApiPost_(e, action, body, tenant) {
     }));
   }
 
+  // Sponsor ROI Dashboard (High-Value Feature)
+  if (action === 'getSponsorROI' || action === 'api_getSponsorROI') {
+    return jsonResponse_(api_getSponsorROI({
+      sponsorId: body.sponsorId || '',
+      sponsorshipCost: body.sponsorshipCost || 0,
+      costPerClick: body.costPerClick || 0,
+      conversionRate: body.conversionRate || 0,
+      avgTransactionValue: body.avgTransactionValue || 0,
+      dateFrom: body.dateFrom || '',
+      dateTo: body.dateTo || '',
+      tenantId,
+      adminKey
+    }));
+  }
+
+  // Sponsor Analytics
+  if (action === 'getSponsorAnalytics' || action === 'api_getSponsorAnalytics') {
+    return jsonResponse_(api_getSponsorAnalytics({
+      sponsorId: body.sponsorId || '',
+      eventId: body.eventId || '',
+      dateFrom: body.dateFrom || '',
+      dateTo: body.dateTo || '',
+      tenantId,
+      adminKey
+    }));
+  }
+
   return jsonResponse_(Err(ERR.BAD_INPUT, `Unknown action: ${action}`));
 }
 
@@ -2045,6 +2072,65 @@ function api_getSponsorAnalytics(req) {
     });
 
     return Ok(agg);
+  });
+}
+
+/**
+ * Get Sponsor ROI Dashboard
+ * High-value feature providing comprehensive ROI analysis for sponsors
+ *
+ * @param {object} req - Request object
+ * @param {string} req.sponsorId - Sponsor ID
+ * @param {number} [req.sponsorshipCost] - Total sponsorship investment
+ * @param {number} [req.costPerClick] - Expected cost per click
+ * @param {number} [req.conversionRate] - Conversion rate percentage
+ * @param {number} [req.avgTransactionValue] - Average transaction value
+ * @param {string} [req.dateFrom] - Start date (ISO)
+ * @param {string} [req.dateTo] - End date (ISO)
+ * @param {string} [req.tenantId] - Tenant ID
+ * @param {string} [req.adminKey] - Admin key for authentication
+ * @returns {object} ROI dashboard with metrics, financials, and insights
+ */
+function api_getSponsorROI(req) {
+  return runSafe('api_getSponsorROI', () => {
+    if (!req || typeof req !== 'object') {
+      return Err(ERR.BAD_INPUT, 'Missing payload');
+    }
+
+    const { sponsorId, tenantId, adminKey } = req;
+
+    if (!sponsorId) {
+      return Err(ERR.BAD_INPUT, 'Missing sponsorId');
+    }
+
+    // Optional authentication - sponsors can view their own data
+    // Admin key allows viewing any sponsor's data
+    if (adminKey) {
+      const g = gate_(tenantId || 'root', adminKey);
+      if (!g.ok) return g;
+    }
+
+    // Use SponsorService to calculate ROI
+    const roiResult = SponsorService_calculateROI({
+      sponsorId: req.sponsorId,
+      sponsorshipCost: req.sponsorshipCost || 0,
+      costPerClick: req.costPerClick || 0,
+      conversionRate: req.conversionRate || 0,
+      avgTransactionValue: req.avgTransactionValue || 0,
+      dateFrom: req.dateFrom,
+      dateTo: req.dateTo
+    });
+
+    if (!roiResult.ok) {
+      return roiResult;
+    }
+
+    diag_('info', 'api_getSponsorROI', 'ROI dashboard retrieved', {
+      sponsorId,
+      roi: roiResult.value.financials.roi
+    });
+
+    return roiResult;
   });
 }
 
