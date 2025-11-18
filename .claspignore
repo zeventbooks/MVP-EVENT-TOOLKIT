@@ -2,6 +2,8 @@
 !*.gs
 !*.html
 !appsscript.json
+!services/*.gs
+!contracts/*.gs
 .git/**
 node_modules/**
 scripts/**
