@@ -583,28 +583,31 @@ function renderField_(field, value, locale) {
       input = `<input type="${field.type}" name="${field.id}" value="${escapeHtml_(value)}" placeholder="${placeholder}" ${required} />`;
       break;
 
-    case 'number':
+    case 'number': {
       const min = field.validation?.min !== undefined ? `min="${field.validation.min}"` : '';
       const max = field.validation?.max !== undefined ? `max="${field.validation.max}"` : '';
       input = `<input type="number" name="${field.id}" value="${value}" ${min} ${max} ${required} />`;
       break;
+    }
 
     case 'textarea':
       input = `<textarea name="${field.id}" placeholder="${placeholder}" ${required}>${escapeHtml_(value)}</textarea>`;
       break;
 
-    case 'checkbox':
+    case 'checkbox': {
       const checked = value ? 'checked' : '';
       input = `<input type="checkbox" name="${field.id}" ${checked} ${required} />`;
       break;
+    }
 
-    case 'select':
+    case 'select': {
       const options = (field.options || []).map(opt => {
         const selected = opt === value ? 'selected' : '';
         return `<option value="${escapeHtml_(opt)}" ${selected}>${escapeHtml_(opt)}</option>`;
       }).join('\n');
       input = `<select name="${field.id}" ${required}>${options}</select>`;
       break;
+    }
 
     default:
       input = `<input type="text" name="${field.id}" value="${escapeHtml_(value)}" ${required} />`;
