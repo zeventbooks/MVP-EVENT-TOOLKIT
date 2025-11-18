@@ -357,10 +357,13 @@ function doGet(e){
  * @returns {HtmlOutput} - Rendered page
  */
 function routePage_(e, page, tenant, demoMode, options = {}) {
-  // Route admin to wizard by default (simple mode), unless mode=advanced is specified
+  // Route admin to wizard by default (simple mode), unless mode=advanced or mode=enhanced is specified
   if (page === 'admin') {
     const mode = options.mode || '';
-    if (mode !== 'advanced') {
+    if (mode === 'enhanced') {
+      // Use enhanced admin mode with components
+      page = 'admin-enhanced';
+    } else if (mode !== 'advanced') {
       page = 'wizard'; // Default to wizard (simple mode)
     }
   }
@@ -584,6 +587,20 @@ function handleRestApiPost_(e, action, body, tenant) {
     }));
   }
 
+  // Sponsor Configuration Endpoints
+  if (action === 'getSponsorSettings' || action === 'api_getSponsorSettings') {
+    return jsonResponse_(api_getSponsorSettings({
+      tenantId
+    }));
+  }
+
+  if (action === 'validateSponsorPlacements' || action === 'api_validateSponsorPlacements') {
+    return jsonResponse_(api_validateSponsorPlacements({
+      tenantId,
+      sponsors: body.sponsors || []
+    }));
+  }
+
   // Sponsor ROI Dashboard (High-Value Feature)
   if (action === 'getSponsorROI' || action === 'api_getSponsorROI') {
     return jsonResponse_(api_getSponsorROI({
@@ -677,6 +694,7 @@ function jsonResponse_(data) {
 
 function pageFile_(page){
   if (page==='admin') return 'Admin';
+  if (page==='admin-enhanced') return 'AdminEnhanced';
   if (page==='wizard') return 'AdminWizard';
   if (page==='planner') return 'PlannerCards';
   if (page==='poster') return 'Poster';
@@ -2131,6 +2149,76 @@ function api_getSponsorROI(req) {
     });
 
     return roiResult;
+  });
+}
+
+/**
+ * Get sponsor placement settings and configurations
+ *
+ * Returns available placement positions, allowed positions per surface,
+ * and upsell opportunities (e.g., dedicated TV pane).
+ *
+ * @param {object} req - Request parameters
+ * @param {string} [req.tenantId] - Tenant ID for tenant-specific settings
+ * @returns {object} Result envelope with sponsor settings
+ */
+function api_getSponsorSettings(req) {
+  return runSafe('api_getSponsorSettings', () => {
+    const { tenantId } = req || {};
+
+    // Use SponsorService to get settings
+    const settingsResult = SponsorService_getSettings({ tenantId });
+
+    if (!settingsResult.ok) {
+      return settingsResult;
+    }
+
+    diag_('info', 'api_getSponsorSettings', 'Settings retrieved', {
+      tenantId: tenantId || 'default',
+      placementsCount: Object.keys(settingsResult.value.placements).length
+    });
+
+    return settingsResult;
+  });
+}
+
+/**
+ * Validate sponsor placement configuration
+ *
+ * Ensures sponsors are assigned to valid placements and don't exceed limits.
+ *
+ * @param {object} req - Request parameters
+ * @param {array} req.sponsors - Array of sponsor objects with placements
+ * @param {string} [req.tenantId] - Tenant ID for settings lookup
+ * @returns {object} Result envelope with validation results
+ */
+function api_validateSponsorPlacements(req) {
+  return runSafe('api_validateSponsorPlacements', () => {
+    const { sponsors, tenantId } = req || {};
+
+    if (!Array.isArray(sponsors)) {
+      return Err(ERR.BAD_INPUT, 'Sponsors must be an array');
+    }
+
+    // Use SponsorService to validate placements
+    const validationResult = SponsorService_validatePlacements({
+      sponsors,
+      tenantId
+    });
+
+    if (!validationResult.ok) {
+      return validationResult;
+    }
+
+    diag_('info', 'api_validateSponsorPlacements', 'Placements validated', {
+      tenantId: tenantId || 'default',
+      valid: validationResult.value.valid,
+      totalSponsors: validationResult.value.totalSponsors,
+      errorsCount: validationResult.value.errors.length,
+      warningsCount: validationResult.value.warnings.length
+    });
+
+    return validationResult;
   });
 }
 
