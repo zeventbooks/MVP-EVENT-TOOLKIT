@@ -248,7 +248,7 @@ function FormService_getResponseAnalytics(formId) {
   // TODO: Implement form response analytics
   // - Response count
   // - Completion rate
-  * - Average time to complete
+  // - Average time to complete
   // - Question-by-question breakdown
   // - Response trends over time
 
