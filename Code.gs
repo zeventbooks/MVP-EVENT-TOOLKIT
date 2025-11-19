@@ -804,7 +804,7 @@ function pageFile_(page){
 }
 
 function include(filename) {
-  return HtmlService.createTemplateFromFile(filename).evaluate().getContent();
+  return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }
 
 // === Shortlink redirect handler ============================================
