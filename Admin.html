@@ -7,6 +7,7 @@
   <?!= include('DesignAdapter'); ?>
   <?!= include('NUSDK'); ?>
   <?!= include('DemoMode'); ?>
+  <?!= include('CollapsibleSections'); ?>
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <meta name="referrer" content="no-referrer"/>
 </head>
@@ -18,10 +19,19 @@
 
     <!-- Event Lifecycle Dashboard -->
     <section class="card" id="dashboardCard" style="display:none;">
-      <h2>Event Dashboard</h2>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h2 style="margin: 0;">Event Dashboard</h2>
+      </div>
       <div id="eventPhaseIndicator"></div>
 
-      <div class="stats-grid" style="margin-top: 20px;">
+      <!-- Statistics Section -->
+      <div class="subsection">
+        <div class="collapsible-header" onclick="toggleSection(this)">
+          <h3>Statistics</h3>
+          <span class="collapsible-icon">▼</span>
+        </div>
+        <div class="collapsible-content">
+          <div class="stats-grid" style="margin-top: 20px;">
         <div class="stat-card blue">
           <div class="stat-value" id="statViews">-</div>
           <div class="stat-label">Total Views</div>
@@ -39,8 +49,16 @@
           <div class="stat-label">Engagement Score</div>
         </div>
       </div>
+        </div>
+      </div>
 
-      <h3 style="margin-top: 24px;">Event Lifecycle</h3>
+      <!-- Event Lifecycle Section -->
+      <div class="subsection">
+        <div class="collapsible-header" onclick="toggleSection(this)">
+          <h3>Event Lifecycle</h3>
+          <span class="collapsible-icon">▼</span>
+        </div>
+        <div class="collapsible-content">
       <div class="metric-card">
         <div class="metric-header">
           <span class="metric-title">Pre-Event Phase</span>
@@ -79,6 +97,8 @@
           <div class="progress-bar-fill orange" id="postEventProgress" style="width: 0%"></div>
         </div>
       </div>
+        </div>
+      </div>
     </section>
 
     <!-- Create Event Card -->
@@ -90,69 +110,98 @@
         </a>
       </div>
       <form id="createForm">
-        <!-- Core Event Details -->
-        <div class="form-group">
-          <label>Event Name *</label>
-          <input id="name" type="text" required>
-        </div>
+        <!-- Core Event Details Section -->
+        <div class="subsection">
+          <div class="collapsible-header" onclick="toggleSection(this)">
+            <h3>Core Event Details</h3>
+            <span class="collapsible-icon">▼</span>
+          </div>
+          <div class="collapsible-content">
+            <div class="form-group">
+              <label>Event Name *</label>
+              <input id="name" type="text" required>
+            </div>
 
-        <div class="form-row">
-          <div class="form-group">
-            <label>Date *</label>
-            <input id="dateISO" type="date" required>
-          </div>
-          <div class="form-group">
-            <label>Time</label>
-            <input id="timeISO" type="time">
-          </div>
-        </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Date *</label>
+                <input id="dateISO" type="date" required>
+              </div>
+              <div class="form-group">
+                <label>Time</label>
+                <input id="timeISO" type="time">
+              </div>
+            </div>
 
-        <div class="form-row">
-          <div class="form-group">
-            <label>Location</label>
-            <input id="location" type="text" placeholder="Venue name or address">
-          </div>
-          <div class="form-group">
-            <label>Entity</label>
-            <input id="entity" type="text" placeholder="Organization or department">
+            <div class="form-row">
+              <div class="form-group">
+                <label>Location</label>
+                <input id="location" type="text" placeholder="Venue name or address">
+              </div>
+              <div class="form-group">
+                <label>Entity</label>
+                <input id="entity" type="text" placeholder="Organization or department">
+              </div>
+            </div>
           </div>
         </div>
 
         <!-- Summary Section -->
-        <h3>Summary</h3>
-        <div class="form-group">
-          <label>Summary</label>
-          <textarea id="summary" placeholder="Brief event description"></textarea>
-        </div>
-        <div class="form-group">
-          <label>Summary Link</label>
-          <input id="summaryLink" type="url" placeholder="https://...">
+        <div class="subsection">
+          <div class="collapsible-header" onclick="toggleSection(this)">
+            <h3>Summary</h3>
+            <span class="collapsible-icon">▼</span>
+          </div>
+          <div class="collapsible-content">
+            <div class="form-group">
+              <label>Summary</label>
+              <textarea id="summary" placeholder="Brief event description"></textarea>
+            </div>
+            <div class="form-group">
+              <label>Summary Link</label>
+              <input id="summaryLink" type="url" placeholder="https://...">
+            </div>
+          </div>
         </div>
 
         <!-- Media Section -->
-        <h3>Media</h3>
-        <div class="form-group">
-          <label>Event Image URL</label>
-          <input id="imageUrl" type="url" placeholder="https://...">
-        </div>
-        <div class="form-group">
-          <label>Video URL</label>
-          <input id="videoUrl" type="url" placeholder="YouTube, Vimeo, etc.">
-        </div>
-        <div class="form-group">
-          <label>Gallery URLs</label>
-          <textarea id="galleryUrls" placeholder="Comma-separated image URLs"></textarea>
+        <div class="subsection">
+          <div class="collapsible-header" onclick="toggleSection(this)">
+            <h3>Media</h3>
+            <span class="collapsible-icon">▼</span>
+          </div>
+          <div class="collapsible-content">
+            <div class="form-group">
+              <label>Event Image URL</label>
+              <input id="imageUrl" type="url" placeholder="https://...">
+            </div>
+            <div class="form-group">
+              <label>Video URL</label>
+              <input id="videoUrl" type="url" placeholder="YouTube, Vimeo, etc.">
+            </div>
+            <div class="form-group">
+              <label>Gallery URLs</label>
+              <textarea id="galleryUrls" placeholder="Comma-separated image URLs"></textarea>
+            </div>
+          </div>
         </div>
 
         <!-- Bio Section -->
-        <h3>Bio</h3>
-        <div class="form-group">
-          <label>Bio</label>
-          <textarea id="bio" placeholder="Detailed event or organizer bio"></textarea>
-        </div>
-        <div class="form-group">
-          <label>Bio Link</label>
-          <input id="bioLink" type="url" placeholder="https://...">
+        <div class="subsection">
+          <div class="collapsible-header" onclick="toggleSection(this)">
+            <h3>Bio</h3>
+            <span class="collapsible-icon">▼</span>
+          </div>
+          <div class="collapsible-content">
+            <div class="form-group">
+              <label>Bio</label>
+              <textarea id="bio" placeholder="Detailed event or organizer bio"></textarea>
+            </div>
+            <div class="form-group">
+              <label>Bio Link</label>
+              <input id="bioLink" type="url" placeholder="https://...">
+            </div>
+          </div>
         </div>
 
         <div class="button-group">
@@ -200,7 +249,7 @@
         <button class="btn-primary" onclick="configureDisplay()">Configure Display & Sponsors</button>
         <button class="btn-secondary" onclick="configureSignup()">Configure Sign-Up Forms</button>
         <button class="btn-secondary <? if (demoMode && ZEB.DEMO_MODE.highlightNewFeatures) { ?>demo-new-feature<? } ?>" onclick="openFormsTemplates()">
-          Create Forms from Templates
+          Google Forms Templates
           <? if (demoMode && ZEB.DEMO_MODE.highlightNewFeatures) { ?><span class="demo-new-badge">NEW</span><? } ?>
         </button>
       </div>
