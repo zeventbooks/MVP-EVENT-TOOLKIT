@@ -803,8 +803,24 @@ function pageFile_(page){
   return 'Public';
 }
 
-function include(filename) {
-  return HtmlService.createHtmlOutputFromFile(filename).getContent();
+function include(filename, context) {
+  const tpl = HtmlService.createTemplateFromFile(filename);
+
+  // Make global ZEB configuration available to all includes
+  tpl.ZEB = ZEB;
+
+  // If context is provided (e.g., parent template's 'this'),
+  // copy its properties to the included template for variable access
+  if (context && typeof context === 'object') {
+    Object.keys(context).forEach(key => {
+      // Skip built-in template methods and properties
+      if (typeof context[key] !== 'function' && key !== 'evaluate' && key !== 'getRawContent') {
+        tpl[key] = context[key];
+      }
+    });
+  }
+
+  return tpl.evaluate().getContent();
 }
 
 // === Shortlink redirect handler ============================================
