@@ -330,7 +330,7 @@ components:
         id:
           type: string
           example: evt_abc123
-        tenantId:
+        brandId:
           type: string
           example: root
         templateId:
@@ -385,13 +385,13 @@ components:
       type: object
       required:
         - action
-        - tenantId
+        - brandId
         - adminKey
       properties:
         action:
           type: string
           enum: [generateToken]
-        tenantId:
+        brandId:
           type: string
           example: root
         adminKey:
@@ -432,7 +432,7 @@ components:
       type: object
       required:
         - action
-        - tenantId
+        - brandId
         - scope
         - templateId
         - data
@@ -440,7 +440,7 @@ components:
         action:
           type: string
           enum: [create]
-        tenantId:
+        brandId:
           type: string
           example: root
         adminKey:
@@ -489,7 +489,7 @@ components:
       type: object
       required:
         - action
-        - tenantId
+        - brandId
         - scope
         - id
         - data
@@ -497,7 +497,7 @@ components:
         action:
           type: string
           enum: [update]
-        tenantId:
+        brandId:
           type: string
         adminKey:
           type: string
@@ -520,12 +520,12 @@ components:
       type: object
       required:
         - action
-        - tenantId
+        - brandId
       properties:
         action:
           type: string
           enum: [getReport]
-        tenantId:
+        brandId:
           type: string
         adminKey:
           type: string
@@ -559,13 +559,13 @@ components:
       type: object
       required:
         - action
-        - tenantId
+        - brandId
         - targetUrl
       properties:
         action:
           type: string
           enum: [createShortlink]
-        tenantId:
+        brandId:
           type: string
         adminKey:
           type: string

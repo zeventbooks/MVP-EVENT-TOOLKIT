@@ -42,7 +42,7 @@ Both **WebhookService.gs** and **i18nService.gs** already exist in the codebase 
 - `WebhookService_register(params)` - Register webhook
 - `WebhookService_unregister(params)` - Remove webhook
 - `WebhookService_list(params)` - List all webhooks
-- `WebhookService_deliver(eventType, payload, tenantId)` - **Main integration point**
+- `WebhookService_deliver(eventType, payload, brandId)` - **Main integration point**
 - `WebhookService_test(params)` - Test delivery
 - `WebhookService_getDeliveries(params)` - Get delivery history
 
@@ -54,13 +54,13 @@ Both **WebhookService.gs** and **i18nService.gs** already exist in the codebase 
 
 **Current Code:**
 ```javascript
-diag_('info','api_create','created',{id,tenantId,scope});
+diag_('info','api_create','created',{id,brandId,scope});
 return Ok({ id, links });
 ```
 
 **Add After Line 1815:**
 ```javascript
-diag_('info','api_create','created',{id,tenantId,scope});
+diag_('info','api_create','created',{id,brandId,scope});
 
 // 🔥 NEW: Trigger webhook for event creation
 try {
@@ -68,7 +68,7 @@ try {
     WEBHOOK_EVENTS.EVENT_CREATED,
     {
       id: id,
-      tenantId: tenantId,
+      brandId: brandId,
       scope: scope,
       templateId: templateId,
       data: sanitizedData,
@@ -76,7 +76,7 @@ try {
       createdAt: new Date().toISOString(),
       links: links
     },
-    tenantId
+    brandId
   );
 } catch (webhookError) {
   // Non-blocking: log error but don't fail the request
@@ -91,30 +91,30 @@ return Ok({ id, links });
 
 **Current Code:**
 ```javascript
-diag_('info','api_updateEventData','updated',{id: sanitizedId,tenantId,scope,data});
+diag_('info','api_updateEventData','updated',{id: sanitizedId,brandId,scope,data});
 
-return api_get({ tenantId, scope: scope||'events', id: sanitizedId });
+return api_get({ brandId, scope: scope||'events', id: sanitizedId });
 ```
 
 **Add After Line 1889:**
 ```javascript
-diag_('info','api_updateEventData','updated',{id: sanitizedId,tenantId,scope,data});
+diag_('info','api_updateEventData','updated',{id: sanitizedId,brandId,scope,data});
 
 // 🔥 NEW: Trigger webhook for event update
 try {
-  const eventData = api_get({ tenantId, scope: scope||'events', id: sanitizedId });
+  const eventData = api_get({ brandId, scope: scope||'events', id: sanitizedId });
   if (eventData.ok) {
     WebhookService_deliver(
       WEBHOOK_EVENTS.EVENT_UPDATED,
       {
         id: sanitizedId,
-        tenantId: tenantId,
+        brandId: brandId,
         scope: scope || 'events',
         updatedFields: Object.keys(data || {}),
         data: eventData.value.data,
         updatedAt: new Date().toISOString()
       },
-      tenantId
+      brandId
     );
   }
 } catch (webhookError) {
@@ -123,7 +123,7 @@ try {
   diag_('error', 'api_updateEventData', 'webhook_failed', { error: webhookError.message });
 }
 
-return api_get({ tenantId, scope: scope||'events', id: sanitizedId });
+return api_get({ brandId, scope: scope||'events', id: sanitizedId });
 ```
 
 #### 1.2.3 Additional Integration Points (Optional)
@@ -133,7 +133,7 @@ return api_get({ tenantId, scope: scope||'events', id: sanitizedId });
 WebhookService_deliver(
   WEBHOOK_EVENTS.FORM_SUBMITTED,
   { formId, responses, submittedAt, eventId },
-  tenantId
+  brandId
 );
 ```
 
@@ -144,7 +144,7 @@ if (ctr > HIGH_CTR_THRESHOLD) {
   WebhookService_deliver(
     WEBHOOK_EVENTS.SPONSOR_CTR_HIGH,
     { sponsorId, ctr, threshold, eventId },
-    tenantId
+    brandId
   );
 }
 ```
@@ -239,7 +239,7 @@ Create `WebhookManager.html` for admin interface:
       const formData = new FormData(e.target);
 
       const result = await SDK.callAPI('webhooks/register', {
-        tenantId: SDK.getTenantId(),
+        brandId: SDK.getTenantId(),
         eventType: formData.get('eventType'),
         url: formData.get('url'),
         secret: formData.get('secret') || undefined,
@@ -257,7 +257,7 @@ Create `WebhookManager.html` for admin interface:
     // Load webhooks
     async function loadWebhooks() {
       const result = await SDK.callAPI('webhooks/list', {
-        tenantId: SDK.getTenantId(),
+        brandId: SDK.getTenantId(),
         adminKey: SDK.getAdminKey()
       });
 
@@ -277,7 +277,7 @@ Create `WebhookManager.html` for admin interface:
     // Test webhook
     async function testWebhook(webhookId) {
       const result = await SDK.callAPI('webhooks/test', {
-        tenantId: SDK.getTenantId(),
+        brandId: SDK.getTenantId(),
         webhookId: webhookId,
         adminKey: SDK.getAdminKey()
       });
@@ -292,7 +292,7 @@ Create `WebhookManager.html` for admin interface:
       if (!confirm('Delete this webhook?')) return;
 
       const result = await SDK.callAPI('webhooks/unregister', {
-        tenantId: SDK.getTenantId(),
+        brandId: SDK.getTenantId(),
         webhookId: webhookId,
         adminKey: SDK.getAdminKey()
       });
@@ -318,7 +318,7 @@ Create `WebhookManager.html` for admin interface:
 3. **Register in MVP-EVENT-TOOLKIT:**
    ```javascript
    {
-     "tenantId": "root",
+     "brandId": "root",
      "eventType": "event.created",
      "url": "https://hooks.zapier.com/hooks/catch/12345/abcde/",
      "adminKey": "your-admin-key"
@@ -351,7 +351,7 @@ const isValid = WebhookService_verifySignature(payload, signature, secret);
 function test_webhookOnEventCreate() {
   // Register test webhook
   const webhook = WebhookService_register({
-    tenantId: 'root',
+    brandId: 'root',
     eventType: 'event.created',
     url: 'https://webhook.site/unique-id',
     adminKey: getAdminSecret_('root')
@@ -359,7 +359,7 @@ function test_webhookOnEventCreate() {
 
   // Create event
   const event = api_create({
-    tenantId: 'root',
+    brandId: 'root',
     scope: 'events',
     templateId: 'event',
     data: { name: 'Test Event' },
@@ -371,7 +371,7 @@ function test_webhookOnEventCreate() {
 
   // Check delivery history
   const deliveries = WebhookService_getDeliveries({
-    tenantId: 'root',
+    brandId: 'root',
     webhookId: webhook.value.id,
     adminKey: getAdminSecret_('root')
   });
@@ -449,7 +449,7 @@ function routePage_(e, page, tenant, demoMode, options) {
   const tpl = HtmlService.createTemplateFromFile(htmlFile);
   tpl.appTitle = ZEB.APP_TITLE;
   tpl.tenant = tenant;
-  tpl.tenantId = tenant.id;
+  tpl.brandId = tenant.id;
   tpl.demoMode = demoMode;
   tpl.locale = locale; // 🔥 NEW
 
@@ -982,7 +982,7 @@ function test_i18nDateFormatting() {
   "timestamp": "2025-11-18T10:30:00.000Z",
   "data": {
     "id": "uuid-event-123",
-    "tenantId": "root",
+    "brandId": "root",
     "scope": "events",
     "templateId": "event",
     "data": {
@@ -1009,7 +1009,7 @@ function test_i18nDateFormatting() {
   "timestamp": "2025-11-18T11:00:00.000Z",
   "data": {
     "id": "uuid-event-123",
-    "tenantId": "root",
+    "brandId": "root",
     "scope": "events",
     "updatedFields": ["location", "description"],
     "data": {

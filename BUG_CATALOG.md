@@ -105,7 +105,7 @@
     - Fix: Sanitize metadata before logging
 
 18. **Rate Limiting Bypass** - Code.gs:529-545
-    - Only tracks by tenantId, not IP
+    - Only tracks by brandId, not IP
     - Fix: Add IP-based tracking and progressive backoff
 
 19. **SQL Injection Risk** - Code.gs:700, 757, 793
@@ -276,7 +276,7 @@
 
 53. **Missing Tenant Validation in Shortlinks** - Code.gs:367-372
     - No tenant check on shortlink access
-    - Fix: Add tenantId to shortlinks schema
+    - Fix: Add brandId to shortlinks schema
 
 54. **Weak JWT - No Replay Protection** - Code.gs:446-481
     - No jti, nbf validation, timing attack vulnerability

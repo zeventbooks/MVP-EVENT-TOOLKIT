@@ -34,7 +34,7 @@ Enable event-driven integrations with external platforms like Zapier, Mailchimp,
 ```javascript
 POST /exec?action=registerWebhook
 {
-  "tenantId": "root",
+  "brandId": "root",
   "eventType": "event.created",
   "url": "https://hooks.zapier.com/...",
   "secret": "optional-hmac-secret",
@@ -69,7 +69,7 @@ POST /exec?action=registerWebhook
 
 #### 1.3 Delivery Tracking
 - **WEBHOOKS Sheet:** Stores webhook registrations
-  - `id, tenantId, eventType, url, secret, enabled, filters, createdAt, lastTriggered, deliveryCount`
+  - `id, brandId, eventType, url, secret, enabled, filters, createdAt, lastTriggered, deliveryCount`
 - **WEBHOOK_DELIVERIES Sheet:** Stores delivery history
   - `id, webhookId, eventType, payload, statusCode, response, success, attempts, timestamp`
 
@@ -91,7 +91,7 @@ const response = await fetch(BASE_URL, {
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
     action: 'registerWebhook',
-    tenantId: 'myorg',
+    brandId: 'myorg',
     adminKey: 'your-admin-key',
     eventType: 'event.created',
     url: 'https://hooks.zapier.com/hooks/catch/12345/abcde/',
@@ -434,7 +434,7 @@ const validation = await NU.rpc('validateTemplateData', {
 if (validation.valid) {
   // 5. Create event with validated data
   const createResult = await NU.rpc('create', {
-    tenantId: 'myorg',
+    brandId: 'myorg',
     scope: 'events',
     templateId: 'tournament-v1',
     data: userInput,
@@ -471,7 +471,7 @@ const webhookResult = WebhookService_deliver('event.created', {
   name: data.name,
   date: data.date,
   links: generatedLinks
-}, tenantId);
+}, brandId);
 ```
 
 ### 4.2 i18n + UI Components
@@ -522,7 +522,7 @@ const template = TemplateService_getTemplate('event-v1', 'es-ES');
 
 **WEBHOOKS Sheet:**
 ```
-| id | tenantId | eventType | url | secret | enabled | filters | createdAt | lastTriggered | deliveryCount |
+| id | brandId | eventType | url | secret | enabled | filters | createdAt | lastTriggered | deliveryCount |
 ```
 
 **WEBHOOK_DELIVERIES Sheet:**

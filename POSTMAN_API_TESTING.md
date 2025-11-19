@@ -91,7 +91,7 @@ Content-Type: application/json
 
 {
   "action": "create",
-  "tenantId": "root",
+  "brandId": "root",
   "adminKey": "YOUR_ADMIN_SECRET",
   "scope": "events",
   "templateId": "Event",
@@ -111,7 +111,7 @@ Content-Type: application/json
 
 {
   "action": "update",
-  "tenantId": "root",
+  "brandId": "root",
   "adminKey": "YOUR_ADMIN_SECRET",
   "scope": "events",
   "id": "evt_123",
@@ -128,7 +128,7 @@ Content-Type: application/json
 
 {
   "action": "getReport",
-  "tenantId": "root",
+  "brandId": "root",
   "adminKey": "YOUR_ADMIN_SECRET",
   "eventId": "evt_123",
   "startDate": "2025-01-01",
@@ -143,7 +143,7 @@ Content-Type: application/json
 
 {
   "action": "createShortlink",
-  "tenantId": "root",
+  "brandId": "root",
   "adminKey": "YOUR_ADMIN_SECRET",
   "targetUrl": "https://sponsor.com",
   "eventId": "evt_123",
@@ -244,7 +244,7 @@ google.script.run
   .withSuccessHandler(data => console.log('Success:', data))
   .withFailureHandler(err => console.error('Error:', err))
   .api_list({
-    tenantId: 'root',
+    brandId: 'root',
     scope: 'events',
     adminKey: 'YOUR_ADMIN_KEY'
   });
@@ -254,7 +254,7 @@ google.script.run
   .withSuccessHandler(data => console.log('Created:', data))
   .withFailureHandler(err => console.error('Error:', err))
   .api_create({
-    tenantId: 'root',
+    brandId: 'root',
     adminKey: 'YOUR_ADMIN_KEY',
     scope: 'events',
     templateId: 'Event',
@@ -283,7 +283,7 @@ if (e.parameter.action) {
 
   if (action === 'list') {
     const result = api_list({
-      tenantId: e.parameter.tenant || 'root',
+      brandId: e.parameter.tenant || 'root',
       scope: e.parameter.scope || 'events',
       adminKey: e.parameter.adminKey,
       etag: e.parameter.etag

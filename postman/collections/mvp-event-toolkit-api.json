@@ -35,11 +35,11 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}?p=status&brand={{tenantId}}",
+              "raw": "{{baseUrl}}?p=status&brand={{brandId}}",
               "host": ["{{baseUrl}}"],
               "query": [
                 {"key": "p", "value": "status"},
-                {"key": "tenant", "value": "{{tenantId}}"}
+                {"key": "tenant", "value": "{{brandId}}"}
               ]
             }
           }
@@ -51,7 +51,7 @@
             "header": [{"key": "Content-Type", "value": "application/json"}],
             "body": {
               "mode": "raw",
-              "raw": "{\"tenantId\": \"{{tenantId}}\", \"adminKey\": \"{{adminKey}}\"}"
+              "raw": "{\"brandId\": \"{{brandId}}\", \"adminKey\": \"{{adminKey}}\"}"
             },
             "url": {
               "raw": "{{baseUrl}}?action=runDiagnostics",
@@ -88,7 +88,7 @@
             "header": [{"key": "Content-Type", "value": "application/json"}],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"tenantId\": \"{{tenantId}}\",\n  \"scope\": \"events\",\n  \"templateId\": \"event\",\n  \"adminKey\": \"{{adminKey}}\",\n  \"data\": {\n    \"name\": \"Test Event {{$timestamp}}\",\n    \"dateISO\": \"2025-12-01\",\n    \"location\": \"Test Venue\",\n    \"summary\": \"A test event for API testing\"\n  }\n}"
+              "raw": "{\n  \"brandId\": \"{{brandId}}\",\n  \"scope\": \"events\",\n  \"templateId\": \"event\",\n  \"adminKey\": \"{{adminKey}}\",\n  \"data\": {\n    \"name\": \"Test Event {{$timestamp}}\",\n    \"dateISO\": \"2025-12-01\",\n    \"location\": \"Test Venue\",\n    \"summary\": \"A test event for API testing\"\n  }\n}"
             },
             "url": {
               "raw": "{{baseUrl}}?action=create",
@@ -103,12 +103,12 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}?p=api&action=get&tenantId={{tenantId}}&scope=events&id={{testEventId}}",
+              "raw": "{{baseUrl}}?p=api&action=get&brandId={{brandId}}&scope=events&id={{testEventId}}",
               "host": ["{{baseUrl}}"],
               "query": [
                 {"key": "p", "value": "api"},
                 {"key": "action", "value": "get"},
-                {"key": "tenantId", "value": "{{tenantId}}"},
+                {"key": "brandId", "value": "{{brandId}}"},
                 {"key": "scope", "value": "events"},
                 {"key": "id", "value": "{{testEventId}}"}
               ]
@@ -121,12 +121,12 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}?p=api&action=list&tenantId={{tenantId}}&scope=events",
+              "raw": "{{baseUrl}}?p=api&action=list&brandId={{brandId}}&scope=events",
               "host": ["{{baseUrl}}"],
               "query": [
                 {"key": "p", "value": "api"},
                 {"key": "action", "value": "list"},
-                {"key": "tenantId", "value": "{{tenantId}}"},
+                {"key": "brandId", "value": "{{brandId}}"},
                 {"key": "scope", "value": "events"}
               ]
             }
@@ -139,7 +139,7 @@
             "header": [{"key": "Content-Type", "value": "application/json"}],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"tenantId\": \"{{tenantId}}\",\n  \"scope\": \"events\",\n  \"id\": \"{{testEventId}}\",\n  \"adminKey\": \"{{adminKey}}\",\n  \"data\": {\n    \"summary\": \"Updated summary\"\n  }\n}"
+              "raw": "{\n  \"brandId\": \"{{brandId}}\",\n  \"scope\": \"events\",\n  \"id\": \"{{testEventId}}\",\n  \"adminKey\": \"{{adminKey}}\",\n  \"data\": {\n    \"summary\": \"Updated summary\"\n  }\n}"
             },
             "url": {
               "raw": "{{baseUrl}}?action=update",
@@ -210,7 +210,7 @@
             "header": [{"key": "Content-Type", "value": "application/json"}],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"tenantId\": \"{{tenantId}}\",\n  \"adminKey\": \"{{adminKey}}\",\n  \"templateType\": \"check-in\",\n  \"eventName\": \"Test Event\",\n  \"eventId\": \"{{testEventId}}\"\n}"
+              "raw": "{\n  \"brandId\": \"{{brandId}}\",\n  \"adminKey\": \"{{adminKey}}\",\n  \"templateType\": \"check-in\",\n  \"eventName\": \"Test Event\",\n  \"eventId\": \"{{testEventId}}\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}?action=createFormFromTemplate",
@@ -226,7 +226,7 @@
             "header": [{"key": "Content-Type", "value": "application/json"}],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"tenantId\": \"{{tenantId}}\",\n  \"adminKey\": \"{{adminKey}}\",\n  \"templateType\": \"walk-in\",\n  \"eventName\": \"Test Event\",\n  \"eventId\": \"{{testEventId}}\"\n}"
+              "raw": "{\n  \"brandId\": \"{{brandId}}\",\n  \"adminKey\": \"{{adminKey}}\",\n  \"templateType\": \"walk-in\",\n  \"eventName\": \"Test Event\",\n  \"eventId\": \"{{testEventId}}\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}?action=createFormFromTemplate",
@@ -242,7 +242,7 @@
             "header": [{"key": "Content-Type", "value": "application/json"}],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"tenantId\": \"{{tenantId}}\",\n  \"adminKey\": \"{{adminKey}}\",\n  \"templateType\": \"survey\",\n  \"eventName\": \"Test Event\",\n  \"eventId\": \"{{testEventId}}\"\n}"
+              "raw": "{\n  \"brandId\": \"{{brandId}}\",\n  \"adminKey\": \"{{adminKey}}\",\n  \"templateType\": \"survey\",\n  \"eventName\": \"Test Event\",\n  \"eventId\": \"{{testEventId}}\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}?action=createFormFromTemplate",
@@ -275,7 +275,7 @@
             "header": [{"key": "Content-Type", "value": "application/json"}],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"tenantId\": \"{{tenantId}}\",\n  \"adminKey\": \"{{adminKey}}\",\n  \"formUrl\": \"https://docs.google.com/forms/d/e/TEST_FORM_ID/viewform\",\n  \"formType\": \"check-in\",\n  \"eventId\": \"{{testEventId}}\"\n}"
+              "raw": "{\n  \"brandId\": \"{{brandId}}\",\n  \"adminKey\": \"{{adminKey}}\",\n  \"formUrl\": \"https://docs.google.com/forms/d/e/TEST_FORM_ID/viewform\",\n  \"formType\": \"check-in\",\n  \"eventId\": \"{{testEventId}}\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}?action=generateFormShortlink",
@@ -313,7 +313,7 @@
             "header": [{"key": "Content-Type", "value": "application/json"}],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"tenantId\": \"{{tenantId}}\",\n  \"adminKey\": \"{{adminKey}}\",\n  \"targetUrl\": \"https://example.com/target\",\n  \"eventId\": \"{{testEventId}}\",\n  \"surface\": \"test\"\n}"
+              "raw": "{\n  \"brandId\": \"{{brandId}}\",\n  \"adminKey\": \"{{adminKey}}\",\n  \"targetUrl\": \"https://example.com/target\",\n  \"eventId\": \"{{testEventId}}\",\n  \"surface\": \"test\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}?action=createShortlink",
@@ -349,7 +349,7 @@
             "header": [{"key": "Content-Type", "value": "application/json"}],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"tenantId\": \"{{tenantId}}\",\n  \"adminKey\": \"{{adminKey}}\",\n  \"eventId\": \"{{testEventId}}\",\n  \"startDate\": \"2025-01-01\",\n  \"endDate\": \"2025-12-31\"\n}"
+              "raw": "{\n  \"brandId\": \"{{brandId}}\",\n  \"adminKey\": \"{{adminKey}}\",\n  \"eventId\": \"{{testEventId}}\",\n  \"startDate\": \"2025-01-01\",\n  \"endDate\": \"2025-12-31\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}?action=getReport",

@@ -233,7 +233,7 @@ Content-Type: application/json
 
 {
   "action": "api_list",        // Function name
-  "tenantId": "root",
+  "brandId": "root",
   "scope": "events",
   "limit": 100,
   "offset": 0,
@@ -285,9 +285,9 @@ events: {
   create: {
     request: {
       type: 'object',
-      required: ['tenantId', 'scope', 'templateId', 'data', 'adminKey'],
+      required: ['brandId', 'scope', 'templateId', 'data', 'adminKey'],
       properties: {
-        tenantId: { type: 'string', pattern: '^[a-zA-Z0-9_-]+$' },
+        brandId: { type: 'string', pattern: '^[a-zA-Z0-9_-]+$' },
         templateId: { type: 'string' },
         data: { type: 'object' },
         idemKey: { type: 'string', pattern: '^[a-zA-Z0-9-]{1,128}$' }
@@ -309,7 +309,7 @@ events: {
 ```
 
 **Schema Categories:**
-- `common` - Reusable types (id, tenantId, scope, isoDate, url, email)
+- `common` - Reusable types (id, brandId, scope, isoDate, url, email)
 - `auth` - Authentication schemas
 - `events` - Event CRUD schemas
 - `analytics` - Analytics logging & reporting schemas
@@ -386,7 +386,7 @@ events: {
 ```javascript
 class EventStateManager {
   constructor(options) {
-    this.tenantId = options.tenantId;
+    this.brandId = options.brandId;
     this.scope = options.scope;
     this.autoSaveInterval = options.autoSaveInterval || 30000;
     this.state = {
@@ -430,7 +430,7 @@ subscribe(listener)       // Listen for state changes
 **Sheet Structure:**
 ```
 EVENTS Sheet:
-[id, tenantId, templateId, data (JSON), createdAt, slug]
+[id, brandId, templateId, data (JSON), createdAt, slug]
 
 ANALYTICS Sheet:
 [timestamp, eventId, surface, metric, sponsorId, value, token, userAgent]
@@ -903,7 +903,7 @@ services/MCPService.gs
 ```javascript
 WebhookService_register(params)      // Register webhook endpoint
 WebhookService_unregister(id)        // Unregister webhook
-WebhookService_list(tenantId)        // List registered webhooks
+WebhookService_list(brandId)        // List registered webhooks
 WebhookService_deliver(event, data)  // Deliver webhook payload
 WebhookService_retry(deliveryId)     // Retry failed delivery
 WebhookService_signPayload(payload)  // HMAC signature for security
@@ -911,7 +911,7 @@ WebhookService_signPayload(payload)  // HMAC signature for security
 
 2. **Add WEBHOOKS Sheet:**
 ```
-[id, tenantId, eventType, url, secret, enabled, createdAt]
+[id, brandId, eventType, url, secret, enabled, createdAt]
 ```
 
 3. **Add WEBHOOK_DELIVERIES Sheet:**

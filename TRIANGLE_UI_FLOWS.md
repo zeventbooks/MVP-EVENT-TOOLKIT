@@ -441,7 +441,7 @@ All pages receive these template variables:
 
 ```javascript
 tpl.appTitle = `${tenant.name} · ${scope}`;  // e.g., "Zeventbook · events"
-tpl.tenantId = tenant.id;                     // e.g., "root"
+tpl.brandId = tenant.id;                     // e.g., "root"
 tpl.scope = scope;                            // e.g., "events"
 tpl.execUrl = ScriptApp.getService().getUrl(); // Base URL
 tpl.ZEB = ZEB;                                // Build ID + version

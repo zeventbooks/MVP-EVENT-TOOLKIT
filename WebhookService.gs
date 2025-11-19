@@ -46,7 +46,7 @@ const WEBHOOK_EVENTS = {
  * Register a new webhook endpoint
  *
  * @param {Object} params
- * @param {string} params.tenantId - Tenant ID
+ * @param {string} params.brandId - Tenant ID
  * @param {string} params.eventType - Event type to subscribe to (from WEBHOOK_EVENTS)
  * @param {string} params.url - Target URL for webhook delivery
  * @param {string} [params.secret] - Shared secret for HMAC signing (auto-generated if not provided)
@@ -60,13 +60,13 @@ function WebhookService_register(params) {
     // Authenticate
     const authResult = SecurityMiddleware_authenticateRequest({
       adminKey: params.adminKey,
-      tenantId: params.tenantId
+      brandId: params.brandId
     });
     if (!authResult.ok) return authResult;
 
     // Validate required parameters
-    if (!params.tenantId || !params.eventType || !params.url) {
-      return Err('BAD_INPUT', 'Missing required parameters: tenantId, eventType, url');
+    if (!params.brandId || !params.eventType || !params.url) {
+      return Err('BAD_INPUT', 'Missing required parameters: brandId, eventType, url');
     }
 
     // Validate event type
@@ -87,7 +87,7 @@ function WebhookService_register(params) {
     if (!webhooksSheet) {
       webhooksSheet = ss.insertSheet('WEBHOOKS');
       webhooksSheet.appendRow([
-        'id', 'tenantId', 'eventType', 'url', 'secret',
+        'id', 'brandId', 'eventType', 'url', 'secret',
         'enabled', 'filters', 'createdAt', 'lastTriggered', 'deliveryCount'
       ]);
       webhooksSheet.getRange(1, 1, 1, 10).setFontWeight('bold');
@@ -103,7 +103,7 @@ function WebhookService_register(params) {
     // Add webhook to sheet
     webhooksSheet.appendRow([
       webhookId,
-      params.tenantId,
+      params.brandId,
       params.eventType,
       params.url,
       secret,
@@ -118,7 +118,7 @@ function WebhookService_register(params) {
 
     return Ok({
       id: webhookId,
-      tenantId: params.tenantId,
+      brandId: params.brandId,
       eventType: params.eventType,
       url: params.url,
       secret: secret,
@@ -136,7 +136,7 @@ function WebhookService_register(params) {
  * Unregister a webhook
  *
  * @param {Object} params
- * @param {string} params.tenantId - Tenant ID
+ * @param {string} params.brandId - Tenant ID
  * @param {string} params.webhookId - Webhook ID to unregister
  * @param {string} params.adminKey - Admin authentication
  * @returns {Object} Result envelope
@@ -146,7 +146,7 @@ function WebhookService_unregister(params) {
     // Authenticate
     const authResult = SecurityMiddleware_authenticateRequest({
       adminKey: params.adminKey,
-      tenantId: params.tenantId
+      brandId: params.brandId
     });
     if (!authResult.ok) return authResult;
 
@@ -165,10 +165,10 @@ function WebhookService_unregister(params) {
     const data = webhooksSheet.getDataRange().getValues();
     const headers = data[0];
     const idIndex = headers.indexOf('id');
-    const tenantIndex = headers.indexOf('tenantId');
+    const tenantIndex = headers.indexOf('brandId');
 
     for (let i = 1; i < data.length; i++) {
-      if (data[i][idIndex] === params.webhookId && data[i][tenantIndex] === params.tenantId) {
+      if (data[i][idIndex] === params.webhookId && data[i][tenantIndex] === params.brandId) {
         webhooksSheet.deleteRow(i + 1);
         Logger.log(`Webhook unregistered: ${params.webhookId}`);
         return Ok({ id: params.webhookId, deleted: true });
@@ -187,7 +187,7 @@ function WebhookService_unregister(params) {
  * List all webhooks for a tenant
  *
  * @param {Object} params
- * @param {string} params.tenantId - Tenant ID
+ * @param {string} params.brandId - Tenant ID
  * @param {string} params.adminKey - Admin authentication
  * @returns {Object} Result envelope with webhooks array
  */
@@ -196,7 +196,7 @@ function WebhookService_list(params) {
     // Authenticate
     const authResult = SecurityMiddleware_authenticateRequest({
       adminKey: params.adminKey,
-      tenantId: params.tenantId
+      brandId: params.brandId
     });
     if (!authResult.ok) return authResult;
 
@@ -220,7 +220,7 @@ function WebhookService_list(params) {
       });
 
       // Filter by tenant
-      if (webhook.tenantId === params.tenantId) {
+      if (webhook.brandId === params.brandId) {
         // Parse filters if present
         if (webhook.filters) {
           try {
@@ -247,10 +247,10 @@ function WebhookService_list(params) {
  *
  * @param {string} eventType - Event type (from WEBHOOK_EVENTS)
  * @param {Object} payload - Event payload data
- * @param {string} tenantId - Tenant ID
+ * @param {string} brandId - Tenant ID
  * @returns {Object} Result with delivery statuses
  */
-function WebhookService_deliver(eventType, payload, tenantId) {
+function WebhookService_deliver(eventType, payload, brandId) {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const webhooksSheet = ss.getSheetByName('WEBHOOKS');
@@ -275,7 +275,7 @@ function WebhookService_deliver(eventType, payload, tenantId) {
       });
 
       // Filter by tenant, event type, and enabled status
-      if (webhook.tenantId === tenantId &&
+      if (webhook.brandId === brandId &&
           webhook.eventType === eventType &&
           webhook.enabled) {
         webhooks.push(webhook);
@@ -318,7 +318,7 @@ function WebhookService_deliver(eventType, payload, tenantId) {
  * Test webhook delivery (does not increment delivery count)
  *
  * @param {Object} params
- * @param {string} params.tenantId - Tenant ID
+ * @param {string} params.brandId - Tenant ID
  * @param {string} params.webhookId - Webhook ID to test
  * @param {string} params.adminKey - Admin authentication
  * @returns {Object} Result with test delivery status
@@ -328,7 +328,7 @@ function WebhookService_test(params) {
     // Authenticate
     const authResult = SecurityMiddleware_authenticateRequest({
       adminKey: params.adminKey,
-      tenantId: params.tenantId
+      brandId: params.brandId
     });
     if (!authResult.ok) return authResult;
 
@@ -352,7 +352,7 @@ function WebhookService_test(params) {
         webhookData[header] = row[index];
       });
 
-      if (webhookData.id === params.webhookId && webhookData.tenantId === params.tenantId) {
+      if (webhookData.id === params.webhookId && webhookData.brandId === params.brandId) {
         webhook = webhookData;
         break;
       }
@@ -394,7 +394,7 @@ function WebhookService_test(params) {
  * Get webhook delivery history
  *
  * @param {Object} params
- * @param {string} params.tenantId - Tenant ID
+ * @param {string} params.brandId - Tenant ID
  * @param {string} [params.webhookId] - Filter by specific webhook ID
  * @param {number} [params.limit=50] - Limit number of results
  * @param {string} params.adminKey - Admin authentication
@@ -405,7 +405,7 @@ function WebhookService_getDeliveries(params) {
     // Authenticate
     const authResult = SecurityMiddleware_authenticateRequest({
       adminKey: params.adminKey,
-      tenantId: params.tenantId
+      brandId: params.brandId
     });
     if (!authResult.ok) return authResult;
 

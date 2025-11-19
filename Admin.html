@@ -387,7 +387,7 @@
   <div id="overlay" class="loading-overlay"><div class="spinner"></div><p>Working…</p></div>
 
   <script>
-    const TENANT = '<?= tenantId ?>';
+    const TENANT = '<?= brandId ?>';
     const SCOPE = '<?= scope ?>';
     let currentEventId = null;
 
@@ -412,7 +412,7 @@
       });
 
       const res = await NU.rpc('api_create', {
-        tenantId: TENANT,
+        brandId: TENANT,
         scope: SCOPE,
         templateId: 'event',
         adminKey: getAdminKey(),
@@ -568,7 +568,7 @@
     async function loadSignupForms() {
       if (!currentEventId) return;
       overlay(true);
-      const res = await NU.rpc('api_get', { tenantId: TENANT, scope: SCOPE, id: currentEventId });
+      const res = await NU.rpc('api_get', { brandId: TENANT, scope: SCOPE, id: currentEventId });
       overlay(false);
 
       if (res.ok && res.value) {
@@ -592,7 +592,7 @@
 
       overlay(true);
       const res = await NU.rpc('api_updateEventData', {
-        tenantId: TENANT,
+        brandId: TENANT,
         scope: SCOPE,
         id: currentEventId,
         adminKey: getAdminKey(),
@@ -643,7 +643,7 @@
 
       // Get event data for context
       const eventRes = await NU.rpc('api_get', {
-        tenantId: TENANT,
+        brandId: TENANT,
         scope: SCOPE,
         id: currentEventId
       });
@@ -654,7 +654,7 @@
 
       // Create form from template
       const formRes = await NU.rpc('api_createFormFromTemplate', {
-        tenantId: TENANT,
+        brandId: TENANT,
         adminKey: getAdminKey(),
         templateType,
         eventName,
@@ -671,7 +671,7 @@
 
       // Generate shortlink for the published form
       const shortlinkRes = await NU.rpc('api_generateFormShortlink', {
-        tenantId: TENANT,
+        brandId: TENANT,
         adminKey: getAdminKey(),
         formUrl: publishedUrl,
         formType: templateType,
@@ -736,7 +736,7 @@
     async function loadDisplayConfig() {
       if (!currentEventId) return;
       overlay(true);
-      const res = await NU.rpc('api_get', { tenantId: TENANT, scope: SCOPE, id: currentEventId });
+      const res = await NU.rpc('api_get', { brandId: TENANT, scope: SCOPE, id: currentEventId });
       overlay(false);
 
       if (res.ok && res.value) {
@@ -859,7 +859,7 @@
 
       overlay(true);
       const res = await NU.rpc('api_updateEventData', {
-        tenantId: TENANT,
+        brandId: TENANT,
         scope: SCOPE,
         id: currentEventId,
         adminKey: getAdminKey(),

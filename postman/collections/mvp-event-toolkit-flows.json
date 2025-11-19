@@ -38,11 +38,11 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}?p=status&brand={{tenantId}}",
+              "raw": "{{baseUrl}}?p=status&brand={{brandId}}",
               "host": ["{{baseUrl}}"],
               "query": [
                 {"key": "p", "value": "status"},
-                {"key": "tenant", "value": "{{tenantId}}"}
+                {"key": "tenant", "value": "{{brandId}}"}
               ]
             }
           }
@@ -103,7 +103,7 @@
             "header": [{"key": "Content-Type", "value": "application/json"}],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"tenantId\": \"{{tenantId}}\",\n  \"scope\": \"events\",\n  \"templateId\": \"event\",\n  \"adminKey\": \"{{adminKey}}\",\n  \"data\": {\n    \"name\": \"Flow Test Event {{eventTimestamp}}\",\n    \"dateISO\": \"{{eventDate}}\",\n    \"location\": \"Test Venue - Newman Flow\",\n    \"summary\": \"Automated flow test event for Forms integration\"\n  }\n}"
+              "raw": "{\n  \"brandId\": \"{{brandId}}\",\n  \"scope\": \"events\",\n  \"templateId\": \"event\",\n  \"adminKey\": \"{{adminKey}}\",\n  \"data\": {\n    \"name\": \"Flow Test Event {{eventTimestamp}}\",\n    \"dateISO\": \"{{eventDate}}\",\n    \"location\": \"Test Venue - Newman Flow\",\n    \"summary\": \"Automated flow test event for Forms integration\"\n  }\n}"
             },
             "url": {
               "raw": "{{baseUrl}}?action=create",
@@ -136,12 +136,12 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}?p=api&action=get&tenantId={{tenantId}}&scope=events&id={{flowEventId}}",
+              "raw": "{{baseUrl}}?p=api&action=get&brandId={{brandId}}&scope=events&id={{flowEventId}}",
               "host": ["{{baseUrl}}"],
               "query": [
                 {"key": "p", "value": "api"},
                 {"key": "action", "value": "get"},
-                {"key": "tenantId", "value": "{{tenantId}}"},
+                {"key": "brandId", "value": "{{brandId}}"},
                 {"key": "scope", "value": "events"},
                 {"key": "id", "value": "{{flowEventId}}"}
               ]
@@ -224,7 +224,7 @@
             "header": [{"key": "Content-Type", "value": "application/json"}],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"tenantId\": \"{{tenantId}}\",\n  \"adminKey\": \"{{adminKey}}\",\n  \"templateType\": \"check-in\",\n  \"eventName\": \"{{flowEventName}}\",\n  \"eventId\": \"{{flowEventId}}\"\n}"
+              "raw": "{\n  \"brandId\": \"{{brandId}}\",\n  \"adminKey\": \"{{adminKey}}\",\n  \"templateType\": \"check-in\",\n  \"eventName\": \"{{flowEventName}}\",\n  \"eventId\": \"{{flowEventId}}\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}?action=createFormFromTemplate",
@@ -262,7 +262,7 @@
             "header": [{"key": "Content-Type", "value": "application/json"}],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"tenantId\": \"{{tenantId}}\",\n  \"adminKey\": \"{{adminKey}}\",\n  \"templateType\": \"walk-in\",\n  \"eventName\": \"{{flowEventName}}\",\n  \"eventId\": \"{{flowEventId}}\"\n}"
+              "raw": "{\n  \"brandId\": \"{{brandId}}\",\n  \"adminKey\": \"{{adminKey}}\",\n  \"templateType\": \"walk-in\",\n  \"eventName\": \"{{flowEventName}}\",\n  \"eventId\": \"{{flowEventId}}\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}?action=createFormFromTemplate",
@@ -300,7 +300,7 @@
             "header": [{"key": "Content-Type", "value": "application/json"}],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"tenantId\": \"{{tenantId}}\",\n  \"adminKey\": \"{{adminKey}}\",\n  \"templateType\": \"survey\",\n  \"eventName\": \"{{flowEventName}}\",\n  \"eventId\": \"{{flowEventId}}\"\n}"
+              "raw": "{\n  \"brandId\": \"{{brandId}}\",\n  \"adminKey\": \"{{adminKey}}\",\n  \"templateType\": \"survey\",\n  \"eventName\": \"{{flowEventName}}\",\n  \"eventId\": \"{{flowEventId}}\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}?action=createFormFromTemplate",
@@ -340,7 +340,7 @@
             "header": [{"key": "Content-Type", "value": "application/json"}],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"tenantId\": \"{{tenantId}}\",\n  \"adminKey\": \"{{adminKey}}\",\n  \"formUrl\": \"{{checkinFormUrl}}\",\n  \"formType\": \"check-in\",\n  \"eventId\": \"{{flowEventId}}\"\n}"
+              "raw": "{\n  \"brandId\": \"{{brandId}}\",\n  \"adminKey\": \"{{adminKey}}\",\n  \"formUrl\": \"{{checkinFormUrl}}\",\n  \"formType\": \"check-in\",\n  \"eventId\": \"{{flowEventId}}\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}?action=generateFormShortlink",
@@ -377,7 +377,7 @@
             "header": [{"key": "Content-Type", "value": "application/json"}],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"tenantId\": \"{{tenantId}}\",\n  \"adminKey\": \"{{adminKey}}\",\n  \"formUrl\": \"{{walkinFormUrl}}\",\n  \"formType\": \"walk-in\",\n  \"eventId\": \"{{flowEventId}}\"\n}"
+              "raw": "{\n  \"brandId\": \"{{brandId}}\",\n  \"adminKey\": \"{{adminKey}}\",\n  \"formUrl\": \"{{walkinFormUrl}}\",\n  \"formType\": \"walk-in\",\n  \"eventId\": \"{{flowEventId}}\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}?action=generateFormShortlink",
@@ -414,7 +414,7 @@
             "header": [{"key": "Content-Type", "value": "application/json"}],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"tenantId\": \"{{tenantId}}\",\n  \"adminKey\": \"{{adminKey}}\",\n  \"formUrl\": \"{{surveyFormUrl}}\",\n  \"formType\": \"survey\",\n  \"eventId\": \"{{flowEventId}}\"\n}"
+              "raw": "{\n  \"brandId\": \"{{brandId}}\",\n  \"adminKey\": \"{{adminKey}}\",\n  \"formUrl\": \"{{surveyFormUrl}}\",\n  \"formType\": \"survey\",\n  \"eventId\": \"{{flowEventId}}\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}?action=generateFormShortlink",
@@ -528,7 +528,7 @@
             "header": [{"key": "Content-Type", "value": "application/json"}],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"tenantId\": \"{{tenantId}}\",\n  \"adminKey\": \"{{adminKey}}\",\n  \"eventId\": \"{{flowEventId}}\",\n  \"startDate\": \"{{reportStartDate}}\",\n  \"endDate\": \"{{reportEndDate}}\"\n}"
+              "raw": "{\n  \"brandId\": \"{{brandId}}\",\n  \"adminKey\": \"{{adminKey}}\",\n  \"eventId\": \"{{flowEventId}}\",\n  \"startDate\": \"{{reportStartDate}}\",\n  \"endDate\": \"{{reportEndDate}}\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}?action=getReport",
@@ -582,11 +582,11 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}?p=status&brand={{tenantId}}",
+              "raw": "{{baseUrl}}?p=status&brand={{brandId}}",
               "host": ["{{baseUrl}}"],
               "query": [
                 {"key": "p", "value": "status"},
-                {"key": "tenant", "value": "{{tenantId}}"}
+                {"key": "tenant", "value": "{{brandId}}"}
               ]
             }
           }

@@ -25,7 +25,7 @@
  * List events with pagination support
  *
  * @param {object} params - Query parameters
- * @param {string} params.tenantId - Tenant ID
+ * @param {string} params.brandId - Tenant ID
  * @param {string} params.scope - Scope (events, leagues, tournaments)
  * @param {number} [params.limit=100] - Page limit (max 1000)
  * @param {number} [params.offset=0] - Page offset
@@ -33,9 +33,9 @@
  * @returns {object} Result envelope with paginated events
  */
 function EventService_list(params) {
-  const { tenantId, scope, limit, offset, ifNoneMatch } = params || {};
+  const { brandId, scope, limit, offset, ifNoneMatch } = params || {};
 
-  const tenant = findTenant_(tenantId);
+  const tenant = findTenant_(brandId);
   if (!tenant) return Err(ERR.NOT_FOUND, 'Unknown tenant');
 
   const scopeCheck = SecurityMiddleware_assertScopeAllowed(tenant, scope);
@@ -51,7 +51,7 @@ function EventService_list(params) {
   // Load and filter rows
   const allRows = lastRow > 1
     ? sh.getRange(2, 1, lastRow - 1, 6).getValues()
-        .filter(r => r[1] === tenantId)
+        .filter(r => r[1] === brandId)
     : [];
 
   // Apply pagination after filtering
@@ -94,20 +94,20 @@ function EventService_list(params) {
  * Get event by ID with generated URLs
  *
  * @param {object} params - Query parameters
- * @param {string} params.tenantId - Tenant ID
+ * @param {string} params.brandId - Tenant ID
  * @param {string} params.scope - Scope
  * @param {string} params.id - Event ID
  * @param {string} [params.ifNoneMatch] - ETag for conditional request
  * @returns {object} Result envelope with event details
  */
 function EventService_get(params) {
-  const { tenantId, scope, id, ifNoneMatch } = params || {};
+  const { brandId, scope, id, ifNoneMatch } = params || {};
 
   // Validate ID format
   const sanitizedId = SecurityMiddleware_sanitizeId(id);
   if (!sanitizedId) return Err(ERR.BAD_INPUT, 'Invalid ID format');
 
-  const tenant = findTenant_(tenantId);
+  const tenant = findTenant_(brandId);
   if (!tenant) return Err(ERR.NOT_FOUND, 'Unknown tenant');
 
   const scopeCheck = SecurityMiddleware_assertScopeAllowed(tenant, scope);
@@ -115,19 +115,19 @@ function EventService_get(params) {
 
   const sh = getStoreSheet_(tenant, scope);
   const r = sh.getDataRange().getValues().slice(1)
-    .find(row => row[0] === sanitizedId && row[1] === tenantId);
+    .find(row => row[0] === sanitizedId && row[1] === brandId);
 
   if (!r) return Err(ERR.NOT_FOUND, 'Not found');
 
   const base = ScriptApp.getService().getUrl();
   const value = {
     id: r[0],
-    tenantId: r[1],
+    brandId: r[1],
     templateId: r[2],
     data: safeJSONParse_(r[3], {}),
     createdAt: r[4],
     slug: r[5],
-    links: EventService_generateUrls(base, tenantId, r[0], scope)
+    links: EventService_generateUrls(base, brandId, r[0], scope)
   };
 
   const etag = Utilities.base64Encode(
@@ -147,7 +147,7 @@ function EventService_get(params) {
  * Create new event with validation and idempotency
  *
  * @param {object} params - Create parameters
- * @param {string} params.tenantId - Tenant ID
+ * @param {string} params.brandId - Tenant ID
  * @param {string} params.scope - Scope
  * @param {string} params.templateId - Template ID
  * @param {object} params.data - Event data
@@ -159,9 +159,9 @@ function EventService_create(params) {
     return Err(ERR.BAD_INPUT, 'Missing payload');
   }
 
-  const { tenantId, scope, templateId, data, idemKey } = params;
+  const { brandId, scope, templateId, data, idemKey } = params;
 
-  const tenant = findTenant_(tenantId);
+  const tenant = findTenant_(brandId);
   if (!tenant) return Err(ERR.NOT_FOUND, 'Unknown tenant');
 
   const scopeCheck = SecurityMiddleware_assertScopeAllowed(tenant, scope);
@@ -176,7 +176,7 @@ function EventService_create(params) {
 
   // Handle idempotency (24 hours)
   if (idemKey) {
-    const idemResult = EventService_checkIdempotency(tenantId, scope, idemKey);
+    const idemResult = EventService_checkIdempotency(brandId, scope, idemKey);
     if (!idemResult.ok) return idemResult;
   }
 
@@ -189,9 +189,9 @@ function EventService_create(params) {
 
   const { id } = createResult.value;
   const base = ScriptApp.getService().getUrl();
-  const links = EventService_generateUrls(base, tenantId, id, scope);
+  const links = EventService_generateUrls(base, brandId, id, scope);
 
-  diag_('info', 'EventService_create', 'created', { id, tenantId, scope });
+  diag_('info', 'EventService_create', 'created', { id, brandId, scope });
 
   return Ok({ id, links });
 }
@@ -202,7 +202,7 @@ function EventService_create(params) {
  * Update event data
  *
  * @param {object} params - Update parameters
- * @param {string} params.tenantId - Tenant ID
+ * @param {string} params.brandId - Tenant ID
  * @param {string} params.scope - Scope
  * @param {string} params.id - Event ID
  * @param {object} params.data - Updated data
@@ -213,13 +213,13 @@ function EventService_update(params) {
     return Err(ERR.BAD_INPUT, 'Missing payload');
   }
 
-  const { tenantId, scope, id, data } = params;
+  const { brandId, scope, id, data } = params;
 
   // Validate ID format
   const sanitizedId = SecurityMiddleware_sanitizeId(id);
   if (!sanitizedId) return Err(ERR.BAD_INPUT, 'Invalid ID format');
 
-  const tenant = findTenant_(tenantId);
+  const tenant = findTenant_(brandId);
   if (!tenant) return Err(ERR.NOT_FOUND, 'Unknown tenant');
 
   const scopeCheck = SecurityMiddleware_assertScopeAllowed(tenant, scope || 'events');
@@ -233,7 +233,7 @@ function EventService_update(params) {
     lock.waitLock(10000);
 
     const rows = sh.getDataRange().getValues();
-    const rowIdx = rows.findIndex((r, i) => i > 0 && r[0] === sanitizedId && r[1] === tenantId);
+    const rowIdx = rows.findIndex((r, i) => i > 0 && r[0] === sanitizedId && r[1] === brandId);
 
     if (rowIdx === -1) {
       lock.releaseLock();
@@ -266,7 +266,7 @@ function EventService_update(params) {
 
     lock.releaseLock();
 
-    diag_('info', 'EventService_update', 'updated', { id: sanitizedId, tenantId, scope });
+    diag_('info', 'EventService_update', 'updated', { id: sanitizedId, brandId, scope });
 
     return Ok({ id: sanitizedId, data: sanitizedData });
   } catch (e) {
@@ -327,12 +327,12 @@ function EventService_sanitizeData(data, template) {
 /**
  * Check idempotency key
  *
- * @param {string} tenantId - Tenant ID
+ * @param {string} brandId - Tenant ID
  * @param {string} scope - Scope
  * @param {string} idemKey - Idempotency key
  * @returns {object} Result envelope (Ok/Err)
  */
-function EventService_checkIdempotency(tenantId, scope, idemKey) {
+function EventService_checkIdempotency(brandId, scope, idemKey) {
   // Validate idemKey format
   if (!/^[a-zA-Z0-9-]{1,128}$/.test(idemKey)) {
     return Err(ERR.BAD_INPUT, 'Invalid idempotency key format');
@@ -343,7 +343,7 @@ function EventService_checkIdempotency(tenantId, scope, idemKey) {
     lock.waitLock(5000);
 
     const cache = CacheService.getScriptCache();
-    const key = `idem:${tenantId}:${scope}:${idemKey}`;
+    const key = `idem:${brandId}:${scope}:${idemKey}`;
 
     if (cache.get(key)) {
       lock.releaseLock();
@@ -416,16 +416,16 @@ function EventService_persistEvent(tenant, scope, templateId, data) {
  * Generate URLs for event surfaces
  *
  * @param {string} baseUrl - Base service URL
- * @param {string} tenantId - Tenant ID
+ * @param {string} brandId - Tenant ID
  * @param {string} eventId - Event ID
  * @param {string} scope - Scope
  * @returns {object} URLs for public, poster, display, report
  */
-function EventService_generateUrls(baseUrl, tenantId, eventId, scope) {
+function EventService_generateUrls(baseUrl, brandId, eventId, scope) {
   return {
-    publicUrl: `${baseUrl}?p=${scope}&brand=${tenantId}&id=${eventId}`,
-    posterUrl: `${baseUrl}?page=poster&p=${scope}&brand=${tenantId}&id=${eventId}`,
-    displayUrl: `${baseUrl}?page=display&p=${scope}&brand=${tenantId}&id=${eventId}&tv=1`,
-    reportUrl: `${baseUrl}?page=report&brand=${tenantId}&id=${eventId}`
+    publicUrl: `${baseUrl}?p=${scope}&brand=${brandId}&id=${eventId}`,
+    posterUrl: `${baseUrl}?page=poster&p=${scope}&brand=${brandId}&id=${eventId}`,
+    displayUrl: `${baseUrl}?page=display&p=${scope}&brand=${brandId}&id=${eventId}&tv=1`,
+    reportUrl: `${baseUrl}?page=report&brand=${brandId}&id=${eventId}`
   };
 }

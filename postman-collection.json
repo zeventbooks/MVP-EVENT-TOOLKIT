@@ -155,7 +155,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"action\": \"create\",\n  \"tenantId\": \"{{tenant_id}}\",\n  \"adminKey\": \"{{admin_key}}\",\n  \"scope\": \"events\",\n  \"templateId\": \"Event\",\n  \"data\": {\n    \"eventName\": \"Summer Concert Series\",\n    \"eventDate\": \"2025-07-15\",\n    \"eventTime\": \"19:00\",\n    \"locationName\": \"Central Park Amphitheater\",\n    \"locationAddr\": \"123 Park Ave\",\n    \"locationCity\": \"New York\",\n    \"locationState\": \"NY\",\n    \"locationZip\": \"10001\",\n    \"contact\": \"events@example.com\",\n    \"description\": \"Join us for an evening of live music!\",\n    \"registrationUrl\": \"https://example.com/register\"\n  }\n}"
+              "raw": "{\n  \"action\": \"create\",\n  \"brandId\": \"{{tenant_id}}\",\n  \"adminKey\": \"{{admin_key}}\",\n  \"scope\": \"events\",\n  \"templateId\": \"Event\",\n  \"data\": {\n    \"eventName\": \"Summer Concert Series\",\n    \"eventDate\": \"2025-07-15\",\n    \"eventTime\": \"19:00\",\n    \"locationName\": \"Central Park Amphitheater\",\n    \"locationAddr\": \"123 Park Ave\",\n    \"locationCity\": \"New York\",\n    \"locationState\": \"NY\",\n    \"locationZip\": \"10001\",\n    \"contact\": \"events@example.com\",\n    \"description\": \"Join us for an evening of live music!\",\n    \"registrationUrl\": \"https://example.com/register\"\n  }\n}"
             },
             "url": {
               "raw": "{{base_url}}",
@@ -177,7 +177,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"action\": \"update\",\n  \"tenantId\": \"{{tenant_id}}\",\n  \"adminKey\": \"{{admin_key}}\",\n  \"scope\": \"events\",\n  \"id\": \"EVENT_ID\",\n  \"data\": {\n    \"eventName\": \"Updated Event Name\",\n    \"eventDate\": \"2025-07-20\"\n  }\n}"
+              "raw": "{\n  \"action\": \"update\",\n  \"brandId\": \"{{tenant_id}}\",\n  \"adminKey\": \"{{admin_key}}\",\n  \"scope\": \"events\",\n  \"id\": \"EVENT_ID\",\n  \"data\": {\n    \"eventName\": \"Updated Event Name\",\n    \"eventDate\": \"2025-07-20\"\n  }\n}"
             },
             "url": {
               "raw": "{{base_url}}",
@@ -199,7 +199,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"action\": \"getReport\",\n  \"tenantId\": \"{{tenant_id}}\",\n  \"adminKey\": \"{{admin_key}}\",\n  \"eventId\": \"EVENT_ID\",\n  \"startDate\": \"2025-01-01\",\n  \"endDate\": \"2025-12-31\"\n}"
+              "raw": "{\n  \"action\": \"getReport\",\n  \"brandId\": \"{{tenant_id}}\",\n  \"adminKey\": \"{{admin_key}}\",\n  \"eventId\": \"EVENT_ID\",\n  \"startDate\": \"2025-01-01\",\n  \"endDate\": \"2025-12-31\"\n}"
             },
             "url": {
               "raw": "{{base_url}}",
@@ -221,7 +221,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"action\": \"createShortlink\",\n  \"tenantId\": \"{{tenant_id}}\",\n  \"adminKey\": \"{{admin_key}}\",\n  \"targetUrl\": \"https://sponsor-website.com\",\n  \"eventId\": \"EVENT_ID\",\n  \"sponsorId\": \"SPONSOR_1\",\n  \"surface\": \"public\"\n}"
+              "raw": "{\n  \"action\": \"createShortlink\",\n  \"brandId\": \"{{tenant_id}}\",\n  \"adminKey\": \"{{admin_key}}\",\n  \"targetUrl\": \"https://sponsor-website.com\",\n  \"eventId\": \"EVENT_ID\",\n  \"sponsorId\": \"SPONSOR_1\",\n  \"surface\": \"public\"\n}"
             },
             "url": {
               "raw": "{{base_url}}",

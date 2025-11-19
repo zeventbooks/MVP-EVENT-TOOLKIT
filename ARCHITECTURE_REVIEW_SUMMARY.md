@@ -256,13 +256,13 @@ api_create(payload) → Ok({ id, links: {publicUrl, posterUrl, displayUrl} })
 ├─ Slug generation (auto-create from event name)
 └─ Write to EVENTS sheet
 
-api_get(payload) → Ok({ id, tenantId, templateId, data, createdAt, slug, links, etag })
-├─ Query by id + tenantId
+api_get(payload) → Ok({ id, brandId, templateId, data, createdAt, slug, links, etag })
+├─ Query by id + brandId
 ├─ Return event + generated links
 └─ ETags for SWR caching
 
 api_list(payload) → Ok({ items: [event...], etag })
-├─ Filter by tenantId from EVENTS sheet
+├─ Filter by brandId from EVENTS sheet
 └─ Return all events in scope
 
 api_updateEventData(req) → api_get response
@@ -326,7 +326,7 @@ const ERR = {
 
 1. **Authentication:** Admin key gating
    ```javascript
-   gate_(tenantId, adminKey)
+   gate_(brandId, adminKey)
    ├─ Validate adminKey === tenant.adminSecret
    └─ Rate limit: max 20 requests/minute per tenant
    ```
@@ -362,13 +362,13 @@ Load tenant config
   ├─ scopesAllowed (authorization)
   └─ logoUrl (branding)
   ↓
-Access spreadsheet with tenantId filter
+Access spreadsheet with brandId filter
 ```
 
 **Data Isolation:**
 - Single spreadsheet for all tenants
-- Each row tagged with `tenantId` (column [1])
-- API filters by: tenantId + scope
+- Each row tagged with `brandId` (column [1])
+- API filters by: brandId + scope
 - No row-level security (trust Apps Script layer)
 
 **Configured Tenants:**
@@ -433,10 +433,10 @@ Metric: 'dwellSec'
    ```
    User fills form → Click "Create Event" → Prompt admin key
      ↓
-   NU.rpc('api_create', { tenantId, scope, data, adminKey, idemKey })
+   NU.rpc('api_create', { brandId, scope, data, adminKey, idemKey })
      ↓
    Code.gs: api_create()
-     ├─ gate_(tenantId, adminKey) ✓
+     ├─ gate_(brandId, adminKey) ✓
      ├─ Sanitize inputs ✓
      ├─ Generate UUID + slug ✓
      └─ Write to EVENTS sheet ✓
@@ -817,7 +817,7 @@ npx playwright test --debug tests/smoke/pages.smoke.test.js
 
 5. **Multi-tenancy**
    - Host-based tenant resolution
-   - Row-level filtering by tenantId
+   - Row-level filtering by brandId
 
 6. **Template Method** (HtmlService)
    - Server-side templating

@@ -204,7 +204,7 @@ await expect(page.locator('#eventCard')).toContainText(/Event created: \d+/);
 export const config = {
   baseUrl: process.env.BASE_URL || 'https://script.google.com/macros/s/.../exec',
   adminKey: process.env.ADMIN_KEY,
-  tenantId: process.env.TENANT_ID || 'root',
+  brandId: process.env.TENANT_ID || 'root',
 };
 
 if (!config.adminKey) {
@@ -239,7 +239,7 @@ test.afterEach(async ({ page }) => {
   const eventIds = page.context()._testEventIds || [];
   for (const id of eventIds) {
     await page.request.post(`${config.baseUrl}`, {
-      data: { p: 'delete', tenant: config.tenantId, adminKey: config.adminKey, id }
+      data: { p: 'delete', tenant: config.brandId, adminKey: config.adminKey, id }
     });
   }
 });
@@ -287,17 +287,17 @@ export const test = base.extend({
         await dialog.accept(config.adminKey);
       }
     });
-    await page.goto(`${config.baseUrl}?page=admin&brand=${config.tenantId}`);
+    await page.goto(`${config.baseUrl}?page=admin&brand=${config.brandId}`);
     await use(page);
   },
 
   publicPage: async ({ page }, use) => {
-    await page.goto(`${config.baseUrl}?page=events&brand=${config.tenantId}`);
+    await page.goto(`${config.baseUrl}?page=events&brand=${config.brandId}`);
     await use(page);
   },
 
   displayPage: async ({ page }, use) => {
-    await page.goto(`${config.baseUrl}?page=display&brand=${config.tenantId}`);
+    await page.goto(`${config.baseUrl}?page=display&brand=${config.brandId}`);
     await use(page);
   },
 });

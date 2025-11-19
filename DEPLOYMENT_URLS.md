@@ -164,7 +164,7 @@ google.script.run
   .withSuccessHandler(result => console.log('✅ Success:', result))
   .withFailureHandler(error => console.error('❌ Error:', error))
   .api_getSharedAnalytics({
-    tenantId: 'root',
+    brandId: 'root',
     isSponsorView: false
   });
 ```

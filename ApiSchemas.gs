@@ -26,7 +26,7 @@ const SCHEMAS = {
       minLength: 1,
       maxLength: 128
     },
-    tenantId: {
+    brandId: {
       type: 'string',
       pattern: '^[a-zA-Z0-9_-]+$',
       minLength: 1,
@@ -56,9 +56,9 @@ const SCHEMAS = {
     generateToken: {
       request: {
         type: 'object',
-        required: ['tenantId', 'adminKey'],
+        required: ['brandId', 'adminKey'],
         properties: {
-          tenantId: { $ref: '#/common/tenantId' },
+          brandId: { $ref: '#/common/brandId' },
           adminKey: { type: 'string', minLength: 1 },
           expiresIn: { type: 'number', minimum: 60, maximum: 86400 },
           scope: { $ref: '#/common/scope' }
@@ -90,9 +90,9 @@ const SCHEMAS = {
     list: {
       request: {
         type: 'object',
-        required: ['tenantId', 'scope'],
+        required: ['brandId', 'scope'],
         properties: {
-          tenantId: { $ref: '#/common/tenantId' },
+          brandId: { $ref: '#/common/brandId' },
           scope: { $ref: '#/common/scope' },
           limit: { type: 'number', minimum: 1, maximum: 1000, default: 100 },
           offset: { type: 'number', minimum: 0, default: 0 },
@@ -143,9 +143,9 @@ const SCHEMAS = {
     get: {
       request: {
         type: 'object',
-        required: ['tenantId', 'scope', 'id'],
+        required: ['brandId', 'scope', 'id'],
         properties: {
-          tenantId: { $ref: '#/common/tenantId' },
+          brandId: { $ref: '#/common/brandId' },
           scope: { $ref: '#/common/scope' },
           id: { $ref: '#/common/id' },
           ifNoneMatch: { type: 'string' }
@@ -160,10 +160,10 @@ const SCHEMAS = {
           notModified: { type: 'boolean' },
           value: {
             type: 'object',
-            required: ['id', 'tenantId', 'templateId', 'data', 'createdAt', 'slug', 'links'],
+            required: ['id', 'brandId', 'templateId', 'data', 'createdAt', 'slug', 'links'],
             properties: {
               id: { $ref: '#/common/id' },
-              tenantId: { $ref: '#/common/tenantId' },
+              brandId: { $ref: '#/common/brandId' },
               templateId: { type: 'string' },
               data: { type: 'object' },
               createdAt: { $ref: '#/common/isoDate' },
@@ -187,9 +187,9 @@ const SCHEMAS = {
     create: {
       request: {
         type: 'object',
-        required: ['tenantId', 'scope', 'templateId', 'data', 'adminKey'],
+        required: ['brandId', 'scope', 'templateId', 'data', 'adminKey'],
         properties: {
-          tenantId: { $ref: '#/common/tenantId' },
+          brandId: { $ref: '#/common/brandId' },
           scope: { $ref: '#/common/scope' },
           templateId: { type: 'string' },
           data: { type: 'object' },
@@ -217,9 +217,9 @@ const SCHEMAS = {
     update: {
       request: {
         type: 'object',
-        required: ['tenantId', 'id', 'data', 'adminKey'],
+        required: ['brandId', 'id', 'data', 'adminKey'],
         properties: {
-          tenantId: { $ref: '#/common/tenantId' },
+          brandId: { $ref: '#/common/brandId' },
           scope: { $ref: '#/common/scope' },
           id: { $ref: '#/common/id' },
           data: { type: 'object' },
@@ -290,9 +290,9 @@ const SCHEMAS = {
     getReport: {
       request: {
         type: 'object',
-        required: ['tenantId', 'id', 'adminKey'],
+        required: ['brandId', 'id', 'adminKey'],
         properties: {
-          tenantId: { $ref: '#/common/tenantId' },
+          brandId: { $ref: '#/common/brandId' },
           id: { $ref: '#/common/id' },
           adminKey: { type: 'string' },
           dateFrom: { $ref: '#/common/isoDate' },
@@ -342,7 +342,7 @@ const SCHEMAS = {
           eventId: { $ref: '#/common/id' },
           dateFrom: { $ref: '#/common/isoDate' },
           dateTo: { $ref: '#/common/isoDate' },
-          tenantId: { $ref: '#/common/tenantId' },
+          brandId: { $ref: '#/common/brandId' },
           adminKey: { type: 'string' }
         }
       },
@@ -446,12 +446,12 @@ const SCHEMAS = {
     createFromTemplate: {
       request: {
         type: 'object',
-        required: ['templateType', 'tenantId', 'adminKey'],
+        required: ['templateType', 'brandId', 'adminKey'],
         properties: {
           templateType: { type: 'string' },
           eventName: { type: 'string' },
           eventId: { $ref: '#/common/id' },
-          tenantId: { $ref: '#/common/tenantId' },
+          brandId: { $ref: '#/common/brandId' },
           adminKey: { type: 'string' }
         }
       },
@@ -483,9 +483,9 @@ const SCHEMAS = {
     register: {
       request: {
         type: 'object',
-        required: ['tenantId', 'eventType', 'url'],
+        required: ['brandId', 'eventType', 'url'],
         properties: {
-          tenantId: { $ref: '#/common/tenantId' },
+          brandId: { $ref: '#/common/brandId' },
           eventType: {
             type: 'string',
             enum: [
@@ -517,10 +517,10 @@ const SCHEMAS = {
           ok: { type: 'boolean' },
           value: {
             type: 'object',
-            required: ['id', 'tenantId', 'eventType', 'url', 'secret', 'enabled', 'createdAt'],
+            required: ['id', 'brandId', 'eventType', 'url', 'secret', 'enabled', 'createdAt'],
             properties: {
               id: { type: 'string' },
-              tenantId: { type: 'string' },
+              brandId: { type: 'string' },
               eventType: { type: 'string' },
               url: { type: 'string' },
               secret: { type: 'string' },
@@ -534,9 +534,9 @@ const SCHEMAS = {
     unregister: {
       request: {
         type: 'object',
-        required: ['tenantId', 'webhookId'],
+        required: ['brandId', 'webhookId'],
         properties: {
-          tenantId: { $ref: '#/common/tenantId' },
+          brandId: { $ref: '#/common/brandId' },
           webhookId: { type: 'string' }
         }
       },
@@ -559,9 +559,9 @@ const SCHEMAS = {
     list: {
       request: {
         type: 'object',
-        required: ['tenantId'],
+        required: ['brandId'],
         properties: {
-          tenantId: { $ref: '#/common/tenantId' }
+          brandId: { $ref: '#/common/brandId' }
         }
       },
       response: {
@@ -579,7 +579,7 @@ const SCHEMAS = {
                   type: 'object',
                   properties: {
                     id: { type: 'string' },
-                    tenantId: { type: 'string' },
+                    brandId: { type: 'string' },
                     eventType: { type: 'string' },
                     url: { type: 'string' },
                     enabled: { type: 'boolean' },
@@ -597,9 +597,9 @@ const SCHEMAS = {
     test: {
       request: {
         type: 'object',
-        required: ['tenantId', 'webhookId'],
+        required: ['brandId', 'webhookId'],
         properties: {
-          tenantId: { $ref: '#/common/tenantId' },
+          brandId: { $ref: '#/common/brandId' },
           webhookId: { type: 'string' }
         }
       },
@@ -626,9 +626,9 @@ const SCHEMAS = {
     getDeliveries: {
       request: {
         type: 'object',
-        required: ['tenantId'],
+        required: ['brandId'],
         properties: {
-          tenantId: { $ref: '#/common/tenantId' },
+          brandId: { $ref: '#/common/brandId' },
           webhookId: { type: 'string' },
           limit: { type: 'number', minimum: 1, maximum: 500 }
         }

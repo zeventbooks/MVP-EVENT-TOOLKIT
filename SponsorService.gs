@@ -27,7 +27,7 @@
  * @param {string} [params.eventId] - Filter by event ID
  * @param {string} [params.dateFrom] - Start date (ISO)
  * @param {string} [params.dateTo] - End date (ISO)
- * @param {string} [params.tenantId] - Tenant ID (for admin access)
+ * @param {string} [params.brandId] - Tenant ID (for admin access)
  * @returns {object} Result envelope with analytics data
  */
 function SponsorService_getAnalytics(params) {
@@ -439,11 +439,11 @@ function SponsorService_generateROIInsights(metrics) {
  * and upsell opportunities (e.g., dedicated TV pane).
  *
  * @param {object} params - Settings parameters
- * @param {string} [params.tenantId] - Tenant ID for tenant-specific settings
+ * @param {string} [params.brandId] - Tenant ID for tenant-specific settings
  * @returns {object} Result envelope with sponsor settings
  */
 function SponsorService_getSettings(params) {
-  const { tenantId } = params || {};
+  const { brandId } = params || {};
 
   // Default placement settings
   const settings = {
@@ -544,8 +544,8 @@ function SponsorService_getSettings(params) {
   };
 
   // If tenant-specific settings exist, merge them
-  if (tenantId) {
-    const tenant = findTenant_(tenantId);
+  if (brandId) {
+    const tenant = findTenant_(brandId);
     if (tenant && tenant.sponsorSettings) {
       // Merge tenant-specific overrides
       Object.assign(settings, tenant.sponsorSettings);
@@ -553,7 +553,7 @@ function SponsorService_getSettings(params) {
   }
 
   diag_('info', 'SponsorService_getSettings', 'Settings retrieved', {
-    tenantId: tenantId || 'default',
+    brandId: brandId || 'default',
     placementsCount: Object.keys(settings.placements).length
   });
 
@@ -567,18 +567,18 @@ function SponsorService_getSettings(params) {
  *
  * @param {object} params - Validation parameters
  * @param {array} params.sponsors - Array of sponsor objects with placements
- * @param {string} [params.tenantId] - Tenant ID for settings lookup
+ * @param {string} [params.brandId] - Tenant ID for settings lookup
  * @returns {object} Result envelope with validation results
  */
 function SponsorService_validatePlacements(params) {
-  const { sponsors, tenantId } = params || {};
+  const { sponsors, brandId } = params || {};
 
   if (!Array.isArray(sponsors)) {
     return Err(ERR.BAD_INPUT, 'Sponsors must be an array');
   }
 
   // Get settings
-  const settingsResult = SponsorService_getSettings({ tenantId });
+  const settingsResult = SponsorService_getSettings({ brandId });
   if (!settingsResult.ok) return settingsResult;
 
   const settings = settingsResult.value;

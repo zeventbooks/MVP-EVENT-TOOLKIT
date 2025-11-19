@@ -165,7 +165,7 @@ This PR implements the comprehensive architectural refactoring recommended in th
 **Formal JSON Schema contracts for all endpoints:**
 
 **Schema Categories:**
-- `SCHEMAS.common` - Reusable types (id, tenantId, scope, isoDate, url, email)
+- `SCHEMAS.common` - Reusable types (id, brandId, scope, isoDate, url, email)
 - `SCHEMAS.auth` - Authentication (generateToken)
 - `SCHEMAS.events` - Event operations (list, get, create, update)
 - `SCHEMAS.analytics` - Analytics (logEvents, getReport)

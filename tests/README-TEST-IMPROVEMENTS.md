@@ -135,7 +135,7 @@ validateEnvelope(response); // ✅ Single source of truth
 ```javascript
 it('should only return events for specified tenant', () => {
   const rootEvents = filterByTenant(allEvents, 'root');
-  expect(rootEvents.every(e => e.tenantId === 'root')).toBe(true);
+  expect(rootEvents.every(e => e.brandId === 'root')).toBe(true);
 });
 
 it('should reject admin key from different tenant', () => {

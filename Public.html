@@ -196,7 +196,7 @@
   </div>
 
   <script>
-    const TENANT = '<?= tenantId ?>';
+    const TENANT = '<?= brandId ?>';
     const SCOPE = '<?= scope ?>';
     const EXEC_URL = '<?= execUrl ?>';
     const url = new URL(location.href);
@@ -457,12 +457,12 @@
     }
 
     if (ID) {
-      rpc('api_get', { tenantId: TENANT, scope: SCOPE, id: ID }).then(res => {
+      rpc('api_get', { brandId: TENANT, scope: SCOPE, id: ID }).then(res => {
         if (res.ok && res.value) renderDetail(res.value);
         else document.getElementById('list').innerHTML = '<p class="muted">Event not found.</p>';
       });
     } else {
-      rpc('api_list', { tenantId: TENANT, scope: SCOPE }).then(res => {
+      rpc('api_list', { brandId: TENANT, scope: SCOPE }).then(res => {
         if (res.ok && res.value) renderList(res.value.items || []);
         else document.getElementById('list').innerHTML = '<p class="muted">Could not load events.</p>';
       });

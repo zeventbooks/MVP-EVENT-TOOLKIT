@@ -340,7 +340,7 @@ Once your setup check passes:
      -H "Content-Type: application/json" \
      -d '{
        "action": "create",
-       "tenantId": "root",
+       "brandId": "root",
        "scope": "events",
        "templateId": "event",
        "adminKey": "YOUR_ADMIN_SECRET",

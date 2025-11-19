@@ -23,7 +23,7 @@ Include the `adminKey` in your POST request body:
 ```json
 {
   "action": "create",
-  "tenantId": "root",
+  "brandId": "root",
   "adminKey": "YOUR_ADMIN_SECRET",
   "data": { ... }
 }
@@ -37,7 +37,7 @@ const response = await fetch(BASE_URL, {
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
     action: 'create',
-    tenantId: 'root',
+    brandId: 'root',
     adminKey: 'YOUR_ADMIN_SECRET',
     scope: 'events',
     templateId: 'Event',
@@ -88,7 +88,7 @@ Content-Type: application/json
 
 {
   "action": "generateToken",
-  "tenantId": "root",
+  "brandId": "root",
   "adminKey": "YOUR_ADMIN_SECRET",
   "expiresIn": 3600,
   "scope": "events"
@@ -117,7 +117,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 {
   "action": "create",
-  "tenantId": "root",
+  "brandId": "root",
   "scope": "events",
   "templateId": "Event",
   "data": {
@@ -136,7 +136,7 @@ async function getToken() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       action: 'generateToken',
-      tenantId: 'root',
+      brandId: 'root',
       adminKey: 'YOUR_ADMIN_SECRET',
       expiresIn: 3600
     })
@@ -159,7 +159,7 @@ async function createEvent(token) {
     },
     body: JSON.stringify({
       action: 'create',
-      tenantId: 'root',
+      brandId: 'root',
       scope: 'events',
       templateId: 'Event',
       data: {
@@ -200,7 +200,7 @@ class TokenManager {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         action: 'generateToken',
-        tenantId: 'root',
+        brandId: 'root',
         adminKey: this.adminKey,
         expiresIn: 3600
       })
@@ -228,7 +228,7 @@ class TokenManager {
       },
       body: JSON.stringify({
         action,
-        tenantId: 'root',
+        brandId: 'root',
         ...data
       })
     });
@@ -249,7 +249,7 @@ class TokenManager {
         },
         body: JSON.stringify({
           action,
-          tenantId: 'root',
+          brandId: 'root',
           ...data
         })
       });
@@ -311,7 +311,7 @@ X-API-Key: YOUR_ADMIN_SECRET
 
 {
   "action": "create",
-  "tenantId": "root",
+  "brandId": "root",
   "scope": "events",
   "templateId": "Event",
   "data": {
@@ -331,7 +331,7 @@ const response = await fetch(BASE_URL, {
   },
   body: JSON.stringify({
     action: 'create',
-    tenantId: 'root',
+    brandId: 'root',
     scope: 'events',
     templateId: 'Event',
     data: {
@@ -349,7 +349,7 @@ curl -X POST "https://script.google.com/.../exec" \
   -H "X-API-Key: YOUR_ADMIN_SECRET" \
   -d '{
     "action": "create",
-    "tenantId": "root",
+    "brandId": "root",
     "scope": "events",
     "templateId": "Event",
     "data": {

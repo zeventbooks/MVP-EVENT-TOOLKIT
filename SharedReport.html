@@ -456,7 +456,7 @@
   </div>
 
   <script>
-    const TENANT_ID = '<?= tenantId ?>';
+    const TENANT_ID = '<?= brandId ?>';
 
     // Detect sponsor view from URL params
     const urlParams = new URLSearchParams(window.location.search);
@@ -476,11 +476,11 @@
           result = await NU.rpc('api_getSponsorAnalytics', {
             sponsorId: SPONSOR_ID,
             eventId: EVENT_ID || null,
-            tenantId: TENANT_ID
+            brandId: TENANT_ID
           });
         } else {
           result = await NU.rpc('api_getSharedAnalytics', {
-            tenantId: TENANT_ID,
+            brandId: TENANT_ID,
             isSponsorView: IS_SPONSOR_VIEW
           });
         }

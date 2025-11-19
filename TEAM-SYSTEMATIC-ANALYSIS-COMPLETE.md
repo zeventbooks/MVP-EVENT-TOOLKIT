@@ -156,7 +156,7 @@ class EventService {
 
 // Code.gs
 function api_create(req) {
-  const service = new EventService(getStore(req.tenantId));
+  const service = new EventService(getStore(req.brandId));
   return service.createEvent(req.data);
 }
 ```

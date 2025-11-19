@@ -297,7 +297,7 @@
     <!-- Header -->
     <div class="page-header">
       <div class="nav-breadcrumb">
-        <a href="?page=test&brand=<?= tenantId ?>">← Back to Dashboard</a>
+        <a href="?page=test&brand=<?= brandId ?>">← Back to Dashboard</a>
       </div>
       <h1>
         <span>🏢</span>
@@ -389,7 +389,7 @@
 
     <!-- Back to Dashboard Button -->
     <div style="text-align: center; margin-top: 2rem;">
-      <a href="?page=test&brand=<?= tenantId ?>" class="btn btn-secondary">
+      <a href="?page=test&brand=<?= brandId ?>" class="btn btn-secondary">
         ← Back to Triangle Dashboard
       </a>
     </div>
@@ -398,7 +398,7 @@
   <script>
     // Global state
     let adminKey = null;
-    const tenantId = '<?= tenantId ?>';
+    const brandId = '<?= brandId ?>';
     let sponsors = [];
 
     // Initialize on page load
@@ -475,7 +475,7 @@
       listEl.innerHTML = '';
 
       try {
-        const response = await fetch(`?p=api&action=list&tenantId=${tenantId}&scope=sponsors`);
+        const response = await fetch(`?p=api&action=list&brandId=${brandId}&scope=sponsors`);
         const data = await response.json();
 
         if (data.ok && data.value && data.value.items) {
@@ -592,7 +592,7 @@
             btnLoading.style.display = 'none';
           })
           .api_create({
-            tenantId: tenantId,
+            brandId: brandId,
             scope: 'sponsors',
             templateId: 'sponsor',
             adminKey: adminKey,
@@ -633,7 +633,7 @@
             showAlert('Error updating sponsor: ' + error.message, 'error');
           })
           .api_update({
-            tenantId: tenantId,
+            brandId: brandId,
             scope: 'sponsors',
             id: sponsorId,
             adminKey: adminKey,
@@ -663,7 +663,7 @@
             showAlert('Error deleting sponsor: ' + error.message, 'error');
           })
           .api_delete({
-            tenantId: tenantId,
+            brandId: brandId,
             scope: 'sponsors',
             id: sponsorId,
             adminKey: adminKey

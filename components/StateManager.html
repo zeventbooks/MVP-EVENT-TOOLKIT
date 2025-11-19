@@ -17,10 +17,10 @@
    */
   class EventStateManager {
     constructor(options = {}) {
-      this.tenantId = options.tenantId;
+      this.brandId = options.brandId;
       this.scope = options.scope;
       this.autoSaveInterval = options.autoSaveInterval || 30000; // 30 seconds
-      this.storageKey = `eventDraft_${this.tenantId}_${this.scope}`;
+      this.storageKey = `eventDraft_${this.brandId}_${this.scope}`;
 
       this.state = {
         currentEvent: null,
@@ -206,7 +206,7 @@
 
       try {
         const response = await NU.rpc('api_updateEventData', {
-          tenantId: this.tenantId,
+          brandId: this.brandId,
           scope: this.scope,
           id: this.state.currentEvent.id,
           adminKey: this.getAdminKey(),
@@ -349,7 +349,7 @@
      * Get admin key from session storage
      */
     getAdminKey() {
-      return sessionStorage.getItem('ADMIN_KEY:' + this.tenantId) || '';
+      return sessionStorage.getItem('ADMIN_KEY:' + this.brandId) || '';
     }
 
     /**

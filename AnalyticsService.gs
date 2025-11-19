@@ -58,19 +58,19 @@ function AnalyticsService_logEvents(items) {
  *
  * @param {object} params - Report parameters
  * @param {string} params.eventId - Event ID
- * @param {string} [params.tenantId] - Tenant ID (for authorization)
+ * @param {string} [params.brandId] - Tenant ID (for authorization)
  * @param {string} [params.dateFrom] - Start date (ISO)
  * @param {string} [params.dateTo] - End date (ISO)
  * @returns {object} Result envelope with aggregated metrics
  */
 function AnalyticsService_getEventReport(params) {
-  const { eventId, tenantId, dateFrom, dateTo } = params || {};
+  const { eventId, brandId, dateFrom, dateTo } = params || {};
 
   if (!eventId) return Err(ERR.BAD_INPUT, 'missing eventId');
 
-  // Verify event exists and belongs to tenant (if tenantId provided)
-  if (tenantId) {
-    const verifyResult = AnalyticsService_verifyEventOwnership(eventId, tenantId);
+  // Verify event exists and belongs to tenant (if brandId provided)
+  if (brandId) {
+    const verifyResult = AnalyticsService_verifyEventOwnership(eventId, brandId);
     if (!verifyResult.ok) return verifyResult;
   }
 
@@ -202,7 +202,7 @@ function AnalyticsService_aggregateEventData(data) {
  * Get shared analytics (for both event managers and sponsors)
  *
  * @param {object} params - Query parameters
- * @param {string} params.tenantId - Tenant ID
+ * @param {string} params.brandId - Tenant ID
  * @param {string} [params.eventId] - Filter by event ID
  * @param {string} [params.sponsorId] - Filter by sponsor ID
  * @param {string} [params.dateFrom] - Start date (ISO)
@@ -211,9 +211,9 @@ function AnalyticsService_aggregateEventData(data) {
  * @returns {object} Result envelope with shared analytics
  */
 function AnalyticsService_getSharedAnalytics(params) {
-  const { tenantId, eventId, sponsorId, dateFrom, dateTo, isSponsorView = false } = params || {};
+  const { brandId, eventId, sponsorId, dateFrom, dateTo, isSponsorView = false } = params || {};
 
-  if (!tenantId) return Err(ERR.BAD_INPUT, 'tenantId required');
+  if (!brandId) return Err(ERR.BAD_INPUT, 'brandId required');
 
   // Get analytics sheet
   const sh = _ensureAnalyticsSheet_();
@@ -293,11 +293,11 @@ function AnalyticsService_getSharedAnalytics(params) {
  * Verify event ownership (belongs to tenant)
  *
  * @param {string} eventId - Event ID
- * @param {string} tenantId - Tenant ID
+ * @param {string} brandId - Tenant ID
  * @returns {object} Result envelope (Ok/Err)
  */
-function AnalyticsService_verifyEventOwnership(eventId, tenantId) {
-  const tenant = findTenant_(tenantId);
+function AnalyticsService_verifyEventOwnership(eventId, brandId) {
+  const tenant = findTenant_(brandId);
   if (!tenant) return Err(ERR.NOT_FOUND, 'Unknown tenant');
 
   const eventSheet = SpreadsheetApp.openById(tenant.store.spreadsheetId)
@@ -308,11 +308,11 @@ function AnalyticsService_verifyEventOwnership(eventId, tenantId) {
   }
 
   const eventRows = eventSheet.getDataRange().getValues().slice(1);
-  const event = eventRows.find(r => r[0] === eventId && r[1] === tenantId);
+  const event = eventRows.find(r => r[0] === eventId && r[1] === brandId);
 
   if (!event) {
     diag_('warn', 'AnalyticsService_verifyEventOwnership', 'Unauthorized access attempt',
-      { eventId, tenantId });
+      { eventId, brandId });
     return Err(ERR.NOT_FOUND, 'Event not found or unauthorized');
   }
 

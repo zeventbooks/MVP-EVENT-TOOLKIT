@@ -276,7 +276,7 @@ Use this checklist to verify the Forms workflow works end-to-end:
 7. [ ] Visit poster page: `https://zeventbooks.com?page=poster&p=events&brand=root&id={event-id}`
 8. [ ] Verify QR codes display on poster
 9. [ ] Scan QR codes with phone - should redirect to forms
-10. [ ] Check analytics: `?action=getReport&tenantId=root&eventId={event-id}`
+10. [ ] Check analytics: `?action=getReport&brandId=root&eventId={event-id}`
 11. [ ] Verify form clicks tracked with correct surface tags
 
 ### **Automated Testing**

@@ -109,7 +109,7 @@ Run these tests before production deployment:
 ```javascript
 // Should FAIL with invalid key
 api_create({
-  tenantId: 'root',
+  brandId: 'root',
   scope: 'events',
   templateId: 'event',
   adminKey: 'WRONG_KEY',
@@ -119,7 +119,7 @@ api_create({
 
 // Should SUCCEED with correct key
 api_create({
-  tenantId: 'root',
+  brandId: 'root',
   scope: 'events',
   templateId: 'event',
   adminKey: 'YOUR_ACTUAL_SECRET',
@@ -132,7 +132,7 @@ api_create({
 ```javascript
 // Try to inject script tags
 api_create({
-  tenantId: 'root',
+  brandId: 'root',
   scope: 'events',
   templateId: 'event',
   adminKey: 'YOUR_ACTUAL_SECRET',
@@ -148,7 +148,7 @@ api_create({
 ```javascript
 // Should FAIL with javascript: protocol
 api_create({
-  tenantId: 'root',
+  brandId: 'root',
   scope: 'events',
   templateId: 'event',
   adminKey: 'YOUR_ACTUAL_SECRET',
@@ -166,7 +166,7 @@ api_create({
 // Make 11 rapid requests (exceeds 10/min limit)
 for (let i = 0; i < 11; i++) {
   api_create({
-    tenantId: 'root',
+    brandId: 'root',
     scope: 'events',
     templateId: 'event',
     adminKey: 'YOUR_ACTUAL_SECRET',

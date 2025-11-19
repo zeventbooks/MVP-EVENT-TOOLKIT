@@ -109,7 +109,7 @@ The MVP-EVENT-TOOLKIT is a **multi-page event management system** built on Googl
 
 ```
 appTitle: "Zeventbook · events"  (tenant.name + scope)
-tenantId: "root"                 (current tenant)
+brandId: "root"                 (current tenant)
 scope: "events"                  (events|leagues|tournaments)
 execUrl: "https://script.google.com/macros/..."  (base URL for self-referential links)
 ZEB: { BUILD_ID, CONTRACT_VER }  (metadata)

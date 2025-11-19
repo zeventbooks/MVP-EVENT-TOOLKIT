@@ -167,7 +167,7 @@ function SecurityMiddleware_verifyJWT(token, tenant) {
     const tenantSecret = getAdminSecret_(tenant.id);
     if (!tenantSecret) {
       return UserFriendlyErr_(ERR.INTERNAL, 'Tenant secret not configured',
-        { tenantId: tenant.id }, 'SecurityMiddleware_verifyJWT');
+        { brandId: tenant.id }, 'SecurityMiddleware_verifyJWT');
     }
     const expectedSignature = SecurityMiddleware_generateJWTSignature(
       parts[0] + '.' + parts[1], tenantSecret
@@ -222,7 +222,7 @@ function SecurityMiddleware_generateJWT(params) {
 
   if (!tenantSecret) {
     return UserFriendlyErr_(ERR.INTERNAL, 'Tenant secret not configured',
-      { tenantId: tenant.id }, 'SecurityMiddleware_generateJWT');
+      { brandId: tenant.id }, 'SecurityMiddleware_generateJWT');
   }
 
   const signature = SecurityMiddleware_generateJWTSignature(headerB64 + '.' + payloadB64, tenantSecret);
@@ -244,11 +244,11 @@ function SecurityMiddleware_generateJWT(params) {
  *
  * @param {object} e - Request event object
  * @param {object} body - Request body
- * @param {string} tenantId - Tenant ID
+ * @param {string} brandId - Tenant ID
  * @returns {object} Result envelope with authentication details or error
  */
-function SecurityMiddleware_authenticateRequest(e, body, tenantId) {
-  const tenant = findTenant_(tenantId);
+function SecurityMiddleware_authenticateRequest(e, body, brandId) {
+  const tenant = findTenant_(brandId);
   if (!tenant) {
     return Err(ERR.NOT_FOUND, 'Unknown tenant');
   }
@@ -287,13 +287,13 @@ function SecurityMiddleware_authenticateRequest(e, body, tenantId) {
  * Check rate limits and authenticate tenant
  * Includes IP-based failed authentication tracking
  *
- * @param {string} tenantId - Tenant ID
+ * @param {string} brandId - Tenant ID
  * @param {string} adminKey - Admin secret key
  * @param {string} [ipAddress] - Client IP address
  * @returns {object} Result envelope with tenant or error
  */
-function SecurityMiddleware_gate(tenantId, adminKey, ipAddress = null) {
-  const tenant = findTenant_(tenantId);
+function SecurityMiddleware_gate(brandId, adminKey, ipAddress = null) {
+  const tenant = findTenant_(brandId);
   if (!tenant) return Err(ERR.NOT_FOUND, 'Unknown tenant');
 
   const tenantSecret = getAdminSecret_(tenant.id);
@@ -302,7 +302,7 @@ function SecurityMiddleware_gate(tenantId, adminKey, ipAddress = null) {
   // Track failed authentication attempts per IP
   if (tenantSecret && adminKey !== tenantSecret) {
     if (ipAddress) {
-      const failKey = `auth_fail:${tenantId}:${ipAddress}`;
+      const failKey = `auth_fail:${brandId}:${ipAddress}`;
       const fails = Number(cache.get(failKey) || '0');
 
       if (fails >= SECURITY_CONFIG.MAX_FAILED_AUTH) {
@@ -316,7 +316,7 @@ function SecurityMiddleware_gate(tenantId, adminKey, ipAddress = null) {
   }
 
   // Check rate limit
-  const rateLimitKey = `rate:${tenantId}`;
+  const rateLimitKey = `rate:${brandId}`;
   const count = Number(cache.get(rateLimitKey) || '0');
 
   if (count >= SECURITY_CONFIG.RATE_MAX_PER_MIN) {

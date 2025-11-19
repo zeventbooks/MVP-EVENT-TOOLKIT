@@ -117,7 +117,7 @@
   </div>
 
   <script>
-    const TENANT = '<?= tenantId ?>';
+    const TENANT = '<?= brandId ?>';
     const SCOPE = '<?= scope ?>';
 
     let testsPassed = 0;
@@ -205,7 +205,7 @@
       const card = createTestCard('Create Event', 'Test event creation with full data model');
       try {
         const res = await NU.rpc('api_create', {
-          tenantId: TENANT,
+          brandId: TENANT,
           scope: 'events',
           templateId: 'event',
           adminKey: getAdminKey(),
@@ -234,7 +234,7 @@
       const card = createTestCard('List Events', 'Test event listing');
       try {
         const res = await NU.rpc('api_list', {
-          tenantId: TENANT,
+          brandId: TENANT,
           scope: 'events'
         });
 
@@ -280,7 +280,7 @@
       try {
         // Try to create event with missing required field
         const res = await NU.rpc('api_create', {
-          tenantId: TENANT,
+          brandId: TENANT,
           scope: 'events',
           templateId: 'event',
           adminKey: getAdminKey(),
@@ -306,7 +306,7 @@
       try {
         // Create a test event
         const createRes = await NU.rpc('api_create', {
-          tenantId: TENANT,
+          brandId: TENANT,
           scope: 'events',
           templateId: 'event',
           adminKey: getAdminKey(),

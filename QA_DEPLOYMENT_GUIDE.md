@@ -268,7 +268,7 @@ QA_URL="https://script.google.com/macros/s/AKfycb.../exec"
 curl -X POST "$QA_URL?action=create" \
   -H "Content-Type: application/json" \
   -d '{
-    "tenantId": "root",
+    "brandId": "root",
     "scope": "events",
     "templateId": "event",
     "adminKey": "your-qa-admin-key",

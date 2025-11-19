@@ -60,7 +60,7 @@ This creates a **code synchronization crisis** where:
 google.script.run
   .withSuccessHandler(res => { /* handle response */ })
   .withFailureHandler(err => { /* handle error */ })
-  .api_get({ tenantId: 'root', scope: 'events', id: '123' });
+  .api_get({ brandId: 'root', scope: 'events', id: '123' });
 ```
 
 **Integration Quality:**

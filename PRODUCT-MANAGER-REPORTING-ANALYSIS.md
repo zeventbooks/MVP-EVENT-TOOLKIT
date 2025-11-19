@@ -51,8 +51,8 @@
 ```javascript
 // In Code.gs
 function api_getSharedEventDashboard(req) {
-  const { eventId, tenantId, adminKey } = req;
-  const g = gate_(tenantId, adminKey);
+  const { eventId, brandId, adminKey } = req;
+  const g = gate_(brandId, adminKey);
   if (!g.ok) return g;
 
   // Aggregate metrics
@@ -112,8 +112,8 @@ function api_getSharedEventDashboard(req) {
 **Implementation:**
 ```javascript
 function api_getSponsorROI(req) {
-  const { sponsorId, tenantId, adminKey } = req;
-  const g = gate_(tenantId, adminKey);
+  const { sponsorId, brandId, adminKey } = req;
+  const g = gate_(brandId, adminKey);
   if (!g.ok) return g;
 
   const roi = {

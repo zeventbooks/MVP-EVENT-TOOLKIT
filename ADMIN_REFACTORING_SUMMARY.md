@@ -210,7 +210,7 @@ https://script.google.com/...exec?page=admin&mode=enhanced
 ```javascript
 // Initialize state manager
 const stateManager = new EventStateManager({
-  tenantId: TENANT,
+  brandId: TENANT,
   scope: SCOPE,
   autoSave: true,
   autoSaveInterval: 30000 // 30 seconds
@@ -234,12 +234,12 @@ stateManager.redo();
 ```javascript
 // Get sponsor settings
 const settings = await NU.rpc('api_getSponsorSettings', {
-  tenantId: TENANT
+  brandId: TENANT
 });
 
 // Validate placements
 const validation = await NU.rpc('api_validateSponsorPlacements', {
-  tenantId: TENANT,
+  brandId: TENANT,
   sponsors: [
     {
       id: 'sponsor1',

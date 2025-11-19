@@ -112,7 +112,7 @@ curl -X POST "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec" \
   -H "Content-Type: application/json" \
   -d '{
     "action": "list",
-    "tenantId": "root",
+    "brandId": "root",
     "adminKey": "YOUR_ADMIN_SECRET_ROOT",
     "scope": "events"
   }'

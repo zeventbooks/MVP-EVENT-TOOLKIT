@@ -120,7 +120,7 @@ jobs:
           sleep 10
 
           # Test status endpoint
-          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" "${QA_URL}?p=api&action=status&tenantId=root" || echo "000")
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" "${QA_URL}?p=api&action=status&brandId=root" || echo "000")
 
           if [ "$RESPONSE" == "200" ]; then
             echo "✅ Rollback verified - QA is responding"
@@ -146,7 +146,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Test the QA environment to ensure rollback was successful:" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- [Status API](${{ steps.rollback.outputs.qa_url }}?p=api&action=status&tenantId=root)" >> $GITHUB_STEP_SUMMARY
+          echo "- [Status API](${{ steps.rollback.outputs.qa_url }}?p=api&action=status&brandId=root)" >> $GITHUB_STEP_SUMMARY
           echo "- [Public Page](${{ steps.rollback.outputs.qa_url }}?p=events&brand=root)" >> $GITHUB_STEP_SUMMARY
           echo "- [Admin Page](${{ steps.rollback.outputs.qa_url }}?page=admin&brand=root)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY

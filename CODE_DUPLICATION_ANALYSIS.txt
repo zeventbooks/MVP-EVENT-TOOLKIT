@@ -241,19 +241,19 @@ AFFECTED TESTS:
 DUPLICATED CODE:
 ```javascript
 // Both files implement identical filtering logic:
-const filterByTenant = (items, tenantId) => {
-  return items.filter(item => item.tenantId === tenantId);
+const filterByTenant = (items, brandId) => {
+  return items.filter(item => item.brandId === brandId);
 };
 
 // Both test the same isolation principle:
 test('should only return [data] for specified tenant', () => {
   const allItems = [
-    { id: '1', tenantId: 'root', ... },
-    { id: '2', tenantId: 'abc', ... },
+    { id: '1', brandId: 'root', ... },
+    { id: '2', brandId: 'abc', ... },
   ];
   const filtered = filterByTenant(allItems, 'root');
   expect(filtered).toHaveLength(1);
-  expect(filtered.every(e => e.tenantId === 'root')).toBe(true);
+  expect(filtered.every(e => e.brandId === 'root')).toBe(true);
 });
 ```
 
