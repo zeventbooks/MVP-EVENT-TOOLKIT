@@ -27,7 +27,7 @@
  * @param {string} [params.eventId] - Filter by event ID
  * @param {string} [params.dateFrom] - Start date (ISO)
  * @param {string} [params.dateTo] - End date (ISO)
- * @param {string} [params.brandId] - Tenant ID (for admin access)
+ * @param {string} [params.brandId] - Brand ID (for admin access)
  * @returns {object} Result envelope with analytics data
  */
 function SponsorService_getAnalytics(params) {
@@ -439,7 +439,7 @@ function SponsorService_generateROIInsights(metrics) {
  * and upsell opportunities (e.g., dedicated TV pane).
  *
  * @param {object} params - Settings parameters
- * @param {string} [params.brandId] - Tenant ID for tenant-specific settings
+ * @param {string} [params.brandId] - Brand ID for brand-specific settings
  * @returns {object} Result envelope with sponsor settings
  */
 function SponsorService_getSettings(params) {
@@ -543,12 +543,12 @@ function SponsorService_getSettings(params) {
     }
   };
 
-  // If tenant-specific settings exist, merge them
+  // If brand-specific settings exist, merge them
   if (brandId) {
-    const tenant = findTenant_(brandId);
-    if (tenant && tenant.sponsorSettings) {
-      // Merge tenant-specific overrides
-      Object.assign(settings, tenant.sponsorSettings);
+    const brand = findBrand_(brandId);
+    if (brand && brand.sponsorSettings) {
+      // Merge brand-specific overrides
+      Object.assign(settings, brand.sponsorSettings);
     }
   }
 
@@ -567,7 +567,7 @@ function SponsorService_getSettings(params) {
  *
  * @param {object} params - Validation parameters
  * @param {array} params.sponsors - Array of sponsor objects with placements
- * @param {string} [params.brandId] - Tenant ID for settings lookup
+ * @param {string} [params.brandId] - Brand ID for settings lookup
  * @returns {object} Result envelope with validation results
  */
 function SponsorService_validatePlacements(params) {
@@ -650,39 +650,39 @@ function SponsorService_validatePlacements(params) {
 // === Portfolio Operations =================================================
 
 /**
- * Get portfolio sponsor list (all sponsors across child tenants)
+ * Get portfolio sponsor list (all sponsors across child brands)
  *
- * @param {string} parentTenantId - Parent tenant ID
+ * @param {string} parentBrandId - Parent brand ID
  * @returns {object} Result envelope with sponsor list
  */
-function SponsorService_getPortfolioSponsors(parentTenantId) {
-  const parentTenant = findTenant_(parentTenantId);
-  if (!parentTenant) {
-    return Err(ERR.NOT_FOUND, 'Unknown parent tenant');
+function SponsorService_getPortfolioSponsors(parentBrandId) {
+  const parentBrand = findBrand_(parentBrandId);
+  if (!parentBrand) {
+    return Err(ERR.NOT_FOUND, 'Unknown parent brand');
   }
 
-  const childTenantIds = parentTenant.childTenants || [];
+  const childBrandIds = parentBrand.childBrands || [];
 
-  // Collect all unique sponsors across all child tenants
+  // Collect all unique sponsors across all child brands
   const sponsorsMap = new Map();
 
-  for (const childTenantId of childTenantIds) {
-    const childTenant = findTenant_(childTenantId);
-    if (!childTenant) continue;
+  for (const childBrandId of childBrandIds) {
+    const childBrand = findBrand_(childBrandId);
+    if (!childBrand) continue;
 
-    const sponsors = childTenant.sponsors || [];
+    const sponsors = childBrand.sponsors || [];
     for (const sponsor of sponsors) {
       if (!sponsorsMap.has(sponsor.id)) {
         sponsorsMap.set(sponsor.id, {
           id: sponsor.id,
           name: sponsor.name,
           logo: sponsor.logo,
-          tenants: [childTenantId]
+          brands: [childBrandId]
         });
       } else {
         const existing = sponsorsMap.get(sponsor.id);
-        if (!existing.tenants.includes(childTenantId)) {
-          existing.tenants.push(childTenantId);
+        if (!existing.brands.includes(childBrandId)) {
+          existing.brands.push(childBrandId);
         }
       }
     }
@@ -691,7 +691,7 @@ function SponsorService_getPortfolioSponsors(parentTenantId) {
   const sponsors = Array.from(sponsorsMap.values());
 
   return Ok({
-    parentTenantId,
+    parentBrandId,
     totalSponsors: sponsors.length,
     sponsors
   });

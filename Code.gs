@@ -93,7 +93,7 @@ const DIAG_SHEET='DIAG', DIAG_MAX=3000, DIAG_PER_DAY=800;
  * @param {string} where - Function/location name
  * @param {string} msg - Log message
  * @param {object} meta - Optional metadata object
- * @param {string} spreadsheetId - Optional spreadsheet ID (uses root tenant if not provided)
+ * @param {string} spreadsheetId - Optional spreadsheet ID (uses root brand if not provided)
  */
 // Fixed: Bug #17 - Sanitize sensitive data from metadata before logging
 function sanitizeMetaForLogging_(meta) {
@@ -114,11 +114,11 @@ function sanitizeMetaForLogging_(meta) {
 
 function diag_(level, where, msg, meta, spreadsheetId){
   try{
-    // If spreadsheet ID not provided, try to get from root tenant
+    // If spreadsheet ID not provided, try to get from root brand
     if (!spreadsheetId) {
-      const rootTenant = findTenant_('root');
-      if (rootTenant && rootTenant.store && rootTenant.store.spreadsheetId) {
-        spreadsheetId = rootTenant.store.spreadsheetId;
+      const rootBrand = findBrand_('root');
+      if (rootBrand && rootBrand.store && rootBrand.store.spreadsheetId) {
+        spreadsheetId = rootBrand.store.spreadsheetId;
       }
     }
 
@@ -234,13 +234,13 @@ function doGet(e){
   const pageParam = (e?.parameter?.page || e?.parameter?.p || '').toString();
   const actionParam = (e?.parameter?.action || '').toString();
   const hostHeader = (e?.headers?.host || e?.parameter?.host || '').toString();
-  let tenant = findTenantByHost_(hostHeader) || findTenant_('root');
+  let brand= findBrandByHost_(hostHeader) || findBrand_('root');
 
-  // Allow brand parameter to override tenant
+  // Allow brand parameter to override default brand
   if (e?.parameter?.brand) {
-    const brandTenant = findTenant_(e.parameter.brand);
-    if (brandTenant) {
-      tenant = brandTenant;
+    const overrideBrand = findBrand_(e.parameter.brand);
+    if (overrideBrand) {
+      brand = overrideBrand;
     }
   }
 
@@ -258,32 +258,32 @@ function doGet(e){
   if (pathInfo) {
     const pathParts = pathInfo.split('/').filter(p => p);
 
-    // Check if first part is a tenant ID
-    let tenantFromPath = null;
+    // Check if first part is a brand ID
+    let brandFromPath = null;
     let aliasFromPath = null;
 
     if (pathParts.length >= 2) {
-      // Pattern: /{tenant}/{alias}
-      const possibleTenant = findTenant_(pathParts[0]);
-      if (possibleTenant) {
-        tenantFromPath = possibleTenant;
+      // Pattern: /{brand}/{alias}
+      const possibleBrand = findBrand_(pathParts[0]);
+      if (possibleBrand) {
+        brandFromPath = possibleBrand;
         aliasFromPath = pathParts[1];
       }
     }
 
-    if (!tenantFromPath && pathParts.length >= 1) {
-      // Pattern: /{alias} (use default tenant)
+    if (!brandFromPath && pathParts.length >= 1) {
+      // Pattern: /{alias} (use default brand)
       aliasFromPath = pathParts[0];
     }
 
     // Resolve alias to page configuration
     if (aliasFromPath) {
-      const aliasConfig = resolveUrlAlias_(aliasFromPath, tenantFromPath?.id || tenant.id);
+      const aliasConfig = resolveUrlAlias_(aliasFromPath, brandFromPath?.id || brand.id);
 
       if (aliasConfig) {
-        // Override tenant if specified in path
-        if (tenantFromPath) {
-          tenant = tenantFromPath;
+        // Override brand if specified in path
+        if (brandFromPath) {
+          brand = brandFromPath;
         }
 
         // Set page and mode from alias
@@ -294,7 +294,7 @@ function doGet(e){
         return routePage_(
           e,
           resolvedPage,
-          tenant,
+          brand,
           demoMode,
           { mode: resolvedMode, fromAlias: true, alias: aliasFromPath }
         );
@@ -304,7 +304,7 @@ function doGet(e){
 
   // REST API Routes (for custom frontends)
   if (actionParam) {
-    return handleRestApiGet_(e, actionParam, tenant);
+    return handleRestApiGet_(e, actionParam, brand);
   }
 
   // Shortlink redirect route
@@ -323,48 +323,48 @@ function doGet(e){
 
   // Status endpoint
   if (pageParam === 'status') {
-    const tenantParam = (e?.parameter?.brand || 'root').toString();
-    const status = api_status(tenantParam);
+    const brandParam = (e?.parameter?.brand || 'root').toString();
+    const status = api_status(brandParam);
     return ContentService.createTextOutput(JSON.stringify(status, null, 2))
       .setMimeType(ContentService.MimeType.JSON);
   }
 
   // Setup check endpoint - comprehensive diagnostics for first-time setup
   if (pageParam === 'setup' || pageParam === 'setupcheck') {
-    const tenantParam = (e?.parameter?.brand || 'root').toString();
-    const setupResult = api_setupCheck(tenantParam);
+    const brandParam = (e?.parameter?.brand || 'root').toString();
+    const setupResult = api_setupCheck(brandParam);
     return ContentService.createTextOutput(JSON.stringify(setupResult, null, 2))
       .setMimeType(ContentService.MimeType.JSON);
   }
 
   const path = (e?.pathInfo || '').toString().replace(/^\/+|\/+$/g,'');
   const scope = (e?.parameter?.p || e?.parameter?.scope || 'events').toString();
-  const allowed = tenant.scopesAllowed?.length ? tenant.scopesAllowed : ['events','leagues','tournaments'];
+  const allowed = brand.scopesAllowed?.length ? brand.scopesAllowed : ['events','leagues','tournaments'];
 
   if (!allowed.includes(scope)){
     const first = allowed[0] || 'events';
-    return HtmlService.createHtmlOutput(`<meta http-equiv="refresh" content="0;url=?p=${first}&brand=${tenant.id}">`);
+    return HtmlService.createHtmlOutput(`<meta http-equiv="refresh" content="0;url=?p=${first}&brand=${brand.id}">`);
   }
 
   // Admin mode selection: default to wizard for simplicity, allow advanced mode via URL parameter
   let page = (pageParam==='admin' || pageParam==='wizard' || pageParam==='planner' || pageParam==='poster' || pageParam==='test' || pageParam==='display' || pageParam==='report' || pageParam==='analytics' || pageParam==='diagnostics' || pageParam==='sponsor' || pageParam==='sponsor-roi' || pageParam==='signup' || pageParam==='config') ? pageParam : 'public';
 
   // Route using helper function
-  return routePage_(e, page, tenant, demoMode, { mode: e?.parameter?.mode });
+  return routePage_(e, page, brand, demoMode, { mode: e?.parameter?.mode });
 }
 
 /**
- * Route to a specific page with tenant and options
+ * Route to a specific page with brand and options
  * Centralizes page routing logic for both query params and friendly URLs
  *
  * @param {object} e - Request event object
  * @param {string} page - Page to route to
- * @param {object} tenant - Tenant configuration
+ * @param {object} brand - Brand configuration
  * @param {boolean} demoMode - Demo mode flag
  * @param {object} options - Additional routing options (mode, fromAlias, etc.)
  * @returns {HtmlOutput} - Rendered page
  */
-function routePage_(e, page, tenant, demoMode, options = {}) {
+function routePage_(e, page, brand, demoMode, options = {}) {
   // Route admin to wizard by default (simple mode), unless mode=advanced or mode=enhanced is specified
   if (page === 'admin') {
     const mode = options.mode || '';
@@ -377,21 +377,22 @@ function routePage_(e, page, tenant, demoMode, options = {}) {
   }
 
   const scope = (e?.parameter?.p || e?.parameter?.scope || 'events').toString();
-  const allowed = tenant.scopesAllowed?.length ? tenant.scopesAllowed : ['events','leagues','tournaments'];
+  const allowed = brand.scopesAllowed?.length ? brand.scopesAllowed : ['events','leagues','tournaments'];
 
   if (!allowed.includes(scope) && page === 'public'){
     const first = allowed[0] || 'events';
-    return HtmlService.createHtmlOutput(`<meta http-equiv="refresh" content="0;url=?p=${first}&brand=${tenant.id}">`);
+    return HtmlService.createHtmlOutput(`<meta http-equiv="refresh" content="0;url=?p=${first}&brand=${brand.id}">`);
   }
 
   const tpl = HtmlService.createTemplateFromFile(pageFile_(page));
   // Fixed: Bug #35 - Sanitize template variables to prevent injection
-  tpl.appTitle = sanitizeInput_(`${tenant.name} · ${scope}`, 200);
-  tpl.brandId = sanitizeId_(tenant.id) || tenant.id;
+  tpl.appTitle = sanitizeInput_(`${brand.name} · ${scope}`, 200);
+  tpl.brandId = sanitizeId_(brand.id) || brand.id;
   tpl.scope = sanitizeInput_(scope, 50);
   tpl.execUrl = ScriptApp.getService().getUrl();
   tpl.ZEB = ZEB;
   tpl.demoMode = demoMode; // Pass demo mode flag to templates
+  tpl.brand = brand; // Pass brand object for template consistency
 
   // Pass friendly URL info if routed via alias
   if (options.fromAlias) {
@@ -408,6 +409,7 @@ function routePage_(e, page, tenant, demoMode, options = {}) {
     execUrl: tpl.execUrl,
     ZEB: tpl.ZEB,
     demoMode: tpl.demoMode,
+    brand: tpl.brand,
     friendlyUrl: tpl.friendlyUrl || false,
     urlAlias: tpl.urlAlias || ''
   });
@@ -437,7 +439,7 @@ function doPost(e){
     }
 
     const action = body.action || e.parameter?.action || '';
-    const tenant = findTenantByHost_(e?.headers?.host) || findTenant_('root');
+    const brand= findBrandByHost_(e?.headers?.host) || findBrand_('root');
 
     // Fixed: Bug #4 - CSRF protection for state-changing operations
     const stateChangingActions = ['create', 'update', 'delete', 'updateEventData', 'createShortlink', 'createFormFromTemplate', 'generateFormShortlink'];
@@ -447,7 +449,7 @@ function doPost(e){
       }
     }
 
-    return handleRestApiPost_(e, action, body, tenant);
+    return handleRestApiPost_(e, action, body, brand);
   } catch(err) {
     diag_('error', 'doPost', 'Request handler failed', {error: String(err), stack: err?.stack});
     return jsonResponse_(Err(ERR.INTERNAL, 'Request processing failed'));
@@ -455,8 +457,8 @@ function doPost(e){
 }
 
 // === REST API GET Handler (read-only operations) ==========================
-function handleRestApiGet_(e, action, tenant) {
-  const brandId = e.parameter.brand || tenant.id;
+function handleRestApiGet_(e, action, brand) {
+  const brandId = e.parameter.brand || brand.id;
   const scope = e.parameter.scope || 'events';
   const etag = e.parameter.etag || '';
   const id = e.parameter.id || '';
@@ -489,8 +491,8 @@ function handleRestApiGet_(e, action, tenant) {
 }
 
 // === REST API POST Handler (write operations, require auth) ===============
-function handleRestApiPost_(e, action, body, tenant) {
-  const brandId = body.brandId || e.parameter?.tenant || tenant.id;
+function handleRestApiPost_(e, action, body, brand) {
+  const brandId = body.brandId || e.parameter?.brand || brand.id;
   const scope = body.scope || e.parameter?.scope || 'events';
 
   // Special case: token generation uses old auth flow
@@ -509,8 +511,8 @@ function handleRestApiPost_(e, action, body, tenant) {
     return jsonResponse_(authCheck);
   }
 
-  const authenticatedTenant = authCheck.value.tenant;
-  const adminKey = body.adminKey || getAdminSecret_(authenticatedTenant.id); // For backward compatibility
+  const authenticatedBrand = authCheck.value.brand;
+  const adminKey = body.adminKey || getAdminSecret_(authenticatedBrand.id); // For backward compatibility
 
   // Route to appropriate API function
   if (action === 'create') {
@@ -770,9 +772,9 @@ function isAllowedOrigin_(origin, authHeaders) {
       return true;
     }
 
-    // Check against tenant hostnames
-    for (const tenant of TENANTS) {
-      if (tenant.hostnames && tenant.hostnames.some(h => h.toLowerCase() === originHost)) {
+    // Check against brand hostnames
+    for (const brand of BRANDS) {
+      if (brand.hostnames && brand.hostnames.some(h => h.toLowerCase() === originHost)) {
         return true;
       }
     }
@@ -873,13 +875,13 @@ function handleRedirect_(token) {
     return HtmlService.createHtmlOutput('<h1>Invalid shortlink</h1>');
   }
 
-  // Use root tenant spreadsheet for shortlinks
-  const rootTenant = findTenant_('root');
-  if (!rootTenant || !rootTenant.store || !rootTenant.store.spreadsheetId) {
+  // Use root brand spreadsheet for shortlinks
+  const rootBrand = findBrand_('root');
+  if (!rootBrand || !rootBrand.store || !rootBrand.store.spreadsheetId) {
     return HtmlService.createHtmlOutput('<h1>Configuration error</h1>');
   }
 
-  const spreadsheetId = rootTenant.store.spreadsheetId;
+  const spreadsheetId = rootBrand.store.spreadsheetId;
   const ss = SpreadsheetApp.openById(spreadsheetId);
   let sh = ss.getSheetByName('SHORTLINKS');
   if (!sh) {
@@ -895,7 +897,7 @@ function handleRedirect_(token) {
   }
 
   // Fixed: Bug #53 - Extract brandId for validation (7th column if present)
-  const [tok, targetUrl, eventId, sponsorId, surface, createdAt, shortlinkTenantId] = row;
+  const [tok, targetUrl, eventId, sponsorId, surface, createdAt, shortlinkBrandId] = row;
 
   // Fixed: Bug #52 - Validate URL before redirect to prevent XSS
   if (!isUrl(targetUrl)) {
@@ -936,10 +938,10 @@ function handleRedirect_(token) {
   const url = new URL(targetUrl);
   const hostname = url.hostname.toLowerCase();
 
-  // Check if this is an external domain (not a known tenant domain)
+  // Check if this is an external domain (not a known brand domain)
   let isExternal = true;
-  for (const tenant of TENANTS) {
-    if (tenant.hostnames && tenant.hostnames.some(h => h.toLowerCase() === hostname)) {
+  for (const brand of BRANDS) {
+    if (brand.hostnames && brand.hostnames.some(h => h.toLowerCase() === hostname)) {
       isExternal = false;
       break;
     }
@@ -1003,33 +1005,33 @@ function handleRedirect_(token) {
  * 3. API Key (header) - X-API-Key header
  */
 function authenticateRequest_(e, body, brandId) {
-  const tenant = findTenant_(brandId);
-  if (!tenant) {
-    return Err(ERR.NOT_FOUND, 'Unknown tenant');
+  const brand= findBrand_(brandId);
+  if (!brand) {
+    return Err(ERR.NOT_FOUND, 'Unknown brand');
   }
 
   // Method 1: adminKey in body (legacy, backward compatible)
   const adminKey = body?.adminKey || e?.parameter?.adminKey || '';
-  const tenantSecret = getAdminSecret_(tenant.id);
-  if (adminKey && tenantSecret && adminKey === tenantSecret) {
-    return Ok({ tenant, method: 'adminKey' });
+  const brandSecret = getAdminSecret_(brand.id);
+  if (adminKey && brandSecret && adminKey === brandSecret) {
+    return Ok({ brand, method: 'adminKey' });
   }
 
   // Method 2: Bearer token (JWT)
   const authHeader = e?.headers?.Authorization || e?.headers?.authorization || '';
   if (authHeader.startsWith('Bearer ')) {
     const token = authHeader.substring(7);
-    const jwtResult = verifyJWT_(token, tenant);
+    const jwtResult = verifyJWT_(token, brand);
     if (jwtResult.ok) {
-      return Ok({ tenant, method: 'jwt', claims: jwtResult.value });
+      return Ok({ brand, method: 'jwt', claims: jwtResult.value });
     }
   }
 
   // Method 3: API Key in header
   const apiKey = e?.headers?.['X-API-Key'] || e?.headers?.['x-api-key'] || '';
-  const tenantApiSecret = getAdminSecret_(tenant.id);
-  if (apiKey && tenantApiSecret && apiKey === tenantApiSecret) {
-    return Ok({ tenant, method: 'apiKey' });
+  const brandApiSecret = getAdminSecret_(brand.id);
+  if (apiKey && brandApiSecret && apiKey === brandApiSecret) {
+    return Ok({ brand, method: 'apiKey' });
   }
 
   // No valid authentication found
@@ -1067,7 +1069,7 @@ function timingSafeCompare_(a, b) {
   return result === 0;
 }
 
-function verifyJWT_(token, tenant) {
+function verifyJWT_(token, brand) {
   try {
     // Simple validation: decode base64 payload
     const parts = token.split('.');
@@ -1091,9 +1093,9 @@ function verifyJWT_(token, tenant) {
 
     const payload = JSON.parse(Utilities.newBlob(Utilities.base64Decode(parts[1])).getDataAsString());
 
-    // Verify tenant
-    if (payload.tenant !== tenant.id) {
-      return Err(ERR.BAD_INPUT, 'Token tenant mismatch');
+    // Verify brand
+    if (payload.brand !== brand.id) {
+      return Err(ERR.BAD_INPUT, 'Token brand mismatch');
     }
 
     // Verify expiration
@@ -1103,11 +1105,11 @@ function verifyJWT_(token, tenant) {
     }
 
     // Verify signature (simplified - use proper crypto in production)
-    const tenantSecret = getAdminSecret_(tenant.id);
-    if (!tenantSecret) {
-      return UserFriendlyErr_(ERR.INTERNAL, 'Tenant secret not configured', { brandId: tenant.id }, 'verifyJWT_');
+    const brandSecret = getAdminSecret_(brand.id);
+    if (!brandSecret) {
+      return UserFriendlyErr_(ERR.INTERNAL, 'Brand secret not configured', { brandId: brand.id }, 'verifyJWT_');
     }
-    const expectedSignature = generateJWTSignature_(parts[0] + '.' + parts[1], tenantSecret);
+    const expectedSignature = generateJWTSignature_(parts[0] + '.' + parts[1], brandSecret);
 
     // Timing-safe comparison to prevent timing attacks
     if (!timingSafeCompare_(parts[2], expectedSignature)) {
@@ -1126,13 +1128,13 @@ function verifyJWT_(token, tenant) {
 }
 
 /**
- * Generate JWT token for a tenant (for demo/testing)
+ * Generate JWT token for a brand (for demo/testing)
  */
 function api_generateToken(req) {
   const authCheck = gate_(req.brandId, req.adminKey);
   if (!authCheck.ok) return authCheck;
 
-  const tenant = authCheck.value.tenant;
+  const brand= authCheck.value.brand;
   const expiresIn = req.expiresIn || 3600; // 1 hour default
 
   const header = {
@@ -1141,7 +1143,7 @@ function api_generateToken(req) {
   };
 
   const payload = {
-    tenant: tenant.id,
+    brand: brand.id,
     iat: Math.floor(Date.now() / 1000),
     exp: Math.floor(Date.now() / 1000) + expiresIn,
     scope: req.scope || 'events'
@@ -1149,11 +1151,11 @@ function api_generateToken(req) {
 
   const headerB64 = Utilities.base64EncodeWebSafe(JSON.stringify(header));
   const payloadB64 = Utilities.base64EncodeWebSafe(JSON.stringify(payload));
-  const tenantSecret = getAdminSecret_(tenant.id);
-  if (!tenantSecret) {
-    return UserFriendlyErr_(ERR.INTERNAL, 'Tenant secret not configured', { brandId: tenant.id }, 'api_generateToken');
+  const brandSecret = getAdminSecret_(brand.id);
+  if (!brandSecret) {
+    return UserFriendlyErr_(ERR.INTERNAL, 'Brand secret not configured', { brandId: brand.id }, 'api_generateToken');
   }
-  const signature = generateJWTSignature_(headerB64 + '.' + payloadB64, tenantSecret);
+  const signature = generateJWTSignature_(headerB64 + '.' + payloadB64, brandSecret);
 
   const token = headerB64 + '.' + payloadB64 + '.' + signature;
 
@@ -1177,14 +1179,14 @@ const RATE_LOCKOUT_MINS = 15;
 const MAX_FAILED_AUTH = 5;
 
 function gate_(brandId, adminKey, ipAddress = null){
-  const tenant=findTenant_(brandId);
-  if(!tenant) return Err(ERR.NOT_FOUND,'Unknown tenant');
+  const brand=findBrand_(brandId);
+  if(!brand) return Err(ERR.NOT_FOUND,'Unknown brand');
 
-  const tenantSecret = getAdminSecret_(tenant.id);
+  const brandSecret = getAdminSecret_(brand.id);
   const cache = CacheService.getScriptCache();
 
   // Track failed authentication attempts per IP
-  if (tenantSecret && adminKey !== tenantSecret) {
+  if (brandSecret && adminKey !== brandSecret) {
     if (ipAddress) {
       const failKey = `auth_fail:${brandId}:${ipAddress}`;
       const fails = Number(cache.get(failKey) || '0');
@@ -1198,21 +1200,21 @@ function gate_(brandId, adminKey, ipAddress = null){
     return Err(ERR.BAD_INPUT,'Invalid admin key');
   }
 
-  // Rate limiting per tenant AND per IP (if available)
+  // Rate limiting per brand AND per IP (if available)
   const identifier = ipAddress ? `${brandId}:${ipAddress}` : brandId;
   const rateKey = `rate:${identifier}:${new Date().toISOString().slice(0,16)}`;
   const n = Number(cache.get(rateKey)||'0');
   if (n >= RATE_MAX_PER_MIN) return Err(ERR.RATE_LIMITED,'Too many requests. Please try again later.');
   cache.put(rateKey, String(n+1), 60);
 
-  return Ok({tenant});
+  return Ok({brand});
 }
 
-function assertScopeAllowed_(tenant, scope){
-  const allowed = (tenant.scopesAllowed && tenant.scopesAllowed.length)
-    ? tenant.scopesAllowed : ['events','leagues','tournaments'];
+function assertScopeAllowed_(brand, scope){
+  const allowed = (brand.scopesAllowed && brand.scopesAllowed.length)
+    ? brand.scopesAllowed : ['events','leagues','tournaments'];
   if (!allowed.includes(scope)) {
-    return UserFriendlyErr_(ERR.BAD_INPUT, `Scope not enabled: ${scope}`, { scope, brandId: tenant.id, allowedScopes: allowed }, 'assertScopeAllowed_');
+    return UserFriendlyErr_(ERR.BAD_INPUT, `Scope not enabled: ${scope}`, { scope, brandId: brand.id, allowedScopes: allowed }, 'assertScopeAllowed_');
   }
   return Ok();
 }
@@ -1346,8 +1348,8 @@ function sanitizeSpreadsheetValue_(value) {
   return sanitized;
 }
 
-function getStoreSheet_(tenant, scope){
-  const ss = SpreadsheetApp.openById(tenant.store.spreadsheetId);
+function getStoreSheet_(brand, scope){
+  const ss = SpreadsheetApp.openById(brand.store.spreadsheetId);
   const title = scope.toUpperCase();
   let sh = ss.getSheetByName(title);
   if (!sh){
@@ -1359,11 +1361,11 @@ function getStoreSheet_(tenant, scope){
 }
 
 function _ensureAnalyticsSheet_(spreadsheetId){
-  // If no spreadsheet ID provided, use root tenant
+  // If no spreadsheet ID provided, use root brand
   if (!spreadsheetId) {
-    const rootTenant = findTenant_('root');
-    if (rootTenant && rootTenant.store && rootTenant.store.spreadsheetId) {
-      spreadsheetId = rootTenant.store.spreadsheetId;
+    const rootBrand = findBrand_('root');
+    if (rootBrand && rootBrand.store && rootBrand.store.spreadsheetId) {
+      spreadsheetId = rootBrand.store.spreadsheetId;
     }
   }
 
@@ -1381,11 +1383,11 @@ function _ensureAnalyticsSheet_(spreadsheetId){
 }
 
 function _ensureShortlinksSheet_(spreadsheetId){
-  // If no spreadsheet ID provided, use root tenant
+  // If no spreadsheet ID provided, use root brand
   if (!spreadsheetId) {
-    const rootTenant = findTenant_('root');
-    if (rootTenant && rootTenant.store && rootTenant.store.spreadsheetId) {
-      spreadsheetId = rootTenant.store.spreadsheetId;
+    const rootBrand = findBrand_('root');
+    if (rootBrand && rootBrand.store && rootBrand.store.spreadsheetId) {
+      spreadsheetId = rootBrand.store.spreadsheetId;
     }
   }
 
@@ -1407,23 +1409,23 @@ function _ensureShortlinksSheet_(spreadsheetId){
 function api_status(brandId){
   return runSafe('api_status', () => {
     try {
-      // Get tenant info if provided
-      const tenant = brandId ? findTenant_(brandId) : findTenant_('root');
-      if (!tenant) {
-        return Err(ERR.NOT_FOUND, `Tenant not found: ${brandId}`);
+      // Get brand info if provided
+      const brand= brandId ? findBrand_(brandId) : findBrand_('root');
+      if (!brand) {
+        return Err(ERR.NOT_FOUND, `Brand not found: ${brandId}`);
       }
 
-      const tenantInfo = tenant.id;
+      const brandInfo = brand.id;
 
-      // Use tenant's spreadsheet ID instead of getActive() for web app context
-      const ss = SpreadsheetApp.openById(tenant.store.spreadsheetId);
+      // Use brand's spreadsheet ID instead of getActive() for web app context
+      const ss = SpreadsheetApp.openById(brand.store.spreadsheetId);
       const id = ss.getId();
       const dbOk = !!id;
 
       return _ensureOk_('api_status', SC_STATUS, Ok({
         build: ZEB.BUILD_ID,
         contract: ZEB.CONTRACT_VER,
-        tenant: tenantInfo,
+        brand: brandInfo,
         time: new Date().toISOString(),
         db: { ok: dbOk, id }
       }));
@@ -1435,7 +1437,7 @@ function api_status(brandId){
       if (errorMsg.includes('not found') || errorMsg.includes('does not exist')) {
         return Err(ERR.INTERNAL,
           `Spreadsheet not found or inaccessible. Please check:\n` +
-          `1. Spreadsheet ID is correct: ${tenant.store.spreadsheetId}\n` +
+          `1. Spreadsheet ID is correct: ${brand.store.spreadsheetId}\n` +
           `2. Script owner has access to the spreadsheet\n` +
           `3. Run setup check: ${setupUrl}`
         );
@@ -1469,21 +1471,21 @@ function api_setupCheck(brandId) {
     const warnings = [];
     const fixes = [];
 
-    const tenant = brandId ? findTenant_(brandId) : findTenant_('root');
-    if (!tenant) {
-      return Err(ERR.NOT_FOUND, `Tenant not found: ${brandId || 'root'}`);
+    const brand= brandId ? findBrand_(brandId) : findBrand_('root');
+    if (!brand) {
+      return Err(ERR.NOT_FOUND, `Brand not found: ${brandId || 'root'}`);
     }
 
-    // Check 1: Tenant Configuration
-    checks.push({ name: 'Tenant Configuration', status: 'checking' });
+    // Check 1: Brand Configuration
+    checks.push({ name: 'Brand Configuration', status: 'checking' });
     try {
-      if (!tenant.id || !tenant.name || !tenant.store) {
-        issues.push('Tenant configuration incomplete');
-        fixes.push('Verify tenant configuration in Config.gs');
+      if (!brand.id || !brand.name || !brand.store) {
+        issues.push('Brand configuration incomplete');
+        fixes.push('Verify brand configuration in Config.gs');
         checks[0].status = 'error';
       } else {
         checks[0].status = 'ok';
-        checks[0].details = `Tenant: ${tenant.name} (${tenant.id})`;
+        checks[0].details = `Brand: ${brand.name} (${brand.id})`;
       }
     } catch(e) {
       checks[0].status = 'error';
@@ -1493,10 +1495,10 @@ function api_setupCheck(brandId) {
     // Check 2: Spreadsheet Access
     checks.push({ name: 'Spreadsheet Access', status: 'checking' });
     try {
-      const spreadsheetId = tenant.store.spreadsheetId;
+      const spreadsheetId = brand.store.spreadsheetId;
       if (!spreadsheetId) {
         issues.push('Spreadsheet ID not configured');
-        fixes.push('Set spreadsheetId in Config.gs for tenant: ' + tenant.id);
+        fixes.push('Set spreadsheetId in Config.gs for brand: ' + brand.id);
         checks[1].status = 'error';
       } else {
         try {
@@ -1544,10 +1546,10 @@ function api_setupCheck(brandId) {
     // Check 3: Admin Secrets
     checks.push({ name: 'Admin Secrets', status: 'checking' });
     try {
-      const secret = getAdminSecret_(tenant.id);
+      const secret = getAdminSecret_(brand.id);
       if (!secret) {
-        warnings.push(`Admin secret not set for tenant: ${tenant.id}`);
-        fixes.push(`Set admin secret via Script Properties: ADMIN_SECRET_${tenant.id.toUpperCase()}`);
+        warnings.push(`Admin secret not set for brand: ${brand.id}`);
+        fixes.push(`Set admin secret via Script Properties: ADMIN_SECRET_${brand.id.toUpperCase()}`);
         fixes.push('Go to: Project Settings > Script Properties > Add property');
         checks[2].status = 'warning';
         checks[2].details = 'Not configured (write operations will fail)';
@@ -1602,9 +1604,9 @@ function api_setupCheck(brandId) {
         SpreadsheetApp.getActiveSpreadsheet();
         scopeTests.push({ scope: 'spreadsheets', ok: true });
       } catch(e) {
-        if (tenant.store.spreadsheetId) {
+        if (brand.store.spreadsheetId) {
           try {
-            SpreadsheetApp.openById(tenant.store.spreadsheetId);
+            SpreadsheetApp.openById(brand.store.spreadsheetId);
             scopeTests.push({ scope: 'spreadsheets', ok: true });
           } catch(e2) {
             scopeTests.push({ scope: 'spreadsheets', ok: false, error: 'Permission denied' });
@@ -1639,7 +1641,7 @@ function api_setupCheck(brandId) {
     checks.push({ name: 'Database Structure', status: 'checking' });
     try {
       if (checks[1].status === 'ok') {
-        const ss = SpreadsheetApp.openById(tenant.store.spreadsheetId);
+        const ss = SpreadsheetApp.openById(brand.store.spreadsheetId);
         const existingSheets = ss.getSheets().map(s => s.getName());
 
         const requiredSheets = ['EVENTS', 'SPONSORS', 'ANALYTICS', 'SHORTLINKS', 'DIAG'];
@@ -1681,7 +1683,7 @@ function api_setupCheck(brandId) {
     return Ok({
       status: overallStatus,
       message,
-      tenant: tenant.id,
+      brand: brand.id,
       timestamp: new Date().toISOString(),
       checks,
       issues,
@@ -1689,7 +1691,7 @@ function api_setupCheck(brandId) {
       fixes,
       nextSteps: fixes.length > 0 ? fixes : [
         'Your setup is complete!',
-        'Test the API: ' + ScriptApp.getService().getUrl() + '?p=status&brand=' + tenant.id,
+        'Test the API: ' + ScriptApp.getService().getUrl() + '?p=status&brand=' + brand.id,
         'View documentation: ' + ScriptApp.getService().getUrl() + '?p=docs'
       ]
     });
@@ -1705,10 +1707,10 @@ function api_healthCheck(){
 
 function api_getConfig(arg){
   return runSafe('api_getConfig', () => {
-    const tenants = loadTenants_().map(t => ({
+    const brands = loadBrands_().map(t => ({
       id:t.id, name:t.name, scopesAllowed:t.scopesAllowed||['events','leagues','tournaments']
     }));
-    const value = { tenants, templates:TEMPLATES, build:ZEB.BUILD_ID };
+    const value = { brands, templates:TEMPLATES, build:ZEB.BUILD_ID };
     const etag = Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(value)));
     if (arg?.ifNoneMatch === etag) return { ok:true, notModified:true, etag };
     return { ok:true, etag, value };
@@ -1719,14 +1721,14 @@ function api_getConfig(arg){
 function api_list(payload){
   return runSafe('api_list', () => {
     const { brandId, scope, limit, offset } = payload||{};
-    const tenant=findTenant_(brandId); if(!tenant) return Err(ERR.NOT_FOUND,'Unknown tenant');
-    const a=assertScopeAllowed_(tenant, scope); if(!a.ok) return a;
+    const brand=findBrand_(brandId); if(!brand) return Err(ERR.NOT_FOUND,'Unknown brand');
+    const a=assertScopeAllowed_(brand, scope); if(!a.ok) return a;
 
     // Pagination parameters (default: 100 items per page, max 1000)
     const pageLimit = Math.min(parseInt(limit) || 100, 1000);
     const pageOffset = Math.max(parseInt(offset) || 0, 0);
 
-    const sh = getStoreSheet_(tenant, scope);
+    const sh = getStoreSheet_(brand, scope);
     // Fixed: Bug #24 - Check if sheet has more than just header before getRange
     const lastRow = sh.getLastRow();
 
@@ -1766,9 +1768,9 @@ function api_get(payload){
     const sanitizedId = sanitizeId_(id);
     if (!sanitizedId) return Err(ERR.BAD_INPUT, 'Invalid ID format');
 
-    const tenant=findTenant_(brandId); if(!tenant) return Err(ERR.NOT_FOUND,'Unknown tenant');
-    const a=assertScopeAllowed_(tenant, scope); if(!a.ok) return a;
-    const sh = getStoreSheet_(tenant, scope);
+    const brand=findBrand_(brandId); if(!brand) return Err(ERR.NOT_FOUND,'Unknown brand');
+    const a=assertScopeAllowed_(brand, scope); if(!a.ok) return a;
+    const sh = getStoreSheet_(brand, scope);
     const r = sh.getDataRange().getValues().slice(1).find(row => row[0]===sanitizedId && row[1]===brandId);
     if (!r) return Err(ERR.NOT_FOUND,'Not found');
 
@@ -1796,7 +1798,7 @@ function api_create(payload){
     const { brandId, scope, templateId, data, adminKey, idemKey } = payload;
 
     const g=gate_(brandId, adminKey); if(!g.ok) return g;
-    const a=assertScopeAllowed_(findTenant_(brandId), scope); if(!a.ok) return a;
+    const a=assertScopeAllowed_(findBrand_(brandId), scope); if(!a.ok) return a;
     const tpl = findTemplate_(templateId); if(!tpl) return Err(ERR.BAD_INPUT,'Unknown template');
 
     // Validate required + simple types
@@ -1839,8 +1841,8 @@ function api_create(payload){
     }
 
     // Write row with collision-safe slug - Fixed: Bug #12 - Add LockService
-    const tenant = findTenant_(brandId);
-    const sh = getStoreSheet_(tenant, scope);
+    const brand= findBrand_(brandId);
+    const sh = getStoreSheet_(brand, scope);
     const id = Utilities.getUuid();
 
     // Acquire lock for read-modify-write operation
@@ -1887,10 +1889,10 @@ function api_updateEventData(req){
     if (!sanitizedId) return Err(ERR.BAD_INPUT, 'Invalid ID format');
 
     const g=gate_(brandId, adminKey); if(!g.ok) return g;
-    const a=assertScopeAllowed_(findTenant_(brandId), scope||'events'); if(!a.ok) return a;
+    const a=assertScopeAllowed_(findBrand_(brandId), scope||'events'); if(!a.ok) return a;
 
-    const tenant = findTenant_(brandId);
-    const sh = getStoreSheet_(tenant, scope||'events');
+    const brand= findBrand_(brandId);
+    const sh = getStoreSheet_(brand, scope||'events');
 
     // Fixed: Bug #13 - Add LockService for read-modify-write operation
     const lock = LockService.getScriptLock();
@@ -1989,16 +1991,16 @@ function api_getReport(req){
     const eventId = String(req && req.id || '');
     if (!eventId) return Err(ERR.BAD_INPUT,'missing id');
 
-    // Fixed: Bug #30 - Verify event belongs to tenant before returning analytics
-    const tenant = g.value.tenant;
-    const eventSheet = SpreadsheetApp.openById(tenant.store.spreadsheetId)
-      .getSheetByName(tenant.scopesAllowed.includes('events') ? 'EVENTS' : 'EVENTS');
+    // Fixed: Bug #30 - Verify event belongs to brand before returning analytics
+    const brand= g.value.brand;
+    const eventSheet = SpreadsheetApp.openById(brand.store.spreadsheetId)
+      .getSheetByName(brand.scopesAllowed.includes('events') ? 'EVENTS' : 'EVENTS');
 
     if (!eventSheet) {
       return Err(ERR.NOT_FOUND, 'Events sheet not found');
     }
 
-    // Verify event exists and belongs to this tenant
+    // Verify event exists and belongs to this brand
     const eventRows = eventSheet.getDataRange().getValues().slice(1);
     const event = eventRows.find(r => r[0] === eventId && r[1] === brandId);
 
@@ -2260,7 +2262,7 @@ function api_getSponsorAnalytics(req) {
  * @param {number} [req.avgTransactionValue] - Average transaction value
  * @param {string} [req.dateFrom] - Start date (ISO)
  * @param {string} [req.dateTo] - End date (ISO)
- * @param {string} [req.brandId] - Tenant ID
+ * @param {string} [req.brandId] - Brand ID
  * @param {string} [req.adminKey] - Admin key for authentication
  * @returns {object} ROI dashboard with metrics, financials, and insights
  */
@@ -2314,7 +2316,7 @@ function api_getSponsorROI(req) {
  * and upsell opportunities (e.g., dedicated TV pane).
  *
  * @param {object} req - Request parameters
- * @param {string} [req.brandId] - Tenant ID for tenant-specific settings
+ * @param {string} [req.brandId] - Brand ID for brand-specific settings
  * @returns {object} Result envelope with sponsor settings
  */
 function api_getSponsorSettings(req) {
@@ -2344,7 +2346,7 @@ function api_getSponsorSettings(req) {
  *
  * @param {object} req - Request parameters
  * @param {array} req.sponsors - Array of sponsor objects with placements
- * @param {string} [req.brandId] - Tenant ID for settings lookup
+ * @param {string} [req.brandId] - Brand ID for settings lookup
  * @returns {object} Result envelope with validation results
  */
 function api_validateSponsorPlacements(req) {
@@ -2537,7 +2539,7 @@ function api_createShortlink(req){
       sponsorId||'',
       surface||'',
       new Date().toISOString(),
-      brandId||'root' // Add brandId for cross-tenant validation
+      brandId||'root' // Add brandId for cross-brand validation
     ]);
 
     const base = ScriptApp.getService().getUrl();
@@ -2680,13 +2682,13 @@ function api_getPortfolioSponsorReport(req) {
   return runSafe('api_getPortfolioSponsorReport', () => {
     const { brandId, adminKey, sponsorId, options } = req;
 
-    // Validate parent tenant
-    const tenant = findTenant_(brandId);
-    if (!tenant) {
-      return Err(ERR.NOT_FOUND, 'Tenant not found');
+    // Validate parent brand
+    const brand= findBrand_(brandId);
+    if (!brand) {
+      return Err(ERR.NOT_FOUND, 'Brand not found');
     }
 
-    if (tenant.type !== 'parent') {
+    if (brand.type !== 'parent') {
       return Err(ERR.BAD_INPUT, 'Only parent organizations can access portfolio reports');
     }
 
@@ -2715,13 +2717,13 @@ function api_getPortfolioSummary(req) {
   return runSafe('api_getPortfolioSummary', () => {
     const { brandId, adminKey } = req;
 
-    // Validate parent tenant
-    const tenant = findTenant_(brandId);
-    if (!tenant) {
-      return Err(ERR.NOT_FOUND, 'Tenant not found');
+    // Validate parent brand
+    const brand= findBrand_(brandId);
+    if (!brand) {
+      return Err(ERR.NOT_FOUND, 'Brand not found');
     }
 
-    if (tenant.type !== 'parent') {
+    if (brand.type !== 'parent') {
       return Err(ERR.BAD_INPUT, 'Only parent organizations can access portfolio summary');
     }
 
@@ -2750,13 +2752,13 @@ function api_getPortfolioSponsors(req) {
   return runSafe('api_getPortfolioSponsors', () => {
     const { brandId, adminKey } = req;
 
-    // Validate parent tenant
-    const tenant = findTenant_(brandId);
-    if (!tenant) {
-      return Err(ERR.NOT_FOUND, 'Tenant not found');
+    // Validate parent brand
+    const brand= findBrand_(brandId);
+    if (!brand) {
+      return Err(ERR.NOT_FOUND, 'Brand not found');
     }
 
-    if (tenant.type !== 'parent') {
+    if (brand.type !== 'parent') {
       return Err(ERR.BAD_INPUT, 'Only parent organizations can access portfolio sponsors');
     }
 
@@ -2835,7 +2837,7 @@ function api_runDiagnostics(){
       // 7. Create shortlink
       const sl = api_createShortlink({
         brandId: 'root',
-        adminKey: findTenant_('root').adminSecret,
+        adminKey: findBrand_('root').adminSecret,
         targetUrl: create.value.links.publicUrl,
         eventId,
         surface: 'test'
@@ -2859,25 +2861,25 @@ function api_runDiagnostics(){
 /**
  * Get consolidated sponsor report across brand portfolio
  *
- * @param {string} parentTenantId - Parent organization (e.g., 'abc')
+ * @param {string} parentBrandId - Parent organization (e.g., 'abc')
  * @param {string} sponsorId - Sponsor ID to report on
  * @param {object} options - Optional filters (dateRange, etc.)
  * @returns {object} - Aggregated sponsor metrics
  */
-function getPortfolioSponsorReport_(parentTenantId, sponsorId, options = {}) {
-  const parentTenant = findTenant_(parentTenantId);
+function getPortfolioSponsorReport_(parentBrandId, sponsorId, options = {}) {
+  const parentBrand = findBrand_(parentBrandId);
 
-  if (!parentTenant || parentTenant.type !== 'parent') {
+  if (!parentBrand || parentBrand.type !== 'parent') {
     return {
       ok: false,
-      error: 'Invalid parent tenant or not a parent organization'
+      error: 'Invalid parent brand or not a parent organization'
     };
   }
 
   const report = {
     parentOrg: {
-      id: parentTenantId,
-      name: parentTenant.name
+      id: parentBrandId,
+      name: parentBrand.name
     },
     sponsor: {
       id: sponsorId,
@@ -2895,14 +2897,14 @@ function getPortfolioSponsorReport_(parentTenantId, sponsorId, options = {}) {
     generatedAt: new Date().toISOString()
   };
 
-  // Get sponsor data from parent tenant
-  const parentData = getSponsorDataForTenant_(parentTenantId, sponsorId, options);
+  // Get sponsor data from parent brand
+  const parentData = getSponsorDataForBrand_(parentBrandId, sponsorId, options);
   if (parentData) {
     report.portfolioSummary.totalImpressions += parentData.impressions || 0;
     report.portfolioSummary.totalClicks += parentData.clicks || 0;
     report.portfolioSummary.totalEvents += parentData.events || 0;
-    report.byBrand[parentTenantId] = {
-      name: parentTenant.name,
+    report.byBrand[parentBrandId] = {
+      name: parentBrand.name,
       ...parentData
     };
 
@@ -2912,22 +2914,22 @@ function getPortfolioSponsorReport_(parentTenantId, sponsorId, options = {}) {
     }
   }
 
-  // Get sponsor data from child tenants
-  const childTenantIds = parentTenant.childTenants || [];
-  childTenantIds.forEach(childId => {
-    const childTenant = findTenant_(childId);
-    if (!childTenant) return;
+  // Get sponsor data from child brands
+  const childBrandIds = parentBrand.childBrands || [];
+  childBrandIds.forEach(childId => {
+    const childBrand = findBrand_(childId);
+    if (!childBrand) return;
 
-    // Skip child tenants not included in portfolio reports
-    if (childTenant.includeInPortfolioReports === false) return;
+    // Skip child brands not included in portfolio reports
+    if (childBrand.includeInPortfolioReports === false) return;
 
-    const childData = getSponsorDataForTenant_(childId, sponsorId, options);
+    const childData = getSponsorDataForBrand_(childId, sponsorId, options);
     if (childData) {
       report.portfolioSummary.totalImpressions += childData.impressions || 0;
       report.portfolioSummary.totalClicks += childData.clicks || 0;
       report.portfolioSummary.totalEvents += childData.events || 0;
       report.byBrand[childId] = {
-        name: childTenant.name,
+        name: childBrand.name,
         ...childData
       };
 
@@ -2947,9 +2949,9 @@ function getPortfolioSponsorReport_(parentTenantId, sponsorId, options = {}) {
 
   // Aggregate top performing events across all brands
   report.topPerformingEvents = getTopPerformingEventsAcrossPortfolio_(
-    parentTenantId,
+    parentBrandId,
     sponsorId,
-    childTenantIds,
+    childBrandIds,
     5  // Top 5 events
   );
 
@@ -2960,20 +2962,20 @@ function getPortfolioSponsorReport_(parentTenantId, sponsorId, options = {}) {
 }
 
 /**
- * Get sponsor data for a specific tenant
+ * Get sponsor data for a specific brand
  *
- * @param {string} brandId - Tenant ID
+ * @param {string} brandId - Brand ID
  * @param {string} sponsorId - Sponsor ID
  * @param {object} options - Optional filters
  * @returns {object|null} - Sponsor data or null
  */
-function getSponsorDataForTenant_(brandId, sponsorId, options = {}) {
+function getSponsorDataForBrand_(brandId, sponsorId, options = {}) {
   try {
-    // Get all events for this tenant
-    const tenant = findTenant_(brandId);
-    if (!tenant) return null;
+    // Get all events for this brand
+    const brand= findBrand_(brandId);
+    if (!brand) return null;
 
-    const db = getDb_(tenant);
+    const db = getDb_(brand);
     const events = db.list('events') || [];
 
     // Get sponsors to find sponsor name
@@ -3033,7 +3035,7 @@ function getSponsorDataForTenant_(brandId, sponsorId, options = {}) {
     };
 
   } catch (error) {
-    console.error(`Error getting sponsor data for tenant ${brandId}:`, error);
+    console.error(`Error getting sponsor data for brand ${brandId}:`, error);
     return null;
   }
 }
@@ -3041,40 +3043,40 @@ function getSponsorDataForTenant_(brandId, sponsorId, options = {}) {
 /**
  * Get top performing events across brand portfolio
  *
- * @param {string} parentTenantId - Parent tenant ID
+ * @param {string} parentBrandId - Parent brand ID
  * @param {string} sponsorId - Sponsor ID
- * @param {array} childTenantIds - Child tenant IDs
+ * @param {array} childBrandIds - Child brand IDs
  * @param {number} limit - Number of top events to return
  * @returns {array} - Top performing events
  */
-function getTopPerformingEventsAcrossPortfolio_(parentTenantId, sponsorId, childTenantIds, limit = 5) {
+function getTopPerformingEventsAcrossPortfolio_(parentBrandId, sponsorId, childBrandIds, limit = 5) {
   const allEvents = [];
 
   // Collect events from parent
-  const parentData = getSponsorDataForTenant_(parentTenantId, sponsorId);
+  const parentData = getSponsorDataForBrand_(parentBrandId, sponsorId);
   if (parentData && parentData.eventsList) {
     parentData.eventsList.forEach(event => {
       allEvents.push({
         ...event,
-        brandId: parentTenantId,
-        tenantName: findTenant_(parentTenantId)?.name || parentTenantId
+        brandId: parentBrandId,
+        brandName: findBrand_(parentBrandId)?.name || parentBrandId
       });
     });
   }
 
   // Collect events from children
-  childTenantIds.forEach(childId => {
-    const childTenant = findTenant_(childId);
-    // Skip child tenants not included in portfolio reports
-    if (!childTenant || childTenant.includeInPortfolioReports === false) return;
+  childBrandIds.forEach(childId => {
+    const childBrand = findBrand_(childId);
+    // Skip child brands not included in portfolio reports
+    if (!childBrand || childBrand.includeInPortfolioReports === false) return;
 
-    const childData = getSponsorDataForTenant_(childId, sponsorId);
+    const childData = getSponsorDataForBrand_(childId, sponsorId);
     if (childData && childData.eventsList) {
       childData.eventsList.forEach(event => {
         allEvents.push({
           ...event,
           brandId: childId,
-          tenantName: childTenant.name || childId
+          brandName: childBrand.name || childId
         });
       });
     }
@@ -3090,24 +3092,24 @@ function getTopPerformingEventsAcrossPortfolio_(parentTenantId, sponsorId, child
  * Get brand portfolio summary for parent organization
  * Shows overall portfolio health and activity
  *
- * @param {string} parentTenantId - Parent tenant ID
+ * @param {string} parentBrandId - Parent brand ID
  * @returns {object} - Portfolio summary
  */
-function getPortfolioSummary_(parentTenantId) {
-  const parentTenant = findTenant_(parentTenantId);
+function getPortfolioSummary_(parentBrandId) {
+  const parentBrand = findBrand_(parentBrandId);
 
-  if (!parentTenant || parentTenant.type !== 'parent') {
+  if (!parentBrand || parentBrand.type !== 'parent') {
     return {
       ok: false,
-      error: 'Invalid parent tenant or not a parent organization'
+      error: 'Invalid parent brand or not a parent organization'
     };
   }
 
   const summary = {
     portfolio: {
       parent: {
-        id: parentTenantId,
-        name: parentTenant.name
+        id: parentBrandId,
+        name: parentBrand.name
       },
       children: []
     },
@@ -3121,7 +3123,7 @@ function getPortfolioSummary_(parentTenantId) {
   };
 
   // Get parent metrics
-  const parentDb = getDb_(parentTenant);
+  const parentDb = getDb_(parentBrand);
   const parentEvents = parentDb.list('events') || [];
   const parentSponsors = parentDb.list('sponsors') || [];
 
@@ -3137,27 +3139,27 @@ function getPortfolioSummary_(parentTenantId) {
     summary.metrics.totalImpressions += eventImpressions;
   });
 
-  summary.byBrand[parentTenantId] = {
-    name: parentTenant.name,
+  summary.byBrand[parentBrandId] = {
+    name: parentBrand.name,
     events: parentEvents.length,
     sponsors: parentSponsors.length
   };
 
   // Get child metrics
-  const childTenantIds = parentTenant.childTenants || [];
-  childTenantIds.forEach(childId => {
-    const childTenant = findTenant_(childId);
-    if (!childTenant) return;
+  const childBrandIds = parentBrand.childBrands || [];
+  childBrandIds.forEach(childId => {
+    const childBrand = findBrand_(childId);
+    if (!childBrand) return;
 
-    // Skip child tenants not included in portfolio reports
-    if (childTenant.includeInPortfolioReports === false) return;
+    // Skip child brands not included in portfolio reports
+    if (childBrand.includeInPortfolioReports === false) return;
 
     summary.portfolio.children.push({
       id: childId,
-      name: childTenant.name
+      name: childBrand.name
     });
 
-    const childDb = getDb_(childTenant);
+    const childDb = getDb_(childBrand);
     const childEvents = childDb.list('events') || [];
     const childSponsors = childDb.list('sponsors') || [];
 
@@ -3174,7 +3176,7 @@ function getPortfolioSummary_(parentTenantId) {
     });
 
     summary.byBrand[childId] = {
-      name: childTenant.name,
+      name: childBrand.name,
       events: childEvents.length,
       sponsors: childSponsors.length
     };
@@ -3193,23 +3195,23 @@ function getPortfolioSummary_(parentTenantId) {
  * Get list of all sponsors across brand portfolio
  * Useful for parent organizations to see all sponsors
  *
- * @param {string} parentTenantId - Parent tenant ID
+ * @param {string} parentBrandId - Parent brand ID
  * @returns {object} - List of sponsors with brand breakdown
  */
-function getPortfolioSponsors_(parentTenantId) {
-  const parentTenant = findTenant_(parentTenantId);
+function getPortfolioSponsors_(parentBrandId) {
+  const parentBrand = findBrand_(parentBrandId);
 
-  if (!parentTenant || parentTenant.type !== 'parent') {
+  if (!parentBrand || parentBrand.type !== 'parent') {
     return {
       ok: false,
-      error: 'Invalid parent tenant or not a parent organization'
+      error: 'Invalid parent brand or not a parent organization'
     };
   }
 
   const sponsorsMap = new Map();
 
   // Helper to add sponsor to map
-  const addSponsor = (sponsor, brandId, tenantName) => {
+  const addSponsor = (sponsor, brandId, brandName) => {
     const key = sponsor.id;
     if (!sponsorsMap.has(key)) {
       sponsorsMap.set(key, {
@@ -3223,30 +3225,30 @@ function getPortfolioSponsors_(parentTenantId) {
     }
     sponsorsMap.get(key).brands.push({
       brandId: brandId,
-      tenantName: tenantName
+      brandName: brandName
     });
   };
 
   // Get sponsors from parent
-  const parentDb = getDb_(parentTenant);
+  const parentDb = getDb_(parentBrand);
   const parentSponsors = parentDb.list('sponsors') || [];
   parentSponsors.forEach(sponsor => {
-    addSponsor(sponsor, parentTenantId, parentTenant.name);
+    addSponsor(sponsor, parentBrandId, parentBrand.name);
   });
 
   // Get sponsors from children
-  const childTenantIds = parentTenant.childTenants || [];
-  childTenantIds.forEach(childId => {
-    const childTenant = findTenant_(childId);
-    if (!childTenant) return;
+  const childBrandIds = parentBrand.childBrands || [];
+  childBrandIds.forEach(childId => {
+    const childBrand = findBrand_(childId);
+    if (!childBrand) return;
 
-    // Skip child tenants not included in portfolio reports
-    if (childTenant.includeInPortfolioReports === false) return;
+    // Skip child brands not included in portfolio reports
+    if (childBrand.includeInPortfolioReports === false) return;
 
-    const childDb = getDb_(childTenant);
+    const childDb = getDb_(childBrand);
     const childSponsors = childDb.list('sponsors') || [];
     childSponsors.forEach(sponsor => {
-      addSponsor(sponsor, childId, childTenant.name);
+      addSponsor(sponsor, childId, childBrand.name);
     });
   });
 

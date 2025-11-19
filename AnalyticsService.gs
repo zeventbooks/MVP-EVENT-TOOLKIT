@@ -58,7 +58,7 @@ function AnalyticsService_logEvents(items) {
  *
  * @param {object} params - Report parameters
  * @param {string} params.eventId - Event ID
- * @param {string} [params.brandId] - Tenant ID (for authorization)
+ * @param {string} [params.brandId] - Brand ID (for authorization)
  * @param {string} [params.dateFrom] - Start date (ISO)
  * @param {string} [params.dateTo] - End date (ISO)
  * @returns {object} Result envelope with aggregated metrics
@@ -68,7 +68,7 @@ function AnalyticsService_getEventReport(params) {
 
   if (!eventId) return Err(ERR.BAD_INPUT, 'missing eventId');
 
-  // Verify event exists and belongs to tenant (if brandId provided)
+  // Verify event exists and belongs to brand (if brandId provided)
   if (brandId) {
     const verifyResult = AnalyticsService_verifyEventOwnership(eventId, brandId);
     if (!verifyResult.ok) return verifyResult;
@@ -202,7 +202,7 @@ function AnalyticsService_aggregateEventData(data) {
  * Get shared analytics (for both event managers and sponsors)
  *
  * @param {object} params - Query parameters
- * @param {string} params.brandId - Tenant ID
+ * @param {string} params.brandId - Brand ID
  * @param {string} [params.eventId] - Filter by event ID
  * @param {string} [params.sponsorId] - Filter by sponsor ID
  * @param {string} [params.dateFrom] - Start date (ISO)
@@ -290,17 +290,17 @@ function AnalyticsService_getSharedAnalytics(params) {
 // === Helper Functions =====================================================
 
 /**
- * Verify event ownership (belongs to tenant)
+ * Verify event ownership (belongs to brand)
  *
  * @param {string} eventId - Event ID
- * @param {string} brandId - Tenant ID
+ * @param {string} brandId - Brand ID
  * @returns {object} Result envelope (Ok/Err)
  */
 function AnalyticsService_verifyEventOwnership(eventId, brandId) {
-  const tenant = findTenant_(brandId);
-  if (!tenant) return Err(ERR.NOT_FOUND, 'Unknown tenant');
+  const brand = findBrand_(brandId);
+  if (!brand) return Err(ERR.NOT_FOUND, 'Unknown brand');
 
-  const eventSheet = SpreadsheetApp.openById(tenant.store.spreadsheetId)
+  const eventSheet = SpreadsheetApp.openById(brand.store.spreadsheetId)
     .getSheetByName('EVENTS');
 
   if (!eventSheet) {

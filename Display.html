@@ -107,7 +107,7 @@
   <script>
     const qs = new URLSearchParams(location.search);
     const eventId = qs.get('event') || qs.get('id') || '';
-    const brandId = qs.get('tenant') || '<?= brandId ?>';
+    const brandId = qs.get('brand') || '<?= brandId ?>';
     const stage = document.getElementById('stage');
     const fallback = document.getElementById('fallback');
     const topEl = document.getElementById('sponsorTop');

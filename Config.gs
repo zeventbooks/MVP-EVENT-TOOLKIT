@@ -48,19 +48,19 @@ const ZEB = Object.freeze({
     'api': { page: 'api', label: 'API Documentation', public: true }
   },
 
-  // Tenant URL Templates
-  // Defines how tenants can customize their URLs
-  TENANT_URL_PATTERNS: {
-    // Pattern: /{tenant}/{alias}
+  // Brand URL Templates
+  // Defines how brands can customize their URLs
+  BRAND_URL_PATTERNS: {
+    // Pattern: /{brand}/{alias}
     // Example: /abc/events, /cbc/manage
-    enableTenantPrefix: true,
+    enableBrandPrefix: true,
 
     // Pattern: subdomain routing (requires DNS)
     // Example: abc.zeventbooks.com/events
     enableSubdomainRouting: false,
 
-    // Custom aliases per tenant (optional)
-    // Allows tenants to create branded URLs
+    // Custom aliases per brand (optional)
+    // Allows brands to create branded URLs
     customAliases: {
       // ABC (Parent Organization) - Custom URLs
       'abc': {
@@ -135,11 +135,11 @@ const ZEB = Object.freeze({
   }
 });
 
-// Tenants (multi-tenant architecture, single DB for MVP)
+// Brands (multi-brand architecture, single DB for MVP)
 // SECURITY: Admin secrets moved to Script Properties for security
 // Set via: File > Project Properties > Script Properties in Apps Script UI
 // Or via: PropertiesService.getScriptProperties().setProperty('ADMIN_SECRET_ROOT', 'your-secret')
-const TENANTS = [
+const BRANDS = [
   {
     id: 'root',
     name: 'Zeventbook',
@@ -153,7 +153,7 @@ const TENANTS = [
     id: 'abc',
     name: 'American Bocce Co.',
     type: 'parent',  // Parent organization
-    childTenants: ['cbc', 'cbl'],  // Child brands under ABC
+    childBrands: ['cbc', 'cbl'],  // Child brands under ABC
     hostnames: ['americanbocceco.zeventbooks.io'],
     logoUrl: '/My files/Linux files/zeventbook/assets/logos/ABCMainTransparent.webp',
     // adminSecret: moved to Script Properties as 'ADMIN_SECRET_ABC'
@@ -164,7 +164,7 @@ const TENANTS = [
     id: 'cbc',
     name: 'Chicago Bocce Club',
     type: 'child',  // Child brand of ABC
-    parentTenant: 'abc',  // Parent organization
+    parentBrand: 'abc',  // Parent organization
     includeInPortfolioReports: true,  // Include this child in parent's brand portfolio analytics
     hostnames: ['chicagobocceclub.zeventbooks.io'],
     logoUrl: '/My files/Linux files/zeventbook/assets/logos/ABCMainTransparent.webp',
@@ -176,7 +176,7 @@ const TENANTS = [
     id: 'cbl',
     name: 'Chicago Bocce League',
     type: 'child',  // Child brand of ABC
-    parentTenant: 'abc',  // Parent organization
+    parentBrand: 'abc',  // Parent organization
     includeInPortfolioReports: true,  // Include this child in parent's brand portfolio analytics
     hostnames: ['chicagobocceleague.zeventbooks.io'],
     logoUrl: '/My files/Linux files/zeventbook/assets/logos/ABCMainTransparent.webp',
@@ -296,14 +296,14 @@ const FORM_TEMPLATES = [
 ];
 
 // Accessors
-function loadTenants_() { return TENANTS; }
-function findTenant_(id) { return TENANTS.find(t => t.id === id) || null; }
-// Fixed: Bug #43 - Don't default to root tenant for unknown hosts
-function findTenantByHost_(host) {
+function loadBrands_() { return BRANDS; }
+function findBrand_(id) { return BRANDS.find(b => b.id === id) || null; }
+// Fixed: Bug #43 - Don't default to root brand for unknown hosts
+function findBrandByHost_(host) {
   host = String(host || '').toLowerCase();
-  const tenant = TENANTS.find(t => (t.hostnames || []).includes(host));
+  const brand = BRANDS.find(b => (b.hostnames || []).includes(host));
 
-  if (!tenant) {
+  if (!brand) {
     // Log warning for unknown hostname
     try {
       const timestamp = new Date().toISOString();
@@ -313,15 +313,15 @@ function findTenantByHost_(host) {
     }
   }
 
-  return tenant || null;
+  return brand || null;
 }
 function findTemplate_(id) { return TEMPLATES.find(x => x.id === id) || null; }
 function findFormTemplate_(id) { return FORM_TEMPLATES.find(x => x.id === id) || null; }
 function listFormTemplates_() { return FORM_TEMPLATES; }
 
 /**
- * Get admin secret for a tenant from Script Properties
- * @param {string} brandId - Tenant ID (root, abc, cbc, cbl)
+ * Get admin secret for a brand from Script Properties
+ * @param {string} brandId - Brand ID (root, abc, cbc, cbl)
  * @returns {string|null} - Admin secret or null if not found
  */
 function getAdminSecret_(brandId) {
@@ -333,7 +333,7 @@ function getAdminSecret_(brandId) {
 
   // If not found, log warning
   if (!secret) {
-    console.warn(`Admin secret not found for tenant: ${brandId}. Set via Script Properties: ${key}`);
+    console.warn(`Admin secret not found for brand: ${brandId}. Set via Script Properties: ${key}`);
   }
 
   return secret;
@@ -350,7 +350,7 @@ function setupAdminSecrets_(secrets) {
   for (const [brandId, secret] of Object.entries(secrets)) {
     const key = `ADMIN_SECRET_${brandId.toUpperCase()}`;
     props.setProperty(key, secret);
-    console.log(`✅ Set admin secret for tenant: ${brandId}`);
+    console.log(`✅ Set admin secret for brand: ${brandId}`);
   }
 
   console.log('✅ Admin secrets migration complete!');
@@ -367,7 +367,7 @@ function setupAdminSecrets_(secrets) {
  *   resolveUrlAlias_('tournaments', 'abc') → { page: 'public', label: 'Tournaments' }
  *
  * @param {string} alias - Friendly URL alias
- * @param {string} brandId - Optional tenant ID for custom aliases
+ * @param {string} brandId - Optional brand ID for custom aliases
  * @returns {object|null} - Alias configuration or null if not found
  */
 function resolveUrlAlias_(alias, brandId) {
@@ -375,11 +375,11 @@ function resolveUrlAlias_(alias, brandId) {
 
   const aliasLower = alias.toLowerCase();
 
-  // Check tenant-specific custom aliases first
-  if (brandId && ZEB.TENANT_URL_PATTERNS.customAliases[brandId]) {
-    const customAlias = ZEB.TENANT_URL_PATTERNS.customAliases[brandId][aliasLower];
+  // Check brand-specific custom aliases first
+  if (brandId && ZEB.BRAND_URL_PATTERNS.customAliases[brandId]) {
+    const customAlias = ZEB.BRAND_URL_PATTERNS.customAliases[brandId][aliasLower];
     if (customAlias) {
-      return { ...customAlias, source: 'tenant-custom' };
+      return { ...customAlias, source: 'brand-custom' };
     }
   }
 
@@ -401,7 +401,7 @@ function resolveUrlAlias_(alias, brandId) {
  *   getFriendlyUrl_('display', 'root') → '/display'
  *
  * @param {string} page - Technical page name
- * @param {string} brandId - Tenant ID (optional)
+ * @param {string} brandId - Brand ID (optional)
  * @param {object} options - Additional options (mode, etc.)
  * @returns {string} - Friendly URL path
  */
@@ -409,9 +409,9 @@ function getFriendlyUrl_(page, brandId, options = {}) {
   // Find matching alias
   let matchingAlias = null;
 
-  // Check tenant custom aliases first
-  if (brandId && ZEB.TENANT_URL_PATTERNS.customAliases[brandId]) {
-    for (const [alias, config] of Object.entries(ZEB.TENANT_URL_PATTERNS.customAliases[brandId])) {
+  // Check brand custom aliases first
+  if (brandId && ZEB.BRAND_URL_PATTERNS.customAliases[brandId]) {
+    for (const [alias, config] of Object.entries(ZEB.BRAND_URL_PATTERNS.customAliases[brandId])) {
       if (config.page === page &&
           (!options.mode || config.mode === options.mode)) {
         matchingAlias = alias;
@@ -433,7 +433,7 @@ function getFriendlyUrl_(page, brandId, options = {}) {
 
   // Build URL
   if (matchingAlias) {
-    if (ZEB.TENANT_URL_PATTERNS.enableTenantPrefix && brandId && brandId !== 'root') {
+    if (ZEB.BRAND_URL_PATTERNS.enableBrandPrefix && brandId && brandId !== 'root') {
       return `/${brandId}/${matchingAlias}`;
     }
     return `/${matchingAlias}`;
@@ -450,7 +450,7 @@ function getFriendlyUrl_(page, brandId, options = {}) {
  * Get list of all available aliases
  * Useful for documentation and navigation menus
  *
- * @param {string} brandId - Optional tenant ID to include custom aliases
+ * @param {string} brandId - Optional brand ID to include custom aliases
  * @param {boolean} publicOnly - Only return public aliases
  * @returns {array} - Array of alias objects
  */
@@ -468,9 +468,9 @@ function listUrlAliases_(brandId, publicOnly = false) {
     }
   }
 
-  // Add tenant custom aliases
-  if (brandId && ZEB.TENANT_URL_PATTERNS.customAliases[brandId]) {
-    for (const [alias, config] of Object.entries(ZEB.TENANT_URL_PATTERNS.customAliases[brandId])) {
+  // Add brand custom aliases
+  if (brandId && ZEB.BRAND_URL_PATTERNS.customAliases[brandId]) {
+    for (const [alias, config] of Object.entries(ZEB.BRAND_URL_PATTERNS.customAliases[brandId])) {
       if (!publicOnly || config.public) {
         aliases.push({
           alias: alias,

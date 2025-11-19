@@ -185,9 +185,9 @@
     }
 
     async function test_ConfigValidation() {
-      const card = createTestCard('Config Validation', 'Verify tenant and template configuration');
+      const card = createTestCard('Config Validation', 'Verify brand and template configuration');
       try {
-        const tenants = ['root', 'abc', 'cbc', 'cbl'];
+        const brands = ['root', 'abc', 'cbc', 'cbl'];
         const templates = ['event', 'sponsor'];
 
         let result = 'Tenants: ' + tenants.join(', ') + '\n';

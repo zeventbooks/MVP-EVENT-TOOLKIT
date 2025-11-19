@@ -7,7 +7,7 @@
  * - Multi-method authentication (adminKey, JWT, API Key)
  * - Rate limiting
  * - Input sanitization
- * - Tenant isolation
+ * - Brand isolation
  *
  * Design principles:
  * - Single responsibility for security concerns
@@ -121,13 +121,13 @@ function SecurityMiddleware_generateJWTSignature(data, secret) {
 
 /**
  * Verify JWT token
- * Validates: format, algorithm, tenant, expiration, signature, not-before
+ * Validates: format, algorithm, brand, expiration, signature, not-before
  *
  * @param {string} token - JWT token
- * @param {object} tenant - Tenant configuration
+ * @param {object} brand - Brand configuration
  * @returns {object} Result envelope with claims or error
  */
-function SecurityMiddleware_verifyJWT(token, tenant) {
+function SecurityMiddleware_verifyJWT(token, brand) {
   try {
     // Validate format
     const parts = token.split('.');
@@ -152,9 +152,9 @@ function SecurityMiddleware_verifyJWT(token, tenant) {
     // Parse payload
     const payload = JSON.parse(Utilities.newBlob(Utilities.base64Decode(parts[1])).getDataAsString());
 
-    // Verify tenant
-    if (payload.tenant !== tenant.id) {
-      return Err(ERR.BAD_INPUT, 'Token tenant mismatch');
+    // Verify brand
+    if (payload.tenant !== brand.id) {
+      return Err(ERR.BAD_INPUT, 'Token brand mismatch');
     }
 
     // Verify expiration
@@ -164,13 +164,13 @@ function SecurityMiddleware_verifyJWT(token, tenant) {
     }
 
     // Verify signature
-    const tenantSecret = getAdminSecret_(tenant.id);
-    if (!tenantSecret) {
-      return UserFriendlyErr_(ERR.INTERNAL, 'Tenant secret not configured',
-        { brandId: tenant.id }, 'SecurityMiddleware_verifyJWT');
+    const brandSecret = getAdminSecret_(brand.id);
+    if (!brandSecret) {
+      return UserFriendlyErr_(ERR.INTERNAL, 'Brand secret not configured',
+        { brandId: brand.id }, 'SecurityMiddleware_verifyJWT');
     }
     const expectedSignature = SecurityMiddleware_generateJWTSignature(
-      parts[0] + '.' + parts[1], tenantSecret
+      parts[0] + '.' + parts[1], brandSecret
     );
 
     // Timing-safe comparison to prevent timing attacks
@@ -191,17 +191,17 @@ function SecurityMiddleware_verifyJWT(token, tenant) {
 }
 
 /**
- * Generate JWT token for a tenant
+ * Generate JWT token for a brand
  *
  * @param {object} params - Token parameters
- * @param {object} params.tenant - Tenant configuration
+ * @param {object} params.brand - Brand configuration
  * @param {number} [params.expiresIn=3600] - Expiry time in seconds
  * @param {string} [params.scope='events'] - Token scope
  * @param {object} [params.customClaims={}] - Additional claims
  * @returns {object} Result envelope with token or error
  */
 function SecurityMiddleware_generateJWT(params) {
-  const { tenant, expiresIn = SECURITY_CONFIG.JWT_DEFAULT_EXPIRY, scope = 'events', customClaims = {} } = params;
+  const { brand, expiresIn = SECURITY_CONFIG.JWT_DEFAULT_EXPIRY, scope = 'events', customClaims = {} } = params;
 
   const header = {
     alg: 'HS256',
@@ -209,7 +209,7 @@ function SecurityMiddleware_generateJWT(params) {
   };
 
   const payload = {
-    tenant: tenant.id,
+    tenant: brand.id,
     iat: Math.floor(Date.now() / 1000),
     exp: Math.floor(Date.now() / 1000) + expiresIn,
     scope: scope,
@@ -218,14 +218,14 @@ function SecurityMiddleware_generateJWT(params) {
 
   const headerB64 = Utilities.base64EncodeWebSafe(JSON.stringify(header));
   const payloadB64 = Utilities.base64EncodeWebSafe(JSON.stringify(payload));
-  const tenantSecret = getAdminSecret_(tenant.id);
+  const brandSecret = getAdminSecret_(brand.id);
 
-  if (!tenantSecret) {
-    return UserFriendlyErr_(ERR.INTERNAL, 'Tenant secret not configured',
-      { brandId: tenant.id }, 'SecurityMiddleware_generateJWT');
+  if (!brandSecret) {
+    return UserFriendlyErr_(ERR.INTERNAL, 'Brand secret not configured',
+      { brandId: brand.id }, 'SecurityMiddleware_generateJWT');
   }
 
-  const signature = SecurityMiddleware_generateJWTSignature(headerB64 + '.' + payloadB64, tenantSecret);
+  const signature = SecurityMiddleware_generateJWTSignature(headerB64 + '.' + payloadB64, brandSecret);
   const token = headerB64 + '.' + payloadB64 + '.' + signature;
 
   return Ok({
@@ -244,37 +244,37 @@ function SecurityMiddleware_generateJWT(params) {
  *
  * @param {object} e - Request event object
  * @param {object} body - Request body
- * @param {string} brandId - Tenant ID
+ * @param {string} brandId - Brand ID
  * @returns {object} Result envelope with authentication details or error
  */
 function SecurityMiddleware_authenticateRequest(e, body, brandId) {
-  const tenant = findTenant_(brandId);
-  if (!tenant) {
-    return Err(ERR.NOT_FOUND, 'Unknown tenant');
+  const brand = findBrand_(brandId);
+  if (!brand) {
+    return Err(ERR.NOT_FOUND, 'Unknown brand');
   }
 
   // Method 1: adminKey in body (legacy, backward compatible)
   const adminKey = body?.adminKey || e?.parameter?.adminKey || '';
-  const tenantSecret = getAdminSecret_(tenant.id);
-  if (adminKey && tenantSecret && adminKey === tenantSecret) {
-    return Ok({ tenant, method: 'adminKey' });
+  const brandSecret = getAdminSecret_(brand.id);
+  if (adminKey && brandSecret && adminKey === brandSecret) {
+    return Ok({ brand, method: 'adminKey' });
   }
 
   // Method 2: Bearer token (JWT)
   const authHeader = e?.headers?.Authorization || e?.headers?.authorization || '';
   if (authHeader.startsWith('Bearer ')) {
     const token = authHeader.substring(7);
-    const jwtResult = SecurityMiddleware_verifyJWT(token, tenant);
+    const jwtResult = SecurityMiddleware_verifyJWT(token, brand);
     if (jwtResult.ok) {
-      return Ok({ tenant, method: 'jwt', claims: jwtResult.value });
+      return Ok({ brand, method: 'jwt', claims: jwtResult.value });
     }
   }
 
   // Method 3: API Key in header
   const apiKey = e?.headers?.['X-API-Key'] || e?.headers?.['x-api-key'] || '';
-  const tenantApiSecret = getAdminSecret_(tenant.id);
-  if (apiKey && tenantApiSecret && apiKey === tenantApiSecret) {
-    return Ok({ tenant, method: 'apiKey' });
+  const brandApiSecret = getAdminSecret_(brand.id);
+  if (apiKey && brandApiSecret && apiKey === brandApiSecret) {
+    return Ok({ brand, method: 'apiKey' });
   }
 
   // No valid authentication found
@@ -284,23 +284,23 @@ function SecurityMiddleware_authenticateRequest(e, body, brandId) {
 // === Rate Limiting ========================================================
 
 /**
- * Check rate limits and authenticate tenant
+ * Check rate limits and authenticate brand
  * Includes IP-based failed authentication tracking
  *
- * @param {string} brandId - Tenant ID
+ * @param {string} brandId - Brand ID
  * @param {string} adminKey - Admin secret key
  * @param {string} [ipAddress] - Client IP address
- * @returns {object} Result envelope with tenant or error
+ * @returns {object} Result envelope with brand or error
  */
 function SecurityMiddleware_gate(brandId, adminKey, ipAddress = null) {
-  const tenant = findTenant_(brandId);
-  if (!tenant) return Err(ERR.NOT_FOUND, 'Unknown tenant');
+  const brand = findBrand_(brandId);
+  if (!brand) return Err(ERR.NOT_FOUND, 'Unknown brand');
 
-  const tenantSecret = getAdminSecret_(tenant.id);
+  const brandSecret = getAdminSecret_(brand.id);
   const cache = CacheService.getScriptCache();
 
   // Track failed authentication attempts per IP
-  if (tenantSecret && adminKey !== tenantSecret) {
+  if (brandSecret && adminKey !== brandSecret) {
     if (ipAddress) {
       const failKey = `auth_fail:${brandId}:${ipAddress}`;
       const fails = Number(cache.get(failKey) || '0');
@@ -325,7 +325,7 @@ function SecurityMiddleware_gate(brandId, adminKey, ipAddress = null) {
 
   cache.put(rateLimitKey, String(count + 1), 60); // 1 minute window
 
-  return Ok({ tenant });
+  return Ok({ brand });
 }
 
 // === Input Sanitization ===================================================
@@ -411,19 +411,19 @@ function SecurityMiddleware_sanitizeMetaForLogging(meta) {
   return sanitized;
 }
 
-// === Tenant Isolation =====================================================
+// === Brand Isolation =====================================================
 
 /**
- * Validate that tenant has access to requested scope
+ * Validate that brand has access to requested scope
  *
- * @param {object} tenant - Tenant configuration
+ * @param {object} brand - Brand configuration
  * @param {string} scope - Requested scope
  * @returns {object} Result envelope (Ok/Err)
  */
-function SecurityMiddleware_assertScopeAllowed(tenant, scope) {
-  const allowed = tenant.scopesAllowed?.length ? tenant.scopesAllowed : ['events', 'leagues', 'tournaments'];
+function SecurityMiddleware_assertScopeAllowed(brand, scope) {
+  const allowed = brand.scopesAllowed?.length ? brand.scopesAllowed : ['events', 'leagues', 'tournaments'];
   if (!allowed.includes(scope)) {
-    return Err(ERR.BAD_INPUT, `Scope '${scope}' not allowed for tenant ${tenant.id}`);
+    return Err(ERR.BAD_INPUT, `Scope '${scope}' not allowed for brand ${brand.id}`);
   }
   return Ok();
 }

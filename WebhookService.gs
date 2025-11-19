@@ -46,7 +46,7 @@ const WEBHOOK_EVENTS = {
  * Register a new webhook endpoint
  *
  * @param {Object} params
- * @param {string} params.brandId - Tenant ID
+ * @param {string} params.brandId - Brand ID
  * @param {string} params.eventType - Event type to subscribe to (from WEBHOOK_EVENTS)
  * @param {string} params.url - Target URL for webhook delivery
  * @param {string} [params.secret] - Shared secret for HMAC signing (auto-generated if not provided)
@@ -136,7 +136,7 @@ function WebhookService_register(params) {
  * Unregister a webhook
  *
  * @param {Object} params
- * @param {string} params.brandId - Tenant ID
+ * @param {string} params.brandId - Brand ID
  * @param {string} params.webhookId - Webhook ID to unregister
  * @param {string} params.adminKey - Admin authentication
  * @returns {Object} Result envelope
@@ -165,10 +165,10 @@ function WebhookService_unregister(params) {
     const data = webhooksSheet.getDataRange().getValues();
     const headers = data[0];
     const idIndex = headers.indexOf('id');
-    const tenantIndex = headers.indexOf('brandId');
+    const brandIndex = headers.indexOf('brandId');
 
     for (let i = 1; i < data.length; i++) {
-      if (data[i][idIndex] === params.webhookId && data[i][tenantIndex] === params.brandId) {
+      if (data[i][idIndex] === params.webhookId && data[i][brandIndex] === params.brandId) {
         webhooksSheet.deleteRow(i + 1);
         Logger.log(`Webhook unregistered: ${params.webhookId}`);
         return Ok({ id: params.webhookId, deleted: true });
@@ -184,10 +184,10 @@ function WebhookService_unregister(params) {
 }
 
 /**
- * List all webhooks for a tenant
+ * List all webhooks for a brand
  *
  * @param {Object} params
- * @param {string} params.brandId - Tenant ID
+ * @param {string} params.brandId - Brand ID
  * @param {string} params.adminKey - Admin authentication
  * @returns {Object} Result envelope with webhooks array
  */
@@ -219,7 +219,7 @@ function WebhookService_list(params) {
         webhook[header] = row[index];
       });
 
-      // Filter by tenant
+      // Filter by brand
       if (webhook.brandId === params.brandId) {
         // Parse filters if present
         if (webhook.filters) {
@@ -247,7 +247,7 @@ function WebhookService_list(params) {
  *
  * @param {string} eventType - Event type (from WEBHOOK_EVENTS)
  * @param {Object} payload - Event payload data
- * @param {string} brandId - Tenant ID
+ * @param {string} brandId - Brand ID
  * @returns {Object} Result with delivery statuses
  */
 function WebhookService_deliver(eventType, payload, brandId) {
@@ -260,7 +260,7 @@ function WebhookService_deliver(eventType, payload, brandId) {
       return Ok({ delivered: 0, failed: 0 });
     }
 
-    // Get all webhooks for this event type and tenant
+    // Get all webhooks for this event type and brand
     const data = webhooksSheet.getDataRange().getValues();
     const headers = data[0];
     const webhooks = [];
@@ -274,7 +274,7 @@ function WebhookService_deliver(eventType, payload, brandId) {
         webhook._rowIndex = i + 1; // Store row index for updates
       });
 
-      // Filter by tenant, event type, and enabled status
+      // Filter by brand, event type, and enabled status
       if (webhook.brandId === brandId &&
           webhook.eventType === eventType &&
           webhook.enabled) {
@@ -318,7 +318,7 @@ function WebhookService_deliver(eventType, payload, brandId) {
  * Test webhook delivery (does not increment delivery count)
  *
  * @param {Object} params
- * @param {string} params.brandId - Tenant ID
+ * @param {string} params.brandId - Brand ID
  * @param {string} params.webhookId - Webhook ID to test
  * @param {string} params.adminKey - Admin authentication
  * @returns {Object} Result with test delivery status
@@ -394,7 +394,7 @@ function WebhookService_test(params) {
  * Get webhook delivery history
  *
  * @param {Object} params
- * @param {string} params.brandId - Tenant ID
+ * @param {string} params.brandId - Brand ID
  * @param {string} [params.webhookId] - Filter by specific webhook ID
  * @param {number} [params.limit=50] - Limit number of results
  * @param {string} params.adminKey - Admin authentication
@@ -430,7 +430,7 @@ function WebhookService_getDeliveries(params) {
         delivery[header] = row[index];
       });
 
-      // Filter by tenant (via webhook ID lookup)
+      // Filter by brand (via webhook ID lookup)
       // For now, just return all deliveries - could enhance with webhook lookup
       if (!params.webhookId || delivery.webhookId === params.webhookId) {
         // Parse payload if present
