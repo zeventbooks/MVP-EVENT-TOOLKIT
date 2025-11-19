@@ -46,7 +46,7 @@ If migrating away from Google Apps Script, consider:
 
 **Mitigations in Place:**
 1. ✅ Tenant ID validation on every request
-2. ✅ Filter by tenantId in all data queries
+2. ✅ Filter by brandId in all data queries
 3. ✅ Comprehensive tests for cross-tenant access prevention
 4. ✅ Analytics queries isolated by tenant
 

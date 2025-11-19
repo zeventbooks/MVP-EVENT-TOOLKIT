@@ -153,7 +153,7 @@ curl https://zeventbooks.com?p=admin&brand=abc
 # Test POST request (create event)
 curl -X POST https://zeventbooks.com?action=create \
   -H "Content-Type: application/json" \
-  -d '{"tenantId":"root","scope":"events",...}'
+  -d '{"brandId":"root","scope":"events",...}'
 ```
 
 ---

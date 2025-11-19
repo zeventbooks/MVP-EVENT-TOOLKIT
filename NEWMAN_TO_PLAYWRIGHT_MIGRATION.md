@@ -148,13 +148,13 @@ test.describe('System APIs', () => {
   test('Diagnostics requires admin key', async () => {
     // Without admin key - should fail
     const responseNoAuth = await api.post('?action=runDiagnostics', {
-      tenantId: 'root'
+      brandId: 'root'
     });
     expect(responseNoAuth.ok()).toBe(false);
 
     // With admin key - should pass
     const responseAuth = await api.post('?action=runDiagnostics', {
-      tenantId: 'root',
+      brandId: 'root',
       adminKey: process.env.ADMIN_KEY
     });
     expect(responseAuth.ok()).toBe(true);
@@ -190,7 +190,7 @@ export class ApiHelpers {
 
   async createEvent(tenant, eventData, adminKey) {
     return await this.post('?action=create', {
-      tenantId: tenant,
+      brandId: tenant,
       scope: 'events',
       templateId: 'event',
       adminKey,
@@ -199,7 +199,7 @@ export class ApiHelpers {
   }
 
   async listEvents(tenant) {
-    return await this.get(`?p=api&action=list&tenantId=${tenant}&scope=events`);
+    return await this.get(`?p=api&action=list&brandId=${tenant}&scope=events`);
   }
 
   // Add more helper methods for common API operations
@@ -242,7 +242,7 @@ test.describe('API to UI Flows', () => {
 
     // Step 4: Clean up via API
     await api.post('?action=delete', {
-      tenantId: 'root',
+      brandId: 'root',
       scope: 'events',
       id: eventId,
       adminKey: process.env.ADMIN_KEY
@@ -379,7 +379,7 @@ test.describe('Event Lifecycle Flow', () => {
     // Clean up
     test.step('Clean up test event', async () => {
       await api.post('?action=delete', {
-        tenantId: 'root',
+        brandId: 'root',
         scope: 'events',
         id: eventId,
         adminKey: process.env.ADMIN_KEY

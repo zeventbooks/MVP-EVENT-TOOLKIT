@@ -159,7 +159,7 @@ GET https://script.google.com/.../exec?p=events&brand=root
 
 // This requires admin secret (protected):
 POST https://script.google.com/.../exec
-Body: { action: 'create', tenantId: 'root', adminKey: 'secret123' }
+Body: { action: 'create', brandId: 'root', adminKey: 'secret123' }
 ```
 
 ---
@@ -215,7 +215,7 @@ npm run test:smoke
 # Try to access admin without key (should be blocked)
 curl -X POST "https://script.google.com/macros/s/YOUR_ID/exec" \
   -H "Content-Type: application/json" \
-  -d '{"action":"create","tenantId":"root"}'
+  -d '{"action":"create","brandId":"root"}'
 ```
 
 **Expected:**

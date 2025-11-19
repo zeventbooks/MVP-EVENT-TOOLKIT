@@ -20,7 +20,7 @@
  * - Time-based trends
  *
  * @param {Object} params - Query parameters
- * @param {string} params.tenantId - Tenant ID
+ * @param {string} params.brandId - Tenant ID
  * @param {string} [params.eventId] - Filter by specific event
  * @param {string} [params.sponsorId] - Filter by specific sponsor (for sponsor view)
  * @param {string} [params.startDate] - ISO date string
@@ -30,10 +30,10 @@
  */
 function api_getSharedAnalytics(params) {
   try {
-    const { tenantId, eventId, sponsorId, startDate, endDate, isSponsorView = false } = params;
+    const { brandId, eventId, sponsorId, startDate, endDate, isSponsorView = false } = params;
 
-    if (!tenantId) {
-      return Err(ERR.BAD_INPUT, 'tenantId required');
+    if (!brandId) {
+      return Err(ERR.BAD_INPUT, 'brandId required');
     }
 
     // Get analytics sheet
@@ -321,14 +321,14 @@ function getTopEventSponsorPairs_(analytics, limit = 10) {
  *
  * Creates a formatted report suitable for both Event Managers and Sponsors
  *
- * @param {string} tenantId - Tenant ID
+ * @param {string} brandId - Tenant ID
  * @param {Object} [filters] - Report filters
  * @returns {Object} Report object with formatted data
  */
-function api_generateSharedReport(tenantId, filters = {}) {
+function api_generateSharedReport(brandId, filters = {}) {
   try {
     // Get analytics data
-    const analyticsResult = api_getSharedAnalytics({ tenantId, ...filters });
+    const analyticsResult = api_getSharedAnalytics({ brandId, ...filters });
 
     if (!analyticsResult.ok) {
       return analyticsResult;
@@ -340,7 +340,7 @@ function api_generateSharedReport(tenantId, filters = {}) {
     const report = {
       reportType: 'shared-event-sponsor',
       generatedAt: new Date().toISOString(),
-      tenant: tenantId,
+      tenant: brandId,
       filters,
 
       // Executive Summary (shared key metrics)
@@ -435,14 +435,14 @@ function generateRecommendations_(metrics) {
  *
  * Creates a new sheet with formatted report data
  *
- * @param {string} tenantId - Tenant ID
+ * @param {string} brandId - Tenant ID
  * @param {Object} [filters] - Report filters
  * @returns {Object} Result with sheet URL
  */
-function api_exportSharedReport(tenantId, filters = {}) {
+function api_exportSharedReport(brandId, filters = {}) {
   try {
     // Generate report
-    const reportResult = api_generateSharedReport(tenantId, filters);
+    const reportResult = api_generateSharedReport(brandId, filters);
 
     if (!reportResult.ok) {
       return reportResult;
@@ -451,7 +451,7 @@ function api_exportSharedReport(tenantId, filters = {}) {
     const report = reportResult.value;
 
     // Get spreadsheet
-    const tenant = findTenant_(tenantId);
+    const tenant = findTenant_(brandId);
     if (!tenant) {
       return Err(ERR.NOT_FOUND, 'Tenant not found');
     }

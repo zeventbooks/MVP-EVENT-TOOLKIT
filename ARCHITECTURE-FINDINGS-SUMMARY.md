@@ -28,7 +28,7 @@ The **MVP-EVENT-TOOLKIT** is a well-structured **multi-tenant event management s
 ### Strengths
 
 1. **Clean Multi-Tenant Architecture**
-   - Tenant isolation via dual-key (id + tenantId)
+   - Tenant isolation via dual-key (id + brandId)
    - Separate admin secrets per tenant
    - Clear scope-based feature control
    - **Status:** Production-ready for this aspect
@@ -297,7 +297,7 @@ SCORE: 8/10 DEBT LEVEL (Moderate to High)
 ### Current Guarantees
 
 ✓ **Event ID Uniqueness:** UUID-based, collision-free
-✓ **Tenant Isolation:** Dual-key enforcement (id + tenantId)
+✓ **Tenant Isolation:** Dual-key enforcement (id + brandId)
 ✓ **Analytics Immutability:** Append-only design
 ✓ **Sponsor Ownership:** Stored within event row
 

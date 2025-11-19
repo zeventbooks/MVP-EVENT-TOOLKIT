@@ -54,8 +54,8 @@ Code.gs (reduced complexity)
 - `SecurityMiddleware_validateCSRFToken(token)` - Validate CSRF tokens (atomic with LockService)
 - `SecurityMiddleware_generateJWT(params)` - Generate JWT tokens
 - `SecurityMiddleware_verifyJWT(token, tenant)` - Verify JWT with timing-safe comparison
-- `SecurityMiddleware_authenticateRequest(e, body, tenantId)` - Multi-method authentication
-- `SecurityMiddleware_gate(tenantId, adminKey, ipAddress)` - Rate limiting & auth
+- `SecurityMiddleware_authenticateRequest(e, body, brandId)` - Multi-method authentication
+- `SecurityMiddleware_gate(brandId, adminKey, ipAddress)` - Rate limiting & auth
 - `SecurityMiddleware_sanitizeInput(input, maxLength)` - Input sanitization
 - `SecurityMiddleware_sanitizeId(id)` - ID validation
 - `SecurityMiddleware_sanitizeSpreadsheetValue(value)` - Prevent formula injection
@@ -77,7 +77,7 @@ Code.gs (reduced complexity)
 - `EventService_get(params)` - Get event by ID with ETag support
 - `EventService_create(params)` - Create event with validation & idempotency
 - `EventService_update(params)` - Update event data (atomic with LockService)
-- `EventService_generateUrls(baseUrl, tenantId, eventId, scope)` - URL generation
+- `EventService_generateUrls(baseUrl, brandId, eventId, scope)` - URL generation
 
 **Features:**
 - ✅ Pagination support (prevents loading all rows)
@@ -136,7 +136,7 @@ Code.gs (reduced complexity)
 - `AnalyticsService_getEventReport(params)` - Get event report
 - `AnalyticsService_aggregateEventData(data)` - Aggregate event data
 - `AnalyticsService_getSharedAnalytics(params)` - Shared analytics (managers & sponsors)
-- `AnalyticsService_verifyEventOwnership(eventId, tenantId)` - Authorization check
+- `AnalyticsService_verifyEventOwnership(eventId, brandId)` - Authorization check
 - `AnalyticsService_calculateEngagementRate(analytics)` - Engagement rate
 - `AnalyticsService_groupBySurface(analytics)` - Group by surface
 - `AnalyticsService_groupByEvent(analytics)` - Group by event
@@ -175,7 +175,7 @@ Code.gs (reduced complexity)
 - ✅ API documentation
 
 **Schema Categories:**
-- `SCHEMAS.common` - Common types (id, tenantId, scope, isoDate, url, email)
+- `SCHEMAS.common` - Common types (id, brandId, scope, isoDate, url, email)
 - `SCHEMAS.auth` - Authentication endpoints (generateToken)
 - `SCHEMAS.events` - Event endpoints (list, get, create, update)
 - `SCHEMAS.analytics` - Analytics endpoints (logEvents, getReport)
@@ -281,7 +281,7 @@ if (action === 'getSponsorROI' || action === 'api_getSponsorROI') {
     avgTransactionValue: body.avgTransactionValue || 0,
     dateFrom: body.dateFrom || '',
     dateTo: body.dateTo || '',
-    tenantId,
+    brandId,
     adminKey
   }));
 }
@@ -296,7 +296,7 @@ function api_getSponsorROI(req) {
 
     // Authentication (optional for sponsors viewing their own data)
     if (req.adminKey) {
-      const g = gate_(req.tenantId || 'root', req.adminKey);
+      const g = gate_(req.brandId || 'root', req.adminKey);
       if (!g.ok) return g;
     }
 
@@ -352,7 +352,7 @@ function api_getSponsorROI(req) {
 // Test EventService
 function test_EventService_create() {
   const result = EventService_create({
-    tenantId: 'test',
+    brandId: 'test',
     scope: 'events',
     templateId: 'event',
     data: { name: 'Test Event', dateISO: '2025-12-31' }

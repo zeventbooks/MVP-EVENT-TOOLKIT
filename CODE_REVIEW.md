@@ -36,7 +36,7 @@ adminSecret: 'CHANGE_ME_root',  // ❌ CRITICAL
 **Issue:** Admin keys stored in localStorage without encryption.
 
 ```javascript
-localStorage.setItem('ADMIN_KEY:'+tenantId, k);  // ❌ Plaintext storage
+localStorage.setItem('ADMIN_KEY:'+brandId, k);  // ❌ Plaintext storage
 ```
 
 **Recommendation:**
@@ -153,7 +153,7 @@ const ss = SpreadsheetApp.getActive();
 
 ```javascript
 const rows = sh.getRange(2,1,Math.max(0, sh.getLastRow()-1),6).getValues()
-  .filter(r => r[1]===tenantId)  // ❌ Filter after loading all data
+  .filter(r => r[1]===brandId)  // ❌ Filter after loading all data
 ```
 
 **Recommendation:**

@@ -441,7 +441,7 @@ Tests should pass! No more 403 errors.
    ```bash
    curl -X POST "https://zeventbooks.com?action=create" \
      -H "Content-Type: application/json" \
-     -d '{"tenantId":"root","scope":"events","name":"Test Event"}'
+     -d '{"brandId":"root","scope":"events","name":"Test Event"}'
    ```
 
 ---

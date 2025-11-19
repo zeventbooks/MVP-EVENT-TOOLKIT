@@ -84,7 +84,7 @@ function doGet(e){
   // 7. Load and populate template
   const tpl = HtmlService.createTemplateFromFile(pageFile_(page));
   tpl.appTitle = `${tenant.name} · ${scope}`;
-  tpl.tenantId = tenant.id;
+  tpl.brandId = tenant.id;
   tpl.scope = scope;
   tpl.execUrl = ScriptApp.getService().getUrl();
   tpl.ZEB = ZEB;
@@ -118,7 +118,7 @@ function pageFile_(page){
 appTitle      // String: "${tenant.name} · ${scope}"
               // Example: "Zeventbook · events"
 
-tenantId      // String: tenant.id
+brandId      // String: tenant.id
               // Example: "root", "abc", "cbc", "cbl"
 
 scope         // String: 'events' | 'leagues' | 'tournaments'
@@ -238,7 +238,7 @@ const SCOPE = 'events';  // or 'leagues', 'tournaments'
 // Sheet name derives from scope:
 const SHEET_NAME = scope.toUpperCase();  // 'EVENTS', 'LEAGUES', 'TOURNAMENTS'
 
-// Data stored in columns: [id, tenantId, templateId, dataJSON, createdAt, slug]
+// Data stored in columns: [id, brandId, templateId, dataJSON, createdAt, slug]
 // Each scope has independent sheet with same structure
 ```
 

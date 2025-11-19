@@ -273,7 +273,7 @@
   </div>
 
   <script>
-    const TENANT = '<?= tenantId ?>';
+    const TENANT = '<?= brandId ?>';
     const SCOPE = '<?= scope ?>';
     let currentEventId = null;
     let stateManager = null;
@@ -281,7 +281,7 @@
     // Initialize state manager
     function initStateManager() {
       stateManager = new EventStateManager({
-        tenantId: TENANT,
+        brandId: TENANT,
         scope: SCOPE,
         autoSave: true,
         autoSaveInterval: 30000 // 30 seconds
@@ -374,7 +374,7 @@
       });
 
       const res = await NU.rpc('api_create', {
-        tenantId: TENANT,
+        brandId: TENANT,
         scope: SCOPE,
         templateId: 'event',
         adminKey: getAdminKey(),

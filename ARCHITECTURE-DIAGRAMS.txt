@@ -54,7 +54,7 @@ MVP-EVENT-TOOLKIT: ARCHITECTURE DIAGRAMS & VISUAL MAPPINGS
       │                                 │
       │ EVENTS (rows)                   │
       │ ├─ id (UUID)                    │
-      │ ├─ tenantId                     │
+      │ ├─ brandId                     │
       │ ├─ templateId                   │
       │ ├─ dataJSON {                   │
       │ │   name, dateISO, location,    │
@@ -113,7 +113,7 @@ MVP-EVENT-TOOLKIT: ARCHITECTURE DIAGRAMS & VISUAL MAPPINGS
       4. HtmlService.createTemplateFromFile('Admin')
            │
            ├─ tpl.appTitle = 'Zeventbook · events'
-           ├─ tpl.tenantId = 'root'
+           ├─ tpl.brandId = 'root'
            ├─ tpl.scope = 'events'
            ├─ tpl.execUrl = 'https://script.google.com/...'
            └─ tpl.ZEB = {BUILD_ID, CONTRACT_VER, ...}
@@ -127,7 +127,7 @@ MVP-EVENT-TOOLKIT: ARCHITECTURE DIAGRAMS & VISUAL MAPPINGS
       const EXEC_URL = 'https://...'
       
       NU.rpc('api_create', {
-        tenantId: TENANT,     ← From template injection
+        brandId: TENANT,     ← From template injection
         scope: SCOPE,         ← From template injection
         data: {...}
       })
@@ -143,7 +143,7 @@ Admin User: Clicks "Create Event"
       ├─ Validate: Required fields present
       │
       └─ NU.rpc('api_create', {
-           tenantId: 'root',
+           brandId: 'root',
            scope: 'events',
            templateId: 'event',
            adminKey: prompt(),              ← First time only
@@ -155,7 +155,7 @@ Admin User: Clicks "Create Event"
          doPost(e) in Code.gs:150
          handleRestApiPost_() → api_create()
               │
-              ├─ gate_(tenantId, adminKey)         ✓ Auth check
+              ├─ gate_(brandId, adminKey)         ✓ Auth check
               ├─ assertScopeAllowed_()             ✓ Scope check
               ├─ schemaCheck(TEMPLATES['event'])   ✓ Validate schema
               ├─ Idempotency cache check
@@ -164,7 +164,7 @@ Admin User: Clicks "Create Event"
               ├─ Generate slug from name
               ├─ getStoreSheet_(tenant, 'events') → Get EVENTS sheet
               │
-              ├─ appendRow([id, tenantId, 'event', JSON.stringify(data), now, slug])
+              ├─ appendRow([id, brandId, 'event', JSON.stringify(data), now, slug])
               │
               ├─ Generate links:
               │  ├─ publicUrl: ?p=events&id=UUID
@@ -322,20 +322,20 @@ Tenant Lookup:
 
 Isolation Mechanism:
 
-  Each API call includes tenantId:
-  ├─ api_list({tenantId, scope})
+  Each API call includes brandId:
+  ├─ api_list({brandId, scope})
   │  └─ getStoreSheet_(tenant, scope)
   │     └─ Opens tenant's spreadsheet
-  │        └─ Filters rows by tenantId column
+  │        └─ Filters rows by brandId column
   │
-  ├─ api_create({tenantId, adminKey, ...})
-  │  ├─ gate_(tenantId, adminKey)  ← Verify secret
+  ├─ api_create({brandId, adminKey, ...})
+  │  ├─ gate_(brandId, adminKey)  ← Verify secret
   │  ├─ getStoreSheet_(tenant, scope)
-  │  └─ appendRow with tenantId column
+  │  └─ appendRow with brandId column
   │
-  └─ api_updateEventData({tenantId, adminKey, ...})
-     ├─ gate_(tenantId, adminKey)
-     ├─ Find row: r[0]==id && r[1]==tenantId  ← DUAL KEY
+  └─ api_updateEventData({brandId, adminKey, ...})
+     ├─ gate_(brandId, adminKey)
+     ├─ Find row: r[0]==id && r[1]==brandId  ← DUAL KEY
      └─ Update only matching row
 
 
@@ -347,8 +347,8 @@ Authentication:
     ...
   ]
 
-  gate_(tenantId, adminKey):
-    ├─ tenant = findTenant_(tenantId)
+  gate_(brandId, adminKey):
+    ├─ tenant = findTenant_(brandId)
     ├─ if (adminKey !== tenant.adminSecret) → Err
     ├─ Rate limit check: CacheService.getScriptCache()
     └─ Return Ok({tenant})
@@ -425,16 +425,16 @@ Event ID Uniqueness:
      └─ Uniqueness guaranteed by UUID standard
 
 Event Retrieval:
-  api_get({tenantId, scope, id}):
+  api_get({brandId, scope, id}):
     ├─ getStoreSheet_() → Load sheet
-    ├─ Find row: r[0]==id && r[1]==tenantId
+    ├─ Find row: r[0]==id && r[1]==brandId
     │  └─ DUAL KEY: prevent cross-tenant reads
     ├─ Parse dataJSON
     └─ Return {id, data, links, createdAt}
 
 Event Updates:
-  api_updateEventData({tenantId, scope, id, data}):
-    ├─ Find row by id + tenantId
+  api_updateEventData({brandId, scope, id, data}):
+    ├─ Find row by id + brandId
     ├─ Parse existing data
     ├─ Merge: Object.assign({}, existing, data)
     ├─ Update column 4 (dataJSON)

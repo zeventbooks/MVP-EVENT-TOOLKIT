@@ -107,7 +107,7 @@ curl -X POST "{BASE_URL}" \
   -H "Content-Type: application/json" \
   -d '{
     "action": "create",
-    "tenantId": "root",
+    "brandId": "root",
     "adminKey": "YOUR_ADMIN_SECRET",
     "scope": "events",
     "templateId": "Event",
@@ -126,7 +126,7 @@ curl -X POST "{BASE_URL}" \
   -H "Content-Type: application/json" \
   -d '{
     "action": "update",
-    "tenantId": "root",
+    "brandId": "root",
     "adminKey": "YOUR_ADMIN_SECRET",
     "scope": "events",
     "id": "evt_123",
@@ -142,7 +142,7 @@ curl -X POST "{BASE_URL}" \
   -H "Content-Type: application/json" \
   -d '{
     "action": "getReport",
-    "tenantId": "root",
+    "brandId": "root",
     "adminKey": "YOUR_ADMIN_SECRET",
     "eventId": "evt_123",
     "startDate": "2025-01-01",
@@ -189,7 +189,7 @@ class EventApi {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         action: 'create',
-        tenantId: 'root',
+        brandId: 'root',
         adminKey: ADMIN_KEY,
         scope: 'events',
         templateId: 'Event',
@@ -205,7 +205,7 @@ class EventApi {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         action: 'update',
-        tenantId: 'root',
+        brandId: 'root',
         adminKey: ADMIN_KEY,
         scope: 'events',
         id,
@@ -221,7 +221,7 @@ class EventApi {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         action: 'getReport',
-        tenantId: 'root',
+        brandId: 'root',
         adminKey: ADMIN_KEY,
         eventId,
         startDate,
@@ -431,7 +431,7 @@ export default {
   async createEvent(eventData) {
     const { data } = await axios.post(BASE_URL, {
       action: 'create',
-      tenantId: 'root',
+      brandId: 'root',
       adminKey: ADMIN_KEY,
       scope: 'events',
       templateId: 'Event',
@@ -443,7 +443,7 @@ export default {
   async updateEvent(id, eventData) {
     const { data } = await axios.post(BASE_URL, {
       action: 'update',
-      tenantId: 'root',
+      brandId: 'root',
       adminKey: ADMIN_KEY,
       scope: 'events',
       id,
@@ -541,7 +541,7 @@ export const createEvent = async (eventData, adminKey) => {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       action: 'create',
-      tenantId: 'root',
+      brandId: 'root',
       adminKey,
       scope: 'events',
       templateId: 'Event',
@@ -755,7 +755,7 @@ curl "https://script.google.com/.../exec?action=list&brand=root&scope=events"
 # Create event
 curl -X POST "https://script.google.com/.../exec" \
   -H "Content-Type: application/json" \
-  -d '{"action":"create","tenantId":"root","adminKey":"YOUR_KEY","scope":"events","templateId":"Event","data":{"eventName":"Test Event","eventDate":"2025-07-15"}}'
+  -d '{"action":"create","brandId":"root","adminKey":"YOUR_KEY","scope":"events","templateId":"Event","data":{"eventName":"Test Event","eventDate":"2025-07-15"}}'
 ```
 
 ### 3. Use Browser DevTools

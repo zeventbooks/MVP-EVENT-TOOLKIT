@@ -90,7 +90,7 @@ TENANTS = [
 ├─────────────────────────────────────────────────────────────┤
 │ tpl = HtmlService.createTemplateFromFile(pageFile_())      │
 │ tpl.appTitle = "${tenant.name} · ${scope}"                │
-│ tpl.tenantId = tenant.id                                  │
+│ tpl.brandId = tenant.id                                  │
 │ tpl.scope = scope                                          │
 │ tpl.execUrl = ScriptApp.getService().getUrl()            │
 │ tpl.ZEB = ZEB (build info)                                │
@@ -101,7 +101,7 @@ TENANTS = [
 │ FRONTEND INITIALIZATION                                     │
 ├─────────────────────────────────────────────────────────────┤
 │ HTML template receives:                                      │
-│ - const TENANT = '<?= tenantId ?>'                         │
+│ - const TENANT = '<?= brandId ?>'                         │
 │ - const SCOPE = '<?= scope ?>'                             │
 │ - const EXEC_URL = '<?= execUrl ?>'                        │
 │ - const appTitle = '<?= appTitle ?>'                       │
@@ -113,7 +113,7 @@ TENANTS = [
 │ RPC CALLS WITH CONFIG                                       │
 ├─────────────────────────────────────────────────────────────┤
 │ NU.rpc('api_list', {                                        │
-│   tenantId: TENANT,        ← From config                   │
+│   brandId: TENANT,        ← From config                   │
 │   scope: SCOPE             ← From config                   │
 │ })                                                          │
 └─────────────────────────────────────────────────────────────┘
@@ -157,7 +157,7 @@ DB    Multiple   Impression  Report
 **Event Storage (Spreadsheet Row)**
 ```
 Column 1: id           (UUID)
-Column 2: tenantId     (Reference to Config.TENANTS[].id)
+Column 2: brandId     (Reference to Config.TENANTS[].id)
 Column 3: templateId   ('event')
 Column 4: dataJSON     (Serialized event fields)
 Column 5: createdAt    (ISO timestamp)
@@ -278,7 +278,7 @@ CHILD INTERACTIONS:
 ┌─────────────────────────────────────────────────────────┐
 │ PAGE LOAD (boot())                                      │
 ├─────────────────────────────────────────────────────────┤
-│ 1. NU.rpc('api_get', {eventId, tenantId})              │
+│ 1. NU.rpc('api_get', {eventId, brandId})              │
 │ 2. renderSponsorTop(ev.data.sponsors[].tvTop)          │
 │ 3. renderSponsorSide(ev.data.sponsors[].tvSide)        │
 │ 4. Check display.mode:                                  │
@@ -467,19 +467,19 @@ id: (typeof crypto !== 'undefined' && crypto.randomUUID)
 |----------|---------|------|-------|--------|-----------|
 | `api_status()` | Health check | No | - | {build, contract, time, db} | DiagnosticsDashboard.html |
 | `api_healthCheck()` | Health ping | No | - | {checks:[]} | Custom integrations |
-| `api_getConfig({tenantId, scope})` | Get config/templates | No | tenantId, scope | {tenants[], templates[]} | Public.html (init) |
-| `api_list({tenantId, scope})` | List events/sponsors | No | tenantId, scope, etag | {items:[]} | Public.html, Admin.html |
-| `api_get({tenantId, scope, id})` | Get single event | No | tenantId, scope, id, etag | {id, data, links} | Admin.html, Display.html |
-| `api_create({tenantId, scope, templateId, data, adminKey})` | Create event | **Yes** | data fields | {id, links} | Admin.html, Diagnostics.html |
-| `api_updateEventData({tenantId, scope, id, data, adminKey})` | Update event | **Yes** | partial data | updated event | Admin.html |
+| `api_getConfig({brandId, scope})` | Get config/templates | No | brandId, scope | {tenants[], templates[]} | Public.html (init) |
+| `api_list({brandId, scope})` | List events/sponsors | No | brandId, scope, etag | {items:[]} | Public.html, Admin.html |
+| `api_get({brandId, scope, id})` | Get single event | No | brandId, scope, id, etag | {id, data, links} | Admin.html, Display.html |
+| `api_create({brandId, scope, templateId, data, adminKey})` | Create event | **Yes** | data fields | {id, links} | Admin.html, Diagnostics.html |
+| `api_updateEventData({brandId, scope, id, data, adminKey})` | Update event | **Yes** | partial data | updated event | Admin.html |
 | `api_logEvents({items:[]})` | Log analytics | No | impression/click/dwell events | {count} | Public.html, Display.html |
 | `api_getReport({id})` | Get analytics report | No | eventId | {totals, bySurface, bySponsor} | Analytics viewers |
 | `api_exportReport({id})` | Export to sheet | **Yes** | eventId | {sheetUrl} | Admin.html (planned) |
 | `api_createShortlink({targetUrl, eventId, sponsorId, surface, adminKey})` | Create redirect | **Yes** | targetUrl, metadata | {token, shortlink} | Admin.html, Diagnostics.html |
-| `api_generateToken({tenantId, adminKey, expiresIn, scope})` | Generate JWT | **Yes** | adminKey, scope | {token, expiresAt, usage} | Integration requests |
+| `api_generateToken({brandId, adminKey, expiresIn, scope})` | Generate JWT | **Yes** | adminKey, scope | {token, expiresAt, usage} | Integration requests |
 | `api_listFormTemplates()` | List form templates | No | - | {templates:[]} | Admin.html |
-| `api_createFormFromTemplate({tenantId, templateType, eventName, adminKey})` | Create Google Form | **Yes** | templateType | {formId, editUrl, publishedUrl} | Admin.html |
-| `api_generateFormShortlink({tenantId, formUrl, formType, eventId, adminKey})` | Shortlink for form | **Yes** | formUrl | {token, shortlink} | Admin.html |
+| `api_createFormFromTemplate({brandId, templateType, eventName, adminKey})` | Create Google Form | **Yes** | templateType | {formId, editUrl, publishedUrl} | Admin.html |
+| `api_generateFormShortlink({brandId, formUrl, formType, eventId, adminKey})` | Shortlink for form | **Yes** | formUrl | {token, shortlink} | Admin.html |
 | `api_runDiagnostics()` | Self-test | **Yes** | - | {steps[], ok} | Diagnostics.html |
 
 ### 4.2 HTTP Entry Points (doGet / doPost)
@@ -625,7 +625,7 @@ doGet(e) {
   // 4. Render HTML page with template
   const tpl = HtmlService.createTemplateFromFile(pageFile_(pageParam))
   tpl.appTitle = `${tenant.name} · ${scope}`
-  tpl.tenantId = tenant.id
+  tpl.brandId = tenant.id
   return tpl.evaluate()
 }
 ```
@@ -638,7 +638,7 @@ document.getElementById('createForm').addEventListener('submit', async (e) => {
   e.preventDefault()
   const data = { name: ..., dateISO: ... }
   const res = await NU.rpc('api_create', {
-    tenantId: TENANT,
+    brandId: TENANT,
     scope: SCOPE,
     templateId: 'event',
     adminKey: getAdminKey(),
@@ -696,7 +696,7 @@ async function saveDisplayConfig() {
 **Display.html**
 ```
 1. Window load
-2. Parse eventId, tenantId from URL
+2. Parse eventId, brandId from URL
 3. boot() function:
    a. api_get({eventId})
    b. renderSponsorTop/Side()
@@ -813,12 +813,12 @@ Config.gs → Code.gs → HTML pages
 **Issue: Header.html requires template context**
 ```html
 <!-- Header.html line 4 -->
-<img src="<?= findTenant_(tenantId)?.logoUrl || ... ?>"
+<img src="<?= findTenant_(brandId)?.logoUrl || ... ?>"
 
-<!-- This requires tenantId to be set by parent template -->
+<!-- This requires brandId to be set by parent template -->
 ```
 **Impact:** Header.html cannot be tested in isolation
-**Fix:** Document that tenantId must be provided by calling template
+**Fix:** Document that brandId must be provided by calling template
 
 **Issue: NUSDK.html depends on google.script.run**
 ```javascript
@@ -1050,7 +1050,7 @@ USER (Admin)
                  ▼
     ┌────────────────────────────────────────┐
     │ NU.rpc('api_create', {                 │
-    │   tenantId: 'root',                    │
+    │   brandId: 'root',                    │
     │   scope: 'events',                     │
     │   templateId: 'event',                 │
     │   adminKey: 'HASH',                    │
@@ -1065,7 +1065,7 @@ USER (Admin)
     │ doPost(e) in Code.gs:150               │
     │ - Parse JSON body                      │
     │ - Extract: action='create'             │
-    │ - Authenticate: gate_(tenantId, key)   │
+    │ - Authenticate: gate_(brandId, key)   │
     └────────────┬───────────────────────────┘
                  │
                  ▼
@@ -1077,7 +1077,7 @@ USER (Admin)
     │ 3. Sanitize inputs                     │
     │ 4. Generate UUID & slug                │
     │ 5. Get EVENTS sheet from tenant store  │
-    │ 6. appendRow([id, tenantId, ...])      │
+    │ 6. appendRow([id, brandId, ...])      │
     │ 7. Generate links (public/poster/etc)  │
     │ 8. diag_('info', ...)                  │
     │ 9. Return Ok({id, links})              │
@@ -1206,7 +1206,7 @@ USER (Admin)
         │ Inject variables:               │
         │ tpl.appTitle =                  │
         │   "Zeventbook · events"         │
-        │ tpl.tenantId = 'root'           │
+        │ tpl.brandId = 'root'           │
         │ tpl.scope = 'events'            │
         │ tpl.execUrl = script URL        │
         │ tpl.ZEB = ZEB object            │
@@ -1226,7 +1226,7 @@ USER (Admin)
         │ → Injects NU RPC client         │
         │                                 │
         │ NU.rpc('api_create', {          │
-        │   tenantId: TENANT,             │
+        │   brandId: TENANT,             │
         │   scope: SCOPE,                 │
         │   ...                           │
         │ })                              │
@@ -1319,7 +1319,7 @@ Failure Points:
 | Requirement | Current | Issue |
 |-------------|---------|-------|
 | Event ID uniqueness | UUID in append | OK (collision impossible) |
-| Tenant isolation | tenantId filter in all queries | OK |
+| Tenant isolation | brandId filter in all queries | OK |
 | Sponsor placements | Stored in event.data | OK |
 | Analytics integrity | Append-only ANALYTICS sheet | OK |
 | Shortlink redirection | SHORTLINKS sheet lookup | OK |

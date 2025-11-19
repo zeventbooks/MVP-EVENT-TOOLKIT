@@ -190,7 +190,7 @@
     <!-- Header -->
     <div class="page-header">
       <div class="nav-breadcrumb">
-        <a href="?page=test&brand=<?= tenantId ?>">← Back to Dashboard</a>
+        <a href="?page=test&brand=<?= brandId ?>">← Back to Dashboard</a>
       </div>
       <h1>
         <span>⚙️</span>
@@ -232,7 +232,7 @@
           <h3>🌐 Current Session</h3>
           <div class="config-item">
             <span class="config-label">Tenant ID</span>
-            <span class="config-value"><?= tenantId ?></span>
+            <span class="config-value"><?= brandId ?></span>
           </div>
           <div class="config-item">
             <span class="config-label">Scope</span>
@@ -253,7 +253,7 @@
       <h2>🏢 Tenant Configuration</h2>
       <p style="color: #6b7280; margin-bottom: 1.5rem;">
         Multi-tenant architecture allows multiple organizations to use the same platform with isolated data and custom branding.
-        Currently viewing configuration for: <strong><?= appTitle ?></strong><span class="tenant-badge"><?= tenantId ?></span>
+        Currently viewing configuration for: <strong><?= appTitle ?></strong><span class="tenant-badge"><?= brandId ?></span>
       </p>
 
       <div class="info-box">
@@ -449,13 +449,13 @@
     <div class="section">
       <h2>🔧 Quick Actions</h2>
       <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
-        <a href="?page=diagnostics&brand=<?= tenantId ?>" class="btn-secondary">
+        <a href="?page=diagnostics&brand=<?= brandId ?>" class="btn-secondary">
           🔍 Run Diagnostics
         </a>
-        <a href="?page=api&brand=<?= tenantId ?>" class="btn-secondary">
+        <a href="?page=api&brand=<?= brandId ?>" class="btn-secondary">
           📖 View API Docs
         </a>
-        <a href="?p=status&brand=<?= tenantId ?>" class="btn-secondary">
+        <a href="?p=status&brand=<?= brandId ?>" class="btn-secondary">
           💚 Check System Status
         </a>
         <a href="<?= execUrl ?>" target="_blank" class="btn-secondary">
@@ -466,14 +466,14 @@
 
     <!-- Back to Dashboard Button -->
     <div style="text-align: center; margin-top: 2rem;">
-      <a href="?page=test&brand=<?= tenantId ?>" class="btn-secondary">
+      <a href="?page=test&brand=<?= brandId ?>" class="btn-secondary">
         ← Back to Triangle Dashboard
       </a>
     </div>
   </div>
 
   <script>
-    const TENANT = '<?= tenantId ?>';
+    const TENANT = '<?= brandId ?>';
     let portfolioSponsorsCache = [];
 
     // Brand Portfolio Management
@@ -532,7 +532,7 @@
 
       try {
         const summaryRes = await NU.rpc('api_getPortfolioSummary', {
-          tenantId: TENANT,
+          brandId: TENANT,
           adminKey: getAdminKey()
         });
 
@@ -598,7 +598,7 @@
       if (!selectEl) return;
 
       const sponsorsRes = await NU.rpc('api_getPortfolioSponsors', {
-        tenantId: TENANT,
+        brandId: TENANT,
         adminKey: getAdminKey()
       });
 
@@ -631,7 +631,7 @@
 
       try {
         const reportRes = await NU.rpc('api_getPortfolioSponsorReport', {
-          tenantId: TENANT,
+          brandId: TENANT,
           adminKey: getAdminKey(),
           sponsorId: sponsorId,
           options: {}

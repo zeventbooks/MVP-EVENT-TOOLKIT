@@ -55,7 +55,7 @@ The Zeventbook Triangle platform has made **significant progress** toward becomi
 - **Features:**
   - JSON Schema definitions for all endpoints
   - Request/response validation functions
-  - Common types (id, tenantId, scope, isoDate)
+  - Common types (id, brandId, scope, isoDate)
   - Schema categories: auth, events, analytics, sponsors, forms
   - Support for contract testing
 - **Coverage:** All API endpoints have formal schemas

@@ -170,10 +170,10 @@ if (!isAllowedOrigin_(origin, e.headers)) {
 ```javascript
 function api_getReport(req){
   return runSafe('api_getReport', () => {
-    const { tenantId, adminKey } = req || {};
+    const { brandId, adminKey } = req || {};
 
     // Fixed: Add authentication check - Bug #6
-    const g = gate_(tenantId || 'root', adminKey);
+    const g = gate_(brandId || 'root', adminKey);
     if (!g.ok) return g; // ✅ Authentication enforced
 
     // ... rest of function

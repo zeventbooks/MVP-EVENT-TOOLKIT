@@ -479,7 +479,7 @@
 
   <script>
     // Global state
-    const TENANT_ID = new URLSearchParams(location.search).get('tenantId') || new URLSearchParams(location.search).get('brand') || 'root';
+    const TENANT_ID = new URLSearchParams(location.search).get('brandId') || new URLSearchParams(location.search).get('brand') || 'root';
     let currentData = null;
 
     // NU SDK wrapper for Google Apps Script RPC
@@ -512,7 +512,7 @@
         // Gather filter parameters
         const params = {
           sponsorId: sponsorId,
-          tenantId: TENANT_ID,
+          brandId: TENANT_ID,
           dateFrom: document.getElementById('dateFrom').value || undefined,
           dateTo: document.getElementById('dateTo').value || undefined,
           sponsorshipCost: parseFloat(document.getElementById('sponsorshipCost').value) || 0,
@@ -529,7 +529,7 @@
 
         // Fetch shared analytics data
         const analyticsResponse = await NU.rpc('api_getSharedAnalytics', {
-          tenantId: TENANT_ID,
+          brandId: TENANT_ID,
           sponsorId: sponsorId,
           dateFrom: params.dateFrom,
           dateTo: params.dateTo,

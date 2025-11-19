@@ -459,7 +459,7 @@
         <h5>Request Body:</h5>
         <pre>{
   "action": "generateToken",
-  "tenantId": "root",
+  "brandId": "root",
   "adminKey": "YOUR_ADMIN_SECRET",
   "expiresIn": 3600,
   "scope": "events"
@@ -612,7 +612,7 @@
         <h5>Request Body:</h5>
         <pre>{
   "action": "create",
-  "tenantId": "root",
+  "brandId": "root",
   "adminKey": "YOUR_ADMIN_SECRET",
   "scope": "events",
   "templateId": "Event",
@@ -641,7 +641,7 @@
             <label>Request Body (JSON):</label>
             <textarea id="create-body">{
   "action": "create",
-  "tenantId": "root",
+  "brandId": "root",
   "adminKey": "YOUR_ADMIN_SECRET",
   "scope": "events",
   "templateId": "Event",
@@ -683,7 +683,7 @@ const response = await fetch('https://script.google.com/.../exec', {
   },
   body: JSON.stringify({
     action: 'create',
-    tenantId: 'root',
+    brandId: 'root',
     scope: 'events',
     templateId: 'Event',
     data: {
@@ -703,7 +703,7 @@ curl -X POST "https://script.google.com/.../exec" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -d '{
     "action": "create",
-    "tenantId": "root",
+    "brandId": "root",
     "scope": "events",
     "templateId": "Event",
     "data": {
@@ -785,7 +785,7 @@ curl -X POST "https://script.google.com/.../exec" \
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             action: 'generateToken',
-            tenantId: 'root',
+            brandId: 'root',
             adminKey,
             expiresIn
           })

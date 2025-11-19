@@ -824,7 +824,7 @@
         document.getElementById('currentDate').textContent = `Today: ${today}`;
 
         // Load tenant config
-        const config = await NU.rpc('api_getConfig', { tenantId: TENANT_ID });
+        const config = await NU.rpc('api_getConfig', { brandId: TENANT_ID });
         if (config.ok) {
           document.getElementById('brandName').textContent = config.value.name || 'Event Planner';
         }
@@ -846,7 +846,7 @@
     async function loadEvents() {
       try {
         const response = await NU.rpc('api_list', {
-          tenantId: TENANT_ID,
+          brandId: TENANT_ID,
           scope: 'events'
         });
 
@@ -897,7 +897,7 @@
       e.preventDefault();
 
       const eventData = {
-        tenantId: TENANT_ID,
+        brandId: TENANT_ID,
         scope: 'events',
         name: document.getElementById('eventName').value,
         date: document.getElementById('eventDate').value,

@@ -38,7 +38,7 @@ ADMIN_KEY="4a249d9791716c208479712c74aae27a"
 
 curl -X POST "$BASE_URL?action=listFormTemplates" \
   -H "Content-Type: application/json" \
-  -d "{\"tenantId\":\"root\",\"adminKey\":\"$ADMIN_KEY\"}"
+  -d "{\"brandId\":\"root\",\"adminKey\":\"$ADMIN_KEY\"}"
 ```
 Expected: JSON response with form templates
 
@@ -72,7 +72,7 @@ newman run postman/collections/mvp-event-toolkit-flows.json \
 **Cause:** EVENTS sheet doesn't exist or structure is wrong
 **Fix:**
 1. Check Google Sheet has EVENTS tab
-2. Verify columns: id, tenantId, name, date, venue, description, status, createdAt, updatedAt
+2. Verify columns: id, brandId, name, date, venue, description, status, createdAt, updatedAt
 3. Run health check: `curl "BASE_URL?action=health"`
 
 #### Scenario C: Tests Fail on "Create Form"
@@ -88,7 +88,7 @@ newman run postman/collections/mvp-event-toolkit-flows.json \
 **Fix:**
 1. Check Google Sheet has SHORTLINKS tab
 2. Verify columns: token, targetUrl, createdAt, eventId, sponsorId, surface, clicks
-3. Test shortlink manually: `curl -X POST "BASE_URL?action=createShortlink" -d '{"tenantId":"root","adminKey":"KEY","targetUrl":"https://example.com"}'`
+3. Test shortlink manually: `curl -X POST "BASE_URL?action=createShortlink" -d '{"brandId":"root","adminKey":"KEY","targetUrl":"https://example.com"}'`
 
 #### Scenario E: Tests Timeout
 **Cause:** Google Apps Script execution taking too long
@@ -127,17 +127,17 @@ curl "BASE_URL?action=health"
 
 # 2. List templates
 curl -X POST "BASE_URL?action=listFormTemplates" \
-  -d '{"tenantId":"root","adminKey":"4a249d9791716c208479712c74aae27a"}'
+  -d '{"brandId":"root","adminKey":"4a249d9791716c208479712c74aae27a"}'
 
 # 3. Create event
 curl -X POST "BASE_URL?action=create" \
-  -d '{"tenantId":"root","adminKey":"KEY","scope":"EVENTS","data":{"name":"Test","date":"2025-12-01"}}'
+  -d '{"brandId":"root","adminKey":"KEY","scope":"EVENTS","data":{"name":"Test","date":"2025-12-01"}}'
 
 # If step 3 works, get the event ID from response and try:
 
 # 4. Create form
 curl -X POST "BASE_URL?action=createFormFromTemplate" \
-  -d '{"tenantId":"root","adminKey":"KEY","templateType":"check-in","eventId":"EVENT_ID"}'
+  -d '{"brandId":"root","adminKey":"KEY","templateType":"check-in","eventId":"EVENT_ID"}'
 ```
 
 ### 7. Environment Variable Issues

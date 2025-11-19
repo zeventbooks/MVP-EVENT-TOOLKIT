@@ -1043,7 +1043,7 @@ animation: spin 1s linear infinite; /* Loading spinner */
 ```javascript
 // Using Google Apps Script RPC via NU SDK
 const res = await NU.rpc('api_create', {
-  tenantId: TENANT,
+  brandId: TENANT,
   scope: SCOPE,
   templateId: 'event',
   adminKey: getAdminKey(),

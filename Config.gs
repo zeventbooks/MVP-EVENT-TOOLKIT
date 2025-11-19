@@ -321,19 +321,19 @@ function listFormTemplates_() { return FORM_TEMPLATES; }
 
 /**
  * Get admin secret for a tenant from Script Properties
- * @param {string} tenantId - Tenant ID (root, abc, cbc, cbl)
+ * @param {string} brandId - Tenant ID (root, abc, cbc, cbl)
  * @returns {string|null} - Admin secret or null if not found
  */
-function getAdminSecret_(tenantId) {
-  if (!tenantId) return null;
+function getAdminSecret_(brandId) {
+  if (!brandId) return null;
 
   const props = PropertiesService.getScriptProperties();
-  const key = `ADMIN_SECRET_${tenantId.toUpperCase()}`;
+  const key = `ADMIN_SECRET_${brandId.toUpperCase()}`;
   const secret = props.getProperty(key);
 
   // If not found, log warning
   if (!secret) {
-    console.warn(`Admin secret not found for tenant: ${tenantId}. Set via Script Properties: ${key}`);
+    console.warn(`Admin secret not found for tenant: ${brandId}. Set via Script Properties: ${key}`);
   }
 
   return secret;
@@ -347,10 +347,10 @@ function getAdminSecret_(tenantId) {
 function setupAdminSecrets_(secrets) {
   const props = PropertiesService.getScriptProperties();
 
-  for (const [tenantId, secret] of Object.entries(secrets)) {
-    const key = `ADMIN_SECRET_${tenantId.toUpperCase()}`;
+  for (const [brandId, secret] of Object.entries(secrets)) {
+    const key = `ADMIN_SECRET_${brandId.toUpperCase()}`;
     props.setProperty(key, secret);
-    console.log(`✅ Set admin secret for tenant: ${tenantId}`);
+    console.log(`✅ Set admin secret for tenant: ${brandId}`);
   }
 
   console.log('✅ Admin secrets migration complete!');
@@ -367,17 +367,17 @@ function setupAdminSecrets_(secrets) {
  *   resolveUrlAlias_('tournaments', 'abc') → { page: 'public', label: 'Tournaments' }
  *
  * @param {string} alias - Friendly URL alias
- * @param {string} tenantId - Optional tenant ID for custom aliases
+ * @param {string} brandId - Optional tenant ID for custom aliases
  * @returns {object|null} - Alias configuration or null if not found
  */
-function resolveUrlAlias_(alias, tenantId) {
+function resolveUrlAlias_(alias, brandId) {
   if (!alias) return null;
 
   const aliasLower = alias.toLowerCase();
 
   // Check tenant-specific custom aliases first
-  if (tenantId && ZEB.TENANT_URL_PATTERNS.customAliases[tenantId]) {
-    const customAlias = ZEB.TENANT_URL_PATTERNS.customAliases[tenantId][aliasLower];
+  if (brandId && ZEB.TENANT_URL_PATTERNS.customAliases[brandId]) {
+    const customAlias = ZEB.TENANT_URL_PATTERNS.customAliases[brandId][aliasLower];
     if (customAlias) {
       return { ...customAlias, source: 'tenant-custom' };
     }
@@ -401,17 +401,17 @@ function resolveUrlAlias_(alias, tenantId) {
  *   getFriendlyUrl_('display', 'root') → '/display'
  *
  * @param {string} page - Technical page name
- * @param {string} tenantId - Tenant ID (optional)
+ * @param {string} brandId - Tenant ID (optional)
  * @param {object} options - Additional options (mode, etc.)
  * @returns {string} - Friendly URL path
  */
-function getFriendlyUrl_(page, tenantId, options = {}) {
+function getFriendlyUrl_(page, brandId, options = {}) {
   // Find matching alias
   let matchingAlias = null;
 
   // Check tenant custom aliases first
-  if (tenantId && ZEB.TENANT_URL_PATTERNS.customAliases[tenantId]) {
-    for (const [alias, config] of Object.entries(ZEB.TENANT_URL_PATTERNS.customAliases[tenantId])) {
+  if (brandId && ZEB.TENANT_URL_PATTERNS.customAliases[brandId]) {
+    for (const [alias, config] of Object.entries(ZEB.TENANT_URL_PATTERNS.customAliases[brandId])) {
       if (config.page === page &&
           (!options.mode || config.mode === options.mode)) {
         matchingAlias = alias;
@@ -433,15 +433,15 @@ function getFriendlyUrl_(page, tenantId, options = {}) {
 
   // Build URL
   if (matchingAlias) {
-    if (ZEB.TENANT_URL_PATTERNS.enableTenantPrefix && tenantId && tenantId !== 'root') {
-      return `/${tenantId}/${matchingAlias}`;
+    if (ZEB.TENANT_URL_PATTERNS.enableTenantPrefix && brandId && brandId !== 'root') {
+      return `/${brandId}/${matchingAlias}`;
     }
     return `/${matchingAlias}`;
   }
 
   // Fallback to query parameters
   let url = `?p=${page}`;
-  if (tenantId) url += `&brand=${tenantId}`;
+  if (brandId) url += `&brand=${brandId}`;
   if (options.mode) url += `&mode=${options.mode}`;
   return url;
 }
@@ -450,11 +450,11 @@ function getFriendlyUrl_(page, tenantId, options = {}) {
  * Get list of all available aliases
  * Useful for documentation and navigation menus
  *
- * @param {string} tenantId - Optional tenant ID to include custom aliases
+ * @param {string} brandId - Optional tenant ID to include custom aliases
  * @param {boolean} publicOnly - Only return public aliases
  * @returns {array} - Array of alias objects
  */
-function listUrlAliases_(tenantId, publicOnly = false) {
+function listUrlAliases_(brandId, publicOnly = false) {
   const aliases = [];
 
   // Add global aliases
@@ -463,19 +463,19 @@ function listUrlAliases_(tenantId, publicOnly = false) {
       aliases.push({
         alias: alias,
         ...config,
-        url: getFriendlyUrl_(config.page, tenantId, { mode: config.mode })
+        url: getFriendlyUrl_(config.page, brandId, { mode: config.mode })
       });
     }
   }
 
   // Add tenant custom aliases
-  if (tenantId && ZEB.TENANT_URL_PATTERNS.customAliases[tenantId]) {
-    for (const [alias, config] of Object.entries(ZEB.TENANT_URL_PATTERNS.customAliases[tenantId])) {
+  if (brandId && ZEB.TENANT_URL_PATTERNS.customAliases[brandId]) {
+    for (const [alias, config] of Object.entries(ZEB.TENANT_URL_PATTERNS.customAliases[brandId])) {
       if (!publicOnly || config.public) {
         aliases.push({
           alias: alias,
           ...config,
-          url: getFriendlyUrl_(config.page, tenantId, { mode: config.mode }),
+          url: getFriendlyUrl_(config.page, brandId, { mode: config.mode }),
           custom: true
         });
       }

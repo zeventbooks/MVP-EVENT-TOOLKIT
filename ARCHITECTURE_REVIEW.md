@@ -112,14 +112,14 @@ NU.rpc('api_create', {...}) [NUSDK.html:3, Admin.html:223]
     ↓ google.script.run.api_create(payload)
     ↓
 api_create(payload) [Code.gs:352]
-    ↓ gate_(tenantId, adminKey) [Code.gs:357] → Rate limiting + auth
+    ↓ gate_(brandId, adminKey) [Code.gs:357] → Rate limiting + auth
     ↓ assertScopeAllowed_() [Code.gs:358]
     ↓ findTemplate_('event') [Config.gs:110]
     ↓ Validate required fields [Code.gs:362-366]
     ↓ Idempotency check (CacheService) [Code.gs:369-373]
     ↓ sanitizeInput_() [Code.gs:376-382]
     ↓ getStoreSheet_() [Code.gs:235] → Ensure EVENTS sheet exists
-    ↓ appendRow([id, tenantId, templateId, dataJSON, createdAt, slug]) [Code.gs:399]
+    ↓ appendRow([id, brandId, templateId, dataJSON, createdAt, slug]) [Code.gs:399]
     ↓ diag_('info', 'api_create', ...) [Code.gs:407]
     ↓
 Return Ok({ id, links: { publicUrl, posterUrl, displayUrl } })
@@ -139,12 +139,12 @@ doGet(e) [Code.gs:97]
 Display.html renders
     ↓
 boot() [Display.html:213]
-    ↓ google.script.run.api_get({ tenantId, scope: 'events', id: eventId })
+    ↓ google.script.run.api_get({ brandId, scope: 'events', id: eventId })
     ↓
 api_get(payload) [Code.gs:326]
     ↓ assertScopeAllowed_() [Code.gs:330]
     ↓ getStoreSheet_() → Read EVENTS sheet [Code.gs:331]
-    ↓ Find row by id + tenantId [Code.gs:332]
+    ↓ Find row by id + brandId [Code.gs:332]
     ↓ Parse dataJSON [Code.gs:338]
     ↓ Build links object [Code.gs:340-344]
     ↓ Return Ok({ id, data, links })
@@ -220,7 +220,7 @@ handleRedirect_(token) [Code.gs:149]
 ### 1.4 Data Storage Schema
 
 **Sheets:**
-- `EVENTS`: [id, tenantId, templateId, dataJSON, createdAt, slug]
+- `EVENTS`: [id, brandId, templateId, dataJSON, createdAt, slug]
 - `SPONSORS`: Same schema (not actively used in MVP)
 - `ANALYTICS`: [timestamp, eventId, surface, metric, sponsorId, value, token, userAgent]
 - `SHORTLINKS`: [token, targetUrl, eventId, sponsorId, surface, createdAt]
@@ -261,7 +261,7 @@ NU.esc(s) → HTML escaping for XSS prevention
 
 **Admin.html Integration:**
 ```javascript
-createForm.submit → NU.rpc('api_create', { tenantId, scope, templateId, adminKey, data })
+createForm.submit → NU.rpc('api_create', { brandId, scope, templateId, adminKey, data })
     → showEventCard({ id, links })
         → Display Public/Display/Poster URLs
 
@@ -273,10 +273,10 @@ configureDisplay() → NU.rpc('api_get', { id }) → loadDisplayConfig()
 **Public.html Integration:**
 ```javascript
 // List view
-NU.rpc('api_list', { tenantId, scope }) → renderList(items)
+NU.rpc('api_list', { brandId, scope }) → renderList(items)
 
 // Detail view
-NU.rpc('api_get', { tenantId, scope, id }) → renderDetail(evt)
+NU.rpc('api_get', { brandId, scope, id }) → renderDetail(evt)
     → renderSponsorBanner(evt) → Log impression
     → Render event details, gallery, video
 ```

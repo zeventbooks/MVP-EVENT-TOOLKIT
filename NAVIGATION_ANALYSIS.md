@@ -168,7 +168,7 @@ REQUEST: ?page=XXX or ?p=XXX
 
 Template Variables Passed:
   - appTitle: "${tenant.name} · ${scope}"
-  - tenantId: tenant.id
+  - brandId: tenant.id
   - scope: 'events'|'leagues'|'tournaments'
   - execUrl: Base script URL for self-referential links
   - ZEB: Build/contract metadata

@@ -224,7 +224,7 @@
         <h3>🌍 Current Environment</h3>
         <div class="info-row">
           <div class="info-label">Tenant</div>
-          <div class="info-value"><?= tenantId ?></div>
+          <div class="info-value"><?= brandId ?></div>
         </div>
         <div class="info-row">
           <div class="info-label">Scope</div>
@@ -247,10 +247,10 @@
       <!-- Quick Actions Card -->
       <div class="dashboard-card">
         <h3>⚡ Quick Actions</h3>
-        <button class="btn-primary" style="width: 100%; margin-bottom: 12px;" onclick="window.open('/?page=admin&brand=<?= tenantId ?>', '_blank')">
+        <button class="btn-primary" style="width: 100%; margin-bottom: 12px;" onclick="window.open('/?page=admin&brand=<?= brandId ?>', '_blank')">
           Open Admin Panel
         </button>
-        <button class="btn-secondary" style="width: 100%; margin-bottom: 12px;" onclick="window.open('/?page=diagnostics&brand=<?= tenantId ?>', '_blank')">
+        <button class="btn-secondary" style="width: 100%; margin-bottom: 12px;" onclick="window.open('/?page=diagnostics&brand=<?= brandId ?>', '_blank')">
           Run Runtime Tests
         </button>
         <button class="btn-secondary" style="width: 100%;" onclick="showDeploymentInfo()">

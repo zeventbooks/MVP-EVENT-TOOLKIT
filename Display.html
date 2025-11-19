@@ -107,7 +107,7 @@
   <script>
     const qs = new URLSearchParams(location.search);
     const eventId = qs.get('event') || qs.get('id') || '';
-    const tenantId = qs.get('tenant') || '<?= tenantId ?>';
+    const brandId = qs.get('tenant') || '<?= brandId ?>';
     const stage = document.getElementById('stage');
     const fallback = document.getElementById('fallback');
     const topEl = document.getElementById('sponsorTop');
@@ -167,7 +167,7 @@
 
     function startPublicMode() {
       const base = location.origin + location.pathname;
-      const tvPublicUrl = `${base}?p=public&brand=${encodeURIComponent(tenantId)}&id=${encodeURIComponent(eventId)}&tv=1`;
+      const tvPublicUrl = `${base}?p=public&brand=${encodeURIComponent(brandId)}&id=${encodeURIComponent(eventId)}&tv=1`;
       loadIframe(tvPublicUrl);
       showToast('TV: Public mode (mirroring event page)');
     }
@@ -265,7 +265,7 @@
           }
         })
         .withFailureHandler(() => startPublicMode())
-        .api_get({ tenantId, scope: 'events', id: eventId });
+        .api_get({ brandId, scope: 'events', id: eventId });
     }
 
     boot();

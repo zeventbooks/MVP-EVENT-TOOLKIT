@@ -76,7 +76,7 @@ describe('Error Envelopes', () => {
 describe('Multi-Tenant Data Isolation', () => {
   it('should only return events for specified tenant', () => {
     const rootEvents = filterByTenant(allEvents, 'root');
-    expect(rootEvents.every(e => e.tenantId === 'root')).toBe(true);
+    expect(rootEvents.every(e => e.brandId === 'root')).toBe(true);
   });
 });
 ```
@@ -255,7 +255,7 @@ test('Complete flow: Browse events → View details → Check sponsors', async (
 
 // ✅ Authentication Testing
 test('should create event with Bearer token', async ({ request }) => {
-  const token = generateJWT({ tenantId: 'root' }, SECRET);
+  const token = generateJWT({ brandId: 'root' }, SECRET);
   
   const response = await request.post(BASE_URL, {
     headers: { 'Authorization': `Bearer ${token}` },

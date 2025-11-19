@@ -117,7 +117,7 @@ https://zeventbooks.com?p=display&brand=root
 https://zeventbooks.com?p=display&brand=abc
 
 # API endpoints
-https://zeventbooks.com?p=api&action=list&tenantId=root&scope=events
+https://zeventbooks.com?p=api&action=list&brandId=root&scope=events
 ```
 
 ## Troubleshooting
