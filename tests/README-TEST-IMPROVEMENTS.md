@@ -19,7 +19,7 @@ This document details the comprehensive test coverage improvements implemented b
 - **Total:** 94 tests
 - **DRY Compliance:** 40% (duplicate code across test files)
 - **Security Coverage Gaps:**
-  - ❌ Multi-tenant isolation: 0%
+  - ❌ Multi-brand isolation: 0%
   - ❌ Rate limiting edge cases: 20%
   - ❌ JWT security: 0%
   - ❌ Mobile performance: 0%
@@ -31,7 +31,7 @@ This document details the comprehensive test coverage improvements implemented b
 - **Total:** 233 tests (+155, 164% increase)
 - **DRY Compliance:** 100% (centralized helpers and fixtures)
 - **Security Coverage:**
-  - ✅ Multi-tenant isolation: 100%
+  - ✅ Multi-brand isolation: 100%
   - ✅ Rate limiting: 100%
   - ✅ JWT security: 100%
   - ✅ Mobile performance: 90%
@@ -109,23 +109,23 @@ validateEnvelope(response); // ✅ Single source of truth
 - `retryWithBackoff()` - Retry logic
 - `generateTestId()` - Unique ID generation
 - `dateHelpers` - Date manipulation utilities
-- `tenantHelpers` - Multi-tenant test utilities
+- `brandHelpers` - Multi-brand test utilities
 
 ---
 
 ## 🔐 Critical Security Tests Added
 
-### 1. Multi-Tenant Isolation Tests
-**File:** `tests/unit/multi-tenant.test.js`
+### 1. Multi-brand Isolation Tests
+**File:** `tests/unit/multi-brand.test.js`
 **Tests:** 19
 **Priority:** HIGH (Security Vulnerability)
 
 **Coverage:**
-- ✅ Tenant ID validation
-- ✅ Tenant data separation logic
-- ✅ Admin key scope per tenant
-- ✅ Cross-tenant request rejection
-- ✅ Event creation tenant isolation
+- ✅ Brand ID validation
+- ✅ Brand data separation logic
+- ✅ Admin key scope per brand
+- ✅ Cross-brand request rejection
+- ✅ Event creation brand isolation
 - ✅ Analytics isolation
 - ✅ Shortlink token isolation
 - ✅ SQL injection prevention
@@ -133,12 +133,12 @@ validateEnvelope(response); // ✅ Single source of truth
 
 **Key Tests:**
 ```javascript
-it('should only return events for specified tenant', () => {
-  const rootEvents = filterByTenant(allEvents, 'root');
+it('should only return events for specified brand', () => {
+  const rootEvents = filterByBrand(allEvents, 'root');
   expect(rootEvents.every(e => e.brandId === 'root')).toBe(true);
 });
 
-it('should reject admin key from different tenant', () => {
+it('should reject admin key from different brand', () => {
   expect(validateAdminKey('root', 'abc-admin-key')).toBe(false);
 });
 ```
@@ -330,7 +330,7 @@ npm run test:unit
 ```
 **Results:**
 - `backend.test.js` - 78 tests ✅
-- `multi-tenant.test.js` - 19 tests ✅ (NEW)
+- `multi-brand.test.js` - 19 tests ✅ (NEW)
 - `rate-limiting.test.js` - 38 tests ✅ (NEW)
 **Total:** 127 tests
 
@@ -368,7 +368,7 @@ npm run test:triangle:all:contract
 - ✅ Responsive viewport testing
 
 ### 3. Security-First Testing
-- ✅ Multi-tenant isolation
+- ✅ Multi-brand isolation
 - ✅ Rate limiting DoS prevention
 - ✅ JWT token security
 - ✅ SQL injection prevention
@@ -393,7 +393,7 @@ npm run test:triangle:all:contract
 1. `tests/shared/helpers/test.helpers.js` - Centralized test utilities
 
 ### Unit Tests
-2. `tests/unit/multi-tenant.test.js` - Multi-tenant isolation tests
+2. `tests/unit/multi-brand.test.js` - Multi-brand isolation tests
 3. `tests/unit/rate-limiting.test.js` - Enhanced rate limiting tests
 
 ### Contract Tests
@@ -421,7 +421,7 @@ npm run test:triangle:all:contract
 ### Security Coverage
 | Area | Before | After | Improvement |
 |------|--------|-------|-------------|
-| Multi-tenant | 0% | 100% | +100% |
+| Multi-brand | 0% | 100% | +100% |
 | Rate Limiting | 20% | 100% | +80% |
 | JWT Security | 0% | 100% | +100% |
 | Mobile Perf | 0% | 90% | +90% |
@@ -453,7 +453,7 @@ npx playwright test tests/e2e/mobile-performance.spec.js
 
 #### Security Tests
 ```bash
-npm run test:unit -- multi-tenant
+npm run test:unit -- multi-brand
 npm run test:unit -- rate-limiting
 npm run test:contract -- jwt-security
 ```
@@ -493,7 +493,7 @@ const {
   validateEventStructure,
   ERROR_CODES,
   dateHelpers,
-  tenantHelpers
+  brandHelpers
 } = require('./tests/shared/helpers/test.helpers');
 
 // Validate API response
@@ -503,9 +503,9 @@ validateEnvelope(response);
 const tomorrow = dateHelpers.tomorrow();
 const nextWeek = dateHelpers.daysFromNow(7);
 
-// Multi-tenant utilities
-const tenant = tenantHelpers.randomTenant();
-const otherTenant = tenantHelpers.differentTenant(tenant);
+// Multi-brand utilities
+const brand = brandHelpers.randomBrand();
+const otherBrand = brandHelpers.differentBrand(brand);
 ```
 
 ---
@@ -547,7 +547,7 @@ For questions or issues with the test suite:
 - ✅ **Centralized utilities** for maintainability
 
 ### Impact
-- 🛡️ **Security:** Multi-tenant, rate limiting, JWT fully tested
+- 🛡️ **Security:** Multi-brand, rate limiting, JWT fully tested
 - 📱 **Mobile:** Performance baselines established
 - 🔧 **Maintainability:** DRY principle reduces tech debt
 - 🚀 **Velocity:** Shared fixtures speed up test writing

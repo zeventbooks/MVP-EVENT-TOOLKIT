@@ -504,7 +504,7 @@ describe('Bug #50: Pagination Support in api_list', () => {
     // Mock data - 150 items
     const allItems = Array.from({ length: 150 }, (_, i) => ({
       id: `item-${i}`,
-      tenantId: 'root',
+      brandId: 'root',
       templateId: 'event',
       data: { name: `Event ${i}` },
       createdAt: new Date().toISOString(),

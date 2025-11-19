@@ -55,18 +55,18 @@ BASE_URL="https://script.google.com/macros/s/AKfycb.../exec" npm run test:api
 
 ## Other Environment Variables
 
-### TENANT_ID
+### BRAND_ID
 
 **Default**: `root`
 
-Specifies which tenant to use for tests:
-- `root` - Default tenant
-- `abc` - ABC tenant
-- `cbc` - CBC tenant
-- `cbl` - CBL tenant
+Specifies which brand to use for tests:
+- `root` - Default brand
+- `abc` - ABC brand
+- `cbc` - CBC brand
+- `cbl` - CBL brand
 
 ```bash
-TENANT_ID="abc" npm run test:api
+BRAND_ID="abc" npm run test:api
 ```
 
 ### ADMIN_KEY
@@ -75,7 +75,7 @@ TENANT_ID="abc" npm run test:api
 
 Admin key for authenticated operations:
 - Required for E2E tests that create/modify data
-- Different per tenant in production
+- Different per brand in production
 - Should be set from secrets in CI/CD
 
 ```bash

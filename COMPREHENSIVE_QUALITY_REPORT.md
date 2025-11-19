@@ -33,14 +33,14 @@ Your application demonstrates **strong engineering practices** with comprehensiv
 
 **43 bugs successfully fixed across:**
 - Security fixes (13 bugs): XSS, CSRF, JWT, CORS, input sanitization
-- Data integrity (8 bugs): Tenant isolation, idempotency, null checks
+- Data integrity (8 bugs): Brand isolation, idempotency, null checks
 - Performance (6 bugs): Rate limiting, pagination, memory limits
 - Code quality (16 bugs): Error handling, validation, concurrency
 
 **High-Quality Implementations:**
 - ✅ Bug #1 (Open redirect): 9/10 - Multi-layered defense
 - ✅ Bug #48 (Error sanitization): 9/10 - Excellent security practice
-- ✅ Bug #30 (Tenant isolation): 8/10 - Critical data protection
+- ✅ Bug #30 (Brand isolation): 8/10 - Critical data protection
 - ✅ Bug #50 (Pagination): 8/10 - Performance improvement
 - ✅ Bug #17 (Log sanitization): 9/10 - Comprehensive filtering
 
@@ -183,7 +183,7 @@ Critical features tested across ALL layers:
 - security.test.js - 70+ tests (includes Bug #48 fixes)
 - backend.test.js - 68+ tests (includes Bug #50 pagination)
 - rate-limiting.test.js - 70+ tests
-- multi-tenant.test.js - 40+ tests
+- multi-brand.test.js - 40+ tests
 - concurrency.test.js - 30+ tests
 - error-handling.test.js - 14+ tests
 
@@ -196,7 +196,7 @@ Critical features tested across ALL layers:
 - Smoke: 25 tests (critical paths)
 - Pages: 90+ tests (Admin, Display, Sponsor)
 - Flows: 100+ tests (Triangle, Admin workflows)
-- API: 35+ tests (Events, Sponsors, Multi-tenant)
+- API: 35+ tests (Events, Sponsors, Multi-brand)
 - Cross-cutting: 11+ tests (Accessibility, Auth)
 
 ### ✅ No Coverage Gaps Identified
@@ -218,7 +218,7 @@ The recent fix to use `getCurrentEnvironment()` is **working perfectly**:
 
 **Fixed Files:**
 - ✅ events-crud-api.spec.js
-- ✅ multi-tenant-api.spec.js
+- ✅ multi-brand-api.spec.js
 - ✅ sponsors-crud-api.spec.js
 - ✅ system-api.spec.js
 
@@ -404,7 +404,7 @@ expect(duration).toBeLessThan(500); // Too strict for Apps Script!
 **Phase 1 (Week 1):** Save 490-520 lines (11-14 hours)
 - Extract validation function duplicates ⭐ Highest impact
 - Extract CRUD test fixtures
-- Extract tenant isolation fixtures
+- Extract brand isolation fixtures
 
 **Phase 2 (Week 2):** Save 100 lines (5-7 hours)
 - Create `ensureSheet_()` helper
@@ -509,7 +509,7 @@ expect(duration).toBeLessThan(500); // Too strict for Apps Script!
 | DURING: Display/Reporting | ✅ 80% | None |
 | AFTER: Analytics | ❌ 10% | 6 functions |
 | Admin Authentication | ✅ 90% | None |
-| Multi-Tenant Isolation | ✅ 80% | Architecture (Bug #11) |
+| Multi-brand Isolation | ✅ 80% | Architecture (Bug #11) |
 | Form Management | ❌ 0% | All APIs |
 | Export Functionality | ❌ 0% | All functions |
 | Rate Limiting | ⚠️ 0% | Skipped |
@@ -520,9 +520,9 @@ expect(duration).toBeLessThan(500); // Too strict for Apps Script!
 **Cannot be fixed with tests alone:**
 
 1. **Single Shared Spreadsheet (Bug #11)**
-   - All tenants share same database
+   - All brands share same database
    - Only logical isolation (in-memory filtering)
-   - Fix: Separate spreadsheets per tenant
+   - Fix: Separate spreadsheets per brand
 
 2. **Admin Key in SessionStorage (Bug #15)**
    - XSS vulnerability exposure

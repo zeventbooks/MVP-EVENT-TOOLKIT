@@ -192,7 +192,7 @@ npx playwright install
 - Form template generation
 - Shortlink creation
 - Analytics tracking
-- Multi-tenant isolation
+- Multi-brand isolation
 - Error handling
 
 ✅ **API Contracts** (Newman + Playwright)

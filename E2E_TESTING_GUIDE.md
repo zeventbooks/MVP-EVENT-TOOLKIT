@@ -87,8 +87,8 @@ BASE_URL=https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec
 # Admin key (replace with your actual admin secret from Config.gs)
 ADMIN_KEY_ROOT=CHANGE_ME_root
 
-# Optional: Set specific tenant for testing
-TENANT_ID=root
+# Optional: Set specific brand for testing
+BRAND_ID=root
 EOF
 ```
 

@@ -19,7 +19,7 @@ test.describe('Authentication Methods', () => {
       const response = await request.post(BASE_URL, {
         data: {
           action: 'create',
-          tenantId: 'root',
+          brandId: 'root',
           adminKey: ADMIN_KEY,
           scope: 'events',
           templateId: 'Event',
@@ -44,7 +44,7 @@ test.describe('Authentication Methods', () => {
       const response = await request.post(BASE_URL, {
         data: {
           action: 'create',
-          tenantId: 'root',
+          brandId: 'root',
           adminKey: 'INVALID_KEY',
           scope: 'events',
           templateId: 'Event',
@@ -66,7 +66,7 @@ test.describe('Authentication Methods', () => {
       const response = await request.post(BASE_URL, {
         data: {
           action: 'create',
-          tenantId: 'root',
+          brandId: 'root',
           // adminKey missing
           scope: 'events',
           templateId: 'Event',
@@ -92,7 +92,7 @@ test.describe('Authentication Methods', () => {
       const response = await request.post(BASE_URL, {
         data: {
           action: 'generateToken',
-          tenantId: 'root',
+          brandId: 'root',
           adminKey: ADMIN_KEY,
           expiresIn: 3600,
           scope: 'events'
@@ -123,7 +123,7 @@ test.describe('Authentication Methods', () => {
       const tokenResponse = await request.post(BASE_URL, {
         data: {
           action: 'generateToken',
-          tenantId: 'root',
+          brandId: 'root',
           adminKey: ADMIN_KEY,
           expiresIn: 3600
         }
@@ -139,7 +139,7 @@ test.describe('Authentication Methods', () => {
         },
         data: {
           action: 'create',
-          tenantId: 'root',
+          brandId: 'root',
           scope: 'events',
           templateId: 'Event',
           data: {
@@ -166,7 +166,7 @@ test.describe('Authentication Methods', () => {
         },
         data: {
           action: 'create',
-          tenantId: 'root',
+          brandId: 'root',
           scope: 'events',
           templateId: 'Event',
           data: {
@@ -189,7 +189,7 @@ test.describe('Authentication Methods', () => {
         },
         data: {
           action: 'create',
-          tenantId: 'root',
+          brandId: 'root',
           scope: 'events',
           templateId: 'Event',
           data: {
@@ -208,7 +208,7 @@ test.describe('Authentication Methods', () => {
       const response = await request.post(BASE_URL, {
         data: {
           action: 'generateToken',
-          tenantId: 'root',
+          brandId: 'root',
           adminKey: ADMIN_KEY,
           expiresIn: 1800, // 30 minutes
           scope: 'events'
@@ -230,7 +230,7 @@ test.describe('Authentication Methods', () => {
         },
         data: {
           action: 'create',
-          tenantId: 'root',
+          brandId: 'root',
           scope: 'events',
           templateId: 'Event',
           data: {
@@ -257,7 +257,7 @@ test.describe('Authentication Methods', () => {
         },
         data: {
           action: 'create',
-          tenantId: 'root',
+          brandId: 'root',
           scope: 'events',
           templateId: 'Event',
           data: {
@@ -282,7 +282,7 @@ test.describe('Authentication Methods', () => {
       const response1 = await request.post(BASE_URL, {
         data: {
           action: 'create',
-          tenantId: 'root',
+          brandId: 'root',
           adminKey: ADMIN_KEY,
           scope: 'events',
           templateId: 'Event',
@@ -298,7 +298,7 @@ test.describe('Authentication Methods', () => {
       const tokenResponse = await request.post(BASE_URL, {
         data: {
           action: 'generateToken',
-          tenantId: 'root',
+          brandId: 'root',
           adminKey: ADMIN_KEY
         }
       });
@@ -308,7 +308,7 @@ test.describe('Authentication Methods', () => {
         headers: { 'Authorization': `Bearer ${token}` },
         data: {
           action: 'create',
-          tenantId: 'root',
+          brandId: 'root',
           scope: 'events',
           templateId: 'Event',
           data: {
@@ -324,7 +324,7 @@ test.describe('Authentication Methods', () => {
         headers: { 'X-API-Key': ADMIN_KEY },
         data: {
           action: 'create',
-          tenantId: 'root',
+          brandId: 'root',
           scope: 'events',
           templateId: 'Event',
           data: {
@@ -341,7 +341,7 @@ test.describe('Authentication Methods', () => {
       const tokenResponse = await request.post(BASE_URL, {
         data: {
           action: 'generateToken',
-          tenantId: 'root',
+          brandId: 'root',
           adminKey: ADMIN_KEY
         }
       });
@@ -354,7 +354,7 @@ test.describe('Authentication Methods', () => {
         },
         data: {
           action: 'create',
-          tenantId: 'root',
+          brandId: 'root',
           adminKey: 'WRONG_KEY', // This should be ignored
           scope: 'events',
           templateId: 'Event',
@@ -378,7 +378,7 @@ test.describe('Authentication Methods', () => {
       const tokenResponse = await request.post(BASE_URL, {
         data: {
           action: 'generateToken',
-          tenantId: 'root',
+          brandId: 'root',
           adminKey: ADMIN_KEY
         }
       });
@@ -395,7 +395,7 @@ test.describe('Authentication Methods', () => {
         },
         data: {
           action: 'create',
-          tenantId: 'root',
+          brandId: 'root',
           scope: 'events',
           templateId: 'Event',
           data: {
@@ -411,15 +411,15 @@ test.describe('Authentication Methods', () => {
       expect(result.code).toBe('BAD_INPUT');
     });
 
-    test('should validate token tenant', async ({ request }) => {
+    test('should validate token brand', async ({ request }) => {
       // This test assumes the token payload can be inspected
-      // In a real scenario, you'd need a token for a different tenant
+      // In a real scenario, you'd need a token for a different brand
 
-      // For now, just verify that tokens contain tenant information
+      // For now, just verify that tokens contain brand information
       const tokenResponse = await request.post(BASE_URL, {
         data: {
           action: 'generateToken',
-          tenantId: 'root',
+          brandId: 'root',
           adminKey: ADMIN_KEY
         }
       });
@@ -429,8 +429,8 @@ test.describe('Authentication Methods', () => {
       const parts = token.split('.');
       const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
 
-      expect(payload).toHaveProperty('tenant');
-      expect(payload.tenant).toBe('root');
+      expect(payload).toHaveProperty('brand');
+      expect(payload.brand).toBe('root');
       expect(payload).toHaveProperty('exp');
       expect(payload).toHaveProperty('iat');
     });
@@ -447,7 +447,7 @@ test.describe('Authentication Methods', () => {
           request.post(BASE_URL, {
             data: {
               action: 'list',
-              tenantId: 'root',
+              brandId: 'root',
               adminKey: ADMIN_KEY,
               scope: 'events'
             }
@@ -495,7 +495,7 @@ test.describe('Public Endpoints (No Auth Required)', () => {
     const result = await response.json();
 
     expect(result.ok).toBe(true);
-    expect(result.value).toHaveProperty('tenant');
+    expect(result.value).toHaveProperty('brand');
   });
 });
 
@@ -504,7 +504,7 @@ test.describe('Authentication Error Handling', () => {
     const response = await request.post(BASE_URL, {
       data: {
         action: 'create',
-        tenantId: 'root',
+        brandId: 'root',
         adminKey: 'WRONG_KEY',
         scope: 'events',
         templateId: 'Event',
@@ -531,7 +531,7 @@ test.describe('Authentication Error Handling', () => {
       // No auth headers or body
       data: {
         action: 'create',
-        tenantId: 'root',
+        brandId: 'root',
         scope: 'events',
         templateId: 'Event',
         data: {

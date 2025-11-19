@@ -17,7 +17,7 @@
       "type": "string"
     },
     {
-      "key": "tenant_id",
+      "key": "brand_id",
       "value": "root",
       "type": "string"
     },
@@ -74,7 +74,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"action\": \"create\",\n  \"adminKey\": \"{{admin_key}}\",\n  \"tenant\": \"{{tenant_id}}\",\n  \"scope\": \"events\",\n  \"templateId\": \"event\",\n  \"data\": {\n    \"name\": \"Test Event {{$timestamp}}\",\n    \"dateISO\": \"2025-12-31\",\n    \"location\": \"Test Venue\",\n    \"description\": \"This is a test event created via Postman\"\n  }\n}"
+              "raw": "{\n  \"action\": \"create\",\n  \"adminKey\": \"{{admin_key}}\",\n  \"brand\": \"{{brand_id}}\",\n  \"scope\": \"events\",\n  \"templateId\": \"event\",\n  \"data\": {\n    \"name\": \"Test Event {{$timestamp}}\",\n    \"dateISO\": \"2025-12-31\",\n    \"location\": \"Test Venue\",\n    \"description\": \"This is a test event created via Postman\"\n  }\n}"
             },
             "url": {
               "raw": "{{base_url}}",
@@ -95,7 +95,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"action\": \"create\",\n  \"adminKey\": \"{{admin_key}}\",\n  \"tenant\": \"{{tenant_id}}\",\n  \"scope\": \"events\",\n  \"templateId\": \"event\",\n  \"data\": {\n    \"name\": \"Sponsored Event {{$timestamp}}\",\n    \"dateISO\": \"2025-12-31\",\n    \"location\": \"Sponsored Venue\",\n    \"description\": \"Event with sponsor configuration\",\n    \"sponsors\": [\n      {\n        \"name\": \"Platinum Corp\",\n        \"tier\": \"platinum\",\n        \"logo\": \"https://via.placeholder.com/300x100/FFD700/000000?text=Platinum\"\n      },\n      {\n        \"name\": \"Gold Industries\",\n        \"tier\": \"gold\",\n        \"logo\": \"https://via.placeholder.com/300x100/C0C0C0/000000?text=Gold\"\n      }\n    ]\n  }\n}"
+              "raw": "{\n  \"action\": \"create\",\n  \"adminKey\": \"{{admin_key}}\",\n  \"brand\": \"{{brand_id}}\",\n  \"scope\": \"events\",\n  \"templateId\": \"event\",\n  \"data\": {\n    \"name\": \"Sponsored Event {{$timestamp}}\",\n    \"dateISO\": \"2025-12-31\",\n    \"location\": \"Sponsored Venue\",\n    \"description\": \"Event with sponsor configuration\",\n    \"sponsors\": [\n      {\n        \"name\": \"Platinum Corp\",\n        \"tier\": \"platinum\",\n        \"logo\": \"https://via.placeholder.com/300x100/FFD700/000000?text=Platinum\"\n      },\n      {\n        \"name\": \"Gold Industries\",\n        \"tier\": \"gold\",\n        \"logo\": \"https://via.placeholder.com/300x100/C0C0C0/000000?text=Gold\"\n      }\n    ]\n  }\n}"
             },
             "url": {
               "raw": "{{base_url}}",
@@ -140,7 +140,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"action\": \"createShortlink\",\n  \"adminKey\": \"{{admin_key}}\",\n  \"tenant\": \"{{tenant_id}}\",\n  \"targetUrl\": \"https://docs.google.com/forms/d/e/SAMPLE/viewform\",\n  \"label\": \"Registration Form\"\n}"
+              "raw": "{\n  \"action\": \"createShortlink\",\n  \"adminKey\": \"{{admin_key}}\",\n  \"brand\": \"{{brand_id}}\",\n  \"targetUrl\": \"https://docs.google.com/forms/d/e/SAMPLE/viewform\",\n  \"label\": \"Registration Form\"\n}"
             },
             "url": {
               "raw": "{{base_url}}",

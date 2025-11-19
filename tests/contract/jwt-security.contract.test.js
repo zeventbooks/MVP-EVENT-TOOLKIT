@@ -72,7 +72,7 @@ describe('🔐 JWT Security Contract Tests', () => {
   describe('JWT Generation', () => {
     it('should generate valid JWT token', () => {
       const payload = {
-        tenantId: 'root',
+        brandId: 'root',
         iat: Math.floor(Date.now() / 1000),
         exp: Math.floor(Date.now() / 1000) + 3600
       };
@@ -85,12 +85,12 @@ describe('🔐 JWT Security Contract Tests', () => {
 
     it('should include required payload fields', () => {
       const payload = {
-        tenantId: 'root',
+        brandId: 'root',
         iat: Math.floor(Date.now() / 1000),
         exp: Math.floor(Date.now() / 1000) + 3600
       };
 
-      expect(payload).toHaveProperty('tenantId');
+      expect(payload).toHaveProperty('brandId');
       expect(payload).toHaveProperty('iat');
       expect(payload).toHaveProperty('exp');
     });
@@ -98,7 +98,7 @@ describe('🔐 JWT Security Contract Tests', () => {
     it('should set expiration in future', () => {
       const now = Math.floor(Date.now() / 1000);
       const payload = {
-        tenantId: 'root',
+        brandId: 'root',
         iat: now,
         exp: now + 3600
       };
@@ -121,7 +121,7 @@ describe('🔐 JWT Security Contract Tests', () => {
   describe('JWT Verification - Valid Tokens', () => {
     it('should verify valid unexpired token', () => {
       const payload = {
-        tenantId: 'root',
+        brandId: 'root',
         iat: Math.floor(Date.now() / 1000),
         exp: Math.floor(Date.now() / 1000) + 3600
       };
@@ -131,13 +131,13 @@ describe('🔐 JWT Security Contract Tests', () => {
 
       validateEnvelope(result);
       expect(result.ok).toBe(true);
-      expect(result.value).toHaveProperty('tenantId');
-      expect(result.value.tenantId).toBe('root');
+      expect(result.value).toHaveProperty('brandId');
+      expect(result.value.brandId).toBe('root');
     });
 
     it('should extract payload from valid token', () => {
       const payload = {
-        tenantId: 'abc',
+        brandId: 'abc',
         userId: 'user-123',
         iat: Math.floor(Date.now() / 1000),
         exp: Math.floor(Date.now() / 1000) + 3600
@@ -147,13 +147,13 @@ describe('🔐 JWT Security Contract Tests', () => {
       const result = verifyMockJWT(token);
 
       expect(result.ok).toBe(true);
-      expect(result.value.tenantId).toBe('abc');
+      expect(result.value.brandId).toBe('abc');
       expect(result.value.userId).toBe('user-123');
     });
 
     it('should verify token without expiration (if allowed)', () => {
       const payload = {
-        tenantId: 'root',
+        brandId: 'root',
         iat: Math.floor(Date.now() / 1000)
         // No exp field
       };
@@ -169,7 +169,7 @@ describe('🔐 JWT Security Contract Tests', () => {
   describe('JWT Verification - Expiration Boundary Conditions', () => {
     it('should reject expired token', () => {
       const payload = {
-        tenantId: 'root',
+        brandId: 'root',
         iat: Math.floor(Date.now() / 1000) - 7200,
         exp: Math.floor(Date.now() / 1000) - 3600 // Expired 1 hour ago
       };
@@ -183,7 +183,7 @@ describe('🔐 JWT Security Contract Tests', () => {
 
     it('should reject token expiring in exactly 1 second (edge case)', () => {
       const payload = {
-        tenantId: 'root',
+        brandId: 'root',
         iat: Math.floor(Date.now() / 1000),
         exp: Math.floor(Date.now() / 1000) - 1 // Expired 1 second ago
       };
@@ -197,7 +197,7 @@ describe('🔐 JWT Security Contract Tests', () => {
 
     it('should accept token expiring in future', () => {
       const payload = {
-        tenantId: 'root',
+        brandId: 'root',
         iat: Math.floor(Date.now() / 1000),
         exp: Math.floor(Date.now() / 1000) + 1 // Expires in 1 second
       };
@@ -210,7 +210,7 @@ describe('🔐 JWT Security Contract Tests', () => {
 
     it('should handle very long expiration times', () => {
       const payload = {
-        tenantId: 'root',
+        brandId: 'root',
         iat: Math.floor(Date.now() / 1000),
         exp: Math.floor(Date.now() / 1000) + (365 * 24 * 3600) // 1 year
       };
@@ -223,7 +223,7 @@ describe('🔐 JWT Security Contract Tests', () => {
 
     it('should reject token with expiration in past', () => {
       const payload = {
-        tenantId: 'root',
+        brandId: 'root',
         iat: Math.floor(Date.now() / 1000),
         exp: Math.floor(Date.now() / 1000) - 86400 // Yesterday
       };
@@ -294,7 +294,7 @@ describe('🔐 JWT Security Contract Tests', () => {
   describe('JWT Verification - Signature Tampering', () => {
     it('should detect modified payload', () => {
       const payload = {
-        tenantId: 'root',
+        brandId: 'root',
         iat: Math.floor(Date.now() / 1000),
         exp: Math.floor(Date.now() / 1000) + 3600
       };
@@ -302,9 +302,9 @@ describe('🔐 JWT Security Contract Tests', () => {
       const token = generateMockJWT(payload);
       const parts = token.split('.');
 
-      // Tamper with payload (change tenantId to 'abc')
+      // Tamper with payload (change brandId to 'abc')
       const tamperedPayload = {
-        tenantId: 'abc',
+        brandId: 'abc',
         iat: payload.iat,
         exp: payload.exp
       };
@@ -319,13 +319,13 @@ describe('🔐 JWT Security Contract Tests', () => {
       // This test documents the expected behavior
       if (result.ok) {
         // If signature verification is implemented, this should never happen
-        expect(result.value.tenantId).toBe('abc'); // Tampered value detected
+        expect(result.value.brandId).toBe('abc'); // Tampered value detected
       }
     });
 
     it('should detect modified signature', () => {
       const payload = {
-        tenantId: 'root',
+        brandId: 'root',
         iat: Math.floor(Date.now() / 1000),
         exp: Math.floor(Date.now() / 1000) + 3600
       };
@@ -347,7 +347,7 @@ describe('🔐 JWT Security Contract Tests', () => {
 
     it('should verify signature with correct secret', () => {
       const payload = {
-        tenantId: 'root',
+        brandId: 'root',
         iat: Math.floor(Date.now() / 1000),
         exp: Math.floor(Date.now() / 1000) + 3600
       };
@@ -361,7 +361,7 @@ describe('🔐 JWT Security Contract Tests', () => {
 
     it('should reject signature with wrong secret', () => {
       const payload = {
-        tenantId: 'root',
+        brandId: 'root',
         iat: Math.floor(Date.now() / 1000),
         exp: Math.floor(Date.now() / 1000) + 3600
       };
@@ -380,7 +380,7 @@ describe('🔐 JWT Security Contract Tests', () => {
   describe('JWT Security Edge Cases', () => {
     it('should reject token with iat in future', () => {
       const payload = {
-        tenantId: 'root',
+        brandId: 'root',
         iat: Math.floor(Date.now() / 1000) + 3600, // Issued 1 hour in future
         exp: Math.floor(Date.now() / 1000) + 7200
       };
@@ -395,7 +395,7 @@ describe('🔐 JWT Security Contract Tests', () => {
 
     it('should handle negative timestamps', () => {
       const payload = {
-        tenantId: 'root',
+        brandId: 'root',
         iat: -1000,
         exp: -500
       };
@@ -409,7 +409,7 @@ describe('🔐 JWT Security Contract Tests', () => {
 
     it('should handle very large payload', () => {
       const largePayload = {
-        tenantId: 'root',
+        brandId: 'root',
         iat: Math.floor(Date.now() / 1000),
         exp: Math.floor(Date.now() / 1000) + 3600,
         largeData: 'a'.repeat(10000) // 10KB of data
@@ -423,7 +423,7 @@ describe('🔐 JWT Security Contract Tests', () => {
 
     it('should handle special characters in payload', () => {
       const payload = {
-        tenantId: 'root',
+        brandId: 'root',
         iat: Math.floor(Date.now() / 1000),
         exp: Math.floor(Date.now() / 1000) + 3600,
         description: 'Test with "quotes" and \'apostrophes\' and <html>'
@@ -440,7 +440,7 @@ describe('🔐 JWT Security Contract Tests', () => {
 
     it('should handle Unicode in payload', () => {
       const payload = {
-        tenantId: 'root',
+        brandId: 'root',
         iat: Math.floor(Date.now() / 1000),
         exp: Math.floor(Date.now() / 1000) + 3600,
         name: '世界 🌍 Café'
@@ -456,13 +456,13 @@ describe('🔐 JWT Security Contract Tests', () => {
   describe('JWT Token Rotation', () => {
     it('should support token refresh before expiration', () => {
       const oldPayload = {
-        tenantId: 'root',
+        brandId: 'root',
         iat: Math.floor(Date.now() / 1000) - 3000,
         exp: Math.floor(Date.now() / 1000) + 600 // Expires in 10 minutes
       };
 
       const newPayload = {
-        tenantId: 'root',
+        brandId: 'root',
         iat: Math.floor(Date.now() / 1000),
         exp: Math.floor(Date.now() / 1000) + 3600 // New expiration
       };
@@ -480,13 +480,13 @@ describe('🔐 JWT Security Contract Tests', () => {
 
     it('should invalidate old token after rotation', () => {
       const oldPayload = {
-        tenantId: 'root',
+        brandId: 'root',
         iat: Math.floor(Date.now() / 1000) - 3600,
         exp: Math.floor(Date.now() / 1000) - 1 // Already expired
       };
 
       const newPayload = {
-        tenantId: 'root',
+        brandId: 'root',
         iat: Math.floor(Date.now() / 1000),
         exp: Math.floor(Date.now() / 1000) + 3600
       };
@@ -509,14 +509,14 @@ describe('🔐 JWT Security Contract Tests', () => {
         value: {
           token: 'eyJ...mock-jwt-token',
           expiresAt: new Date(Date.now() + 3600000).toISOString(),
-          tenantId: 'root'
+          brandId: 'root'
         }
       };
 
       validateEnvelope(mockGenerateTokenResponse);
       expect(mockGenerateTokenResponse.value).toHaveProperty('token');
       expect(mockGenerateTokenResponse.value).toHaveProperty('expiresAt');
-      expect(mockGenerateTokenResponse.value).toHaveProperty('tenantId');
+      expect(mockGenerateTokenResponse.value).toHaveProperty('brandId');
     });
 
     it('should return proper error for invalid token', () => {

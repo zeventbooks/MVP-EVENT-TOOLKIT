@@ -59,8 +59,8 @@
   - [ ] Remove safeJSONParse_() implementation
   - [ ] Verify all tests pass
 
-- [ ] **Extract tenant isolation fixtures (2-3h)**
-  - [ ] Create `tests/shared/fixtures/tenant-isolation.js`
+- [ ] **Extract brand isolation fixtures (2-3h)**
+  - [ ] Create `tests/shared/fixtures/brand-isolation.js`
   - [ ] Update security.test.js (lines 603-629)
   - [ ] Update validation.test.js (lines 386-476)
   - [ ] Verify all tests pass
@@ -104,7 +104,7 @@ import { getCurrentEnvironment } from '../../config/environments';
 export function setupCrudTests() {
   let api;
   let adminKey;
-  const tenant = 'root';
+  const brand = 'root';
   const createdIds = [];
 
   const beforeEach = async ({ request }) => {
@@ -116,7 +116,7 @@ export function setupCrudTests() {
   const afterEach = async (deleteFunction) => {
     for (const id of createdIds) {
       try {
-        await deleteFunction(tenant, id, adminKey);
+        await deleteFunction(brand, id, adminKey);
       } catch (error) {
         console.warn(`Failed to delete: ${error.message}`);
       }

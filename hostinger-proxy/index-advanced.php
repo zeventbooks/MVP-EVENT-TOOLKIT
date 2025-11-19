@@ -271,10 +271,10 @@ API ROUTES:
 ✅ /api/events                      → ?p=api&path=/api/events
 ✅ /api/events/123                  → ?p=api&path=/api/events/123
 
-TENANT SUPPORT (via query params):
-✅ /admin?tenant=root               → ?p=admin&tenant=root
-✅ /admin?tenant=abc                → ?p=admin&tenant=abc
-✅ /admin/settings?tenant=cbc       → ?p=admin&subpage=settings&tenant=cbc
+BRAND SUPPORT (via query params):
+✅ /admin?brand=root               → ?p=admin&brand=root
+✅ /admin?brand=abc                → ?p=admin&brand=abc
+✅ /admin/settings?brand=cbc       → ?p=admin&subpage=settings&brand=cbc
 
 */
 ?>

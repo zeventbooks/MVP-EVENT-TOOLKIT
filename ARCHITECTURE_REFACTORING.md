@@ -53,13 +53,13 @@ Code.gs (reduced complexity)
 - `SecurityMiddleware_generateCSRFToken()` - Generate CSRF tokens
 - `SecurityMiddleware_validateCSRFToken(token)` - Validate CSRF tokens (atomic with LockService)
 - `SecurityMiddleware_generateJWT(params)` - Generate JWT tokens
-- `SecurityMiddleware_verifyJWT(token, tenant)` - Verify JWT with timing-safe comparison
+- `SecurityMiddleware_verifyJWT(token, brand)` - Verify JWT with timing-safe comparison
 - `SecurityMiddleware_authenticateRequest(e, body, brandId)` - Multi-method authentication
 - `SecurityMiddleware_gate(brandId, adminKey, ipAddress)` - Rate limiting & auth
 - `SecurityMiddleware_sanitizeInput(input, maxLength)` - Input sanitization
 - `SecurityMiddleware_sanitizeId(id)` - ID validation
 - `SecurityMiddleware_sanitizeSpreadsheetValue(value)` - Prevent formula injection
-- `SecurityMiddleware_assertScopeAllowed(tenant, scope)` - Tenant isolation
+- `SecurityMiddleware_assertScopeAllowed(brand, scope)` - Brand isolation
 
 **Security Fixes Implemented:**
 - ✅ JWT timing attack prevention (constant-time comparison)
@@ -97,7 +97,7 @@ Code.gs (reduced complexity)
 - `SponsorService_calculateEngagementScore(ctr, dwellSec, impressions)` - Engagement scoring
 - `SponsorService_generateInsights(agg)` - Performance insights
 - `SponsorService_generateROIInsights(metrics)` - ROI-specific insights
-- `SponsorService_getPortfolioSponsors(parentTenantId)` - Portfolio operations
+- `SponsorService_getPortfolioSponsors(parentBrandId)` - Portfolio operations
 
 **ROI Dashboard (High-Value Feature):**
 ```javascript

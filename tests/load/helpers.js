@@ -21,10 +21,10 @@ export function getAdminKey() {
 }
 
 /**
- * Get tenant ID from environment or use default
+ * Get brand ID from environment or use default
  */
-export function getTenantId() {
-  return __ENV.TENANT_ID || 'root';
+export function getBrandId() {
+  return __ENV.BRAND_ID || 'root';
 }
 
 /**
@@ -77,16 +77,16 @@ export function checkStructure(response, name = 'response') {
  * System API Helpers
  */
 export class SystemAPI {
-  constructor(baseUrl, tenantId) {
+  constructor(baseUrl, brandId) {
     this.baseUrl = baseUrl;
-    this.tenantId = tenantId;
+    this.brandId = brandId;
   }
 
   /**
    * Get system status
    */
   getStatus() {
-    const url = `${this.baseUrl}?p=status&brand=${this.tenantId}`;
+    const url = `${this.baseUrl}?p=status&brand=${this.brandId}`;
     return http.get(url, { headers });
   }
 
@@ -96,7 +96,7 @@ export class SystemAPI {
   runDiagnostics(adminKey) {
     const url = `${this.baseUrl}?action=runDiagnostics`;
     const payload = JSON.stringify({
-      tenantId: this.tenantId,
+      brandId: this.brandId,
       adminKey: adminKey
     });
     return http.post(url, payload, { headers });
@@ -107,16 +107,16 @@ export class SystemAPI {
  * Events API Helpers
  */
 export class EventsAPI {
-  constructor(baseUrl, tenantId) {
+  constructor(baseUrl, brandId) {
     this.baseUrl = baseUrl;
-    this.tenantId = tenantId;
+    this.brandId = brandId;
   }
 
   /**
    * List all events
    */
   list() {
-    const url = `${this.baseUrl}?p=api&action=list&tenantId=${this.tenantId}&scope=events`;
+    const url = `${this.baseUrl}?p=api&action=list&brandId=${this.brandId}&scope=events`;
     return http.get(url, { headers });
   }
 
@@ -124,7 +124,7 @@ export class EventsAPI {
    * Get specific event
    */
   get(eventId) {
-    const url = `${this.baseUrl}?p=api&action=get&tenantId=${this.tenantId}&scope=events&id=${eventId}`;
+    const url = `${this.baseUrl}?p=api&action=get&brandId=${this.brandId}&scope=events&id=${eventId}`;
     return http.get(url, { headers });
   }
 
@@ -134,7 +134,7 @@ export class EventsAPI {
   create(eventData, adminKey) {
     const url = `${this.baseUrl}?action=create`;
     const payload = JSON.stringify({
-      tenantId: this.tenantId,
+      brandId: this.brandId,
       scope: 'events',
       templateId: 'event',
       adminKey: adminKey,
@@ -149,7 +149,7 @@ export class EventsAPI {
   update(eventId, updateData, adminKey) {
     const url = `${this.baseUrl}?action=update`;
     const payload = JSON.stringify({
-      tenantId: this.tenantId,
+      brandId: this.brandId,
       scope: 'events',
       id: eventId,
       adminKey: adminKey,
@@ -164,7 +164,7 @@ export class EventsAPI {
   delete(eventId, adminKey) {
     const url = `${this.baseUrl}?action=delete`;
     const payload = JSON.stringify({
-      tenantId: this.tenantId,
+      brandId: this.brandId,
       scope: 'events',
       id: eventId,
       adminKey: adminKey
@@ -177,16 +177,16 @@ export class EventsAPI {
  * Sponsors API Helpers
  */
 export class SponsorsAPI {
-  constructor(baseUrl, tenantId) {
+  constructor(baseUrl, brandId) {
     this.baseUrl = baseUrl;
-    this.tenantId = tenantId;
+    this.brandId = brandId;
   }
 
   /**
    * List all sponsors
    */
   list() {
-    const url = `${this.baseUrl}?p=api&action=list&tenantId=${this.tenantId}&scope=sponsors`;
+    const url = `${this.baseUrl}?p=api&action=list&brandId=${this.brandId}&scope=sponsors`;
     return http.get(url, { headers });
   }
 
@@ -194,7 +194,7 @@ export class SponsorsAPI {
    * Get specific sponsor
    */
   get(sponsorId) {
-    const url = `${this.baseUrl}?p=api&action=get&tenantId=${this.tenantId}&scope=sponsors&id=${sponsorId}`;
+    const url = `${this.baseUrl}?p=api&action=get&brandId=${this.brandId}&scope=sponsors&id=${sponsorId}`;
     return http.get(url, { headers });
   }
 
@@ -204,7 +204,7 @@ export class SponsorsAPI {
   create(sponsorData, adminKey) {
     const url = `${this.baseUrl}?action=create`;
     const payload = JSON.stringify({
-      tenantId: this.tenantId,
+      brandId: this.brandId,
       scope: 'sponsors',
       templateId: 'sponsor',
       adminKey: adminKey,
@@ -219,7 +219,7 @@ export class SponsorsAPI {
   update(sponsorId, updateData, adminKey) {
     const url = `${this.baseUrl}?action=update`;
     const payload = JSON.stringify({
-      tenantId: this.tenantId,
+      brandId: this.brandId,
       scope: 'sponsors',
       id: sponsorId,
       adminKey: adminKey,
@@ -234,7 +234,7 @@ export class SponsorsAPI {
   delete(sponsorId, adminKey) {
     const url = `${this.baseUrl}?action=delete`;
     const payload = JSON.stringify({
-      tenantId: this.tenantId,
+      brandId: this.brandId,
       scope: 'sponsors',
       id: sponsorId,
       adminKey: adminKey

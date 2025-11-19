@@ -11,7 +11,7 @@ test.describe('Sponsor Page', () => {
   let api;
   let adminKey;
   let baseUrl;
-  const tenant = 'root';
+  const brand = 'root';
   const createdSponsorIds = [];
 
   test.beforeEach(async ({ request, page }) => {
@@ -26,12 +26,12 @@ test.describe('Sponsor Page', () => {
 
     // Clean up any existing test sponsors
     try {
-      const listResponse = await api.listSponsors(tenant);
+      const listResponse = await api.listSponsors(brand);
       const listData = await listResponse.json();
       if (listData.ok && listData.value && listData.value.items) {
         for (const sponsor of listData.value.items) {
           if (sponsor.name && sponsor.name.includes('E2E Test')) {
-            await api.deleteSponsor(tenant, sponsor.id, adminKey);
+            await api.deleteSponsor(brand, sponsor.id, adminKey);
           }
         }
       }
@@ -44,7 +44,7 @@ test.describe('Sponsor Page', () => {
     // Clean up created sponsors
     for (const sponsorId of createdSponsorIds) {
       try {
-        await api.deleteSponsor(tenant, sponsorId, adminKey);
+        await api.deleteSponsor(brand, sponsorId, adminKey);
       } catch (error) {
         console.warn(`Failed to delete sponsor ${sponsorId}:`, error.message);
       }
@@ -54,7 +54,7 @@ test.describe('Sponsor Page', () => {
 
   test.describe('Authentication & Access', () => {
     test('shows auth prompt when no admin key', async ({ page }) => {
-      await page.goto(`${baseUrl}?page=sponsor&brand=${tenant}`);
+      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`);
 
       // Should show auth prompt
       const authPrompt = page.locator('#auth-prompt');
@@ -71,7 +71,7 @@ test.describe('Sponsor Page', () => {
     });
 
     test('unlocks interface with valid admin key', async ({ page }) => {
-      await page.goto(`${baseUrl}?page=sponsor&brand=${tenant}`);
+      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`);
 
       // Wait for auth prompt
       await page.waitForSelector('#auth-prompt');
@@ -93,7 +93,7 @@ test.describe('Sponsor Page', () => {
     });
 
     test('allows Enter key to submit admin key', async ({ page }) => {
-      await page.goto(`${baseUrl}?page=sponsor&brand=${tenant}`);
+      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`);
 
       await page.waitForSelector('#admin-key-input');
       await page.fill('#admin-key-input', adminKey);
@@ -106,7 +106,7 @@ test.describe('Sponsor Page', () => {
     });
 
     test('persists admin key in session storage', async ({ page }) => {
-      await page.goto(`${baseUrl}?page=sponsor&brand=${tenant}`);
+      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`);
 
       await page.waitForSelector('#admin-key-input');
       await page.fill('#admin-key-input', adminKey);
@@ -127,7 +127,7 @@ test.describe('Sponsor Page', () => {
 
   test.describe('Sponsor List Display', () => {
     test('shows empty state when no sponsors exist', async ({ page }) => {
-      await page.goto(`${baseUrl}?page=sponsor&brand=${tenant}`);
+      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`);
 
       // Authenticate
       await page.waitForSelector('#admin-key-input');
@@ -149,7 +149,7 @@ test.describe('Sponsor Page', () => {
 
     test('displays sponsor cards with correct information', async ({ page }) => {
       // Create test sponsor via API
-      const { sponsorId } = await api.createTestSponsor(tenant, adminKey, {
+      const { sponsorId } = await api.createTestSponsor(brand, adminKey, {
         name: 'E2E Test Display Sponsor',
         website: 'https://test-display.example.com',
         tier: 'gold',
@@ -158,7 +158,7 @@ test.describe('Sponsor Page', () => {
       });
       createdSponsorIds.push(sponsorId);
 
-      await page.goto(`${baseUrl}?page=sponsor&brand=${tenant}`);
+      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`);
 
       // Authenticate
       await page.waitForSelector('#admin-key-input');
@@ -189,14 +189,14 @@ test.describe('Sponsor Page', () => {
       const tiers = ['platinum', 'gold', 'silver', 'bronze'];
 
       for (const tier of tiers) {
-        const { sponsorId } = await api.createTestSponsor(tenant, adminKey, {
+        const { sponsorId } = await api.createTestSponsor(brand, adminKey, {
           name: `E2E Test ${tier.toUpperCase()} Sponsor`,
           tier: tier
         });
         createdSponsorIds.push(sponsorId);
       }
 
-      await page.goto(`${baseUrl}?page=sponsor&brand=${tenant}`);
+      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`);
 
       // Authenticate
       await page.waitForSelector('#admin-key-input');
@@ -217,18 +217,18 @@ test.describe('Sponsor Page', () => {
   test.describe('Sponsor Analytics', () => {
     test('displays correct analytics counts', async ({ page }) => {
       // Create sponsors with different tiers
-      const { sponsorId: platinumId } = await api.createTestSponsor(tenant, adminKey, {
+      const { sponsorId: platinumId } = await api.createTestSponsor(brand, adminKey, {
         name: 'E2E Test Platinum Analytics',
         tier: 'platinum'
       });
-      const { sponsorId: goldId } = await api.createTestSponsor(tenant, adminKey, {
+      const { sponsorId: goldId } = await api.createTestSponsor(brand, adminKey, {
         name: 'E2E Test Gold Analytics',
         tier: 'gold'
       });
 
       createdSponsorIds.push(platinumId, goldId);
 
-      await page.goto(`${baseUrl}?page=sponsor&brand=${tenant}`);
+      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`);
 
       // Authenticate
       await page.waitForSelector('#admin-key-input');
@@ -253,7 +253,7 @@ test.describe('Sponsor Page', () => {
 
   test.describe('Create Sponsor Workflow', () => {
     test('creates sponsor with all fields filled', async ({ page }) => {
-      await page.goto(`${baseUrl}?page=sponsor&brand=${tenant}`);
+      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`);
 
       // Authenticate
       await page.waitForSelector('#admin-key-input');
@@ -284,7 +284,7 @@ test.describe('Sponsor Page', () => {
         .toBeVisible({ timeout: 10000 });
 
       // Track for cleanup
-      const listResponse = await api.listSponsors(tenant);
+      const listResponse = await api.listSponsors(brand);
       const listData = await listResponse.json();
       const createdSponsor = listData.value.items.find(s => s.name === 'E2E Test Created Sponsor');
       if (createdSponsor) {
@@ -293,7 +293,7 @@ test.describe('Sponsor Page', () => {
     });
 
     test('creates sponsor with minimal required fields', async ({ page }) => {
-      await page.goto(`${baseUrl}?page=sponsor&brand=${tenant}`);
+      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`);
 
       // Authenticate
       await page.waitForSelector('#admin-key-input');
@@ -317,7 +317,7 @@ test.describe('Sponsor Page', () => {
         .toBeVisible({ timeout: 10000 });
 
       // Track for cleanup
-      const listResponse = await api.listSponsors(tenant);
+      const listResponse = await api.listSponsors(brand);
       const listData = await listResponse.json();
       const createdSponsor = listData.value.items.find(s => s.name === 'E2E Test Minimal Sponsor');
       if (createdSponsor) {
@@ -326,7 +326,7 @@ test.describe('Sponsor Page', () => {
     });
 
     test('shows loading state while creating sponsor', async ({ page }) => {
-      await page.goto(`${baseUrl}?page=sponsor&brand=${tenant}`);
+      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`);
 
       // Authenticate
       await page.waitForSelector('#admin-key-input');
@@ -353,7 +353,7 @@ test.describe('Sponsor Page', () => {
       await expect(submitButton).toBeEnabled();
 
       // Cleanup
-      const listResponse = await api.listSponsors(tenant);
+      const listResponse = await api.listSponsors(brand);
       const listData = await listResponse.json();
       const createdSponsor = listData.value.items.find(s => s.name === 'E2E Test Loading State');
       if (createdSponsor) {
@@ -365,12 +365,12 @@ test.describe('Sponsor Page', () => {
   test.describe('Edit Sponsor Workflow', () => {
     test('edits sponsor name successfully', async ({ page }) => {
       // Create test sponsor
-      const { sponsorId } = await api.createTestSponsor(tenant, adminKey, {
+      const { sponsorId } = await api.createTestSponsor(brand, adminKey, {
         name: 'E2E Test Edit Original'
       });
       createdSponsorIds.push(sponsorId);
 
-      await page.goto(`${baseUrl}?page=sponsor&brand=${tenant}`);
+      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`);
 
       // Authenticate
       await page.waitForSelector('#admin-key-input');
@@ -407,12 +407,12 @@ test.describe('Sponsor Page', () => {
 
     test('cancels edit when user cancels prompt', async ({ page }) => {
       // Create test sponsor
-      const { sponsorId } = await api.createTestSponsor(tenant, adminKey, {
+      const { sponsorId } = await api.createTestSponsor(brand, adminKey, {
         name: 'E2E Test Edit Cancel'
       });
       createdSponsorIds.push(sponsorId);
 
-      await page.goto(`${baseUrl}?page=sponsor&brand=${tenant}`);
+      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`);
 
       // Authenticate
       await page.waitForSelector('#admin-key-input');
@@ -440,12 +440,12 @@ test.describe('Sponsor Page', () => {
   test.describe('Delete Sponsor Workflow', () => {
     test('deletes sponsor after confirmation', async ({ page }) => {
       // Create test sponsor
-      const { sponsorId } = await api.createTestSponsor(tenant, adminKey, {
+      const { sponsorId } = await api.createTestSponsor(brand, adminKey, {
         name: 'E2E Test Delete Confirm'
       });
       createdSponsorIds.push(sponsorId);
 
-      await page.goto(`${baseUrl}?page=sponsor&brand=${tenant}`);
+      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`);
 
       // Authenticate
       await page.waitForSelector('#admin-key-input');
@@ -484,12 +484,12 @@ test.describe('Sponsor Page', () => {
 
     test('cancels delete when user dismisses confirmation', async ({ page }) => {
       // Create test sponsor
-      const { sponsorId } = await api.createTestSponsor(tenant, adminKey, {
+      const { sponsorId } = await api.createTestSponsor(brand, adminKey, {
         name: 'E2E Test Delete Cancel'
       });
       createdSponsorIds.push(sponsorId);
 
-      await page.goto(`${baseUrl}?page=sponsor&brand=${tenant}`);
+      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`);
 
       // Authenticate
       await page.waitForSelector('#admin-key-input');
@@ -516,7 +516,7 @@ test.describe('Sponsor Page', () => {
 
   test.describe('Navigation & UI', () => {
     test('has back to dashboard link', async ({ page }) => {
-      await page.goto(`${baseUrl}?page=sponsor&brand=${tenant}`);
+      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`);
 
       // Authenticate
       await page.waitForSelector('#admin-key-input');
@@ -527,7 +527,7 @@ test.describe('Sponsor Page', () => {
       // Check breadcrumb link
       const breadcrumbLink = page.locator('.nav-breadcrumb a');
       await expect(breadcrumbLink).toBeVisible();
-      await expect(breadcrumbLink).toHaveAttribute('href', /tenant=root/);
+      await expect(breadcrumbLink).toHaveAttribute('href', /brand=root/);
 
       // Check bottom button
       const backButton = page.locator('a.btn-secondary:has-text("Back to Triangle Dashboard")');
@@ -535,7 +535,7 @@ test.describe('Sponsor Page', () => {
     });
 
     test('displays page title and subtitle', async ({ page }) => {
-      await page.goto(`${baseUrl}?page=sponsor&brand=${tenant}`);
+      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`);
 
       // Authenticate
       await page.waitForSelector('#admin-key-input');
@@ -554,7 +554,7 @@ test.describe('Sponsor Page', () => {
       // Set mobile viewport
       await page.setViewportSize({ width: 375, height: 667 });
 
-      await page.goto(`${baseUrl}?page=sponsor&brand=${tenant}`);
+      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`);
 
       // Authenticate
       await page.waitForSelector('#admin-key-input');

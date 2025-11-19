@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "MVP Event Toolkit API",
-    "description": "Complete API collection for MVP Event Toolkit - Multi-tenant event management with sponsor tracking",
+    "description": "Complete API collection for MVP Event Toolkit - Multi-brand event management with sponsor tracking",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_exporter_id": "mvp-event-toolkit"
   },
@@ -24,7 +24,7 @@
                   "    var jsonData = pm.response.json();",
                   "    pm.expect(jsonData).to.have.property('ok', true);",
                   "    pm.expect(jsonData.value).to.have.property('build');",
-                  "    pm.expect(jsonData.value).to.have.property('tenant');",
+                  "    pm.expect(jsonData.value).to.have.property('brand');",
                   "});"
                 ],
                 "type": "text/javascript"
@@ -39,7 +39,7 @@
               "host": ["{{baseUrl}}"],
               "query": [
                 {"key": "p", "value": "status"},
-                {"key": "tenant", "value": "{{brandId}}"}
+                {"key": "brand", "value": "{{brandId}}"}
               ]
             }
           }

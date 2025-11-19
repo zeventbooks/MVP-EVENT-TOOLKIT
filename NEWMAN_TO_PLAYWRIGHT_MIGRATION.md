@@ -21,7 +21,7 @@
 1. **Playwright API Testing:** Replace all Newman API tests with Playwright
 2. **Comprehensive Flow Tests:** Expand event triangle flows
 3. **Page Automation:** Deep coverage of all 13 page types
-4. **Multi-Tenant Testing:** Test all 4 tenants systematically
+4. **Multi-brand Testing:** Test all 4 brands systematically
 
 ---
 
@@ -70,7 +70,7 @@ tests/e2e/api/
 ├─ system-api.spec.js          (Status, diagnostics)
 ├─ events-crud-api.spec.js     (Event CRUD operations)
 ├─ sponsors-crud-api.spec.js   (Sponsor CRUD operations)
-├─ multi-tenant-api.spec.js    (Cross-tenant isolation)
+├─ multi-brand-api.spec.js    (Cross-brand isolation)
 └─ api-helpers.js              (Shared API utilities)
 ```
 
@@ -85,7 +85,7 @@ tests/e2e/3-flows/
 ├─ sponsor-flows.spec.js          ✅ Existing - Expand
 ├─ triangle-framework.spec.js     ✅ Existing - Expand
 ├─ event-lifecycle-flow.spec.js   🆕 New - Full lifecycle
-├─ multi-tenant-flows.spec.js     🆕 New - Cross-tenant
+├─ multi-brand-flows.spec.js     🆕 New - Cross-brand
 ├─ api-to-ui-flows.spec.js        🆕 New - API → UI validation
 └─ error-handling-flows.spec.js   🆕 New - Error scenarios
 ```
@@ -142,7 +142,7 @@ test.describe('System APIs', () => {
     const data = await response.json();
     expect(data.ok).toBe(true);
     expect(data.value).toHaveProperty('build');
-    expect(data.value).toHaveProperty('tenant', 'root');
+    expect(data.value).toHaveProperty('brand', 'root');
   });
 
   test('Diagnostics requires admin key', async () => {
@@ -188,9 +188,9 @@ export class ApiHelpers {
     });
   }
 
-  async createEvent(tenant, eventData, adminKey) {
+  async createEvent(brand, eventData, adminKey) {
     return await this.post('?action=create', {
-      brandId: tenant,
+      brandId: brand,
       scope: 'events',
       templateId: 'event',
       adminKey,
@@ -198,8 +198,8 @@ export class ApiHelpers {
     });
   }
 
-  async listEvents(tenant) {
-    return await this.get(`?p=api&action=list&brandId=${tenant}&scope=events`);
+  async listEvents(brand) {
+    return await this.get(`?p=api&action=list&brandId=${brand}&scope=events`);
   }
 
   // Add more helper methods for common API operations
@@ -251,40 +251,40 @@ test.describe('API to UI Flows', () => {
 });
 ```
 
-### 4. Multi-Tenant Flow Tests
+### 4. Multi-brand Flow Tests
 
-**Example: Cross-Tenant Isolation**
+**Example: Cross-Brand Isolation**
 ```javascript
-// tests/e2e/3-flows/multi-tenant-flows.spec.js
+// tests/e2e/3-flows/multi-brand-flows.spec.js
 import { test, expect } from '@playwright/test';
 import { ApiHelpers } from '../api/api-helpers';
 
-const TENANTS = ['root', 'abc', 'cbc', 'cbl'];
+const BRANDS = ['root', 'abc', 'cbc', 'cbl'];
 
-test.describe('Multi-Tenant Flows', () => {
-  TENANTS.forEach(tenant => {
-    test(`${tenant}: Create event and verify isolation`, async ({ page, request }) => {
+test.describe('Multi-brand Flows', () => {
+  BRANDS.forEach(brand => {
+    test(`${brand}: Create event and verify isolation`, async ({ page, request }) => {
       const api = new ApiHelpers(request, process.env.BASE_URL);
 
-      // Create event for this tenant
-      const createResponse = await api.createEvent(tenant, {
-        name: `${tenant.toUpperCase()} Event`,
+      // Create event for this brand
+      const createResponse = await api.createEvent(brand, {
+        name: `${brand.toUpperCase()} Event`,
         dateISO: '2025-12-15',
-        location: `${tenant} Venue`
-      }, process.env[`ADMIN_KEY_${tenant.toUpperCase()}`]);
+        location: `${brand} Venue`
+      }, process.env[`ADMIN_KEY_${brand.toUpperCase()}`]);
 
       const eventData = await createResponse.json();
       const eventId = eventData.value.id;
 
-      // Verify event appears in this tenant's view
-      await page.goto(`${process.env.BASE_URL}?p=events&brand=${tenant}`);
+      // Verify event appears in this brand's view
+      await page.goto(`${process.env.BASE_URL}?p=events&brand=${brand}`);
       await expect(page.locator(`[data-event-id="${eventId}"]`)).toBeVisible();
 
-      // Verify event does NOT appear in other tenants' views
-      for (const otherTenant of TENANTS) {
-        if (otherTenant === tenant) continue;
+      // Verify event does NOT appear in other brands' views
+      for (const otherBrand of BRANDS) {
+        if (otherBrand === brand) continue;
 
-        await page.goto(`${process.env.BASE_URL}?p=events&brand=${otherTenant}`);
+        await page.goto(`${process.env.BASE_URL}?p=events&brand=${otherBrand}`);
         await expect(page.locator(`[data-event-id="${eventId}"]`)).not.toBeVisible();
       }
     });
@@ -412,12 +412,12 @@ test.describe('Event Lifecycle Flow', () => {
 + "test:api:system": "playwright test tests/e2e/api/system-api.spec.js",
 + "test:api:events": "playwright test tests/e2e/api/events-crud-api.spec.js",
 + "test:api:sponsors": "playwright test tests/e2e/api/sponsors-crud-api.spec.js",
-+ "test:api:multi-tenant": "playwright test tests/e2e/api/multi-tenant-api.spec.js",
++ "test:api:multi-brand": "playwright test tests/e2e/api/multi-brand-api.spec.js",
   "test:smoke": "playwright test tests/e2e/1-smoke --reporter=html --reporter=line",
   "test:pages": "playwright test tests/e2e/2-pages --reporter=html --reporter=line",
   "test:flows": "playwright test tests/e2e/3-flows --reporter=html --reporter=line",
 + "test:flows:lifecycle": "playwright test tests/e2e/3-flows/event-lifecycle-flow.spec.js",
-+ "test:flows:multi-tenant": "playwright test tests/e2e/3-flows/multi-tenant-flows.spec.js",
++ "test:flows:multi-brand": "playwright test tests/e2e/3-flows/multi-brand-flows.spec.js",
 + "test:flows:api-to-ui": "playwright test tests/e2e/3-flows/api-to-ui-flows.spec.js",
 + "test:triangle:before:e2e": "playwright test tests/e2e/3-flows/*before*.spec.js",
 + "test:triangle:during:e2e": "playwright test tests/e2e/3-flows/*during*.spec.js",
@@ -525,7 +525,7 @@ Total Tests: ~180 (50 new tests)
 
 ### Week 2: Flow Test Expansion
 - [ ] Create event lifecycle flow tests
-- [ ] Create multi-tenant flow tests
+- [ ] Create multi-brand flow tests
 - [ ] Create API-to-UI flow tests
 - [ ] Create error handling flow tests
 - [ ] Test locally
@@ -559,7 +559,7 @@ Total Tests: ~180 (50 new tests)
 ### Nice to Have
 - [ ] 50+ new flow tests created
 - [ ] All 13 page types have comprehensive tests
-- [ ] Multi-tenant isolation tests for all tenants
+- [ ] Multi-brand isolation tests for all brands
 - [ ] Performance benchmarks for Playwright vs Newman
 
 ### Metrics

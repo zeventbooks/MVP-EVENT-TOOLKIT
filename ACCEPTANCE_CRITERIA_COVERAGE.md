@@ -111,12 +111,12 @@ Your test automation bed is **correctly executing** across all acceptance criter
 
 | Acceptance Criteria | Unit Tests | E2E Tests | Status |
 |---------------------|------------|-----------|--------|
-| Tenant isolation | ✅ multi-tenant.test.js, security.test.js | ✅ multi-tenant-api.spec.js, tenant-branding.spec.js | ✅ PASS |
-| Cross-tenant data prevention | ✅ multi-tenant.test.js, security.test.js (Bug #30) | ✅ multi-tenant-api.spec.js | ✅ PASS |
-| Tenant-specific branding | - | ✅ tenant-branding.spec.js | ✅ PASS |
-| Hostname-based tenant detection | ✅ validation.test.js (Bug #43) | ✅ tenant-branding.spec.js | ✅ PASS |
-| Tenant configuration | ✅ multi-tenant.test.js | ✅ tenant-branding.spec.js | ✅ PASS |
-| Tenant analytics isolation | ✅ security.test.js (Bug #30) | ✅ shared-reporting.spec.js | ✅ PASS |
+| Brand isolation | ✅ multi-brand.test.js, security.test.js | ✅ multi-brand-api.spec.js, brand-branding.spec.js | ✅ PASS |
+| Cross-brand data prevention | ✅ multi-brand.test.js, security.test.js (Bug #30) | ✅ multi-brand-api.spec.js | ✅ PASS |
+| Brand-specific branding | - | ✅ brand-branding.spec.js | ✅ PASS |
+| Hostname-based brand detection | ✅ validation.test.js (Bug #43) | ✅ brand-branding.spec.js | ✅ PASS |
+| Brand configuration | ✅ multi-brand.test.js | ✅ brand-branding.spec.js | ✅ PASS |
+| Brand analytics isolation | ✅ security.test.js (Bug #30) | ✅ shared-reporting.spec.js | ✅ PASS |
 
 ### 4. Security ✅ (13/13)
 
@@ -132,7 +132,7 @@ Your test automation bed is **correctly executing** across all acceptance criter
 | CORS origin validation | ✅ security.test.js (Bug #16) | - | ✅ PASS |
 | URL validation (javascript:, data:, file:) | ✅ security.test.js (Bug #32, #51) | ✅ security-smoke.spec.js | ✅ PASS |
 | Input sanitization | ✅ security.test.js (Bug #14, #35) | - | ✅ PASS |
-| Tenant isolation | ✅ security.test.js (Bug #30), multi-tenant.test.js | ✅ multi-tenant-api.spec.js | ✅ PASS |
+| Brand isolation | ✅ security.test.js (Bug #30), multi-brand.test.js | ✅ multi-brand-api.spec.js | ✅ PASS |
 | Rate limiting | ✅ rate-limiting.test.js (Bug #18) | - | ✅ PASS |
 | Diagnostic log sanitization | ✅ security.test.js (Bug #17) | - | ✅ PASS |
 
@@ -171,7 +171,7 @@ npm run test:integration       # Integration tests only
 ```bash
 export BASE_URL="https://your-deployment-url.com"
 export ADMIN_KEY="your-admin-key"
-export TENANT_ID="root"  # optional
+export BRAND_ID="root"  # optional
 ```
 
 **Run Tests:**

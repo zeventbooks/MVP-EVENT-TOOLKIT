@@ -41,11 +41,11 @@ The project has implemented a **two-stage deployment pipeline** with staged test
    ├─ Validates OAuth credentials
    ├─ Deploys via clasp push --force
    ├─ Creates/updates deployment
-   └─ Generates tenant-specific URLs (ROOT, ABC, CBC)
+   └─ Generates brand-specific URLs (ROOT, ABC, CBC)
 ```
 
 **Duration:** ~5-10 minutes  
-**Outcome:** Generates clickable tenant URLs for manual verification
+**Outcome:** Generates clickable brand URLs for manual verification
 
 ---
 
@@ -178,7 +178,7 @@ Stage 2 Tests (Parallel in Matrix):
    - System API verification
    - Events CRUD operations
    - Sponsors CRUD operations
-   - Multi-tenant API validation
+   - Multi-brand API validation
    ✅ Runs in parallel
 
 2. Smoke Tests (npm run test:smoke)
@@ -262,7 +262,7 @@ Stage 2 Tests (Parallel in Matrix):
    - Falls back to deployments list query
    - Constructs Web App URL
    
-4. Generate Tenant URLs
+4. Generate Brand URLs
    - BASE_URL from deployment
    - ROOT: BASE_URL + ?p=events&brand=root
    - ABC: BASE_URL + ?p=events&brand=abc
@@ -270,7 +270,7 @@ Stage 2 Tests (Parallel in Matrix):
    
 5. Outputs
    - Deployment URL artifact
-   - Tenant URLs in job summary
+   - Brand URLs in job summary
    - Clickable markdown links
 ```
 
@@ -361,7 +361,7 @@ Stage 1 Deployment:
 
 Stage 2 Testing:
 └─ ADMIN_KEY_ROOT (Required for API tests)
-   └─ Admin authentication key for ROOT tenant
+   └─ Admin authentication key for ROOT brand
    └─ Used in Playwright test environment setup
 
 Future QA Deployment:
@@ -385,7 +385,7 @@ Future QA Deployment:
 - Uses default `github.token` (secure)
 
 **Gaps:**
-- ❌ No environment secrets for different tenants (ABC, CBC keys)
+- ❌ No environment secrets for different brands (ABC, CBC keys)
 - ❌ No base URL configuration for other environments (QA, staging)
 - ❌ Secrets validation incomplete (only OAUTH_CREDENTIALS checked)
 
@@ -458,10 +458,10 @@ Future QA Deployment:
 - **Gap:** No CodeQL, SonarQube, or similar
 - **Recommendation:** Enable GitHub Advanced Security
 
-#### 7. **No Multi-Tenant Test Coverage**
+#### 7. **No Multi-brand Test Coverage**
 - **Severity:** Low
-- **Gap:** Tests only use ROOT tenant in Stage 1
-- **Missing:** ABC and CBC tenant validation in automated tests
+- **Gap:** Tests only use ROOT brand in Stage 1
+- **Missing:** ABC and CBC brand validation in automated tests
 - **Note:** Manual verification URLs provided
 
 #### 8. **Limited Error Handling**
@@ -526,7 +526,7 @@ Future QA Deployment:
          └───────────┬─────────────┘
                      │
          ┌───────────▼─────────────┐
-         │ Generate Tenant URLs:   │
+         │ Generate Brand URLs:   │
          │ • ROOT                  │
          │ • ABC                   │
          │ • CBC                   │
@@ -675,8 +675,8 @@ Skip Condition: If Stage 1 failed
   - Implement retry logic for flaky steps
 
 - [ ] **Expand test coverage**
-  - Add ABC and CBC tenant automated tests
-  - Add multi-tenant validation in Stage 2
+  - Add ABC and CBC brand automated tests
+  - Add multi-brand validation in Stage 2
   - Consider load/stress testing
 
 ### Priority 3: Nice to Have (Implement Later)
@@ -700,7 +700,7 @@ Skip Condition: If Stage 1 failed
   - Browser compatibility testing (Firefox, Safari)
   - Accessibility testing (a11y)
   - Visual regression testing
-  - Cross-tenant compatibility
+  - Cross-brand compatibility
 
 ---
 

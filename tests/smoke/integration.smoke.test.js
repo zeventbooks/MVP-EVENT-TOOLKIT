@@ -6,14 +6,14 @@
  * - Event creation to public display flow
  * - Admin config to TV display propagation
  * - Analytics tracking end-to-end
- * - Multi-tenant isolation
+ * - Multi-brand isolation
  * - Shortlink creation to redirect
  */
 
 const { test, expect } = require('@playwright/test');
 
 const BASE_URL = process.env.BASE_URL || 'https://script.google.com/macros/s/.../exec';
-const TENANT_ID = 'root';
+const BRAND_ID = 'root';
 const ADMIN_KEY = process.env.ADMIN_KEY || 'CHANGE_ME_root';
 
 test.describe('Integration Smoke - Admin to Public Flow', () => {
@@ -22,7 +22,7 @@ test.describe('Integration Smoke - Admin to Public Flow', () => {
     const uniqueName = `Integration Test ${Date.now()}`;
 
     // Step 1: Create event in Admin
-    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
 
     page.on('dialog', async dialog => await dialog.accept(ADMIN_KEY));
 
@@ -41,7 +41,7 @@ test.describe('Integration Smoke - Admin to Public Flow', () => {
     if (publicLink) {
       await publicPage.goto(publicLink);
     } else {
-      await publicPage.goto(`${BASE_URL}?p=events&brand=${TENANT_ID}`);
+      await publicPage.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`);
     }
 
     // Step 4: Verify event appears
@@ -53,7 +53,7 @@ test.describe('Integration Smoke - Admin to Public Flow', () => {
   });
 
   test('Event links connect all pages', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
 
     page.on('dialog', async dialog => await dialog.accept(ADMIN_KEY));
 
@@ -84,7 +84,7 @@ test.describe('Integration Smoke - Admin Config to Display Propagation', () => {
     const uniqueName = `Display Integration ${Date.now()}`;
 
     // Create event with sponsor
-    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
 
     page.on('dialog', async dialog => await dialog.accept(ADMIN_KEY));
 
@@ -134,7 +134,7 @@ test.describe('Integration Smoke - Admin Config to Display Propagation', () => {
   });
 
   test('Display mode selection affects TV display', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
 
     page.on('dialog', async dialog => await dialog.accept(ADMIN_KEY));
 
@@ -156,7 +156,7 @@ test.describe('Integration Smoke - Admin Config to Display Propagation', () => {
 test.describe('Integration Smoke - Analytics End-to-End', () => {
 
   test('Public page logs impression analytics', async ({ page }) => {
-    await page.goto(`${BASE_URL}?p=events&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`);
 
     // Monitor network requests for api_logEvents
     const requests = [];
@@ -176,7 +176,7 @@ test.describe('Integration Smoke - Analytics End-to-End', () => {
   });
 
   test('Display page tracks sponsor impressions', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=display&brand=${TENANT_ID}&id=test-event`);
+    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}&id=test-event`);
 
     // Monitor for analytics calls
     const requests = [];
@@ -194,7 +194,7 @@ test.describe('Integration Smoke - Analytics End-to-End', () => {
   });
 
   test('Analytics report can be retrieved', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=diagnostics&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=diagnostics&brand=${BRAND_ID}`);
 
     // Run diagnostics which includes analytics test
     await page.click('button:has-text("Run All Tests")');
@@ -208,48 +208,48 @@ test.describe('Integration Smoke - Analytics End-to-End', () => {
   });
 });
 
-test.describe('Integration Smoke - Multi-Tenant Isolation', () => {
+test.describe('Integration Smoke - Multi-brand Isolation', () => {
 
-  test('Different tenants access different data', async ({ page, context }) => {
-    // Create event for root tenant
+  test('Different brands access different data', async ({ page, context }) => {
+    // Create event for root brand
     await page.goto(`${BASE_URL}?page=admin&brand=root`);
 
     page.on('dialog', async dialog => await dialog.accept('CHANGE_ME_root'));
 
-    const rootEventName = `Root Tenant ${Date.now()}`;
+    const rootEventName = `Root Brand ${Date.now()}`;
     await page.fill('#name', rootEventName);
     await page.fill('#dateISO', '2025-12-31');
     await page.click('button[type="submit"]');
 
     await expect(page.locator('#eventCard')).toBeVisible({ timeout: 10000 });
 
-    // Check abc tenant doesn't see root's events
+    // Check abc brand doesn't see root's events
     const abcPage = await context.newPage();
     await abcPage.goto(`${BASE_URL}?p=events&brand=abc`);
 
     await abcPage.waitForLoadState('networkidle');
     const abcContent = await abcPage.textContent('body');
 
-    // ABC tenant should NOT see root's event
+    // ABC brand should NOT see root's event
     expect(abcContent).not.toContain(rootEventName);
   });
 
-  test('Tenant hostnames resolve correctly', async ({ page }) => {
-    const tenants = ['root', 'abc', 'cbc', 'cbl'];
+  test('Brand hostnames resolve correctly', async ({ page }) => {
+    const brands = ['root', 'abc', 'cbc', 'cbl'];
 
-    for (const tenant of tenants) {
-      await page.goto(`${BASE_URL}?page=admin&brand=${tenant}`);
+    for (const brand of brands) {
+      await page.goto(`${BASE_URL}?page=admin&brand=${brand}`);
 
       // Should load without error
       await expect(page).toHaveTitle(/Admin/);
 
-      // Verify tenant context is set
+      // Verify brand context is set
       const pageContent = await page.content();
-      expect(pageContent).toContain(tenant);
+      expect(pageContent).toContain(brand);
     }
   });
 
-  test('Admin keys are tenant-specific', async ({ page }) => {
+  test('Admin keys are brand-specific', async ({ page }) => {
     await page.goto(`${BASE_URL}?page=admin&brand=root`);
 
     // Try to create with wrong admin key
@@ -273,7 +273,7 @@ test.describe('Integration Smoke - Multi-Tenant Isolation', () => {
 test.describe('Integration Smoke - Shortlink Flow', () => {
 
   test('Shortlink creation to redirect works', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=diagnostics&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=diagnostics&brand=${BRAND_ID}`);
 
     // Run diagnostics which includes shortlink test
     await page.click('button:has-text("Run All Tests")');
@@ -301,7 +301,7 @@ test.describe('Integration Smoke - Shortlink Flow', () => {
 test.describe('Integration Smoke - RPC Communication', () => {
 
   test('google.script.run is available in Apps Script context', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
 
     const hasGoogleScript = await page.evaluate(() => {
       return typeof google !== 'undefined' &&
@@ -313,7 +313,7 @@ test.describe('Integration Smoke - RPC Communication', () => {
   });
 
   test('NU.rpc wrapper provides consistent API', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
 
     const hasNURPC = await page.evaluate(() => {
       return window.NU &&
@@ -326,7 +326,7 @@ test.describe('Integration Smoke - RPC Communication', () => {
 
   test('API calls return expected envelope format', async ({ page }) => {
     // Test via status endpoint
-    const response = await page.goto(`${BASE_URL}?p=status&brand=${TENANT_ID}`);
+    const response = await page.goto(`${BASE_URL}?p=status&brand=${BRAND_ID}`);
     const json = await response.json();
 
     // Should follow OK envelope
@@ -345,7 +345,7 @@ test.describe('Integration Smoke - RPC Communication', () => {
 test.describe('Integration Smoke - State Management', () => {
 
   test('Admin key persists in sessionStorage', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
 
     page.on('dialog', async dialog => await dialog.accept(ADMIN_KEY));
 
@@ -356,9 +356,9 @@ test.describe('Integration Smoke - State Management', () => {
     await page.waitForTimeout(2000);
 
     // Check if admin key is in sessionStorage
-    const adminKeyStored = await page.evaluate((tenant) => {
-      return sessionStorage.getItem(`ADMIN_KEY:${tenant}`) !== null;
-    }, TENANT_ID);
+    const adminKeyStored = await page.evaluate((brand) => {
+      return sessionStorage.getItem(`ADMIN_KEY:${brand}`) !== null;
+    }, BRAND_ID);
 
     expect(adminKeyStored).toBe(true);
   });
@@ -367,7 +367,7 @@ test.describe('Integration Smoke - State Management', () => {
     const uniqueName = `Persistence Test ${Date.now()}`;
 
     // Create event
-    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
 
     page.on('dialog', async dialog => await dialog.accept(ADMIN_KEY));
 
@@ -379,7 +379,7 @@ test.describe('Integration Smoke - State Management', () => {
 
     // Navigate to public page in new tab
     const publicPage = await context.newPage();
-    await publicPage.goto(`${BASE_URL}?p=events&brand=${TENANT_ID}`);
+    await publicPage.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`);
 
     await publicPage.waitForLoadState('networkidle');
 
@@ -399,7 +399,7 @@ test.describe('Integration Smoke - State Management', () => {
 test.describe('Integration Smoke - Error Propagation', () => {
 
   test('Backend errors surface to frontend', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
 
     // Try to submit invalid data
     page.on('dialog', async dialog => await dialog.dismiss()); // Cancel admin key prompt
@@ -414,7 +414,7 @@ test.describe('Integration Smoke - Error Propagation', () => {
   });
 
   test('Network errors are handled gracefully', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=test&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=test&brand=${BRAND_ID}`);
 
     // Page should load even if some network calls fail
     await page.waitForLoadState('domcontentloaded');
@@ -426,12 +426,12 @@ test.describe('Integration Smoke - Error Propagation', () => {
   test('Rate limit errors show appropriate message', async ({ page }) => {
     // This would require exceeding rate limit (20 req/min)
     // For smoke test, just verify system handles requests
-    await page.goto(`${BASE_URL}?p=status&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?p=status&brand=${BRAND_ID}`);
 
-    const response = await page.goto(`${BASE_URL}?p=status&brand=${TENANT_ID}`);
+    const response = await page.goto(`${BASE_URL}?p=status&brand=${BRAND_ID}`);
     expect(response.status()).toBe(200);
 
-    const response2 = await page.goto(`${BASE_URL}?p=status&brand=${TENANT_ID}`);
+    const response2 = await page.goto(`${BASE_URL}?p=status&brand=${BRAND_ID}`);
     expect(response2.status()).toBe(200);
 
     // Should handle multiple requests

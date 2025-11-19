@@ -39,7 +39,7 @@ test.describe('Forms → Shortlinks → QR Codes Workflow', () => {
     const createResponse = await request.post(baseUrl, {
       data: {
         action: 'create',
-        tenantId: 'root',
+        brandId: 'root',
         scope: 'events',
         templateId: 'event',
         adminKey,
@@ -102,7 +102,7 @@ test.describe('Forms → Shortlinks → QR Codes Workflow', () => {
         const createFormResponse = await request.post(baseUrl, {
           data: {
             action: 'createFormFromTemplate',
-            tenantId: 'root',
+            brandId: 'root',
             adminKey,
             templateType: formType.id,
             eventName: `Test Event - ${formType.label}`,
@@ -130,7 +130,7 @@ test.describe('Forms → Shortlinks → QR Codes Workflow', () => {
           const shortlinkResponse = await request.post(baseUrl, {
             data: {
               action: 'generateFormShortlink',
-              tenantId: 'root',
+              brandId: 'root',
               adminKey,
               formUrl: formUrl,
               formType: formType.id,
@@ -210,7 +210,7 @@ test.describe('Forms → Shortlinks → QR Codes Workflow', () => {
           const reportResponse = await request.post(baseUrl, {
             data: {
               action: 'getReport',
-              tenantId: 'root',
+              brandId: 'root',
               adminKey,
               eventId: testEventId
             }
@@ -236,7 +236,7 @@ test.describe('Forms → Shortlinks → QR Codes Workflow', () => {
           const shortlinkResponse = await request.post(baseUrl, {
             data: {
               action: 'generateFormShortlink',
-              tenantId: 'root',
+              brandId: 'root',
               adminKey,
               formUrl: mockFormUrl,
               formType: formType.id,
@@ -284,7 +284,7 @@ test.describe('Forms → Shortlinks → QR Codes Workflow', () => {
       const response = await request.post(baseUrl, {
         data: {
           action: 'createFormFromTemplate',
-          tenantId: 'root',
+          brandId: 'root',
           adminKey,
           templateType: 'invalid-template',
           eventName: 'Test Event',
@@ -301,7 +301,7 @@ test.describe('Forms → Shortlinks → QR Codes Workflow', () => {
       const response = await request.post(baseUrl, {
         data: {
           action: 'createFormFromTemplate',
-          tenantId: 'root',
+          brandId: 'root',
           adminKey: 'invalid-key',
           templateType: 'sign-up',
           eventName: 'Test Event',
@@ -323,7 +323,7 @@ test.describe('Forms → Shortlinks → QR Codes Workflow', () => {
       const response = await request.post(baseUrl, {
         data: {
           action: 'generateFormShortlink',
-          tenantId: 'root',
+          brandId: 'root',
           adminKey,
           formUrl: mockFormUrl,
           formType: 'check-in',
@@ -345,7 +345,7 @@ test.describe('Forms → Shortlinks → QR Codes Workflow', () => {
       const response = await request.post(baseUrl, {
         data: {
           action: 'generateFormShortlink',
-          tenantId: 'root',
+          brandId: 'root',
           adminKey,
           formType: 'sign-up',
           eventId: testEventId
@@ -362,7 +362,7 @@ test.describe('Forms → Shortlinks → QR Codes Workflow', () => {
       const response = await request.post(baseUrl, {
         data: {
           action: 'generateFormShortlink',
-          tenantId: 'root',
+          brandId: 'root',
           adminKey,
           formUrl: 'javascript:alert(1)', // Invalid/dangerous URL
           formType: 'survey',
@@ -386,7 +386,7 @@ test.describe('Forms → Shortlinks → QR Codes Workflow', () => {
       await request.post(baseUrl, {
         data: {
           action: 'update',
-          tenantId: 'root',
+          brandId: 'root',
           adminKey,
           scope: 'events',
           id: testEventId,
@@ -428,7 +428,7 @@ test.describe('Forms → Shortlinks → QR Codes Workflow', () => {
       const response = await page.request.post(baseUrl, {
         data: {
           action: 'create',
-          tenantId: 'root',
+          brandId: 'root',
           scope: 'events',
           templateId: 'event',
           adminKey,
@@ -466,7 +466,7 @@ test.describe('Forms → Shortlinks → QR Codes Workflow', () => {
       const shortlinkResponse = await request.post(baseUrl, {
         data: {
           action: 'generateFormShortlink',
-          tenantId: 'root',
+          brandId: 'root',
           adminKey,
           formUrl: mockFormUrl,
           formType: 'walk-in',
@@ -490,7 +490,7 @@ test.describe('Forms → Shortlinks → QR Codes Workflow', () => {
       const reportResponse = await request.post(baseUrl, {
         data: {
           action: 'getReport',
-          tenantId: 'root',
+          brandId: 'root',
           adminKey,
           eventId: testEventId
         }

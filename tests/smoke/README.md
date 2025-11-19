@@ -47,7 +47,7 @@ npm run test:smoke tests/smoke/pages.smoke.test.js
 - ✅ Health check responds
 - ✅ Error handling (invalid params)
 - ✅ Response format (OK/Err envelopes)
-- ✅ Multi-tenant support
+- ✅ Multi-brand support
 - ✅ Rate limiting graceful handling
 
 ## Environment Variables
@@ -89,5 +89,5 @@ All smoke tests should pass on a healthy deployment:
 - These errors are filtered out in tests
 
 **401/403 errors:**
-- Check tenant ID is correct
+- Check brand ID is correct
 - Verify deployment permissions (set to ANYONE)

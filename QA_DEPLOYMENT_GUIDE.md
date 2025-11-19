@@ -246,7 +246,7 @@ After QA deployment, manually test:
 - [ ] **Sponsor page** - Add test sponsor
 - [ ] **Display page** - Verify carousel/sponsors
 - [ ] **Forms** - Test registration/check-in
-- [ ] **Multi-tenant** - Test with different tenants
+- [ ] **Multi-brand** - Test with different brands
 
 ### Automated Checks
 

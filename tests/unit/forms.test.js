@@ -235,7 +235,7 @@ describe('Forms Template Management', () => {
         eventName: 'Test Event',
         eventId: 'event-123',
         adminKey: 'test-key',
-        tenantId: 'root'
+        brandId: 'root'
       });
       expect(result.ok).toBe(true);
     });
@@ -305,7 +305,7 @@ describe('Forms Template Management', () => {
         formType: 'check-in',
         eventId: 'event-123',
         adminKey: 'test-key',
-        tenantId: 'root'
+        brandId: 'root'
       });
       expect(result.ok).toBe(true);
     });

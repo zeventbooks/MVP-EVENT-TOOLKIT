@@ -140,7 +140,7 @@ If you're doing a complete deployment, also update these files from the reposito
 - i18nService.gs
 - ApiSchemas.gs
 
-**Note:** All instances of `tenantId` have been renamed to `brandId` in the latest version.
+**Note:** All instances of `brandId` have been renamed to `brandId` in the latest version.
 
 ### Step 4: Update HTML Template Files
 
@@ -228,7 +228,7 @@ Visit: `?page=admin&brand=abc&mode=advanced&demo=true`
 
 **Possible causes:**
 1. Template context not set - check `global_setTemplateContext_()` call
-2. Variable names don't match - verify `brandId` not `tenantId`
+2. Variable names don't match - verify `brandId` not `brandId`
 3. ZEB constant not defined - check Config.gs is deployed
 
 ### Issue: Page redirects or shows wrong content
@@ -315,7 +315,7 @@ test('Admin page template variables', async ({ page }) => {
 ## 📝 Summary
 
 **Key Changes:**
-- ✅ `tenantId` → `brandId` throughout codebase
+- ✅ `brandId` → `brandId` throughout codebase
 - ✅ `include()` function now evaluates templates correctly
 - ✅ Template context passed to included files
 - ✅ All template variables now render properly

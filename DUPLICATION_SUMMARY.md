@@ -57,13 +57,13 @@
 - **Complexity:** MEDIUM
 - **Time:** 2-3 hours
 
-#### Pattern 3: Multi-Tenant Isolation Tests
+#### Pattern 3: Multi-brand Isolation Tests
 **Impact:** 40-50 lines saved
 - **Files:**
   - `tests/unit/validation.test.js` (lines 386-476)
   - `tests/unit/security.test.js` (lines 603-629)
-- **Issue:** Duplicate tenant isolation testing logic
-- **Solution:** Extract to shared fixture `tests/shared/fixtures/tenant-isolation.js`
+- **Issue:** Duplicate brand isolation testing logic
+- **Solution:** Extract to shared fixture `tests/shared/fixtures/brand-isolation.js`
 - **Complexity:** LOW
 - **Time:** 1-2 hours
 
@@ -100,8 +100,8 @@
    - Update event/sponsor CRUD tests
    - Saves: 100+ lines
 
-2. **Extract tenant isolation fixtures** (2-3 hours)
-   - Create `tests/shared/fixtures/tenant-isolation.js`
+2. **Extract brand isolation fixtures** (2-3 hours)
+   - Create `tests/shared/fixtures/brand-isolation.js`
    - Update validation and security tests
    - Saves: 40 lines
 
@@ -141,7 +141,7 @@
 ### New Test Files to Create
 - `tests/shared/fixtures/crud-setup.js`
 - `tests/shared/fixtures/crud-tests.js`
-- `tests/shared/fixtures/tenant-isolation.js`
+- `tests/shared/fixtures/brand-isolation.js`
 
 ## Expected Impact
 

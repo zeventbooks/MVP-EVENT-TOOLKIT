@@ -42,7 +42,7 @@
               "host": ["{{baseUrl}}"],
               "query": [
                 {"key": "p", "value": "status"},
-                {"key": "tenant", "value": "{{brandId}}"}
+                {"key": "brand", "value": "{{brandId}}"}
               ]
             }
           }
@@ -586,7 +586,7 @@
               "host": ["{{baseUrl}}"],
               "query": [
                 {"key": "p", "value": "status"},
-                {"key": "tenant", "value": "{{brandId}}"}
+                {"key": "brand", "value": "{{brandId}}"}
               ]
             }
           }

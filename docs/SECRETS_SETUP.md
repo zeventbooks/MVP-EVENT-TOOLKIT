@@ -7,15 +7,15 @@ This document explains how to configure GitHub repository secrets for the Agile 
 The test automation framework requires the following GitHub secrets to be configured:
 
 ### **1. ADMIN_KEY_ROOT** (Required for Scenario 1)
-- **Purpose**: Admin authentication for ROOT tenant (creating events, configuring sponsors)
+- **Purpose**: Admin authentication for ROOT brand (creating events, configuring sponsors)
 - **Used in**: Scenario 1 (First-Time Admin), Admin workflow tests
 - **Security**: ⚠️ **CRITICAL** - Never commit this value to code
 - **Your Setup**: ✅ Already configured in repository
 
-### **2. Multi-Tenant Admin Keys** (Optional - for tenant-specific testing)
-- **ADMIN_KEY_ABC**: Admin key for ABC tenant
-- **ADMIN_KEY_CBC**: Admin key for CBC tenant
-- **ADMIN_KEY_CBL**: Admin key for CBL tenant
+### **2. Multi-brand Admin Keys** (Optional - for brand-specific testing)
+- **ADMIN_KEY_ABC**: Admin key for ABC brand
+- **ADMIN_KEY_CBC**: Admin key for CBC brand
+- **ADMIN_KEY_CBL**: Admin key for CBL brand
 - **Your Setup**: ✅ Already configured in repository
 
 ### **3. PROD_BASE_URL** (Optional)
@@ -44,11 +44,11 @@ Your repository also has these secrets configured for Apps Script deployment:
 
 Your repository already has these secrets configured:
 
-**Admin Keys (Multi-Tenant):**
-- ✅ `ADMIN_KEY_ROOT` - For root tenant testing
-- ✅ `ADMIN_KEY_ABC` - For ABC tenant testing
-- ✅ `ADMIN_KEY_CBC` - For CBC tenant testing
-- ✅ `ADMIN_KEY_CBL` - For CBL tenant testing
+**Admin Keys (Multi-brand):**
+- ✅ `ADMIN_KEY_ROOT` - For root brand testing
+- ✅ `ADMIN_KEY_ABC` - For ABC brand testing
+- ✅ `ADMIN_KEY_CBC` - For CBC brand testing
+- ✅ `ADMIN_KEY_CBL` - For CBL brand testing
 
 **Deployment Secrets:**
 - ✅ `DEPLOYMENT_ID` - Apps Script deployment ID
@@ -108,14 +108,14 @@ The `.github/workflows/quality-gates-scenarios.yml` file references your existin
   run: npm run test:scenario:1
   env:
     BASE_URL: ${{ secrets.PROD_BASE_URL || 'https://zeventbooks.com' }}
-    ADMIN_KEY: ${{ secrets.ADMIN_KEY_ROOT }}  # Uses your ROOT tenant key
-    TENANT_ID: root
+    ADMIN_KEY: ${{ secrets.ADMIN_KEY_ROOT }}  # Uses your ROOT brand key
+    BRAND_ID: root
 ```
 
-**Multi-Tenant Testing**: To test different tenants, you can modify the workflow to use:
-- `ADMIN_KEY_ABC` for ABC tenant
-- `ADMIN_KEY_CBC` for CBC tenant
-- `ADMIN_KEY_CBL` for CBL tenant
+**Multi-brand Testing**: To test different brands, you can modify the workflow to use:
+- `ADMIN_KEY_ABC` for ABC brand
+- `ADMIN_KEY_CBC` for CBC brand
+- `ADMIN_KEY_CBL` for CBL brand
 
 ### **Test Files**
 
@@ -124,7 +124,7 @@ Test files use `process.env` to access secrets:
 ```javascript
 const BASE_URL = process.env.BASE_URL || 'https://zeventbooks.com';
 const ADMIN_KEY = process.env.ADMIN_KEY || 'CHANGE_ME_root';
-const TENANT_ID = process.env.TENANT_ID || 'root';
+const BRAND_ID = process.env.BRAND_ID || 'root';
 ```
 
 ---
@@ -139,14 +139,14 @@ For local testing, use environment variables instead of hardcoding secrets.
 # Set for current session only
 export BASE_URL=https://zeventbooks.com
 export ADMIN_KEY=your_root_admin_key_here  # Use value from ADMIN_KEY_ROOT secret
-export TENANT_ID=root
+export BRAND_ID=root
 
 # Run tests
 npm run test:scenario:1
 
-# For other tenants:
+# For other brands:
 # export ADMIN_KEY=your_abc_admin_key_here  # Use value from ADMIN_KEY_ABC
-# export TENANT_ID=abc
+# export BRAND_ID=abc
 ```
 
 ### **Option 2: Create `.env.local` File** (Recommended)
@@ -157,7 +157,7 @@ npm run test:scenario:1
 # .env.local (DO NOT COMMIT THIS FILE)
 BASE_URL=https://zeventbooks.com
 ADMIN_KEY=your_admin_key_here
-TENANT_ID=root
+BRAND_ID=root
 ```
 
 2. Add to `.gitignore`:
@@ -184,7 +184,7 @@ Add to `~/.bashrc` or `~/.zshrc`:
 # Add to ~/.bashrc or ~/.zshrc
 export BASE_URL=https://zeventbooks.com
 export ADMIN_KEY=your_admin_key_here
-export TENANT_ID=root
+export BRAND_ID=root
 ```
 
 Reload shell:
@@ -200,21 +200,21 @@ source ~/.bashrc  # or source ~/.zshrc
 ```bash
 BASE_URL=https://zeventbooks.com
 ADMIN_KEY=[Production Admin Key]
-TENANT_ID=root
+BRAND_ID=root
 ```
 
 ### **QA Environment**
 ```bash
 BASE_URL=https://qa.zeventbooks.com
 ADMIN_KEY=[QA Admin Key]
-TENANT_ID=root
+BRAND_ID=root
 ```
 
 ### **Development/Apps Script**
 ```bash
 BASE_URL=https://script.google.com/macros/s/.../exec
 ADMIN_KEY=[Dev Admin Key]
-TENANT_ID=root
+BRAND_ID=root
 ```
 
 ---
@@ -235,7 +235,7 @@ Run this workflow manually:
 # Verify environment variables are set
 echo $BASE_URL
 echo $ADMIN_KEY
-echo $TENANT_ID
+echo $BRAND_ID
 
 # Should show your values (ADMIN_KEY will show if set)
 ```
@@ -292,7 +292,7 @@ npm run test:scenario:1
 |--------|-------------------|--------------|---------------|
 | ADMIN_KEY | Every 90 days | [Set date] | [Set date] |
 | PROD_BASE_URL | As needed | - | - |
-| TENANT_ID | As needed | - | - |
+| BRAND_ID | As needed | - | - |
 
 ---
 

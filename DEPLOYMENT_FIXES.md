@@ -140,11 +140,11 @@ Google Apps Script loads `.gs` files in a global scope:
 - `getStoreSheet_()`, `_ensureAnalyticsSheet_()` - Data access
 
 **From Config.gs:**
-- `findTenant_()` - Tenant lookup
+- `findBrand_()` - Brand lookup
 - `getAdminSecret_()` - Secret management
 - `findTemplate_()`, `findFormTemplate_()` - Template lookup
 - `listFormTemplates_()` - Template listing
-- `TENANTS`, `TEMPLATES`, `FORM_TEMPLATES` - Configuration data
+- `BRANDS`, `TEMPLATES`, `FORM_TEMPLATES` - Configuration data
 
 ### Service Module Structure
 
@@ -272,7 +272,7 @@ grep -q "!contracts/\*.gs" .claspignore || echo "Warning: contracts/ not in .cla
 3. Test endpoints manually:
    ```bash
    curl -X POST "https://script.google.com/macros/s/SCRIPT_ID/exec" \
-     -d '{"action":"status","tenant":"root"}'
+     -d '{"action":"status","brand":"root"}'
    ```
 4. Check Google Apps Script logs:
    - Open Apps Script editor

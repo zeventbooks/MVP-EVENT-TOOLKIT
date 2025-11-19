@@ -65,7 +65,7 @@ const validateErrorEnvelope = (response, expectedCode = null) => {
  */
 const validateEventStructure = (event) => {
   expect(event).toHaveProperty('id');
-  expect(event).toHaveProperty('tenantId');
+  expect(event).toHaveProperty('brandId');
   expect(event).toHaveProperty('templateId');
   expect(event).toHaveProperty('data');
   expect(event).toHaveProperty('createdAt');
@@ -235,26 +235,26 @@ const dateHelpers = {
 };
 
 /**
- * Multi-tenant test helpers
+ * Multi-brand test helpers
  */
-const tenantHelpers = {
+const brandHelpers = {
   /**
-   * Valid tenant IDs from Config.gs
+   * Valid brand IDs from Config.gs
    */
-  TENANTS: ['root', 'abc', 'cbc', 'cbl'],
+  BRANDS: ['root', 'abc', 'cbc', 'cbl'],
 
   /**
-   * Get a random tenant ID
+   * Get a random brand ID
    */
-  randomTenant: () => {
-    return tenantHelpers.TENANTS[Math.floor(Math.random() * tenantHelpers.TENANTS.length)];
+  randomBrand: () => {
+    return brandHelpers.BRANDS[Math.floor(Math.random() * brandHelpers.BRANDS.length)];
   },
 
   /**
-   * Get a different tenant ID (for cross-tenant tests)
+   * Get a different brand ID (for cross-brand tests)
    */
-  differentTenant: (currentTenant) => {
-    const others = tenantHelpers.TENANTS.filter(t => t !== currentTenant);
+  differentBrand: (currentBrand) => {
+    const others = brandHelpers.BRANDS.filter(t => t !== currentBrand);
     return others[Math.floor(Math.random() * others.length)];
   }
 };
@@ -288,6 +288,6 @@ module.exports = {
   // Date helpers
   dateHelpers,
 
-  // Tenant helpers
-  tenantHelpers
+  // Brand helpers
+  brandHelpers
 };

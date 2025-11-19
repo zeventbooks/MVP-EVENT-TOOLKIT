@@ -82,7 +82,7 @@ This document includes:
 ### Part 3: Test Everything (10 min)
 - Test Google Apps Script directly
 - Test zeventbooks.com proxy
-- Test all tenant URLs
+- Test all brand URLs
 - Run Playwright tests
 
 ### Troubleshooting Guide
@@ -153,7 +153,7 @@ Once both blockers are resolved:
 - ✅ All Playwright E2E tests will pass
 - ✅ Clean URLs with custom domain
 - ✅ Professional appearance
-- ✅ Full multi-tenant support
+- ✅ Full multi-brand support
 
 ---
 
@@ -181,7 +181,7 @@ curl "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec?p=status&brand=
 # 2. Test zeventbooks.com proxy
 curl "https://zeventbooks.com?p=status&brand=root"
 
-# 3. Test all tenants
+# 3. Test all brands
 curl "https://zeventbooks.com?p=status&brand=root"
 curl "https://zeventbooks.com?p=status&brand=abc"
 curl "https://zeventbooks.com?p=status&brand=cbc"

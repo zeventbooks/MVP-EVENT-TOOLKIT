@@ -44,7 +44,7 @@ PASS tests/unit/concurrency.test.js
 PASS tests/unit/validation.test.js
 PASS tests/unit/rate-limiting.test.js
 PASS tests/unit/backend.test.js
-PASS tests/unit/multi-tenant.test.js
+PASS tests/unit/multi-brand.test.js
 PASS tests/unit/security.test.js
 
 Test Suites: 7 passed, 7 total
@@ -69,7 +69,7 @@ Time:        2.579 s
 3. `tests/unit/validation.test.js` - Input validation and sanitization
 4. `tests/unit/rate-limiting.test.js` - Rate limiting logic
 5. `tests/unit/backend.test.js` - Backend API logic
-6. `tests/unit/multi-tenant.test.js` - Multi-tenancy isolation
+6. `tests/unit/multi-brand.test.js` - Multi-tenancy isolation
 7. `tests/unit/security.test.js` - Security bug fixes
 
 ---
@@ -152,7 +152,7 @@ Running 22 tests using 8 workers
 18 failed:
   [iPhone 14 Pro] › System APIs › Status Endpoint › returns 200 OK
   [iPhone 14 Pro] › System APIs › Status Endpoint › returns correct JSON structure
-  [iPhone 14 Pro] › System APIs › Status Endpoint › works for all tenants
+  [iPhone 14 Pro] › System APIs › Status Endpoint › works for all brands
   [iPhone 14 Pro] › System APIs › Status Endpoint › returns build information
   [iPhone 14 Pro] › System APIs › Diagnostics Endpoint › requires authentication
   [iPhone 14 Pro] › System APIs › Diagnostics Endpoint › rejects invalid admin key
@@ -161,7 +161,7 @@ Running 22 tests using 8 workers
   [iPhone 14 Pro] › System APIs › API Health Checks › API handles concurrent requests
   [chromium] › System APIs › Status Endpoint › returns 200 OK
   [chromium] › System APIs › Status Endpoint › returns correct JSON structure
-  [chromium] › System APIs › Status Endpoint › works for all tenants
+  [chromium] › System APIs › Status Endpoint › works for all brands
   [chromium] › System APIs › Status Endpoint › returns build information
   [chromium] › System APIs › Diagnostics Endpoint › requires authentication
   [chromium] › System APIs › Diagnostics Endpoint › rejects invalid admin key
@@ -207,7 +207,7 @@ Base URL: https://zeventbooks.com
 ✅ **Unit-level coverage:**
 - Security: Input sanitization, XSS prevention, CSRF protection
 - Validation: URL validation, ID sanitization, JSON parsing
-- Multi-tenancy: Tenant isolation logic
+- Multi-tenancy: Brand isolation logic
 - Rate limiting: Request throttling algorithms
 - Error handling: Error response formatting
 - Concurrency: Lock-based synchronization
@@ -234,7 +234,7 @@ Base URL: https://zeventbooks.com
 - Full user journeys (BEFORE → DURING → AFTER)
 - Browser interactions with deployed pages
 - Authentication flows with real admin keys
-- Multi-tenant data isolation in production
+- Multi-brand data isolation in production
 - Performance under real load
 - Cross-browser compatibility on live site
 
@@ -445,7 +445,7 @@ sed -i 's|CHANGE_ME_root|actual_admin_key|' .env
 
 **276 tests covering:**
 1. ✅ Security bug fixes (13 bugs: XSS, CSRF, JWT, CORS)
-2. ✅ Data integrity (8 bugs: tenant isolation, idempotency)
+2. ✅ Data integrity (8 bugs: brand isolation, idempotency)
 3. ✅ Performance (6 bugs: rate limiting, pagination)
 4. ✅ Code quality (16 bugs: error handling, validation)
 
@@ -584,7 +584,7 @@ Error: apiRequestContext.get: getaddrinfo EAI_AGAIN zeventbooks.com
 
 1. **Implement Test Data Fixtures**
    - Create reusable test data builders
-   - Standardize tenant setup/teardown
+   - Standardize brand setup/teardown
    - Reduce test duplication (see CODE_DUPLICATION_ANALYSIS.txt)
 
 2. **Add Visual Regression Testing**

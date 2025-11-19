@@ -1,6 +1,6 @@
 #!/bin/bash
 # Quick test script to check if a URL has 302 redirect issues
-# Tests all tenants: root, ABC, CBC
+# Tests all brands: root, ABC, CBC
 # Usage: ./scripts/test-url.sh <URL>
 
 if [ -z "$1" ]; then
@@ -12,23 +12,23 @@ if [ -z "$1" ]; then
 fi
 
 WEB_APP_URL="$1"
-TENANTS=("root" "ABC" "CBC")
+BRANDS=("root" "ABC" "CBC")
 FAILED=0
 
-echo "🧪 Testing URL for 302 redirects - All Tenants"
+echo "🧪 Testing URL for 302 redirects - All Brands"
 echo "========================================================"
 echo "URL: $WEB_APP_URL"
 echo ""
 
-# Function to test a tenant
-test_tenant() {
-    local TENANT=$1
+# Function to test a brand
+test_brand() {
+    local BRAND=$1
     local TEST_NUM=$2
 
-    echo "📋 Test $TEST_NUM: Status Endpoint - Tenant: $TENANT"
-    echo "   GET $WEB_APP_URL?page=status&brand=$TENANT"
+    echo "📋 Test $TEST_NUM: Status Endpoint - Brand: $BRAND"
+    echo "   GET $WEB_APP_URL?page=status&brand=$BRAND"
 
-    STATUS_RESPONSE=$(curl -s -w "\n%{http_code}" "$WEB_APP_URL?page=status&brand=$TENANT")
+    STATUS_RESPONSE=$(curl -s -w "\n%{http_code}" "$WEB_APP_URL?page=status&brand=$BRAND")
     HTTP_CODE=$(echo "$STATUS_RESPONSE" | tail -n 1)
     RESPONSE_BODY=$(echo "$STATUS_RESPONSE" | sed '$d')
 
@@ -61,13 +61,13 @@ test_tenant() {
     echo ""
 }
 
-# Test each tenant
-for i in "${!TENANTS[@]}"; do
-    test_tenant "${TENANTS[$i]}" $((i+1))
+# Test each brand
+for i in "${!BRANDS[@]}"; do
+    test_brand "${BRANDS[$i]}" $((i+1))
 done
 
-# Test public events page for root tenant
-echo "📋 Test 4: Public Events Page - Tenant: root"
+# Test public events page for root brand
+echo "📋 Test 4: Public Events Page - Brand: root"
 echo "   GET $WEB_APP_URL?p=events&brand=root"
 
 PUBLIC_RESPONSE=$(curl -s -w "\n%{http_code}" "$WEB_APP_URL?p=events&brand=root")
@@ -87,9 +87,9 @@ echo ""
 echo "========================================================"
 
 if [ $FAILED -eq 0 ]; then
-    echo "🎉 SUCCESS! All tenants accessible - No 302 redirects!"
+    echo "🎉 SUCCESS! All brands accessible - No 302 redirects!"
     echo ""
-    echo "Tested tenants: root, ABC, CBC"
+    echo "Tested brands: root, ABC, CBC"
     echo "All endpoints returned HTTP 200"
 else
     echo "❌ FAILED! Some tests returned 302 redirects"

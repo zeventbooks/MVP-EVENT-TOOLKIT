@@ -8,7 +8,7 @@ class BasePage {
   constructor(page) {
     this.page = page;
     this.baseUrl = process.env.BASE_URL || 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec';
-    this.tenantId = process.env.TENANT_ID || 'root';
+    this.brandId = process.env.BRAND_ID || 'root';
     this.adminKey = process.env.ADMIN_KEY || 'CHANGE_ME_root';
   }
 
@@ -17,7 +17,7 @@ class BasePage {
    */
   async navigateTo(params = {}) {
     const url = new URL(this.baseUrl);
-    Object.entries({ tenant: this.tenantId, ...params }).forEach(([key, value]) => {
+    Object.entries({ brand: this.brandId, ...params }).forEach(([key, value]) => {
       if (value !== undefined && value !== null) {
         url.searchParams.append(key, value);
       }

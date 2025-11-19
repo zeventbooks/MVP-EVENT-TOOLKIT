@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-Comprehensive architectural review completed with full testing infrastructure and deployment pipeline established. The application demonstrates sophisticated multi-tenant event management with sponsor tracking and analytics, built on Google Apps Script with modern front-end patterns.
+Comprehensive architectural review completed with full testing infrastructure and deployment pipeline established. The application demonstrates sophisticated multi-brand event management with sponsor tracking and analytics, built on Google Apps Script with modern front-end patterns.
 
 ### Key Deliverables
 
@@ -24,10 +24,10 @@ Comprehensive architectural review completed with full testing infrastructure an
 
 ### Application Overview
 
-**Type:** Multi-tenant Google Apps Script web application
+**Type:** Multi-brand Google Apps Script web application
 **Build:** triangle-extended-v1.3 (Contract v1.0.3)
 **Runtime:** V8, Chicago timezone
-**Storage:** Single Google Sheets spreadsheet (multi-tenant rows)
+**Storage:** Single Google Sheets spreadsheet (multi-brand rows)
 
 ### File Structure
 
@@ -48,7 +48,7 @@ MVP-EVENT-TOOLKIT/
 │
 ├── GAS Backend (2 files)
 │   ├── Code.gs (662 lines) - API endpoints & business logic
-│   └── Config.gs (111 lines) - Multi-tenant configuration
+│   └── Config.gs (111 lines) - Multi-brand configuration
 │
 ├── Tests (563 tests total)
 │   ├── tests/unit/ - 78 tests (Jest)
@@ -327,8 +327,8 @@ const ERR = {
 1. **Authentication:** Admin key gating
    ```javascript
    gate_(brandId, adminKey)
-   ├─ Validate adminKey === tenant.adminSecret
-   └─ Rate limit: max 20 requests/minute per tenant
+   ├─ Validate adminKey === brand.adminSecret
+   └─ Rate limit: max 20 requests/minute per brand
    ```
 
 2. **Input Sanitization:**
@@ -341,23 +341,23 @@ const ERR = {
 
 3. **Authorization:** Scope validation
    ```javascript
-   assertScopeAllowed_(tenant, scope)
-   └─ Check scope in tenant.scopesAllowed[]
+   assertScopeAllowed_(brand, scope)
+   └─ Check scope in brand.scopesAllowed[]
    ```
 
-### Multi-Tenant Architecture (Config.gs - 111 lines)
+### Multi-brand Architecture (Config.gs - 111 lines)
 
-**Tenant Resolution Flow:**
+**Brand Resolution Flow:**
 ```
 HTTP Request
   ↓
 Extract host header (e.g., 'zeventbook.io')
   ↓
-findTenantByHost_(host)
-  ├─ Check TENANTS[i].hostnames[]
+findBrandByHost_(host)
+  ├─ Check BRANDS[i].hostnames[]
   └─ Fallback to 'root' if no match
   ↓
-Load tenant config
+Load brand config
   ├─ adminSecret (for gating)
   ├─ scopesAllowed (authorization)
   └─ logoUrl (branding)
@@ -366,12 +366,12 @@ Access spreadsheet with brandId filter
 ```
 
 **Data Isolation:**
-- Single spreadsheet for all tenants
+- Single spreadsheet for all brands
 - Each row tagged with `brandId` (column [1])
 - API filters by: brandId + scope
 - No row-level security (trust Apps Script layer)
 
-**Configured Tenants:**
+**Configured Brands:**
 - `root` - Zeventbook (main)
 - `abc` - American Bocce Company
 - `cbc` - Chicago Bocce Club
@@ -537,7 +537,7 @@ Metric: 'dwellSec'
 ✅ Health check responds
 ✅ Error handling (invalid params)
 ✅ Response format (OK/Err envelopes)
-✅ Multi-tenant support
+✅ Multi-brand support
 ✅ Rate limiting graceful handling
 ```
 
@@ -600,10 +600,10 @@ Analytics End-to-End:
 ✅ Display tracks sponsor impressions
 ✅ Analytics report retrievable
 
-Multi-Tenant Isolation:
-✅ Different tenants access different data
-✅ Tenant hostnames resolve correctly
-✅ Admin keys tenant-specific
+Multi-brand Isolation:
+✅ Different brands access different data
+✅ Brand hostnames resolve correctly
+✅ Admin keys brand-specific
 
 Shortlink Flow:
 ✅ Shortlink creation to redirect works
@@ -816,7 +816,7 @@ npx playwright test --debug tests/smoke/pages.smoke.test.js
    - Background refresh
 
 5. **Multi-tenancy**
-   - Host-based tenant resolution
+   - Host-based brand resolution
    - Row-level filtering by brandId
 
 6. **Template Method** (HtmlService)
@@ -882,8 +882,8 @@ Recommendation: Component library
 
 3. **⚠️ Rate Limiting**
    ```
-   Current: 20 req/min per tenant
-   Risk: MEDIUM (could be bypassed with multiple tenants)
+   Current: 20 req/min per brand
+   Risk: MEDIUM (could be bypassed with multiple brands)
    Fix: Global rate limit + per-IP limits
    ```
 
@@ -1105,7 +1105,7 @@ The MVP Event Toolkit demonstrates **sophisticated architecture** with:
 - ✅ Clean separation of concerns (HTML ↔ GAS backend)
 - ✅ Consistent RPC patterns (NUSDK wrapper)
 - ✅ DRY analytics tracking (shared logEvent pattern)
-- ✅ Multi-tenant isolation
+- ✅ Multi-brand isolation
 - ✅ Comprehensive testing (563 tests)
 - ✅ CI/CD pipeline with quality gates
 

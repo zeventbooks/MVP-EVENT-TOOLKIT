@@ -12,7 +12,7 @@ This will:
 1. ✅ Push your latest code to Apps Script
 2. ✅ Create a new deployment
 3. ✅ Extract deployment URLs automatically
-4. ✅ Output formatted test URLs for all tenants and pages
+4. ✅ Output formatted test URLs for all brands and pages
 5. ✅ **Run E2E tests against deployed URL (QUALITY GATE)**
 6. ✅ Pass/Fail validation before manual testing
 
@@ -87,7 +87,7 @@ npx @google/clasp deployments
 Once deployed, your URLs follow this pattern:
 
 ```
-https://script.google.com/macros/s/{SCRIPT_ID}/exec?page={PAGE}&brand={TENANT}
+https://script.google.com/macros/s/{SCRIPT_ID}/exec?page={PAGE}&brand={BRAND}
 ```
 
 ### Pages Available:
@@ -101,7 +101,7 @@ https://script.google.com/macros/s/{SCRIPT_ID}/exec?page={PAGE}&brand={TENANT}
 - `status` - System status
 - `diagnostics` - Diagnostics page
 
-### Tenants:
+### Brands:
 - `root` - Zeventbook (main)
 - `abc` - American Bocce Co.
 - `cbc` - Chicago Bocce Club

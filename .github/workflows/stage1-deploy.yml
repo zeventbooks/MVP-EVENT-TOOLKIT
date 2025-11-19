@@ -270,14 +270,14 @@ jobs:
           echo "   https://zeventbooks.com?p=status&brand=root"
           echo "   https://zeventbooks.com?p=admin&brand=root"
 
-      - name: Generate comprehensive tenant URLs
+      - name: Generate comprehensive brand URLs
         id: urls
         run: |
           APPS_SCRIPT_BASE="${{ steps.deploy.outputs.url }}"
           HOSTINGER_BASE="https://zeventbooks.com"
 
-          # Tenants: root, abc, cbc, cbl
-          TENANTS=("root" "abc" "cbc" "cbl")
+          # Brands: root, abc, cbc, cbl
+          BRANDS=("root" "abc" "cbc" "cbl")
 
           # Page types
           PAGES=("status" "admin" "events" "display" "sponsor" "public")
@@ -296,9 +296,9 @@ jobs:
           echo "=============================================="
           echo ""
 
-          # Generate URLs for each tenant and page type
-          for tenant in "${TENANTS[@]}"; do
-            echo "🎯 Tenant: ${tenant^^}"
+          # Generate URLs for each brand and page type
+          for brand in "${BRANDS[@]}"; do
+            echo "🎯 Brand: ${brand^^}"
             echo "----------------------------------------"
             for page in "${PAGES[@]}"; do
               # Use 'p' parameter for most pages, 'page' for admin
@@ -308,8 +308,8 @@ jobs:
                 PARAM="p"
               fi
 
-              APPS_URL="${APPS_SCRIPT_BASE}?${PARAM}=${page}&brand=${tenant}"
-              HOST_URL="${HOSTINGER_BASE}?${PARAM}=${page}&brand=${tenant}"
+              APPS_URL="${APPS_SCRIPT_BASE}?${PARAM}=${page}&brand=${brand}"
+              HOST_URL="${HOSTINGER_BASE}?${PARAM}=${page}&brand=${brand}"
 
               echo "  ${page}:"
               echo "    Apps Script: $APPS_URL"
@@ -370,36 +370,36 @@ jobs:
           echo "---" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          # Generate comprehensive URL tables for each tenant
-          TENANTS=("root" "abc" "cbc" "cbl")
-          TENANT_NAMES=("ROOT (Zeventbook)" "ABC (American Bocce Co.)" "CBC (Chicago Bocce Club)" "CBL (Chicago Bocce League)")
+          # Generate comprehensive URL tables for each brand
+          BRANDS=("root" "abc" "cbc" "cbl")
+          BRAND_NAMES=("ROOT (Zeventbook)" "ABC (American Bocce Co.)" "CBC (Chicago Bocce Club)" "CBL (Chicago Bocce League)")
 
-          for i in "${!TENANTS[@]}"; do
-            tenant="${TENANTS[$i]}"
-            tenant_name="${TENANT_NAMES[$i]}"
+          for i in "${!BRANDS[@]}"; do
+            brand="${BRANDS[$i]}"
+            brand_name="${BRAND_NAMES[$i]}"
 
-            echo "### 🎯 Tenant: ${tenant_name}" >> $GITHUB_STEP_SUMMARY
+            echo "### 🎯 Brand: ${brand_name}" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "| Page | Apps Script URL | Hostinger URL |" >> $GITHUB_STEP_SUMMARY
             echo "|------|-----------------|---------------|" >> $GITHUB_STEP_SUMMARY
 
             # Status
-            echo "| 🔍 **Status** | [Test](${APPS_SCRIPT_BASE}?p=status&brand=${tenant}) | [Test](${HOSTINGER_BASE}?p=status&brand=${tenant}) |" >> $GITHUB_STEP_SUMMARY
+            echo "| 🔍 **Status** | [Test](${APPS_SCRIPT_BASE}?p=status&brand=${brand}) | [Test](${HOSTINGER_BASE}?p=status&brand=${brand}) |" >> $GITHUB_STEP_SUMMARY
 
             # Admin
-            echo "| ⚙️ **Admin** | [Test](${APPS_SCRIPT_BASE}?page=admin&brand=${tenant}) | [Test](${HOSTINGER_BASE}?page=admin&brand=${tenant}) |" >> $GITHUB_STEP_SUMMARY
+            echo "| ⚙️ **Admin** | [Test](${APPS_SCRIPT_BASE}?page=admin&brand=${brand}) | [Test](${HOSTINGER_BASE}?page=admin&brand=${brand}) |" >> $GITHUB_STEP_SUMMARY
 
             # Events (Public listing)
-            echo "| 📅 **Events** | [Test](${APPS_SCRIPT_BASE}?p=events&brand=${tenant}) | [Test](${HOSTINGER_BASE}?p=events&brand=${tenant}) |" >> $GITHUB_STEP_SUMMARY
+            echo "| 📅 **Events** | [Test](${APPS_SCRIPT_BASE}?p=events&brand=${brand}) | [Test](${HOSTINGER_BASE}?p=events&brand=${brand}) |" >> $GITHUB_STEP_SUMMARY
 
             # Display (TV mode)
-            echo "| 📺 **Display** | [Test](${APPS_SCRIPT_BASE}?p=display&brand=${tenant}) | [Test](${HOSTINGER_BASE}?p=display&brand=${tenant}) |" >> $GITHUB_STEP_SUMMARY
+            echo "| 📺 **Display** | [Test](${APPS_SCRIPT_BASE}?p=display&brand=${brand}) | [Test](${HOSTINGER_BASE}?p=display&brand=${brand}) |" >> $GITHUB_STEP_SUMMARY
 
             # Sponsor
-            echo "| 💼 **Sponsor** | [Test](${APPS_SCRIPT_BASE}?p=sponsor&brand=${tenant}) | [Test](${HOSTINGER_BASE}?p=sponsor&brand=${tenant}) |" >> $GITHUB_STEP_SUMMARY
+            echo "| 💼 **Sponsor** | [Test](${APPS_SCRIPT_BASE}?p=sponsor&brand=${brand}) | [Test](${HOSTINGER_BASE}?p=sponsor&brand=${brand}) |" >> $GITHUB_STEP_SUMMARY
 
             # Public
-            echo "| 👥 **Public** | [Test](${APPS_SCRIPT_BASE}?p=public&brand=${tenant}) | [Test](${HOSTINGER_BASE}?p=public&brand=${tenant}) |" >> $GITHUB_STEP_SUMMARY
+            echo "| 👥 **Public** | [Test](${APPS_SCRIPT_BASE}?p=public&brand=${brand}) | [Test](${HOSTINGER_BASE}?p=public&brand=${brand}) |" >> $GITHUB_STEP_SUMMARY
 
             echo "" >> $GITHUB_STEP_SUMMARY
           done

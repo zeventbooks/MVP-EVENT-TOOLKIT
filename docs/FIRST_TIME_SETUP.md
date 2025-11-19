@@ -62,9 +62,9 @@ If you already have access to the project:
 
 1. **Open `Config.gs` in the Apps Script editor**
 
-2. **Find the TENANTS array** (around line 14)
+2. **Find the BRANDS array** (around line 14)
 
-3. **Update the `spreadsheetId` for the 'root' tenant:**
+3. **Update the `spreadsheetId` for the 'root' brand:**
    ```javascript
    {
      id: 'root',
@@ -81,7 +81,7 @@ If you already have access to the project:
 
 4. **Replace `YOUR_SPREADSHEET_ID_HERE`** with the ID from Step 1
 
-5. **Update other tenants** if you're using multi-tenant setup (optional)
+5. **Update other brands** if you're using multi-brand setup (optional)
 
 6. **Click Save** (Ctrl+S or Cmd+S)
 
@@ -101,7 +101,7 @@ Admin secrets are used to authenticate API requests for write operations.
 
    | Property Name | Value | Description |
    |--------------|-------|-------------|
-   | `ADMIN_SECRET_ROOT` | `your-secure-secret-here` | Admin key for root tenant |
+   | `ADMIN_SECRET_ROOT` | `your-secure-secret-here` | Admin key for root brand |
 
    **Generate a secure secret:**
    ```bash
@@ -176,7 +176,7 @@ curl "YOUR_DEPLOYMENT_URL?p=setup&brand=root"
     "status": "ok",
     "message": "All setup checks passed! System is ready to use.",
     "checks": [
-      {"name": "Tenant Configuration", "status": "ok"},
+      {"name": "Brand Configuration", "status": "ok"},
       {"name": "Spreadsheet Access", "status": "ok"},
       {"name": "Admin Secrets", "status": "ok"},
       {"name": "Deployment Configuration", "status": "ok"},
@@ -199,7 +199,7 @@ curl "YOUR_DEPLOYMENT_URL?p=status&brand=root"
   "ok": true,
   "value": {
     "build": "triangle-extended-v1.3",
-    "tenant": "root",
+    "brand": "root",
     "db": {
       "ok": true,
       "id": "YOUR_SPREADSHEET_ID"
@@ -297,10 +297,10 @@ store: {
 
 The setup check endpoint (`?p=setup`) performs 6 comprehensive checks:
 
-### 1. Tenant Configuration
-- ✅ **OK:** Tenant is properly configured
-- ❌ **ERROR:** Tenant config missing or invalid
-- 🔧 **Fix:** Check Config.gs TENANTS array
+### 1. Brand Configuration
+- ✅ **OK:** Brand is properly configured
+- ❌ **ERROR:** Brand config missing or invalid
+- 🔧 **Fix:** Check Config.gs BRANDS array
 
 ### 2. Spreadsheet Access
 - ✅ **OK:** Connected to spreadsheet successfully

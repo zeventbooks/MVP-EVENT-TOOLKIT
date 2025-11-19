@@ -67,10 +67,10 @@
 
 ### Data Integrity - Critical
 
-11. **Multi-Tenant Data Leakage** - Config.gs:21, 30, 39, 48
-    - All tenants share same spreadsheet
-    - Tenant isolation only via in-memory filtering
-    - Fix: Separate databases per tenant
+11. **Multi-brand Data Leakage** - Config.gs:21, 30, 39, 48
+    - All brands share same spreadsheet
+    - Brand isolation only via in-memory filtering
+    - Fix: Separate databases per brand
 
 12. **Race Condition in Slug Generation** - Code.gs:759-766
     - Read-then-write without locking
@@ -159,9 +159,9 @@
     - Formula injection risk
     - Fix: Sanitize all values for spreadsheet
 
-30. **No Tenant Isolation in Analytics Queries** - SharedReporting.gs:41-76
+30. **No Brand Isolation in Analytics Queries** - SharedReporting.gs:41-76
     - Loads ALL analytics before filtering
-    - Cross-tenant data exposure risk
+    - Cross-brand data exposure risk
     - Fix: Filter at query level
 
 ---
@@ -224,8 +224,8 @@
 
 ### Data Integrity - Medium
 
-43. **Default to Root Tenant on Mismatch** - Config.gs:153
-    - Unknown hostname gets root tenant data
+43. **Default to Root Brand on Mismatch** - Config.gs:153
+    - Unknown hostname gets root brand data
     - Fix: Return null or error for unknown hosts
 
 44. **No Atomic Batch Operations** - Code.gs:825, 939-946
@@ -274,8 +274,8 @@
     - targetUrl embedded without validation
     - Fix: Validate URL before embedding
 
-53. **Missing Tenant Validation in Shortlinks** - Code.gs:367-372
-    - No tenant check on shortlink access
+53. **Missing Brand Validation in Shortlinks** - Code.gs:367-372
+    - No brand check on shortlink access
     - Fix: Add brandId to shortlinks schema
 
 54. **Weak JWT - No Replay Protection** - Code.gs:446-481
@@ -319,10 +319,10 @@
 
 ### Phase 3: Data Integrity (This Week)
 10. Add LockService for race conditions (#12, #13, #33, #38)
-11. Separate tenant databases (#11)
+11. Separate brand databases (#11)
 12. Add schema validation (#27, #46)
 13. Fix JSON parsing (#28)
-14. Add tenant isolation in analytics (#30)
+14. Add brand isolation in analytics (#30)
 
 ### Phase 4: Remaining Issues (Next 2 Weeks)
 15. Fix remaining high priority bugs

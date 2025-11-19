@@ -247,11 +247,11 @@ The Triangle Framework Dashboard (Test.html) serves as the central navigation hu
 #### 1. ⚙️ Config Editor
 - **URL:** `?page=config&brand=root`
 - **File:** `Config.html`
-- **Purpose:** Configure app settings and tenant configuration
+- **Purpose:** Configure app settings and brand configuration
 - **Features:**
   - View application build information
   - View current session details
-  - View tenant configuration
+  - View brand configuration
   - Configuration guide
   - Links to diagnostics and API docs
 - **Status:** Fully functional (read-only view)
@@ -424,7 +424,7 @@ function pageFile_(page){
 **Parameters:**
 - `?page=PAGENAME` - Page identifier
 - `?p=SCOPE` - Scope (events/leagues/tournaments)
-- `?brand=TENANTID` - Multi-tenant identifier
+- `?brand=BRANDID` - Multi-brand identifier
 - `?id=EVENTID` - Event-specific content
 - `?tv=1` - TV mode flag
 
@@ -440,8 +440,8 @@ function pageFile_(page){
 All pages receive these template variables:
 
 ```javascript
-tpl.appTitle = `${tenant.name} · ${scope}`;  // e.g., "Zeventbook · events"
-tpl.brandId = tenant.id;                     // e.g., "root"
+tpl.appTitle = `${brand.name} · ${scope}`;  // e.g., "Zeventbook · events"
+tpl.brandId = brand.id;                     // e.g., "root"
 tpl.scope = scope;                            // e.g., "events"
 tpl.execUrl = ScriptApp.getService().getUrl(); // Base URL
 tpl.ZEB = ZEB;                                // Build ID + version

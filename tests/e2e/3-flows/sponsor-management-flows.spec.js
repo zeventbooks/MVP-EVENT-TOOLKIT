@@ -11,7 +11,7 @@ test.describe('Sponsor Management Workflows', () => {
   let api;
   let adminKey;
   let baseUrl;
-  const tenant = 'root';
+  const brand = 'root';
   const createdSponsorIds = [];
 
   test.beforeEach(async ({ request }) => {
@@ -26,12 +26,12 @@ test.describe('Sponsor Management Workflows', () => {
 
     // Clean up any existing test sponsors
     try {
-      const listResponse = await api.listSponsors(tenant);
+      const listResponse = await api.listSponsors(brand);
       const listData = await listResponse.json();
       if (listData.ok && listData.value && listData.value.items) {
         for (const sponsor of listData.value.items) {
           if (sponsor.name && sponsor.name.includes('E2E Flow Test')) {
-            await api.deleteSponsor(tenant, sponsor.id, adminKey);
+            await api.deleteSponsor(brand, sponsor.id, adminKey);
           }
         }
       }
@@ -44,7 +44,7 @@ test.describe('Sponsor Management Workflows', () => {
     // Clean up created sponsors
     for (const sponsorId of createdSponsorIds) {
       try {
-        await api.deleteSponsor(tenant, sponsorId, adminKey);
+        await api.deleteSponsor(brand, sponsorId, adminKey);
       } catch (error) {
         console.warn(`Failed to delete sponsor ${sponsorId}:`, error.message);
       }
@@ -54,7 +54,7 @@ test.describe('Sponsor Management Workflows', () => {
 
   test('Complete sponsor lifecycle: create → view → edit → delete', async ({ page }) => {
     // Step 1: Access Sponsor Management
-    await page.goto(`${baseUrl}?page=sponsor&brand=${tenant}`);
+    await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`);
 
     // Step 2: Authenticate
     await page.waitForSelector('#admin-key-input');
@@ -83,7 +83,7 @@ test.describe('Sponsor Management Workflows', () => {
     await expect(sponsorCard).toContainText('https://lifecycle-test.example.com');
 
     // Track for cleanup
-    const listResponse = await api.listSponsors(tenant);
+    const listResponse = await api.listSponsors(brand);
     const listData = await listResponse.json();
     const createdSponsor = listData.value.items.find(s => s.name === 'E2E Flow Test Complete Lifecycle');
     if (createdSponsor) {
@@ -125,7 +125,7 @@ test.describe('Sponsor Management Workflows', () => {
 
   test('Manage multiple sponsors of different tiers', async ({ page }) => {
     // Access and authenticate
-    await page.goto(`${baseUrl}?page=sponsor&brand=${tenant}`);
+    await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`);
     await page.waitForSelector('#admin-key-input');
     await page.fill('#admin-key-input', adminKey);
     await page.press('#admin-key-input', 'Enter');
@@ -166,7 +166,7 @@ test.describe('Sponsor Management Workflows', () => {
     expect(parseInt(platinumCount)).toBeGreaterThanOrEqual(1);
 
     // Track all for cleanup
-    const listResponse = await api.listSponsors(tenant);
+    const listResponse = await api.listSponsors(brand);
     const listData = await listResponse.json();
     for (const { name } of tiers) {
       const sponsor = listData.value.items.find(s => s.name === name);
@@ -181,7 +181,7 @@ test.describe('Sponsor Management Workflows', () => {
     await context.clearCookies();
 
     // Access page
-    await page.goto(`${baseUrl}?page=sponsor&brand=${tenant}`);
+    await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`);
 
     // Should see auth prompt (first time)
     await expect(page.locator('#auth-prompt')).toBeVisible();
@@ -214,7 +214,7 @@ test.describe('Sponsor Management Workflows', () => {
     expect(parseInt(totalSponsors)).toBeGreaterThanOrEqual(1);
 
     // Track for cleanup
-    const listResponse = await api.listSponsors(tenant);
+    const listResponse = await api.listSponsors(brand);
     const listData = await listResponse.json();
     const createdSponsor = listData.value.items.find(s => s.name === 'E2E Flow Test First Sponsor');
     if (createdSponsor) {
@@ -224,7 +224,7 @@ test.describe('Sponsor Management Workflows', () => {
 
   test('Returning user workflow: automatic auth → manage sponsors', async ({ page }) => {
     // Access page
-    await page.goto(`${baseUrl}?page=sponsor&brand=${tenant}`);
+    await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`);
 
     // First visit: authenticate
     await page.waitForSelector('#admin-key-input');
@@ -248,7 +248,7 @@ test.describe('Sponsor Management Workflows', () => {
     await expect(page.locator('.alert-success')).toBeVisible({ timeout: 10000 });
 
     // Track for cleanup
-    const listResponse = await api.listSponsors(tenant);
+    const listResponse = await api.listSponsors(brand);
     const listData = await listResponse.json();
     const createdSponsor = listData.value.items.find(s => s.name === 'E2E Flow Test Returning User');
     if (createdSponsor) {
@@ -258,7 +258,7 @@ test.describe('Sponsor Management Workflows', () => {
 
   test('Bulk operations workflow: create multiple → verify all → delete all', async ({ page }) => {
     // Access and authenticate
-    await page.goto(`${baseUrl}?page=sponsor&brand=${tenant}`);
+    await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`);
     await page.waitForSelector('#admin-key-input');
     await page.fill('#admin-key-input', adminKey);
     await page.press('#admin-key-input', 'Enter');
@@ -288,7 +288,7 @@ test.describe('Sponsor Management Workflows', () => {
     }
 
     // Get IDs for cleanup
-    const listResponse = await api.listSponsors(tenant);
+    const listResponse = await api.listSponsors(brand);
     const listData = await listResponse.json();
     for (const name of sponsorNames) {
       const sponsor = listData.value.items.find(s => s.name === name);
@@ -324,7 +324,7 @@ test.describe('Sponsor Management Workflows', () => {
 
   test('Error recovery workflow: handle invalid data → retry with valid data', async ({ page }) => {
     // Access and authenticate
-    await page.goto(`${baseUrl}?page=sponsor&brand=${tenant}`);
+    await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`);
     await page.waitForSelector('#admin-key-input');
     await page.fill('#admin-key-input', adminKey);
     await page.press('#admin-key-input', 'Enter');
@@ -351,7 +351,7 @@ test.describe('Sponsor Management Workflows', () => {
     await expect(page.locator('.alert-success')).toBeVisible({ timeout: 10000 });
 
     // Track for cleanup
-    const listResponse = await api.listSponsors(tenant);
+    const listResponse = await api.listSponsors(brand);
     const listData = await listResponse.json();
     const createdSponsor = listData.value.items.find(s => s.name === 'E2E Flow Test Invalid');
     if (createdSponsor) {

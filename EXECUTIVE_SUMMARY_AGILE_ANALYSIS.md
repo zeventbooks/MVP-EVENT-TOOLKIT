@@ -43,17 +43,17 @@ You have **two divergent codebases** on your local machine:
 **Architecture Quality: B+**
 
 **Strengths:**
-- ✅ Multi-tenant architecture with proper routing
+- ✅ Multi-brand architecture with proper routing
 - ✅ Unified response envelope pattern (Ok/Err)
-- ✅ Rate limiting (20 req/min per tenant)
+- ✅ Rate limiting (20 req/min per brand)
 - ✅ Schema validation with runtime contracts
 - ✅ Clean separation: Backend (3 .gs files) + Frontend (18 .html files)
 
 **Critical Issues:**
-1. 🔴 **Shared Single Spreadsheet** - All 4 tenants use same spreadsheet ID
-   - **Risk:** Data breach affects all tenants
+1. 🔴 **Shared Single Spreadsheet** - All 4 brands use same spreadsheet ID
+   - **Risk:** Data breach affects all brands
    - **Impact:** HIGH - Single point of failure
-   - **Fix:** Per-tenant spreadsheets (Config.gs lines 21, 30, 39, 48)
+   - **Fix:** Per-brand spreadsheets (Config.gs lines 21, 30, 39, 48)
 
 2. 🔴 **Monolithic Code.gs** - 1,152 lines in one file
    - **Risk:** Maintenance nightmare, difficult to test
@@ -311,13 +311,13 @@ Local → Git Push → GitHub Actions → Google Apps Script API → Production
 
 #### 1. Fix Shared Spreadsheet Issue (8 hours)
 
-**Goal:** Per-tenant database isolation
+**Goal:** Per-brand database isolation
 
 **Tasks:**
 1. Create 4 separate spreadsheets (ROOT, ABC, CBC, CBL)
 2. Update Config.gs with unique spreadsheet IDs
 3. Migrate existing data
-4. Test multi-tenant isolation
+4. Test multi-brand isolation
 5. Deploy to production
 
 **Files to modify:**
@@ -428,7 +428,7 @@ Local → Git Push → GitHub Actions → Google Apps Script API → Production
 - ✅ No increase in error rate
 - ✅ No performance degradation
 - ✅ Sponsor.html functional
-- ✅ Per-tenant databases deployed
+- ✅ Per-brand databases deployed
 
 **3-Month Vision:**
 - ✅ Load testing in CI
@@ -462,13 +462,13 @@ Local → Git Push → GitHub Actions → Google Apps Script API → Production
 1. ✅ **Comprehensive Testing** - 233+ tests across 4 frameworks
 2. ✅ **Excellent UX for Customers** - Dead simple Public.html
 3. ✅ **TV Display Excellence** - Perfect for venue displays
-4. ✅ **Multi-Tenant Architecture** - Clean separation
+4. ✅ **Multi-brand Architecture** - Clean separation
 5. ✅ **CI/CD Automation** - 2-stage pipeline works
 6. ✅ **Mobile-First Design** - Responsive across all pages
 7. ✅ **Strong Documentation** - Extensive (maybe too much!)
 8. ✅ **Security Basics** - XSS prevention, sandboxed iframes
 9. ✅ **Analytics Engine** - Sophisticated SharedReporting.gs
-10. ✅ **Rate Limiting** - 20 req/min per tenant
+10. ✅ **Rate Limiting** - 20 req/min per brand
 
 ---
 
@@ -476,7 +476,7 @@ Local → Git Push → GitHub Actions → Google Apps Script API → Production
 
 **Backend (1,879 lines):**
 - Code.gs:1152 - Main API entry point
-- Config.gs:195 - Multi-tenant configuration
+- Config.gs:195 - Multi-brand configuration
 - SharedReporting.gs:532 - Analytics engine
 
 **Frontend (18 pages):**

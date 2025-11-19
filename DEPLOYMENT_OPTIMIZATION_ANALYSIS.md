@@ -309,23 +309,23 @@ class DeploymentHealthCheck {
       }
     );
 
-    // Check 4: Multi-tenant Support
-    const tenants = ['root', 'abc', 'cbc', 'cbl'];
-    for (const tenant of tenants) {
+    // Check 4: Multi-brand Support
+    const brands = ['root', 'abc', 'cbc', 'cbl'];
+    for (const brand of brands) {
       await this.runCheck(
-        `Tenant: ${tenant}`,
-        `${CONFIG.DEPLOYMENT_URL}?p=status&brand=${tenant}`,
+        `Brand: ${brand}`,
+        `${CONFIG.DEPLOYMENT_URL}?p=status&brand=${brand}`,
         async (response) => {
           if (response.statusCode !== 200) {
             return { passed: false, reason: `HTTP ${response.statusCode}` };
           }
 
           const data = JSON.parse(response.body);
-          const correctTenant = data.value?.tenant === tenant;
+          const correctBrand = data.value?.brand === brand;
 
           return {
-            passed: data.ok && correctTenant,
-            tenant: data.value?.tenant
+            passed: data.ok && correctBrand,
+            brand: data.value?.brand
           };
         }
       );
@@ -455,7 +455,7 @@ class DeploymentHealthCheck {
 
 **Benefits:**
 - ✅ Detects deployment failures within 2 minutes
-- ✅ Multi-tenant validation
+- ✅ Multi-brand validation
 - ✅ Performance regression detection
 - ✅ Automatic reporting & artifacts
 
@@ -668,7 +668,7 @@ class DeploymentConfig {
           }
         }
       },
-      tenants: ['root', 'abc', 'cbc', 'cbl'],
+      brands: ['root', 'abc', 'cbc', 'cbl'],
       healthCheck: {
         timeout: 30000,
         retries: 5,

@@ -70,7 +70,7 @@ jobs:
         env:
           BASE_URL: ${{ steps.config.outputs.base_url }}
           ADMIN_KEY: ${{ secrets.ADMIN_KEY }}
-          TENANT_ID: root
+          BRAND_ID: root
           ENVIRONMENT: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
         run: |
           echo "🧪 Running smoke load test..."
@@ -85,7 +85,7 @@ jobs:
         env:
           BASE_URL: ${{ steps.config.outputs.base_url }}
           ADMIN_KEY: ${{ secrets.ADMIN_KEY }}
-          TENANT_ID: root
+          BRAND_ID: root
           ENVIRONMENT: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
         run: |
           echo "📊 Running average load test..."
@@ -98,7 +98,7 @@ jobs:
         env:
           BASE_URL: ${{ steps.config.outputs.base_url }}
           ADMIN_KEY: ${{ secrets.ADMIN_KEY }}
-          TENANT_ID: root
+          BRAND_ID: root
           ENVIRONMENT: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
         run: |
           echo "💪 Running stress load test..."
@@ -111,7 +111,7 @@ jobs:
         env:
           BASE_URL: ${{ steps.config.outputs.base_url }}
           ADMIN_KEY: ${{ secrets.ADMIN_KEY }}
-          TENANT_ID: root
+          BRAND_ID: root
           ENVIRONMENT: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
         run: |
           echo "⚡ Running spike load test..."

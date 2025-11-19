@@ -53,7 +53,7 @@ Response:
     "build": "mvp-v1.0-events-only",
     "contract": "v1",
     "dbOk": true,
-    "tenant": "root"
+    "brand": "root"
   }
 }
 ```
@@ -168,16 +168,16 @@ class EventApi {
     return res.json();
   }
 
-  async listEvents(tenant = 'root', scope = 'events', etag = '') {
-    const params = new URLSearchParams({ action: 'list', tenant, scope });
+  async listEvents(brand = 'root', scope = 'events', etag = '') {
+    const params = new URLSearchParams({ action: 'list', brand, scope });
     if (etag) params.append('etag', etag);
 
     const res = await fetch(`${BASE_URL}?${params}`);
     return res.json();
   }
 
-  async getEvent(id, tenant = 'root', scope = 'events') {
-    const params = new URLSearchParams({ action: 'get', tenant, scope, id });
+  async getEvent(id, brand = 'root', scope = 'events') {
+    const params = new URLSearchParams({ action: 'get', brand, scope, id });
     const res = await fetch(`${BASE_URL}?${params}`);
     return res.json();
   }
@@ -414,16 +414,16 @@ const BASE_URL = 'https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec';
 const ADMIN_KEY = process.env.VUE_APP_ADMIN_KEY;
 
 export default {
-  async listEvents(tenant = 'root', scope = 'events') {
+  async listEvents(brand = 'root', scope = 'events') {
     const { data } = await axios.get(BASE_URL, {
-      params: { action: 'list', tenant, scope }
+      params: { action: 'list', brand, scope }
     });
     return data;
   },
 
-  async getEvent(id, tenant = 'root', scope = 'events') {
+  async getEvent(id, brand = 'root', scope = 'events') {
     const { data } = await axios.get(BASE_URL, {
-      params: { action: 'get', tenant, scope, id }
+      params: { action: 'get', brand, scope, id }
     });
     return data;
   },
@@ -713,7 +713,7 @@ if (!result.ok) {
 
 ### 4. Rate Limiting
 
-The API has built-in rate limiting (20 requests/minute per tenant). Handle rate limit errors gracefully:
+The API has built-in rate limiting (20 requests/minute per brand). Handle rate limit errors gracefully:
 
 ```javascript
 if (result.code === 'RATE_LIMITED') {

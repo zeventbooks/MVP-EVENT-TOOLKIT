@@ -204,7 +204,7 @@ await expect(page.locator('#eventCard')).toContainText(/Event created: \d+/);
 export const config = {
   baseUrl: process.env.BASE_URL || 'https://script.google.com/macros/s/.../exec',
   adminKey: process.env.ADMIN_KEY,
-  brandId: process.env.TENANT_ID || 'root',
+  brandId: process.env.BRAND_ID || 'root',
 };
 
 if (!config.adminKey) {
@@ -239,7 +239,7 @@ test.afterEach(async ({ page }) => {
   const eventIds = page.context()._testEventIds || [];
   for (const id of eventIds) {
     await page.request.post(`${config.baseUrl}`, {
-      data: { p: 'delete', tenant: config.brandId, adminKey: config.adminKey, id }
+      data: { p: 'delete', brand: config.brandId, adminKey: config.adminKey, id }
     });
   }
 });

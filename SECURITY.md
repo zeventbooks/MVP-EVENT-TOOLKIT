@@ -38,21 +38,21 @@ If migrating away from Google Apps Script, consider:
 - OAuth2/OIDC for admin authentication
 - Multi-factor authentication (MFA)
 
-### 2. Multi-Tenant Database Separation (Bug #11)
+### 2. Multi-brand Database Separation (Bug #11)
 
-**Issue:** All tenants share the same spreadsheet with logical separation only
+**Issue:** All brands share the same spreadsheet with logical separation only
 
-**Risk:** A critical bug in tenant filtering could expose data across tenants
+**Risk:** A critical bug in brand filtering could expose data across brands
 
 **Mitigations in Place:**
-1. ✅ Tenant ID validation on every request
+1. ✅ Brand ID validation on every request
 2. ✅ Filter by brandId in all data queries
-3. ✅ Comprehensive tests for cross-tenant access prevention
-4. ✅ Analytics queries isolated by tenant
+3. ✅ Comprehensive tests for cross-brand access prevention
+4. ✅ Analytics queries isolated by brand
 
 **Recommended for Production:**
-- Physical database separation per tenant
-- Separate spreadsheets per tenant
+- Physical database separation per brand
+- Separate spreadsheets per brand
 - Database-level row-level security
 
 ### 3. Apps Script Platform Limitations
@@ -84,7 +84,7 @@ If migrating away from Google Apps Script, consider:
 - ✅ JWT implementation with algorithm verification (HS256 only)
 - ✅ Token expiration and not-before (nbf) validation
 - ✅ Timing-safe signature comparison
-- ✅ Tenant-scoped authentication
+- ✅ Brand-scoped authentication
 
 ### CSRF Protection
 - ✅ CSRF tokens required for all POST requests
@@ -92,23 +92,23 @@ If migrating away from Google Apps Script, consider:
 - ✅ Origin validation for API requests
 
 ### Rate Limiting
-- ✅ Per-tenant rate limiting
+- ✅ Per-brand rate limiting
 - ✅ Progressive backoff on repeated failures
 - ✅ Configurable rate limit thresholds
 
 ### Data Protection
-- ✅ Tenant isolation in all queries
+- ✅ Brand isolation in all queries
 - ✅ Sensitive data redaction in logs (adminKey, tokens, passwords)
 - ✅ ETag support for efficient caching
 - ✅ Input length validation to prevent DoS
 
 ### Open Redirect Prevention
 - ✅ Warning page for external redirects (Bug #1)
-- ✅ Hostname validation against tenant whitelist
+- ✅ Hostname validation against brand whitelist
 - ✅ URL sanitization before redirects
 
 ### CORS Configuration
-- ✅ Origin validation against tenant hostnames (Bug #16)
+- ✅ Origin validation against brand hostnames (Bug #16)
 - ✅ Localhost allowed for development
 - ✅ Google domains allowed for Apps Script execution
 
@@ -118,7 +118,7 @@ If migrating away from Google Apps Script, consider:
 - 372 unit tests covering all security fixes
 - Tests for XSS, CSRF, SQL injection, formula injection
 - JWT security tests (algorithm verification, expiration, nbf)
-- Cross-tenant isolation tests
+- Cross-brand isolation tests
 
 ### E2E Tests
 - 261+ E2E tests covering security workflows
@@ -148,7 +148,7 @@ Before deploying to production:
 - [ ] Set up monitoring and alerting
 - [ ] Review diagnostic logs for sensitive data
 - [ ] Test all authentication flows
-- [ ] Verify tenant isolation
+- [ ] Verify brand isolation
 - [ ] Run full security test suite
 - [ ] Enable HTTPS-only access
 - [ ] Document admin key rotation policy

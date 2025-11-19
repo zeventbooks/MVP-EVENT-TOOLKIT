@@ -36,7 +36,7 @@ npm run test:load:spike      # Traffic spike (~80s)
 - ✅ System status API
 - ✅ Events CRUD operations
 - ✅ Sponsors CRUD operations
-- ✅ Multi-tenant support
+- ✅ Multi-brand support
 - ✅ Response times
 - ✅ Error rates
 - ✅ Concurrent request handling
@@ -65,7 +65,7 @@ Run via **Actions** tab → **Load Testing** workflow:
 |----------|----------|---------|-------------|
 | `BASE_URL` | ✅ Yes | - | Deployment URL to test |
 | `ADMIN_KEY` | ⚠️ CRUD tests | - | Admin authentication key |
-| `TENANT_ID` | No | `root` | Tenant to test |
+| `BRAND_ID` | No | `root` | Brand to test |
 | `ENVIRONMENT` | No | `production` | Environment tag |
 
 ## Performance Targets

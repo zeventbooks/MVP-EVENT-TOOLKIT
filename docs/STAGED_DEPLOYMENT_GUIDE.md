@@ -66,7 +66,7 @@ Automatically runs on:
 1. **Unit Tests** - Validates code logic
 2. **Contract Tests** - Validates API contracts and Triangle tests
 3. **Deploy to Apps Script** - Deploys to your Google Apps Script API
-4. **Generate URLs** - Creates tenant-specific URLs for verification:
+4. **Generate URLs** - Creates brand-specific URLs for verification:
    - **ROOT**: `https://script.google.com/...?p=events&brand=root`
    - **ABC**: `https://script.google.com/...?p=events&brand=abc`
    - **CBC**: `https://script.google.com/...?p=events&brand=cbc`
@@ -79,7 +79,7 @@ Automatically runs on:
 ### Output
 The workflow creates a **GitHub Actions Summary** with:
 - Test results
-- Clickable tenant URLs for manual verification
+- Clickable brand URLs for manual verification
 - Instructions for triggering Stage 2
 
 ## Manual Verification Gate
@@ -89,10 +89,10 @@ The workflow creates a **GitHub Actions Summary** with:
 After Stage 1 completes, **you must manually verify** the deployment:
 
 1. **Go to the GitHub Actions run summary**
-2. **Click each tenant URL** to verify:
-   - ✅ ROOT tenant loads correctly
-   - ✅ ABC tenant loads correctly
-   - ✅ CBC tenant loads correctly
+2. **Click each brand URL** to verify:
+   - ✅ ROOT brand loads correctly
+   - ✅ ABC brand loads correctly
+   - ✅ CBC brand loads correctly
 3. **Check for any issues**:
    - Pages render properly
    - No JavaScript errors
@@ -169,7 +169,7 @@ Currently a **placeholder** for future implementation. When ready to implement:
 ### `stage1-deploy.yml`
 - Location: `.github/workflows/stage1-deploy.yml`
 - Runs: Unit tests, Contract tests, Deploy
-- Outputs: Tenant URLs for verification
+- Outputs: Brand URLs for verification
 
 ### `stage2-testing.yml`
 - Location: `.github/workflows/stage2-testing.yml`
@@ -247,7 +247,7 @@ Ensure these secrets are configured in your GitHub repository:
 - `SCRIPT_ID` - Apps Script project ID (if needed)
 
 ### Stage 2 (Testing)
-- `ADMIN_KEY_ROOT` - Admin key for ROOT tenant
+- `ADMIN_KEY_ROOT` - Admin key for ROOT brand
 
 ### Future QA Deployment
 - `QA_SCRIPT_ID` - QA Apps Script project ID
@@ -285,7 +285,7 @@ The old `ci.yml` had all tests in one pipeline. Key differences:
 | All tests run automatically | Stage 2 runs manually |
 | Tests run in parallel | Tests run sequentially |
 | No manual verification | Manual gate between stages |
-| No URL outputs | Tenant URLs provided |
+| No URL outputs | Brand URLs provided |
 | Single quality gate | Two quality gates (Stage 1 + Stage 2) |
 
 ### Keeping Old Pipeline
@@ -298,7 +298,7 @@ You can keep `ci.yml` as a backup or for PR checks:
 ## Next Steps
 
 1. **Test Stage 1**: Push a change and verify it runs
-2. **Verify URLs**: Check that tenant URLs work
+2. **Verify URLs**: Check that brand URLs work
 3. **Test Stage 2**: Manually trigger with Stage 1 URL
 4. **Implement QA Deploy**: When ready, set up QA environment
 5. **Customize**: Adjust tests, add stages as needed

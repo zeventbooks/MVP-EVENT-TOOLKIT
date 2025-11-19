@@ -30,14 +30,14 @@ The default admin secrets in `Config.gs` are insecure placeholders that MUST be 
    **Option D: Online Generator** (use with caution)
    - Visit: https://www.random.org/strings/
    - Length: 64, Characters: Hexadecimal
-   - Generate 3 unique strings (one per tenant)
+   - Generate 3 unique strings (one per brand)
 
 2. **Update Config.gs**
 
    Replace the `CHANGE_ME_*` values in `Config.gs`:
 
    ```javascript
-   const TENANTS = [
+   const BRANDS = [
      {
        id: 'root',
        name: 'Zeventbook',
@@ -46,7 +46,7 @@ The default admin secrets in `Config.gs` are insecure placeholders that MUST be 
        store: { type: 'workbook', spreadsheetId: SpreadsheetApp.getActive().getId() },
        scopesAllowed: ['events']
      },
-     // ... repeat for other tenants
+     // ... repeat for other brands
    ];
    ```
 
@@ -71,7 +71,7 @@ The default admin secrets in `Config.gs` are insecure placeholders that MUST be 
 Before going live, verify these items:
 
 ### Authentication & Authorization
-- [ ] All tenant `adminSecret` values changed from `CHANGE_ME_*`
+- [ ] All brand `adminSecret` values changed from `CHANGE_ME_*`
 - [ ] Admin secrets are at least 32 characters long
 - [ ] Admin secrets are cryptographically random
 - [ ] Secrets stored securely (password manager or Script Properties)
@@ -96,7 +96,7 @@ Before going live, verify these items:
 - [ ] Test SQL-like injection attempts
 
 ### Rate Limiting
-- [ ] Rate limit configured (default: 10 req/min per tenant)
+- [ ] Rate limit configured (default: 10 req/min per brand)
 - [ ] Adjust `RATE_MAX_PER_MIN` if needed for your use case
 - [ ] Test rate limiting enforcement
 - [ ] Monitor for abuse patterns in DIAG logs

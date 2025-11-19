@@ -7,7 +7,7 @@ info:
     ## Features
     - ✅ RESTful JSON API
     - ✅ Multiple authentication methods (adminKey, JWT, API Key)
-    - ✅ Rate limiting (20 req/min per tenant)
+    - ✅ Rate limiting (20 req/min per brand)
     - ✅ ETag/SWR support for caching
     - ✅ Comprehensive error handling
     - ✅ CORS enabled
@@ -71,13 +71,13 @@ paths:
       tags:
         - Public
       summary: Get Configuration
-      description: Get tenant configuration and available templates
+      description: Get brand configuration and available templates
       operationId: getConfig
       security: []
       parameters:
-        - name: tenant
+        - name: brand
           in: query
-          description: Tenant ID
+          description: Brand ID
           schema:
             type: string
             default: root
@@ -101,13 +101,13 @@ paths:
         - Public
         - Events
       summary: List Events
-      description: List all events for a tenant with optional SWR/caching support
+      description: List all events for a brand with optional SWR/caching support
       operationId: listEvents
       security: []
       parameters:
-        - name: tenant
+        - name: brand
           in: query
-          description: Tenant ID
+          description: Brand ID
           schema:
             type: string
             default: root
@@ -142,10 +142,10 @@ paths:
       operationId: getEvent
       security: []
       parameters:
-        - name: tenant
+        - name: brand
           in: query
           required: true
-          description: Tenant ID
+          description: Brand ID
           schema:
             type: string
         - name: scope
@@ -282,7 +282,7 @@ components:
             dbOk:
               type: boolean
               example: true
-            tenant:
+            brand:
               type: string
               example: root
 
@@ -294,7 +294,7 @@ components:
         value:
           type: object
           properties:
-            tenant:
+            brand:
               type: object
             templates:
               type: array

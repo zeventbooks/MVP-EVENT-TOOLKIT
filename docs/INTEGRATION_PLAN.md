@@ -239,7 +239,7 @@ Create `WebhookManager.html` for admin interface:
       const formData = new FormData(e.target);
 
       const result = await SDK.callAPI('webhooks/register', {
-        brandId: SDK.getTenantId(),
+        brandId: SDK.getBrandId(),
         eventType: formData.get('eventType'),
         url: formData.get('url'),
         secret: formData.get('secret') || undefined,
@@ -257,7 +257,7 @@ Create `WebhookManager.html` for admin interface:
     // Load webhooks
     async function loadWebhooks() {
       const result = await SDK.callAPI('webhooks/list', {
-        brandId: SDK.getTenantId(),
+        brandId: SDK.getBrandId(),
         adminKey: SDK.getAdminKey()
       });
 
@@ -277,7 +277,7 @@ Create `WebhookManager.html` for admin interface:
     // Test webhook
     async function testWebhook(webhookId) {
       const result = await SDK.callAPI('webhooks/test', {
-        brandId: SDK.getTenantId(),
+        brandId: SDK.getBrandId(),
         webhookId: webhookId,
         adminKey: SDK.getAdminKey()
       });
@@ -292,7 +292,7 @@ Create `WebhookManager.html` for admin interface:
       if (!confirm('Delete this webhook?')) return;
 
       const result = await SDK.callAPI('webhooks/unregister', {
-        brandId: SDK.getTenantId(),
+        brandId: SDK.getBrandId(),
         webhookId: webhookId,
         adminKey: SDK.getAdminKey()
       });
@@ -440,7 +440,7 @@ function doGet(e){
 **Modify `routePage_()` function:**
 
 ```javascript
-function routePage_(e, page, tenant, demoMode, options) {
+function routePage_(e, page, brand, demoMode, options) {
   // ... existing code ...
 
   // 🔥 NEW: Add locale to template variables
@@ -448,8 +448,8 @@ function routePage_(e, page, tenant, demoMode, options) {
 
   const tpl = HtmlService.createTemplateFromFile(htmlFile);
   tpl.appTitle = ZEB.APP_TITLE;
-  tpl.tenant = tenant;
-  tpl.brandId = tenant.id;
+  tpl.brand = brand;
+  tpl.brandId = brand.id;
   tpl.demoMode = demoMode;
   tpl.locale = locale; // 🔥 NEW
 

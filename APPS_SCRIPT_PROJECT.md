@@ -71,7 +71,7 @@ See: [DEPLOYMENT.md](./DEPLOYMENT.md)
 
 ### Backend Code (.gs files)
 - `Code.gs` - Main API logic, routing, request handling
-- `Config.gs` - Multi-tenant configuration, schemas, secrets
+- `Config.gs` - Multi-brand configuration, schemas, secrets
 
 ### Frontend HTML Templates
 - `Admin.html` - Admin dashboard
@@ -131,7 +131,7 @@ See: [DEPLOYMENT.md](./DEPLOYMENT.md)
 1. Update all `adminSecret` values in `Config.gs`
 2. Never commit `.clasp.json` or `.clasprc.json` to version control
 3. Rotate admin secrets periodically
-4. Review tenant configurations for production use
+4. Review brand configurations for production use
 
 See: [SECURITY_SETUP.md](./SECURITY_SETUP.md)
 
@@ -154,7 +154,7 @@ Expected response:
 {
   "ok": {
     "msg": "MVP Event Toolkit - OK",
-    "tenant": "root"
+    "brand": "root"
   }
 }
 ```

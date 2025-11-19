@@ -69,7 +69,7 @@ The Zeventbook Triangle platform has made **significant progress** toward becomi
   - Multi-method authentication
   - Rate limiting with IP tracking
   - Input sanitization (XSS, SQL injection, formula injection)
-  - Tenant isolation enforcement
+  - Brand isolation enforcement
 - **Security Fixes:** `SECURITY_FIXES_REPORT.md` documents 4 critical fixes
   - ✅ JWT timing attack prevention
   - ✅ CSRF race condition fix
@@ -275,9 +275,9 @@ The Zeventbook Triangle platform has made **significant progress** toward becomi
 - **Priority:** LOW (nice-to-have)
 - **Effort:** 1-2 weeks
 
-#### 3.5 Custom Branding per Tenant
+#### 3.5 Custom Branding per Brand
 **Status:** ❌ **NOT IMPLEMENTED**
-- **Recommendation:** Per-tenant color schemes, logos
+- **Recommendation:** Per-brand color schemes, logos
 - **Priority:** MEDIUM (business value)
 - **Effort:** 2-3 weeks
 
@@ -379,7 +379,7 @@ The Zeventbook Triangle platform has made **significant progress** toward becomi
   - `shared-reporting.test.js` - Analytics tests (20,164 bytes)
   - `validation.test.js` - Input validation (18,729 bytes)
   - `concurrency.test.js` - Race condition tests (9,204 bytes)
-  - `multi-tenant.test.js` - Tenant isolation (11,576 bytes)
+  - `multi-brand.test.js` - Brand isolation (11,576 bytes)
   - `rate-limiting.test.js` - Rate limit tests (13,155 bytes)
   - `error-handling.test.js` - Error scenarios (9,658 bytes)
 
@@ -598,7 +598,7 @@ The Zeventbook Triangle platform has made **significant progress** toward becomi
 - ⚠️ API parameter mismatches (#5, #7, #20, #21)
 - ⚠️ Off-by-one errors in cleanup (#8, #9)
 - ⚠️ Array bounds checks (#10)
-- ⚠️ Multi-tenant data leakage risk (#11)
+- ⚠️ Multi-brand data leakage risk (#11)
 - ⚠️ Race conditions in slug/update operations (#12, #13)
 
 **Recommendation:** Dedicate sprint to bug catalog reduction
@@ -624,7 +624,7 @@ The Zeventbook Triangle platform has made **significant progress** toward becomi
    - Off-by-one errors
    - Array bounds checks
    - Race conditions with LockService
-   - Multi-tenant data isolation
+   - Multi-brand data isolation
 
 2. **Enhance Observability**
    - Integrate error tracking (Sentry/LogRocket)
@@ -713,7 +713,7 @@ The Zeventbook Triangle platform has made **significant progress** toward becomi
 ### 🟣 **Phase 5: Customization & Branding (2-3 weeks)**
 **Goal:** Enable white-label capabilities
 
-1. **Per-Tenant Branding**
+1. **Per-Brand Branding**
    - Custom color schemes (primary, accent)
    - Logo upload and management
    - Font family selection
@@ -809,7 +809,7 @@ The Zeventbook Triangle platform has made **significant progress** toward becomi
 ### Medium Priority
 - ⚠️ **Visual Regression Testing** - No automated screenshot comparison
 - ⚠️ **Accessibility Testing** - Basic tests only, needs axe-core
-- ⚠️ **Custom Branding** - No per-tenant color schemes
+- ⚠️ **Custom Branding** - No per-brand color schemes
 - ⚠️ **Payment Integration** - No Stripe/PayPal
 - ⚠️ **Calendar Sync** - No Google Calendar/Outlook integration
 

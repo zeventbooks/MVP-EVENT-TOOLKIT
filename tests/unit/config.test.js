@@ -1,16 +1,16 @@
 /**
  * UNIT TESTS: Config.gs
  *
- * Purpose: Test configuration and tenant management functions
+ * Purpose: Test configuration and brand management functions
  * Coverage Goal: 100% of Config.gs functions
  *
  * Critical Functions Tested:
- * - loadTenants_() - Tenant configuration loading
- * - findTenant_(id) - Tenant lookup
- * - findTenantByHost_(host) - Host-based routing
- * - getAdminSecret_(tenantId) - Admin authentication (SECURITY CRITICAL)
- * - resolveUrlAlias_(alias, tenantId) - URL routing
- * - getFriendlyUrl_(page, tenantId, options) - URL generation
+ * - loadBrands_() - Brand configuration loading
+ * - findBrand_(id) - Brand lookup
+ * - findBrandByHost_(host) - Host-based routing
+ * - getAdminSecret_(brandId) - Admin authentication (SECURITY CRITICAL)
+ * - resolveUrlAlias_(alias, brandId) - URL routing
+ * - getFriendlyUrl_(page, brandId, options) - URL generation
  */
 
 const PropertiesService = {
@@ -31,13 +31,13 @@ const PropertiesService = {
 // Load actual Config.gs code (assumes it's available in test environment)
 // For now, we'll mock the structure and test behavior
 
-describe('📁 Config.gs - Tenant Management', () => {
+describe('📁 Config.gs - Brand Management', () => {
 
-  describe('loadTenants_()', () => {
+  describe('loadBrands_()', () => {
 
-    test('loads all tenants correctly', () => {
-      // Mock TENANTS array from Config.gs
-      const TENANTS = [
+    test('loads all brands correctly', () => {
+      // Mock BRANDS array from Config.gs
+      const BRANDS = [
         {
           id: 'root',
           name: 'Zeventbook',
@@ -48,111 +48,111 @@ describe('📁 Config.gs - Tenant Management', () => {
           id: 'abc',
           name: 'ABC Organization',
           hostnames: ['abc.zeventbook.io'],
-          parentTenant: null,
+          parentBrand: null,
           store: { type: 'workbook', spreadsheetId: '1SV1oZ...' }
         }
       ];
 
-      function loadTenants_() {
-        return TENANTS;
+      function loadBrands_() {
+        return BRANDS;
       }
 
-      const tenants = loadTenants_();
+      const brands = loadBrands_();
 
-      expect(Array.isArray(tenants)).toBe(true);
-      expect(tenants.length).toBeGreaterThan(0);
-      expect(tenants[0]).toHaveProperty('id');
-      expect(tenants[0]).toHaveProperty('name');
-      expect(tenants[0]).toHaveProperty('store');
+      expect(Array.isArray(brands)).toBe(true);
+      expect(brands.length).toBeGreaterThan(0);
+      expect(brands[0]).toHaveProperty('id');
+      expect(brands[0]).toHaveProperty('name');
+      expect(brands[0]).toHaveProperty('store');
     });
 
-    test('all tenants have required fields', () => {
-      const TENANTS = [
+    test('all brands have required fields', () => {
+      const BRANDS = [
         { id: 'root', name: 'Zeventbook', store: { type: 'workbook', spreadsheetId: '123' } },
         { id: 'abc', name: 'ABC', store: { type: 'workbook', spreadsheetId: '456' } }
       ];
 
-      function loadTenants_() {
-        return TENANTS;
+      function loadBrands_() {
+        return BRANDS;
       }
 
-      const tenants = loadTenants_();
+      const brands = loadBrands_();
 
-      tenants.forEach(tenant => {
-        expect(tenant).toHaveProperty('id');
-        expect(tenant).toHaveProperty('name');
-        expect(tenant).toHaveProperty('store');
-        expect(tenant.store).toHaveProperty('type');
-        expect(tenant.store).toHaveProperty('spreadsheetId');
+      brands.forEach(brand => {
+        expect(brand).toHaveProperty('id');
+        expect(brand).toHaveProperty('name');
+        expect(brand).toHaveProperty('store');
+        expect(brand.store).toHaveProperty('type');
+        expect(brand.store).toHaveProperty('spreadsheetId');
       });
     });
 
-    test('tenant IDs are unique', () => {
-      const TENANTS = [
+    test('brand IDs are unique', () => {
+      const BRANDS = [
         { id: 'root', name: 'Root', store: { type: 'workbook', spreadsheetId: '1' } },
         { id: 'abc', name: 'ABC', store: { type: 'workbook', spreadsheetId: '2' } },
         { id: 'cbc', name: 'CBC', store: { type: 'workbook', spreadsheetId: '3' } }
       ];
 
-      function loadTenants_() {
-        return TENANTS;
+      function loadBrands_() {
+        return BRANDS;
       }
 
-      const tenants = loadTenants_();
-      const ids = tenants.map(t => t.id);
+      const brands = loadBrands_();
+      const ids = brands.map(t => t.id);
       const uniqueIds = new Set(ids);
 
       expect(ids.length).toBe(uniqueIds.size);
     });
   });
 
-  describe('findTenant_(id)', () => {
+  describe('findBrand_(id)', () => {
 
-    const TENANTS = [
+    const BRANDS = [
       { id: 'root', name: 'Zeventbook' },
       { id: 'abc', name: 'ABC Organization' },
       { id: 'cbc', name: 'CBC' }
     ];
 
-    function findTenant_(id) {
-      return TENANTS.find(t => t.id === id) || null;
+    function findBrand_(id) {
+      return BRANDS.find(t => t.id === id) || null;
     }
 
-    test('finds existing tenant by ID', () => {
-      const tenant = findTenant_('abc');
+    test('finds existing brand by ID', () => {
+      const brand = findBrand_('abc');
 
-      expect(tenant).not.toBeNull();
-      expect(tenant.id).toBe('abc');
-      expect(tenant.name).toBe('ABC Organization');
+      expect(brand).not.toBeNull();
+      expect(brand.id).toBe('abc');
+      expect(brand.name).toBe('ABC Organization');
     });
 
-    test('returns null for non-existent tenant', () => {
-      const tenant = findTenant_('nonexistent');
+    test('returns null for non-existent brand', () => {
+      const brand = findBrand_('nonexistent');
 
-      expect(tenant).toBeNull();
+      expect(brand).toBeNull();
     });
 
     test('is case-sensitive', () => {
-      const tenant = findTenant_('ABC');
+      const brand = findBrand_('ABC');
 
-      expect(tenant).toBeNull(); // Should not find 'abc' when searching for 'ABC'
+      expect(brand).toBeNull(); // Should not find 'abc' when searching for 'ABC'
     });
 
     test('handles empty string', () => {
-      const tenant = findTenant_('');
+      const brand = findBrand_('');
 
-      expect(tenant).toBeNull();
+      expect(brand).toBeNull();
     });
 
     test('handles null/undefined', () => {
-      expect(findTenant_(null)).toBeNull();
-      expect(findTenant_(undefined)).toBeNull();
+      expect(findBrand_(null)).toBeNull();
+      expect(findBrand_(undefined)).toBeNull();
     });
   });
 
-  describe('findTenantByHost_(host)', () => {
+  describe('findBrandByHost_(host)', () => {
 
-    const TENANTS = [
+    const BRANDS = [
       {
         id: 'root',
         name: 'Zeventbook',
@@ -165,69 +165,69 @@ describe('📁 Config.gs - Tenant Management', () => {
       }
     ];
 
-    function findTenantByHost_(host) {
-      return TENANTS.find(t =>
+    function findBrandByHost_(host) {
+      return BRANDS.find(t =>
         t.hostnames && t.hostnames.some(h => h === host)
       ) || null;
     }
 
-    test('finds tenant by exact hostname match', () => {
-      const tenant = findTenantByHost_('abc.zeventbook.io');
+    test('finds brand by exact hostname match', () => {
+      const brand = findBrandByHost_('abc.zeventbook.io');
 
-      expect(tenant).not.toBeNull();
-      expect(tenant.id).toBe('abc');
+      expect(brand).not.toBeNull();
+      expect(brand.id).toBe('abc');
     });
 
-    test('finds tenant by www hostname', () => {
-      const tenant = findTenantByHost_('www.zeventbook.io');
+    test('finds brand by www hostname', () => {
+      const brand = findBrandByHost_('www.zeventbook.io');
 
-      expect(tenant).not.toBeNull();
-      expect(tenant.id).toBe('root');
+      expect(brand).not.toBeNull();
+      expect(brand.id).toBe('root');
     });
 
     test('returns null for unknown hostname', () => {
-      const tenant = findTenantByHost_('unknown.example.com');
+      const brand = findBrandByHost_('unknown.example.com');
 
-      expect(tenant).toBeNull();
+      expect(brand).toBeNull();
     });
 
     test('is case-sensitive (security)', () => {
-      const tenant = findTenantByHost_('ABC.ZEVENTBOOK.IO');
+      const brand = findBrandByHost_('ABC.ZEVENTBOOK.IO');
 
       // Should NOT match if hostnames are lowercase
-      expect(tenant).toBeNull();
+      expect(brand).toBeNull();
     });
 
     test('does not match partial hostnames (security)', () => {
-      const tenant = findTenantByHost_('zeventbook');
+      const brand = findBrandByHost_('zeventbook');
 
-      expect(tenant).toBeNull();
+      expect(brand).toBeNull();
     });
 
-    test('handles tenant with no hostnames', () => {
-      const TENANTS_NO_HOST = [
+    test('handles brand with no hostnames', () => {
+      const BRANDS_NO_HOST = [
         { id: 'test', name: 'Test', hostnames: [] }
       ];
 
-      function findTenantByHost_(host) {
-        return TENANTS_NO_HOST.find(t =>
+      function findBrandByHost_(host) {
+        return BRANDS_NO_HOST.find(t =>
           t.hostnames && t.hostnames.some(h => h === host)
         ) || null;
       }
 
-      expect(findTenantByHost_('test.com')).toBeNull();
+      expect(findBrandByHost_('test.com')).toBeNull();
     });
   });
 
-  describe('getAdminSecret_(tenantId) - SECURITY CRITICAL', () => {
+  describe('getAdminSecret_(brandId) - SECURITY CRITICAL', () => {
 
-    function getAdminSecret_(tenantId) {
-      const key = `ADMIN_SECRET_${tenantId.toUpperCase()}`;
+    function getAdminSecret_(brandId) {
+      const key = `ADMIN_SECRET_${brandId.toUpperCase()}`;
       const props = PropertiesService.getScriptProperties();
       return props.getProperty(key);
     }
 
-    test('retrieves admin secret for root tenant', () => {
+    test('retrieves admin secret for root brand', () => {
       const secret = getAdminSecret_('root');
 
       expect(secret).not.toBeNull();
@@ -235,26 +235,26 @@ describe('📁 Config.gs - Tenant Management', () => {
       expect(secret.length).toBeGreaterThan(10); // Minimum secret length
     });
 
-    test('retrieves admin secret for abc tenant', () => {
+    test('retrieves admin secret for abc brand', () => {
       const secret = getAdminSecret_('abc');
 
       expect(secret).toBe('test-abc-secret-xyz789');
     });
 
-    test('returns null for tenant without secret', () => {
+    test('returns null for brand without secret', () => {
       const secret = getAdminSecret_('nonexistent');
 
       expect(secret).toBeNull();
     });
 
-    test('is case-insensitive for tenant ID', () => {
+    test('is case-insensitive for brand ID', () => {
       const secretLower = getAdminSecret_('root');
       const secretUpper = getAdminSecret_('ROOT');
 
       expect(secretLower).toBe(secretUpper);
     });
 
-    test('handles empty tenant ID', () => {
+    test('handles empty brand ID', () => {
       const secret = getAdminSecret_('');
 
       expect(secret).toBeNull();
@@ -268,8 +268,8 @@ describe('📁 Config.gs - Tenant Management', () => {
     function setupAdminSecrets_(secrets) {
       const props = PropertiesService.getScriptProperties();
 
-      Object.entries(secrets).forEach(([tenantId, secret]) => {
-        const key = `ADMIN_SECRET_${tenantId.toUpperCase()}`;
+      Object.entries(secrets).forEach(([brandId, secret]) => {
+        const key = `ADMIN_SECRET_${brandId.toUpperCase()}`;
         props.setProperty(key, secret);
       });
 
@@ -299,7 +299,7 @@ describe('📁 Config.gs - Tenant Management', () => {
       expect(result.count).toBe(0);
     });
 
-    test('normalizes tenant IDs to uppercase', () => {
+    test('normalizes brand IDs to uppercase', () => {
       const secrets = { 'abc': 'test-secret' };
 
       function setupAdminSecrets_(secrets) {
@@ -315,7 +315,7 @@ describe('📁 Config.gs - Tenant Management', () => {
     });
   });
 
-  describe('resolveUrlAlias_(alias, tenantId)', () => {
+  describe('resolveUrlAlias_(alias, brandId)', () => {
 
     const URL_ALIASES = {
       'events': { page: 'public', label: 'Events', public: true },
@@ -329,10 +329,10 @@ describe('📁 Config.gs - Tenant Management', () => {
       }
     };
 
-    function resolveUrlAlias_(alias, tenantId = 'root') {
-      // Check tenant-specific aliases first
-      if (CUSTOM_ALIASES[tenantId] && CUSTOM_ALIASES[tenantId][alias]) {
-        return CUSTOM_ALIASES[tenantId][alias];
+    function resolveUrlAlias_(alias, brandId = 'root') {
+      // Check brand-specific aliases first
+      if (CUSTOM_ALIASES[brandId] && CUSTOM_ALIASES[brandId][alias]) {
+        return CUSTOM_ALIASES[brandId][alias];
       }
 
       // Fall back to global aliases
@@ -347,7 +347,7 @@ describe('📁 Config.gs - Tenant Management', () => {
       expect(resolved.public).toBe(true);
     });
 
-    test('resolves tenant-specific alias', () => {
+    test('resolves brand-specific alias', () => {
       const resolved = resolveUrlAlias_('tournaments', 'abc');
 
       expect(resolved).not.toBeNull();
@@ -355,7 +355,7 @@ describe('📁 Config.gs - Tenant Management', () => {
       expect(resolved.label).toBe('Tournaments');
     });
 
-    test('falls back to global alias if no tenant alias', () => {
+    test('falls back to global alias if no brand alias', () => {
       const resolved = resolveUrlAlias_('events', 'abc');
 
       expect(resolved).not.toBeNull();
@@ -375,12 +375,12 @@ describe('📁 Config.gs - Tenant Management', () => {
     });
   });
 
-  describe('getFriendlyUrl_(page, tenantId, options)', () => {
+  describe('getFriendlyUrl_(page, brandId, options)', () => {
 
     const BASE_URL = 'https://zeventbook.io';
 
-    function getFriendlyUrl_(page, tenantId = 'root', options = {}) {
-      let url = `${BASE_URL}/${tenantId}`;
+    function getFriendlyUrl_(page, brandId = 'root', options = {}) {
+      let url = `${BASE_URL}/${brandId}`;
 
       // Add page alias
       if (page === 'public') {
@@ -391,7 +391,7 @@ describe('📁 Config.gs - Tenant Management', () => {
         url += '/display';
       } else {
         // Fallback to query params
-        return `${BASE_URL}?p=${page}&brand=${tenantId}`;
+        return `${BASE_URL}?p=${page}&brand=${brandId}`;
       }
 
       // Add additional params
@@ -426,14 +426,14 @@ describe('📁 Config.gs - Tenant Management', () => {
       expect(url).toContain('mode=advanced');
     });
 
-    test('handles root tenant', () => {
+    test('handles root brand', () => {
       const url = getFriendlyUrl_('public', 'root');
 
       expect(url).toBe('https://zeventbook.io/root/events');
     });
   });
 
-  describe('listUrlAliases_(tenantId, publicOnly)', () => {
+  describe('listUrlAliases_(brandId, publicOnly)', () => {
 
     const URL_ALIASES = {
       'events': { page: 'public', label: 'Events', public: true },
@@ -441,7 +441,7 @@ describe('📁 Config.gs - Tenant Management', () => {
       'display': { page: 'display', label: 'Display', public: true }
     };
 
-    function listUrlAliases_(tenantId = 'root', publicOnly = false) {
+    function listUrlAliases_(brandId = 'root', publicOnly = false) {
       const aliases = Object.entries(URL_ALIASES)
         .map(([alias, config]) => ({
           alias,
@@ -487,14 +487,14 @@ describe('📁 Config.gs - Tenant Management', () => {
  * Coverage Report: Config.gs
  *
  * Functions Tested:
- * ✅ loadTenants_() - 3 tests
- * ✅ findTenant_(id) - 5 tests
- * ✅ findTenantByHost_(host) - 6 tests
- * ✅ getAdminSecret_(tenantId) - 5 tests (SECURITY CRITICAL)
+ * ✅ loadBrands_() - 3 tests
+ * ✅ findBrand_(id) - 5 tests
+ * ✅ findBrandByHost_(host) - 6 tests
+ * ✅ getAdminSecret_(brandId) - 5 tests (SECURITY CRITICAL)
  * ✅ setupAdminSecrets_(secrets) - 4 tests (SECURITY CRITICAL)
- * ✅ resolveUrlAlias_(alias, tenantId) - 5 tests
- * ✅ getFriendlyUrl_(page, tenantId, options) - 5 tests
- * ✅ listUrlAliases_(tenantId, publicOnly) - 3 tests
+ * ✅ resolveUrlAlias_(alias, brandId) - 5 tests
+ * ✅ getFriendlyUrl_(page, brandId, options) - 5 tests
+ * ✅ listUrlAliases_(brandId, publicOnly) - 3 tests
  *
  * TOTAL: 36 unit tests
  * Coverage: 100% of Config.gs functions

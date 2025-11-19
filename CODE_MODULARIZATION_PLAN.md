@@ -135,7 +135,7 @@
 - `handleRestApiGet_()` - GET request routing
 - `handleRestApiPost_()` - POST request routing
 - URL parsing helpers
-- Tenant resolution (`findTenantByHost_()`, `findTenant_()`)
+- Brand resolution (`findBrandByHost_()`, `findBrand_()`)
 
 **Benefits:**
 - Clear entry points
@@ -166,7 +166,7 @@
 ### 9. **Config.gs** - Configuration (Already Exists!)
 **Status:** ✅ Already modularized
 **Functions:**
-- Tenant configuration
+- Brand configuration
 - URL aliases
 - Routing rules
 - Environment settings

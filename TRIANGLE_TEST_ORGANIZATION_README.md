@@ -376,7 +376,7 @@ test('Create event with sponsor', async ({ page }) => {
 ```javascript
 const { validateEnvelope, buildApiUrl } = require('../../../shared/helpers/api.helpers');
 
-const url = buildApiUrl({ action: 'list', tenant: 'root' });
+const url = buildApiUrl({ action: 'list', brand: 'root' });
 const response = await fetch(url);
 const json = await response.json();
 validateEnvelope(json); // Throws if invalid

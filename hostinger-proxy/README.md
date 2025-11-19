@@ -61,7 +61,7 @@ curl -i https://zeventbooks.com?p=status&brand=root
   "ok": true,
   "value": {
     "build": "triangle-extended-v1.3",
-    "tenant": "root",
+    "brand": "root",
     ...
   }
 }
@@ -227,7 +227,7 @@ error_log("Request took {$duration}ms");
 
 1. ✅ Upload files to Hostinger
 2. ✅ Update Google Apps Script URL
-3. ✅ Test all tenant URLs
+3. ✅ Test all brand URLs
 4. ✅ Run automated test suite
 5. ⏭️ Set up monitoring
 6. ⏭️ Configure custom error pages

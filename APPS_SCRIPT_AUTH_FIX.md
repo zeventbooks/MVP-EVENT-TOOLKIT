@@ -91,7 +91,7 @@ export GOOGLE_SCRIPT_URL="https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/
 curl "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec?p=status&brand=root"
 
 # Should return JSON (not HTML login page):
-# {"ok":true,"value":{"build":"triangle-extended-v1.3","tenant":"root"}}
+# {"ok":true,"value":{"build":"triangle-extended-v1.3","brand":"root"}}
 
 # Test with npm
 export GOOGLE_SCRIPT_URL="https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec"
@@ -124,14 +124,14 @@ npm run test:env:print
 - Token generation and validation
 - Prevents cross-site request forgery
 
-✅ **Rate Limiting** (per tenant)
+✅ **Rate Limiting** (per brand)
 - Prevents abuse and DoS
 - 62 tests covering rate limiting
 
-✅ **Tenant Isolation**
-- Each tenant has separate data
-- findTenantByHost_() validates access
-- No cross-tenant data leakage
+✅ **Brand Isolation**
+- Each brand has separate data
+- findBrandByHost_() validates access
+- No cross-brand data leakage
 
 ✅ **Input Sanitization**
 - XSS prevention (87 tests)
@@ -193,7 +193,7 @@ curl "https://script.google.com/macros/s/YOUR_ID/exec?p=status&brand=root"
 
 **Expected (GOOD):**
 ```json
-{"ok":true,"value":{"build":"triangle-extended-v1.3","tenant":"root"}}
+{"ok":true,"value":{"build":"triangle-extended-v1.3","brand":"root"}}
 ```
 
 **Bad (authentication issue):**

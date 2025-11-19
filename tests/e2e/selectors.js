@@ -57,7 +57,7 @@ const ADMIN_PAGE = {
 
   // Admin Controls
   ADMIN_KEY_INPUT: 'input[name="adminKey"], input[type="password"]#adminKey',
-  TENANT_SELECT: 'select[name="tenantId"], #tenantId',
+  BRAND_SELECT: 'select[name="brandId"], #brandId',
 
   // Status Messages
   SUCCESS_MESSAGE: '.success-message, .alert-success, [role="alert"].success',

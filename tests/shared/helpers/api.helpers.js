@@ -6,7 +6,7 @@
 
 const BASE_URL = process.env.BASE_URL || 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec';
 const ADMIN_KEY = process.env.ADMIN_KEY || 'CHANGE_ME_root';
-const TENANT_ID = process.env.TENANT_ID || 'root';
+const BRAND_ID = process.env.BRAND_ID || 'root';
 
 /**
  * Validate API response envelope
@@ -62,7 +62,7 @@ const buildAuthApiUrl = (params = {}, adminKey = ADMIN_KEY) => {
   return buildApiUrl({
     ...params,
     adminKey,
-    tenant: TENANT_ID
+    brand: BRAND_ID
   });
 };
 
@@ -195,7 +195,7 @@ module.exports = {
   // Constants
   BASE_URL,
   ADMIN_KEY,
-  TENANT_ID,
+  BRAND_ID,
 
   // Validation
   validateEnvelope,

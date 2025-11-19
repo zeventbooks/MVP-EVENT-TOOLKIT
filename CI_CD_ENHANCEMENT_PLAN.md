@@ -233,7 +233,7 @@ Your architectural approach is **excellent**:
   - APIs are already defined (REST endpoints)
   - Business logic is separate (can be ported)
   - Tests define contracts (guide migration)
-  - Multi-tenant design (already structured)
+  - Multi-brand design (already structured)
 
 ### Migration Path
 

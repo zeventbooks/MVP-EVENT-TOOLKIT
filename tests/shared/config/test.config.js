@@ -17,7 +17,7 @@ const IS_CI = process.env.CI === 'true';
 // Base URLs - Provide defaults for unit/contract tests
 // These tests use mock data and don't make real API calls
 const BASE_URL = process.env.BASE_URL || 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec';
-const TENANT_ID = process.env.TENANT_ID || 'root';
+const BRAND_ID = process.env.BRAND_ID || 'root';
 const ADMIN_KEY = process.env.ADMIN_KEY || 'CHANGE_ME_root';
 
 // Test configuration
@@ -79,7 +79,7 @@ const TEST_CONFIG = {
 
   // Test data
   testData: {
-    tenantId: TENANT_ID,
+    brandId: BRAND_ID,
     adminKey: ADMIN_KEY,
     defaultEventDate: '2025-12-31',
     defaultLocation: 'Test Venue'
@@ -141,7 +141,7 @@ module.exports = {
   ENV,
   IS_CI,
   BASE_URL,
-  TENANT_ID,
+  BRAND_ID,
   ADMIN_KEY,
   TEST_CONFIG
 };

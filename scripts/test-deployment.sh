@@ -63,22 +63,22 @@ echo "🌐 Web App URL: $WEB_APP_URL"
 echo ""
 
 # Test the deployment
-echo "🧪 Testing deployment for 302 redirects - All Tenants"
+echo "🧪 Testing deployment for 302 redirects - All Brands"
 echo "========================================================"
 echo ""
 
-TENANTS=("root" "ABC" "CBC")
+BRANDS=("root" "ABC" "CBC")
 FAILED=0
 
-# Function to test a tenant
-test_tenant() {
-    local TENANT=$1
+# Function to test a brand
+test_brand() {
+    local BRAND=$1
     local TEST_NUM=$2
 
-    echo "📋 Test $TEST_NUM: Status Endpoint - Tenant: $TENANT"
-    echo "   GET $WEB_APP_URL?page=status&brand=$TENANT"
+    echo "📋 Test $TEST_NUM: Status Endpoint - Brand: $BRAND"
+    echo "   GET $WEB_APP_URL?page=status&brand=$BRAND"
 
-    STATUS_RESPONSE=$(curl -s -w "\n%{http_code}" "$WEB_APP_URL?page=status&brand=$TENANT")
+    STATUS_RESPONSE=$(curl -s -w "\n%{http_code}" "$WEB_APP_URL?page=status&brand=$BRAND")
     HTTP_CODE=$(echo "$STATUS_RESPONSE" | tail -n 1)
     RESPONSE_BODY=$(echo "$STATUS_RESPONSE" | sed '$d')
 
@@ -116,13 +116,13 @@ test_tenant() {
     echo ""
 }
 
-# Test each tenant
-for i in "${!TENANTS[@]}"; do
-    test_tenant "${TENANTS[$i]}" $((i+1))
+# Test each brand
+for i in "${!BRANDS[@]}"; do
+    test_brand "${BRANDS[$i]}" $((i+1))
 done
 
-# Test public events page for root tenant
-echo "📋 Test 4: Public Events Page - Tenant: root"
+# Test public events page for root brand
+echo "📋 Test 4: Public Events Page - Brand: root"
 echo "   GET $WEB_APP_URL?p=events&brand=root"
 
 PUBLIC_RESPONSE=$(curl -s -w "\n%{http_code}" "$WEB_APP_URL?p=events&brand=root")
@@ -144,7 +144,7 @@ echo ""
 if [ $FAILED -eq 1 ]; then
     echo "========================================================"
     echo "❌ DEPLOYMENT TEST FAILED!"
-    echo "Some tenants returned 302 redirects"
+    echo "Some brands returned 302 redirects"
     echo "========================================================"
     exit 1
 fi
@@ -154,12 +154,12 @@ echo "========================================================"
 echo "🎉 SUCCESS! 302 redirects are FIXED!"
 echo "========================================================"
 echo ""
-echo "All tenants (root, ABC, CBC) are accessible without redirects!"
+echo "All brands (root, ABC, CBC) are accessible without redirects!"
 echo ""
 echo "Your deployment is working correctly at:"
 echo "  $WEB_APP_URL"
 echo ""
-echo "Tenant URLs:"
+echo "Brand URLs:"
 echo "  Root:  $WEB_APP_URL?page=status&brand=root"
 echo "  ABC:   $WEB_APP_URL?page=status&brand=ABC"
 echo "  CBC:   $WEB_APP_URL?page=status&brand=CBC"

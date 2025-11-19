@@ -16,10 +16,10 @@ test.describe('Brand Portfolio Analytics APIs', () => {
   });
 
   test.describe('api_getPortfolioSummary', () => {
-    test('requires parent organization tenant', async () => {
+    test('requires parent organization brand', async () => {
       const response = await api.post('/api', {
         action: 'api_getPortfolioSummary',
-        tenantId: 'root', // Not a parent org
+        brandId: 'root', // Not a parent org
         adminKey: 'test-admin-key'
       });
 
@@ -32,7 +32,7 @@ test.describe('Brand Portfolio Analytics APIs', () => {
     test('requires admin authentication', async () => {
       const response = await api.post('/api', {
         action: 'api_getPortfolioSummary',
-        tenantId: 'abc', // Parent org
+        brandId: 'abc', // Parent org
         adminKey: 'invalid-key'
       });
 
@@ -45,7 +45,7 @@ test.describe('Brand Portfolio Analytics APIs', () => {
     test('returns portfolio summary for parent org', async () => {
       const response = await api.post('/api', {
         action: 'api_getPortfolioSummary',
-        tenantId: 'abc',
+        brandId: 'abc',
         adminKey: process.env.ABC_ADMIN_KEY || 'abc-admin-key'
       });
 
@@ -73,7 +73,7 @@ test.describe('Brand Portfolio Analytics APIs', () => {
     test('includes only children with includeInPortfolioReports=true', async () => {
       const response = await api.post('/api', {
         action: 'api_getPortfolioSummary',
-        tenantId: 'abc',
+        brandId: 'abc',
         adminKey: process.env.ABC_ADMIN_KEY || 'abc-admin-key'
       });
 
@@ -97,7 +97,7 @@ test.describe('Brand Portfolio Analytics APIs', () => {
     test('aggregates metrics across parent and children', async () => {
       const response = await api.post('/api', {
         action: 'api_getPortfolioSummary',
-        tenantId: 'abc',
+        brandId: 'abc',
         adminKey: process.env.ABC_ADMIN_KEY || 'abc-admin-key'
       });
 
@@ -119,10 +119,10 @@ test.describe('Brand Portfolio Analytics APIs', () => {
   });
 
   test.describe('api_getPortfolioSponsors', () => {
-    test('requires parent organization tenant', async () => {
+    test('requires parent organization brand', async () => {
       const response = await api.post('/api', {
         action: 'api_getPortfolioSponsors',
-        tenantId: 'cbc', // Child org, not parent
+        brandId: 'cbc', // Child org, not parent
         adminKey: 'test-admin-key'
       });
 
@@ -135,7 +135,7 @@ test.describe('Brand Portfolio Analytics APIs', () => {
     test('returns all sponsors across portfolio', async () => {
       const response = await api.post('/api', {
         action: 'api_getPortfolioSponsors',
-        tenantId: 'abc',
+        brandId: 'abc',
         adminKey: process.env.ABC_ADMIN_KEY || 'abc-admin-key'
       });
 
@@ -154,8 +154,8 @@ test.describe('Brand Portfolio Analytics APIs', () => {
           expect(sponsor.brands).toBeInstanceOf(Array);
 
           sponsor.brands.forEach(brand => {
-            expect(brand.tenantId).toBeDefined();
-            expect(brand.tenantName).toBeDefined();
+            expect(brand.brandId).toBeDefined();
+            expect(brand.brandName).toBeDefined();
           });
         });
       }
@@ -165,7 +165,7 @@ test.describe('Brand Portfolio Analytics APIs', () => {
       // If same sponsor exists in ABC and CBC, should only appear once
       const response = await api.post('/api', {
         action: 'api_getPortfolioSponsors',
-        tenantId: 'abc',
+        brandId: 'abc',
         adminKey: process.env.ABC_ADMIN_KEY || 'abc-admin-key'
       });
 
@@ -183,10 +183,10 @@ test.describe('Brand Portfolio Analytics APIs', () => {
   });
 
   test.describe('api_getPortfolioSponsorReport', () => {
-    test('requires parent organization tenant', async () => {
+    test('requires parent organization brand', async () => {
       const response = await api.post('/api', {
         action: 'api_getPortfolioSponsorReport',
-        tenantId: 'cbl', // Child org
+        brandId: 'cbl', // Child org
         adminKey: 'test-admin-key',
         sponsorId: 'sponsor-1'
       });
@@ -200,7 +200,7 @@ test.describe('Brand Portfolio Analytics APIs', () => {
     test('requires sponsor ID', async () => {
       const response = await api.post('/api', {
         action: 'api_getPortfolioSponsorReport',
-        tenantId: 'abc',
+        brandId: 'abc',
         adminKey: process.env.ABC_ADMIN_KEY || 'abc-admin-key',
         sponsorId: '' // Empty sponsor ID
       });
@@ -218,7 +218,7 @@ test.describe('Brand Portfolio Analytics APIs', () => {
       // First get a sponsor ID
       const sponsorsResponse = await api.post('/api', {
         action: 'api_getPortfolioSponsors',
-        tenantId: 'abc',
+        brandId: 'abc',
         adminKey: process.env.ABC_ADMIN_KEY || 'abc-admin-key'
       });
 
@@ -230,7 +230,7 @@ test.describe('Brand Portfolio Analytics APIs', () => {
 
         const response = await api.post('/api', {
           action: 'api_getPortfolioSponsorReport',
-          tenantId: 'abc',
+          brandId: 'abc',
           adminKey: process.env.ABC_ADMIN_KEY || 'abc-admin-key',
           sponsorId: testSponsorId
         });
@@ -261,7 +261,7 @@ test.describe('Brand Portfolio Analytics APIs', () => {
     test('calculates portfolio CTR correctly', async () => {
       const sponsorsResponse = await api.post('/api', {
         action: 'api_getPortfolioSponsors',
-        tenantId: 'abc',
+        brandId: 'abc',
         adminKey: process.env.ABC_ADMIN_KEY || 'abc-admin-key'
       });
 
@@ -272,7 +272,7 @@ test.describe('Brand Portfolio Analytics APIs', () => {
 
         const response = await api.post('/api', {
           action: 'api_getPortfolioSponsorReport',
-          tenantId: 'abc',
+          brandId: 'abc',
           adminKey: process.env.ABC_ADMIN_KEY || 'abc-admin-key',
           sponsorId: testSponsorId
         });
@@ -291,7 +291,7 @@ test.describe('Brand Portfolio Analytics APIs', () => {
     test('includes top performing events', async () => {
       const sponsorsResponse = await api.post('/api', {
         action: 'api_getPortfolioSponsors',
-        tenantId: 'abc',
+        brandId: 'abc',
         adminKey: process.env.ABC_ADMIN_KEY || 'abc-admin-key'
       });
 
@@ -302,7 +302,7 @@ test.describe('Brand Portfolio Analytics APIs', () => {
 
         const response = await api.post('/api', {
           action: 'api_getPortfolioSponsorReport',
-          tenantId: 'abc',
+          brandId: 'abc',
           adminKey: process.env.ABC_ADMIN_KEY || 'abc-admin-key',
           sponsorId: testSponsorId
         });
@@ -326,8 +326,8 @@ test.describe('Brand Portfolio Analytics APIs', () => {
           topEvents.forEach(event => {
             expect(event.id).toBeDefined();
             expect(event.name).toBeDefined();
-            expect(event.tenantId).toBeDefined();
-            expect(event.tenantName).toBeDefined();
+            expect(event.brandId).toBeDefined();
+            expect(event.brandName).toBeDefined();
             expect(event.impressions).toBeGreaterThanOrEqual(0);
             expect(event.clicks).toBeGreaterThanOrEqual(0);
             expect(event.ctr).toBeDefined();
@@ -340,12 +340,12 @@ test.describe('Brand Portfolio Analytics APIs', () => {
   test.describe('Portfolio Configuration', () => {
     test('respects includeInPortfolioReports flag', async () => {
       // This test verifies that the Config.gs flag is respected
-      // When a child tenant has includeInPortfolioReports: false,
+      // When a child brand has includeInPortfolioReports: false,
       // it should not appear in portfolio summary
 
       const response = await api.post('/api', {
         action: 'api_getPortfolioSummary',
-        tenantId: 'abc',
+        brandId: 'abc',
         adminKey: process.env.ABC_ADMIN_KEY || 'abc-admin-key'
       });
 
@@ -367,7 +367,7 @@ test.describe('Brand Portfolio Analytics APIs', () => {
     test('parent-child relationship validation', async () => {
       const response = await api.post('/api', {
         action: 'api_getPortfolioSummary',
-        tenantId: 'abc',
+        brandId: 'abc',
         adminKey: process.env.ABC_ADMIN_KEY || 'abc-admin-key'
       });
 
@@ -396,10 +396,10 @@ test.describe('Brand Portfolio Analytics APIs', () => {
   });
 
   test.describe('Error Handling', () => {
-    test('handles missing tenant gracefully', async () => {
+    test('handles missing brand gracefully', async () => {
       const response = await api.post('/api', {
         action: 'api_getPortfolioSummary',
-        tenantId: 'nonexistent',
+        brandId: 'nonexistent',
         adminKey: 'test-key'
       });
 
@@ -411,7 +411,7 @@ test.describe('Brand Portfolio Analytics APIs', () => {
     test('handles invalid admin key gracefully', async () => {
       const response = await api.post('/api', {
         action: 'api_getPortfolioSummary',
-        tenantId: 'abc',
+        brandId: 'abc',
         adminKey: 'totally-wrong-key-12345'
       });
 
@@ -420,10 +420,10 @@ test.describe('Brand Portfolio Analytics APIs', () => {
       expect(body.message).toContain('admin key');
     });
 
-    test('handles child tenant attempting portfolio access', async () => {
+    test('handles child brand attempting portfolio access', async () => {
       const response = await api.post('/api', {
         action: 'api_getPortfolioSummary',
-        tenantId: 'cbc', // Child, not parent
+        brandId: 'cbc', // Child, not parent
         adminKey: process.env.CBC_ADMIN_KEY || 'cbc-admin-key'
       });
 
@@ -439,7 +439,7 @@ test.describe('Brand Portfolio Analytics APIs', () => {
 
       const response = await api.post('/api', {
         action: 'api_getPortfolioSummary',
-        tenantId: 'abc',
+        brandId: 'abc',
         adminKey: process.env.ABC_ADMIN_KEY || 'abc-admin-key'
       });
 
@@ -454,7 +454,7 @@ test.describe('Brand Portfolio Analytics APIs', () => {
     test('sponsor report responds within acceptable time', async () => {
       const sponsorsResponse = await api.post('/api', {
         action: 'api_getPortfolioSponsors',
-        tenantId: 'abc',
+        brandId: 'abc',
         adminKey: process.env.ABC_ADMIN_KEY || 'abc-admin-key'
       });
 
@@ -467,7 +467,7 @@ test.describe('Brand Portfolio Analytics APIs', () => {
 
         const response = await api.post('/api', {
           action: 'api_getPortfolioSponsorReport',
-          tenantId: 'abc',
+          brandId: 'abc',
           adminKey: process.env.ABC_ADMIN_KEY || 'abc-admin-key',
           sponsorId: testSponsorId
         });

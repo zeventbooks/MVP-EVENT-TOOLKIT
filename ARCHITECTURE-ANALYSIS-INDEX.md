@@ -15,7 +15,7 @@ This comprehensive technical analysis has been divided into three complementary 
 **Purpose:** Complete technical deep-dive with all details
 
 **Contains:**
-- Configuration architecture (tenant model, templates, data flow)
+- Configuration architecture (brand model, templates, data flow)
 - Event system architecture (lifecycle, data model, event listeners)
 - Sponsor system architecture (data model, rendering paths, analytics)
 - Complete function mapping (all 17 API endpoints)
@@ -59,7 +59,7 @@ This comprehensive technical analysis has been divided into three complementary 
 3. Event creation flow (step-by-step)
 4. Analytics data flow (all surfaces)
 5. Sponsor placement & rendering
-6. Multi-tenant isolation mechanism
+6. Multi-brand isolation mechanism
 7. File include structure & dependencies
 8. Data consistency & integrity
 9. Error handling & recovery patterns
@@ -117,7 +117,7 @@ This comprehensive technical analysis has been divided into three complementary 
 - Scalability: 6/10 (Medium)
 
 ### Critical Findings
-- **Strengths:** 5 major (multi-tenant, event model, analytics, APIs, frontend)
+- **Strengths:** 5 major (multi-brand, event model, analytics, APIs, frontend)
 - **Critical Issues:** 3 (plaintext secrets, no CSRF, no per-user rate limiting)
 - **Major Issues:** 3 (no timeouts, race conditions, code duplication)
 - **Architectural Gaps:** 4 (no service layer, in-memory analytics, no pagination, denormalized sponsors)
@@ -185,7 +185,7 @@ This comprehensive technical analysis has been divided into three complementary 
 ### Coverage Areas (All Addressed)
 
 1. **Configuration Architecture**
-   - Tenant model, templates, data flow, hardcoded values
+   - Brand model, templates, data flow, hardcoded values
 
 2. **Event System Architecture**
    - Lifecycle, data model, event listeners, anti-patterns
@@ -255,7 +255,7 @@ This comprehensive technical analysis has been divided into three complementary 
 
 **Read-Only (No Auth Required):**
 - api_status() - Health check
-- api_getConfig() - Get tenants and templates
+- api_getConfig() - Get brands and templates
 - api_list() - List events/sponsors
 - api_get() - Get single event
 - api_getReport() - Get analytics
@@ -388,7 +388,7 @@ Related documents you may find useful:
 ### Architecture Questions
 - "How is the system organized?" → See ARCHITECTURE-DIAGRAMS.txt sections 1-2
 - "What are the data models?" → See ARCHITECTURE-TECHNICAL-ANALYSIS.md section 2, 3
-- "How do tenants work?" → See ARCHITECTURE-DIAGRAMS.txt section 6
+- "How do brands work?" → See ARCHITECTURE-DIAGRAMS.txt section 6
 - "What APIs exist?" → See ARCHITECTURE-TECHNICAL-ANALYSIS.md section 4
 
 ### Security Questions

@@ -118,7 +118,7 @@ curl "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec?p=status&brand=
   "ok": true,
   "value": {
     "build": "triangle-extended-v1.3",
-    "tenant": "root",
+    "brand": "root",
     "time": "2025-11-15T...",
     "db": {
       "ok": true
@@ -299,7 +299,7 @@ curl "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec?p=status&brand=
   "ok": true,
   "value": {
     "build": "triangle-extended-v1.3",
-    "tenant": "root",
+    "brand": "root",
     ...
   }
 }
@@ -324,23 +324,23 @@ curl "https://zeventbooks.com?p=status&brand=root"
 
 **If 403 or blank page:** See Troubleshooting section below
 
-#### Test 3.3: Test All Tenants
+#### Test 3.3: Test All Brands
 
 ```bash
-# Root tenant
+# Root brand
 curl "https://zeventbooks.com?p=status&brand=root"
 
-# ABC tenant
+# ABC brand
 curl "https://zeventbooks.com?p=status&brand=abc"
 
-# CBC tenant
+# CBC brand
 curl "https://zeventbooks.com?p=status&brand=cbc"
 
-# CBL tenant
+# CBL brand
 curl "https://zeventbooks.com?p=status&brand=cbl"
 ```
 
-All should return JSON with the correct tenant ID.
+All should return JSON with the correct brand ID.
 
 #### Test 3.4: Test Admin Page
 
@@ -467,7 +467,7 @@ Use this checklist to verify everything is working:
 ### Testing
 - [ ] Google Apps Script URL works: `curl https://script.google.com/macros/s/YOUR_ID/exec?p=status&brand=root`
 - [ ] zeventbooks.com works: `curl https://zeventbooks.com?p=status&brand=root`
-- [ ] All tenants return correct JSON (root, abc, cbc, cbl)
+- [ ] All brands return correct JSON (root, abc, cbc, cbl)
 - [ ] Admin page loads in browser
 - [ ] Playwright tests pass: `npm run test:smoke`
 

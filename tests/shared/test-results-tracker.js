@@ -19,7 +19,7 @@ class TestResultsTracker {
   constructor(options = {}) {
     this.resultsDir = options.resultsDir || path.join(__dirname, '../../.test-results');
     this.environment = options.environment || process.env.TEST_ENV || 'unknown';
-    this.tenant = options.tenant || process.env.TENANT_ID || 'root';
+    this.brand = options.brand || process.env.BRAND_ID || 'root';
     this.ciRun = process.env.CI === 'true';
     this.gitBranch = process.env.GITHUB_REF_NAME || 'local';
     this.gitSha = process.env.GITHUB_SHA || 'unknown';
@@ -29,7 +29,7 @@ class TestResultsTracker {
       id: this.runId,
       timestamp: new Date().toISOString(),
       environment: this.environment,
-      tenant: this.tenant,
+      brand: this.brand,
       ci: this.ciRun,
       branch: this.gitBranch,
       commit: this.gitSha,
@@ -473,7 +473,7 @@ class TestResultsTracker {
         id: this.runId,
         timestamp: this.currentRun.timestamp,
         environment: this.environment,
-        tenant: this.tenant,
+        brand: this.brand,
         branch: this.gitBranch,
         ci: this.ciRun
       },

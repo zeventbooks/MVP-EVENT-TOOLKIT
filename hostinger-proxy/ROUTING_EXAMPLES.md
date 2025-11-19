@@ -207,7 +207,7 @@ https://zeventbooks.com/championship-signup/confirmation
 
 ---
 
-### Example 3: Multi-Tenant Support
+### Example 3: Multi-brand Support
 
 **American Bocce Co. (ABC):**
 ```
@@ -247,11 +247,11 @@ https://zeventbooks.com/city-championship-poster/download?brand=cbl
 /events/{event-slug}
 ```
 
-### Query Parameter Pattern (For Admin & Tenants)
+### Query Parameter Pattern (For Admin & Brands)
 ```
-/admin?brand={tenant-id}
-/admin/{subpage}?brand={tenant-id}
-?p=admin&brand={tenant-id}
+/admin?brand={brand-id}
+/admin/{subpage}?brand={brand-id}
+?p=admin&brand={brand-id}
 ```
 
 ---

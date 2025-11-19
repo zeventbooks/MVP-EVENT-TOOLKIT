@@ -104,7 +104,7 @@ npx playwright test --project="TV Display"
 ### After:
 - ✅ 14 warnings (0 errors)
 - ✅ Google Apps Script globals defined (SpreadsheetApp, ScriptApp, etc.)
-- ✅ Config.gs exports available to Code.gs (ZEB, TENANTS, TEMPLATES)
+- ✅ Config.gs exports available to Code.gs (ZEB, BRANDS, TEMPLATES)
 - ✅ Jest environment properly configured for test files
 - ✅ HTML files excluded from linting
 - ✅ Fixed unnecessary escape character in Code.gs:230

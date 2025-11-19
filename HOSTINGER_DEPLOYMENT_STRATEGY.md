@@ -8,7 +8,7 @@
 
 ## 🎯 Executive Summary
 
-This document outlines a **cost-effective deployment and testing strategy** for a solo developer maintaining a **professional multi-tenant event management platform** while proving long-term viability across the event triangle (organizers, customers, sponsors) and event lifecycle (pre-event, during-event, post-event).
+This document outlines a **cost-effective deployment and testing strategy** for a solo developer maintaining a **professional multi-brand event management platform** while proving long-term viability across the event triangle (organizers, customers, sponsors) and event lifecycle (pre-event, during-event, post-event).
 
 **Key Metrics:**
 - **Monthly Cost:** $1-5 (Hostinger domain only)
@@ -21,14 +21,14 @@ This document outlines a **cost-effective deployment and testing strategy** for 
 
 ## 📊 Current Architecture
 
-### Multi-Tenant Structure
+### Multi-brand Structure
 ```
 zeventbooks.com (Hostinger)
 ├─ Production:  zeventbooks.com         → Apps Script Prod
 ├─ QA:          qa.zeventbooks.com      → Apps Script Staging
 └─ Development: [Direct Apps Script URLs] → Apps Script Dev
 
-Tenants (shared database):
+Brands (shared database):
 ├─ root (Zeventbook)
 ├─ abc  (American Bocce Co.)
 ├─ cbc  (Chicago Bocce Club)
@@ -92,7 +92,7 @@ git push origin claude/feature-xyz
 - ✅ User acceptance testing (UAT)
 - ✅ Pre-production validation
 - ✅ Performance testing
-- ✅ Cross-tenant smoke testing
+- ✅ Cross-brand smoke testing
 
 **Workflow:**
 ```bash
@@ -370,8 +370,8 @@ npm run test:smoke   # Quick validation (30s)
 npm run test:pages   # Component testing (5min)
 npm run test:flows   # Full E2E (10min)
 
-# Run specific tenant
-npm run test:tenant:abc  # Test single tenant
+# Run specific brand
+npm run test:brand:abc  # Test single brand
 
 # Run specific phase
 npm run test:triangle:before  # Pre-event tests
@@ -530,7 +530,7 @@ npm run test:triangle:after   # Post-event tests
 | **Separate QA team** | Automated Playwright tests |
 | **Manual exploratory testing** | Playwright + weekly 15-min manual session |
 | **Staging + Production servers** | Hostinger redirects (QA + Prod) |
-| **Feature flags** | Tenant-based configuration |
+| **Feature flags** | Brand-based configuration |
 | **Blue-green deployments** | Apps Script versioning |
 | **Load testing** | Mobile 3G throttling simulation |
 | **Incident response team** | GitHub issue tracking + logs |
@@ -572,15 +572,15 @@ test('Create event', async ({ authenticatedAdminPage }) => {
 });
 ```
 
-**3. Multi-Tenant Test Parameterization**
+**3. Multi-brand Test Parameterization**
 ```javascript
-// Run same test across all tenants
-const TENANTS = ['root', 'abc', 'cbc', 'cbl'];
+// Run same test across all brands
+const BRANDS = ['root', 'abc', 'cbc', 'cbl'];
 
-TENANTS.forEach(tenant => {
-  test(`${tenant}: Create and view event`, async ({ page }) => {
-    // Test tenant isolation
-    // Ensure no cross-tenant data leaks
+BRANDS.forEach(brand => {
+  test(`${brand}: Create and view event`, async ({ page }) => {
+    // Test brand isolation
+    // Ensure no cross-brand data leaks
   });
 });
 ```
@@ -592,7 +592,7 @@ TENANTS.forEach(tenant => {
 ### Phase 1: Current State (Implemented) ✅
 - ✅ Hostinger domain with manual redirects
 - ✅ 2-stage CI/CD pipeline
-- ✅ Multi-tenant architecture
+- ✅ Multi-brand architecture
 - ✅ Mobile-first Playwright testing
 - ✅ Newman API testing
 
@@ -636,7 +636,7 @@ TENANTS.forEach(tenant => {
 - **Playwright:** [playwright.config.js](./playwright.config.js)
 - **Stage 1 CI/CD:** [.github/workflows/stage1-deploy.yml](./.github/workflows/stage1-deploy.yml)
 - **Stage 2 CI/CD:** [.github/workflows/stage2-testing.yml](./.github/workflows/stage2-testing.yml)
-- **Multi-Tenant Config:** [Config.gs](./Config.gs)
+- **Multi-brand Config:** [Config.gs](./Config.gs)
 
 ### External Resources
 - **Hostinger Panel:** https://hpanel.hostinger.com
@@ -649,7 +649,7 @@ TENANTS.forEach(tenant => {
 ## ✅ Action Items for Current Deployment
 
 ### Immediate (This Week)
-1. **Verify QA environment:** Test `qa.zeventbooks.com` across all tenants
+1. **Verify QA environment:** Test `qa.zeventbooks.com` across all brands
 2. **Run full test suite:** Ensure Stage 2 completes successfully
 3. **Document manual steps:** Create checklist for redirect updates
 

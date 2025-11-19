@@ -14,12 +14,12 @@
 const { test, expect } = require('@playwright/test');
 
 const BASE_URL = process.env.BASE_URL || 'https://script.google.com/macros/s/.../exec';
-const TENANT_ID = 'root';
+const BRAND_ID = 'root';
 
 test.describe('Diagnostics Page - System Testing Interface', () => {
 
   test('Diagnostics page loads and shows interface', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=diagnostics&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=diagnostics&brand=${BRAND_ID}`);
 
     // Verify page loaded
     await expect(page).toHaveTitle(/Diagnostics/);
@@ -36,7 +36,7 @@ test.describe('Diagnostics Page - System Testing Interface', () => {
   });
 
   test('Run All Tests button exists and is clickable', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=diagnostics&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=diagnostics&brand=${BRAND_ID}`);
 
     const runButton = page.locator('button:has-text("Run All Tests")');
     await expect(runButton).toBeVisible();
@@ -47,7 +47,7 @@ test.describe('Diagnostics Page - System Testing Interface', () => {
   });
 
   test('Running diagnostics shows test cards', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=diagnostics&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=diagnostics&brand=${BRAND_ID}`);
 
     // Click Run All Tests
     await page.click('button:has-text("Run All Tests")');
@@ -62,7 +62,7 @@ test.describe('Diagnostics Page - System Testing Interface', () => {
   });
 
   test('Diagnostics shows running status', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=diagnostics&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=diagnostics&brand=${BRAND_ID}`);
 
     await page.click('button:has-text("Run All Tests")');
 
@@ -77,7 +77,7 @@ test.describe('Diagnostics Page - System Testing Interface', () => {
   });
 
   test('Diagnostics shows passed/failed status', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=diagnostics&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=diagnostics&brand=${BRAND_ID}`);
 
     await page.click('button:has-text("Run All Tests")');
 
@@ -93,7 +93,7 @@ test.describe('Diagnostics Page - System Testing Interface', () => {
   });
 
   test('Stats counters update after tests complete', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=diagnostics&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=diagnostics&brand=${BRAND_ID}`);
 
     // Initial counts should be 0
     expect(await page.locator('#passedCount').textContent()).toBe('0');
@@ -114,7 +114,7 @@ test.describe('Diagnostics Page - System Testing Interface', () => {
   });
 
   test('All 7 diagnostic tests are included', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=diagnostics&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=diagnostics&brand=${BRAND_ID}`);
 
     await page.click('button:has-text("Run All Tests")');
     await page.waitForTimeout(10000);
@@ -142,7 +142,7 @@ test.describe('Diagnostics Page - System Testing Interface', () => {
   });
 
   test('Test results show detailed output', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=diagnostics&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=diagnostics&brand=${BRAND_ID}`);
 
     await page.click('button:has-text("Run All Tests")');
     await page.waitForTimeout(10000);
@@ -160,7 +160,7 @@ test.describe('Diagnostics Page - System Testing Interface', () => {
   test('Diagnostics page is responsive on mobile', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 667 });
 
-    await page.goto(`${BASE_URL}?page=diagnostics&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=diagnostics&brand=${BRAND_ID}`);
 
     // Page should be readable
     await expect(page.locator('h2')).toBeVisible();
@@ -168,7 +168,7 @@ test.describe('Diagnostics Page - System Testing Interface', () => {
   });
 
   test('Diagnostics can be run multiple times', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=diagnostics&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=diagnostics&brand=${BRAND_ID}`);
 
     // Run first time
     await page.click('button:has-text("Run All Tests")');
@@ -189,7 +189,7 @@ test.describe('Diagnostics Page - System Testing Interface', () => {
   });
 
   test('Test status icons are visible', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=diagnostics&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=diagnostics&brand=${BRAND_ID}`);
 
     await page.click('button:has-text("Run All Tests")');
     await page.waitForTimeout(10000);
@@ -212,7 +212,7 @@ test.describe('Diagnostics Page - System Testing Interface', () => {
   });
 
   test('Passed tests show green styling', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=diagnostics&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=diagnostics&brand=${BRAND_ID}`);
 
     await page.click('button:has-text("Run All Tests")');
     await page.waitForTimeout(10000);
@@ -234,7 +234,7 @@ test.describe('Diagnostics Page - System Testing Interface', () => {
   });
 
   test('Failed tests show red styling', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=diagnostics&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=diagnostics&brand=${BRAND_ID}`);
 
     await page.click('button:has-text("Run All Tests")');
     await page.waitForTimeout(10000);
@@ -247,7 +247,7 @@ test.describe('Diagnostics Page - System Testing Interface', () => {
   });
 
   test('Test results are scrollable if long', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=diagnostics&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=diagnostics&brand=${BRAND_ID}`);
 
     await page.click('button:has-text("Run All Tests")');
     await page.waitForTimeout(10000);
@@ -268,7 +268,7 @@ test.describe('Diagnostics Page - System Testing Interface', () => {
     const errors = [];
     page.on('pageerror', error => errors.push(error));
 
-    await page.goto(`${BASE_URL}?page=diagnostics&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=diagnostics&brand=${BRAND_ID}`);
 
     // Filter out expected google.script errors
     const criticalErrors = errors.filter(e =>
@@ -283,7 +283,7 @@ test.describe('Diagnostics Page - System Testing Interface', () => {
 test.describe('Diagnostics Page - Individual Tests', () => {
 
   test('System Status test runs', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=diagnostics&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=diagnostics&brand=${BRAND_ID}`);
 
     await page.click('button:has-text("Run All Tests")');
     await page.waitForTimeout(10000);
@@ -297,7 +297,7 @@ test.describe('Diagnostics Page - Individual Tests', () => {
   });
 
   test('Event creation test runs', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=diagnostics&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=diagnostics&brand=${BRAND_ID}`);
 
     await page.click('button:has-text("Run All Tests")');
     await page.waitForTimeout(10000);
@@ -315,7 +315,7 @@ test.describe('Diagnostics Page - Individual Tests', () => {
   test('Diagnostics complete within reasonable time', async ({ page }) => {
     const start = Date.now();
 
-    await page.goto(`${BASE_URL}?page=diagnostics&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=diagnostics&brand=${BRAND_ID}`);
     await page.click('button:has-text("Run All Tests")');
     await page.waitForTimeout(15000);
 
@@ -332,11 +332,11 @@ test.describe('Diagnostics Page - Individual Tests', () => {
 
 test.describe('Diagnostics Page - Edge Cases', () => {
 
-  test('Diagnostics works with different tenants', async ({ page }) => {
-    const tenants = ['root', 'abc'];
+  test('Diagnostics works with different brands', async ({ page }) => {
+    const brands = ['root', 'abc'];
 
-    for (const tenant of tenants) {
-      await page.goto(`${BASE_URL}?page=diagnostics&brand=${tenant}`);
+    for (const brand of brands) {
+      await page.goto(`${BASE_URL}?page=diagnostics&brand=${brand}`);
 
       await expect(page.locator('h2:has-text("System Diagnostics")')).toBeVisible();
 
@@ -346,7 +346,7 @@ test.describe('Diagnostics Page - Edge Cases', () => {
   });
 
   test('Diagnostics handles backend errors gracefully', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=diagnostics&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=diagnostics&brand=${BRAND_ID}`);
 
     // Even if backend has issues, page should render
     await expect(page.locator('h2')).toBeVisible();
@@ -354,7 +354,7 @@ test.describe('Diagnostics Page - Edge Cases', () => {
   });
 
   test('Page state persists during tests', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=diagnostics&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=diagnostics&brand=${BRAND_ID}`);
 
     // Click button
     await page.click('button:has-text("Run All Tests")');

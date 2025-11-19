@@ -32,9 +32,9 @@
 - ✅ Template composition (mix-and-match field sets)
 - ✅ Field-level validation with extensive rules
 - ✅ Multi-language template support
-- ⏳ **Still Needed:** Visual template builder, email templates, per-tenant branding
+- ⏳ **Still Needed:** Visual template builder, email templates, per-brand branding
 
-**Impact:** This implementation accelerates Phase 2 (Integration Platform) and provides foundational infrastructure for multi-tenant customization and global reach.
+**Impact:** This implementation accelerates Phase 2 (Integration Platform) and provides foundational infrastructure for multi-brand customization and global reach.
 
 ---
 
@@ -140,12 +140,12 @@ This roadmap outlines the strategic development plan for the MVP Event Toolkit p
   - ✅ 11 event types (event.created, event.updated, sponsor.performance, etc.)
   - ✅ HMAC-SHA256 payload signing and verification
   - ✅ Webhook delivery tracking (WEBHOOKS + WEBHOOK_DELIVERIES sheets)
-  - ✅ Tenant isolation and admin authentication
+  - ✅ Brand isolation and admin authentication
 
 - [ ] **Production Enhancements** (NEW - Week 1)
   - Retry logic with exponential backoff (3 retries: 2s, 5s, 15s)
   - Circuit breaker pattern (disable webhook after 5 consecutive failures)
-  - Webhook rate limiting (max 100 deliveries/minute per tenant)
+  - Webhook rate limiting (max 100 deliveries/minute per brand)
   - Batch webhook delivery for multiple subscribers
 
 - [ ] **Developer Experience** (NEW - Week 1-2)
@@ -202,18 +202,18 @@ This roadmap outlines the strategic development plan for the MVP Event Toolkit p
 
 - [ ] **iCal Export**
   - Generate `.ics` files for individual events
-  - Bulk export for all tenant events
+  - Bulk export for all brand events
   - Recurring event support (if applicable)
   - Timezone handling (VTIMEZONE)
 
 - [ ] **Calendar Settings**
-  - Per-tenant calendar sync preferences
+  - Per-brand calendar sync preferences
   - Default calendar selection for auto-sync
   - Calendar reminder configuration (15min, 1hr, 1day before)
   - Calendar color coding by event type
 
 #### Success Metrics:
-- 50+ webhook endpoints registered by tenants
+- 50+ webhook endpoints registered by brands
 - 100+ Zapier zaps created by users
 - 80% of events synced to calendars
 - <2s webhook delivery time (p95)
@@ -415,9 +415,9 @@ This roadmap outlines the strategic development plan for the MVP Event Toolkit p
 
 **Status:** 🟡 25% Complete (Event template system done via PR #88)
 
-### 🏢 Per-Tenant Branding
+### 🏢 Per-Brand Branding
 
-**Objective:** Allow tenants to fully customize the look and feel of their event pages
+**Objective:** Allow brands to fully customize the look and feel of their event pages
 
 #### Deliverables:
 - [ ] **Brand Configuration** (Week 1)
@@ -493,7 +493,7 @@ This roadmap outlines the strategic development plan for the MVP Event Toolkit p
 #### Deliverables:
 - [ ] **CSS Injection Interface**
   - Custom CSS editor in Admin dashboard (syntax highlighting)
-  - Scoped CSS per tenant (no cross-tenant pollution)
+  - Scoped CSS per brand (no cross-brand pollution)
   - CSS validation and sanitization (prevent malicious styles)
   - Live preview environment
 
@@ -516,8 +516,8 @@ This roadmap outlines the strategic development plan for the MVP Event Toolkit p
   - Print stylesheet customization
 
 #### Success Metrics:
-- 80% of enterprise tenants customize branding
-- 50% of tenants use custom email templates
+- 80% of enterprise brands customize branding
+- 50% of brands use custom email templates
 - 10% of advanced users leverage custom CSS
 - <5% increase in page load time from customizations
 

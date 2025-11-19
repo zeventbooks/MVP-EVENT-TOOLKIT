@@ -12,7 +12,7 @@ The MVP-EVENT-TOOLKIT is a Google Apps Script-based event management system with
 - **URL**: `?p=events&brand=root` (or just base URL)
 - **Purpose**: Public-facing event listing and detail pages
 - **Features**:
-  - Lists all events for a tenant/scope
+  - Lists all events for a brand/scope
   - Event detail view with registration links
   - Sponsor banner display
   - Check-in, Walk-in, Survey links
@@ -167,8 +167,8 @@ REQUEST: ?page=XXX or ?p=XXX
 7. Default → Public.html (event listing/detail)
 
 Template Variables Passed:
-  - appTitle: "${tenant.name} · ${scope}"
-  - brandId: tenant.id
+  - appTitle: "${brand.name} · ${scope}"
+  - brandId: brand.id
   - scope: 'events'|'leagues'|'tournaments'
   - execUrl: Base script URL for self-referential links
   - ZEB: Build/contract metadata
@@ -198,8 +198,8 @@ Template Variables Passed:
   - Report page: `${execUrl}?page=report&brand=...&id=...`
 
 #### Public.html → Public Detail
-- Click event card: `href="${EXEC_URL}?p=events&brand=${TENANT}&id=${ev.id}"`
-- Back link: `${EXEC_URL}?p=events&brand=${TENANT}`
+- Click event card: `href="${EXEC_URL}?p=events&brand=${BRAND}&id=${ev.id}"`
+- Back link: `${EXEC_URL}?p=events&brand=${BRAND}`
 
 #### Display.html → N/A
 - Standalone page, no navigation
@@ -265,11 +265,11 @@ SharedReport.html (Detailed Analytics)
 
 ---
 
-## 6. MULTI-TENANT & SCOPE SYSTEM
+## 6. MULTI-BRAND & SCOPE SYSTEM
 
-### Tenant Concept (Config.gs)
+### Brand Concept (Config.gs)
 ```
-TENANTS = [
+BRANDS = [
   { id: 'root', name: 'Zeventbook', scopesAllowed: ['events','sponsors'] },
   { id: 'abc', name: 'American Bocce Co.', ... },
   { id: 'cbc', name: 'Chicago Bocce Club', ... },
@@ -281,13 +281,13 @@ TENANTS = [
 - Scopes: 'events', 'leagues', 'tournaments'
 - Passed via `?p=events` or `?scope=events`
 - Controls which sheet stores data
-- Validated per tenant's scopesAllowed
+- Validated per brand's scopesAllowed
 
 ### URL Structure
 ```
 ?page=admin&brand=root&p=events
         ↑          ↑          ↑
-     page type   tenant      scope
+     page type   brand      scope
 ```
 
 ---
@@ -307,7 +307,7 @@ TENANTS = [
 | File | Purpose |
 |------|---------|
 | Code.gs | Main router, REST API, page routing |
-| Config.gs | Tenants, templates, configuration |
+| Config.gs | Brands, templates, configuration |
 | SharedReporting.gs | Reporting/analytics functions |
 
 ---

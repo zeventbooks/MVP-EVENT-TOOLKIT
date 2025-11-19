@@ -185,7 +185,7 @@ Tests all three authentication methods:
 
 - **Token Security**
   - Signature validation
-  - Tenant validation
+  - Brand validation
   - Expiration handling
 
 - **Rate Limiting**
