@@ -399,6 +399,19 @@ function routePage_(e, page, tenant, demoMode, options = {}) {
     tpl.urlAlias = options.alias || '';
   }
 
+  // Set global template context for include() function to use
+  // This allows included templates to access these variables
+  global_setTemplateContext_({
+    appTitle: tpl.appTitle,
+    tenantId: tpl.tenantId,
+    scope: tpl.scope,
+    execUrl: tpl.execUrl,
+    ZEB: tpl.ZEB,
+    demoMode: tpl.demoMode,
+    friendlyUrl: tpl.friendlyUrl || false,
+    urlAlias: tpl.urlAlias || ''
+  });
+
   // Fixed: Bug #31 - Add security headers
   return tpl.evaluate()
     .setTitle(`${tpl.appTitle} · ${page}${demoMode ? ' (Demo)' : ''}`)
@@ -803,8 +816,55 @@ function pageFile_(page){
   return 'Public';
 }
 
+// === Template Context Management ===========================================
+// Global variable to hold template context for include() function
+var TEMPLATE_CONTEXT_ = null;
+
+/**
+ * Set the global template context (used by include() to pass variables)
+ * @param {object} context - Template variables to make available to included files
+ * @private
+ */
+function global_setTemplateContext_(context) {
+  TEMPLATE_CONTEXT_ = context;
+}
+
+/**
+ * Get the global template context
+ * @returns {object|null} - Current template context or null
+ * @private
+ */
+function global_getTemplateContext_() {
+  return TEMPLATE_CONTEXT_;
+}
+
+/**
+ * Include and evaluate an HTML template file with template variable support
+ *
+ * This function is called from HTML templates using <?!= include('filename') ?>
+ * It evaluates the included file as a template, allowing it to use <?= ?> tags
+ * for variable substitution.
+ *
+ * @param {string} filename - The name of the HTML file to include (without .html extension)
+ * @returns {string} - The evaluated HTML content
+ */
 function include(filename) {
-  return HtmlService.createHtmlOutputFromFile(filename).getContent();
+  // Create template from file to enable template tag evaluation
+  const template = HtmlService.createTemplateFromFile(filename);
+
+  // Get the global template context (set by routePage_)
+  const context = global_getTemplateContext_();
+
+  // Pass template variables from context to the included template
+  // This enables <?= variableName ?> tags in included files to work correctly
+  if (context) {
+    Object.keys(context).forEach(function(key) {
+      template[key] = context[key];
+    });
+  }
+
+  // Evaluate the template and return the HTML content
+  return template.evaluate().getContent();
 }
 
 // === Shortlink redirect handler ============================================
