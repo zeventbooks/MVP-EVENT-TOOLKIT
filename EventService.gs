@@ -25,7 +25,7 @@
  * List events with pagination support
  *
  * @param {object} params - Query parameters
- * @param {string} params.brandId - Tenant ID
+ * @param {string} params.brandId - Brand ID
  * @param {string} params.scope - Scope (events, leagues, tournaments)
  * @param {number} [params.limit=100] - Page limit (max 1000)
  * @param {number} [params.offset=0] - Page offset
@@ -35,17 +35,17 @@
 function EventService_list(params) {
   const { brandId, scope, limit, offset, ifNoneMatch } = params || {};
 
-  const tenant = findTenant_(brandId);
-  if (!tenant) return Err(ERR.NOT_FOUND, 'Unknown tenant');
+  const brand = findBrand_(brandId);
+  if (!brand) return Err(ERR.NOT_FOUND, 'Unknown brand');
 
-  const scopeCheck = SecurityMiddleware_assertScopeAllowed(tenant, scope);
+  const scopeCheck = SecurityMiddleware_assertScopeAllowed(brand, scope);
   if (!scopeCheck.ok) return scopeCheck;
 
   // Pagination parameters (default: 100 items per page, max 1000)
   const pageLimit = Math.min(parseInt(limit) || 100, 1000);
   const pageOffset = Math.max(parseInt(offset) || 0, 0);
 
-  const sh = getStoreSheet_(tenant, scope);
+  const sh = getStoreSheet_(brand, scope);
   const lastRow = sh.getLastRow();
 
   // Load and filter rows
@@ -94,7 +94,7 @@ function EventService_list(params) {
  * Get event by ID with generated URLs
  *
  * @param {object} params - Query parameters
- * @param {string} params.brandId - Tenant ID
+ * @param {string} params.brandId - Brand ID
  * @param {string} params.scope - Scope
  * @param {string} params.id - Event ID
  * @param {string} [params.ifNoneMatch] - ETag for conditional request
@@ -107,13 +107,13 @@ function EventService_get(params) {
   const sanitizedId = SecurityMiddleware_sanitizeId(id);
   if (!sanitizedId) return Err(ERR.BAD_INPUT, 'Invalid ID format');
 
-  const tenant = findTenant_(brandId);
-  if (!tenant) return Err(ERR.NOT_FOUND, 'Unknown tenant');
+  const brand = findBrand_(brandId);
+  if (!brand) return Err(ERR.NOT_FOUND, 'Unknown brand');
 
-  const scopeCheck = SecurityMiddleware_assertScopeAllowed(tenant, scope);
+  const scopeCheck = SecurityMiddleware_assertScopeAllowed(brand, scope);
   if (!scopeCheck.ok) return scopeCheck;
 
-  const sh = getStoreSheet_(tenant, scope);
+  const sh = getStoreSheet_(brand, scope);
   const r = sh.getDataRange().getValues().slice(1)
     .find(row => row[0] === sanitizedId && row[1] === brandId);
 
@@ -147,7 +147,7 @@ function EventService_get(params) {
  * Create new event with validation and idempotency
  *
  * @param {object} params - Create parameters
- * @param {string} params.brandId - Tenant ID
+ * @param {string} params.brandId - Brand ID
  * @param {string} params.scope - Scope
  * @param {string} params.templateId - Template ID
  * @param {object} params.data - Event data
@@ -161,10 +161,10 @@ function EventService_create(params) {
 
   const { brandId, scope, templateId, data, idemKey } = params;
 
-  const tenant = findTenant_(brandId);
-  if (!tenant) return Err(ERR.NOT_FOUND, 'Unknown tenant');
+  const brand = findBrand_(brandId);
+  if (!brand) return Err(ERR.NOT_FOUND, 'Unknown brand');
 
-  const scopeCheck = SecurityMiddleware_assertScopeAllowed(tenant, scope);
+  const scopeCheck = SecurityMiddleware_assertScopeAllowed(brand, scope);
   if (!scopeCheck.ok) return scopeCheck;
 
   const tpl = findTemplate_(templateId);
@@ -184,7 +184,7 @@ function EventService_create(params) {
   const sanitizedData = EventService_sanitizeData(data, tpl);
 
   // Create event with collision-safe slug (atomic operation)
-  const createResult = EventService_persistEvent(tenant, scope, templateId, sanitizedData);
+  const createResult = EventService_persistEvent(brand, scope, templateId, sanitizedData);
   if (!createResult.ok) return createResult;
 
   const { id } = createResult.value;
@@ -202,7 +202,7 @@ function EventService_create(params) {
  * Update event data
  *
  * @param {object} params - Update parameters
- * @param {string} params.brandId - Tenant ID
+ * @param {string} params.brandId - Brand ID
  * @param {string} params.scope - Scope
  * @param {string} params.id - Event ID
  * @param {object} params.data - Updated data
@@ -219,13 +219,13 @@ function EventService_update(params) {
   const sanitizedId = SecurityMiddleware_sanitizeId(id);
   if (!sanitizedId) return Err(ERR.BAD_INPUT, 'Invalid ID format');
 
-  const tenant = findTenant_(brandId);
-  if (!tenant) return Err(ERR.NOT_FOUND, 'Unknown tenant');
+  const brand = findBrand_(brandId);
+  if (!brand) return Err(ERR.NOT_FOUND, 'Unknown brand');
 
-  const scopeCheck = SecurityMiddleware_assertScopeAllowed(tenant, scope || 'events');
+  const scopeCheck = SecurityMiddleware_assertScopeAllowed(brand, scope || 'events');
   if (!scopeCheck.ok) return scopeCheck;
 
-  const sh = getStoreSheet_(tenant, scope || 'events');
+  const sh = getStoreSheet_(brand, scope || 'events');
 
   // Use LockService for atomic read-modify-write
   const lock = LockService.getScriptLock();
@@ -327,7 +327,7 @@ function EventService_sanitizeData(data, template) {
 /**
  * Check idempotency key
  *
- * @param {string} brandId - Tenant ID
+ * @param {string} brandId - Brand ID
  * @param {string} scope - Scope
  * @param {string} idemKey - Idempotency key
  * @returns {object} Result envelope (Ok/Err)
@@ -364,14 +364,14 @@ function EventService_checkIdempotency(brandId, scope, idemKey) {
 /**
  * Persist event to spreadsheet with collision-safe slug
  *
- * @param {object} tenant - Tenant configuration
+ * @param {object} brand - Brand configuration
  * @param {string} scope - Scope
  * @param {string} templateId - Template ID
  * @param {object} data - Sanitized event data
  * @returns {object} Result envelope with event ID
  */
-function EventService_persistEvent(tenant, scope, templateId, data) {
-  const sh = getStoreSheet_(tenant, scope);
+function EventService_persistEvent(brand, scope, templateId, data) {
+  const sh = getStoreSheet_(brand, scope);
   const id = Utilities.getUuid();
 
   const lock = LockService.getScriptLock();
@@ -395,7 +395,7 @@ function EventService_persistEvent(tenant, scope, templateId, data) {
 
     sh.appendRow([
       id,
-      tenant.id,
+      brand.id,
       templateId,
       JSON.stringify(data),
       new Date().toISOString(),
@@ -416,7 +416,7 @@ function EventService_persistEvent(tenant, scope, templateId, data) {
  * Generate URLs for event surfaces
  *
  * @param {string} baseUrl - Base service URL
- * @param {string} brandId - Tenant ID
+ * @param {string} brandId - Brand ID
  * @param {string} eventId - Event ID
  * @param {string} scope - Scope
  * @returns {object} URLs for public, poster, display, report

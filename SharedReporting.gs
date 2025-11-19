@@ -20,7 +20,7 @@
  * - Time-based trends
  *
  * @param {Object} params - Query parameters
- * @param {string} params.brandId - Tenant ID
+ * @param {string} params.brandId - Brand ID
  * @param {string} [params.eventId] - Filter by specific event
  * @param {string} [params.sponsorId] - Filter by specific sponsor (for sponsor view)
  * @param {string} [params.startDate] - ISO date string
@@ -321,7 +321,7 @@ function getTopEventSponsorPairs_(analytics, limit = 10) {
  *
  * Creates a formatted report suitable for both Event Managers and Sponsors
  *
- * @param {string} brandId - Tenant ID
+ * @param {string} brandId - Brand ID
  * @param {Object} [filters] - Report filters
  * @returns {Object} Report object with formatted data
  */
@@ -435,7 +435,7 @@ function generateRecommendations_(metrics) {
  *
  * Creates a new sheet with formatted report data
  *
- * @param {string} brandId - Tenant ID
+ * @param {string} brandId - Brand ID
  * @param {Object} [filters] - Report filters
  * @returns {Object} Result with sheet URL
  */
@@ -451,12 +451,12 @@ function api_exportSharedReport(brandId, filters = {}) {
     const report = reportResult.value;
 
     // Get spreadsheet
-    const tenant = findTenant_(brandId);
-    if (!tenant) {
-      return Err(ERR.NOT_FOUND, 'Tenant not found');
+    const brand = findBrand_(brandId);
+    if (!brand) {
+      return Err(ERR.NOT_FOUND, 'Brand not found');
     }
 
-    const ss = SpreadsheetApp.openById(tenant.store.spreadsheetId);
+    const ss = SpreadsheetApp.openById(brand.store.spreadsheetId);
 
     // Create new sheet with timestamp
     const sheetName = `Report_${new Date().toISOString().split('T')[0]}`;

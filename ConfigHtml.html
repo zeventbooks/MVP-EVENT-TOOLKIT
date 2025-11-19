@@ -166,7 +166,7 @@
     .btn-secondary:hover {
       background: #4b5563;
     }
-    .tenant-badge {
+    .brand-badge {
       display: inline-block;
       padding: 0.25rem 0.75rem;
       background: #dbeafe;
@@ -196,7 +196,7 @@
         <span>⚙️</span>
         System Configuration
       </h1>
-      <div class="subtitle">View application settings, tenant configuration, and system information</div>
+      <div class="subtitle">View application settings, brand configuration, and system information</div>
     </div>
 
     <!-- Warning Box -->
@@ -248,31 +248,31 @@
       </div>
     </div>
 
-    <!-- Tenant Configuration Section -->
+    <!-- Brand Configuration Section -->
     <div class="section">
-      <h2>🏢 Tenant Configuration</h2>
+      <h2>🏢 Brand Configuration</h2>
       <p style="color: #6b7280; margin-bottom: 1.5rem;">
-        Multi-tenant architecture allows multiple organizations to use the same platform with isolated data and custom branding.
-        Currently viewing configuration for: <strong><?= appTitle ?></strong><span class="tenant-badge"><?= brandId ?></span>
+        Multi-brand architecture allows multiple organizations to use the same platform with isolated data and custom branding.
+        Currently viewing configuration for: <strong><?= appTitle ?></strong><span class="brand-badge"><?= brandId ?></span>
       </p>
 
       <div class="info-box">
-        <h3>📋 Configured Tenants</h3>
+        <h3>📋 Configured Brands</h3>
         <ul>
-          <li><strong>root</strong> - Zeventbook (Primary tenant)</li>
+          <li><strong>root</strong> - Zeventbook (Primary brand)</li>
           <li><strong>abc</strong> - American Bocce Co. (Parent organization)</li>
           <li><strong>cbc</strong> - Chicago Bocce Club (Child of ABC)</li>
           <li><strong>cbl</strong> - Chicago Bocce League (Child of ABC)</li>
         </ul>
         <p style="margin-top: 1rem; color: #6b7280; font-size: 0.875rem;">
-          Each tenant has its own configuration including hostnames, logos, admin credentials, and allowed scopes.
-          Tenant data is stored in dedicated Google Sheets for data isolation.
+          Each brand has its own configuration including hostnames, logos, admin credentials, and allowed scopes.
+          Brand data is stored in dedicated Google Sheets for data isolation.
         </p>
       </div>
     </div>
 
     <!-- Brand Portfolio Section (Parent Organizations Only) -->
-    <? if (typeof tenant !== 'undefined' && tenant.type === 'parent') { ?>
+    <? if (typeof brand !== 'undefined' && brand.type === 'parent') { ?>
     <div class="section">
       <h2>🔗 Brand Portfolio</h2>
       <p style="color: #6b7280; margin-bottom: 1.5rem;">
@@ -291,7 +291,7 @@
         <ol style="margin: 0.75rem 0 0 1.5rem; color: #1f2937; line-height: 1.8;">
           <li>Open Google Apps Script Editor (Extensions → Apps Script)</li>
           <li>Navigate to <code>Config.gs</code></li>
-          <li>Find the child tenant configuration (e.g., 'cbc' or 'cbl')</li>
+          <li>Find the child brand configuration (e.g., 'cbc' or 'cbl')</li>
           <li>Set <code>includeInPortfolioReports: true</code> or <code>false</code></li>
           <li>Save and deploy to see changes</li>
         </ol>
@@ -420,25 +420,25 @@
         </div>
         <div class="config-item" style="margin-bottom: 1rem;">
           <div>
-            <div class="config-label">TENANTS[].id</div>
-            <div style="font-size: 0.75rem; color: #6b7280; margin-top: 0.25rem;">Unique tenant identifier used in URLs</div>
+            <div class="config-label">BRANDS[].id</div>
+            <div style="font-size: 0.75rem; color: #6b7280; margin-top: 0.25rem;">Unique brand identifier used in URLs</div>
           </div>
         </div>
         <div class="config-item" style="margin-bottom: 1rem;">
           <div>
-            <div class="config-label">TENANTS[].name</div>
-            <div style="font-size: 0.75rem; color: #6b7280; margin-top: 0.25rem;">Display name for the tenant organization</div>
+            <div class="config-label">BRANDS[].name</div>
+            <div style="font-size: 0.75rem; color: #6b7280; margin-top: 0.25rem;">Display name for the brand organization</div>
           </div>
         </div>
         <div class="config-item" style="margin-bottom: 1rem;">
           <div>
-            <div class="config-label">TENANTS[].hostnames</div>
-            <div style="font-size: 0.75rem; color: #6b7280; margin-top: 0.25rem;">Custom domain mapping for tenant-specific URLs</div>
+            <div class="config-label">BRANDS[].hostnames</div>
+            <div style="font-size: 0.75rem; color: #6b7280; margin-top: 0.25rem;">Custom domain mapping for brand-specific URLs</div>
           </div>
         </div>
         <div class="config-item" style="margin-bottom: 1rem;">
           <div>
-            <div class="config-label">TENANTS[].scopesAllowed</div>
+            <div class="config-label">BRANDS[].scopesAllowed</div>
             <div style="font-size: 0.75rem; color: #6b7280; margin-top: 0.25rem;">Allowed scopes: events, leagues, tournaments, sponsors</div>
           </div>
         </div>
@@ -481,7 +481,7 @@
       const relationshipsList = document.getElementById('portfolioRelationshipsList');
       if (!relationshipsList) return;
 
-      // Get tenant configuration (this would come from an API in a real implementation)
+      // Get brand configuration (this would come from an API in a real implementation)
       // For now, show static configuration based on what we know from Config.gs
       const children = [
         { id: 'cbc', name: 'Chicago Bocce Club', includeInPortfolioReports: true },
