@@ -8,7 +8,7 @@
  */
 
 const BASE_URL = process.env.BASE_URL || 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec';
-const TENANT_ID = process.env.TENANT_ID || 'root';
+const BRAND_ID = process.env.BRAND_ID || 'root';
 
 /**
  * Generate a unique timestamp-based event name
@@ -229,7 +229,7 @@ const createEventResponse = (eventData, id = null) => ({
   ok: true,
   value: {
     id: id || generateEventId(),
-    tenantId: TENANT_ID,
+    brandId: BRAND_ID,
     templateId: 'event',
     data: eventData,
     createdAt: new Date().toISOString(),
@@ -252,7 +252,7 @@ const createEventListResponse = (events = []) => ({
   value: {
     items: events.map((event, index) => ({
       id: event.id || generateEventId(),
-      tenantId: TENANT_ID,
+      brandId: BRAND_ID,
       templateId: 'event',
       data: event,
       createdAt: new Date(Date.now() - index * 86400000).toISOString(),
@@ -320,5 +320,5 @@ module.exports = {
 
   // Constants
   BASE_URL,
-  TENANT_ID
+  BRAND_ID
 };

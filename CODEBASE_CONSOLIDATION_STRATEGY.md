@@ -27,23 +27,23 @@ This creates a **code synchronization crisis** where:
 **Current Architecture:**
 - **Backend:** Google Apps Script (1,879 lines across 3 files)
   - Code.gs (1,152 lines) - Monolithic REST API
-  - Config.gs (195 lines) - Multi-tenant configuration
+  - Config.gs (195 lines) - Multi-brand configuration
   - SharedReporting.gs (532 lines) - Analytics engine
 - **Frontend:** 18 HTML pages (Display, Public, Admin, Sponsor, etc.)
 - **Testing:** 45 test files (233+ tests across Jest + Playwright)
 - **Deployment:** 2-stage GitHub Actions pipeline
 
 **Critical Architecture Issues:**
-1. 🔴 **Shared Single Spreadsheet** - All tenants use same spreadsheet (data isolation risk)
+1. 🔴 **Shared Single Spreadsheet** - All brands use same spreadsheet (data isolation risk)
 2. 🔴 **Monolithic Code.gs** - 1,152 lines in single file (maintenance nightmare)
 3. 🟡 **JWT Implementation** - Simplified HMAC without proper crypto library
 4. 🟡 **No Pagination** - List API returns all items at once (scalability issue)
 5. 🟡 **Documentation Clutter** - 62 markdown files in root directory
 
 **Strengths:**
-- ✅ Multi-tenant architecture with proper routing
+- ✅ Multi-brand architecture with proper routing
 - ✅ Unified response envelope pattern (Ok/Err)
-- ✅ Rate limiting (20 req/min per tenant)
+- ✅ Rate limiting (20 req/min per brand)
 - ✅ Schema validation with runtime contracts
 - ✅ ETag caching support
 
@@ -219,7 +219,7 @@ Load Testing:     0% coverage ❌
 │  1. ✅ Unit Tests (Jest)                                 │
 │  2. ✅ Contract Tests (Triangle Framework)               │
 │  3. 🚀 Deploy to Google Apps Script (clasp)             │
-│  4. 📋 Generate tenant URLs (ROOT, ABC, CBC)             │
+│  4. 📋 Generate brand URLs (ROOT, ABC, CBC)             │
 │  5. 📦 Upload deployment artifact                        │
 └─────────────────────────────────────────────────────────┘
                            ⬇️
@@ -581,7 +581,7 @@ diff -u /home/user/MVP-EVENT-TOOLKIT/package.json \
    git commit -m "feat: Consolidate ZEVENTBOOKS backend and frontend
 
    - Merge Code.gs from ZEVENTBOOKS (includes latest business logic)
-   - Merge Config.gs (updated tenant configuration)
+   - Merge Config.gs (updated brand configuration)
    - Merge SharedReporting.gs (enhanced analytics)
    - Update all frontend .html files with latest UX improvements
    - All unit tests passing
@@ -667,10 +667,10 @@ diff -u /home/user/MVP-EVENT-TOOLKIT/package.json \
    - Generate forms
    - Create QR codes
 
-4. **Multi-Tenant Testing**
-   - Test ROOT tenant
-   - Test ABC tenant
-   - Test CBC tenant
+4. **Multi-brand Testing**
+   - Test ROOT brand
+   - Test ABC brand
+   - Test CBC brand
    - Verify data isolation
 
 5. **API Testing**
@@ -683,7 +683,7 @@ diff -u /home/user/MVP-EVENT-TOOLKIT/package.json \
 - ✅ All customer flows work
 - ✅ TV display works correctly
 - ✅ Admin can create/edit events
-- ✅ Multi-tenant isolation verified
+- ✅ Multi-brand isolation verified
 - ✅ No regressions found
 
 ---
@@ -781,7 +781,7 @@ diff -u /home/user/MVP-EVENT-TOOLKIT/package.json \
    - Test production URLs
    - Monitor error logs (clasp logs)
    - Check analytics for anomalies
-   - Verify multi-tenant access
+   - Verify multi-brand access
 
 6. **Create git tag**
    ```bash
@@ -907,8 +907,8 @@ diff -u /home/user/MVP-EVENT-TOOLKIT/package.json \
    - ESLint integrated into Stage 1 deployment workflow
    - Blocks deployment if code quality issues found
    - 80 warnings fixed, 0 errors
-3. ❌ **Fix shared spreadsheet issue** - Per-tenant databases (NOT STARTED)
-   - Requires architectural change to separate spreadsheets per tenant
+3. ❌ **Fix shared spreadsheet issue** - Per-brand databases (NOT STARTED)
+   - Requires architectural change to separate spreadsheets per brand
    - Lower priority - current single spreadsheet works for MVP
 
 ### P1 - High (Week 3-4)

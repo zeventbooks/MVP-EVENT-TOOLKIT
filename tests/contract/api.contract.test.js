@@ -89,7 +89,7 @@ describe('API Contract Tests', () => {
         etag: 'xyz789',
         value: {
           id: 'event-1',
-          tenantId: 'root',
+          brandId: 'root',
           templateId: 'event',
           data: {
             name: 'Test Event',

@@ -10,7 +10,7 @@ import { getCurrentEnvironment } from '../../config/environments.js';
 test.describe('Sponsors CRUD APIs', () => {
   let api;
   let adminKey;
-  const tenant = 'root';
+  const brand = 'root';
   const createdSponsorIds = []; // Track for cleanup
 
   test.beforeEach(async ({ request }) => {
@@ -27,7 +27,7 @@ test.describe('Sponsors CRUD APIs', () => {
     // Clean up created sponsors
     for (const sponsorId of createdSponsorIds) {
       try {
-        await api.deleteSponsor(tenant, sponsorId, adminKey);
+        await api.deleteSponsor(brand, sponsorId, adminKey);
       } catch (error) {
         console.warn(`Failed to delete sponsor ${sponsorId}:`, error.message);
       }
@@ -43,7 +43,7 @@ test.describe('Sponsors CRUD APIs', () => {
         .withTier('platinum')
         .build();
 
-      const response = await api.createSponsor(tenant, sponsorData, adminKey);
+      const response = await api.createSponsor(brand, sponsorData, adminKey);
       const data = await response.json();
 
       expect(response.ok()).toBe(true);
@@ -58,7 +58,7 @@ test.describe('Sponsors CRUD APIs', () => {
         name: 'Minimal Sponsor'
       };
 
-      const response = await api.createSponsor(tenant, sponsorData, adminKey);
+      const response = await api.createSponsor(brand, sponsorData, adminKey);
       const data = await response.json();
 
       expect(response.ok()).toBe(true);
@@ -81,7 +81,7 @@ test.describe('Sponsors CRUD APIs', () => {
         endDate: '2025-12-31'
       });
 
-      const response = await api.createSponsor(tenant, sponsorData, adminKey);
+      const response = await api.createSponsor(brand, sponsorData, adminKey);
       const data = await response.json();
 
       expect(response.ok()).toBe(true);
@@ -96,7 +96,7 @@ test.describe('Sponsors CRUD APIs', () => {
       };
 
       const response = await api.post('?action=create', {
-        tenantId: tenant,
+        brandId: brand,
         scope: 'sponsors',
         templateId: 'sponsor',
         data: sponsorData
@@ -116,13 +116,13 @@ test.describe('Sponsors CRUD APIs', () => {
     let testSponsorId;
 
     test.beforeEach(async () => {
-      const { sponsorId } = await api.createTestSponsor(tenant, adminKey);
+      const { sponsorId } = await api.createTestSponsor(brand, adminKey);
       testSponsorId = sponsorId;
       createdSponsorIds.push(testSponsorId);
     });
 
     test('retrieves sponsor by ID', async () => {
-      const response = await api.getSponsor(tenant, testSponsorId);
+      const response = await api.getSponsor(brand, testSponsorId);
       const data = await response.json();
 
       expect(response.ok()).toBe(true);
@@ -133,7 +133,7 @@ test.describe('Sponsors CRUD APIs', () => {
 
     test('returns error for non-existent sponsor', async () => {
       const fakeId = 'non-existent-sponsor-12345';
-      const response = await api.getSponsor(tenant, fakeId);
+      const response = await api.getSponsor(brand, fakeId);
 
       if (response.status() === 404) {
         expect(response.ok()).toBe(false);
@@ -148,7 +148,7 @@ test.describe('Sponsors CRUD APIs', () => {
     test.beforeEach(async () => {
       // Create 3 test sponsors
       for (let i = 0; i < 3; i++) {
-        const { sponsorId } = await api.createTestSponsor(tenant, adminKey, {
+        const { sponsorId } = await api.createTestSponsor(brand, adminKey, {
           name: `List Test Sponsor ${i + 1}`,
           tier: ['gold', 'silver', 'bronze'][i]
         });
@@ -156,8 +156,8 @@ test.describe('Sponsors CRUD APIs', () => {
       }
     });
 
-    test('lists all sponsors for tenant', async () => {
-      const response = await api.listSponsors(tenant);
+    test('lists all sponsors for brand', async () => {
+      const response = await api.listSponsors(brand);
       const data = await response.json();
 
       expect(response.ok()).toBe(true);
@@ -167,7 +167,7 @@ test.describe('Sponsors CRUD APIs', () => {
     });
 
     test('returns sponsors with correct structure', async () => {
-      const response = await api.listSponsors(tenant);
+      const response = await api.listSponsors(brand);
       const data = await response.json();
 
       expect(data.value.length).toBeGreaterThan(0);
@@ -182,7 +182,7 @@ test.describe('Sponsors CRUD APIs', () => {
     let testSponsorId;
 
     test.beforeEach(async () => {
-      const { sponsorId } = await api.createTestSponsor(tenant, adminKey, {
+      const { sponsorId } = await api.createTestSponsor(brand, adminKey, {
         name: 'Original Sponsor',
         tier: 'silver'
       });
@@ -196,14 +196,14 @@ test.describe('Sponsors CRUD APIs', () => {
         tier: 'gold'
       };
 
-      const response = await api.updateSponsor(tenant, testSponsorId, updateData, adminKey);
+      const response = await api.updateSponsor(brand, testSponsorId, updateData, adminKey);
       const data = await response.json();
 
       expect(response.ok()).toBe(true);
       expect(data.ok).toBe(true);
 
       // Verify update
-      const getResponse = await api.getSponsor(tenant, testSponsorId);
+      const getResponse = await api.getSponsor(brand, testSponsorId);
       const getData = await getResponse.json();
 
       expect(getData.value.name).toBe('Updated Sponsor');
@@ -214,7 +214,7 @@ test.describe('Sponsors CRUD APIs', () => {
       const updateData = { name: 'Unauthorized Update' };
 
       const response = await api.post('?action=update', {
-        tenantId: tenant,
+        brandId: brand,
         scope: 'sponsors',
         id: testSponsorId,
         data: updateData
@@ -234,19 +234,19 @@ test.describe('Sponsors CRUD APIs', () => {
     let testSponsorId;
 
     test.beforeEach(async () => {
-      const { sponsorId } = await api.createTestSponsor(tenant, adminKey);
+      const { sponsorId } = await api.createTestSponsor(brand, adminKey);
       testSponsorId = sponsorId;
     });
 
     test('deletes sponsor successfully', async () => {
-      const response = await api.deleteSponsor(tenant, testSponsorId, adminKey);
+      const response = await api.deleteSponsor(brand, testSponsorId, adminKey);
       const data = await response.json();
 
       expect(response.ok()).toBe(true);
       expect(data.ok).toBe(true);
 
       // Verify deletion
-      const getResponse = await api.getSponsor(tenant, testSponsorId);
+      const getResponse = await api.getSponsor(brand, testSponsorId);
 
       if (getResponse.status() === 404) {
         expect(getResponse.ok()).toBe(false);
@@ -258,7 +258,7 @@ test.describe('Sponsors CRUD APIs', () => {
 
     test('requires authentication', async () => {
       const response = await api.post('?action=delete', {
-        tenantId: tenant,
+        brandId: brand,
         scope: 'sponsors',
         id: testSponsorId
         // Missing adminKey
@@ -284,21 +284,21 @@ test.describe('Sponsors CRUD APIs', () => {
         .withWebsite('https://lifecycle.example.com')
         .build();
 
-      const createResponse = await api.createSponsor(tenant, sponsorData, adminKey);
+      const createResponse = await api.createSponsor(brand, sponsorData, adminKey);
       const createData = await createResponse.json();
 
       expect(createData.ok).toBe(true);
       const sponsorId = createData.value.id;
 
       // 2. READ
-      const getResponse = await api.getSponsor(tenant, sponsorId);
+      const getResponse = await api.getSponsor(brand, sponsorId);
       const getData = await getResponse.json();
 
       expect(getData.ok).toBe(true);
       expect(getData.value.name).toBe('Lifecycle Sponsor');
 
       // 3. UPDATE
-      const updateResponse = await api.updateSponsor(tenant, sponsorId, {
+      const updateResponse = await api.updateSponsor(brand, sponsorId, {
         tier: 'gold'
       }, adminKey);
       const updateData = await updateResponse.json();
@@ -306,19 +306,19 @@ test.describe('Sponsors CRUD APIs', () => {
       expect(updateData.ok).toBe(true);
 
       // 4. READ (verify update)
-      const getResponse2 = await api.getSponsor(tenant, sponsorId);
+      const getResponse2 = await api.getSponsor(brand, sponsorId);
       const getData2 = await getResponse2.json();
 
       expect(getData2.value.tier).toBe('gold');
 
       // 5. DELETE
-      const deleteResponse = await api.deleteSponsor(tenant, sponsorId, adminKey);
+      const deleteResponse = await api.deleteSponsor(brand, sponsorId, adminKey);
       const deleteData = await deleteResponse.json();
 
       expect(deleteData.ok).toBe(true);
 
       // 6. READ (verify deletion)
-      const getResponse3 = await api.getSponsor(tenant, sponsorId);
+      const getResponse3 = await api.getSponsor(brand, sponsorId);
 
       if (getResponse3.status() === 404) {
         expect(getResponse3.ok()).toBe(false);

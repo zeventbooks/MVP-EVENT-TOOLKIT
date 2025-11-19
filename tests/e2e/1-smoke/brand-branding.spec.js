@@ -1,8 +1,8 @@
 /**
- * SMOKE TESTS - Tenant Branding & Logo Verification
+ * SMOKE TESTS - Brand Verification & Logo Verification
  *
- * Purpose: Verify tenant-specific branding and logos load correctly
- * Coverage: Logo visibility, tenant identification, multi-tenant isolation
+ * Purpose: Verify brand-specific branding and logos load correctly
+ * Coverage: Logo visibility, brand identification, multi-brand isolation
  */
 
 const { test, expect } = require('@playwright/test');
@@ -11,16 +11,16 @@ const { test, expect } = require('@playwright/test');
 // Set via: export GOOGLE_SCRIPT_URL="https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec"
 const BASE_URL = process.env.BASE_URL || process.env.GOOGLE_SCRIPT_URL || 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec';
 
-test.describe('🎨 SMOKE: Tenant Branding', () => {
+test.describe('🎨 SMOKE: Brand Verification', () => {
 
-  test('Admin page loads tenant logo for root tenant', async ({ page }) => {
+  test('Admin page loads brand logo for root brand', async ({ page }) => {
     await page.goto(`${BASE_URL}?page=admin&brand=root`);
 
     // Page should load successfully
-    expect(page.url()).toContain('tenant=root');
+    expect(page.url()).toContain('brand=root');
 
     // Check for logo element (adjust selector based on actual implementation)
-    const logo = page.locator('img[alt*="logo"], img.logo, .tenant-logo img, header img').first();
+    const logo = page.locator('img[alt*="logo"], img.logo, .brand-logo img, header img').first();
 
     // Verify logo is visible (if implemented)
     const logoCount = await logo.count();
@@ -32,18 +32,18 @@ test.describe('🎨 SMOKE: Tenant Branding', () => {
       expect(logoSrc).toBeTruthy();
       expect(logoSrc.length).toBeGreaterThan(0);
     } else {
-      console.log('⚠️ No tenant logo found for root tenant - may not be implemented yet');
+      console.log('⚠️ No brand logo found for root brand - may not be implemented yet');
     }
   });
 
-  test('Admin page loads tenant logo for abc tenant', async ({ page }) => {
+  test('Admin page loads brand logo for abc brand', async ({ page }) => {
     await page.goto(`${BASE_URL}?page=admin&brand=abc`);
 
     // Page should load successfully
-    expect(page.url()).toContain('tenant=abc');
+    expect(page.url()).toContain('brand=abc');
 
     // Check for logo element
-    const logo = page.locator('img[alt*="logo"], img.logo, .tenant-logo img, header img').first();
+    const logo = page.locator('img[alt*="logo"], img.logo, .brand-logo img, header img').first();
 
     // Verify logo is visible (if implemented)
     const logoCount = await logo.count();
@@ -61,33 +61,33 @@ test.describe('🎨 SMOKE: Tenant Branding', () => {
       });
       expect(logoLoaded).toBe(true);
     } else {
-      console.log('⚠️ No tenant logo found for abc tenant - may not be implemented yet');
+      console.log('⚠️ No brand logo found for abc brand - may not be implemented yet');
     }
   });
 
-  test('Admin page shows correct tenant identification for abc', async ({ page }) => {
+  test('Admin page shows correct brand identification for abc', async ({ page }) => {
     await page.goto(`${BASE_URL}?page=admin&brand=abc`);
 
     // Check URL parameter is correct
-    expect(page.url()).toContain('tenant=abc');
+    expect(page.url()).toContain('brand=abc');
 
     // Page should render successfully
     await expect(page.locator('h2:has-text("Create Event")')).toBeVisible();
 
-    // Check for tenant name display (if implemented)
-    const tenantName = page.locator('text=/abc|ABC/i').first();
-    const tenantCount = await tenantName.count();
+    // Check for brand name display (if implemented)
+    const brandName = page.locator('text=/abc|ABC/i').first();
+    const brandCount = await brandName.count();
 
-    if (tenantCount > 0) {
-      console.log('✓ Tenant identifier found on page');
+    if (brandCount > 0) {
+      console.log('✓ Brand identifier found on page');
     }
   });
 
-  test('Public page loads tenant logo for abc tenant', async ({ page }) => {
+  test('Public page loads brand logo for abc brand', async ({ page }) => {
     await page.goto(`${BASE_URL}?p=events&brand=abc`);
 
     // Check for logo element
-    const logo = page.locator('img[alt*="logo"], img.logo, .tenant-logo img, header img').first();
+    const logo = page.locator('img[alt*="logo"], img.logo, .brand-logo img, header img').first();
 
     // Verify logo is visible (if implemented)
     const logoCount = await logo.count();
@@ -102,11 +102,11 @@ test.describe('🎨 SMOKE: Tenant Branding', () => {
     }
   });
 
-  test('Display page loads tenant branding for abc tenant', async ({ page }) => {
+  test('Display page loads brand branding for abc brand', async ({ page }) => {
     await page.goto(`${BASE_URL}?page=display&brand=abc`);
 
     // Check for logo or branding element
-    const brandingElements = page.locator('img[alt*="logo"], img.logo, .tenant-logo img, .branding img, header img');
+    const brandingElements = page.locator('img[alt*="logo"], img.logo, .brand-logo img, .branding img, header img');
 
     const count = await brandingElements.count();
     if (count > 0) {
@@ -121,20 +121,20 @@ test.describe('🎨 SMOKE: Tenant Branding', () => {
     }
   });
 
-  test('Different tenants show different branding (isolation)', async ({ page }) => {
-    // Load root tenant admin page
+  test('Different brands show different branding (isolation)', async ({ page }) => {
+    // Load root brand admin page
     await page.goto(`${BASE_URL}?page=admin&brand=root`);
     const rootUrl = page.url();
-    expect(rootUrl).toContain('tenant=root');
+    expect(rootUrl).toContain('brand=root');
 
-    // Load abc tenant admin page
+    // Load abc brand admin page
     await page.goto(`${BASE_URL}?page=admin&brand=abc`);
     const abcUrl = page.url();
-    expect(abcUrl).toContain('tenant=abc');
+    expect(abcUrl).toContain('brand=abc');
 
-    // Verify tenants are isolated
-    expect(abcUrl).not.toContain('tenant=root');
-    expect(rootUrl).not.toContain('tenant=abc');
+    // Verify brands are isolated
+    expect(abcUrl).not.toContain('brand=root');
+    expect(rootUrl).not.toContain('brand=abc');
 
     // Both pages should load successfully
     await expect(page.locator('h2:has-text("Create Event")')).toBeVisible();
@@ -143,12 +143,12 @@ test.describe('🎨 SMOKE: Tenant Branding', () => {
 
 test.describe('🎨 SMOKE: Logo Performance', () => {
 
-  test('Tenant logo loads within acceptable time', async ({ page }) => {
+  test('Brand logo loads within acceptable time', async ({ page }) => {
     const startTime = Date.now();
 
     await page.goto(`${BASE_URL}?page=admin&brand=abc`);
 
-    const logo = page.locator('img[alt*="logo"], img.logo, .tenant-logo img, header img').first();
+    const logo = page.locator('img[alt*="logo"], img.logo, .brand-logo img, header img').first();
     const logoCount = await logo.count();
 
     if (logoCount > 0) {
@@ -166,7 +166,7 @@ test.describe('🎨 SMOKE: Logo Performance', () => {
   test('Logo image has valid dimensions', async ({ page }) => {
     await page.goto(`${BASE_URL}?page=admin&brand=abc`);
 
-    const logo = page.locator('img[alt*="logo"], img.logo, .tenant-logo img, header img').first();
+    const logo = page.locator('img[alt*="logo"], img.logo, .brand-logo img, header img').first();
     const logoCount = await logo.count();
 
     if (logoCount > 0) {

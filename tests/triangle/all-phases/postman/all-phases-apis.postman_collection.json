@@ -17,7 +17,7 @@
       "type": "string"
     },
     {
-      "key": "tenant_id",
+      "key": "brand_id",
       "value": "root",
       "type": "string"
     }
@@ -84,9 +84,9 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test('Response includes tenant info', function () {",
+                  "pm.test('Response includes brand info', function () {",
                   "    var jsonData = pm.response.json();",
-                  "    pm.expect(jsonData.value).to.have.property('tenant');",
+                  "    pm.expect(jsonData.value).to.have.property('brand');",
                   "});",
                   "",
                   "pm.test('Response includes templates', function () {",
@@ -101,7 +101,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}?action=config&brand={{tenant_id}}&scope=events",
+              "raw": "{{base_url}}?action=config&brand={{brand_id}}&scope=events",
               "host": ["{{base_url}}"],
               "query": [
                 {
@@ -110,7 +110,7 @@
                 },
                 {
                   "key": "brand",
-                  "value": "{{tenant_id}}"
+                  "value": "{{brand_id}}"
                 },
                 {
                   "key": "scope",
@@ -118,7 +118,7 @@
                 }
               ]
             },
-            "description": "Get tenant configuration and available templates"
+            "description": "Get brand configuration and available templates"
           }
         }
       ]
@@ -132,7 +132,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}?action=diagnostics&brand={{tenant_id}}",
+              "raw": "{{base_url}}?action=diagnostics&brand={{brand_id}}",
               "host": ["{{base_url}}"],
               "query": [
                 {
@@ -141,7 +141,7 @@
                 },
                 {
                   "key": "brand",
-                  "value": "{{tenant_id}}"
+                  "value": "{{brand_id}}"
                 }
               ]
             },

@@ -32,7 +32,7 @@ describe('🔺 TRIANGLE [DURING EVENT]: Event Details API Contract', () => {
         etag: 'xyz789',
         value: {
           id: 'event-1',
-          tenantId: 'root',
+          brandId: 'root',
           templateId: 'event',
           data: {
             name: 'Test Event',
@@ -62,7 +62,7 @@ describe('🔺 TRIANGLE [DURING EVENT]: Event Details API Contract', () => {
         etag: 'xyz789',
         value: {
           id: 'event-1',
-          tenantId: 'root',
+          brandId: 'root',
           templateId: 'event',
           data: { name: 'Test Event' },
           createdAt: '2025-11-10T12:00:00.000Z',
@@ -72,7 +72,7 @@ describe('🔺 TRIANGLE [DURING EVENT]: Event Details API Contract', () => {
       };
 
       expect(mockResponse.value).toHaveProperty('id');
-      expect(mockResponse.value).toHaveProperty('tenantId');
+      expect(mockResponse.value).toHaveProperty('brandId');
       expect(mockResponse.value).toHaveProperty('templateId');
       expect(mockResponse.value).toHaveProperty('createdAt');
       expect(mockResponse.value).toHaveProperty('slug');

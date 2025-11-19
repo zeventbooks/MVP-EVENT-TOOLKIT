@@ -71,8 +71,8 @@
 - ✅ Analytics logging (impressions, clicks, dwell time)
 - ✅ Report generation (aggregated by surface, sponsor, token)
 - ✅ Shortlink redirect system (?p=r&t=<token>)
-- ✅ Multi-tenant support (root, ABC, CBC, CBL)
-- ✅ Rate limiting (20 req/min per tenant)
+- ✅ Multi-brand support (root, ABC, CBC, CBL)
+- ✅ Rate limiting (20 req/min per brand)
 - ✅ Idempotency for writes
 - ✅ DIAG logging with automatic rotation
 
@@ -126,7 +126,7 @@
 
 ### Configuration (Config.gs)
 
-**Tenants:**
+**Brands:**
 - `root` - Zeventbook (zeventbook.io)
 - `abc` - American Bocce Co.
 - `cbc` - Chicago Bocce Club
@@ -144,7 +144,7 @@
 2. **Enable manifest:** Project Settings → Show "appsscript.json" manifest
 3. Add each file (exact names required):
    - `Code.gs` (server backend)
-   - `Config.gs` (tenant config)
+   - `Config.gs` (brand config)
    - `Admin.html`, `Display.html`, `Public.html`, `Poster.html`
    - `Styles.html`, `NUSDK.html`, `Header.html`, `DesignAdapter.html`, `Test.html`
    - `appsscript.json`
@@ -349,7 +349,7 @@ In Admin:
 
 - [ ] Changed all `adminSecret` values in Config.gs
 - [ ] Tested admin auth (wrong key should fail)
-- [ ] Rate limiting works (20 req/min per tenant)
+- [ ] Rate limiting works (20 req/min per brand)
 - [ ] Input sanitization active (XSS protection)
 - [ ] HTTPS forced on all domains
 

@@ -154,7 +154,7 @@ jobs:
           echo "- \`tests/unit/validation.test.js\`" >> $GITHUB_STEP_SUMMARY
           echo "- \`tests/unit/rate-limiting.test.js\`" >> $GITHUB_STEP_SUMMARY
           echo "- \`tests/unit/forms.test.js\`" >> $GITHUB_STEP_SUMMARY
-          echo "- \`tests/unit/multi-tenant.test.js\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`tests/unit/multi-brand.test.js\`" >> $GITHUB_STEP_SUMMARY
           echo "- \`tests/unit/concurrency.test.js\`" >> $GITHUB_STEP_SUMMARY
           echo "- \`tests/unit/error-handling.test.js\`" >> $GITHUB_STEP_SUMMARY
           echo "- \`tests/unit/config.test.js\` ✨ NEW" >> $GITHUB_STEP_SUMMARY
@@ -217,9 +217,9 @@ jobs:
           echo "- ✅ SQL Injection Prevention (input sanitization)" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ CSRF Protection (token generation/validation)" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ JWT Security (algorithm verification, nbf claim)" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Rate Limiting (per-tenant limits)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Rate Limiting (per-brand limits)" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ URL Validation (protocol checking, private IP blocking)" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ Admin Secret Management (Config.gs)" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Tenant Isolation (findTenantByHost_ security)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Brand Isolation (findBrandByHost_ security)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Security Coverage:** All critical security functions tested" >> $GITHUB_STEP_SUMMARY

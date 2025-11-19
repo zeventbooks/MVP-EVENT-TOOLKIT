@@ -8,10 +8,10 @@
 
 ## Executive Summary
 
-The MVP-EVENT-TOOLKIT is a multi-tenant event management system built on Google Apps Script (serverless) with a Google Sheets backend. It implements a layered architecture with clear separation between configuration, backend logic, and frontend presentation layers.
+The MVP-EVENT-TOOLKIT is a multi-brand event management system built on Google Apps Script (serverless) with a Google Sheets backend. It implements a layered architecture with clear separation between configuration, backend logic, and frontend presentation layers.
 
 ### Key Architectural Characteristics
-- **Multi-Tenant:** Isolated tenants with separate admin secrets
+- **Multi-brand:** Isolated brands with separate admin secrets
 - **Serverless:** Google Apps Script backend with no external servers
 - **Spreadsheet-Backed:** Google Sheets as primary database
 - **Event-Driven:** Analytics and impression tracking throughout
@@ -26,12 +26,12 @@ The MVP-EVENT-TOOLKIT is a multi-tenant event management system built on Google 
 
 **File Location:** `/home/user/MVP-EVENT-TOOLKIT/Config.gs`
 
-#### Tenant Configuration Model
+#### Brand Configuration Model
 
 ```javascript
-TENANTS = [
+BRANDS = [
   {
-    id: 'root',                           // Unique tenant identifier
+    id: 'root',                           // Unique brand identifier
     name: 'Zeventbook',                   // Display name
     hostnames: ['zeventbook.io', ...],    // Hostname routing
     logoUrl: '/My files/...',             // Branding
@@ -71,7 +71,7 @@ TENANTS = [
 ├─────────────────────────────────────────────────────────────┤
 │ 1. doGet(e) receives request with:                          │
 │    - page parameter (admin/public/display/poster/report)    │
-│    - tenant identification (hostname, query param)           │
+│    - brand identification (hostname, query param)           │
 │    - scope parameter (events, sponsors, etc)                │
 └──────────────┬──────────────────────────────────────────────┘
                │
@@ -79,7 +79,7 @@ TENANTS = [
 ┌─────────────────────────────────────────────────────────────┐
 │ CONFIGURATION LOOKUP                                        │
 ├─────────────────────────────────────────────────────────────┤
-│ findTenantByHost_() → findTenant_()                        │
+│ findBrandByHost_() → findBrand_()                        │
 │ Resolves: logoUrl, adminSecret, scopesAllowed             │
 │ Validates: scope in scopesAllowed[]                        │
 └──────────────┬──────────────────────────────────────────────┘
@@ -89,8 +89,8 @@ TENANTS = [
 │ TEMPLATE INSTANTIATION                                      │
 ├─────────────────────────────────────────────────────────────┤
 │ tpl = HtmlService.createTemplateFromFile(pageFile_())      │
-│ tpl.appTitle = "${tenant.name} · ${scope}"                │
-│ tpl.brandId = tenant.id                                  │
+│ tpl.appTitle = "${brand.name} · ${scope}"                │
+│ tpl.brandId = brand.id                                  │
 │ tpl.scope = scope                                          │
 │ tpl.execUrl = ScriptApp.getService().getUrl()            │
 │ tpl.ZEB = ZEB (build info)                                │
@@ -101,7 +101,7 @@ TENANTS = [
 │ FRONTEND INITIALIZATION                                     │
 ├─────────────────────────────────────────────────────────────┤
 │ HTML template receives:                                      │
-│ - const TENANT = '<?= brandId ?>'                         │
+│ - const BRAND = '<?= brandId ?>'                         │
 │ - const SCOPE = '<?= scope ?>'                             │
 │ - const EXEC_URL = '<?= execUrl ?>'                        │
 │ - const appTitle = '<?= appTitle ?>'                       │
@@ -113,7 +113,7 @@ TENANTS = [
 │ RPC CALLS WITH CONFIG                                       │
 ├─────────────────────────────────────────────────────────────┤
 │ NU.rpc('api_list', {                                        │
-│   brandId: TENANT,        ← From config                   │
+│   brandId: BRAND,        ← From config                   │
 │   scope: SCOPE             ← From config                   │
 │ })                                                          │
 └─────────────────────────────────────────────────────────────┘
@@ -123,7 +123,7 @@ TENANTS = [
 
 **Current Implementation:**
 - **No explicit environment handling** - Single config for all environments
-- Tenant system provides isolation, not environment separation
+- Brand system provides isolation, not environment separation
 - Build ID (`ZEB.BUILD_ID`) is hardcoded version identifier
 
 **Hardcoded Values That Should Be Configurable:**
@@ -132,7 +132,7 @@ TENANTS = [
 |-------|----------|----------|-----------------|
 | `DIAG_MAX = 3000` | Code.gs:54 | Low | Move to Config.gs |
 | `DIAG_PER_DAY = 800` | Code.gs:54 | Low | Move to Config.gs |
-| `RATE_MAX_PER_MIN = 20` | Code.gs:476 | Medium | Make tenant-specific |
+| `RATE_MAX_PER_MIN = 20` | Code.gs:476 | Medium | Make brand-specific |
 | Log retention logic | Code.gs:73-81 | Medium | Extract to config |
 | Video embed logic | Public.html:377-394 | Low | Centralize providers |
 | Restricted embeds | Display.html:226 | Low | Config-driven allowlist |
@@ -157,7 +157,7 @@ DB    Multiple   Impression  Report
 **Event Storage (Spreadsheet Row)**
 ```
 Column 1: id           (UUID)
-Column 2: brandId     (Reference to Config.TENANTS[].id)
+Column 2: brandId     (Reference to Config.BRANDS[].id)
 Column 3: templateId   ('event')
 Column 4: dataJSON     (Serialized event fields)
 Column 5: createdAt    (ISO timestamp)
@@ -467,7 +467,7 @@ id: (typeof crypto !== 'undefined' && crypto.randomUUID)
 |----------|---------|------|-------|--------|-----------|
 | `api_status()` | Health check | No | - | {build, contract, time, db} | DiagnosticsDashboard.html |
 | `api_healthCheck()` | Health ping | No | - | {checks:[]} | Custom integrations |
-| `api_getConfig({brandId, scope})` | Get config/templates | No | brandId, scope | {tenants[], templates[]} | Public.html (init) |
+| `api_getConfig({brandId, scope})` | Get config/templates | No | brandId, scope | {brands[], templates[]} | Public.html (init) |
 | `api_list({brandId, scope})` | List events/sponsors | No | brandId, scope, etag | {items:[]} | Public.html, Admin.html |
 | `api_get({brandId, scope, id})` | Get single event | No | brandId, scope, id, etag | {id, data, links} | Admin.html, Display.html |
 | `api_create({brandId, scope, templateId, data, adminKey})` | Create event | **Yes** | data fields | {id, links} | Admin.html, Diagnostics.html |
@@ -613,10 +613,10 @@ doGet(e) {
   const pageParam = e.parameter.page || 'public'
   const actionParam = e.parameter.action || ''
   const hostHeader = e.headers.host
-  const tenant = findTenantByHost_(hostHeader) || findTenant_('root')
+  const brand = findBrandByHost_(hostHeader) || findBrand_('root')
   
   // 2. Route to REST API if action specified
-  if (actionParam) return handleRestApiGet_(e, actionParam, tenant)
+  if (actionParam) return handleRestApiGet_(e, actionParam, brand)
   
   // 3. Handle special pages (docs, status)
   if (pageParam === 'docs') return ApiDocs.html
@@ -624,8 +624,8 @@ doGet(e) {
   
   // 4. Render HTML page with template
   const tpl = HtmlService.createTemplateFromFile(pageFile_(pageParam))
-  tpl.appTitle = `${tenant.name} · ${scope}`
-  tpl.brandId = tenant.id
+  tpl.appTitle = `${brand.name} · ${scope}`
+  tpl.brandId = brand.id
   return tpl.evaluate()
 }
 ```
@@ -638,7 +638,7 @@ document.getElementById('createForm').addEventListener('submit', async (e) => {
   e.preventDefault()
   const data = { name: ..., dateISO: ... }
   const res = await NU.rpc('api_create', {
-    brandId: TENANT,
+    brandId: BRAND,
     scope: SCOPE,
     templateId: 'event',
     adminKey: getAdminKey(),
@@ -722,8 +722,8 @@ if (logBatch.length >= 4) flush() // OR when 4 items
 **Issue #2: Admin Key Prompt Race Condition**
 ```javascript
 function getAdminKey() {
-  const k = sessionStorage.getItem('ADMIN_KEY:' + TENANT)
-  || prompt('Admin key for ' + TENANT)
+  const k = sessionStorage.getItem('ADMIN_KEY:' + BRAND)
+  || prompt('Admin key for ' + BRAND)
   // If user opens multiple tabs, prompts conflict
 }
 ```
@@ -766,7 +766,7 @@ DesignAdapter.html
 └─ Theme adaptation (stub, 1 line)
 
 Header.html (Template)
-├─ Logo from tenant config
+├─ Logo from brand config
 ├─ App title from template
 └─ Build info badge
 
@@ -813,7 +813,7 @@ Config.gs → Code.gs → HTML pages
 **Issue: Header.html requires template context**
 ```html
 <!-- Header.html line 4 -->
-<img src="<?= findTenant_(brandId)?.logoUrl || ... ?>"
+<img src="<?= findBrand_(brandId)?.logoUrl || ... ?>"
 
 <!-- This requires brandId to be set by parent template -->
 ```
@@ -840,9 +840,9 @@ google.script.run
 |------|-------|---------|-----------------|
 | Config.gs:16-44 | Logo URLs | Fixed paths | Use env var with fallback |
 | Config.gs:17,26,35,44 | Admin secrets | Plaintext | Use Google Secret Manager |
-| Code.gs:54 | DIAG_MAX = 3000 | Hardcoded | Config + per-tenant |
-| Code.gs:54 | DIAG_PER_DAY = 800 | Hardcoded | Config + per-tenant |
-| Code.gs:476 | RATE_MAX_PER_MIN = 20 | Global | Per-tenant, per-scope |
+| Code.gs:54 | DIAG_MAX = 3000 | Hardcoded | Config + per-brand |
+| Code.gs:54 | DIAG_PER_DAY = 800 | Hardcoded | Config + per-brand |
+| Code.gs:476 | RATE_MAX_PER_MIN = 20 | Global | Per-brand, per-scope |
 | Code.gs:512 | sanitizeInput_ max 1000 | Hardcoded | Config-driven |
 | Code.gs:625 | Slug collision counter | Start at 2 | Config-driven starting |
 | Public.html:377 | YouTube/Vimeo patterns | Hardcoded | Config-driven embed providers |
@@ -991,7 +991,7 @@ Code.gs (routing)
         │                            │
         │  ┌──────────────────────┐  │
         │  │ Config.gs (7KB)      │  │
-        │  │ - TENANTS[]          │  │
+        │  │ - BRANDS[]          │  │
         │  │ - TEMPLATES[]        │  │
         │  │ - FORM_TEMPLATES[]   │  │
         │  └──────────────────────┘  │
@@ -1076,7 +1076,7 @@ USER (Admin)
     │ 2. Check idempotency cache             │
     │ 3. Sanitize inputs                     │
     │ 4. Generate UUID & slug                │
-    │ 5. Get EVENTS sheet from tenant store  │
+    │ 5. Get EVENTS sheet from brand store  │
     │ 6. appendRow([id, brandId, ...])      │
     │ 7. Generate links (public/poster/etc)  │
     │ 8. diag_('info', ...)                  │
@@ -1167,7 +1167,7 @@ USER (Admin)
 ┌──────────────────────────────────────────────────────────┐
 │ Config.gs (Compile Time)                                 │
 │ ┌───────────────────────────────────────────────────────┤
-│ │ const TENANTS = [                                      │
+│ │ const BRANDS = [                                      │
 │ │   { id: 'root', name: 'Zeventbook',                   │
 │ │     adminSecret, store.spreadsheetId,                │
 │ │     scopesAllowed: ['events', 'sponsors'] }           │
@@ -1186,13 +1186,13 @@ USER (Admin)
         ┌──────────▼──────────────┐
         │ User Request            │
         │ GET /?page=admin&       │
-        │     tenant=root&        │
+        │     brand=root&        │
         │     scope=events        │
         └──────────────┬──────────┘
                        │
         ┌──────────────▼──────────────┐
         │ doGet(e) in Code.gs         │
-        │ 1. Find tenant by hostname  │
+        │ 1. Find brand by hostname  │
         │ 2. Validate scope allowed   │
         │ 3. Select page file:        │
         │    pageFile_('admin')       │
@@ -1217,7 +1217,7 @@ USER (Admin)
                        │
         ┌──────────────▼──────────────────┐
         │ Admin.html receives:            │
-        │ const TENANT = 'root'           │
+        │ const BRAND = 'root'           │
         │ const SCOPE = 'events'          │
         │ const EXEC_URL = 'https://...'  │
         │                                 │
@@ -1226,7 +1226,7 @@ USER (Admin)
         │ → Injects NU RPC client         │
         │                                 │
         │ NU.rpc('api_create', {          │
-        │   brandId: TENANT,             │
+        │   brandId: BRAND,             │
         │   scope: SCOPE,                 │
         │   ...                           │
         │ })                              │
@@ -1319,7 +1319,7 @@ Failure Points:
 | Requirement | Current | Issue |
 |-------------|---------|-------|
 | Event ID uniqueness | UUID in append | OK (collision impossible) |
-| Tenant isolation | brandId filter in all queries | OK |
+| Brand isolation | brandId filter in all queries | OK |
 | Sponsor placements | Stored in event.data | OK |
 | Analytics integrity | Append-only ANALYTICS sheet | OK |
 | Shortlink redirection | SHORTLINKS sheet lookup | OK |
@@ -1331,7 +1331,7 @@ Failure Points:
 |---------|------------------|------------|
 | No admin key provided | Empty string → auth fails | Prompt again with better UX |
 | Spreadsheet quota exceeded | appendRow() throws → caught by runSafe() | Graceful error, suggest pagination |
-| Tenant not found | Returns null → use 'root' | Explicit error to user |
+| Brand not found | Returns null → use 'root' | Explicit error to user |
 | Event not in list | Returns null → shows "Not found" | 404 page |
 | Invalid URL in carousel | Iframe error → skip silently | Log to DIAG, inform user |
 | Network timeout | Promise never resolves → UI hangs | Add timeout wrapper to NU.rpc() |
@@ -1349,7 +1349,7 @@ Failure Points:
 
 ### Phase 2: Scalability (Important)
 - [ ] Implement pagination in api_list()
-- [ ] Add database indexing (by ID, tenant)
+- [ ] Add database indexing (by ID, brand)
 - [ ] Split Code.gs into service modules
 - [ ] Add caching layer for templates
 - [ ] Implement chunked analytics processing

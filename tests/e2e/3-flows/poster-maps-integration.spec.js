@@ -13,7 +13,7 @@ const { test, expect } = require('@playwright/test');
 
 const BASE_URL = process.env.BASE_URL || 'https://script.google.com/macros/s/.../exec';
 const ADMIN_KEY = process.env.ADMIN_KEY || 'CHANGE_ME_root';
-const TENANT_ID = 'root';
+const BRAND_ID = 'root';
 
 test.describe('🖼️ POSTER: Edit and Propagate Back to Admin', () => {
 
@@ -22,7 +22,7 @@ test.describe('🖼️ POSTER: Edit and Propagate Back to Admin', () => {
     // STEP 1: Create event in Admin
     // ====================
     console.log('📝 Creating event for poster editing...');
-    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
 
     page.on('dialog', async dialog => {
       await dialog.accept(ADMIN_KEY);
@@ -104,7 +104,7 @@ test.describe('🖼️ POSTER: Edit and Propagate Back to Admin', () => {
   });
 
   test('Poster flow: Print-optimized layout', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=poster&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=poster&brand=${BRAND_ID}`);
     await page.waitForLoadState('networkidle');
 
     console.log('🖨️ Testing print-optimized poster layout...');
@@ -145,7 +145,7 @@ test.describe('🗺️ MAPS: Google Maps Integration', () => {
     // STEP 1: Create event with location
     // ====================
     console.log('📍 Creating event with location...');
-    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
 
     page.on('dialog', async dialog => {
       await dialog.accept(ADMIN_KEY);
@@ -194,7 +194,7 @@ test.describe('🗺️ MAPS: Google Maps Integration', () => {
 
   test('Maps flow: Mobile responsive map', async ({ page, context }) => {
     console.log('📱 Testing mobile map responsiveness...');
-    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
 
     page.on('dialog', async dialog => {
       await dialog.accept(ADMIN_KEY);
@@ -235,7 +235,7 @@ test.describe('🗺️ MAPS: Google Maps Integration', () => {
 
   test('Maps flow: Map with directions link', async ({ page, context }) => {
     console.log('🧭 Testing map directions functionality...');
-    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
 
     page.on('dialog', async dialog => {
       await dialog.accept(ADMIN_KEY);
@@ -281,7 +281,7 @@ test.describe('🔺 CROSS-PAGE: Complete Propagation Cycle', () => {
     // STEP 1: Create comprehensive event
     // ====================
     console.log('📝 Creating comprehensive event...');
-    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
 
     page.on('dialog', async dialog => {
       await dialog.accept(ADMIN_KEY);

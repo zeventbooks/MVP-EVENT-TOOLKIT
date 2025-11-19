@@ -19,7 +19,7 @@ import { group, sleep } from 'k6';
 import {
   getBaseUrl,
   getAdminKey,
-  getTenantId,
+  getBrandId,
   checkSuccess,
   checkStructure,
   SystemAPI,
@@ -50,27 +50,27 @@ export const options = {
 export function setup() {
   const baseUrl = getBaseUrl();
   const adminKey = getAdminKey();
-  const tenantId = getTenantId();
+  const brandId = getBrandId();
 
   console.log('🧪 Smoke Load Test Configuration:');
   console.log(`   Base URL: ${baseUrl}`);
-  console.log(`   Tenant ID: ${tenantId}`);
+  console.log(`   Brand ID: ${brandId}`);
   console.log(`   Admin Key: ${adminKey ? '✅ Set' : '❌ Not Set'}`);
   console.log(`   VUs: ${options.vus}`);
   console.log(`   Duration: ${options.duration}`);
 
-  return { baseUrl, adminKey, tenantId };
+  return { baseUrl, adminKey, brandId };
 }
 
 /**
  * Main test function - runs for each VU iteration
  */
 export default function (data) {
-  const { baseUrl, adminKey, tenantId } = data;
+  const { baseUrl, adminKey, brandId } = data;
 
-  const systemAPI = new SystemAPI(baseUrl, tenantId);
-  const eventsAPI = new EventsAPI(baseUrl, tenantId);
-  const sponsorsAPI = new SponsorsAPI(baseUrl, tenantId);
+  const systemAPI = new SystemAPI(baseUrl, brandId);
+  const eventsAPI = new EventsAPI(baseUrl, brandId);
+  const sponsorsAPI = new SponsorsAPI(baseUrl, brandId);
 
   // Test 1: System Status
   group('System Status', () => {

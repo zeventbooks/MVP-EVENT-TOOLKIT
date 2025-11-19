@@ -336,7 +336,7 @@ Your Stage 2 workflow already tests against Apps Script URLs, so you're already 
 4. **Extract deployment ID** (e.g., `AKfycby355Xo...`)
 5. **Update index.php** with new ID ⬅️ NEW
 6. **Upload to Hostinger** via FTP ⬅️ NEW
-7. **Generate test URLs** for all tenants
+7. **Generate test URLs** for all brands
 8. **Stage 2 auto-triggers** (health checks, E2E tests)
 
 **Total time:** 8-10 minutes (was 18-25 minutes with manual steps)

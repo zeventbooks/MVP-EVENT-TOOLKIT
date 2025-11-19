@@ -47,20 +47,20 @@ export class ApiHelpers {
 
   /**
    * Check system status
-   * @param {string} tenant - Tenant ID
+   * @param {string} brand - Brand ID
    */
-  async getStatus(tenant = 'root') {
-    return await this.get(`?p=status&brand=${tenant}`);
+  async getStatus(brand = 'root') {
+    return await this.get(`?p=status&brand=${brand}`);
   }
 
   /**
    * Run diagnostics (requires admin key)
-   * @param {string} tenant - Tenant ID
+   * @param {string} brand - Brand ID
    * @param {string} adminKey - Admin key
    */
-  async runDiagnostics(tenant, adminKey) {
+  async runDiagnostics(brand, adminKey) {
     return await this.post('?action=runDiagnostics', {
-      tenantId: tenant,
+      brandId: brand,
       adminKey
     });
   }
@@ -71,13 +71,13 @@ export class ApiHelpers {
 
   /**
    * Create an event
-   * @param {string} tenant - Tenant ID
+   * @param {string} brand - Brand ID
    * @param {object} eventData - Event data
    * @param {string} adminKey - Admin key
    */
-  async createEvent(tenant, eventData, adminKey) {
+  async createEvent(brand, eventData, adminKey) {
     return await this.post('?action=create', {
-      tenantId: tenant,
+      brandId: brand,
       scope: 'events',
       templateId: 'event',
       adminKey,
@@ -87,31 +87,31 @@ export class ApiHelpers {
 
   /**
    * Get a specific event
-   * @param {string} tenant - Tenant ID
+   * @param {string} brand - Brand ID
    * @param {string} eventId - Event ID
    */
-  async getEvent(tenant, eventId) {
-    return await this.get(`?p=api&action=get&brand=${tenant}&scope=events&id=${eventId}`);
+  async getEvent(brand, eventId) {
+    return await this.get(`?p=api&action=get&brand=${brand}&scope=events&id=${eventId}`);
   }
 
   /**
-   * List all events for a tenant
-   * @param {string} tenant - Tenant ID
+   * List all events for a brand
+   * @param {string} brand - Brand ID
    */
-  async listEvents(tenant) {
-    return await this.get(`?p=api&action=list&brand=${tenant}&scope=events`);
+  async listEvents(brand) {
+    return await this.get(`?p=api&action=list&brand=${brand}&scope=events`);
   }
 
   /**
    * Update an event
-   * @param {string} tenant - Tenant ID
+   * @param {string} brand - Brand ID
    * @param {string} eventId - Event ID
    * @param {object} updateData - Fields to update
    * @param {string} adminKey - Admin key
    */
-  async updateEvent(tenant, eventId, updateData, adminKey) {
+  async updateEvent(brand, eventId, updateData, adminKey) {
     return await this.post('?action=update', {
-      tenantId: tenant,
+      brandId: brand,
       scope: 'events',
       id: eventId,
       adminKey,
@@ -121,13 +121,13 @@ export class ApiHelpers {
 
   /**
    * Delete an event
-   * @param {string} tenant - Tenant ID
+   * @param {string} brand - Brand ID
    * @param {string} eventId - Event ID
    * @param {string} adminKey - Admin key
    */
-  async deleteEvent(tenant, eventId, adminKey) {
+  async deleteEvent(brand, eventId, adminKey) {
     return await this.post('?action=delete', {
-      tenantId: tenant,
+      brandId: brand,
       scope: 'events',
       id: eventId,
       adminKey
@@ -140,13 +140,13 @@ export class ApiHelpers {
 
   /**
    * Create a sponsor
-   * @param {string} tenant - Tenant ID
+   * @param {string} brand - Brand ID
    * @param {object} sponsorData - Sponsor data
    * @param {string} adminKey - Admin key
    */
-  async createSponsor(tenant, sponsorData, adminKey) {
+  async createSponsor(brand, sponsorData, adminKey) {
     return await this.post('?action=create', {
-      tenantId: tenant,
+      brandId: brand,
       scope: 'sponsors',
       templateId: 'sponsor',
       adminKey,
@@ -156,31 +156,31 @@ export class ApiHelpers {
 
   /**
    * Get a specific sponsor
-   * @param {string} tenant - Tenant ID
+   * @param {string} brand - Brand ID
    * @param {string} sponsorId - Sponsor ID
    */
-  async getSponsor(tenant, sponsorId) {
-    return await this.get(`?p=api&action=get&brand=${tenant}&scope=sponsors&id=${sponsorId}`);
+  async getSponsor(brand, sponsorId) {
+    return await this.get(`?p=api&action=get&brand=${brand}&scope=sponsors&id=${sponsorId}`);
   }
 
   /**
-   * List all sponsors for a tenant
-   * @param {string} tenant - Tenant ID
+   * List all sponsors for a brand
+   * @param {string} brand - Brand ID
    */
-  async listSponsors(tenant) {
-    return await this.get(`?p=api&action=list&brand=${tenant}&scope=sponsors`);
+  async listSponsors(brand) {
+    return await this.get(`?p=api&action=list&brand=${brand}&scope=sponsors`);
   }
 
   /**
    * Update a sponsor
-   * @param {string} tenant - Tenant ID
+   * @param {string} brand - Brand ID
    * @param {string} sponsorId - Sponsor ID
    * @param {object} updateData - Fields to update
    * @param {string} adminKey - Admin key
    */
-  async updateSponsor(tenant, sponsorId, updateData, adminKey) {
+  async updateSponsor(brand, sponsorId, updateData, adminKey) {
     return await this.post('?action=update', {
-      tenantId: tenant,
+      brandId: brand,
       scope: 'sponsors',
       id: sponsorId,
       adminKey,
@@ -190,13 +190,13 @@ export class ApiHelpers {
 
   /**
    * Delete a sponsor
-   * @param {string} tenant - Tenant ID
+   * @param {string} brand - Brand ID
    * @param {string} sponsorId - Sponsor ID
    * @param {string} adminKey - Admin key
    */
-  async deleteSponsor(tenant, sponsorId, adminKey) {
+  async deleteSponsor(brand, sponsorId, adminKey) {
     return await this.post('?action=delete', {
-      tenantId: tenant,
+      brandId: brand,
       scope: 'sponsors',
       id: sponsorId,
       adminKey
@@ -251,11 +251,11 @@ export class ApiHelpers {
 
   /**
    * Create test event with default values
-   * @param {string} tenant - Tenant ID
+   * @param {string} brand - Brand ID
    * @param {string} adminKey - Admin key
    * @param {object} overrides - Override default values
    */
-  async createTestEvent(tenant, adminKey, overrides = {}) {
+  async createTestEvent(brand, adminKey, overrides = {}) {
     const timestamp = Date.now();
     const defaultEvent = {
       name: `Test Event ${timestamp}`,
@@ -267,7 +267,7 @@ export class ApiHelpers {
       ...overrides
     };
 
-    const response = await this.createEvent(tenant, defaultEvent, adminKey);
+    const response = await this.createEvent(brand, defaultEvent, adminKey);
     const data = await this.getJsonOrThrow(response);
 
     return {
@@ -280,11 +280,11 @@ export class ApiHelpers {
 
   /**
    * Create test sponsor with default values
-   * @param {string} tenant - Tenant ID
+   * @param {string} brand - Brand ID
    * @param {string} adminKey - Admin key
    * @param {object} overrides - Override default values
    */
-  async createTestSponsor(tenant, adminKey, overrides = {}) {
+  async createTestSponsor(brand, adminKey, overrides = {}) {
     const timestamp = Date.now();
     const defaultSponsor = {
       name: `Test Sponsor ${timestamp}`,
@@ -294,7 +294,7 @@ export class ApiHelpers {
       ...overrides
     };
 
-    const response = await this.createSponsor(tenant, defaultSponsor, adminKey);
+    const response = await this.createSponsor(brand, defaultSponsor, adminKey);
     const data = await this.getJsonOrThrow(response);
 
     return {

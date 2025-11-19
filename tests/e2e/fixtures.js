@@ -154,7 +154,7 @@ export const test = base.extend({
         const response = await request.post(config.baseUrl, {
           data: {
             p: endpoint,
-            tenant: config.tenantId,
+            brand: config.brandId,
             adminKey: config.adminKey,
             ...data,
           },

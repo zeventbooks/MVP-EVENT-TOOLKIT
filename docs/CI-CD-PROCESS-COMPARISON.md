@@ -348,7 +348,7 @@ Complexity increases, but workflow maps to actual team needs.
 - ✅ Different workflows for main vs features make sense
 - ✅ You're comfortable with workflow complexity
 - ✅ Developers want control over expensive test timing
-- ✅ You're building a SaaS with per-tenant deployments
+- ✅ You're building a SaaS with per-brand deployments
 
 ### Stick with **Process 1** (Current) if:
 - ✅ Budget is extremely tight

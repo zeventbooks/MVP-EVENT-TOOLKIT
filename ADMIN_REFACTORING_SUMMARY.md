@@ -51,7 +51,7 @@ This refactoring implements a comprehensive component-based admin interface with
   - Placement limits and dimensions
   - Surface configurations (poster, display, public)
   - Feature flags (analytics, rotation, upsells)
-  - Tenant-specific setting overrides
+  - Brand-specific setting overrides
 
 - `SponsorService_validatePlacements(params)` - Validates sponsor assignments
   - Checks placement validity
@@ -210,7 +210,7 @@ https://script.google.com/...exec?page=admin&mode=enhanced
 ```javascript
 // Initialize state manager
 const stateManager = new EventStateManager({
-  brandId: TENANT,
+  brandId: BRAND,
   scope: SCOPE,
   autoSave: true,
   autoSaveInterval: 30000 // 30 seconds
@@ -234,12 +234,12 @@ stateManager.redo();
 ```javascript
 // Get sponsor settings
 const settings = await NU.rpc('api_getSponsorSettings', {
-  brandId: TENANT
+  brandId: BRAND
 });
 
 // Validate placements
 const validation = await NU.rpc('api_validateSponsorPlacements', {
-  brandId: TENANT,
+  brandId: BRAND,
   sponsors: [
     {
       id: 'sponsor1',

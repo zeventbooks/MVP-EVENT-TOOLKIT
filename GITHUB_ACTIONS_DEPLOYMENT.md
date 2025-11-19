@@ -70,7 +70,7 @@ This is your Google Apps Script project ID (already in `.clasp.json`)
 
 **Name:** `ADMIN_KEY_ROOT`
 
-**Value:** Your admin secret for the 'root' tenant
+**Value:** Your admin secret for the 'root' brand
 
 **How to get it:**
 

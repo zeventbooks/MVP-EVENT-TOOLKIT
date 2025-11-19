@@ -363,8 +363,8 @@ BASE_URL=https://zeventbooks.com
 # Admin authentication key (REQUIRED for Scenario 1)
 ADMIN_KEY=your_admin_key_here
 
-# Tenant ID (optional, defaults to 'root')
-TENANT_ID=root
+# Brand ID (optional, defaults to 'root')
+BRAND_ID=root
 ```
 
 #### Local Development Setup
@@ -403,7 +403,7 @@ For GitHub Actions, configure **Repository Secrets**:
 2. Add secrets:
    - `ADMIN_KEY_ROOT` (required for Scenario 1)
    - `PROD_BASE_URL` (optional, defaults to zeventbooks.com)
-   - `TENANT_ID` (optional, defaults to root)
+   - `BRAND_ID` (optional, defaults to root)
 
 **📚 Full Guide**: See [`docs/SECRETS_SETUP.md`](../../../docs/SECRETS_SETUP.md) for detailed setup instructions.
 

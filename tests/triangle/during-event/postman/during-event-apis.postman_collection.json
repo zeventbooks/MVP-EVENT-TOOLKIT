@@ -17,7 +17,7 @@
       "type": "string"
     },
     {
-      "key": "tenant_id",
+      "key": "brand_id",
       "value": "root",
       "type": "string"
     },
@@ -59,7 +59,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}?action=list&brand={{tenant_id}}&scope=events",
+              "raw": "{{base_url}}?action=list&brand={{brand_id}}&scope=events",
               "host": ["{{base_url}}"],
               "query": [
                 {
@@ -68,7 +68,7 @@
                 },
                 {
                   "key": "brand",
-                  "value": "{{tenant_id}}"
+                  "value": "{{brand_id}}"
                 },
                 {
                   "key": "scope",
@@ -85,7 +85,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}?action=list&brand={{tenant_id}}&scope=events&etag=previous-etag",
+              "raw": "{{base_url}}?action=list&brand={{brand_id}}&scope=events&etag=previous-etag",
               "host": ["{{base_url}}"],
               "query": [
                 {
@@ -94,7 +94,7 @@
                 },
                 {
                   "key": "brand",
-                  "value": "{{tenant_id}}"
+                  "value": "{{brand_id}}"
                 },
                 {
                   "key": "scope",
@@ -139,7 +139,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}?action=get&brand={{tenant_id}}&scope=events&id={{event_id}}",
+              "raw": "{{base_url}}?action=get&brand={{brand_id}}&scope=events&id={{event_id}}",
               "host": ["{{base_url}}"],
               "query": [
                 {
@@ -148,7 +148,7 @@
                 },
                 {
                   "key": "brand",
-                  "value": "{{tenant_id}}"
+                  "value": "{{brand_id}}"
                 },
                 {
                   "key": "scope",
@@ -180,7 +180,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"action\": \"update\",\n  \"adminKey\": \"{{admin_key}}\",\n  \"tenant\": \"{{tenant_id}}\",\n  \"scope\": \"events\",\n  \"id\": \"{{event_id}}\",\n  \"data\": {\n    \"description\": \"Updated description during live event\"\n  }\n}"
+              "raw": "{\n  \"action\": \"update\",\n  \"adminKey\": \"{{admin_key}}\",\n  \"brand\": \"{{brand_id}}\",\n  \"scope\": \"events\",\n  \"id\": \"{{event_id}}\",\n  \"data\": {\n    \"description\": \"Updated description during live event\"\n  }\n}"
             },
             "url": {
               "raw": "{{base_url}}",

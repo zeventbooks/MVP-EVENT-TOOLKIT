@@ -20,7 +20,7 @@ export const config = {
   // Deployment settings
   baseUrl: env.baseUrl,
   adminKey: process.env.ADMIN_KEY,
-  tenantId: process.env.TENANT_ID || 'root',
+  brandId: process.env.BRAND_ID || 'root',
 
   // Timeouts (mobile may need longer)
   timeout: {
@@ -68,7 +68,7 @@ export const config = {
 export function getPageUrl(page, params = {}) {
   const url = new URL(config.baseUrl);
   url.searchParams.set('page', page);
-  url.searchParams.set('tenant', config.tenantId);
+  url.searchParams.set('brand', config.brandId);
 
   // Add any additional parameters
   Object.entries(params).forEach(([key, value]) => {

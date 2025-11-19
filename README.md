@@ -20,7 +20,7 @@ Project ID: 1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l
 - **3 Authentication Methods** - adminKey, JWT tokens, API key header (✅ NEW!)
 - **Interactive API Docs** - Test endpoints right in your browser! (✅ NEW!)
 - **Built-in HTML Pages** - Admin, Public, Display, Poster, Test, Diagnostics
-- Multi-tenant config (events-only flags)
+- Multi-brand config (events-only flags)
 - Uniform API envelopes, DIAG logging, idempotency, rate-limits
 - SWR helper (etag + localStorage)
 - Styles: your patched `Styles.html` + DesignAdapter map
@@ -91,6 +91,6 @@ npm run deploy # Create new deployment
 ## Notes
 - Poster shows a QR only when the server returns a verified `posterUrl`
 - `EVENTS` & `DIAG` sheets are created on-demand in the bound spreadsheet
-- Add tenants by extending `TENANTS` in `Config.gs`; later enable more scopes by adding `'leagues'` or `'tournaments'`
+- Add brands by extending `BRANDS` in `Config.gs`; later enable more scopes by adding `'leagues'` or `'tournaments'`
 
 # Deployment test - Thu Nov 13 05:41:27 PM CST 2025

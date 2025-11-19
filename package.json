@@ -1,7 +1,7 @@
 {
   "name": "mvp-event-toolkit",
   "version": "1.3.0",
-  "description": "Multi-tenant event management system with sponsor tracking and analytics (Zeventbook)",
+  "description": "Multi-brand event management system with sponsor tracking and analytics (Zeventbook)",
   "main": "Code.gs",
   "scripts": {
     "test": "jest",
@@ -14,7 +14,7 @@
     "test:api:system": "playwright test tests/e2e/api/system-api.spec.js --reporter=html --reporter=line",
     "test:api:events": "playwright test tests/e2e/api/events-crud-api.spec.js --reporter=html --reporter=line",
     "test:api:sponsors": "playwright test tests/e2e/api/sponsors-crud-api.spec.js --reporter=html --reporter=line",
-    "test:api:multi-tenant": "playwright test tests/e2e/api/multi-tenant-api.spec.js --reporter=html --reporter=line",
+    "test:api:multi-brand": "playwright test tests/e2e/api/multi-brand-api.spec.js --reporter=html --reporter=line",
     "test:smoke": "playwright test tests/e2e/1-smoke/critical-smoke.spec.js --reporter=html --reporter=line",
     "test:security": "playwright test tests/e2e/1-smoke/security-smoke.spec.js --reporter=html --reporter=line",
     "test:smoke:all": "playwright test tests/e2e/1-smoke --reporter=html --reporter=line",
@@ -114,7 +114,7 @@
     "sponsors",
     "analytics",
     "google-apps-script",
-    "multi-tenant"
+    "multi-brand"
   ],
   "author": "Zeventbooks",
   "license": "MIT",

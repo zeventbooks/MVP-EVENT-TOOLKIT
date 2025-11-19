@@ -199,7 +199,7 @@ Status & Health (2 tests)
 
 Error Handling (3 tests)
 ├─ Invalid page parameter
-├─ Missing tenant (falls back to root)
+├─ Missing brand (falls back to root)
 └─ Invalid redirect token
 
 Response Format (2 tests)
@@ -209,9 +209,9 @@ Response Format (2 tests)
 Performance (1 test)
 └─ Status API responds quickly (avg < 3s)
 
-Multi-tenant (2 tests)
-├─ Root tenant accessible
-└─ Different tenant IDs load correctly
+Multi-brand (2 tests)
+├─ Root brand accessible
+└─ Different brand IDs load correctly
 
 Rate Limiting (1 test)
 └─ Multiple rapid requests handled gracefully
@@ -299,10 +299,10 @@ Analytics End-to-End (3 tests)
 ├─ Display tracks sponsor impressions
 └─ Analytics report retrievable
 
-Multi-Tenant Isolation (3 tests)
-├─ Different tenants access different data
-├─ Tenant hostnames resolve correctly
-└─ Admin keys tenant-specific
+Multi-brand Isolation (3 tests)
+├─ Different brands access different data
+├─ Brand hostnames resolve correctly
+└─ Admin keys brand-specific
 
 Shortlink Flow (2 tests)
 ├─ Shortlink creation to redirect works
@@ -540,7 +540,7 @@ Poster.html (7+ tests)
 Backend/API (94+ tests)
 ├─ Unit: Sanitization, validation, rate limiting
 ├─ Contract: API response formats
-└─ Smoke: API endpoints, multi-tenant
+└─ Smoke: API endpoints, multi-brand
 ```
 
 ---

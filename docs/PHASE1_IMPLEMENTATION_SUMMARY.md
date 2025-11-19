@@ -78,7 +78,7 @@ POST /exec?action=registerWebhook
 |----------|--------|------|-------------|
 | `/registerWebhook` | POST | Required | Register new webhook |
 | `/unregisterWebhook` | POST | Required | Unregister webhook |
-| `/listWebhooks` | POST | Required | List all webhooks for tenant |
+| `/listWebhooks` | POST | Required | List all webhooks for brand |
 | `/testWebhook` | POST | Required | Test webhook delivery |
 | `/getWebhookDeliveries` | POST | Required | Get delivery history |
 
@@ -118,7 +118,7 @@ const response = await fetch(BASE_URL, {
 - ✅ HMAC-SHA256 payload signing
 - ✅ Timing-safe signature verification
 - ✅ Admin authentication required for registration
-- ✅ Tenant isolation
+- ✅ Brand isolation
 
 ### Future Enhancements (Phase 3)
 - Retry logic with exponential backoff
@@ -580,7 +580,7 @@ const template = TemplateService_getTemplate('event-v1', 'es-ES');
 ✅ HMAC-SHA256 payload signing
 ✅ Timing-safe signature comparison
 ✅ Admin authentication required for webhook management
-✅ Tenant isolation enforced
+✅ Brand isolation enforced
 
 ### i18n Security
 ✅ No user input in translation keys

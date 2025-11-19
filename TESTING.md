@@ -136,7 +136,7 @@ npm run test:contract
 - Health check responds
 - Error handling (invalid params)
 - Response format (OK/Err envelopes)
-- Multi-tenant support
+- Multi-brand support
 - Rate limiting
 
 #### `components.smoke.test.js` (50+ tests)
@@ -152,7 +152,7 @@ npm run test:contract
 - Admin to Public flow
 - Config propagation to Display
 - Analytics end-to-end
-- Multi-tenant isolation
+- Multi-brand isolation
 - Shortlink creation & redirect
 - RPC communication
 - State management
@@ -220,8 +220,8 @@ export BASE_URL="https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec"
 # Admin secret for testing (optional for smoke, required for E2E)
 export ADMIN_KEY="CHANGE_ME_root"
 
-# Tenant ID (defaults to 'root')
-export TENANT_ID="root"
+# Brand ID (defaults to 'root')
+export BRAND_ID="root"
 ```
 
 ### Setting Permanently (Optional)
@@ -230,7 +230,7 @@ Create `.env` file in project root:
 ```bash
 BASE_URL=https://script.google.com/macros/s/.../exec
 ADMIN_KEY=CHANGE_ME_root
-TENANT_ID=root
+BRAND_ID=root
 ```
 
 Then load in terminal:

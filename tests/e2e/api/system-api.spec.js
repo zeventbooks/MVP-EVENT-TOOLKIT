@@ -34,20 +34,20 @@ test.describe('System APIs', () => {
 
       // Value should contain status info
       expect(data.value).toHaveProperty('build');
-      expect(data.value).toHaveProperty('tenant');
-      expect(data.value.tenant).toBe('root');
+      expect(data.value).toHaveProperty('brand');
+      expect(data.value.brand).toBe('root');
     });
 
-    test('works for all tenants', async () => {
-      const tenants = ['root', 'abc', 'cbc', 'cbl'];
+    test('works for all brands', async () => {
+      const brands = ['root', 'abc', 'cbc', 'cbl'];
 
-      for (const tenant of tenants) {
-        const response = await api.getStatus(tenant);
+      for (const brand of brands) {
+        const response = await api.getStatus(brand);
         const data = await response.json();
 
         expect(response.ok()).toBe(true);
         expect(data.ok).toBe(true);
-        expect(data.value.tenant).toBe(tenant);
+        expect(data.value.brand).toBe(brand);
       }
     });
 
@@ -65,7 +65,7 @@ test.describe('System APIs', () => {
     test('requires authentication', async () => {
       // Without admin key - should fail or return error
       const responseNoAuth = await api.post('?action=runDiagnostics', {
-        tenantId: 'root'
+        brandId: 'root'
       });
 
       // Should either return 401/403 or ok:false in envelope

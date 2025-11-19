@@ -201,7 +201,7 @@ MVP-EVENT-TOOLKIT/
 **Local (.env)** - For Playwright
 ```bash
 BASE_URL=https://script.google.com/macros/s/[HEAD_ID]/exec
-TENANT_ID=root
+BRAND_ID=root
 ADMIN_KEY=4a249d9791716c208479712c74aae27a
 ```
 

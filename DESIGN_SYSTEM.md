@@ -627,7 +627,7 @@ All design tokens meet these requirements.
 
 ### Planned Features
 1. **Dark Mode**: Toggle between light/dark themes
-2. **Custom Branding**: Per-tenant color schemes
+2. **Custom Branding**: Per-brand color schemes
 3. **Animation Library**: Reusable micro-interactions
 4. **Component Storybook**: Visual component catalog
 5. **i18n Support**: Multi-language localization

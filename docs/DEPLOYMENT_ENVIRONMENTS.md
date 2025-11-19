@@ -65,19 +65,19 @@ zeventbooks.com (Cloudflare)
 
 ---
 
-## Tenant-Specific URLs
+## Brand-Specific URLs
 
-Each environment supports multi-tenant access via query parameters:
+Each environment supports multi-brand access via query parameters:
 
 ### QA Environment Examples
-- **ROOT tenant:** `https://qa.zeventbooks.com?p=events&brand=root`
-- **ABC tenant:** `https://qa.zeventbooks.com?p=events&brand=abc`
-- **CBC tenant:** `https://qa.zeventbooks.com?p=events&brand=cbc`
+- **ROOT brand:** `https://qa.zeventbooks.com?p=events&brand=root`
+- **ABC brand:** `https://qa.zeventbooks.com?p=events&brand=abc`
+- **CBC brand:** `https://qa.zeventbooks.com?p=events&brand=cbc`
 
 ### Production (Future)
-- **ROOT tenant:** `https://app.zeventbooks.com?p=events&brand=root`
-- **ABC tenant:** `https://app.zeventbooks.com?p=events&brand=abc`
-- **CBC tenant:** `https://app.zeventbooks.com?p=events&brand=cbc`
+- **ROOT brand:** `https://app.zeventbooks.com?p=events&brand=root`
+- **ABC brand:** `https://app.zeventbooks.com?p=events&brand=abc`
+- **CBC brand:** `https://app.zeventbooks.com?p=events&brand=cbc`
 
 ---
 
@@ -182,7 +182,7 @@ Tests run in sequence:
 - `DEPLOYMENT_ID` - Apps Script deployment ID
 
 **For Stage 2 (Testing):**
-- `ADMIN_KEY_ROOT` - Admin key for ROOT tenant in QA environment
+- `ADMIN_KEY_ROOT` - Admin key for ROOT brand in QA environment
 
 **For Phase 2 (Cloudflare):**
 - `CLOUDFLARE_API_TOKEN` - API token for KV updates

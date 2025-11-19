@@ -14,7 +14,7 @@ const { getCurrentEnvironment } = require('../../config/environments');
 // Get environment configuration
 const env = getCurrentEnvironment();
 const BASE_URL = env.baseUrl;
-const TENANT_ID = 'root';
+const BRAND_ID = 'root';
 
 // TV viewport configurations
 const TV_1080P = { width: 1920, height: 1080 };
@@ -29,7 +29,7 @@ test.describe('SCENARIO 3: TV Display at Venue', () => {
 
   test('3.1.1 Config load from Public page → Should transfer config to Display page', async ({ page }) => {
     // Step 1: Load public page and verify config exists
-    await page.goto(`${BASE_URL}?p=events&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`);
     await page.waitForLoadState('networkidle');
 
     // VERIFY: Public page loads
@@ -44,7 +44,7 @@ test.describe('SCENARIO 3: TV Display at Venue', () => {
     }
 
     // Step 2: Navigate to Display page
-    await page.goto(`${BASE_URL}?page=display&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}`);
     await page.waitForLoadState('networkidle');
 
     // VERIFY: Display page loads
@@ -74,7 +74,7 @@ test.describe('SCENARIO 3: TV Display at Venue', () => {
   test('3.1.2 Load display page → Sponsors should appear within 3s', async ({ page }) => {
     const startTime = Date.now();
 
-    await page.goto(`${BASE_URL}?page=display&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}`);
 
     // Wait for sponsor area to appear (with 3s timeout)
     const sponsorArea = page.locator(
@@ -102,7 +102,7 @@ test.describe('SCENARIO 3: TV Display at Venue', () => {
   });
 
   test('3.1.3 Sponsor config is present → Should have sponsor data in DOM', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=display&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}`);
     await page.waitForLoadState('networkidle');
 
     // VERIFY: Sponsor area containers exist in DOM
@@ -147,7 +147,7 @@ test.describe('SCENARIO 3: TV Display at Venue', () => {
   });
 
   test('3.2.1 Dynamic Carousel mode loads → Should initialize carousel', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=display&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}`);
     await page.waitForLoadState('networkidle');
 
     // Track JavaScript errors
@@ -200,7 +200,7 @@ test.describe('SCENARIO 3: TV Display at Venue', () => {
   });
 
   test('3.2.2 Carousel mode → Should rotate every N seconds', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=display&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}`);
     await page.waitForLoadState('networkidle');
 
     // Get rotation interval from page config
@@ -253,7 +253,7 @@ test.describe('SCENARIO 3: TV Display at Venue', () => {
   });
 
   test('3.2.3 Blocked embed (Instagram) → Should skip silently', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=display&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}`);
     await page.waitForLoadState('networkidle');
 
     // Track console errors
@@ -315,7 +315,7 @@ test.describe('SCENARIO 3: TV Display at Venue', () => {
   });
 
   test('3.2.4 Analytics → Should log every rotation', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=display&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}`);
     await page.waitForLoadState('networkidle');
 
     // Track analytics requests
@@ -405,7 +405,7 @@ test.describe('SCENARIO 3: Complete TV Display (Integration)', () => {
 
     // Step 1: Load display page
     const startTime = Date.now();
-    await page.goto(`${BASE_URL}?page=display&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}`);
     await page.waitForLoadState('networkidle');
     const loadTime = Date.now() - startTime;
 
@@ -434,7 +434,7 @@ test.describe('SCENARIO 3: Complete TV Display (Integration)', () => {
   test('4K TV display test', async ({ page }) => {
     await page.setViewportSize(TV_4K);
 
-    await page.goto(`${BASE_URL}?page=display&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}`);
     await page.waitForLoadState('networkidle');
 
     // VERIFY: Layout adapts to 4K
@@ -454,7 +454,7 @@ test.describe('SCENARIO 3: Complete TV Display (Integration)', () => {
   });
 
   test('Long-running stability test (carousel runs for 60 seconds)', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=display&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}`);
     await page.waitForLoadState('networkidle');
 
     const errors = [];

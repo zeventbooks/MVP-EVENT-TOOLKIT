@@ -8,7 +8,7 @@ The friendly URL system makes your app URLs easy to remember, share, and underst
 - ✅ Easy to remember and share
 - ✅ SEO-friendly structure
 - ✅ Professional appearance
-- ✅ Brand-specific paths per tenant
+- ✅ Brand-specific paths per brand
 - ✅ Works alongside existing query parameter URLs (backward compatible)
 
 ---
@@ -17,14 +17,14 @@ The friendly URL system makes your app URLs easy to remember, share, and underst
 
 ### Pattern 1: Global Aliases
 ```
-/events        → Public events page (root tenant)
-/display       → TV/kiosk display (root tenant)
-/manage        → Admin management interface (root tenant)
-/posters       → Event posters (root tenant)
-/analytics     → Analytics dashboard (root tenant)
+/events        → Public events page (root brand)
+/display       → TV/kiosk display (root brand)
+/manage        → Admin management interface (root brand)
+/posters       → Event posters (root brand)
+/analytics     → Analytics dashboard (root brand)
 ```
 
-### Pattern 2: Tenant-Specific Aliases
+### Pattern 2: Brand-Specific Aliases
 ```
 /abc/events    → Public events for American Bocce Co.
 /abc/manage    → Admin for American Bocce Co.
@@ -32,7 +32,7 @@ The friendly URL system makes your app URLs easy to remember, share, and underst
 /cbc/create    → Create event (Chicago Bocce Club)
 ```
 
-### Pattern 3: Custom Tenant Aliases
+### Pattern 3: Custom Brand Aliases
 ```
 /abc/tournaments  → Custom alias for ABC events
 /abc/bocce        → Custom alias for ABC events
@@ -78,9 +78,9 @@ The friendly URL system makes your app URLs easy to remember, share, and underst
 
 ---
 
-## Tenant-Specific Custom Aliases
+## Brand-Specific Custom Aliases
 
-Configured in `Config.gs` → `ZEB.TENANT_URL_PATTERNS.customAliases`:
+Configured in `Config.gs` → `ZEB.BRAND_URL_PATTERNS.customAliases`:
 
 ### American Bocce Co. (abc)
 ```javascript
@@ -177,12 +177,12 @@ URL_ALIASES: {
 }
 ```
 
-### Adding Tenant Custom Aliases
+### Adding Brand Custom Aliases
 
-Edit `Config.gs` → `ZEB.TENANT_URL_PATTERNS.customAliases`:
+Edit `Config.gs` → `ZEB.BRAND_URL_PATTERNS.customAliases`:
 
 ```javascript
-TENANT_URL_PATTERNS: {
+BRAND_URL_PATTERNS: {
   customAliases: {
     'abc': {
       'my-custom-url': {
@@ -197,8 +197,8 @@ TENANT_URL_PATTERNS: {
 ### Enabling/Disabling Features
 
 ```javascript
-TENANT_URL_PATTERNS: {
-  enableTenantPrefix: true,      // Enable /tenant/alias URLs
+BRAND_URL_PATTERNS: {
+  enableBrandPrefix: true,      // Enable /brand/alias URLs
   enableSubdomainRouting: false  // Enable subdomain routing (requires DNS)
 }
 ```
@@ -214,7 +214,7 @@ const config = resolveUrlAlias_('events');
 // Returns: { page: 'public', label: 'Events', public: true, source: 'global' }
 
 const config2 = resolveUrlAlias_('tournaments', 'abc');
-// Returns: { page: 'public', label: 'Tournaments', source: 'tenant-custom' }
+// Returns: { page: 'public', label: 'Tournaments', source: 'brand-custom' }
 ```
 
 ### Generate Friendly URL
@@ -232,7 +232,7 @@ const url3 = getFriendlyUrl_('display', 'root');
 
 ### List All Aliases
 ```javascript
-// Get all available aliases for a tenant
+// Get all available aliases for a brand
 const aliases = listUrlAliases_('abc');
 // Returns array of all global + abc custom aliases
 
@@ -250,18 +250,18 @@ const publicAliases = listUrlAliases_('abc', true);
 1. **Request comes in:** `/abc/events`
 
 2. **Router parses path:**
-   - Extracts: `tenant = 'abc'`, `alias = 'events'`
+   - Extracts: `brand = 'abc'`, `alias = 'events'`
 
 3. **Resolves alias:**
-   - Checks tenant custom aliases first
+   - Checks brand custom aliases first
    - Falls back to global aliases
    - Returns: `{ page: 'public', label: 'Events' }`
 
 4. **Routes to page:**
    - Calls `routePage_()` with resolved configuration
-   - Renders page with tenant context
+   - Renders page with brand context
 
-5. **Page loads:** Public events page for ABC tenant
+5. **Page loads:** Public events page for ABC brand
 
 ### Backward Compatibility
 
@@ -297,9 +297,9 @@ Easy to type, no query parameters needed
 Clear, memorable instructions
 ```
 
-### 4. Multi-Tenant Branding
+### 4. Multi-brand Branding
 ```
-Each tenant gets branded URLs:
+Each brand gets branded URLs:
 - americanbocceco.com → zeventbooks.com/abc/events
 - chicagoboccclub.org → zeventbooks.com/cbc/events
 ```
@@ -320,7 +320,7 @@ curl https://zeventbooks.com/abc/manage
 # Display page
 curl https://zeventbooks.com/cbc/display
 
-# Custom tenant alias
+# Custom brand alias
 curl https://zeventbooks.com/abc/tournaments
 
 # With demo mode
@@ -345,14 +345,14 @@ Logger.log(listUrlAliases_('abc', true));
 
 - **Use descriptive aliases:** `/events`, `/manage`, `/display`
 - **Keep URLs short:** `/abc/events` better than `/abc/event-schedule-calendar`
-- **Be consistent:** Use same patterns across tenants
+- **Be consistent:** Use same patterns across brands
 - **Document custom aliases:** Add comments in Config.gs
 - **Test thoroughly:** Verify all aliases work before sharing
 
 ### ❌ Don'ts
 
 - **Don't use special characters:** Stick to letters, numbers, hyphens
-- **Don't duplicate aliases:** Each alias should be unique per tenant
+- **Don't duplicate aliases:** Each alias should be unique per brand
 - **Don't break old URLs:** Keep backward compatibility
 - **Don't make them too long:** Keep URLs under 50 characters
 - **Don't use technical jargon:** "events" not "api-get-events-list"
@@ -363,8 +363,8 @@ Logger.log(listUrlAliases_('abc', true));
 
 ### URL Not Working?
 
-1. **Check alias exists:** Look in `ZEB.URL_ALIASES` or tenant `customAliases`
-2. **Verify tenant ID:** Make sure tenant exists in `TENANTS` array
+1. **Check alias exists:** Look in `ZEB.URL_ALIASES` or brand `customAliases`
+2. **Verify brand ID:** Make sure brand exists in `BRANDS` array
 3. **Test with query params:** Try `?p=public&brand=abc` to isolate routing
 4. **Check console logs:** Look for routing errors in Apps Script logs
 
@@ -373,7 +373,7 @@ Logger.log(listUrlAliases_('abc', true));
 ```javascript
 // Add to doGet for debugging
 Logger.log('Path Info:', e.pathInfo);
-Logger.log('Resolved Alias:', resolveUrlAlias_(aliasFromPath, tenant.id));
+Logger.log('Resolved Alias:', resolveUrlAlias_(aliasFromPath, brand.id));
 Logger.log('Final Page:', page);
 ```
 
@@ -439,10 +439,10 @@ Already supported via `/e/` and `/s/` patterns.
 ✅ Easy to share: `/abc/manage`
 ✅ Easy to brand: `/abc/tournaments`
 ✅ Fully backward compatible
-✅ Configurable per tenant
+✅ Configurable per brand
 
 **Next Steps:**
 1. Test your aliases: [https://zeventbooks.com/abc/events](https://zeventbooks.com/abc/events)
-2. Add custom aliases for your tenants in `Config.gs`
+2. Add custom aliases for your brands in `Config.gs`
 3. Update marketing materials with new URLs
 4. Enjoy cleaner, more professional URLs!

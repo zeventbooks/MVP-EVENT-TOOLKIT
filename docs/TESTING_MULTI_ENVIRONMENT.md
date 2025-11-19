@@ -58,26 +58,26 @@ The test framework automatically detects the environment based on the `BASE_URL`
 3. If `BASE_URL` contains `localhost` → **Local Development**
 4. No `BASE_URL` set → **Defaults to Hostinger**
 
-### Tenant URLs
+### Brand URLs
 
-All environments support multi-tenant URLs with the same pattern:
+All environments support multi-brand URLs with the same pattern:
 
 ```
-{BASE_URL}?p={page}&brand={tenant}
+{BASE_URL}?p={page}&brand={brand}
 ```
 
 #### Hostinger Examples
 
 ```bash
-# Root tenant
+# Root brand
 https://zeventbooks.com?p=status&brand=root
 https://zeventbooks.com?p=admin&brand=root
 
-# ABC tenant
+# ABC brand
 https://zeventbooks.com?p=status&brand=abc
 https://zeventbooks.com?p=admin&brand=abc
 
-# CBC tenant
+# CBC brand
 https://zeventbooks.com?p=status&brand=cbc
 https://zeventbooks.com?p=admin&brand=cbc
 ```
@@ -85,11 +85,11 @@ https://zeventbooks.com?p=admin&brand=cbc
 #### Google Apps Script Examples
 
 ```bash
-# Root tenant
+# Root brand
 https://script.google.com/macros/s/AKfycb.../exec?p=status&brand=root
 https://script.google.com/macros/s/AKfycb.../exec?p=admin&brand=root
 
-# ABC tenant
+# ABC brand
 https://script.google.com/macros/s/AKfycb.../exec?p=status&brand=abc
 https://script.google.com/macros/s/AKfycb.../exec?p=admin&brand=abc
 ```
@@ -113,7 +113,7 @@ https://script.google.com/macros/s/AKfycb.../exec?p=admin&brand=abc
 |----------|-----------|---------|-------------|
 | `BASE_URL` | Optional | `https://zeventbooks.com` | Base URL of deployment to test |
 | `ADMIN_KEY` | Yes* | `CHANGE_ME_root` | Admin key for write operations |
-| `TENANT_ID` | Optional | `root` | Default tenant for tests |
+| `BRAND_ID` | Optional | `root` | Default brand for tests |
 
 *Required only for tests that create/modify data
 
@@ -148,11 +148,11 @@ export ADMIN_KEY="your-admin-key"
 npm run test:api
 ```
 
-### Scenario 3: Testing Specific Tenant
+### Scenario 3: Testing Specific Brand
 
 ```bash
 export BASE_URL="https://zeventbooks.com"
-export TENANT_ID="abc"
+export BRAND_ID="abc"
 export ADMIN_KEY="your-abc-admin-key"
 npm run test:api
 ```
@@ -173,13 +173,13 @@ Environment: Hostinger
 Description: Hostinger custom domain (proxies to Google Apps Script)
 Base URL: https://zeventbooks.com
 
-Tenant URLs (status page):
+Brand URLs (status page):
   root: https://zeventbooks.com?p=status&brand=root
   abc: https://zeventbooks.com?p=status&brand=abc
   cbc: https://zeventbooks.com?p=status&brand=cbc
   cbl: https://zeventbooks.com?p=status&brand=cbl
 
-Tenant URLs (admin page):
+Brand URLs (admin page):
   root: https://zeventbooks.com?p=admin&brand=root
   abc: https://zeventbooks.com?p=admin&brand=abc
   cbc: https://zeventbooks.com?p=admin&brand=cbc
@@ -291,14 +291,14 @@ export BASE_URL="https://script.google.com/macros/s/.../exec"
 npm run test:api
 ```
 
-### 3. Test All Tenants
+### 3. Test All Brands
 
-Multi-tenant isolation is critical:
+Multi-brand isolation is critical:
 
 ```bash
-# Test each tenant
-for tenant in root abc cbc cbl; do
-  export TENANT_ID=$tenant
+# Test each brand
+for brand in root abc cbc cbl; do
+  export BRAND_ID=$brand
   npm run test:api
 done
 ```
@@ -319,11 +319,11 @@ The test framework constructs URLs consistently:
 
 ```javascript
 // API Helper
-const url = `${baseUrl}?p=status&brand=${tenant}`;
+const url = `${baseUrl}?p=status&brand=${brand}`;
 // Result: https://zeventbooks.com?p=status&brand=root
 
 // Page Test
-await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
+await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
 // Result: https://zeventbooks.com?page=admin&brand=root
 ```
 

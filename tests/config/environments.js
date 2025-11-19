@@ -16,7 +16,7 @@ const ENVIRONMENTS = {
     name: 'Google Apps Script',
     baseUrl: process.env.GOOGLE_SCRIPT_URL || 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec',
     description: 'Direct Google Apps Script deployment (Production)',
-    tenants: {
+    brands: {
       root: 'root',
       abc: 'abc',
       cbc: 'cbc',
@@ -29,7 +29,7 @@ const ENVIRONMENTS = {
     name: 'QA Apps Script',
     baseUrl: process.env.QA_SCRIPT_URL || 'https://script.google.com/macros/s/YOUR_QA_SCRIPT_ID/exec',
     description: 'Direct Google Apps Script deployment (QA)',
-    tenants: {
+    brands: {
       root: 'root',
       abc: 'abc',
       cbc: 'cbc',
@@ -42,7 +42,7 @@ const ENVIRONMENTS = {
     name: 'Hostinger',
     baseUrl: process.env.HOSTINGER_URL || 'https://zeventbooks.com',
     description: 'Hostinger custom domain (Production)',
-    tenants: {
+    brands: {
       root: 'root',
       abc: 'abc',
       cbc: 'cbc',
@@ -55,7 +55,7 @@ const ENVIRONMENTS = {
     name: 'QA Hostinger',
     baseUrl: process.env.QA_HOSTINGER_URL || 'https://zeventbooks.com',
     description: 'Hostinger custom domain (QA) - Currently pointing to zeventbooks.com',
-    tenants: {
+    brands: {
       root: 'root',
       abc: 'abc',
       cbc: 'cbc',
@@ -68,7 +68,7 @@ const ENVIRONMENTS = {
     name: 'Local Development',
     baseUrl: process.env.LOCAL_URL || 'http://localhost:3000',
     description: 'Local development server',
-    tenants: {
+    brands: {
       root: 'root',
       abc: 'abc',
       cbc: 'cbc',
@@ -146,7 +146,7 @@ function getCurrentEnvironment() {
       name: 'Custom',
       baseUrl: baseUrl,
       description: 'Custom environment',
-      tenants: ENVIRONMENTS.hostinger.tenants
+      brands: ENVIRONMENTS.hostinger.brands
     };
   } catch (error) {
     // If URL parsing fails, return custom environment
@@ -155,31 +155,31 @@ function getCurrentEnvironment() {
       name: 'Custom',
       baseUrl: baseUrl,
       description: 'Custom environment (invalid URL)',
-      tenants: ENVIRONMENTS.hostinger.tenants
+      brands: ENVIRONMENTS.hostinger.brands
     };
   }
 }
 
 /**
- * Get tenant-specific URLs for testing
- * @param {string} tenant - Tenant ID
+ * Get brand-specific URLs for testing
+ * @param {string} brand - Brand ID
  * @param {string} page - Page name (admin, status, display, etc.)
  */
-function getTenantUrl(tenant = 'root', page = 'status') {
+function getBrandUrl(brand = 'root', page = 'status') {
   const env = getCurrentEnvironment();
-  return `${env.baseUrl}?p=${page}&brand=${tenant}`;
+  return `${env.baseUrl}?p=${page}&brand=${brand}`;
 }
 
 /**
- * Get all tenant URLs for a specific page
+ * Get all brand URLs for a specific page
  * @param {string} page - Page name
  */
-function getAllTenantUrls(page = 'status') {
+function getAllBrandUrls(page = 'status') {
   const env = getCurrentEnvironment();
   const urls = {};
 
-  Object.keys(env.tenants).forEach(tenant => {
-    urls[tenant] = getTenantUrl(tenant, page);
+  Object.keys(env.brands).forEach(brand => {
+    urls[brand] = getBrandUrl(brand, page);
   });
 
   return urls;
@@ -196,13 +196,13 @@ function printEnvironmentInfo() {
   console.log(`Environment: ${env.name}`);
   console.log(`Description: ${env.description}`);
   console.log(`Base URL: ${env.baseUrl}`);
-  console.log('\nTenant URLs (status page):');
-  Object.keys(env.tenants).forEach(tenant => {
-    console.log(`  ${tenant}: ${getTenantUrl(tenant, 'status')}`);
+  console.log('\nBrand URLs (status page):');
+  Object.keys(env.brands).forEach(brand => {
+    console.log(`  ${brand}: ${getBrandUrl(brand, 'status')}`);
   });
-  console.log('\nTenant URLs (admin page):');
-  Object.keys(env.tenants).forEach(tenant => {
-    console.log(`  ${tenant}: ${getTenantUrl(tenant, 'admin')}`);
+  console.log('\nBrand URLs (admin page):');
+  Object.keys(env.brands).forEach(brand => {
+    console.log(`  ${brand}: ${getBrandUrl(brand, 'admin')}`);
   });
   console.log('==============================================\n');
 }
@@ -210,7 +210,7 @@ function printEnvironmentInfo() {
 module.exports = {
   ENVIRONMENTS,
   getCurrentEnvironment,
-  getTenantUrl,
-  getAllTenantUrls,
+  getBrandUrl,
+  getAllBrandUrls,
   printEnvironmentInfo
 };

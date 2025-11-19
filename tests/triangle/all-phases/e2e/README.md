@@ -227,7 +227,7 @@ The diagnostics page runs these checks:
    - Error handling
 
 3. **Configuration**
-   - Tenant configuration valid
+   - Brand configuration valid
    - Template definitions correct
    - Build information accurate
 

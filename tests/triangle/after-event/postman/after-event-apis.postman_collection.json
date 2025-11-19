@@ -17,7 +17,7 @@
       "type": "string"
     },
     {
-      "key": "tenant_id",
+      "key": "brand_id",
       "value": "root",
       "type": "string"
     },
@@ -61,7 +61,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"action\": \"logEvents\",\n  \"tenant\": \"{{tenant_id}}\",\n  \"events\": [\n    {\n      \"eventType\": \"impression\",\n      \"surface\": \"display\",\n      \"sponsorId\": \"platinum-corp\",\n      \"timestamp\": \"{{$isoTimestamp}}\"\n    },\n    {\n      \"eventType\": \"click\",\n      \"surface\": \"display\",\n      \"sponsorId\": \"platinum-corp\",\n      \"timestamp\": \"{{$isoTimestamp}}\"\n    },\n    {\n      \"eventType\": \"impression\",\n      \"surface\": \"public\",\n      \"sponsorId\": \"gold-industries\",\n      \"timestamp\": \"{{$isoTimestamp}}\"\n    }\n  ]\n}"
+              "raw": "{\n  \"action\": \"logEvents\",\n  \"brand\": \"{{brand_id}}\",\n  \"events\": [\n    {\n      \"eventType\": \"impression\",\n      \"surface\": \"display\",\n      \"sponsorId\": \"platinum-corp\",\n      \"timestamp\": \"{{$isoTimestamp}}\"\n    },\n    {\n      \"eventType\": \"click\",\n      \"surface\": \"display\",\n      \"sponsorId\": \"platinum-corp\",\n      \"timestamp\": \"{{$isoTimestamp}}\"\n    },\n    {\n      \"eventType\": \"impression\",\n      \"surface\": \"public\",\n      \"sponsorId\": \"gold-industries\",\n      \"timestamp\": \"{{$isoTimestamp}}\"\n    }\n  ]\n}"
             },
             "url": {
               "raw": "{{base_url}}",
@@ -107,7 +107,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}?action=getReport&brand={{tenant_id}}&id={{event_id}}",
+              "raw": "{{base_url}}?action=getReport&brand={{brand_id}}&id={{event_id}}",
               "host": ["{{base_url}}"],
               "query": [
                 {
@@ -116,7 +116,7 @@
                 },
                 {
                   "key": "brand",
-                  "value": "{{tenant_id}}"
+                  "value": "{{brand_id}}"
                 },
                 {
                   "key": "id",
@@ -134,7 +134,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}?action=getReport&brand={{tenant_id}}&id={{event_id}}&sponsorId=platinum-corp",
+              "raw": "{{base_url}}?action=getReport&brand={{brand_id}}&id={{event_id}}&sponsorId=platinum-corp",
               "host": ["{{base_url}}"],
               "query": [
                 {
@@ -143,7 +143,7 @@
                 },
                 {
                   "key": "brand",
-                  "value": "{{tenant_id}}"
+                  "value": "{{brand_id}}"
                 },
                 {
                   "key": "id",

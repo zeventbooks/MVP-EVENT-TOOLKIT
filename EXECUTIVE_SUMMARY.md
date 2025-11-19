@@ -87,7 +87,7 @@ The MVP-EVENT-TOOLKIT is a **multi-page event management system** built on Googl
 ### Core Routing
 - **Main Router**: `/home/user/MVP-EVENT-TOOLKIT/Code.gs` (lines 97-146)
 - **Page Mapping**: `/home/user/MVP-EVENT-TOOLKIT/Code.gs` (lines 275-282)
-- **Configuration**: `/home/user/MVP-EVENT-TOOLKIT/Config.gs` (tenants, templates)
+- **Configuration**: `/home/user/MVP-EVENT-TOOLKIT/Config.gs` (brands, templates)
 
 ### HTML Pages
 - **Public Page**: `/home/user/MVP-EVENT-TOOLKIT/Public.html` (event listing/detail)
@@ -108,8 +108,8 @@ The MVP-EVENT-TOOLKIT is a **multi-page event management system** built on Googl
 ## Template Variables Passed to All Pages
 
 ```
-appTitle: "Zeventbook · events"  (tenant.name + scope)
-brandId: "root"                 (current tenant)
+appTitle: "Zeventbook · events"  (brand.name + scope)
+brandId: "root"                 (current brand)
 scope: "events"                  (events|leagues|tournaments)
 execUrl: "https://script.google.com/macros/..."  (base URL for self-referential links)
 ZEB: { BUILD_ID, CONTRACT_VER }  (metadata)
@@ -117,9 +117,9 @@ ZEB: { BUILD_ID, CONTRACT_VER }  (metadata)
 
 ---
 
-## Multi-Tenant & Scope System
+## Multi-brand & Scope System
 
-**Tenants** (Config.gs):
+**Brands** (Config.gs):
 - root, abc (American Bocce Co.), cbc (Chicago Bocce Club), cbl (Chicago Bocce League)
 - Detection: hostname first, then `?brand=` parameter, default to root
 

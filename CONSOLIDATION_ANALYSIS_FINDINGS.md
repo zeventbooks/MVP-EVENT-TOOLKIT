@@ -52,7 +52,7 @@ SharedReporting.gs: 0 lines differ (IDENTICAL)
 ```javascript
 // SECURITY: Admin secrets moved to Script Properties for security
 // Set via: File > Project Properties > Script Properties in Apps Script UI
-const TENANTS = [
+const BRANDS = [
   {
     id: 'root',
     name: 'Zeventbook',
@@ -64,7 +64,7 @@ const TENANTS = [
 
 **ZEVENTBOOKS (INSECURE - HARDCODED SECRETS):**
 ```javascript
-const TENANTS = [
+const BRANDS = [
   {
     id: 'root',
     name: 'Zeventbook',
@@ -76,7 +76,7 @@ const TENANTS = [
 
 **Impact if we had merged ZEVENTBOOKS → MVP-EVENT-TOOLKIT:**
 - 🔴 Admin secrets would be committed to Git (security breach)
-- 🔴 All tenant admin keys would be publicly visible on GitHub
+- 🔴 All brand admin keys would be publicly visible on GitHub
 - 🔴 Anyone with repo access could authenticate as admin
 - 🔴 Violates security best practices (secrets in environment, not code)
 
@@ -88,15 +88,15 @@ const TENANTS = [
 ```javascript
 /**
  * Diagnostic logging with spreadsheet ID support for web app context
- * @param {string} spreadsheetId - Optional spreadsheet ID (uses root tenant if not provided)
+ * @param {string} spreadsheetId - Optional spreadsheet ID (uses root brand if not provided)
  */
 function diag_(level, where, msg, meta, spreadsheetId){
   try{
-    // If spreadsheet ID not provided, try to get from root tenant
+    // If spreadsheet ID not provided, try to get from root brand
     if (!spreadsheetId) {
-      const rootTenant = findTenant_('root');
-      if (rootTenant && rootTenant.store && rootTenant.store.spreadsheetId) {
-        spreadsheetId = rootTenant.store.spreadsheetId;
+      const rootBrand = findBrand_('root');
+      if (rootBrand && rootBrand.store && rootBrand.store.spreadsheetId) {
+        spreadsheetId = rootBrand.store.spreadsheetId;
       }
     }
 
@@ -121,7 +121,7 @@ function diag_(level, where, msg, meta){
 
 **Impact if we had merged ZEVENTBOOKS → MVP-EVENT-TOOLKIT:**
 - 🔴 Logging would fail in web app context (no active spreadsheet)
-- 🔴 Multi-tenant logging would break
+- 🔴 Multi-brand logging would break
 - 🔴 Diagnostics would be lost for API calls
 - 🔴 Debugging production issues would be impossible
 
@@ -131,28 +131,28 @@ function diag_(level, where, msg, meta){
 
 **MVP-EVENT-TOOLKIT (ENHANCED):**
 ```javascript
-// Status endpoint with tenant parameter support
+// Status endpoint with brand parameter support
 if (pageParam === 'status') {
-  const tenantParam = (e?.parameter?.tenant || 'root').toString();
-  const status = api_status(tenantParam);
+  const brandParam = (e?.parameter?.brand || 'root').toString();
+  const status = api_status(brandParam);
   return ContentService.createTextOutput(JSON.stringify(status, null, 2))
     .setMimeType(ContentService.MimeType.JSON);
 }
 ```
 
-**ZEVENTBOOKS (OLDER - NO TENANT PARAMETER):**
+**ZEVENTBOOKS (OLDER - NO BRAND PARAMETER):**
 ```javascript
 if (pageParam === 'status') {
-  const status = api_status();  // ❌ No tenant parameter
+  const status = api_status();  // ❌ No brand parameter
   return ContentService.createTextOutput(JSON.stringify(status, null, 2))
     .setMimeType(ContentService.MimeType.JSON);
 }
 ```
 
 **Impact if we had merged ZEVENTBOOKS → MVP-EVENT-TOOLKIT:**
-- 🟡 Status endpoint would only work for default tenant
-- 🟡 Multi-tenant status monitoring would be lost
-- 🟡 Ops team couldn't check individual tenant health
+- 🟡 Status endpoint would only work for default brand
+- 🟡 Multi-brand status monitoring would be lost
+- 🟡 Ops team couldn't check individual brand health
 
 ---
 

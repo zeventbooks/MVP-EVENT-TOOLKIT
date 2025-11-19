@@ -30,7 +30,7 @@ npm run test:unit
 - validation.test.js (49 tests)
 - rate-limiting.test.js (62 tests)
 - forms.test.js (49 tests)
-- multi-tenant.test.js (31 tests)
+- multi-brand.test.js (31 tests)
 - concurrency.test.js (28 tests)
 - error-handling.test.js (29 tests)
 
@@ -84,7 +84,7 @@ Deployment is set to **"Only myself"** instead of **"Anyone"**
 curl "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec?p=status&brand=root"
 
 # Expected response (JSON):
-{"ok":true,"value":{"build":"triangle-extended-v1.3","tenant":"root"}}
+{"ok":true,"value":{"build":"triangle-extended-v1.3","brand":"root"}}
 
 # Not HTML login page!
 ```
@@ -96,7 +96,7 @@ Changing to "Anyone" access is **SAFE** because your app has:
 - ✅ JWT token verification
 - ✅ CSRF protection
 - ✅ Rate limiting (62 tests)
-- ✅ Tenant isolation
+- ✅ Brand isolation
 - ✅ Input sanitization (XSS, SQL injection)
 
 **"Anyone" means:** HTTP requests are allowed, but admin operations still require authentication.
@@ -195,7 +195,7 @@ Set these in: Repository Settings → Secrets and variables → Actions
 
 2. **ADMIN_KEY_ROOT** (Required for admin tests)
    ```
-   your-root-tenant-admin-secret
+   your-root-brand-admin-secret
    ```
 
 3. **QA_SCRIPT_URL** (Optional - for QA environment)

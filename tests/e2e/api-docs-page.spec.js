@@ -182,8 +182,8 @@ test.describe('API Documentation Page', () => {
     test('should list events with custom parameters', async ({ page }) => {
       await page.goto(`${BASE_URL}?page=docs`);
 
-      // Fill in tenant and scope
-      await page.fill('#list-tenant', 'root');
+      // Fill in brand and scope
+      await page.fill('#list-brand', 'root');
       await page.fill('#list-scope', 'events');
 
       // Click "List Events" button
@@ -255,7 +255,7 @@ test.describe('API Documentation Page', () => {
       // Update the create body with valid admin key
       const createBody = {
         action: 'create',
-        tenantId: 'root',
+        brandId: 'root',
         adminKey: ADMIN_KEY,
         scope: 'events',
         templateId: 'Event',

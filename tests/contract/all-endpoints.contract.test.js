@@ -69,18 +69,18 @@ describe('📋 CONTRACT: All API Endpoints', () => {
     test('api_status contract', () => {
       const response = Ok({
         build: 'triangle-extended-v1.3',
-        tenant: 'root',
+        brand: 'root',
         timestamp: new Date().toISOString()
       });
 
       validateContract(response, {
-        requiredFields: ['build', 'tenant'],
+        requiredFields: ['build', 'brand'],
         fieldTypes: {
           build: 'string',
-          tenant: 'string',
+          brand: 'string',
           timestamp: 'string'
         },
-        allowedFields: ['build', 'tenant', 'timestamp'],
+        allowedFields: ['build', 'brand', 'timestamp'],
         strict: false // Allow additional fields
       });
     });
@@ -98,16 +98,16 @@ describe('📋 CONTRACT: All API Endpoints', () => {
       const response = Ok({
         spreadsheet: true,
         sheets: true,
-        tenantConfig: true,
+        brandConfig: true,
         warnings: []
       });
 
       validateContract(response, {
-        requiredFields: ['spreadsheet', 'sheets', 'tenantConfig'],
+        requiredFields: ['spreadsheet', 'sheets', 'brandConfig'],
         fieldTypes: {
           spreadsheet: 'boolean',
           sheets: 'boolean',
-          tenantConfig: 'boolean'
+          brandConfig: 'boolean'
         }
       });
     });
@@ -116,15 +116,15 @@ describe('📋 CONTRACT: All API Endpoints', () => {
       const response = Ok({
         appTitle: 'Zeventbook',
         buildId: 'triangle-extended-v1.3',
-        tenantId: 'root'
+        brandId: 'root'
       });
 
       validateContract(response, {
-        requiredFields: ['appTitle', 'buildId', 'tenantId'],
+        requiredFields: ['appTitle', 'buildId', 'brandId'],
         fieldTypes: {
           appTitle: 'string',
           buildId: 'string',
-          tenantId: 'string'
+          brandId: 'string'
         }
       });
     });
@@ -136,15 +136,15 @@ describe('📋 CONTRACT: All API Endpoints', () => {
       const response = Ok({
         token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
         expiresAt: '2025-12-31T23:59:59Z',
-        tenantId: 'root'
+        brandId: 'root'
       });
 
       validateContract(response, {
-        requiredFields: ['token', 'expiresAt', 'tenantId'],
+        requiredFields: ['token', 'expiresAt', 'brandId'],
         fieldTypes: {
           token: 'string',
           expiresAt: 'string',
-          tenantId: 'string'
+          brandId: 'string'
         }
       });
     });
@@ -593,7 +593,7 @@ describe('📋 CONTRACT: SharedReporting.gs Specific', () => {
       data: {},
       metadata: {
         generatedAt: new Date().toISOString(),
-        tenantId: 'root',
+        brandId: 'root',
         filters: {}
       }
     });

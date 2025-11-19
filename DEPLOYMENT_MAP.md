@@ -81,10 +81,10 @@ The `index.php` file acts as a transparent proxy:
 
 ---
 
-## 4. Multi-Tenant Configuration
+## 4. Multi-brand Configuration
 
-### Tenants
-| Tenant ID | Name | Hostname | Admin URLs |
+### Brands
+| Brand ID | Name | Hostname | Admin URLs |
 |-----------|------|----------|-----------|
 | `root` | Zeventbook | zeventbook.io | https://zeventbooks.com?p=admin&brand=root |
 | `abc` | American Bocce Co. | americanbocceco.zeventbooks.io | https://zeventbooks.com?p=admin&brand=abc |
@@ -92,7 +92,7 @@ The `index.php` file acts as a transparent proxy:
 | `cbl` | Chicago Bocce League | chicagobocceleague.zeventbooks.io | https://zeventbooks.com?p=admin&brand=cbl |
 
 ### Data Storage
-All tenants share the same Google Spreadsheet:
+All brands share the same Google Spreadsheet:
 - **Spreadsheet ID**: `1ixHd2iUc27UF0fJvKh9hXsRI1XZtNRKqbZYf0vgMbKrBFItxngd7L-VO`
 
 ---
@@ -221,7 +221,7 @@ Admin authentication keys are stored in Apps Script Script Properties (NOT in co
 | Apps Script Project ID | `1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l` |
 | Spreadsheet ID | `1ixHd2iUc27UF0fJvKh9hXsRI1XZtNRKqbZYf0vgMbKrBFItxngd7L-VO` |
 | Domain | zeventbooks.com |
-| Admin URL Template | `https://zeventbooks.com?p=admin&brand={TENANT_ID}` |
+| Admin URL Template | `https://zeventbooks.com?p=admin&brand={BRAND_ID}` |
 
 ---
 

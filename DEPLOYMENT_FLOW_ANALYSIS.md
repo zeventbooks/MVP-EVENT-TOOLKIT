@@ -39,7 +39,7 @@ Your deployment architecture is **already sophisticated** with GitHub Actions CI
 │  │ 4. clasp push --force                ✅          │   │
 │  │ 5. clasp deploy                      ✅          │   │
 │  │ 6. Extract Deployment ID             ✅          │   │
-│  │ 7. Generate 24 tenant URLs           ✅          │   │
+│  │ 7. Generate 24 brand URLs           ✅          │   │
 │  └──────────────────────────────────────────────────┘   │
 │                                                          │
 │  Output: Deployment ID (AKfycb...)                      │
@@ -53,7 +53,7 @@ Your deployment architecture is **already sophisticated** with GitHub Actions CI
 │                                                          │
 │  Files Deployed:                                        │
 │  ├─ Code.gs (60KB) - API routing                       │
-│  ├─ Config.gs (8KB) - Tenant config                    │
+│  ├─ Config.gs (8KB) - Brand config                    │
 │  ├─ 20 HTML templates (250KB total)                    │
 │  └─ appsscript.json - Manifest                         │
 │                                                          │
@@ -69,7 +69,7 @@ Your deployment architecture is **already sophisticated** with GitHub Actions CI
 │                  │  │                │  │             │
 │ ID: 1ixHd2...    │  │ ❌ MANUAL      │  │ ✅ Auto     │
 │                  │  │ ❌ SYNC GAP    │  │ Health      │
-│ 4 Tenants:       │  │                │  │ Critical    │
+│ 4 Brands:       │  │                │  │ Critical    │
 │ - root           │  │ index.php:     │  │ Expensive   │
 │ - abc            │  │ Line 19 needs  │  │ Quality Gate│
 │ - cbc            │  │ manual update  │  │             │
@@ -435,14 +435,14 @@ module.exports = {
     deploymentId: 'AKfycby355Xo-XVv3ibfYsf9SUPQo0rGvBS3ex1sNvfpiQ6g', // Auto-updated by CI
     hostingerUrl: 'https://zeventbooks.com',
     spreadsheetId: '1ixHd2iUc27UF0fJvKh9hXsRI1XZtNRKqbZYf0vgMbKrBFItxngd7L-VO',
-    tenants: ['root', 'abc', 'cbc', 'cbl']
+    brands: ['root', 'abc', 'cbc', 'cbl']
   },
   qa: {
     scriptId: process.env.QA_SCRIPT_ID,
     deploymentId: process.env.QA_DEPLOYMENT_ID,
     hostingerUrl: 'https://qa.zeventbooks.com',
     spreadsheetId: '1ixHd2iUc27UF0fJvKh9hXsRI1XZtNRKqbZYf0vgMbKrBFItxngd7L-VO',
-    tenants: ['root']
+    brands: ['root']
   }
 };
 ```

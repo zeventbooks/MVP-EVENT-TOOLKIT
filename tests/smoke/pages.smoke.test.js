@@ -13,12 +13,12 @@
 const { test, expect } = require('@playwright/test');
 
 const BASE_URL = process.env.BASE_URL || 'https://script.google.com/macros/s/.../exec';
-const TENANT_ID = 'root';
+const BRAND_ID = 'root';
 
 test.describe('Smoke Tests - All Pages', () => {
 
   test('Admin Page - Loads and shows create form', async ({ page }) => {
-    const response = await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
+    const response = await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
 
     expect(response.status()).toBe(200);
     await expect(page).toHaveTitle(/Admin/);
@@ -29,7 +29,7 @@ test.describe('Smoke Tests - All Pages', () => {
   });
 
   test('Public Page - Loads event listing', async ({ page }) => {
-    const response = await page.goto(`${BASE_URL}?p=events&brand=${TENANT_ID}`);
+    const response = await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`);
 
     expect(response.status()).toBe(200);
     await expect(page).toHaveTitle(/Public/);
@@ -40,7 +40,7 @@ test.describe('Smoke Tests - All Pages', () => {
   });
 
   test('Display Page - Loads TV display layout', async ({ page }) => {
-    const response = await page.goto(`${BASE_URL}?page=display&brand=${TENANT_ID}`);
+    const response = await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}`);
 
     expect(response.status()).toBe(200);
     await expect(page).toHaveTitle(/TV Display/);
@@ -57,7 +57,7 @@ test.describe('Smoke Tests - All Pages', () => {
 
   test('Poster Page - Loads print layout', async ({ page }) => {
     // Note: Requires event ID, will show blank if no ID provided
-    const response = await page.goto(`${BASE_URL}?page=poster&brand=${TENANT_ID}`);
+    const response = await page.goto(`${BASE_URL}?page=poster&brand=${BRAND_ID}`);
 
     expect(response.status()).toBe(200);
     await expect(page).toHaveTitle(/Poster/);
@@ -65,7 +65,7 @@ test.describe('Smoke Tests - All Pages', () => {
   });
 
   test('Test Page - Health check endpoint', async ({ page }) => {
-    const response = await page.goto(`${BASE_URL}?page=test&brand=${TENANT_ID}`);
+    const response = await page.goto(`${BASE_URL}?page=test&brand=${BRAND_ID}`);
 
     expect(response.status()).toBe(200);
     await expect(page).toHaveTitle(/Test/);
@@ -73,7 +73,7 @@ test.describe('Smoke Tests - All Pages', () => {
   });
 
   test('Diagnostics Page - System test interface', async ({ page }) => {
-    const response = await page.goto(`${BASE_URL}?page=diagnostics&brand=${TENANT_ID}`);
+    const response = await page.goto(`${BASE_URL}?page=diagnostics&brand=${BRAND_ID}`);
 
     expect(response.status()).toBe(200);
     await expect(page).toHaveTitle(/Diagnostics/);
@@ -82,7 +82,7 @@ test.describe('Smoke Tests - All Pages', () => {
   });
 
   test('Status API - JSON endpoint responds', async ({ page }) => {
-    const response = await page.goto(`${BASE_URL}?p=status&brand=${TENANT_ID}`);
+    const response = await page.goto(`${BASE_URL}?p=status&brand=${BRAND_ID}`);
 
     expect(response.status()).toBe(200);
     const json = await response.json();
@@ -99,7 +99,7 @@ test.describe('Smoke Tests - Responsive Design', () => {
 
   test('Mobile - Admin page is usable', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 667 }); // iPhone SE
-    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
 
     await expect(page.locator('#name')).toBeVisible();
 
@@ -110,7 +110,7 @@ test.describe('Smoke Tests - Responsive Design', () => {
 
   test('Mobile - Public page is readable', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 667 });
-    await page.goto(`${BASE_URL}?p=events&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`);
 
     // Font size should be at least 16px to prevent iOS zoom
     const fontSize = await page.locator('body').evaluate(el =>
@@ -122,14 +122,14 @@ test.describe('Smoke Tests - Responsive Design', () => {
 
   test('Tablet - Display adapts to medium screens', async ({ page }) => {
     await page.setViewportSize({ width: 768, height: 1024 }); // iPad
-    await page.goto(`${BASE_URL}?p=events&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`);
 
     await expect(page.locator('main')).toBeVisible();
   });
 
   test('TV - Large viewport with readable fonts', async ({ page }) => {
     await page.setViewportSize({ width: 1920, height: 1080 }); // 1080p TV
-    await page.goto(`${BASE_URL}?page=display&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}`);
 
     const fontSize = await page.locator('body').evaluate(el =>
       window.getComputedStyle(el).fontSize
@@ -145,7 +145,7 @@ test.describe('Smoke Tests - JavaScript Errors', () => {
     const errors = [];
     page.on('pageerror', error => errors.push(error));
 
-    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
     await page.waitForLoadState('networkidle');
 
     // Allow google.script.run errors in non-Apps Script environment
@@ -160,7 +160,7 @@ test.describe('Smoke Tests - JavaScript Errors', () => {
     const errors = [];
     page.on('pageerror', error => errors.push(error));
 
-    await page.goto(`${BASE_URL}?p=events&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`);
     await page.waitForLoadState('networkidle');
 
     const criticalErrors = errors.filter(e =>
@@ -174,7 +174,7 @@ test.describe('Smoke Tests - JavaScript Errors', () => {
     const errors = [];
     page.on('pageerror', error => errors.push(error));
 
-    await page.goto(`${BASE_URL}?page=display&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}`);
     await page.waitForLoadState('networkidle');
 
     const criticalErrors = errors.filter(e =>
@@ -189,7 +189,7 @@ test.describe('Smoke Tests - Performance', () => {
 
   test('Status endpoint - Responds within 2 seconds', async ({ page }) => {
     const start = Date.now();
-    await page.goto(`${BASE_URL}?p=status&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?p=status&brand=${BRAND_ID}`);
     const duration = Date.now() - start;
 
     expect(duration).toBeLessThan(2000);
@@ -197,7 +197,7 @@ test.describe('Smoke Tests - Performance', () => {
 
   test('Admin page - Loads within 5 seconds', async ({ page }) => {
     const start = Date.now();
-    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
     await page.waitForLoadState('domcontentloaded');
     const duration = Date.now() - start;
 
@@ -206,7 +206,7 @@ test.describe('Smoke Tests - Performance', () => {
 
   test('Public page - Loads within 5 seconds', async ({ page }) => {
     const start = Date.now();
-    await page.goto(`${BASE_URL}?p=events&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`);
     await page.waitForLoadState('domcontentloaded');
     const duration = Date.now() - start;
 
@@ -217,7 +217,7 @@ test.describe('Smoke Tests - Performance', () => {
 test.describe('Smoke Tests - Accessibility', () => {
 
   test('Admin page - Keyboard navigation works', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
 
     // Tab through elements
     await page.keyboard.press('Tab');
@@ -228,14 +228,14 @@ test.describe('Smoke Tests - Accessibility', () => {
   });
 
   test('Public page - Has proper heading structure', async ({ page }) => {
-    await page.goto(`${BASE_URL}?p=events&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`);
 
     const h1Count = await page.locator('h1').count();
     expect(h1Count).toBeGreaterThanOrEqual(0); // Should have at least one h1 if content exists
   });
 
   test('Forms have accessible labels', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
 
     // Check that inputs have associated labels
     const nameInput = page.locator('#name');

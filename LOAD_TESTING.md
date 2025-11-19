@@ -188,7 +188,7 @@ Load tests run via GitHub Actions workflow - **no local installation needed**.
 ```bash
 export BASE_URL="https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec"
 export ADMIN_KEY="your-admin-key-here"
-export TENANT_ID="root"
+export BRAND_ID="root"
 ```
 
 **2. Run load tests:**
@@ -284,7 +284,7 @@ All load tests support these environment variables:
 |----------|-------------|---------|----------|
 | `BASE_URL` | Deployment URL to test | (none) | ✅ Yes |
 | `ADMIN_KEY` | Admin key for write operations | (none) | ⚠️ For CRUD tests |
-| `TENANT_ID` | Tenant to test | `root` | No |
+| `BRAND_ID` | Brand to test | `root` | No |
 | `ENVIRONMENT` | Environment tag for metrics | `production` | No |
 
 **Example:**
@@ -292,7 +292,7 @@ All load tests support these environment variables:
 ```bash
 BASE_URL="https://script.google.com/macros/s/AKfycb.../exec" \
 ADMIN_KEY="your-admin-key" \
-TENANT_ID="root" \
+BRAND_ID="root" \
 k6 run tests/load/average-load.js
 ```
 
@@ -741,14 +741,14 @@ Dashboards:
 5. Investigate backend performance
 6. Fix issues before re-running
 
-### Q: How do I test multi-tenant functionality?
+### Q: How do I test multi-brand functionality?
 
-**A:** Set different TENANT_ID for each test:
+**A:** Set different BRAND_ID for each test:
 
 ```bash
-TENANT_ID="root" k6 run tests/load/smoke-load.js
-TENANT_ID="abc" k6 run tests/load/smoke-load.js
-TENANT_ID="cbc" k6 run tests/load/smoke-load.js
+BRAND_ID="root" k6 run tests/load/smoke-load.js
+BRAND_ID="abc" k6 run tests/load/smoke-load.js
+BRAND_ID="cbc" k6 run tests/load/smoke-load.js
 ```
 
 ### Q: Can I run tests without ADMIN_KEY?

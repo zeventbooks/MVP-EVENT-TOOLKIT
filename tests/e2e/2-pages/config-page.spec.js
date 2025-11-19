@@ -355,7 +355,7 @@ test.describe('📄 PAGE: Config - Portfolio Configuration Management', () => {
       const href = await cbcLink.getAttribute('href');
 
       // Should link to child brand's config page
-      expect(href).toContain('tenant=cbc');
+      expect(href).toContain('brand=cbc');
     }
   });
 });

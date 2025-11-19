@@ -23,7 +23,7 @@
 ```
 ?page=PAGENAME       Page identifier (admin, poster, test, display, report, analytics)
 ?p=SCOPE             Scope identifier (events, leagues, tournaments) - controls which sheet
-?brand=TENANTID     Tenant identifier (root, abc, cbc, cbl, etc.)
+?brand=BRANDID     Brand identifier (root, abc, cbc, cbl, etc.)
 ?id=EVENTID          Event identifier (UUID) - for event-specific pages
 ?tv=1                TV mode flag (for Display.html to use TV-optimized layout)
 ```
@@ -34,7 +34,7 @@
 ?t=TOKEN             Token for shortlink redirect (?p=r&t=TOKEN)
 ?token=TOKEN         Alternative token parameter for shortlink
 ?scope=SCOPE         Alternative scope parameter (usually via ?p= instead)
-?host=HOSTNAME       Host header override for tenant detection
+?host=HOSTNAME       Host header override for brand detection
 ```
 
 ---
@@ -45,11 +45,11 @@
 function doGet(e){
   const pageParam = (e?.parameter?.page || e?.parameter?.p || '').toString();
   const actionParam = (e?.parameter?.action || '').toString();
-  const tenant = findTenantByHost_(hostHeader) || findTenant_('root');
+  const brand = findBrandByHost_(hostHeader) || findBrand_('root');
 
   // 1. REST API endpoints (return JSON)
   if (actionParam) {
-    return handleRestApiGet_(e, actionParam, tenant);  // ?action=list|get|config|etc
+    return handleRestApiGet_(e, actionParam, brand);  // ?action=list|get|config|etc
   }
 
   // 2. Shortlink redirects
@@ -69,10 +69,10 @@ function doGet(e){
 
   // 5. Scope validation
   const scope = (e?.parameter?.p || e?.parameter?.scope || 'events').toString();
-  const allowed = tenant.scopesAllowed?.length ? tenant.scopesAllowed : ['events','leagues','tournaments'];
+  const allowed = brand.scopesAllowed?.length ? brand.scopesAllowed : ['events','leagues','tournaments'];
   if (!allowed.includes(scope)){
     // Redirect to first allowed scope if invalid
-    return HtmlService.createHtmlOutput(`<meta http-equiv="refresh" content="0;url=?p=${first}&brand=${tenant.id}">`);
+    return HtmlService.createHtmlOutput(`<meta http-equiv="refresh" content="0;url=?p=${first}&brand=${brand.id}">`);
   }
 
   // 6. Named page routes
@@ -83,8 +83,8 @@ function doGet(e){
 
   // 7. Load and populate template
   const tpl = HtmlService.createTemplateFromFile(pageFile_(page));
-  tpl.appTitle = `${tenant.name} · ${scope}`;
-  tpl.brandId = tenant.id;
+  tpl.appTitle = `${brand.name} · ${scope}`;
+  tpl.brandId = brand.id;
   tpl.scope = scope;
   tpl.execUrl = ScriptApp.getService().getUrl();
   tpl.ZEB = ZEB;
@@ -115,10 +115,10 @@ function pageFile_(page){
 ```javascript
 // Passed from Code.gs to all HTML templates via tpl object:
 
-appTitle      // String: "${tenant.name} · ${scope}"
+appTitle      // String: "${brand.name} · ${scope}"
               // Example: "Zeventbook · events"
 
-brandId      // String: tenant.id
+brandId      // String: brand.id
               // Example: "root", "abc", "cbc", "cbl"
 
 scope         // String: 'events' | 'leagues' | 'tournaments'
@@ -164,7 +164,7 @@ document.getElementById('lnkReport').href = reportUrl;
 
 ### Event List View
 ```
-List of all events for tenant/scope
+List of all events for brand/scope
   └─ Click event card
      └─ Load individual event detail with ?id=EVENTID
         └─ Show details + action buttons
@@ -204,10 +204,10 @@ Progress bars update based on phase:
 
 ---
 
-## Multi-Tenant System (Config.gs)
+## Multi-brand System (Config.gs)
 
 ```javascript
-const TENANTS = [
+const BRANDS = [
   {
     id: 'root',
     name: 'Zeventbook',
@@ -217,13 +217,13 @@ const TENANTS = [
     store: { type: 'workbook', spreadsheetId: '...' },
     scopesAllowed: ['events', 'sponsors']
   },
-  // ... more tenants
+  // ... more brands
 ];
 
-// Tenant detection order:
-1. findTenantByHost_(e.headers.host)  // Match hostname first
-2. findTenant_(e.parameter.tenant)    // Or use ?brand=ID parameter
-3. Default to 'root' tenant
+// Brand detection order:
+1. findBrandByHost_(e.headers.host)  // Match hostname first
+2. findBrand_(e.parameter.brand)    // Or use ?brand=ID parameter
+3. Default to 'root' brand
 ```
 
 ---
@@ -290,7 +290,7 @@ Redirect:?page=redirect&token=...
 | Page file mapping | Code.gs | 275-282 |
 | Template variables | Code.gs | 138-143 |
 | REST API routes | Code.gs | 163-263 |
-| Tenant config | Config.gs | 11-48 |
+| Brand config | Config.gs | 11-48 |
 | Event templates | Config.gs | 50-101 |
 | Admin creation | Admin.html | 269-312 |
 | Admin dashboard | Admin.html | 16-79 |
@@ -316,7 +316,7 @@ Redirect:?page=redirect&token=...
 
 3. **Shared Infrastructure**
    - All pages use same Google Apps Script backend
-   - Multi-tenant support already implemented
+   - Multi-brand support already implemented
    - Scope system allows flexible data organization
    - Analytics automatically logged across surfaces
 

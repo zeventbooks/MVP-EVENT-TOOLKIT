@@ -9,7 +9,7 @@
  * 1. Replace YOUR_SCRIPT_ID below with your actual Google Apps Script deployment ID
  * 2. Upload this file to your Hostinger website root (public_html/)
  * 3. Upload the accompanying .htaccess file
- * 4. Test with: https://zeventbooks.com?p=status&tenant=root
+ * 4. Test with: https://zeventbooks.com?p=status&brand=root
  */
 
 // ============================================================================

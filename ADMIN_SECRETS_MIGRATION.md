@@ -137,14 +137,14 @@ console.log('ROOT secret:', props.getProperty('ADMIN_SECRET_ROOT'));
 1. Get the value from Script Properties `ADMIN_SECRET_ROOT`
 2. Update GitHub secret to match
 
-### Problem: "Tenant secret not configured" error
+### Problem: "Brand secret not configured" error
 
-**Solution**: Ensure all 4 tenant secrets are set:
+**Solution**: Ensure all 4 brand secrets are set:
 
 ```javascript
 // Check all secrets
-['ROOT', 'ABC', 'CBC', 'CBL'].forEach(tenant => {
-  const key = `ADMIN_SECRET_${tenant}`;
+['ROOT', 'ABC', 'CBC', 'CBL'].forEach(brand => {
+  const key = `ADMIN_SECRET_${brand}`;
   const val = PropertiesService.getScriptProperties().getProperty(key);
   console.log(key + ':', val ? '✅ SET' : '❌ MISSING');
 });
@@ -156,14 +156,14 @@ console.log('ROOT secret:', props.getProperty('ADMIN_SECRET_ROOT'));
 
 - Use strong, randomly generated secrets (32+ characters)
 - Rotate secrets periodically (every 90 days)
-- Use different secrets for each tenant
+- Use different secrets for each brand
 - Never commit secrets to version control
 - Use GitHub Secrets for CI/CD secrets
 
 ### ❌ DON'T
 
 - Don't use weak secrets like "password123"
-- Don't reuse the same secret across tenants
+- Don't reuse the same secret across brands
 - Don't hardcode secrets in source files
 - Don't share secrets via email/Slack
 - Don't commit `.env` files with real secrets
@@ -214,7 +214,7 @@ If you encounter issues, check:
 
 ## Post-Migration Checklist
 
-- [ ] Script Properties set for all 4 tenants
+- [ ] Script Properties set for all 4 brands
 - [ ] GitHub Actions secret `ADMIN_KEY_ROOT` updated
 - [ ] Code deployed to production
 - [ ] API authentication tested

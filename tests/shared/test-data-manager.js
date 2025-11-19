@@ -3,7 +3,7 @@
  *
  * Provides comprehensive test data management across all environments:
  * - Data seeding and cleanup
- * - Multi-tenant data isolation
+ * - Multi-brand data isolation
  * - Event phase-specific data generation
  * - Test data versioning and snapshots
  * - Automatic cleanup after test runs
@@ -22,7 +22,7 @@ class TestDataManager {
     this.baseUrl = options.baseUrl || process.env.BASE_URL;
     this.adminKey = options.adminKey || process.env.ADMIN_KEY_ROOT;
     this.environment = options.environment || this.detectEnvironment();
-    this.tenant = options.tenant || 'root';
+    this.brand = options.brand || 'root';
     this.dataDir = options.dataDir || path.join(__dirname, '../../.test-data');
 
     // Track created resources for cleanup
@@ -335,7 +335,7 @@ class TestDataManager {
   async seed(strategy = 'standard') {
     console.log(`\n🌱 Seeding test data using strategy: ${strategy}`);
     console.log(`📍 Environment: ${this.environment}`);
-    console.log(`🏢 Tenant: ${this.tenant}\n`);
+    console.log(`🏢 Brand: ${this.brand}\n`);
 
     const strategyFn = this.strategies[strategy];
     if (!strategyFn) {
@@ -440,7 +440,7 @@ class TestDataManager {
   getStats() {
     return {
       environment: this.environment,
-      tenant: this.tenant,
+      brand: this.brand,
       createdResources: {
         events: this.createdResources.events.length,
         sponsors: this.createdResources.sponsors.length

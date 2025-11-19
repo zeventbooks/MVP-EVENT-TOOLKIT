@@ -38,28 +38,28 @@ const environments = {
 };
 
 /**
- * Tenant Configuration
+ * Brand Configuration
  */
-const tenants = {
+const brands = {
   root: {
-    tenantId: 'root',
+    brandId: 'root',
     adminKey: process.env.ROOT_ADMIN_KEY || 'root-admin-key',
-    description: 'Root tenant for system administration'
+    description: 'Root brand for system administration'
   },
   abc: {
-    tenantId: 'abc',
+    brandId: 'abc',
     adminKey: process.env.ABC_ADMIN_KEY || 'abc-admin-key',
-    description: 'ABC Corporation tenant'
+    description: 'ABC Corporation brand'
   },
   cbc: {
-    tenantId: 'cbc',
+    brandId: 'cbc',
     adminKey: process.env.CBC_ADMIN_KEY || 'cbc-admin-key',
-    description: 'CBC Organization tenant'
+    description: 'CBC Organization brand'
   },
   cbl: {
-    tenantId: 'cbl',
+    brandId: 'cbl',
     adminKey: process.env.CBL_ADMIN_KEY || 'cbl-admin-key',
-    description: 'CBL Company tenant'
+    description: 'CBL Company brand'
   }
 };
 
@@ -110,7 +110,7 @@ const createGetRequest = (eventId, env = 'development') => ({
 /**
  * Build create event request
  */
-const createEventRequest = (eventData, tenant = 'root', env = 'development') => ({
+const createEventRequest = (eventData, brand = 'root', env = 'development') => ({
   method: 'POST',
   url: `${environments[env].baseUrl}?action=create`,
   header: {
@@ -119,8 +119,8 @@ const createEventRequest = (eventData, tenant = 'root', env = 'development') => 
   body: {
     mode: 'raw',
     raw: JSON.stringify({
-      adminKey: tenants[tenant].adminKey,
-      tenantId: tenants[tenant].tenantId,
+      adminKey: brands[brand].adminKey,
+      brandId: brands[brand].brandId,
       ...eventData
     })
   }
@@ -129,7 +129,7 @@ const createEventRequest = (eventData, tenant = 'root', env = 'development') => 
 /**
  * Build update event request
  */
-const createUpdateRequest = (eventId, updateData, tenant = 'root', env = 'development') => ({
+const createUpdateRequest = (eventId, updateData, brand = 'root', env = 'development') => ({
   method: 'POST',
   url: `${environments[env].baseUrl}?action=updateEventData`,
   header: {
@@ -138,8 +138,8 @@ const createUpdateRequest = (eventId, updateData, tenant = 'root', env = 'develo
   body: {
     mode: 'raw',
     raw: JSON.stringify({
-      adminKey: tenants[tenant].adminKey,
-      tenantId: tenants[tenant].tenantId,
+      adminKey: brands[brand].adminKey,
+      brandId: brands[brand].brandId,
       id: eventId,
       ...updateData
     })
@@ -149,7 +149,7 @@ const createUpdateRequest = (eventId, updateData, tenant = 'root', env = 'develo
 /**
  * Build log analytics request
  */
-const createLogEventsRequest = (events, tenant = 'root', env = 'development') => ({
+const createLogEventsRequest = (events, brand = 'root', env = 'development') => ({
   method: 'POST',
   url: `${environments[env].baseUrl}?action=logEvents`,
   header: {
@@ -158,8 +158,8 @@ const createLogEventsRequest = (events, tenant = 'root', env = 'development') =>
   body: {
     mode: 'raw',
     raw: JSON.stringify({
-      adminKey: tenants[tenant].adminKey,
-      tenantId: tenants[tenant].tenantId,
+      adminKey: brands[brand].adminKey,
+      brandId: brands[brand].brandId,
       events
     })
   }
@@ -168,7 +168,7 @@ const createLogEventsRequest = (events, tenant = 'root', env = 'development') =>
 /**
  * Build get report request
  */
-const createGetReportRequest = (eventId, params = {}, tenant = 'root', env = 'development') => {
+const createGetReportRequest = (eventId, params = {}, brand = 'root', env = 'development') => {
   const queryParams = new URLSearchParams({
     action: 'getReport',
     id: eventId,
@@ -180,7 +180,7 @@ const createGetReportRequest = (eventId, params = {}, tenant = 'root', env = 'de
     url: `${environments[env].baseUrl}?${queryParams}`,
     header: {
       'Content-Type': 'application/json',
-      'X-Admin-Key': tenants[tenant].adminKey
+      'X-Admin-Key': brands[brand].adminKey
     }
   };
 };
@@ -188,7 +188,7 @@ const createGetReportRequest = (eventId, params = {}, tenant = 'root', env = 'de
 /**
  * Build create shortlink request
  */
-const createShortlinkRequest = (targetUrl, tenant = 'root', env = 'development') => ({
+const createShortlinkRequest = (targetUrl, brand = 'root', env = 'development') => ({
   method: 'POST',
   url: `${environments[env].baseUrl}?action=createShortlink`,
   header: {
@@ -197,8 +197,8 @@ const createShortlinkRequest = (targetUrl, tenant = 'root', env = 'development')
   body: {
     mode: 'raw',
     raw: JSON.stringify({
-      adminKey: tenants[tenant].adminKey,
-      tenantId: tenants[tenant].tenantId,
+      adminKey: brands[brand].adminKey,
+      brandId: brands[brand].brandId,
       targetUrl
     })
   }
@@ -207,7 +207,7 @@ const createShortlinkRequest = (targetUrl, tenant = 'root', env = 'development')
 /**
  * Build generate JWT token request
  */
-const createGenerateTokenRequest = (tenant = 'root', env = 'development') => ({
+const createGenerateTokenRequest = (brand = 'root', env = 'development') => ({
   method: 'POST',
   url: `${environments[env].baseUrl}?action=generateToken`,
   header: {
@@ -216,8 +216,8 @@ const createGenerateTokenRequest = (tenant = 'root', env = 'development') => ({
   body: {
     mode: 'raw',
     raw: JSON.stringify({
-      adminKey: tenants[tenant].adminKey,
-      tenantId: tenants[tenant].tenantId
+      adminKey: brands[brand].adminKey,
+      brandId: brands[brand].brandId
     })
   }
 });
@@ -396,7 +396,7 @@ pm.test("Status code is ${code}", function() {
 pm.test("Event has valid structure", function() {
     const event = pm.response.json().value;
     pm.expect(event).to.have.property('id');
-    pm.expect(event).to.have.property('tenantId');
+    pm.expect(event).to.have.property('brandId');
     pm.expect(event).to.have.property('data');
     pm.expect(event).to.have.property('createdAt');
     pm.expect(event).to.have.property('slug');
@@ -462,9 +462,9 @@ if (pm.response.json().ok) {
 /**
  * Generate Postman environment file
  */
-const generatePostmanEnvironment = (env = 'development', tenant = 'root') => ({
-  id: `${tenant}-${env}`,
-  name: `MVP Event Toolkit - ${tenant} (${env})`,
+const generatePostmanEnvironment = (env = 'development', brand = 'root') => ({
+  id: `${brand}-${env}`,
+  name: `MVP Event Toolkit - ${brand} (${env})`,
   values: [
     {
       key: 'baseUrl',
@@ -472,13 +472,13 @@ const generatePostmanEnvironment = (env = 'development', tenant = 'root') => ({
       enabled: true
     },
     {
-      key: 'tenantId',
-      value: tenants[tenant].tenantId,
+      key: 'brandId',
+      value: brands[brand].brandId,
       enabled: true
     },
     {
       key: 'adminKey',
-      value: tenants[tenant].adminKey,
+      value: brands[brand].adminKey,
       enabled: true,
       type: 'secret'
     },
@@ -501,7 +501,7 @@ const generatePostmanEnvironment = (env = 'development', tenant = 'root') => ({
 module.exports = {
   // Configurations
   environments,
-  tenants,
+  brands,
 
   // Request Builders
   createStatusRequest,

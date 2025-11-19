@@ -8,7 +8,7 @@
 
 ## Quick Summary
 
-The **MVP-EVENT-TOOLKIT** is a well-structured **multi-tenant event management system** built on Google Apps Script with Google Sheets as the data store. The architecture demonstrates good separation of concerns but has several areas requiring attention for production readiness.
+The **MVP-EVENT-TOOLKIT** is a well-structured **multi-brand event management system** built on Google Apps Script with Google Sheets as the data store. The architecture demonstrates good separation of concerns but has several areas requiring attention for production readiness.
 
 ### Overall Health Score: 7.5/10
 
@@ -27,9 +27,9 @@ The **MVP-EVENT-TOOLKIT** is a well-structured **multi-tenant event management s
 
 ### Strengths
 
-1. **Clean Multi-Tenant Architecture**
-   - Tenant isolation via dual-key (id + brandId)
-   - Separate admin secrets per tenant
+1. **Clean Multi-brand Architecture**
+   - Brand isolation via dual-key (id + brandId)
+   - Separate admin secrets per brand
    - Clear scope-based feature control
    - **Status:** Production-ready for this aspect
 
@@ -95,7 +95,7 @@ The **MVP-EVENT-TOOLKIT** is a well-structured **multi-tenant event management s
 
 2. **Race Condition in Admin Key Handling** (Severity: MEDIUM)
    ```
-   Current: sessionStorage keyed by tenant ID only
+   Current: sessionStorage keyed by brand ID only
    Problem: Multiple tabs prompt separately
    Fix: Centralize key in localStorage with encryption hint
    Timeline: Minor fix, next sprint
@@ -297,7 +297,7 @@ SCORE: 8/10 DEBT LEVEL (Moderate to High)
 ### Current Guarantees
 
 ✓ **Event ID Uniqueness:** UUID-based, collision-free
-✓ **Tenant Isolation:** Dual-key enforcement (id + brandId)
+✓ **Brand Isolation:** Dual-key enforcement (id + brandId)
 ✓ **Analytics Immutability:** Append-only design
 ✓ **Sponsor Ownership:** Stored within event row
 
@@ -435,7 +435,7 @@ API Coverage:
 - [ ] All secrets in Google Secret Manager
 - [ ] CSRF tokens on all state-modifying requests
 - [ ] Audit logging for all admin actions
-- [ ] Rate limiting per user + tenant
+- [ ] Rate limiting per user + brand
 
 ### Reliability (Phase 1)
 - [ ] 99.5% uptime (30-day rolling)
@@ -458,7 +458,7 @@ API Coverage:
 
 ## Conclusion
 
-The **MVP-EVENT-TOOLKIT** has a solid architectural foundation suitable for rapid prototyping and MVP deployment. The multi-tenant design, analytics infrastructure, and event lifecycle modeling are well-executed.
+The **MVP-EVENT-TOOLKIT** has a solid architectural foundation suitable for rapid prototyping and MVP deployment. The multi-brand design, analytics infrastructure, and event lifecycle modeling are well-executed.
 
 However, **production deployment requires addressing critical security issues** (plaintext secrets, CSRF) and implementing **robust error handling and monitoring**.
 

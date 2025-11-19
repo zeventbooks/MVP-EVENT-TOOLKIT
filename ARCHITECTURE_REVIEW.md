@@ -9,12 +9,12 @@
 
 ## Executive Summary
 
-The MVP Event Toolkit is a **production-grade Google Apps Script web application** for multi-tenant event management with sponsor tracking and analytics. The codebase demonstrates sophisticated patterns but requires infrastructure hardening for production deployment.
+The MVP Event Toolkit is a **production-grade Google Apps Script web application** for multi-brand event management with sponsor tracking and analytics. The codebase demonstrates sophisticated patterns but requires infrastructure hardening for production deployment.
 
 **Overall Grade: B-** (Code: C+, Architecture: B+, Need: Testing & DevOps Infrastructure)
 
 ### Critical Findings
-- ✅ **Strong:** Multi-tenant architecture, analytics tracking, API design
+- ✅ **Strong:** Multi-brand architecture, analytics tracking, API design
 - ⚠️ **Security:** Hardcoded admin secrets (CHANGE_ME_*) in Config.gs
 - ❌ **Missing:** Automated tests, CI/CD pipeline, deployment automation
 - ❌ **Missing:** .clasp.json for CLI deployment
@@ -28,24 +28,24 @@ The MVP Event Toolkit is a **production-grade Google Apps Script web application
 
 **Files:**
 - `appsscript.json` - Google Apps Script manifest
-- `Config.gs` - Multi-tenant configuration with templates
+- `Config.gs` - Multi-brand configuration with templates
 
 **Configuration Flow:**
 ```
 appsscript.json (OAuth scopes, runtime, web app settings)
     ↓
-Config.gs (TENANTS array, TEMPLATES array)
+Config.gs (BRANDS array, TEMPLATES array)
     ↓
-Code.gs doGet() → findTenantByHost_(hostHeader)
+Code.gs doGet() → findBrandByHost_(hostHeader)
     ↓
-Route to appropriate page with tenant context
+Route to appropriate page with brand context
 ```
 
-**Tenant Resolution:**
+**Brand Resolution:**
 1. Extract `host` header from request
-2. Match against `TENANTS[].hostnames[]`
-3. Fallback to 'root' tenant if no match
-4. Load tenant-specific configuration (admin secret, allowed scopes)
+2. Match against `BRANDS[].hostnames[]`
+3. Fallback to 'root' brand if no match
+4. Load brand-specific configuration (admin secret, allowed scopes)
 
 **Security Issue:** Admin secrets hardcoded in source code (Lines 17, 26, 35, 44 in Config.gs)
 
@@ -100,11 +100,11 @@ User → Admin.html (?page=admin)
     ↓
 doGet(e) [Code.gs:97]
     ↓ pageParam === 'admin'
-    ↓ findTenantByHost_(hostHeader) [Config.gs:106]
+    ↓ findBrandByHost_(hostHeader) [Config.gs:106]
     ↓ pageFile_('admin') → 'Admin' [Code.gs:137]
     ↓ include('Styles', 'DesignAdapter', 'NUSDK', 'Header') [Code.gs:144]
     ↓
-Admin.html renders with tenant context
+Admin.html renders with brand context
     ↓
 User fills form → submit event [Admin.html:205]
     ↓
@@ -228,10 +228,10 @@ handleRedirect_(token) [Code.gs:149]
 
 ### 1.5 Architecture Strengths
 
-✅ **Multi-tenancy:** Clean separation via tenant config
+✅ **Multi-tenancy:** Clean separation via brand config
 ✅ **API Envelopes:** Uniform Ok/Err pattern
 ✅ **Contract Validation:** Runtime schema checks
-✅ **Rate Limiting:** 20 req/min per tenant
+✅ **Rate Limiting:** 20 req/min per brand
 ✅ **Idempotency:** 10-min cache for create operations
 ✅ **SWR Caching:** ETag-based cache with stale-while-revalidate
 ✅ **Analytics:** Comprehensive tracking across surfaces
@@ -703,7 +703,7 @@ main#tv.has-side {
 | File | Lines | Purpose | Entry Points | Dependencies |
 |------|-------|---------|--------------|--------------|
 | appsscript.json | 14 | Manifest | N/A | None |
-| Config.gs | 111 | Multi-tenant config | loadTenants_(), findTenant_(), findTemplate_() | None |
+| Config.gs | 111 | Multi-brand config | loadBrands_(), findBrand_(), findTemplate_() | None |
 | Code.gs | 659 | Backend API | doGet(), api_*() | Config.gs, SpreadsheetApp |
 | Admin.html | 502 | Admin interface | doGet(?page=admin) | Styles, NUSDK, Header |
 | Public.html | 378 | Public mobile page | doGet(?p=events) | Styles, Code.gs (api_list, api_get) |

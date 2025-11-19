@@ -10,7 +10,7 @@ import { getCurrentEnvironment } from '../../config/environments.js';
 test.describe('Events CRUD APIs', () => {
   let api;
   let adminKey;
-  const tenant = 'root';
+  const brand = 'root';
   const createdEventIds = []; // Track for cleanup
 
   test.beforeEach(async ({ request }) => {
@@ -27,7 +27,7 @@ test.describe('Events CRUD APIs', () => {
     // Clean up created events
     for (const eventId of createdEventIds) {
       try {
-        await api.deleteEvent(tenant, eventId, adminKey);
+        await api.deleteEvent(brand, eventId, adminKey);
       } catch (error) {
         console.warn(`Failed to delete event ${eventId}:`, error.message);
       }
@@ -43,7 +43,7 @@ test.describe('Events CRUD APIs', () => {
         .withLocation('Test Venue')
         .build();
 
-      const response = await api.createEvent(tenant, eventData, adminKey);
+      const response = await api.createEvent(brand, eventData, adminKey);
       const data = await response.json();
 
       expect(response.ok()).toBe(true);
@@ -60,7 +60,7 @@ test.describe('Events CRUD APIs', () => {
         dateISO: '2025-12-20'
       };
 
-      const response = await api.createEvent(tenant, eventData, adminKey);
+      const response = await api.createEvent(brand, eventData, adminKey);
       const data = await response.json();
 
       expect(response.ok()).toBe(true);
@@ -89,7 +89,7 @@ test.describe('Events CRUD APIs', () => {
         registerUrl: 'https://example.com/register'
       });
 
-      const response = await api.createEvent(tenant, eventData, adminKey);
+      const response = await api.createEvent(brand, eventData, adminKey);
       const data = await response.json();
 
       expect(response.ok()).toBe(true);
@@ -107,7 +107,7 @@ test.describe('Events CRUD APIs', () => {
 
       // Try without admin key
       const response = await api.post('?action=create', {
-        tenantId: tenant,
+        brandId: brand,
         scope: 'events',
         templateId: 'event',
         data: eventData
@@ -129,7 +129,7 @@ test.describe('Events CRUD APIs', () => {
         // name is required but missing
       };
 
-      const response = await api.createEvent(tenant, eventData, adminKey);
+      const response = await api.createEvent(brand, eventData, adminKey);
 
       // Should fail validation
       if (response.ok()) {
@@ -147,13 +147,13 @@ test.describe('Events CRUD APIs', () => {
 
     test.beforeEach(async () => {
       // Create a test event
-      const { eventId } = await api.createTestEvent(tenant, adminKey);
+      const { eventId } = await api.createTestEvent(brand, adminKey);
       testEventId = eventId;
       createdEventIds.push(testEventId);
     });
 
     test('retrieves event by ID', async () => {
-      const response = await api.getEvent(tenant, testEventId);
+      const response = await api.getEvent(brand, testEventId);
       const data = await response.json();
 
       expect(response.ok()).toBe(true);
@@ -165,7 +165,7 @@ test.describe('Events CRUD APIs', () => {
 
     test('returns 404 for non-existent event', async () => {
       const fakeId = 'non-existent-id-12345';
-      const response = await api.getEvent(tenant, fakeId);
+      const response = await api.getEvent(brand, fakeId);
 
       // Should either return 404 or ok:false
       if (response.status() === 404) {
@@ -178,7 +178,7 @@ test.describe('Events CRUD APIs', () => {
 
     test('does not require authentication for public read', async () => {
       // Get event without admin key (public read)
-      const response = await api.getEvent(tenant, testEventId);
+      const response = await api.getEvent(brand, testEventId);
       const data = await response.json();
 
       expect(response.ok()).toBe(true);
@@ -190,15 +190,15 @@ test.describe('Events CRUD APIs', () => {
     test.beforeEach(async () => {
       // Create 3 test events
       for (let i = 0; i < 3; i++) {
-        const { eventId } = await api.createTestEvent(tenant, adminKey, {
+        const { eventId } = await api.createTestEvent(brand, adminKey, {
           name: `List Test Event ${i + 1}`
         });
         createdEventIds.push(eventId);
       }
     });
 
-    test('lists all events for tenant', async () => {
-      const response = await api.listEvents(tenant);
+    test('lists all events for brand', async () => {
+      const response = await api.listEvents(brand);
       const data = await response.json();
 
       expect(response.ok()).toBe(true);
@@ -208,7 +208,7 @@ test.describe('Events CRUD APIs', () => {
     });
 
     test('returns events with correct structure', async () => {
-      const response = await api.listEvents(tenant);
+      const response = await api.listEvents(brand);
       const data = await response.json();
 
       expect(data.value.length).toBeGreaterThan(0);
@@ -220,7 +220,7 @@ test.describe('Events CRUD APIs', () => {
     });
 
     test('does not require authentication for public read', async () => {
-      const response = await api.listEvents(tenant);
+      const response = await api.listEvents(brand);
       const data = await response.json();
 
       expect(response.ok()).toBe(true);
@@ -233,7 +233,7 @@ test.describe('Events CRUD APIs', () => {
 
     test.beforeEach(async () => {
       // Create a test event
-      const { eventId } = await api.createTestEvent(tenant, adminKey, {
+      const { eventId } = await api.createTestEvent(brand, adminKey, {
         name: 'Original Name',
         location: 'Original Location'
       });
@@ -247,14 +247,14 @@ test.describe('Events CRUD APIs', () => {
         location: 'Updated Location'
       };
 
-      const response = await api.updateEvent(tenant, testEventId, updateData, adminKey);
+      const response = await api.updateEvent(brand, testEventId, updateData, adminKey);
       const data = await response.json();
 
       expect(response.ok()).toBe(true);
       expect(data.ok).toBe(true);
 
       // Verify update
-      const getResponse = await api.getEvent(tenant, testEventId);
+      const getResponse = await api.getEvent(brand, testEventId);
       const getData = await getResponse.json();
 
       expect(getData.value.name).toBe('Updated Name');
@@ -267,14 +267,14 @@ test.describe('Events CRUD APIs', () => {
         name: 'Partially Updated'
       };
 
-      const response = await api.updateEvent(tenant, testEventId, updateData, adminKey);
+      const response = await api.updateEvent(brand, testEventId, updateData, adminKey);
       const data = await response.json();
 
       expect(response.ok()).toBe(true);
       expect(data.ok).toBe(true);
 
       // Verify update
-      const getResponse = await api.getEvent(tenant, testEventId);
+      const getResponse = await api.getEvent(brand, testEventId);
       const getData = await getResponse.json();
 
       expect(getData.value.name).toBe('Partially Updated');
@@ -285,7 +285,7 @@ test.describe('Events CRUD APIs', () => {
       const updateData = { name: 'Unauthorized Update' };
 
       const response = await api.post('?action=update', {
-        tenantId: tenant,
+        brandId: brand,
         scope: 'events',
         id: testEventId,
         data: updateData
@@ -304,7 +304,7 @@ test.describe('Events CRUD APIs', () => {
       const fakeId = 'non-existent-id-12345';
       const updateData = { name: 'Cannot Update' };
 
-      const response = await api.updateEvent(tenant, fakeId, updateData, adminKey);
+      const response = await api.updateEvent(brand, fakeId, updateData, adminKey);
 
       if (response.ok()) {
         const data = await response.json();
@@ -320,19 +320,19 @@ test.describe('Events CRUD APIs', () => {
 
     test.beforeEach(async () => {
       // Create a test event
-      const { eventId } = await api.createTestEvent(tenant, adminKey);
+      const { eventId } = await api.createTestEvent(brand, adminKey);
       testEventId = eventId;
     });
 
     test('deletes event successfully', async () => {
-      const response = await api.deleteEvent(tenant, testEventId, adminKey);
+      const response = await api.deleteEvent(brand, testEventId, adminKey);
       const data = await response.json();
 
       expect(response.ok()).toBe(true);
       expect(data.ok).toBe(true);
 
       // Verify deletion - event should not exist
-      const getResponse = await api.getEvent(tenant, testEventId);
+      const getResponse = await api.getEvent(brand, testEventId);
 
       if (getResponse.status() === 404) {
         expect(getResponse.ok()).toBe(false);
@@ -346,7 +346,7 @@ test.describe('Events CRUD APIs', () => {
 
     test('requires authentication', async () => {
       const response = await api.post('?action=delete', {
-        tenantId: tenant,
+        brandId: brand,
         scope: 'events',
         id: testEventId
         // Missing adminKey
@@ -366,7 +366,7 @@ test.describe('Events CRUD APIs', () => {
     test('returns error for non-existent event', async () => {
       const fakeId = 'non-existent-id-12345';
 
-      const response = await api.deleteEvent(tenant, fakeId, adminKey);
+      const response = await api.deleteEvent(brand, fakeId, adminKey);
 
       if (response.ok()) {
         const data = await response.json();
@@ -389,21 +389,21 @@ test.describe('Events CRUD APIs', () => {
         .withLocation('Lifecycle Venue')
         .build();
 
-      const createResponse = await api.createEvent(tenant, eventData, adminKey);
+      const createResponse = await api.createEvent(brand, eventData, adminKey);
       const createData = await createResponse.json();
 
       expect(createData.ok).toBe(true);
       const eventId = createData.value.id;
 
       // 2. READ
-      const getResponse = await api.getEvent(tenant, eventId);
+      const getResponse = await api.getEvent(brand, eventId);
       const getData = await getResponse.json();
 
       expect(getData.ok).toBe(true);
       expect(getData.value.name).toBe('Lifecycle Test Event');
 
       // 3. UPDATE
-      const updateResponse = await api.updateEvent(tenant, eventId, {
+      const updateResponse = await api.updateEvent(brand, eventId, {
         location: 'Updated Venue'
       }, adminKey);
       const updateData = await updateResponse.json();
@@ -411,19 +411,19 @@ test.describe('Events CRUD APIs', () => {
       expect(updateData.ok).toBe(true);
 
       // 4. READ (verify update)
-      const getResponse2 = await api.getEvent(tenant, eventId);
+      const getResponse2 = await api.getEvent(brand, eventId);
       const getData2 = await getResponse2.json();
 
       expect(getData2.value.location).toBe('Updated Venue');
 
       // 5. DELETE
-      const deleteResponse = await api.deleteEvent(tenant, eventId, adminKey);
+      const deleteResponse = await api.deleteEvent(brand, eventId, adminKey);
       const deleteData = await deleteResponse.json();
 
       expect(deleteData.ok).toBe(true);
 
       // 6. READ (verify deletion)
-      const getResponse3 = await api.getEvent(tenant, eventId);
+      const getResponse3 = await api.getEvent(brand, eventId);
 
       if (getResponse3.status() === 404) {
         expect(getResponse3.ok()).toBe(false);

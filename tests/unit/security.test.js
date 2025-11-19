@@ -472,19 +472,19 @@ describe('Security Bug Fixes', () => {
 
     test('should show warning for external domains', () => {
       // The fix adds an interstitial warning page for external redirects
-      // Testing requires mocking TENANTS array and URL validation
-      const TENANTS = [
+      // Testing requires mocking BRANDS array and URL validation
+      const BRANDS = [
         { id: 'root', hostnames: ['zeventbook.io', 'www.zeventbook.io'] }
       ];
 
       const internalUrl = 'https://zeventbook.io/event';
       const externalUrl = 'https://malicious-site.com/phishing';
 
-      // Internal URLs should be in tenant hostnames
+      // Internal URLs should be in brand hostnames
       const isInternal = (url) => {
         try {
           const urlObj = new URL(url);
-          return TENANTS.some(t => t.hostnames && t.hostnames.includes(urlObj.hostname.toLowerCase()));
+          return BRANDS.some(t => t.hostnames && t.hostnames.includes(urlObj.hostname.toLowerCase()));
         } catch (e) {
           return false;
         }
@@ -549,7 +549,7 @@ describe('Security Bug Fixes', () => {
     let isAllowedOrigin_;
 
     beforeEach(() => {
-      const TENANTS = [
+      const BRANDS = [
         { id: 'root', hostnames: ['zeventbook.io'] }
       ];
 
@@ -582,8 +582,8 @@ describe('Security Bug Fixes', () => {
             return true;
           }
 
-          for (const tenant of TENANTS) {
-            if (tenant.hostnames && tenant.hostnames.some(h => h.toLowerCase() === originHost)) {
+          for (const brand of BRANDS) {
+            if (brand.hostnames && brand.hostnames.some(h => h.toLowerCase() === originHost)) {
               return true;
             }
           }
@@ -600,7 +600,7 @@ describe('Security Bug Fixes', () => {
       };
     });
 
-    test('should allow tenant hostnames', () => {
+    test('should allow brand hostnames', () => {
       expect(isAllowedOrigin_('https://zeventbook.io', {})).toBe(true);
     });
 
@@ -634,31 +634,31 @@ describe('Security Bug Fixes', () => {
     });
   });
 
-  describe('Bug #30: Tenant Isolation in Analytics', () => {
-    test('should verify event belongs to tenant before returning analytics', () => {
+  describe('Bug #30: Brand Isolation in Analytics', () => {
+    test('should verify event belongs to brand before returning analytics', () => {
       const mockEvents = [
-        { id: 'event1', tenantId: 'root' },
-        { id: 'event2', tenantId: 'abc' }
+        { id: 'event1', brandId: 'root' },
+        { id: 'event2', brandId: 'abc' }
       ];
 
-      const verifyEventAccess = (eventId, tenantId) => {
-        const event = mockEvents.find(e => e.id === eventId && e.tenantId === tenantId);
+      const verifyEventAccess = (eventId, brandId) => {
+        const event = mockEvents.find(e => e.id === eventId && e.brandId === brandId);
         return event !== undefined;
       };
 
       expect(verifyEventAccess('event1', 'root')).toBe(true);
-      expect(verifyEventAccess('event1', 'abc')).toBe(false); // Wrong tenant
+      expect(verifyEventAccess('event1', 'abc')).toBe(false); // Wrong brand
       expect(verifyEventAccess('event2', 'abc')).toBe(true);
       expect(verifyEventAccess('nonexistent', 'root')).toBe(false);
     });
 
-    test('should prevent cross-tenant analytics access', () => {
-      const checkTenantIsolation = (requestedEventId, authenticatedTenant, eventTenant) => {
-        return authenticatedTenant === eventTenant;
+    test('should prevent cross-brand analytics access', () => {
+      const checkBrandIsolation = (requestedEventId, authenticatedBrand, eventBrand) => {
+        return authenticatedBrand === eventBrand;
       };
 
-      expect(checkTenantIsolation('event1', 'root', 'root')).toBe(true);
-      expect(checkTenantIsolation('event1', 'abc', 'root')).toBe(false);
+      expect(checkBrandIsolation('event1', 'root', 'root')).toBe(true);
+      expect(checkBrandIsolation('event1', 'abc', 'root')).toBe(false);
     });
   });
 
@@ -735,11 +735,11 @@ describe('Security Bug Fixes', () => {
       expect(sanitizeInput_('<%= evil %>')).not.toContain('<%=');
     });
 
-    test('should handle tenant name and scope safely', () => {
-      const tenantName = 'Test<script>alert(1)</script>Tenant';
+    test('should handle brand name and scope safely', () => {
+      const brandName = 'Test<script>alert(1)</script>Brand';
       const scope = 'events\' onload="alert(1)"';
 
-      expect(sanitizeInput_(tenantName, 200)).not.toContain('<script>');
+      expect(sanitizeInput_(brandName, 200)).not.toContain('<script>');
       expect(sanitizeInput_(scope, 50)).not.toContain('onload=');
     });
   });
@@ -792,29 +792,29 @@ describe('Security Bug Fixes', () => {
     });
   });
 
-  describe('Bug #53: Tenant Validation in Shortlinks', () => {
-    test('should store tenantId with shortlinks', () => {
+  describe('Bug #53: Brand Validation in Shortlinks', () => {
+    test('should store brandId with shortlinks', () => {
       const shortlink = {
         token: 'test-token',
         targetUrl: 'https://example.com',
-        tenantId: 'root',
+        brandId: 'root',
         eventId: 'event123'
       };
 
-      expect(shortlink.tenantId).toBeDefined();
-      expect(shortlink.tenantId).toBe('root');
+      expect(shortlink.brandId).toBeDefined();
+      expect(shortlink.brandId).toBe('root');
     });
 
-    test('should validate tenant access on redirect', () => {
+    test('should validate brand access on redirect', () => {
       const shortlinks = [
-        { token: 'token1', tenantId: 'root', targetUrl: 'https://example.com/1' },
-        { token: 'token2', tenantId: 'abc', targetUrl: 'https://example.com/2' }
+        { token: 'token1', brandId: 'root', targetUrl: 'https://example.com/1' },
+        { token: 'token2', brandId: 'abc', targetUrl: 'https://example.com/2' }
       ];
 
-      const getShortlink = (token, allowedTenants) => {
+      const getShortlink = (token, allowedBrands) => {
         const link = shortlinks.find(l => l.token === token);
         if (!link) return null;
-        // Future: validate tenant access
+        // Future: validate brand access
         return link;
       };
 
@@ -851,9 +851,9 @@ describe('Security Bug Fixes', () => {
       };
 
       // Test that internal details are not exposed
-      const error1 = UserFriendlyErr_(ERR.INTERNAL, 'Tenant secret not configured', { tenantId: 'root' }, 'verifyJWT_');
+      const error1 = UserFriendlyErr_(ERR.INTERNAL, 'Brand secret not configured', { brandId: 'root' }, 'verifyJWT_');
       expect(error1.message).not.toContain('secret');
-      expect(error1.message).not.toContain('tenant');
+      expect(error1.message).not.toContain('brand');
       expect(error1.message).toBe('An internal error occurred. Please try again later.');
 
       // Test JWT error sanitization
@@ -1156,7 +1156,7 @@ describe('Security Bug Fixes', () => {
 
   describe('Critical Fix #3: Origin Validation with Auth Headers', () => {
     let isAllowedOrigin_;
-    const TENANTS = [
+    const BRANDS = [
       { id: 'root', hostnames: ['zeventbook.io'] }
     ];
 
@@ -1189,8 +1189,8 @@ describe('Security Bug Fixes', () => {
             return true;
           }
 
-          for (const tenant of TENANTS) {
-            if (tenant.hostnames && tenant.hostnames.some(h => h.toLowerCase() === originHost)) {
+          for (const brand of BRANDS) {
+            if (brand.hostnames && brand.hostnames.some(h => h.toLowerCase() === originHost)) {
               return true;
             }
           }

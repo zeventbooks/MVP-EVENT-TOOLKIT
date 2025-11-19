@@ -26,19 +26,19 @@ YOUR_DEPLOYMENT_URL?p=setup&brand=root
 
 The setup diagnostic performs 6 comprehensive checks:
 
-### 1. ✅ Tenant Configuration
+### 1. ✅ Brand Configuration
 **What it checks:**
-- Tenant ID is valid
-- Tenant name is configured
+- Brand ID is valid
+- Brand name is configured
 - Store configuration exists
 
 **Common issues:**
-- Tenant not found in Config.gs
+- Brand not found in Config.gs
 - Missing required fields
 
 **How to fix:**
-- Verify TENANTS array in Config.gs
-- Ensure tenant has id, name, and store properties
+- Verify BRANDS array in Config.gs
+- Ensure brand has id, name, and store properties
 
 ---
 
@@ -167,13 +167,13 @@ openssl rand -base64 32
   "value": {
     "status": "ok",
     "message": "All setup checks passed! System is ready to use.",
-    "tenant": "root",
+    "brand": "root",
     "timestamp": "2025-11-17T23:45:00.000Z",
     "checks": [
       {
-        "name": "Tenant Configuration",
+        "name": "Brand Configuration",
         "status": "ok",
-        "details": "Tenant: Zeventbook (root)"
+        "details": "Brand: Zeventbook (root)"
       },
       {
         "name": "Spreadsheet Access",
@@ -223,13 +223,13 @@ openssl rand -base64 32
   "value": {
     "status": "error",
     "message": "Setup incomplete. Found 2 critical issue(s) that must be fixed.",
-    "tenant": "root",
+    "brand": "root",
     "timestamp": "2025-11-17T23:45:00.000Z",
     "checks": [
       {
-        "name": "Tenant Configuration",
+        "name": "Brand Configuration",
         "status": "ok",
-        "details": "Tenant: Zeventbook (root)"
+        "details": "Brand: Zeventbook (root)"
       },
       {
         "name": "Spreadsheet Access",
@@ -248,7 +248,7 @@ openssl rand -base64 32
       "No permission to access spreadsheet"
     ],
     "warnings": [
-      "Admin secret not set for tenant: root"
+      "Admin secret not set for brand: root"
     ],
     "fixes": [
       "Update spreadsheetId in Config.gs with a valid Google Sheets ID",

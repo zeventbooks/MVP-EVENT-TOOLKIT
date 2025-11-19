@@ -50,7 +50,7 @@ Response:
     "build": "mvp-v1.0-events-only",
     "contract": "v1",
     "dbOk": true,
-    "tenant": "root"
+    "brand": "root"
   }
 }
 ```
@@ -283,7 +283,7 @@ if (e.parameter.action) {
 
   if (action === 'list') {
     const result = api_list({
-      brandId: e.parameter.tenant || 'root',
+      brandId: e.parameter.brand || 'root',
       scope: e.parameter.scope || 'events',
       adminKey: e.parameter.adminKey,
       etag: e.parameter.etag

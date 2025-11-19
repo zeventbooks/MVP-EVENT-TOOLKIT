@@ -47,10 +47,10 @@ This PR implements the comprehensive architectural refactoring recommended in th
 - IP-based failed auth tracking
 - 15-minute lockout after 5 failed attempts
 
-✅ **Tenant Isolation:**
+✅ **Brand Isolation:**
 - Scope validation
 - Origin validation
-- Cross-tenant access prevention
+- Cross-brand access prevention
 
 **Security Vulnerabilities Fixed:**
 - 🔒 JWT timing attack (constant-time comparison)
@@ -107,7 +107,7 @@ This PR implements the comprehensive architectural refactoring recommended in th
   - Engagement score rating
 
 **Portfolio Functions:**
-- `SponsorService_getPortfolioSponsors(parentTenantId)` - Cross-tenant sponsor list
+- `SponsorService_getPortfolioSponsors(parentBrandId)` - Cross-brand sponsor list
 
 ---
 
@@ -502,7 +502,7 @@ test_schemas_eventsList()
 ```javascript
 // OLD (direct implementation)
 function api_list(payload) {
-  const sh = getStoreSheet_(tenant, scope);
+  const sh = getStoreSheet_(brand, scope);
   const rows = sh.getDataRange().getValues();
   // ... complex logic ...
 }
@@ -521,7 +521,7 @@ const validated = validateJWT_(token);
 
 // NEW (using middleware)
 const sanitized = SecurityMiddleware_sanitizeInput(input);
-const validated = SecurityMiddleware_verifyJWT(token, tenant);
+const validated = SecurityMiddleware_verifyJWT(token, brand);
 ```
 
 ### For Product Managers

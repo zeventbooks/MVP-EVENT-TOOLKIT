@@ -148,10 +148,10 @@ Created `tests/shared/fixtures/newman.fixtures.js`:
 
 ##### 1. Environment Configuration
 ```javascript
-const { environments, tenants } = require('../shared/fixtures/newman.fixtures');
+const { environments, brands } = require('../shared/fixtures/newman.fixtures');
 
 // environments.local, .development, .staging, .production
-// tenants.root, .abc, .cbc, .cbl
+// brands.root, .abc, .cbc, .cbl
 ```
 
 ##### 2. Request Builders (DRY)

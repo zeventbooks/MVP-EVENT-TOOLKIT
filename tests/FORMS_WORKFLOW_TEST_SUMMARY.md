@@ -204,7 +204,7 @@ Tests require:
 
 2. **Set ADMIN_KEY Environment Variable**
    ```bash
-   export ADMIN_KEY=your-root-tenant-admin-key
+   export ADMIN_KEY=your-root-brand-admin-key
    ```
 
 3. **Run Full Test Suite**

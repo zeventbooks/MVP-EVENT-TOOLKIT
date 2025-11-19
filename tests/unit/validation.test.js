@@ -437,38 +437,38 @@ describe('Data Validation Bug Fixes', () => {
     });
   });
 
-  describe('Bug #43: Tenant Fallback Logic', () => {
+  describe('Bug #43: Brand Fallback Logic', () => {
     test('should return null for unknown hosts instead of defaulting to root', () => {
-      const TENANTS = [
+      const BRANDS = [
         { id: 'root', hostnames: ['zeventbook.io'] },
         { id: 'abc', hostnames: ['abc.zeventbooks.io'] }
       ];
 
-      const findTenantByHost = (host) => {
-        const tenant = TENANTS.find(t => (t.hostnames || []).includes(host.toLowerCase()));
-        return tenant || null; // Return null, not root tenant
+      const findBrandByHost = (host) => {
+        const brand = BRANDS.find(t => (t.hostnames || []).includes(host.toLowerCase()));
+        return brand || null; // Return null, not root brand
       };
 
-      expect(findTenantByHost('zeventbook.io')).toEqual({ id: 'root', hostnames: ['zeventbook.io'] });
-      expect(findTenantByHost('abc.zeventbooks.io')).toEqual({ id: 'abc', hostnames: ['abc.zeventbooks.io'] });
-      expect(findTenantByHost('unknown.com')).toBe(null); // Should be null, not root
+      expect(findBrandByHost('zeventbook.io')).toEqual({ id: 'root', hostnames: ['zeventbook.io'] });
+      expect(findBrandByHost('abc.zeventbooks.io')).toEqual({ id: 'abc', hostnames: ['abc.zeventbooks.io'] });
+      expect(findBrandByHost('unknown.com')).toBe(null); // Should be null, not root
     });
 
     test('should log warning for unknown hostnames', () => {
       const warnings = [];
 
-      const findTenantByHost = (host) => {
-        const TENANTS = [{ id: 'root', hostnames: ['zeventbook.io'] }];
-        const tenant = TENANTS.find(t => (t.hostnames || []).includes(host.toLowerCase()));
+      const findBrandByHost = (host) => {
+        const BRANDS = [{ id: 'root', hostnames: ['zeventbook.io'] }];
+        const brand = BRANDS.find(t => (t.hostnames || []).includes(host.toLowerCase()));
 
-        if (!tenant) {
+        if (!brand) {
           warnings.push(`Unknown hostname: ${host}`);
         }
 
-        return tenant || null;
+        return brand || null;
       };
 
-      findTenantByHost('unknown.com');
+      findBrandByHost('unknown.com');
       expect(warnings).toContain('Unknown hostname: unknown.com');
     });
   });

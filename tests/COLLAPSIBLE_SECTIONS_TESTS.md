@@ -188,7 +188,7 @@ When adding new collapsible sections:
 1. **Update E2E tests** (`admin-page.spec.js`):
    ```javascript
    test('New section is collapsible', async ({ page }) => {
-     await page.goto(`${BASE_URL}?page=admin&tenant=${TENANT_ID}`);
+     await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
      const header = page.locator('.collapsible-header:has-text("New Section")');
      await expect(header).toBeVisible();
      await header.click();

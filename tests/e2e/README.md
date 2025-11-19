@@ -332,7 +332,7 @@ Required for E2E tests:
 ```bash
 BASE_URL=https://your-deployment-url.com    # Apps Script web app URL
 ADMIN_KEY=your_admin_key_here               # Admin authentication key
-TENANT_ID=root                               # Default tenant (optional)
+BRAND_ID=root                               # Default brand (optional)
 ```
 
 Set in CI/CD:

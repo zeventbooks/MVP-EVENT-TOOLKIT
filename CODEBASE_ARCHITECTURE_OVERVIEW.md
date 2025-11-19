@@ -12,7 +12,7 @@
 ### 1.1 Technology Stack
 - **Backend:** Google Apps Script (JavaScript runtime)
 - **Frontend:** HTML/CSS/JavaScript (no framework - vanilla JS)
-- **Database:** Google Sheets (multi-tenant, single spreadsheet per tenant)
+- **Database:** Google Sheets (multi-brand, single spreadsheet per brand)
 - **Testing:** Jest (unit/contract) + Playwright (E2E)
 - **CI/CD:** GitHub Actions
 - **Deployment:** Apps Script API via clasp CLI
@@ -23,7 +23,7 @@
 MVP-EVENT-TOOLKIT/
 ├── *.gs                      # Backend services (Google Apps Script)
 │   ├── Code.gs              # Main API router, authentication, RPC handlers
-│   ├── Config.gs            # Multi-tenant config, templates, URL aliases
+│   ├── Config.gs            # Multi-brand config, templates, URL aliases
 │   └── SharedReporting.gs   # Shared analytics/reporting logic
 │
 ├── services/                 # Service layer (business logic)
@@ -104,7 +104,7 @@ EventService_generateUrls()      // Generate publicUrl, posterUrl, displayUrl, r
 ```
 
 **Data Flow:**
-1. Validate tenant and scope
+1. Validate brand and scope
 2. Apply pagination/filtering
 3. Read from Google Sheets
 4. Generate ETags for cache validation
@@ -117,7 +117,7 @@ EventService_generateUrls()      // Generate publicUrl, posterUrl, displayUrl, r
 - ROI calculations
 - Performance insights generation
 - Placement validation
-- Portfolio reporting (cross-tenant)
+- Portfolio reporting (cross-brand)
 - Engagement scoring
 
 **Key Functions:**
@@ -128,7 +128,7 @@ SponsorService_aggregateMetrics()      // Aggregate by surface/event/timeline
 SponsorService_calculateEngagementScore() // 0-100 engagement score
 SponsorService_getSettings()           // Placement configuration
 SponsorService_validatePlacements()    // Validate sponsor placements
-SponsorService_getPortfolioSponsors()  // Cross-tenant sponsor portfolio
+SponsorService_getPortfolioSponsors()  // Cross-brand sponsor portfolio
 ```
 
 **Placement System:**
@@ -192,7 +192,7 @@ FormService_generateShortlink()       // Create trackable form links
 - Rate limiting
 - Input sanitization
 - JWT generation and verification
-- Tenant isolation
+- Brand isolation
 
 **Key Functions:**
 ```javascript
@@ -216,7 +216,7 @@ SecurityMiddleware_timingSafeCompare()   // Constant-time comparison
 - Timing-safe string comparison (prevents timing attacks)
 - HMAC-SHA256 JWT signatures
 - One-time CSRF tokens with atomic check-and-remove
-- Rate limiting: 10 req/min per tenant
+- Rate limiting: 10 req/min per brand
 - Failed auth tracking: Max 5 attempts per IP
 - Formula injection prevention for spreadsheet values
 
@@ -524,7 +524,7 @@ const LOCALES = {
 2. **Locale Detection:**
 - URL parameter: `?lang=es`
 - Browser header: `Accept-Language`
-- User preference: Stored in tenant config
+- User preference: Stored in brand config
 - Default fallback: `en-US`
 
 3. **Translation Helper:**
@@ -725,9 +725,9 @@ npm run open       # Open in Apps Script Editor
 ```
 SCRIPT_ID                # Apps Script project ID
 GOOGLE_SERVICE_ACCOUNT   # Service account JSON (base64)
-ADMIN_SECRET_ROOT        # Root tenant admin secret
-ADMIN_SECRET_ABC         # ABC tenant admin secret
-ADMIN_SECRET_CBC         # CBC tenant admin secret
+ADMIN_SECRET_ROOT        # Root brand admin secret
+ADMIN_SECRET_ABC         # ABC brand admin secret
+ADMIN_SECRET_CBC         # CBC brand admin secret
 ```
 
 ---
@@ -1111,7 +1111,7 @@ PropertiesService.getScriptProperties()
 - Batch operations (analytics logging)
 - Caching (Script Cache, ETag)
 - Pagination (event listing)
-- Rate limiting (10 req/min per tenant)
+- Rate limiting (10 req/min per brand)
 
 ---
 
@@ -1122,7 +1122,7 @@ PropertiesService.getScriptProperties()
 ✅ **Well-structured service layer** (EventService, SponsorService, AnalyticsService)
 ✅ **Comprehensive security** (JWT, CSRF, rate limiting, input sanitization)
 ✅ **Strong testing infrastructure** (150+ tests, Triangle framework)
-✅ **Multi-tenant architecture** (tenant isolation, scope management)
+✅ **Multi-brand architecture** (brand isolation, scope management)
 ✅ **API-first design** (11 endpoints with schemas)
 ✅ **Component-based UI** (reusable cards, state management)
 ✅ **Robust CI/CD** (GitHub Actions, automated deployment)

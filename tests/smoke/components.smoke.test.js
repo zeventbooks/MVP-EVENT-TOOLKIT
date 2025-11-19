@@ -13,13 +13,13 @@
 const { test, expect } = require('@playwright/test');
 
 const BASE_URL = process.env.BASE_URL || 'https://script.google.com/macros/s/.../exec';
-const TENANT_ID = 'root';
+const BRAND_ID = 'root';
 const ADMIN_KEY = process.env.ADMIN_KEY || 'CHANGE_ME_root';
 
 test.describe('Component Smoke - Event Lifecycle Dashboard', () => {
 
   test('Dashboard shows all three lifecycle phases', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
 
     // Create an event first to show dashboard
     page.on('dialog', async dialog => await dialog.accept(ADMIN_KEY));
@@ -47,7 +47,7 @@ test.describe('Component Smoke - Event Lifecycle Dashboard', () => {
   });
 
   test('Stats grid shows all four metrics', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
 
     page.on('dialog', async dialog => await dialog.accept(ADMIN_KEY));
 
@@ -74,7 +74,7 @@ test.describe('Component Smoke - Event Lifecycle Dashboard', () => {
 test.describe('Component Smoke - Sign-Up Form Cards', () => {
 
   test('All four sign-up URLs are configurable', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
 
     page.on('dialog', async dialog => await dialog.accept(ADMIN_KEY));
 
@@ -102,7 +102,7 @@ test.describe('Component Smoke - Sign-Up Form Cards', () => {
 
   test('Sign-up URLs appear as action buttons on public page', async ({ page, context }) => {
     // This requires a pre-configured event with sign-up URLs
-    await page.goto(`${BASE_URL}?p=events&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`);
 
     // Check if any events exist
     const eventCards = page.locator('.event-card');
@@ -125,7 +125,7 @@ test.describe('Component Smoke - Sign-Up Form Cards', () => {
 test.describe('Component Smoke - Sponsor Banner System', () => {
 
   test('Sponsor banner renders with placement flags', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
 
     page.on('dialog', async dialog => await dialog.accept(ADMIN_KEY));
 
@@ -149,7 +149,7 @@ test.describe('Component Smoke - Sponsor Banner System', () => {
 
   test('Mobile banner placement shows on public page', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 667 }); // Mobile
-    await page.goto(`${BASE_URL}?p=events&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`);
 
     // Check if sponsor banner element exists (may be hidden if no sponsors)
     const bannerExists = await page.locator('.sponsor-banner, [class*="sponsor"]').count();
@@ -158,7 +158,7 @@ test.describe('Component Smoke - Sponsor Banner System', () => {
   });
 
   test('TV top banner shows on display page', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=display&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}`);
 
     // Check for sponsor top element
     const sponsorTop = page.locator('#sponsorTop, .sponsor-top');
@@ -167,7 +167,7 @@ test.describe('Component Smoke - Sponsor Banner System', () => {
   });
 
   test('TV side panel shows on display page', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=display&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}`);
 
     // Check for sponsor side element
     const sponsorSide = page.locator('#sponsorSide, aside');
@@ -179,7 +179,7 @@ test.describe('Component Smoke - Sponsor Banner System', () => {
 test.describe('Component Smoke - TV Display Carousel', () => {
 
   test('Display mode selector exists', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
 
     page.on('dialog', async dialog => await dialog.accept(ADMIN_KEY));
 
@@ -195,7 +195,7 @@ test.describe('Component Smoke - TV Display Carousel', () => {
   });
 
   test('Carousel URLs can be configured', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
 
     page.on('dialog', async dialog => await dialog.accept(ADMIN_KEY));
 
@@ -214,7 +214,7 @@ test.describe('Component Smoke - TV Display Carousel', () => {
   });
 
   test('TV display shows iframe stage', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=display&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}`);
 
     // Verify iframe stage exists
     const stage = page.locator('#stage');
@@ -226,7 +226,7 @@ test.describe('Component Smoke - TV Display Carousel', () => {
   });
 
   test('TV display has fallback for blocked content', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=display&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}`);
 
     // Fallback element should exist (may be hidden)
     const fallback = page.locator('#fallback, .fallback-card');
@@ -235,7 +235,7 @@ test.describe('Component Smoke - TV Display Carousel', () => {
   });
 
   test('TV font size is legible at 10-12ft distance', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=display&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}`);
 
     const fontSize = await page.locator('body').evaluate(el =>
       window.getComputedStyle(el).fontSize
@@ -250,7 +250,7 @@ test.describe('Component Smoke - TV Display Carousel', () => {
 test.describe('Component Smoke - Analytics Event Batching', () => {
 
   test('logEvent function exists and batches events', async ({ page }) => {
-    await page.goto(`${BASE_URL}?p=events&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`);
 
     // Inject test to verify logEvent function
     const hasLogEvent = await page.evaluate(() => {
@@ -268,7 +268,7 @@ test.describe('Component Smoke - Analytics Event Batching', () => {
   });
 
   test('Analytics batch flushes on interval', async ({ page }) => {
-    await page.goto(`${BASE_URL}?p=events&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`);
 
     // Check for setInterval pattern (5-6 second flush)
     const pageContent = await page.content();
@@ -279,7 +279,7 @@ test.describe('Component Smoke - Analytics Event Batching', () => {
   });
 
   test('Analytics batch flushes on beforeunload', async ({ page }) => {
-    await page.goto(`${BASE_URL}?p=events&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`);
 
     // Check for beforeunload listener
     const pageContent = await page.content();
@@ -293,7 +293,7 @@ test.describe('Component Smoke - QR Code Generation', () => {
 
   test('Poster page generates QR codes', async ({ page }) => {
     // Need an event ID for poster page
-    await page.goto(`${BASE_URL}?page=poster&brand=${TENANT_ID}&id=test-event`);
+    await page.goto(`${BASE_URL}?page=poster&brand=${BRAND_ID}&id=test-event`);
 
     // Look for QR code images or quickchart.io URLs
     const pageContent = await page.content();
@@ -306,7 +306,7 @@ test.describe('Component Smoke - QR Code Generation', () => {
   });
 
   test('QR codes have three sections on poster', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=poster&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=poster&brand=${BRAND_ID}`);
 
     const pageContent = await page.content();
 
@@ -324,7 +324,7 @@ test.describe('Component Smoke - QR Code Generation', () => {
 test.describe('Component Smoke - Error Handling UI', () => {
 
   test('Admin form shows validation errors', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
 
     // Try to submit empty form
     await page.click('button[type="submit"]');
@@ -336,7 +336,7 @@ test.describe('Component Smoke - Error Handling UI', () => {
   });
 
   test('Toast notifications work on Display page', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=display&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}`);
 
     // Check for toast element
     const toast = page.locator('.toast, [class*="toast"]');
@@ -345,7 +345,7 @@ test.describe('Component Smoke - Error Handling UI', () => {
   });
 
   test('Invalid event ID shows graceful error', async ({ page }) => {
-    await page.goto(`${BASE_URL}?p=events&brand=${TENANT_ID}&id=nonexistent-event-12345`);
+    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}&id=nonexistent-event-12345`);
 
     // Should show some content (not blank page)
     const bodyText = await page.locator('body').textContent();
@@ -356,7 +356,7 @@ test.describe('Component Smoke - Error Handling UI', () => {
 test.describe('Component Smoke - Integration Points', () => {
 
   test('NUSDK RPC wrapper is included', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
 
     // Check for NU SDK
     const hasNUSDK = await page.evaluate(() => {
@@ -371,7 +371,7 @@ test.describe('Component Smoke - Integration Points', () => {
     const pages = ['admin', 'test', 'diagnostics'];
 
     for (const pageName of pages) {
-      await page.goto(`${BASE_URL}?page=${pageName}&brand=${TENANT_ID}`);
+      await page.goto(`${BASE_URL}?page=${pageName}&brand=${BRAND_ID}`);
 
       // Check for styled elements (should have background color set)
       const hasStyles = await page.evaluate(() => {
@@ -387,7 +387,7 @@ test.describe('Component Smoke - Integration Points', () => {
   });
 
   test('Header component is included', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
 
     const pageContent = await page.content();
     const hasHeader = await page.locator('header, [role="banner"]').count() > 0;

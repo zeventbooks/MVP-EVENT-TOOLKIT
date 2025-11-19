@@ -26,7 +26,7 @@ adminSecret: 'CHANGE_ME_root',  // ❌ CRITICAL
 ```
 
 **Recommendation:**
-- Generate strong, unique secrets for each tenant
+- Generate strong, unique secrets for each brand
 - Use environment variables or Script Properties for sensitive data
 - Implement secret rotation mechanism
 
@@ -270,7 +270,7 @@ idemKey: crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36)}`,
 2. **Good SWR implementation** with etag support
 3. **Rate limiting** implemented
 4. **Idempotency** support for creates
-5. **Multi-tenant architecture** ready for scaling
+5. **Multi-brand architecture** ready for scaling
 6. **Responsive design** with mobile support
 7. **Accessibility features** (focus-visible, reduced-motion)
 
@@ -311,6 +311,6 @@ idemKey: crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36)}`,
 
 ## Conclusion
 
-The codebase demonstrates good architectural patterns (multi-tenant, API envelopes, SWR caching) but requires security hardening and performance optimization before production deployment. The critical issues are addressable with focused refactoring work.
+The codebase demonstrates good architectural patterns (multi-brand, API envelopes, SWR caching) but requires security hardening and performance optimization before production deployment. The critical issues are addressable with focused refactoring work.
 
 **Estimated effort to production-ready:** 3-5 days of focused development.

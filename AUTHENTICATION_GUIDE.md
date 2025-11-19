@@ -499,7 +499,7 @@ All authentication failures return a consistent error:
 |-------|-------|----------|
 | Invalid authentication credentials | Wrong admin key | Check `Config.gs` for correct secret |
 | Token expired | JWT past expiration | Generate new token |
-| Token tenant mismatch | JWT for different tenant | Use correct tenant ID |
+| Token brand mismatch | JWT for different brand | Use correct brand ID |
 | Invalid JWT format | Malformed token | Check token structure |
 | Invalid token signature | Tampered token | Generate new token |
 

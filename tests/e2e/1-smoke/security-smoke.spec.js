@@ -9,19 +9,19 @@
  * - Invalid admin keys
  * - XSS attempts
  * - SQL injection attempts
- * - Invalid tenant IDs
+ * - Invalid brand IDs
  * - Malformed URLs
  */
 
 const { test, expect } = require('@playwright/test');
 
 const BASE_URL = process.env.BASE_URL || 'https://script.google.com/macros/s/.../exec';
-const TENANT_ID = 'root';
+const BRAND_ID = 'root';
 
 test.describe('🔒 SECURITY: Admin Key Validation', () => {
 
   test('Invalid admin key is rejected', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
 
     let dialogCount = 0;
     page.on('dialog', async dialog => {
@@ -50,7 +50,7 @@ test.describe('🔒 SECURITY: Admin Key Validation', () => {
   });
 
   test('Empty admin key is rejected', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
 
     page.on('dialog', async dialog => {
       await dialog.accept(''); // Empty key
@@ -76,7 +76,7 @@ test.describe('🔒 SECURITY: Admin Key Validation', () => {
 test.describe('🔒 SECURITY: XSS Prevention', () => {
 
   test('XSS attempt in event name is sanitized', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
 
     const xssPayload = '<script>alert("XSS")</script>';
     const ADMIN_KEY = process.env.ADMIN_KEY || 'CHANGE_ME_root';
@@ -105,7 +105,7 @@ test.describe('🔒 SECURITY: XSS Prevention', () => {
   });
 
   test('HTML injection in event name is escaped', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
 
     const htmlPayload = '<img src=x onerror=alert("XSS")>';
     const ADMIN_KEY = process.env.ADMIN_KEY || 'CHANGE_ME_root';
@@ -133,23 +133,23 @@ test.describe('🔒 SECURITY: XSS Prevention', () => {
 
 test.describe('🔒 SECURITY: Invalid Inputs', () => {
 
-  test('Invalid tenant ID returns error', async ({ page }) => {
-    const response = await page.goto(`${BASE_URL}?page=admin&brand=INVALID_TENANT_999`);
+  test('Invalid brand ID returns error', async ({ page }) => {
+    const response = await page.goto(`${BASE_URL}?page=admin&brand=INVALID_BRAND_999`);
 
     // STRICT: Should return error or redirect, not crash
     expect(response.status()).toBeLessThan(500); // Not server error
 
     // Should show error message or empty state
-    const errorMsg = page.locator('text=/invalid|not found|unknown tenant/i');
+    const errorMsg = page.locator('text=/invalid|not found|unknown brand/i');
     const hasError = await errorMsg.count() > 0;
 
-    // Page should handle invalid tenant gracefully
+    // Page should handle invalid brand gracefully
     const pageContent = await page.content();
     expect(pageContent.length).toBeGreaterThan(0); // Not blank
   });
 
   test('Malformed date is rejected', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
 
     const ADMIN_KEY = process.env.ADMIN_KEY || 'CHANGE_ME_root';
 
@@ -175,7 +175,7 @@ test.describe('🔒 SECURITY: Invalid Inputs', () => {
   });
 
   test('SQL injection attempt is handled safely', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
 
     const sqlPayload = "'; DROP TABLE events; --";
     const ADMIN_KEY = process.env.ADMIN_KEY || 'CHANGE_ME_root';
@@ -195,7 +195,7 @@ test.describe('🔒 SECURITY: Invalid Inputs', () => {
     expect(pageContent.length).toBeGreaterThan(0);
 
     // Verify events list still loads (table wasn't dropped)
-    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
     await expect(page.locator('h3:has-text("Events List")')).toBeVisible();
   });
 });
@@ -203,7 +203,7 @@ test.describe('🔒 SECURITY: Invalid Inputs', () => {
 test.describe('🔒 SECURITY: API Error Handling', () => {
 
   test('Non-existent page parameter shows error', async ({ page }) => {
-    const response = await page.goto(`${BASE_URL}?page=NONEXISTENT&brand=${TENANT_ID}`);
+    const response = await page.goto(`${BASE_URL}?page=NONEXISTENT&brand=${BRAND_ID}`);
 
     // STRICT: Should handle gracefully (not 500 error)
     expect(response.status()).toBeLessThan(500);
@@ -229,7 +229,7 @@ test.describe('🔒 SECURITY: API Error Handling', () => {
 test.describe('🔒 SECURITY: Performance Limits', () => {
 
   test('Extremely long event name is handled', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
 
     const longName = 'A'.repeat(10000); // 10k characters
     const ADMIN_KEY = process.env.ADMIN_KEY || 'CHANGE_ME_root';

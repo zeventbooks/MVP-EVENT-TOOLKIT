@@ -16,12 +16,12 @@
 const { test, expect } = require('@playwright/test');
 
 const BASE_URL = process.env.BASE_URL || 'https://script.google.com/macros/s/.../exec';
-const TENANT_ID = 'root';
+const BRAND_ID = 'root';
 
 test.describe('🔌 API CONTRACT: Status Endpoint', () => {
 
   test('Status API returns valid JSON schema', async ({ request }) => {
-    const response = await request.get(`${BASE_URL}?p=status&brand=${TENANT_ID}`);
+    const response = await request.get(`${BASE_URL}?p=status&brand=${BRAND_ID}`);
 
     // STRICT: Must be 200 OK
     expect(response.status()).toBe(200);
@@ -43,13 +43,13 @@ test.describe('🔌 API CONTRACT: Status Endpoint', () => {
     expect(typeof json.value.build).toBe('string');
     expect(json.value.build.length).toBeGreaterThan(0);
 
-    expect(json.value).toHaveProperty('tenant');
-    expect(json.value.tenant).toBe(TENANT_ID);
+    expect(json.value).toHaveProperty('brand');
+    expect(json.value.brand).toBe(BRAND_ID);
   });
 
   test('Status API responds within SLA', async ({ request }) => {
     const start = Date.now();
-    const response = await request.get(`${BASE_URL}?p=status&brand=${TENANT_ID}`);
+    const response = await request.get(`${BASE_URL}?p=status&brand=${BRAND_ID}`);
     const duration = Date.now() - start;
 
     // STRICT: Status check must be fast (< 2s)
@@ -62,7 +62,7 @@ test.describe('🔌 API CONTRACT: Status Endpoint', () => {
     const responses = [];
 
     for (let i = 0; i < calls; i++) {
-      const response = await request.get(`${BASE_URL}?p=status&brand=${TENANT_ID}`);
+      const response = await request.get(`${BASE_URL}?p=status&brand=${BRAND_ID}`);
       const json = await response.json();
       responses.push(json);
     }
@@ -72,7 +72,7 @@ test.describe('🔌 API CONTRACT: Status Endpoint', () => {
       expect(resp).toHaveProperty('ok', true);
       expect(resp).toHaveProperty('value');
       expect(resp.value).toHaveProperty('build');
-      expect(resp.value).toHaveProperty('tenant');
+      expect(resp.value).toHaveProperty('brand');
     }
 
     // STRICT: Build version should be consistent
@@ -84,7 +84,7 @@ test.describe('🔌 API CONTRACT: Status Endpoint', () => {
 test.describe('🔌 API CONTRACT: Analytics Endpoint', () => {
 
   test('Analytics API exists and returns JSON', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=report&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=report&brand=${BRAND_ID}`);
 
     // Intercept network requests to analytics API
     const apiCalls = [];
@@ -122,7 +122,7 @@ test.describe('🔌 API CONTRACT: Analytics Endpoint', () => {
 test.describe('🔌 API CONTRACT: Event Creation Response', () => {
 
   test('Event creation API returns proper response structure', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=${TENANT_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
 
     const ADMIN_KEY = process.env.ADMIN_KEY || 'CHANGE_ME_root';
     const responses = [];
@@ -166,7 +166,7 @@ test.describe('🔌 API CONTRACT: Event Creation Response', () => {
 test.describe('🔌 API CONTRACT: Error Responses', () => {
 
   test('Invalid API parameters return proper error', async ({ request }) => {
-    // Test with invalid tenant
+    // Test with invalid brand
     const response = await request.get(`${BASE_URL}?p=status&brand=INVALID_999`);
 
     // STRICT: Should return error status or handle gracefully
@@ -185,7 +185,7 @@ test.describe('🔌 API CONTRACT: Error Responses', () => {
   });
 
   test('Missing parameters handled gracefully', async ({ request }) => {
-    // Test status API without tenant parameter
+    // Test status API without brand parameter
     const response = await request.get(`${BASE_URL}?p=status`);
 
     // STRICT: Should not crash (no 500 error)
@@ -196,7 +196,7 @@ test.describe('🔌 API CONTRACT: Error Responses', () => {
 test.describe('🔌 API CONTRACT: Response Headers', () => {
 
   test('CORS headers are present', async ({ request }) => {
-    const response = await request.get(`${BASE_URL}?p=status&brand=${TENANT_ID}`);
+    const response = await request.get(`${BASE_URL}?p=status&brand=${BRAND_ID}`);
 
     const headers = response.headers();
 
@@ -206,7 +206,7 @@ test.describe('🔌 API CONTRACT: Response Headers', () => {
   });
 
   test('Content-Type header is correct for JSON endpoints', async ({ request }) => {
-    const response = await request.get(`${BASE_URL}?p=status&brand=${TENANT_ID}`);
+    const response = await request.get(`${BASE_URL}?p=status&brand=${BRAND_ID}`);
 
     const contentType = response.headers()['content-type'];
 
@@ -219,9 +219,9 @@ test.describe('🔌 API CONTRACT: Performance', () => {
 
   test('All API endpoints respond within acceptable time', async ({ request }) => {
     const endpoints = [
-      { name: 'Status', url: `${BASE_URL}?p=status&brand=${TENANT_ID}`, maxTime: 2000 },
-      { name: 'Events', url: `${BASE_URL}?p=events&brand=${TENANT_ID}`, maxTime: 5000 },
-      { name: 'Admin', url: `${BASE_URL}?page=admin&brand=${TENANT_ID}`, maxTime: 5000 },
+      { name: 'Status', url: `${BASE_URL}?p=status&brand=${BRAND_ID}`, maxTime: 2000 },
+      { name: 'Events', url: `${BASE_URL}?p=events&brand=${BRAND_ID}`, maxTime: 5000 },
+      { name: 'Admin', url: `${BASE_URL}?page=admin&brand=${BRAND_ID}`, maxTime: 5000 },
     ];
 
     for (const endpoint of endpoints) {
@@ -241,7 +241,7 @@ test.describe('🔌 API CONTRACT: Performance', () => {
 
     for (let i = 0; i < requests; i++) {
       const start = Date.now();
-      const response = await request.get(`${BASE_URL}?p=status&brand=${TENANT_ID}`);
+      const response = await request.get(`${BASE_URL}?p=status&brand=${BRAND_ID}`);
       const duration = Date.now() - start;
 
       results.push({

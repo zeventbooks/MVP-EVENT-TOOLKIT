@@ -72,7 +72,7 @@ jobs:
           # Use Google Apps Script endpoint for direct API testing
           GOOGLE_SCRIPT_URL: ${{ secrets.GOOGLE_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbzu-U4UgdjdAiXHTg9TD5Y-1gDkc798YSTqQCdhOddG/exec' }}
           ADMIN_KEY: ${{ secrets.ADMIN_KEY_ROOT }}
-          TENANT_ID: root
+          BRAND_ID: root
 
       - name: Upload Scenario 1 Results
         if: always()

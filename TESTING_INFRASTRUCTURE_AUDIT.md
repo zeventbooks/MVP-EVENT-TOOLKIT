@@ -42,7 +42,7 @@ The MVP Event Toolkit has implemented a **mature, multi-layered testing strategy
 
 **Files:**
 - `backend.test.js` (500 lines) - Core logic tests
-- `multi-tenant.test.js` (337 lines) - Multi-tenancy isolation
+- `multi-brand.test.js` (337 lines) - Multi-tenancy isolation
 - `rate-limiting.test.js` (479 lines) - Rate limiting logic
 
 **Test Count:** 127+ tests
@@ -56,7 +56,7 @@ The MVP Event Toolkit has implemented a **mature, multi-layered testing strategy
 | URL Validation & Security | 15 | ✅ 100% |
 | Schema Validation | 13 | ✅ 100% |
 | Frontend SDK (NU.esc HTML escaping) | 13 | ✅ 100% |
-| Multi-Tenant Isolation | 19 | ✅ 100% NEW |
+| Multi-brand Isolation | 19 | ✅ 100% NEW |
 | Rate Limiting Edge Cases | 38 | ✅ 100% NEW |
 | Slug Generation | 12 | ✅ 100% |
 
@@ -72,10 +72,10 @@ describe('Error Envelopes', () => {
   });
 });
 
-// ✅ Multi-Tenant Isolation
-describe('Multi-Tenant Data Isolation', () => {
-  it('should only return events for specified tenant', () => {
-    const rootEvents = filterByTenant(allEvents, 'root');
+// ✅ Multi-brand Isolation
+describe('Multi-brand Data Isolation', () => {
+  it('should only return events for specified brand', () => {
+    const rootEvents = filterByBrand(allEvents, 'root');
     expect(rootEvents.every(e => e.brandId === 'root')).toBe(true);
   });
 });
@@ -106,7 +106,7 @@ describe('Multi-Tenant Data Isolation', () => {
 
 | API Endpoint | Tests | Validates |
 |--------------|-------|-----------|
-| `api_status` | 4 | Build info, DB connection, tenant identification |
+| `api_status` | 4 | Build info, DB connection, brand identification |
 | `api_list` | 6 | List with etag, notModified, items array pagination |
 | `api_get` | 5 | Event with links, etag support, analytics fields |
 | `api_create` | 10 | Success, validation errors, rate limiting |
@@ -115,7 +115,7 @@ describe('Multi-Tenant Data Isolation', () => {
 | `api_getReport` | 3 | Analytics aggregation (totals, bySurface, bySponsor) |
 | `api_createShortlink` | 3 | Token generation, URL creation |
 | Error Handling | 8 | All error codes (BAD_INPUT, NOT_FOUND, RATE_LIMITED, etc.) |
-| JWT Security | 35+ | Token validation, signature, expiration, tenant isolation |
+| JWT Security | 35+ | Token validation, signature, expiration, brand isolation |
 
 **Key Contract Tests:**
 
@@ -196,7 +196,7 @@ tests/e2e/
 │   ├── system-api.spec.js (199 lines)            - Status, diagnostics
 │   ├── events-crud-api.spec.js (434 lines)       - Events CRUD operations
 │   ├── sponsors-crud-api.spec.js                 - Sponsor CRUD operations
-│   ├── multi-tenant-api.spec.js (346 lines)      - Multi-tenant isolation
+│   ├── multi-brand-api.spec.js (346 lines)      - Multi-brand isolation
 │   └── api-helpers.js (401 lines)                - Shared API helpers
 ├── authentication.spec.js (549 lines)             - Auth methods testing
 ├── api-docs-page.spec.js (480 lines)             - API documentation page
@@ -403,7 +403,7 @@ Frontend Pages: ~85% coverage
 | XSS Prevention | 11 tests | 5 tests | 8 tests | ✅ 100% |
 | SQL Injection | 6 tests | 3 tests | 5 tests | ✅ 100% |
 | CSRF Protection | 4 tests | 2 tests | 3 tests | ✅ 100% |
-| Multi-Tenant Isolation | 19 tests | 8 tests | 6 tests | ✅ 100% |
+| Multi-brand Isolation | 19 tests | 8 tests | 6 tests | ✅ 100% |
 | JWT Security | 15 tests | 35+ tests | 12 tests | ✅ 100% |
 | Rate Limiting | 38 tests | 5 tests | 8 tests | ✅ 95% |
 | API Key Validation | 8 tests | 8 tests | 5 tests | ✅ 100% |
@@ -420,8 +420,8 @@ test('should sanitize XSS in event name', () => {
   expect(sanitized).not.toContain('alert');
 });
 
-// ✅ Multi-Tenant Isolation
-test('should reject admin key from different tenant', () => {
+// ✅ Multi-brand Isolation
+test('should reject admin key from different brand', () => {
   expect(validateAdminKey('root', 'abc-admin-key')).toBe(false);
 });
 

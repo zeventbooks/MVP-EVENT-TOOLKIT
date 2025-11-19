@@ -28,7 +28,7 @@ test.describe('Admin Page - DRY Example', () => {
 
   // Use fixture for authenticated admin page
   test('Should clear event form', async ({ authenticatedAdminPage: { page, config } }) => {
-    await page.goto(`${config.baseUrl}?page=admin&brand=${config.tenantId}`);
+    await page.goto(`${config.baseUrl}?page=admin&brand=${config.brandId}`);
 
     // Fill some data
     await page.fill(ADMIN_PAGE.EVENT_NAME_INPUT, 'Test Event');
@@ -43,7 +43,7 @@ test.describe('Admin Page - DRY Example', () => {
   });
 
   test('Should create event with all fields', async ({ authenticatedAdminPage: { page, config } }) => {
-    await page.goto(`${config.baseUrl}?page=admin&brand=${config.tenantId}`);
+    await page.goto(`${config.baseUrl}?page=admin&brand=${config.brandId}`);
 
     // Fill form using centralized selectors
     await page.fill(ADMIN_PAGE.EVENT_NAME_INPUT, 'Complete Test Event');
@@ -67,7 +67,7 @@ test.describe('Admin Page - DRY Example', () => {
   });
 
   test('Should add sponsor', async ({ authenticatedAdminPage: { page, config } }) => {
-    await page.goto(`${config.baseUrl}?page=admin&brand=${config.tenantId}`);
+    await page.goto(`${config.baseUrl}?page=admin&brand=${config.brandId}`);
 
     // Click add sponsor button
     if (await page.isVisible(ADMIN_PAGE.ADD_SPONSOR_BUTTON)) {
@@ -85,7 +85,7 @@ test.describe('Admin Page - DRY Example', () => {
   });
 
   test('Should configure display settings', async ({ authenticatedAdminPage: { page, config } }) => {
-    await page.goto(`${config.baseUrl}?page=admin&brand=${config.tenantId}`);
+    await page.goto(`${config.baseUrl}?page=admin&brand=${config.brandId}`);
 
     // Navigate to display configuration
     const displayConfigButton = await page.$('button:has-text("Configure Display")');
@@ -134,7 +134,7 @@ test.describe('Admin Page - Data-Driven Example', () => {
 
   for (const eventData of testEvents) {
     test(`Should create event: ${eventData.name}`, async ({ authenticatedAdminPage: { page, config } }) => {
-      await page.goto(`${config.baseUrl}?page=admin&brand=${config.tenantId}`);
+      await page.goto(`${config.baseUrl}?page=admin&brand=${config.brandId}`);
 
       await page.fill(ADMIN_PAGE.EVENT_NAME_INPUT, eventData.name);
       await page.fill(ADMIN_PAGE.EVENT_DATE_INPUT, eventData.date);
@@ -154,7 +154,7 @@ test.describe('Admin Page - Mobile Example', () => {
   test.use({ viewport: { width: 375, height: 667 } });
 
   test('Should create event on mobile', async ({ authenticatedAdminPage: { page, config } }) => {
-    await page.goto(`${config.baseUrl}?page=admin&brand=${config.tenantId}`);
+    await page.goto(`${config.baseUrl}?page=admin&brand=${config.brandId}`);
 
     // Mobile menu might be different
     const mobileMenu = await page.$(COMMON.MOBILE_MENU_BUTTON);
@@ -200,7 +200,7 @@ test.describe('Admin Page - Negative Testing Example', () => {
 
   for (const testCase of invalidEvents) {
     test(`Should show error for: ${testCase.expectedError}`, async ({ authenticatedAdminPage: { page, config } }) => {
-      await page.goto(`${config.baseUrl}?page=admin&brand=${config.tenantId}`);
+      await page.goto(`${config.baseUrl}?page=admin&brand=${config.brandId}`);
 
       if (testCase.name) await page.fill(ADMIN_PAGE.EVENT_NAME_INPUT, testCase.name);
       if (testCase.date) await page.fill(ADMIN_PAGE.EVENT_DATE_INPUT, testCase.date);
@@ -222,7 +222,7 @@ test.describe('Admin Page - Negative Testing Example', () => {
  */
 test.describe('Admin Page - API Integration Example', () => {
   test('Should verify event creation via API', async ({ authenticatedAdminPage: { page, config, api } }) => {
-    await page.goto(`${config.baseUrl}?page=admin&brand=${config.tenantId}`);
+    await page.goto(`${config.baseUrl}?page=admin&brand=${config.brandId}`);
 
     // Create event via UI
     const eventName = `API Test Event ${Date.now()}`;

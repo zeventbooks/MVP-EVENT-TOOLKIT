@@ -193,14 +193,14 @@ https://zeventbooks.com?p=status&brand=root
   "ok": true,
   "value": {
     "build": "triangle-extended-v1.3",
-    "tenant": "root",
+    "brand": "root",
     "time": "2025-11-14T...",
     "db": { "ok": true }
   }
 }
 ```
 
-### Test 3: All Tenants
+### Test 3: All Brands
 
 Try these URLs:
 ```
@@ -209,7 +209,7 @@ https://zeventbooks.com?p=status&brand=abc
 https://zeventbooks.com?p=status&brand=cbc
 ```
 
-All should return JSON with the correct tenant ID.
+All should return JSON with the correct brand ID.
 
 ### Test 4: Admin Pages
 
@@ -385,7 +385,7 @@ After everything works, consider:
 
 ## Next Steps After Setup
 
-1. ✅ Verify all tenant URLs work
+1. ✅ Verify all brand URLs work
 2. ✅ Run automated test suite
 3. ✅ Set up monitoring/alerts
 4. ✅ Configure custom error pages (optional)
@@ -415,7 +415,7 @@ If you get stuck:
 
 **What you get:**
 - Clean URLs: `zeventbooks.com?p=status&brand=root`
-- All tenants work automatically
+- All brands work automatically
 - All pages work automatically
 - Professional appearance
 - Ready for production use

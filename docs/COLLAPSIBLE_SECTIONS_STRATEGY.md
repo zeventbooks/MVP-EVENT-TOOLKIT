@@ -12,7 +12,7 @@ This document outlines the systematic application of collapsible sections across
 |------|----------|---------------------|-----------|
 | **Admin.html** | ✅ DONE | Core Details, Summary, Media, Bio, Statistics, Event Lifecycle | Reduce form clutter, improve focus |
 | **SharedReport.html** | 🔴 HIGH | Key Metrics, Performance by Surface, Sponsor Performance, Event Performance, Daily Trends, AI Recommendations | Complex analytics dashboard with multiple data sections |
-| **ConfigHtml.html** | 🟡 MEDIUM | Build Information, Session Details, Tenant Configuration, System Settings | Configuration sections that users review periodically |
+| **ConfigHtml.html** | 🟡 MEDIUM | Build Information, Session Details, Brand Configuration, System Settings | Configuration sections that users review periodically |
 | **Diagnostics.html** | 🟡 MEDIUM | Test Categories, Test Results by Type | Group test results by category for better organization |
 | **ApiDocs.html** | 🟢 LOW | API Endpoint Groups, Request/Response Examples | Documentation sections for different API categories |
 | **Sponsor.html** | 🟢 LOW | Sponsor Details, Placement Options | If form has multiple sections (need verification) |
@@ -124,8 +124,8 @@ This document outlines the systematic application of collapsible sections across
 **Sections to Make Collapsible:**
 
 - Build Information (Version, Build ID, Contract)
-- Session Details (Tenant, Scope, User)
-- Tenant Configuration (JSON display)
+- Session Details (Brand, Scope, User)
+- Brand Configuration (JSON display)
 - System Settings (if applicable)
 
 **Default State:** Build Info and Session Details expanded, others collapsed

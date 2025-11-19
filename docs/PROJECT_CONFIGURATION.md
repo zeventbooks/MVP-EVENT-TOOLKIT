@@ -53,7 +53,7 @@ This document contains the project-specific configuration details for the MVP Ev
    - The Apps Script project identifier
 
 3. **`ADMIN_KEY_ROOT`**
-   - Admin API key for the root tenant
+   - Admin API key for the root brand
    - Used in CI/CD testing
 
 ## Local Development

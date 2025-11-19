@@ -228,14 +228,14 @@ server {
 
 ---
 
-## Configuration for Multi-Tenant Setup
+## Configuration for Multi-brand Setup
 
-Your application already supports multi-tenant URLs correctly:
+Your application already supports multi-brand URLs correctly:
 
 ### URL Structure
 
 ```
-https://zeventbooks.com?p={page}&brand={tenant}
+https://zeventbooks.com?p={page}&brand={brand}
 ```
 
 ### All Pages Work Automatically
@@ -249,20 +249,20 @@ https://zeventbooks.com?p={page}&brand={tenant}
 | Poster | `https://zeventbooks.com?p=poster&brand=abc` |
 | Report | `https://zeventbooks.com?p=report&brand=cbc` |
 
-### All Tenants Work Automatically
+### All Brands Work Automatically
 
 No additional configuration needed! The proxy passes all query parameters:
 
 ```bash
-# Root tenant
+# Root brand
 https://zeventbooks.com?p=admin&brand=root
   → https://script.google.com/.../exec?p=admin&brand=root
 
-# ABC tenant
+# ABC brand
 https://zeventbooks.com?p=status&brand=abc
   → https://script.google.com/.../exec?p=status&brand=abc
 
-# CBC tenant
+# CBC brand
 https://zeventbooks.com?p=events&brand=cbc
   → https://script.google.com/.../exec?p=events&brand=cbc
 ```
@@ -339,7 +339,7 @@ Expected response:
   "ok": true,
   "value": {
     "build": "triangle-extended-v1.3",
-    "tenant": "root",
+    "brand": "root",
     ...
   }
 }
@@ -582,7 +582,7 @@ Test: `https://zeventbooks.com/health.php`
 
 1. ✅ Set up PHP proxy script on Hostinger
 2. ✅ Update Google Apps Script URL in `index.php`
-3. ✅ Test all tenant URLs manually
+3. ✅ Test all brand URLs manually
 4. ✅ Run automated test suite: `npm run test:hostinger:all`
 5. ✅ Set up monitoring/alerts
 6. ✅ Configure custom error pages
