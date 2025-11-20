@@ -337,6 +337,14 @@ function doGet(e){
       .setMimeType(ContentService.MimeType.JSON);
   }
 
+  // Permission check endpoint - quick diagnostic for permission issues
+  if (pageParam === 'permissions' || pageParam === 'checkpermissions') {
+    const brandParam = (e?.parameter?.brand || 'root').toString();
+    const permissionResult = api_checkPermissions(brandParam);
+    return ContentService.createTextOutput(JSON.stringify(permissionResult, null, 2))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
   const path = (e?.pathInfo || '').toString().replace(/^\/+|\/+$/g,'');
   const scope = (e?.parameter?.p || e?.parameter?.scope || 'events').toString();
   const allowed = brand.scopesAllowed?.length ? brand.scopesAllowed : ['events','leagues','tournaments'];
@@ -1695,6 +1703,162 @@ function api_setupCheck(brandId) {
         'View documentation: ' + ScriptApp.getService().getUrl() + '?p=docs'
       ]
     });
+  });
+}
+
+/**
+ * Quick permission check endpoint
+ * Tests if the deployment has necessary permissions to access spreadsheets
+ *
+ * Usage: GET /exec?page=permissions or GET /exec?page=permissions&brand=abc
+ *
+ * Returns:
+ * - ok: true if all permissions are granted
+ * - error: detailed error message if permissions are missing
+ * - details: information about what was tested
+ */
+function api_checkPermissions(brandId) {
+  return runSafe('api_checkPermissions', () => {
+    const results = {
+      deployment: {},
+      spreadsheet: {},
+      oauth: {},
+      recommendations: []
+    };
+
+    // Check brand
+    const brand = brandId ? findBrand_(brandId) : findBrand_('root');
+    if (!brand) {
+      return Err(ERR.NOT_FOUND, `Brand not found: ${brandId || 'root'}`);
+    }
+
+    results.brand = {
+      id: brand.id,
+      name: brand.name,
+      spreadsheetId: brand.store?.spreadsheetId || 'not configured'
+    };
+
+    // Check deployment info
+    try {
+      const service = ScriptApp.getService();
+      results.deployment.url = service.getUrl();
+      results.deployment.configured = true;
+    } catch (e) {
+      results.deployment.error = 'Could not get deployment URL';
+      results.deployment.configured = false;
+      results.recommendations.push('Deploy the script as a web app');
+    }
+
+    // Check spreadsheet access
+    if (brand.store?.spreadsheetId) {
+      try {
+        const ss = SpreadsheetApp.openById(brand.store.spreadsheetId);
+        const name = ss.getName();
+        const id = ss.getId();
+
+        results.spreadsheet.accessible = true;
+        results.spreadsheet.name = name;
+        results.spreadsheet.id = id;
+        results.spreadsheet.message = 'Spreadsheet access granted';
+      } catch (e) {
+        results.spreadsheet.accessible = false;
+        results.spreadsheet.error = String(e.message);
+
+        if (e.message.includes('not found') || e.message.includes('does not exist')) {
+          results.spreadsheet.message = 'Spreadsheet not found';
+          results.recommendations.push('Verify spreadsheet ID in Config.gs: ' + brand.store.spreadsheetId);
+          results.recommendations.push('Check that spreadsheet exists: https://docs.google.com/spreadsheets/d/' + brand.store.spreadsheetId);
+        } else if (e.message.includes('permission') || e.message.includes('authorization')) {
+          results.spreadsheet.message = 'Permission denied';
+          results.recommendations.push('The deployment needs to be authorized to access spreadsheets');
+          results.recommendations.push('Steps to authorize:');
+          results.recommendations.push('1. Open Apps Script editor: https://script.google.com');
+          results.recommendations.push('2. Select function "api_checkPermissions" and click Run');
+          results.recommendations.push('3. Grant permissions when prompted');
+          results.recommendations.push('4. Re-deploy the web app');
+        } else {
+          results.spreadsheet.message = 'Unexpected error accessing spreadsheet';
+          results.recommendations.push('Error: ' + e.message);
+        }
+      }
+    } else {
+      results.spreadsheet.accessible = false;
+      results.spreadsheet.message = 'No spreadsheet ID configured';
+      results.recommendations.push('Configure spreadsheet ID in Config.gs for brand: ' + brand.id);
+    }
+
+    // Check OAuth scopes
+    const scopeTests = [];
+
+    // Test spreadsheet scope
+    try {
+      if (results.spreadsheet.accessible) {
+        scopeTests.push({ scope: 'spreadsheets', granted: true });
+      } else {
+        // Try to open any spreadsheet to test the scope
+        try {
+          SpreadsheetApp.getActiveSpreadsheet();
+          scopeTests.push({ scope: 'spreadsheets', granted: true });
+        } catch (e) {
+          scopeTests.push({
+            scope: 'spreadsheets',
+            granted: false,
+            error: 'Spreadsheet access not authorized'
+          });
+        }
+      }
+    } catch (e) {
+      scopeTests.push({
+        scope: 'spreadsheets',
+        granted: false,
+        error: String(e.message)
+      });
+    }
+
+    // Test external request scope
+    try {
+      UrlFetchApp.fetch('https://www.google.com', {
+        muteHttpExceptions: true,
+        method: 'HEAD'
+      });
+      scopeTests.push({ scope: 'external_request', granted: true });
+    } catch (e) {
+      scopeTests.push({
+        scope: 'external_request',
+        granted: false,
+        error: String(e.message)
+      });
+      results.recommendations.push('External request scope not granted (may be needed for webhooks)');
+    }
+
+    results.oauth.scopes = scopeTests;
+    results.oauth.allGranted = scopeTests.every(s => s.granted);
+
+    // Determine overall status
+    const allOk = results.deployment.configured &&
+                  results.spreadsheet.accessible &&
+                  results.oauth.allGranted;
+
+    if (allOk) {
+      return Ok({
+        status: 'ok',
+        message: 'All permissions are properly configured!',
+        details: results,
+        nextSteps: [
+          'Your deployment is ready to use',
+          'Test the API: ' + (results.deployment.url || '') + '?page=status&brand=' + brand.id,
+          'View docs: ' + (results.deployment.url || '') + '?page=docs'
+        ]
+      });
+    } else {
+      return Ok({
+        status: 'error',
+        message: 'Permission issues detected',
+        details: results,
+        recommendations: results.recommendations,
+        helpUrl: 'See APPS_SCRIPT_DEPLOYMENT_GUIDE.md for detailed instructions'
+      });
+    }
   });
 }
 
