@@ -1944,9 +1944,9 @@ function api_get(payload){
       data:safeJSONParse_(r[3], {}),
       createdAt:r[4], slug:r[5],
       links: {
-        publicUrl: `${base}?p=events&brand=${brandId}&id=${r[0]}`,
-        posterUrl: `${base}?page=poster&p=events&brand=${brandId}&id=${r[0]}`,
-        displayUrl: `${base}?page=display&p=events&brand=${brandId}&id=${r[0]}&tv=1`,
+        publicUrl: `${base}?page=events&brand=${brandId}&id=${r[0]}`,
+        posterUrl: `${base}?page=poster&brand=${brandId}&id=${r[0]}`,
+        displayUrl: `${base}?page=display&brand=${brandId}&id=${r[0]}&tv=1`,
         reportUrl: `${base}?page=report&brand=${brandId}&id=${r[0]}`
       }
     };
@@ -2033,9 +2033,9 @@ function api_create(payload){
 
     const base = ScriptApp.getService().getUrl();
     const links = {
-      publicUrl: `${base}?p=events&brand=${brandId}&id=${id}`,
-      posterUrl: `${base}?page=poster&p=events&brand=${brandId}&id=${id}`,
-      displayUrl: `${base}?page=display&p=events&brand=${brandId}&id=${id}&tv=1`,
+      publicUrl: `${base}?page=events&brand=${brandId}&id=${id}`,
+      posterUrl: `${base}?page=poster&brand=${brandId}&id=${id}`,
+      displayUrl: `${base}?page=display&brand=${brandId}&id=${id}&tv=1`,
       reportUrl: `${base}?page=report&brand=${brandId}&id=${id}`
     };
     diag_('info','api_create','created',{id,brandId,scope});

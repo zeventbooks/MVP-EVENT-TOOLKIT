@@ -18,7 +18,10 @@ test.describe('API Documentation Page', () => {
 
   test.describe('Page Load and Structure', () => {
     test('should load API docs page', async ({ page }) => {
-      await page.goto(`${BASE_URL}?page=docs`);
+      await page.goto(`${BASE_URL}?page=docs`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       // Check title
       await expect(page).toHaveTitle(/API Documentation/);
@@ -29,7 +32,10 @@ test.describe('API Documentation Page', () => {
     });
 
     test('should display navigation menu', async ({ page }) => {
-      await page.goto(`${BASE_URL}?page=docs`);
+      await page.goto(`${BASE_URL}?page=docs`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       // Check navigation links
       await expect(page.locator('nav a:has-text("Overview")')).toBeVisible();
@@ -40,7 +46,10 @@ test.describe('API Documentation Page', () => {
     });
 
     test('should display base URL automatically', async ({ page }) => {
-      await page.goto(`${BASE_URL}?page=docs`);
+      await page.goto(`${BASE_URL}?page=docs`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       // Check that base URL is populated
       const baseUrlElement = page.locator('#base-url');
@@ -51,7 +60,10 @@ test.describe('API Documentation Page', () => {
     });
 
     test('should have sticky navigation', async ({ page }) => {
-      await page.goto(`${BASE_URL}?page=docs`);
+      await page.goto(`${BASE_URL}?page=docs`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       // Scroll down
       await page.evaluate(() => window.scrollTo(0, 500));
@@ -64,7 +76,10 @@ test.describe('API Documentation Page', () => {
 
   test.describe('Navigation', () => {
     test('should navigate to sections when clicking nav links', async ({ page }) => {
-      await page.goto(`${BASE_URL}?page=docs`);
+      await page.goto(`${BASE_URL}?page=docs`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       // Click Authentication link
       await page.click('nav a:has-text("Authentication")');
@@ -75,7 +90,10 @@ test.describe('API Documentation Page', () => {
     });
 
     test('should highlight active section in navigation', async ({ page }) => {
-      await page.goto(`${BASE_URL}?page=docs`);
+      await page.goto(`${BASE_URL}?page=docs`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       // Click a navigation link
       const authLink = page.locator('nav a:has-text("Authentication")');
@@ -88,7 +106,10 @@ test.describe('API Documentation Page', () => {
 
   test.describe('Authentication Section', () => {
     test('should display all three authentication methods', async ({ page }) => {
-      await page.goto(`${BASE_URL}?page=docs`);
+      await page.goto(`${BASE_URL}?page=docs`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       // Check for authentication method cards
       await expect(page.locator('.auth-card:has-text("Admin Key")')).toBeVisible();
@@ -97,7 +118,10 @@ test.describe('API Documentation Page', () => {
     });
 
     test('should show JWT token generation form', async ({ page }) => {
-      await page.goto(`${BASE_URL}?page=docs`);
+      await page.goto(`${BASE_URL}?page=docs`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       // Check for token generation try-it form
       await expect(page.locator('#token-admin-key')).toBeVisible();
@@ -108,7 +132,10 @@ test.describe('API Documentation Page', () => {
 
   test.describe('Endpoints Section', () => {
     test('should display public endpoints', async ({ page }) => {
-      await page.goto(`${BASE_URL}?page=docs`);
+      await page.goto(`${BASE_URL}?page=docs`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       // Check for public endpoint badges
       await expect(page.locator('.auth-public')).toHaveCount(3); // status, list, get
@@ -118,7 +145,10 @@ test.describe('API Documentation Page', () => {
     });
 
     test('should display admin endpoints', async ({ page }) => {
-      await page.goto(`${BASE_URL}?page=docs`);
+      await page.goto(`${BASE_URL}?page=docs`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       // Check for admin endpoint badges
       const authRequired = page.locator('.auth-required');
@@ -130,7 +160,10 @@ test.describe('API Documentation Page', () => {
     });
 
     test('should display request/response samples', async ({ page }) => {
-      await page.goto(`${BASE_URL}?page=docs`);
+      await page.goto(`${BASE_URL}?page=docs`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       // Check for code blocks
       const codeBlocks = page.locator('pre');
@@ -144,7 +177,10 @@ test.describe('API Documentation Page', () => {
 
   test.describe('Interactive "Try It Out" - Status Endpoint', () => {
     test('should test status endpoint successfully', async ({ page }) => {
-      await page.goto(`${BASE_URL}?page=docs`);
+      await page.goto(`${BASE_URL}?page=docs`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       // Click "Test Status Endpoint" button
       await page.click('button:has-text("Test Status Endpoint")');
@@ -165,7 +201,10 @@ test.describe('API Documentation Page', () => {
     });
 
     test('should display response with proper formatting', async ({ page }) => {
-      await page.goto(`${BASE_URL}?page=docs`);
+      await page.goto(`${BASE_URL}?page=docs`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       await page.click('button:has-text("Test Status Endpoint")');
       await page.waitForSelector('#status-response');
@@ -180,7 +219,10 @@ test.describe('API Documentation Page', () => {
 
   test.describe('Interactive "Try It Out" - List Events', () => {
     test('should list events with custom parameters', async ({ page }) => {
-      await page.goto(`${BASE_URL}?page=docs`);
+      await page.goto(`${BASE_URL}?page=docs`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       // Fill in brand and scope
       await page.fill('#list-brand', 'root');
@@ -203,7 +245,10 @@ test.describe('API Documentation Page', () => {
 
   test.describe('Interactive "Try It Out" - Generate Token', () => {
     test('should generate JWT token', async ({ page }) => {
-      await page.goto(`${BASE_URL}?page=docs`);
+      await page.goto(`${BASE_URL}?page=docs`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       // Fill in admin key
       await page.fill('#token-admin-key', ADMIN_KEY);
@@ -226,7 +271,10 @@ test.describe('API Documentation Page', () => {
     });
 
     test('should show error for invalid admin key', async ({ page }) => {
-      await page.goto(`${BASE_URL}?page=docs`);
+      await page.goto(`${BASE_URL}?page=docs`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       // Fill in invalid admin key
       await page.fill('#token-admin-key', 'INVALID_KEY');
@@ -250,7 +298,10 @@ test.describe('API Documentation Page', () => {
 
   test.describe('Interactive "Try It Out" - Create Event', () => {
     test('should create event with admin key', async ({ page }) => {
-      await page.goto(`${BASE_URL}?page=docs`);
+      await page.goto(`${BASE_URL}?page=docs`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       // Update the create body with valid admin key
       const createBody = {
@@ -285,7 +336,10 @@ test.describe('API Documentation Page', () => {
     });
 
     test('should show validation error for invalid JSON', async ({ page }) => {
-      await page.goto(`${BASE_URL}?page=docs`);
+      await page.goto(`${BASE_URL}?page=docs`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       // Enter invalid JSON
       await page.fill('#create-body', '{ invalid json }');
@@ -303,7 +357,10 @@ test.describe('API Documentation Page', () => {
 
   test.describe('Code Examples Section', () => {
     test('should display JavaScript examples', async ({ page }) => {
-      await page.goto(`${BASE_URL}?page=docs`);
+      await page.goto(`${BASE_URL}?page=docs`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       // Navigate to examples section
       await page.click('nav a:has-text("Examples")');
@@ -318,7 +375,10 @@ test.describe('API Documentation Page', () => {
     });
 
     test('should display cURL examples', async ({ page }) => {
-      await page.goto(`${BASE_URL}?page=docs`);
+      await page.goto(`${BASE_URL}?page=docs`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       await page.click('nav a:has-text("Examples")');
 
@@ -330,7 +390,10 @@ test.describe('API Documentation Page', () => {
     });
 
     test('should show code with actual base URL', async ({ page }) => {
-      await page.goto(`${BASE_URL}?page=docs`);
+      await page.goto(`${BASE_URL}?page=docs`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       // Code samples should have the actual base URL, not placeholder
       const codeBlocks = page.locator('pre');
@@ -343,7 +406,10 @@ test.describe('API Documentation Page', () => {
 
   test.describe('Error Handling Section', () => {
     test('should display error codes table', async ({ page }) => {
-      await page.goto(`${BASE_URL}?page=docs`);
+      await page.goto(`${BASE_URL}?page=docs`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       await page.click('nav a:has-text("Errors")');
 
@@ -356,7 +422,10 @@ test.describe('API Documentation Page', () => {
     });
 
     test('should display error envelope format', async ({ page }) => {
-      await page.goto(`${BASE_URL}?page=docs`);
+      await page.goto(`${BASE_URL}?page=docs`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       await page.click('nav a:has-text("Errors")');
 
@@ -372,7 +441,10 @@ test.describe('API Documentation Page', () => {
   test.describe('Responsive Design', () => {
     test('should be mobile-friendly', async ({ page }) => {
       await page.setViewportSize({ width: 375, height: 667 }); // iPhone SE
-      await page.goto(`${BASE_URL}?page=docs`);
+      await page.goto(`${BASE_URL}?page=docs`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       // Page should still be usable
       await expect(page.locator('h1')).toBeVisible();
@@ -385,7 +457,10 @@ test.describe('API Documentation Page', () => {
 
     test('should be tablet-friendly', async ({ page }) => {
       await page.setViewportSize({ width: 768, height: 1024 }); // iPad
-      await page.goto(`${BASE_URL}?page=docs`);
+      await page.goto(`${BASE_URL}?page=docs`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       await expect(page.locator('h1')).toBeVisible();
       await expect(page.locator('.container')).toBeVisible();
@@ -394,7 +469,10 @@ test.describe('API Documentation Page', () => {
 
   test.describe('Footer Links', () => {
     test('should have links to other pages', async ({ page }) => {
-      await page.goto(`${BASE_URL}?page=docs`);
+      await page.goto(`${BASE_URL}?page=docs`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       // Check footer links
       await expect(page.locator('footer a:has-text("Admin Dashboard")')).toBeVisible();
@@ -402,7 +480,10 @@ test.describe('API Documentation Page', () => {
     });
 
     test('should navigate to admin page', async ({ page }) => {
-      await page.goto(`${BASE_URL}?page=docs`);
+      await page.goto(`${BASE_URL}?page=docs`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       // Click admin link
       await page.click('footer a:has-text("Admin Dashboard")');
@@ -415,7 +496,10 @@ test.describe('API Documentation Page', () => {
   test.describe('Performance', () => {
     test('should load quickly', async ({ page }) => {
       const startTime = Date.now();
-      await page.goto(`${BASE_URL}?page=docs`);
+      await page.goto(`${BASE_URL}?page=docs`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
       const loadTime = Date.now() - startTime;
 
       // Should load in under 5 seconds
@@ -430,7 +514,10 @@ test.describe('API Documentation Page', () => {
         }
       });
 
-      await page.goto(`${BASE_URL}?page=docs`);
+      await page.goto(`${BASE_URL}?page=docs`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       // Wait a bit for any async errors
       await page.waitForTimeout(2000);
@@ -442,7 +529,10 @@ test.describe('API Documentation Page', () => {
 
   test.describe('Accessibility', () => {
     test('should have semantic HTML', async ({ page }) => {
-      await page.goto(`${BASE_URL}?page=docs`);
+      await page.goto(`${BASE_URL}?page=docs`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       // Check for semantic elements
       await expect(page.locator('header')).toBeVisible();
@@ -452,7 +542,10 @@ test.describe('API Documentation Page', () => {
     });
 
     test('should have proper heading hierarchy', async ({ page }) => {
-      await page.goto(`${BASE_URL}?page=docs`);
+      await page.goto(`${BASE_URL}?page=docs`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       // Should have h1
       await expect(page.locator('h1')).toBeVisible();
@@ -467,7 +560,10 @@ test.describe('API Documentation Page', () => {
     });
 
     test('should have form labels', async ({ page }) => {
-      await page.goto(`${BASE_URL}?page=docs`);
+      await page.goto(`${BASE_URL}?page=docs`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       // Check that form inputs have labels
       const adminKeyInput = page.locator('#token-admin-key');

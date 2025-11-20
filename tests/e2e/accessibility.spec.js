@@ -35,7 +35,10 @@ test.describe('♿ Accessibility Tests (WCAG 2.1 AA)', () => {
     test.skip(!AxeBuilder, 'axe-core not installed');
 
     test('Admin page should have no accessibility violations', async ({ page }) => {
-      await page.goto(`${process.env.BASE_URL || ''}?page=admin`);
+      await page.goto(`${process.env.BASE_URL || ''}?page=admin`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       const accessibilityScanResults = await new AxeBuilder({ page })
         .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
@@ -45,7 +48,10 @@ test.describe('♿ Accessibility Tests (WCAG 2.1 AA)', () => {
     });
 
     test('Public events page should have no accessibility violations', async ({ page }) => {
-      await page.goto(`${process.env.BASE_URL || ''}?p=events`);
+      await page.goto(`${process.env.BASE_URL || ''}?page=events`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       const accessibilityScanResults = await new AxeBuilder({ page })
         .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
@@ -55,7 +61,10 @@ test.describe('♿ Accessibility Tests (WCAG 2.1 AA)', () => {
     });
 
     test('Display page should have no accessibility violations', async ({ page }) => {
-      await page.goto(`${process.env.BASE_URL || ''}?page=display&testMode=true`);
+      await page.goto(`${process.env.BASE_URL || ''}?page=display&testMode=true`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       const accessibilityScanResults = await new AxeBuilder({ page })
         .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
@@ -65,7 +74,10 @@ test.describe('♿ Accessibility Tests (WCAG 2.1 AA)', () => {
     });
 
     test('Poster page should have no accessibility violations', async ({ page }) => {
-      await page.goto(`${process.env.BASE_URL || ''}?page=poster&testMode=true`);
+      await page.goto(`${process.env.BASE_URL || ''}?page=poster&testMode=true`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       const accessibilityScanResults = await new AxeBuilder({ page })
         .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
@@ -77,7 +89,10 @@ test.describe('♿ Accessibility Tests (WCAG 2.1 AA)', () => {
 
   test.describe('Keyboard Navigation', () => {
     test('Should navigate admin form with Tab key', async ({ page }) => {
-      await page.goto(`${process.env.BASE_URL || ''}?page=admin`);
+      await page.goto(`${process.env.BASE_URL || ''}?page=admin`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       // Tab through form fields
       await page.keyboard.press('Tab');
@@ -98,7 +113,10 @@ test.describe('♿ Accessibility Tests (WCAG 2.1 AA)', () => {
     });
 
     test('Should navigate public events with arrow keys', async ({ page }) => {
-      await page.goto(`${process.env.BASE_URL || ''}?p=events`);
+      await page.goto(`${process.env.BASE_URL || ''}?page=events`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       // Use arrow keys for navigation
       await page.keyboard.press('ArrowDown');
@@ -111,7 +129,10 @@ test.describe('♿ Accessibility Tests (WCAG 2.1 AA)', () => {
     });
 
     test('Should activate buttons with Enter and Space', async ({ page }) => {
-      await page.goto(`${process.env.BASE_URL || ''}?page=admin`);
+      await page.goto(`${process.env.BASE_URL || ''}?page=admin`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       // Find first button
       const button = await page.$(COMMON.BUTTON || 'button').catch(() => null);
@@ -133,7 +154,10 @@ test.describe('♿ Accessibility Tests (WCAG 2.1 AA)', () => {
     });
 
     test('Should have skip link for keyboard users', async ({ page }) => {
-      await page.goto(`${process.env.BASE_URL || ''}?p=events`);
+      await page.goto(`${process.env.BASE_URL || ''}?page=events`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       // Tab to first element (should be skip link)
       await page.keyboard.press('Tab');
@@ -153,7 +177,10 @@ test.describe('♿ Accessibility Tests (WCAG 2.1 AA)', () => {
     });
 
     test('Should trap focus in modal dialogs', async ({ page }) => {
-      await page.goto(`${process.env.BASE_URL || ''}?page=admin`);
+      await page.goto(`${process.env.BASE_URL || ''}?page=admin`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       // Look for modal or dialog
       const modal = await page.$(COMMON.MODAL).catch(() => null);
@@ -179,7 +206,10 @@ test.describe('♿ Accessibility Tests (WCAG 2.1 AA)', () => {
 
   test.describe('Screen Reader Support', () => {
     test('Should have proper heading hierarchy', async ({ page }) => {
-      await page.goto(`${process.env.BASE_URL || ''}?p=events`);
+      await page.goto(`${process.env.BASE_URL || ''}?page=events`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       const headings = await page.evaluate(() => {
         const h1s = Array.from(document.querySelectorAll('h1'));
@@ -202,7 +232,10 @@ test.describe('♿ Accessibility Tests (WCAG 2.1 AA)', () => {
     });
 
     test('Should have proper ARIA landmarks', async ({ page }) => {
-      await page.goto(`${process.env.BASE_URL || ''}?p=events`);
+      await page.goto(`${process.env.BASE_URL || ''}?page=events`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       const landmarks = await page.evaluate(() => {
         return {
@@ -220,7 +253,10 @@ test.describe('♿ Accessibility Tests (WCAG 2.1 AA)', () => {
     });
 
     test('Should have alt text for images', async ({ page }) => {
-      await page.goto(`${process.env.BASE_URL || ''}?p=events`);
+      await page.goto(`${process.env.BASE_URL || ''}?page=events`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       const images = await page.$$('img');
       const imageInfo = [];
@@ -248,7 +284,10 @@ test.describe('♿ Accessibility Tests (WCAG 2.1 AA)', () => {
     });
 
     test('Should have proper form labels', async ({ page }) => {
-      await page.goto(`${process.env.BASE_URL || ''}?page=admin`);
+      await page.goto(`${process.env.BASE_URL || ''}?page=admin`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       const formInputs = await page.$$('input, select, textarea');
       const unlabeledInputs = [];
@@ -287,7 +326,10 @@ test.describe('♿ Accessibility Tests (WCAG 2.1 AA)', () => {
     });
 
     test('Should announce dynamic content changes', async ({ page }) => {
-      await page.goto(`${process.env.BASE_URL || ''}?page=admin`);
+      await page.goto(`${process.env.BASE_URL || ''}?page=admin`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       // Check for ARIA live regions
       const liveRegions = await page.evaluate(() => {
@@ -313,7 +355,10 @@ test.describe('♿ Accessibility Tests (WCAG 2.1 AA)', () => {
 
   test.describe('Color Contrast', () => {
     test('Should have sufficient color contrast for text', async ({ page }) => {
-      await page.goto(`${process.env.BASE_URL || ''}?p=events`);
+      await page.goto(`${process.env.BASE_URL || ''}?page=events`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       // Get text elements and check contrast
       const contrastIssues = await page.evaluate(() => {
@@ -375,7 +420,10 @@ test.describe('♿ Accessibility Tests (WCAG 2.1 AA)', () => {
     test.use({ viewport: { width: 375, height: 667 } }); // iPhone SE
 
     test('Should have large enough touch targets', async ({ page }) => {
-      await page.goto(`${process.env.BASE_URL || ''}?p=events`);
+      await page.goto(`${process.env.BASE_URL || ''}?page=events`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       const buttons = await page.$$('button, a');
       const smallTargets = [];
@@ -398,7 +446,10 @@ test.describe('♿ Accessibility Tests (WCAG 2.1 AA)', () => {
     });
 
     test('Should not require pinch-to-zoom disabled', async ({ page }) => {
-      await page.goto(`${process.env.BASE_URL || ''}?p=events`);
+      await page.goto(`${process.env.BASE_URL || ''}?page=events`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       const viewport = await page.$('meta[name="viewport"]');
 
@@ -416,7 +467,10 @@ test.describe('♿ Accessibility Tests (WCAG 2.1 AA)', () => {
     });
 
     test('Should support orientation changes', async ({ page }) => {
-      await page.goto(`${process.env.BASE_URL || ''}?p=events`);
+      await page.goto(`${process.env.BASE_URL || ''}?page=events`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       // Test portrait
       await page.setViewportSize({ width: 375, height: 667 });
@@ -435,7 +489,10 @@ test.describe('♿ Accessibility Tests (WCAG 2.1 AA)', () => {
 
   test.describe('Focus Management', () => {
     test('Should have visible focus indicators', async ({ page }) => {
-      await page.goto(`${process.env.BASE_URL || ''}?page=admin`);
+      await page.goto(`${process.env.BASE_URL || ''}?page=admin`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       // Tab to first interactive element
       await page.keyboard.press('Tab');
@@ -460,7 +517,10 @@ test.describe('♿ Accessibility Tests (WCAG 2.1 AA)', () => {
     });
 
     test('Should maintain focus order in DOM order', async ({ page }) => {
-      await page.goto(`${process.env.BASE_URL || ''}?page=admin`);
+      await page.goto(`${process.env.BASE_URL || ''}?page=admin`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       const focusOrder = [];
 
@@ -489,7 +549,10 @@ test.describe('♿ Accessibility Tests (WCAG 2.1 AA)', () => {
 
   test.describe('Content Accessibility', () => {
     test('Should have proper page title', async ({ page }) => {
-      await page.goto(`${process.env.BASE_URL || ''}?p=events`);
+      await page.goto(`${process.env.BASE_URL || ''}?page=events`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       const title = await page.title();
 
@@ -500,7 +563,10 @@ test.describe('♿ Accessibility Tests (WCAG 2.1 AA)', () => {
     });
 
     test('Should have lang attribute on html', async ({ page }) => {
-      await page.goto(`${process.env.BASE_URL || ''}?p=events`);
+      await page.goto(`${process.env.BASE_URL || ''}?page=events`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       const lang = await page.evaluate(() => document.documentElement.lang);
 
@@ -513,7 +579,10 @@ test.describe('♿ Accessibility Tests (WCAG 2.1 AA)', () => {
     });
 
     test('Should have descriptive link text', async ({ page }) => {
-      await page.goto(`${process.env.BASE_URL || ''}?p=events`);
+      await page.goto(`${process.env.BASE_URL || ''}?page=events`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       const links = await page.$$('a');
       const vagueLinks = [];

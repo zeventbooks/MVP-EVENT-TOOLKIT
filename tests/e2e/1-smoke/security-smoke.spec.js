@@ -21,7 +21,10 @@ const BRAND_ID = 'root';
 test.describe('🔒 SECURITY: Admin Key Validation', () => {
 
   test('Invalid admin key is rejected', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     let dialogCount = 0;
     page.on('dialog', async dialog => {
@@ -50,7 +53,10 @@ test.describe('🔒 SECURITY: Admin Key Validation', () => {
   });
 
   test('Empty admin key is rejected', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     page.on('dialog', async dialog => {
       await dialog.accept(''); // Empty key
@@ -76,7 +82,10 @@ test.describe('🔒 SECURITY: Admin Key Validation', () => {
 test.describe('🔒 SECURITY: XSS Prevention', () => {
 
   test('XSS attempt in event name is sanitized', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     const xssPayload = '<script>alert("XSS")</script>';
     const ADMIN_KEY = process.env.ADMIN_KEY || 'CHANGE_ME_root';
@@ -105,7 +114,10 @@ test.describe('🔒 SECURITY: XSS Prevention', () => {
   });
 
   test('HTML injection in event name is escaped', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     const htmlPayload = '<img src=x onerror=alert("XSS")>';
     const ADMIN_KEY = process.env.ADMIN_KEY || 'CHANGE_ME_root';
@@ -134,7 +146,10 @@ test.describe('🔒 SECURITY: XSS Prevention', () => {
 test.describe('🔒 SECURITY: Invalid Inputs', () => {
 
   test('Invalid brand ID returns error', async ({ page }) => {
-    const response = await page.goto(`${BASE_URL}?page=admin&brand=INVALID_BRAND_999`);
+    const response = await page.goto(`${BASE_URL}?page=admin&brand=INVALID_BRAND_999`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     // STRICT: Should return error or redirect, not crash
     expect(response.status()).toBeLessThan(500); // Not server error
@@ -149,7 +164,10 @@ test.describe('🔒 SECURITY: Invalid Inputs', () => {
   });
 
   test('Malformed date is rejected', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     const ADMIN_KEY = process.env.ADMIN_KEY || 'CHANGE_ME_root';
 
@@ -175,7 +193,10 @@ test.describe('🔒 SECURITY: Invalid Inputs', () => {
   });
 
   test('SQL injection attempt is handled safely', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     const sqlPayload = "'; DROP TABLE events; --";
     const ADMIN_KEY = process.env.ADMIN_KEY || 'CHANGE_ME_root';
@@ -195,7 +216,10 @@ test.describe('🔒 SECURITY: Invalid Inputs', () => {
     expect(pageContent.length).toBeGreaterThan(0);
 
     // Verify events list still loads (table wasn't dropped)
-    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
     await expect(page.locator('h3:has-text("Events List")')).toBeVisible();
   });
 });
@@ -203,7 +227,10 @@ test.describe('🔒 SECURITY: Invalid Inputs', () => {
 test.describe('🔒 SECURITY: API Error Handling', () => {
 
   test('Non-existent page parameter shows error', async ({ page }) => {
-    const response = await page.goto(`${BASE_URL}?page=NONEXISTENT&brand=${BRAND_ID}`);
+    const response = await page.goto(`${BASE_URL}?page=NONEXISTENT&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     // STRICT: Should handle gracefully (not 500 error)
     expect(response.status()).toBeLessThan(500);
@@ -215,7 +242,10 @@ test.describe('🔒 SECURITY: API Error Handling', () => {
 
   test('Missing required parameters handled', async ({ page }) => {
     // Test URL with no page parameter
-    const response = await page.goto(`${BASE_URL}`);
+    const response = await page.goto(`${BASE_URL}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     // STRICT: Should not crash
     expect(response.status()).toBeLessThan(500);
@@ -229,7 +259,10 @@ test.describe('🔒 SECURITY: API Error Handling', () => {
 test.describe('🔒 SECURITY: Performance Limits', () => {
 
   test('Extremely long event name is handled', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     const longName = 'A'.repeat(10000); // 10k characters
     const ADMIN_KEY = process.env.ADMIN_KEY || 'CHANGE_ME_root';

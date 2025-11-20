@@ -8,8 +8,21 @@ module.exports = defineConfig({
   testDir: './tests/e2e',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
+
+  // CRITICAL FIX: Remove automatic retries to expose real failures
+  // Retries mask underlying issues - fix the root cause instead
+  retries: 0,
+
   workers: process.env.CI ? 1 : undefined,
+
+  // Default timeout for tests (30 seconds to handle Google Apps Script cold starts)
+  timeout: 30000,
+
+  // Global expect timeout (10 seconds for element visibility checks)
+  expect: {
+    timeout: 10000,
+  },
+
   reporter: [
     ['html', {
       outputFolder: process.env.PLAYWRIGHT_HTML_REPORT || 'playwright-report',
@@ -25,8 +38,16 @@ module.exports = defineConfig({
     // Use environment-aware base URL
     // Defaults to Hostinger, can be overridden with BASE_URL or TEST_ENV
     baseURL: env.baseUrl,
+
+    // Enable traces on first retry (for debugging when needed)
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
+
+    // Navigation timeout (20 seconds for Google Apps Script)
+    navigationTimeout: 20000,
+
+    // Action timeout (10 seconds for clicks, fills, etc.)
+    actionTimeout: 10000,
 
     // Extra HTTP headers
     extraHTTPHeaders: {

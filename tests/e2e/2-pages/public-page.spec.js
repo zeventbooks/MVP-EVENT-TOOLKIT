@@ -13,14 +13,20 @@ const BRAND_ID = 'root';
 test.describe('📄 PAGE: Public - Events List View', () => {
 
   test('Public page loads with proper structure', async ({ page }) => {
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     await expect(page).toHaveTitle(/Public|Events/);
     await expect(page.locator('main#app')).toBeVisible();
   });
 
   test('Page shows events or "no events" message', async ({ page }) => {
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     // Should show either event cards or empty state
     const hasEventCards = await page.locator('.event-card').count() > 0;
@@ -30,7 +36,10 @@ test.describe('📄 PAGE: Public - Events List View', () => {
   });
 
   test('Event cards have proper structure', async ({ page }) => {
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     const eventCards = page.locator('.event-card');
     const count = await eventCards.count();
@@ -49,7 +58,10 @@ test.describe('📄 PAGE: Public - Events List View', () => {
   });
 
   test('Event cards are clickable', async ({ page }) => {
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     const eventCards = page.locator('.event-card');
     const count = await eventCards.count();
@@ -70,7 +82,10 @@ test.describe('📄 PAGE: Public - Events List View', () => {
 test.describe('📄 PAGE: Public - Event Detail View', () => {
 
   test('Event detail shows all information', async ({ page }) => {
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     const eventCards = page.locator('.event-card');
     const count = await eventCards.count();
@@ -88,7 +103,10 @@ test.describe('📄 PAGE: Public - Event Detail View', () => {
   });
 
   test('Back navigation works from event detail', async ({ page }) => {
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     const eventCards = page.locator('.event-card');
     const count = await eventCards.count();
@@ -109,7 +127,10 @@ test.describe('📄 PAGE: Public - Event Detail View', () => {
 test.describe('📄 PAGE: Public - Sponsor Display', () => {
 
   test('Sponsor banner shows when configured', async ({ page }) => {
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     // Check if sponsor elements exist
     const hasSponsorBanner = await page.locator('#sponsorBanner, .sponsor-banner').count() > 0;
@@ -126,7 +147,10 @@ test.describe('📄 PAGE: Public - Sponsor Display', () => {
   });
 
   test('Sponsor links are clickable', async ({ page }) => {
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     const sponsorLinks = page.locator('a[data-sponsor], .sponsor-link');
     const count = await sponsorLinks.count();
@@ -141,7 +165,10 @@ test.describe('📄 PAGE: Public - Sponsor Display', () => {
   });
 
   test('Sponsor images load correctly', async ({ page }) => {
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     const sponsorImages = page.locator('img[data-sponsor], .sponsor-card img');
     const count = await sponsorImages.count();
@@ -161,7 +188,10 @@ test.describe('📄 PAGE: Public - Sponsor Display', () => {
 test.describe('📄 PAGE: Public - Search and Filter', () => {
 
   test('Search functionality exists', async ({ page }) => {
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     // Check if search input exists
     const hasSearch = await page.locator('input[type="search"], input[placeholder*="search" i]').count() > 0;
@@ -174,7 +204,10 @@ test.describe('📄 PAGE: Public - Search and Filter', () => {
   });
 
   test('Filter buttons work', async ({ page }) => {
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     // Check for filter buttons
     const filterButtons = page.locator('button[data-filter], .filter-btn');
@@ -195,7 +228,10 @@ test.describe('📄 PAGE: Public - Search and Filter', () => {
 test.describe('📄 PAGE: Public - Share Buttons', () => {
 
   test('Share buttons are present', async ({ page }) => {
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     const eventCards = page.locator('.event-card');
     const count = await eventCards.count();
@@ -213,7 +249,10 @@ test.describe('📄 PAGE: Public - Share Buttons', () => {
   });
 
   test('Share button shows share options', async ({ page }) => {
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     const shareButtons = page.locator('button:has-text("share"), .share-btn');
     const count = await shareButtons.count();
@@ -236,7 +275,10 @@ test.describe('📄 PAGE: Public - Share Buttons', () => {
 test.describe('📄 PAGE: Public - Calendar Integration', () => {
 
   test('Add to Calendar button exists', async ({ page }) => {
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     const eventCards = page.locator('.event-card');
     const count = await eventCards.count();
@@ -261,7 +303,10 @@ test.describe('📄 PAGE: Public - Responsive Design', () => {
 
   test('Mobile: Events list is readable', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 667 });
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     await expect(page.locator('main#app')).toBeVisible();
 
@@ -275,7 +320,10 @@ test.describe('📄 PAGE: Public - Responsive Design', () => {
 
   test('Mobile: Event cards stack vertically', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 667 });
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     const eventCards = page.locator('.event-card');
     const count = await eventCards.count();
@@ -293,14 +341,20 @@ test.describe('📄 PAGE: Public - Responsive Design', () => {
 
   test('Tablet: Grid layout adapts', async ({ page }) => {
     await page.setViewportSize({ width: 768, height: 1024 });
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     await expect(page.locator('main#app')).toBeVisible();
   });
 
   test('Desktop: Multi-column layout', async ({ page }) => {
     await page.setViewportSize({ width: 1920, height: 1080 });
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     await expect(page.locator('main#app')).toBeVisible();
   });
@@ -310,7 +364,10 @@ test.describe('📄 PAGE: Public - Performance', () => {
 
   test('Page loads within 5 seconds', async ({ page }) => {
     const start = Date.now();
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
     await page.waitForLoadState('domcontentloaded');
     const duration = Date.now() - start;
 
@@ -318,7 +375,10 @@ test.describe('📄 PAGE: Public - Performance', () => {
   });
 
   test('Images lazy load', async ({ page }) => {
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     const images = page.locator('img');
     const count = await images.count();
@@ -338,7 +398,10 @@ test.describe('📄 PAGE: Public - Performance', () => {
 test.describe('📄 PAGE: Public - Accessibility', () => {
 
   test('Page has proper heading hierarchy', async ({ page }) => {
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     const h1Count = await page.locator('h1').count();
     expect(h1Count).toBeGreaterThanOrEqual(0);
@@ -349,7 +412,10 @@ test.describe('📄 PAGE: Public - Accessibility', () => {
   });
 
   test('Interactive elements are keyboard accessible', async ({ page }) => {
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     // Tab through interactive elements
     await page.keyboard.press('Tab');
@@ -359,7 +425,10 @@ test.describe('📄 PAGE: Public - Accessibility', () => {
   });
 
   test('Links have descriptive text', async ({ page }) => {
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     const links = page.locator('a');
     const count = await links.count();

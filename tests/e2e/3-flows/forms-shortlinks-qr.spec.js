@@ -182,7 +182,7 @@ test.describe('Forms → Shortlinks → QR Codes Workflow', () => {
           // ===== STEP 6: Test Shortlink Redirect =====
           const redirectUrl = shortlink.includes('?')
             ? shortlink
-            : `${baseUrl}?p=r&t=${token}`;
+            : `${baseUrl}?page=r&t=${token}`;
 
           await page.goto(redirectUrl);
 
@@ -484,7 +484,7 @@ test.describe('Forms → Shortlinks → QR Codes Workflow', () => {
       const token = shortlinkData.value.token;
 
       // Simulate clicking the shortlink (analytics should log)
-      await request.get(`${baseUrl}?p=r&t=${token}`);
+      await request.get(`${baseUrl}?page=r&t=${token}`);
 
       // Check analytics
       const reportResponse = await request.post(baseUrl, {

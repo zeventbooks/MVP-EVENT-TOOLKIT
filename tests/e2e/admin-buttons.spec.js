@@ -30,7 +30,10 @@ test.describe('Admin Page - All Buttons Comprehensive Test', () => {
 
   test('Should click every button on Admin page', async ({ page, context }) => {
     // Setup: Navigate to admin page
-    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
     await expect(page).toHaveTitle(/Admin/);
 
     // Setup dialog handler for admin key prompts
@@ -236,7 +239,10 @@ test.describe('Admin Page - All Buttons Comprehensive Test', () => {
   });
 
   test('Should handle button interactions in different states', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     page.on('dialog', async dialog => {
       if (dialog.type() === 'prompt') {
@@ -270,7 +276,10 @@ test.describe('Admin Page - All Buttons Comprehensive Test', () => {
   });
 
   test('Should handle rapid button clicks gracefully', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     page.on('dialog', async dialog => {
       if (dialog.type() === 'prompt') {
@@ -314,7 +323,10 @@ test.describe('Admin Page - All Buttons Comprehensive Test', () => {
   });
 
   test('Should validate button states and disabled conditions', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     await test.step('Submit button should be enabled with required fields', async () => {
       await page.fill('#name', 'State Test Event');

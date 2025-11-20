@@ -21,7 +21,10 @@ test.describe('Admin Workflows - Complete Event Setup', () => {
 
     // ===== STEP 1: Create Event =====
     await test.step('Create new event with all details', async () => {
-      await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
+      await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       page.on('dialog', async dialog => {
         if (dialog.type() === 'prompt') {
@@ -222,7 +225,10 @@ test.describe('Admin Workflows - Complete Event Setup', () => {
 
   test('Workflow 2: Event lifecycle phases tracking', async ({ page }) => {
     await test.step('Create event and verify lifecycle dashboard', async () => {
-      await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
+      await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       page.on('dialog', async dialog => {
         if (dialog.type() === 'prompt') {
@@ -258,7 +264,10 @@ test.describe('Admin Workflows - Complete Event Setup', () => {
     const eventName = `Edit Test ${Date.now()}`;
 
     await test.step('Create initial event', async () => {
-      await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
+      await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       page.on('dialog', async dialog => {
         if (dialog.type() === 'prompt') {
@@ -321,7 +330,10 @@ test.describe('Admin Workflows - Complete Event Setup', () => {
 test.describe('Admin Workflows - Error Handling & Edge Cases', () => {
 
   test('Workflow 4: Handle form errors gracefully', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     await test.step('Submit without required fields shows validation', async () => {
       // Try to submit empty form
@@ -385,7 +397,10 @@ test.describe('Admin Workflows - Error Handling & Edge Cases', () => {
   });
 
   test('Workflow 5: Handle rapid interactions', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     page.on('dialog', async dialog => {
       if (dialog.type() === 'prompt') {
@@ -443,7 +458,10 @@ test.describe('Admin Workflows - Error Handling & Edge Cases', () => {
     });
 
     await test.step('Create first event', async () => {
-      await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
+      await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
       await page.fill('#name', 'Event Alpha');
       await page.fill('#dateISO', '2025-12-31');
       await page.click('button[type="submit"]');
@@ -475,7 +493,10 @@ test.describe('Admin Workflows - Integration Verification', () => {
 
     // Create event with complete setup
     await test.step('Setup complete event', async () => {
-      await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
+      await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       page.on('dialog', async dialog => {
         if (dialog.type() === 'prompt') {

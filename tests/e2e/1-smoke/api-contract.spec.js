@@ -21,7 +21,7 @@ const BRAND_ID = 'root';
 test.describe('🔌 API CONTRACT: Status Endpoint', () => {
 
   test('Status API returns valid JSON schema', async ({ request }) => {
-    const response = await request.get(`${BASE_URL}?p=status&brand=${BRAND_ID}`);
+    const response = await request.get(`${BASE_URL}?page=status&brand=${BRAND_ID}`);
 
     // STRICT: Must be 200 OK
     expect(response.status()).toBe(200);
@@ -49,7 +49,7 @@ test.describe('🔌 API CONTRACT: Status Endpoint', () => {
 
   test('Status API responds within SLA', async ({ request }) => {
     const start = Date.now();
-    const response = await request.get(`${BASE_URL}?p=status&brand=${BRAND_ID}`);
+    const response = await request.get(`${BASE_URL}?page=status&brand=${BRAND_ID}`);
     const duration = Date.now() - start;
 
     // STRICT: Status check must be fast (< 2s)
@@ -62,7 +62,7 @@ test.describe('🔌 API CONTRACT: Status Endpoint', () => {
     const responses = [];
 
     for (let i = 0; i < calls; i++) {
-      const response = await request.get(`${BASE_URL}?p=status&brand=${BRAND_ID}`);
+      const response = await request.get(`${BASE_URL}?page=status&brand=${BRAND_ID}`);
       const json = await response.json();
       responses.push(json);
     }
@@ -84,7 +84,10 @@ test.describe('🔌 API CONTRACT: Status Endpoint', () => {
 test.describe('🔌 API CONTRACT: Analytics Endpoint', () => {
 
   test('Analytics API exists and returns JSON', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=report&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=report&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     // Intercept network requests to analytics API
     const apiCalls = [];
@@ -122,7 +125,10 @@ test.describe('🔌 API CONTRACT: Analytics Endpoint', () => {
 test.describe('🔌 API CONTRACT: Event Creation Response', () => {
 
   test('Event creation API returns proper response structure', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     const ADMIN_KEY = process.env.ADMIN_KEY || 'CHANGE_ME_root';
     const responses = [];
@@ -167,7 +173,7 @@ test.describe('🔌 API CONTRACT: Error Responses', () => {
 
   test('Invalid API parameters return proper error', async ({ request }) => {
     // Test with invalid brand
-    const response = await request.get(`${BASE_URL}?p=status&brand=INVALID_999`);
+    const response = await request.get(`${BASE_URL}?page=status&brand=INVALID_999`);
 
     // STRICT: Should return error status or handle gracefully
     const status = response.status();
@@ -186,7 +192,7 @@ test.describe('🔌 API CONTRACT: Error Responses', () => {
 
   test('Missing parameters handled gracefully', async ({ request }) => {
     // Test status API without brand parameter
-    const response = await request.get(`${BASE_URL}?p=status`);
+    const response = await request.get(`${BASE_URL}?page=status`);
 
     // STRICT: Should not crash (no 500 error)
     expect(response.status()).toBeLessThan(500);
@@ -196,7 +202,7 @@ test.describe('🔌 API CONTRACT: Error Responses', () => {
 test.describe('🔌 API CONTRACT: Response Headers', () => {
 
   test('CORS headers are present', async ({ request }) => {
-    const response = await request.get(`${BASE_URL}?p=status&brand=${BRAND_ID}`);
+    const response = await request.get(`${BASE_URL}?page=status&brand=${BRAND_ID}`);
 
     const headers = response.headers();
 
@@ -206,7 +212,7 @@ test.describe('🔌 API CONTRACT: Response Headers', () => {
   });
 
   test('Content-Type header is correct for JSON endpoints', async ({ request }) => {
-    const response = await request.get(`${BASE_URL}?p=status&brand=${BRAND_ID}`);
+    const response = await request.get(`${BASE_URL}?page=status&brand=${BRAND_ID}`);
 
     const contentType = response.headers()['content-type'];
 
@@ -219,8 +225,8 @@ test.describe('🔌 API CONTRACT: Performance', () => {
 
   test('All API endpoints respond within acceptable time', async ({ request }) => {
     const endpoints = [
-      { name: 'Status', url: `${BASE_URL}?p=status&brand=${BRAND_ID}`, maxTime: 2000 },
-      { name: 'Events', url: `${BASE_URL}?p=events&brand=${BRAND_ID}`, maxTime: 5000 },
+      { name: 'Status', url: `${BASE_URL}?page=status&brand=${BRAND_ID}`, maxTime: 2000 },
+      { name: 'Events', url: `${BASE_URL}?page=events&brand=${BRAND_ID}`, maxTime: 5000 },
       { name: 'Admin', url: `${BASE_URL}?page=admin&brand=${BRAND_ID}`, maxTime: 5000 },
     ];
 
@@ -241,7 +247,7 @@ test.describe('🔌 API CONTRACT: Performance', () => {
 
     for (let i = 0; i < requests; i++) {
       const start = Date.now();
-      const response = await request.get(`${BASE_URL}?p=status&brand=${BRAND_ID}`);
+      const response = await request.get(`${BASE_URL}?page=status&brand=${BRAND_ID}`);
       const duration = Date.now() - start;
 
       results.push({
