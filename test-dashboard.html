@@ -3,665 +3,117 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Test Dashboard - QA vs Production Comparison</title>
+  <title>Test History Dashboard - MVP Event Toolkit</title>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
+    * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      min-height: 100vh;
-      padding: 2rem;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f5f5;
+      color: #333;
     }
-
-    .dashboard {
-      max-width: 1600px;
-      margin: 0 auto;
-    }
-
     .header {
-      text-align: center;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
-      margin-bottom: 3rem;
-    }
-
-    .header h1 {
-      font-size: 3rem;
-      margin-bottom: 0.5rem;
-    }
-
-    .header p {
-      font-size: 1.25rem;
-      opacity: 0.9;
-    }
-
-    .environment-selector {
-      display: flex;
-      gap: 1rem;
-      justify-content: center;
-      margin-bottom: 2rem;
-    }
-
-    .env-card {
-      background: white;
-      padding: 1.5rem 2rem;
-      border-radius: 12px;
-      cursor: pointer;
-      transition: all 0.3s;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-      min-width: 200px;
-      text-align: center;
-    }
-
-    .env-card:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 8px 12px rgba(0,0,0,0.2);
-    }
-
-    .env-card.active {
-      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-      color: white;
-    }
-
-    .env-card h3 {
-      font-size: 1.5rem;
-      margin-bottom: 0.5rem;
-    }
-
-    .env-card .status {
-      font-size: 0.875rem;
-      opacity: 0.8;
-    }
-
-    .comparison-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 2rem;
-      margin-bottom: 2rem;
-    }
-
-    .env-column {
-      background: white;
-      border-radius: 12px;
       padding: 2rem;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
     }
-
-    .env-column h2 {
-      font-size: 2rem;
-      margin-bottom: 1.5rem;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .env-badge {
-      display: inline-block;
-      padding: 0.25rem 0.75rem;
-      border-radius: 12px;
-      font-size: 0.75rem;
-      font-weight: bold;
-      text-transform: uppercase;
-    }
-
-    .env-badge.qa {
-      background: #f59e0b;
-      color: white;
-    }
-
-    .env-badge.prod {
-      background: #10b981;
-      color: white;
-    }
-
-    .metrics {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 1rem;
-      margin-bottom: 2rem;
-    }
-
-    .metric-card {
+    .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+    .controls {
+      background: white;
       padding: 1.5rem;
-      background: #f9fafb;
       border-radius: 8px;
-      text-align: center;
-    }
-
-    .metric-card h4 {
-      font-size: 0.875rem;
-      color: #666;
-      margin-bottom: 0.5rem;
-      text-transform: uppercase;
-    }
-
-    .metric-card .value {
-      font-size: 2rem;
-      font-weight: bold;
-      color: #111;
-    }
-
-    .metric-card.passed .value {
-      color: #10b981;
-    }
-
-    .metric-card.failed .value {
-      color: #ef4444;
-    }
-
-    .test-group {
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
       margin-bottom: 2rem;
-      border: 2px solid #e5e7eb;
-      border-radius: 8px;
-      overflow: hidden;
-    }
-
-    .test-group-header {
-      padding: 1rem 1.5rem;
-      background: #f3f4f6;
-      cursor: pointer;
       display: flex;
-      justify-content: space-between;
-      align-items: center;
-      transition: background 0.2s;
-    }
-
-    .test-group-header:hover {
-      background: #e5e7eb;
-    }
-
-    .test-group-header h3 {
-      font-size: 1.25rem;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .test-group-stats {
-      display: flex;
+      flex-wrap: wrap;
       gap: 1rem;
-      font-size: 0.875rem;
     }
-
-    .test-group-body {
-      padding: 1.5rem;
-      background: white;
-    }
-
-    .test-group-body.collapsed {
-      display: none;
-    }
-
-    .test-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 0.75rem;
-      border-bottom: 1px solid #e5e7eb;
-    }
-
-    .test-item:last-child {
-      border-bottom: none;
-    }
-
-    .test-item .name {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .test-item .icon {
-      font-size: 1.25rem;
-    }
-
-    .test-item .time {
-      font-size: 0.875rem;
-      color: #666;
-    }
-
-    .comparison-summary {
-      background: white;
-      border-radius: 12px;
-      padding: 2rem;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-      margin-bottom: 2rem;
-    }
-
-    .comparison-summary h2 {
-      font-size: 2rem;
-      margin-bottom: 1.5rem;
-      text-align: center;
-    }
-
-    .comparison-table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-
-    .comparison-table th,
-    .comparison-table td {
-      padding: 1rem;
-      text-align: left;
-      border-bottom: 1px solid #e5e7eb;
-    }
-
-    .comparison-table th {
-      background: #f9fafb;
-      font-weight: bold;
-    }
-
-    .comparison-table tr:last-child td {
-      border-bottom: none;
-    }
-
-    .comparison-table .better {
-      color: #10b981;
-      font-weight: bold;
-    }
-
-    .comparison-table .worse {
-      color: #ef4444;
-      font-weight: bold;
-    }
-
-    .refresh-btn {
-      position: fixed;
-      bottom: 2rem;
-      right: 2rem;
-      padding: 1rem 2rem;
-      background: white;
-      color: #667eea;
+    .btn {
+      padding: 0.5rem 1.5rem;
+      background: #667eea;
+      color: white;
       border: none;
-      border-radius: 50px;
-      font-size: 1rem;
-      font-weight: bold;
+      border-radius: 4px;
       cursor: pointer;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-      transition: all 0.3s;
     }
-
-    .refresh-btn:hover {
-      transform: scale(1.05);
-      box-shadow: 0 6px 16px rgba(0,0,0,0.3);
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
     }
-
-    .last-updated {
-      text-align: center;
-      color: white;
-      font-size: 0.875rem;
-      margin-top: 2rem;
-      opacity: 0.8;
+    .stat-card {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     }
-
-    @media (max-width: 1024px) {
-      .comparison-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .metrics {
-        grid-template-columns: repeat(2, 1fr);
-      }
-    }
-
-    @media (max-width: 640px) {
-      .header h1 {
-        font-size: 2rem;
-      }
-
-      .environment-selector {
-        flex-direction: column;
-      }
-
-      .metrics {
-        grid-template-columns: 1fr;
-      }
-    }
+    .stat-card .value { font-size: 2rem; font-weight: bold; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 1rem; text-align: left; }
   </style>
 </head>
 <body>
-  <div class="dashboard">
-    <div class="header">
-      <h1>🎯 Test Dashboard</h1>
-      <p>Daily Performance Monitoring Across Environments</p>
-    </div>
-
-    <!-- Environment Selector -->
-    <div class="environment-selector">
-      <div class="env-card active" data-env="qa">
-        <h3>QA Environment</h3>
-        <div class="status">🔧 Testing & Staging</div>
-      </div>
-      <div class="env-card" data-env="prod">
-        <h3>Production</h3>
-        <div class="status">🚀 Live & Public</div>
-      </div>
-    </div>
-
-    <!-- Comparison Summary -->
-    <div class="comparison-summary">
-      <h2>📊 Environment Comparison</h2>
-      <table class="comparison-table">
-        <thead>
-          <tr>
-            <th>Metric</th>
-            <th>QA</th>
-            <th>Production</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody id="comparisonTableBody">
-          <tr>
-            <td>Total Tests</td>
-            <td id="qaTotal">-</td>
-            <td id="prodTotal">-</td>
-            <td id="totalStatus">-</td>
-          </tr>
-          <tr>
-            <td>Passed Tests</td>
-            <td id="qaPassed">-</td>
-            <td id="prodPassed">-</td>
-            <td id="passedStatus">-</td>
-          </tr>
-          <tr>
-            <td>Failed Tests</td>
-            <td id="qaFailed">-</td>
-            <td id="prodFailed">-</td>
-            <td id="failedStatus">-</td>
-          </tr>
-          <tr>
-            <td>Pass Rate</td>
-            <td id="qaPassRate">-</td>
-            <td id="prodPassRate">-</td>
-            <td id="passRateStatus">-</td>
-          </tr>
-          <tr>
-            <td>Avg Test Time</td>
-            <td id="qaAvgTime">-</td>
-            <td id="prodAvgTime">-</td>
-            <td id="avgTimeStatus">-</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <!-- Side-by-Side Comparison -->
-    <div class="comparison-grid">
-      <!-- QA Environment -->
-      <div class="env-column">
-        <h2>
-          QA Environment
-          <span class="env-badge qa">Staging</span>
-        </h2>
-
-        <div class="metrics">
-          <div class="metric-card">
-            <h4>Total Tests</h4>
-            <div class="value" id="qaMetricTotal">-</div>
-          </div>
-          <div class="metric-card passed">
-            <h4>Passed</h4>
-            <div class="value" id="qaMetricPassed">-</div>
-          </div>
-          <div class="metric-card failed">
-            <h4>Failed</h4>
-            <div class="value" id="qaMetricFailed">-</div>
-          </div>
-        </div>
-
-        <div class="test-group">
-          <div class="test-group-header" onclick="toggleGroup('qaSmoke')">
-            <h3>🚨 Smoke Tests</h3>
-            <div class="test-group-stats">
-              <span id="qaSmokeStats">0 / 0</span>
-            </div>
-          </div>
-          <div class="test-group-body" id="qaSmoke">
-            <div id="qaSmokeTests"></div>
-          </div>
-        </div>
-
-        <div class="test-group">
-          <div class="test-group-header" onclick="toggleGroup('qaPages')">
-            <h3>📄 Page Tests</h3>
-            <div class="test-group-stats">
-              <span id="qaPagesStats">0 / 0</span>
-            </div>
-          </div>
-          <div class="test-group-body" id="qaPages">
-            <div id="qaPagesTests"></div>
-          </div>
-        </div>
-
-        <div class="test-group">
-          <div class="test-group-header" onclick="toggleGroup('qaFlows')">
-            <h3>🔄 Flow Tests</h3>
-            <div class="test-group-stats">
-              <span id="qaFlowsStats">0 / 0</span>
-            </div>
-          </div>
-          <div class="test-group-body" id="qaFlows">
-            <div id="qaFlowsTests"></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Production Environment -->
-      <div class="env-column">
-        <h2>
-          Production
-          <span class="env-badge prod">Live</span>
-        </h2>
-
-        <div class="metrics">
-          <div class="metric-card">
-            <h4>Total Tests</h4>
-            <div class="value" id="prodMetricTotal">-</div>
-          </div>
-          <div class="metric-card passed">
-            <h4>Passed</h4>
-            <div class="value" id="prodMetricPassed">-</div>
-          </div>
-          <div class="metric-card failed">
-            <h4>Failed</h4>
-            <div class="value" id="prodMetricFailed">-</div>
-          </div>
-        </div>
-
-        <div class="test-group">
-          <div class="test-group-header" onclick="toggleGroup('prodSmoke')">
-            <h3>🚨 Smoke Tests</h3>
-            <div class="test-group-stats">
-              <span id="prodSmokeStats">0 / 0</span>
-            </div>
-          </div>
-          <div class="test-group-body" id="prodSmoke">
-            <div id="prodSmokeTests"></div>
-          </div>
-        </div>
-
-        <div class="test-group">
-          <div class="test-group-header" onclick="toggleGroup('prodPages')">
-            <h3>📄 Page Tests</h3>
-            <div class="test-group-stats">
-              <span id="prodPagesStats">0 / 0</span>
-            </div>
-          </div>
-          <div class="test-group-body" id="prodPages">
-            <div id="prodPagesTests"></div>
-          </div>
-        </div>
-
-        <div class="test-group">
-          <div class="test-group-header" onclick="toggleGroup('prodFlows')">
-            <h3>🔄 Flow Tests</h3>
-            <div class="test-group-stats">
-              <span id="prodFlowsStats">0 / 0</span>
-            </div>
-          </div>
-          <div class="test-group-body" id="prodFlows">
-            <div id="prodFlowsTests"></div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="last-updated">
-      Last updated: <span id="lastUpdated">Never</span>
-    </div>
-
-    <button class="refresh-btn" onclick="loadTestResults()">
-      🔄 Refresh Data
-    </button>
+  <div class="header">
+    <h1>🧪 Test History Dashboard</h1>
+    <p>Real-time test results tracking</p>
   </div>
-
+  <div class="container">
+    <div class="controls">
+      <select id="dateRange">
+        <option value="1">Last 24h</option>
+        <option value="7">Last 7 days</option>
+        <option value="30" selected>Last 30 days</option>
+      </select>
+      <select id="suiteFilter">
+        <option value="">All Suites</option>
+        <option value="api">API</option>
+        <option value="smoke">Smoke</option>
+        <option value="unit">Unit</option>
+      </select>
+      <button class="btn" onclick="loadData()">Refresh</button>
+      <label><input type="checkbox" id="autoRefresh"> Auto-refresh (30s)</label>
+    </div>
+    <div class="stats-grid" id="statsGrid"></div>
+    <div id="tableContainer"></div>
+  </div>
   <script>
-    // Mock test data (replace with real API calls)
-    const mockData = {
-      qa: {
-        smoke: [
-          { name: 'Health Check - API Alive', passed: true, time: 145 },
-          { name: 'Status Endpoint - Build Info', passed: true, time: 98 },
-          { name: 'Admin Page Loads', passed: true, time: 234 },
-          { name: 'Public Page Loads', passed: true, time: 189 },
-        ],
-        pages: [
-          { name: 'Admin - Submit Button Works', passed: true, time: 56 },
-          { name: 'Admin - Configure Sponsors Button', passed: true, time: 67 },
-          { name: 'Public - Event Cards Clickable', passed: true, time: 45 },
-          { name: 'Display - Carousel Controls', passed: false, time: 89 },
-        ],
-        flows: [
-          { name: 'Admin Flow - Create Event', passed: true, time: 1250 },
-          { name: 'Customer Flow - Browse Events', passed: true, time: 890 },
-          { name: 'Sponsor Flow - Display Visibility', passed: true, time: 1120 },
-        ]
-      },
-      prod: {
-        smoke: [
-          { name: 'Health Check - API Alive', passed: true, time: 142 },
-          { name: 'Status Endpoint - Build Info', passed: true, time: 95 },
-          { name: 'Admin Page Loads', passed: true, time: 231 },
-          { name: 'Public Page Loads', passed: true, time: 185 },
-        ],
-        pages: [
-          { name: 'Admin - Submit Button Works', passed: true, time: 54 },
-          { name: 'Admin - Configure Sponsors Button', passed: true, time: 65 },
-          { name: 'Public - Event Cards Clickable', passed: true, time: 43 },
-          { name: 'Display - Carousel Controls', passed: true, time: 87 },
-        ],
-        flows: [
-          { name: 'Admin Flow - Create Event', passed: true, time: 1230 },
-          { name: 'Customer Flow - Browse Events', passed: true, time: 875 },
-          { name: 'Sponsor Flow - Display Visibility', passed: true, time: 1100 },
-        ]
+    async function loadData() {
+      try {
+        const res = await fetch('.test-results/test-history.json');
+        const db = await res.json();
+        renderData(db.runs || []);
+      } catch (e) {
+        document.getElementById('statsGrid').innerHTML = '<p>No test data yet. Run: npm run test:quick</p>';
       }
+    }
+    function renderData(runs) {
+      const total = runs.reduce((s,r) => s + r.totalTests, 0);
+      const passed = runs.reduce((s,r) => s + r.passed, 0);
+      const failed = runs.reduce((s,r) => s + r.failed, 0);
+      document.getElementById('statsGrid').innerHTML = `
+        <div class="stat-card"><h3>Total Tests</h3><div class="value">${total}</div></div>
+        <div class="stat-card"><h3>Passed</h3><div class="value" style="color:#48bb78">${passed}</div></div>
+        <div class="stat-card"><h3>Failed</h3><div class="value" style="color:#f56565">${failed}</div></div>
+      `;
+      document.getElementById('tableContainer').innerHTML = `
+        <table>
+          <thead><tr><th>Suite</th><th>Date</th><th>Tests</th><th>Status</th></tr></thead>
+          <tbody>${runs.slice(0,20).map(r => `
+            <tr>
+              <td>${r.suite}</td>
+              <td>${new Date(r.startTime).toLocaleString()}</td>
+              <td>${r.passed}/${r.totalTests}</td>
+              <td>${r.failed > 0 ? '❌ FAIL' : '✅ PASS'}</td>
+            </tr>
+          `).join('')}</tbody>
+        </table>
+      `;
+    }
+    document.addEventListener('DOMContentLoaded', loadData);
+    document.getElementById('autoRefresh').onchange = (e) => {
+      if(e.target.checked) setInterval(loadData, 30000);
     };
-
-    function toggleGroup(groupId) {
-      const body = document.getElementById(groupId);
-      body.classList.toggle('collapsed');
-    }
-
-    function renderTests(env, category, tests) {
-      const container = document.getElementById(`${env}${category.charAt(0).toUpperCase() + category.slice(1)}Tests`);
-      container.innerHTML = '';
-
-      const passed = tests.filter(t => t.passed).length;
-      const total = tests.length;
-
-      document.getElementById(`${env}${category.charAt(0).toUpperCase() + category.slice(1)}Stats`).textContent = `${passed} / ${total}`;
-
-      tests.forEach(test => {
-        const item = document.createElement('div');
-        item.className = 'test-item';
-        item.innerHTML = `
-          <div class="name">
-            <span class="icon">${test.passed ? '✅' : '❌'}</span>
-            <span>${test.name}</span>
-          </div>
-          <div class="time">⏱️ ${test.time}ms</div>
-        `;
-        container.appendChild(item);
-      });
-    }
-
-    function updateMetrics(env, data) {
-      const allTests = [...data.smoke, ...data.pages, ...data.flows];
-      const total = allTests.length;
-      const passed = allTests.filter(t => t.passed).length;
-      const failed = total - passed;
-
-      document.getElementById(`${env}MetricTotal`).textContent = total;
-      document.getElementById(`${env}MetricPassed`).textContent = passed;
-      document.getElementById(`${env}MetricFailed`).textContent = failed;
-    }
-
-    function updateComparison() {
-      const qaData = mockData.qa;
-      const prodData = mockData.prod;
-
-      const qaTests = [...qaData.smoke, ...qaData.pages, ...qaData.flows];
-      const prodTests = [...prodData.smoke, ...prodData.pages, ...prodData.flows];
-
-      const qaTotal = qaTests.length;
-      const prodTotal = prodTests.length;
-      const qaPassed = qaTests.filter(t => t.passed).length;
-      const prodPassed = prodTests.filter(t => t.passed).length;
-      const qaFailed = qaTotal - qaPassed;
-      const prodFailed = prodTotal - prodPassed;
-      const qaPassRate = ((qaPassed / qaTotal) * 100).toFixed(1);
-      const prodPassRate = ((prodPassed / prodTotal) * 100).toFixed(1);
-      const qaAvgTime = (qaTests.reduce((sum, t) => sum + t.time, 0) / qaTotal).toFixed(0);
-      const prodAvgTime = (prodTests.reduce((sum, t) => sum + t.time, 0) / prodTotal).toFixed(0);
-
-      document.getElementById('qaTotal').textContent = qaTotal;
-      document.getElementById('prodTotal').textContent = prodTotal;
-      document.getElementById('qaPassed').textContent = qaPassed;
-      document.getElementById('prodPassed').textContent = prodPassed;
-      document.getElementById('qaFailed').textContent = qaFailed;
-      document.getElementById('prodFailed').textContent = prodFailed;
-      document.getElementById('qaPassRate').textContent = qaPassRate + '%';
-      document.getElementById('prodPassRate').textContent = prodPassRate + '%';
-      document.getElementById('qaAvgTime').textContent = qaAvgTime + 'ms';
-      document.getElementById('prodAvgTime').textContent = prodAvgTime + 'ms';
-
-      // Status indicators
-      document.getElementById('totalStatus').innerHTML = qaTotal === prodTotal ? '✅ Same' : '⚠️ Different';
-      document.getElementById('passedStatus').innerHTML = qaPassed >= prodPassed ?
-        `<span class="better">✅ QA Better</span>` : `<span class="worse">⚠️ Prod Better</span>`;
-      document.getElementById('failedStatus').innerHTML = qaFailed <= prodFailed ?
-        `<span class="better">✅ QA Better</span>` : `<span class="worse">⚠️ Prod Better</span>`;
-      document.getElementById('passRateStatus').innerHTML = parseFloat(qaPassRate) >= parseFloat(prodPassRate) ?
-        `<span class="better">✅ QA Better</span>` : `<span class="worse">⚠️ Prod Better</span>`;
-      document.getElementById('avgTimeStatus').innerHTML = parseInt(qaAvgTime) <= parseInt(prodAvgTime) ?
-        `<span class="better">✅ QA Faster</span>` : `<span class="worse">⚠️ Prod Faster</span>`;
-    }
-
-    function loadTestResults() {
-      // Load QA results
-      renderTests('qa', 'smoke', mockData.qa.smoke);
-      renderTests('qa', 'pages', mockData.qa.pages);
-      renderTests('qa', 'flows', mockData.qa.flows);
-      updateMetrics('qa', mockData.qa);
-
-      // Load Production results
-      renderTests('prod', 'smoke', mockData.prod.smoke);
-      renderTests('prod', 'pages', mockData.prod.pages);
-      renderTests('prod', 'flows', mockData.prod.flows);
-      updateMetrics('prod', mockData.prod);
-
-      // Update comparison table
-      updateComparison();
-
-      document.getElementById('lastUpdated').textContent = new Date().toLocaleString();
-    }
-
-    // Load on page load
-    window.addEventListener('load', loadTestResults);
   </script>
 </body>
 </html>

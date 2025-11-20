@@ -17,6 +17,7 @@ module.exports = defineConfig({
     }],
     ['json', { outputFile: '.test-results/playwright-results.json' }],
     ['junit', { outputFile: '.test-results/junit.xml' }],  // For GitHub Actions test result integration
+    ['./tests/shared/history-reporter.js'],  // Track test history for dashboard
     ['list']
   ],
 

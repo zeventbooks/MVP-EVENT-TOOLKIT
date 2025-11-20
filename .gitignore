@@ -41,6 +41,9 @@ test-results/
 .test-results/
 test-dashboard/
 
+# Test history database (keep local, contains all historical test runs)
+.test-results/test-history.json
+
 # Build outputs
 dist/
 build/
