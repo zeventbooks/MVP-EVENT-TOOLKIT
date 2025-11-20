@@ -1,4 +1,8 @@
 /**
+ * @jest-environment jsdom
+ */
+
+/**
  * Unit Tests for Collapsible Sections Functionality
  *
  * Tests the toggleSection function and collapsible section behavior
@@ -32,7 +36,9 @@ describe('Admin - Collapsible Sections Unit Tests', () => {
     window.toggleSection = function(header) {
       header.classList.toggle('collapsed');
       const content = header.nextElementSibling;
-      content.classList.toggle('collapsed');
+      if (content) {
+        content.classList.toggle('collapsed');
+      }
     };
   });
 
