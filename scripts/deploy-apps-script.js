@@ -39,16 +39,9 @@ function getProjectFiles() {
   const rootDir = process.cwd();
 
   // Files to include (Apps Script source files)
-  const includePatterns = [
-    'Code.gs',
-    'appsscript.json',
-    '*.gs',
-    '*.html',
-    'src/**/*.gs',
-    'src/**/*.html',
-    'lib/**/*.gs',
-    'lib/**/*.html'
-  ];
+  // Note: Currently collecting all .gs and .html files not in excluded directories
+  // Potential patterns for future filtering:
+  // ['Code.gs', 'appsscript.json', '*.gs', '*.html', 'src/**/*.gs', 'lib/**/*.gs']
 
   // Files to exclude
   const excludePatterns = [

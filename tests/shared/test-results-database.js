@@ -259,7 +259,7 @@ if (require.main === module) {
   const command = process.argv[2];
 
   switch (command) {
-    case 'stats':
+    case 'stats': {
       const days = parseInt(process.argv[3]) || 7;
       const suite = process.argv[4] || null;
       const endDate = new Date();
@@ -268,26 +268,30 @@ if (require.main === module) {
       const stats = db.getStatistics(startDate, endDate, suite);
       console.log(JSON.stringify(stats, null, 2));
       break;
+    }
 
-    case 'recent':
+    case 'recent': {
       const limit = parseInt(process.argv[3]) || 10;
       const recentSuite = process.argv[4] || null;
       const recent = db.getRecentRuns(limit, recentSuite);
       console.log(JSON.stringify(recent, null, 2));
       break;
+    }
 
-    case 'cleanup':
+    case 'cleanup': {
       const keepDays = parseInt(process.argv[3]) || 90;
       const removed = db.cleanup(keepDays);
       console.log(`Removed ${removed} old test runs (kept last ${keepDays} days)`);
       break;
+    }
 
-    case 'trend':
+    case 'trend': {
       const trendDays = parseInt(process.argv[3]) || 30;
       const trendSuite = process.argv[4] || null;
       const trend = db.getTrend(trendDays, trendSuite);
       console.log(JSON.stringify(trend, null, 2));
       break;
+    }
 
     default:
       console.log('Usage:');

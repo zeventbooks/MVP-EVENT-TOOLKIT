@@ -41,7 +41,7 @@ class HistoryReporter {
     }
   }
 
-  onBegin(config, suite) {
+  onBegin(_config, _suite) {
     this.startTime = new Date();
     console.log(`\n📊 Test History Reporter: Recording ${this.suite} suite results...`);
   }
@@ -82,7 +82,7 @@ class HistoryReporter {
     }
   }
 
-  onEnd(result) {
+  onEnd(_result) {
     const endTime = new Date();
     const duration = endTime - this.startTime;
     const gitInfo = this.getGitInfo();
