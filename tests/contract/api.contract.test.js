@@ -8,19 +8,8 @@
 
 const {
   validateEnvelope,
-  validateSuccessEnvelope,
-  validateErrorEnvelope,
-  validateEventStructure,
-  validateEventLinks,
-  validateAnalyticsStructure,
   ERROR_CODES
 } = require('../shared/helpers/test.helpers');
-
-const {
-  createBasicEvent,
-  createEventResponse,
-  createEventListResponse
-} = require('../shared/fixtures/events.fixtures');
 
 describe('API Contract Tests', () => {
 

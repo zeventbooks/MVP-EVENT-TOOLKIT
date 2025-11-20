@@ -16,8 +16,6 @@
 const { exec } = require('child_process');
 const util = require('util');
 const execPromise = util.promisify(exec);
-const path = require('path');
-const fs = require('fs').promises;
 
 const { TestDataManager } = require('./shared/test-data-manager');
 const { TestResultsTracker } = require('./shared/test-results-tracker');
@@ -391,17 +389,19 @@ async function cli() {
         await orchestrator.seedTestData(args[1] || 'standard');
         break;
 
-      case 'select':
+      case 'select': {
         await orchestrator.initialize();
         const plan = await orchestrator.selectTests(args[1] || 'smart');
         console.log(JSON.stringify(plan, null, 2));
         break;
+      }
 
-      case 'test':
+      case 'test': {
         await orchestrator.initialize();
         const testPlan = await orchestrator.selectTests('smart');
         await orchestrator.executeTests(testPlan, options);
         break;
+      }
 
       case 'dashboard':
         await orchestrator.initialize();

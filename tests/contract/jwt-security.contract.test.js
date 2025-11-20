@@ -21,7 +21,7 @@ describe('🔐 JWT Security Contract Tests', () => {
   /**
    * Simulates JWT generation from Code.gs api_generateToken()
    */
-  const generateMockJWT = (payload, secret = 'test-secret') => {
+  const generateMockJWT = (payload) => {
     const header = { alg: 'HS256', typ: 'JWT' };
     const encodedHeader = Buffer.from(JSON.stringify(header)).toString('base64url');
     const encodedPayload = Buffer.from(JSON.stringify(payload)).toString('base64url');
@@ -33,7 +33,7 @@ describe('🔐 JWT Security Contract Tests', () => {
   /**
    * Simulates JWT verification from Code.gs verifyJWT_()
    */
-  const verifyMockJWT = (token, secret = 'test-secret') => {
+  const verifyMockJWT = (token) => {
     try {
       if (!token || typeof token !== 'string') {
         return { ok: false, code: 'BAD_INPUT', message: 'Invalid token format' };
@@ -44,7 +44,7 @@ describe('🔐 JWT Security Contract Tests', () => {
         return { ok: false, code: 'BAD_INPUT', message: 'Malformed JWT' };
       }
 
-      const [encodedHeader, encodedPayload, signature] = parts;
+      const [, encodedPayload] = parts;
 
       // Decode payload
       let payload;

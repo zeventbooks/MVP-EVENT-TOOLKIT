@@ -140,10 +140,6 @@ class IntelligentTestSelector {
 
       // Detect slow tests (>2 standard deviations)
       if (suite.durations.length >= 5) {
-        const avg = suite.avgDuration;
-        const variance = suite.durations.reduce((sum, dur) => sum + Math.pow(dur - avg, 2), 0) / suite.durations.length;
-        const stdDev = Math.sqrt(variance);
-
         if (suite.avgDuration > 5000) { // Over 5 seconds
           testDatabase.stats.slowTests.push(suite.name);
         }
@@ -508,18 +504,19 @@ async function cli() {
 
   try {
     switch (command) {
-      case 'analyze':
+      case 'analyze': {
         const database = await selector.analyzeHistory();
         console.log('\n📊 Test Analysis:');
         console.log(JSON.stringify(database.stats, null, 2));
         break;
+      }
 
       case 'smart':
       case 'critical-only':
       case 'flaky-only':
       case 'failed-only':
       case 'fast-only':
-      case 'all':
+      case 'all': {
         const plan = await selector.generateExecutionPlan(command);
         console.log(`\n🎯 Test Execution Plan (${command}):`);
         console.log(JSON.stringify(plan, null, 2));
@@ -529,12 +526,14 @@ async function cli() {
         await fs.writeFile(planPath, JSON.stringify(plan, null, 2));
         console.log(`\n✓ Plan saved: ${planPath}`);
         break;
+      }
 
-      case 'recommendations':
+      case 'recommendations': {
         const recs = await selector.getOptimizationRecommendations();
         console.log('\n💡 Test Optimization Recommendations:');
         console.log(JSON.stringify(recs, null, 2));
         break;
+      }
 
       default:
         console.log(`
