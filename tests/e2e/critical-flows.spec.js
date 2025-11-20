@@ -18,7 +18,10 @@ test.describe('Critical User Flows - E2E', () => {
 
   test('Flow 1: Admin creates event and views on public page', async ({ page }) => {
     // Step 1: Navigate to admin page
-    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
     await expect(page).toHaveTitle(/Admin/);
 
     // Step 2: Fill event creation form
@@ -44,7 +47,10 @@ test.describe('Critical User Flows - E2E', () => {
     expect(publicLink).toContain(BASE_URL);
 
     // Step 6: Navigate to public page
-    await page.goto(publicLink);
+    await page.goto(publicLink, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     // Step 7: Verify event details are displayed
     await expect(page.locator('h1')).toContainText('E2E Test Event');
@@ -54,7 +60,10 @@ test.describe('Critical User Flows - E2E', () => {
 
   test('Flow 2: Configure display with sponsors', async ({ page, context }) => {
     // Step 1: Create event first (reuse logic from Flow 1)
-    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     page.on('dialog', async dialog => {
       await dialog.accept(ADMIN_KEY);
@@ -97,7 +106,10 @@ test.describe('Critical User Flows - E2E', () => {
     // This test requires a pre-created event with sponsors
     // For now, we'll test the public page structure
 
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     // Should show events list or event detail
     await expect(page.locator('h1')).toBeVisible();
@@ -117,7 +129,10 @@ test.describe('Critical User Flows - E2E', () => {
 
   test('Flow 4: Display page carousel mode', async ({ page }) => {
     // Navigate to display page with TV parameter
-    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}&tv=1`);
+    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}&tv=1`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     // Should show TV display layout
     await expect(page.locator('body[data-tv="1"]')).toBeVisible();
@@ -134,7 +149,10 @@ test.describe('Critical User Flows - E2E', () => {
 
   test('Flow 5: Health check and status endpoints', async ({ page }) => {
     // Test status endpoint
-    const statusResponse = await page.goto(`${BASE_URL}?page=status`);
+    const statusResponse = await page.goto(`${BASE_URL}?page=status`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
     expect(statusResponse.ok()).toBeTruthy();
 
     const statusJson = await statusResponse.json();
@@ -148,7 +166,10 @@ test.describe('Critical User Flows - E2E', () => {
     // This test requires a pre-created shortlink
     // For now, we'll test the redirect mechanism structure
 
-    await page.goto(`${BASE_URL}?p=r&t=invalid-token`);
+    await page.goto(`${BASE_URL}?p=r&t=invalid-token`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     // Should show "not found" message
     await expect(page.locator('h1')).toContainText(/not found|invalid/i);
@@ -158,7 +179,10 @@ test.describe('Critical User Flows - E2E', () => {
     // Set mobile viewport
     await page.setViewportSize({ width: 375, height: 667 });
 
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     // Should be readable on mobile
     await expect(page.locator('h1')).toBeVisible();
@@ -173,7 +197,10 @@ test.describe('Critical User Flows - E2E', () => {
   });
 
   test('Flow 8: Accessibility - Keyboard navigation', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     // Tab through form fields
     await page.keyboard.press('Tab');
@@ -188,7 +215,10 @@ test.describe('Critical User Flows - E2E', () => {
 test.describe('Security Tests', () => {
 
   test('Should reject API calls without admin key', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     // Attempt to create event without admin key
     page.on('dialog', async dialog => {
@@ -204,7 +234,10 @@ test.describe('Security Tests', () => {
   });
 
   test('Should sanitize XSS attempts in event name', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     page.on('dialog', async dialog => {
       await dialog.accept(ADMIN_KEY);
@@ -227,7 +260,10 @@ test.describe('Performance Tests', () => {
 
   test('Status endpoint should respond within 500ms', async ({ page }) => {
     const start = Date.now();
-    await page.goto(`${BASE_URL}?page=status`);
+    await page.goto(`${BASE_URL}?page=status`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
     const duration = Date.now() - start;
 
     expect(duration).toBeLessThan(500);
@@ -235,7 +271,10 @@ test.describe('Performance Tests', () => {
 
   test('Public page should load within 3 seconds', async ({ page }) => {
     const start = Date.now();
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
     await page.waitForLoadState('networkidle');
     const duration = Date.now() - start;
 

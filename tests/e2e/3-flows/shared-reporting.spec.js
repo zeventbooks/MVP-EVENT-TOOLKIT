@@ -20,7 +20,10 @@ const BRAND_ID = 'root';
 test.describe('📊 SHARED REPORTING: Analytics Dashboard', () => {
 
   test('SharedReport page loads and displays key metrics', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=report&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=report&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
     await page.waitForLoadState('networkidle');
 
     // STRICT: Page must have proper heading
@@ -55,7 +58,10 @@ test.describe('📊 SHARED REPORTING: Analytics Dashboard', () => {
     console.log('🔗 Testing navigation from Admin to SharedReport...');
 
     // Create an event in Admin first
-    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     page.on('dialog', async dialog => {
       await dialog.accept(ADMIN_KEY);
@@ -96,7 +102,10 @@ test.describe('📊 SHARED REPORTING: Analytics Dashboard', () => {
   test('SharedReport displays surface performance breakdown', async ({ page }) => {
     console.log('📊 Testing surface performance breakdown...');
 
-    await page.goto(`${BASE_URL}?page=report&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=report&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
     await page.waitForLoadState('networkidle');
 
     // Wait for analytics to load
@@ -127,7 +136,10 @@ test.describe('📊 SHARED REPORTING: Analytics Dashboard', () => {
   test('SharedReport displays sponsor performance', async ({ page }) => {
     console.log('📊 Testing sponsor performance display...');
 
-    await page.goto(`${BASE_URL}?page=report&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=report&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
     await page.waitForLoadState('networkidle');
 
     // Wait for analytics to load
@@ -157,7 +169,10 @@ test.describe('📊 SHARED REPORTING: Analytics Dashboard', () => {
 
     // Set mobile viewport
     await page.setViewportSize({ width: 375, height: 667 });
-    await page.goto(`${BASE_URL}?page=report&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=report&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
     await page.waitForLoadState('networkidle');
 
     // Verify page is responsive
@@ -189,7 +204,10 @@ test.describe('📊 SHARED REPORTING: API Integration', () => {
   test('Analytics API returns valid data structure', async ({ page }) => {
     console.log('🔌 Testing analytics API...');
 
-    await page.goto(`${BASE_URL}?page=report&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=report&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
     await page.waitForLoadState('networkidle');
 
     // Intercept API call to analytics
@@ -220,7 +238,10 @@ test.describe('📊 SHARED REPORTING: API Integration', () => {
   test('Export to Sheets button exists', async ({ page }) => {
     console.log('💾 Testing export functionality...');
 
-    await page.goto(`${BASE_URL}?page=report&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=report&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
     await page.waitForLoadState('networkidle');
 
     // Check for export button
@@ -249,7 +270,10 @@ test.describe('🔺 TRIANGLE: SharedReport Integration', () => {
     // STEP 1: Create event with sponsors in Admin
     // ====================
     console.log('📝 Creating event with sponsors...');
-    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     page.on('dialog', async dialog => {
       await dialog.accept(ADMIN_KEY);

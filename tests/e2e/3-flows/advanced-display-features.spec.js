@@ -21,7 +21,10 @@ test.describe('📺 DISPLAY: Dynamic URLs with Variable Timing', () => {
 
   test('Dynamic URLs: Carousel rotation with configurable timing', async ({ page }) => {
     await page.setViewportSize({ width: 1920, height: 1080 });
-    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}&tv=1`);
+    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}&tv=1`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
     await page.waitForLoadState('networkidle');
 
     console.log('🔄 Testing dynamic URL rotation...');
@@ -59,7 +62,10 @@ test.describe('📺 DISPLAY: Dynamic URLs with Variable Timing', () => {
 
   test('Dynamic URLs: iframe rotation without missed beat', async ({ page }) => {
     await page.setViewportSize({ width: 1920, height: 1080 });
-    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
     await page.waitForLoadState('networkidle');
 
     console.log('🖼️ Testing iframe handling...');
@@ -98,7 +104,10 @@ test.describe('📺 DISPLAY: Admin Notes Window Updates', () => {
     // STEP 1: Create event in Admin
     // ====================
     console.log('📝 Creating event with notes...');
-    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     page.on('dialog', async dialog => {
       await dialog.accept(ADMIN_KEY);
@@ -152,7 +161,10 @@ test.describe('📺 DISPLAY: Admin Notes Window Updates', () => {
   });
 
   test('Admin Notes: Real-time updates (paraphrased notes)', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     console.log('📝 Testing paraphrased/summary notes...');
 
@@ -178,7 +190,10 @@ test.describe('📺 DISPLAY: Video Streaming Support', () => {
     // STEP 1: Create event with YouTube video
     // ====================
     console.log('🎥 Creating event with YouTube video...');
-    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     page.on('dialog', async dialog => {
       await dialog.accept(ADMIN_KEY);
@@ -251,7 +266,10 @@ test.describe('📺 DISPLAY: Video Streaming Support', () => {
 
   test('Vimeo: Embed and playback support', async ({ page, context }) => {
     console.log('🎥 Testing Vimeo video support...');
-    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     page.on('dialog', async dialog => {
       await dialog.accept(ADMIN_KEY);
@@ -296,7 +314,10 @@ test.describe('📺 DISPLAY: Video Streaming Support', () => {
 test.describe('📺 DISPLAY: Multiple Language Support', () => {
 
   test('Language support: English (default)', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     const htmlLang = await page.locator('html').getAttribute('lang');
     console.log(`✅ Default language: ${htmlLang || 'en'}`);
@@ -305,7 +326,10 @@ test.describe('📺 DISPLAY: Multiple Language Support', () => {
   });
 
   test('Language support: Spanish', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}&lang=es`);
+    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}&lang=es`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     const htmlLang = await page.locator('html').getAttribute('lang');
     console.log(`✅ Spanish language: ${htmlLang}`);
@@ -319,14 +343,20 @@ test.describe('📺 DISPLAY: Multiple Language Support', () => {
   });
 
   test('Language support: French', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}&lang=fr`);
+    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}&lang=fr`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     const htmlLang = await page.locator('html').getAttribute('lang');
     console.log(`✅ French language: ${htmlLang}`);
   });
 
   test('Language support: German', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}&lang=de`);
+    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}&lang=de`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     const htmlLang = await page.locator('html').getAttribute('lang');
     console.log(`✅ German language: ${htmlLang}`);
@@ -337,7 +367,10 @@ test.describe('📺 DISPLAY: Sponsor Slide-Up Behavior', () => {
 
   test('No sponsors: Content slides up (no empty space)', async ({ page }) => {
     await page.setViewportSize({ width: 1920, height: 1080 });
-    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
     await page.waitForLoadState('networkidle');
 
     console.log('📐 Testing no-sponsor slide-up behavior...');
@@ -365,7 +398,10 @@ test.describe('📺 DISPLAY: Sponsor Slide-Up Behavior', () => {
 
   test('With sponsors: Content adjusts to make room', async ({ page, context }) => {
     // Create event with sponsors first
-    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     page.on('dialog', async dialog => {
       await dialog.accept(ADMIN_KEY);
@@ -421,7 +457,10 @@ test.describe('📺 DISPLAY: 10-12ft Viewing Optimization', () => {
 
   test('TV viewing: Font size optimized for distance', async ({ page }) => {
     await page.setViewportSize({ width: 1920, height: 1080 });
-    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}&tv=1`);
+    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}&tv=1`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     const fontSize = await page.locator('body').evaluate(el =>
       window.getComputedStyle(el).fontSize
@@ -435,7 +474,10 @@ test.describe('📺 DISPLAY: 10-12ft Viewing Optimization', () => {
 
   test('TV viewing: High contrast for readability', async ({ page }) => {
     await page.setViewportSize({ width: 1920, height: 1080 });
-    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}&tv=1`);
+    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}&tv=1`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     // Check body background and text colors
     const bgColor = await page.locator('body').evaluate(el =>
@@ -454,7 +496,10 @@ test.describe('📺 DISPLAY: 10-12ft Viewing Optimization', () => {
 
   test('TV viewing: 4K support (3840x2160)', async ({ page }) => {
     await page.setViewportSize({ width: 3840, height: 2160 });
-    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}&tv=1`);
+    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}&tv=1`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     await expect(page.locator('#stage')).toBeVisible();
 

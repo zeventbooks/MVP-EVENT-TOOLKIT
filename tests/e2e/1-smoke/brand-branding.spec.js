@@ -14,7 +14,10 @@ const BASE_URL = process.env.BASE_URL || process.env.GOOGLE_SCRIPT_URL || 'https
 test.describe('🎨 SMOKE: Brand Verification', () => {
 
   test('Admin page loads brand logo for root brand', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=root`);
+    await page.goto(`${BASE_URL}?page=admin&brand=root`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     // Page should load successfully
     expect(page.url()).toContain('brand=root');
@@ -37,7 +40,10 @@ test.describe('🎨 SMOKE: Brand Verification', () => {
   });
 
   test('Admin page loads brand logo for abc brand', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=abc`);
+    await page.goto(`${BASE_URL}?page=admin&brand=abc`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     // Page should load successfully
     expect(page.url()).toContain('brand=abc');
@@ -66,7 +72,10 @@ test.describe('🎨 SMOKE: Brand Verification', () => {
   });
 
   test('Admin page shows correct brand identification for abc', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=abc`);
+    await page.goto(`${BASE_URL}?page=admin&brand=abc`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     // Check URL parameter is correct
     expect(page.url()).toContain('brand=abc');
@@ -84,7 +93,10 @@ test.describe('🎨 SMOKE: Brand Verification', () => {
   });
 
   test('Public page loads brand logo for abc brand', async ({ page }) => {
-    await page.goto(`${BASE_URL}?p=events&brand=abc`);
+    await page.goto(`${BASE_URL}?p=events&brand=abc`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     // Check for logo element
     const logo = page.locator('img[alt*="logo"], img.logo, .brand-logo img, header img').first();
@@ -103,7 +115,10 @@ test.describe('🎨 SMOKE: Brand Verification', () => {
   });
 
   test('Display page loads brand branding for abc brand', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=display&brand=abc`);
+    await page.goto(`${BASE_URL}?page=display&brand=abc`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     // Check for logo or branding element
     const brandingElements = page.locator('img[alt*="logo"], img.logo, .brand-logo img, .branding img, header img');
@@ -123,12 +138,18 @@ test.describe('🎨 SMOKE: Brand Verification', () => {
 
   test('Different brands show different branding (isolation)', async ({ page }) => {
     // Load root brand admin page
-    await page.goto(`${BASE_URL}?page=admin&brand=root`);
+    await page.goto(`${BASE_URL}?page=admin&brand=root`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
     const rootUrl = page.url();
     expect(rootUrl).toContain('brand=root');
 
     // Load abc brand admin page
-    await page.goto(`${BASE_URL}?page=admin&brand=abc`);
+    await page.goto(`${BASE_URL}?page=admin&brand=abc`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
     const abcUrl = page.url();
     expect(abcUrl).toContain('brand=abc');
 
@@ -146,7 +167,10 @@ test.describe('🎨 SMOKE: Logo Performance', () => {
   test('Brand logo loads within acceptable time', async ({ page }) => {
     const startTime = Date.now();
 
-    await page.goto(`${BASE_URL}?page=admin&brand=abc`);
+    await page.goto(`${BASE_URL}?page=admin&brand=abc`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     const logo = page.locator('img[alt*="logo"], img.logo, .brand-logo img, header img').first();
     const logoCount = await logo.count();
@@ -164,7 +188,10 @@ test.describe('🎨 SMOKE: Logo Performance', () => {
   });
 
   test('Logo image has valid dimensions', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=abc`);
+    await page.goto(`${BASE_URL}?page=admin&brand=abc`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     const logo = page.locator('img[alt*="logo"], img.logo, .brand-logo img, header img').first();
     const logoCount = await logo.count();

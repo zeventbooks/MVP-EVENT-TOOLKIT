@@ -54,7 +54,10 @@ test.describe('Sponsor Page', () => {
 
   test.describe('Authentication & Access', () => {
     test('shows auth prompt when no admin key', async ({ page }) => {
-      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`);
+      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       // Should show auth prompt
       const authPrompt = page.locator('#auth-prompt');
@@ -71,7 +74,10 @@ test.describe('Sponsor Page', () => {
     });
 
     test('unlocks interface with valid admin key', async ({ page }) => {
-      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`);
+      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       // Wait for auth prompt
       await page.waitForSelector('#auth-prompt');
@@ -93,7 +99,10 @@ test.describe('Sponsor Page', () => {
     });
 
     test('allows Enter key to submit admin key', async ({ page }) => {
-      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`);
+      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       await page.waitForSelector('#admin-key-input');
       await page.fill('#admin-key-input', adminKey);
@@ -106,7 +115,10 @@ test.describe('Sponsor Page', () => {
     });
 
     test('persists admin key in session storage', async ({ page }) => {
-      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`);
+      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       await page.waitForSelector('#admin-key-input');
       await page.fill('#admin-key-input', adminKey);
@@ -127,7 +139,10 @@ test.describe('Sponsor Page', () => {
 
   test.describe('Sponsor List Display', () => {
     test('shows empty state when no sponsors exist', async ({ page }) => {
-      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`);
+      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       // Authenticate
       await page.waitForSelector('#admin-key-input');
@@ -158,7 +173,10 @@ test.describe('Sponsor Page', () => {
       });
       createdSponsorIds.push(sponsorId);
 
-      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`);
+      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       // Authenticate
       await page.waitForSelector('#admin-key-input');
@@ -196,7 +214,10 @@ test.describe('Sponsor Page', () => {
         createdSponsorIds.push(sponsorId);
       }
 
-      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`);
+      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       // Authenticate
       await page.waitForSelector('#admin-key-input');
@@ -228,7 +249,10 @@ test.describe('Sponsor Page', () => {
 
       createdSponsorIds.push(platinumId, goldId);
 
-      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`);
+      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       // Authenticate
       await page.waitForSelector('#admin-key-input');
@@ -253,7 +277,10 @@ test.describe('Sponsor Page', () => {
 
   test.describe('Create Sponsor Workflow', () => {
     test('creates sponsor with all fields filled', async ({ page }) => {
-      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`);
+      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       // Authenticate
       await page.waitForSelector('#admin-key-input');
@@ -293,7 +320,10 @@ test.describe('Sponsor Page', () => {
     });
 
     test('creates sponsor with minimal required fields', async ({ page }) => {
-      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`);
+      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       // Authenticate
       await page.waitForSelector('#admin-key-input');
@@ -326,7 +356,10 @@ test.describe('Sponsor Page', () => {
     });
 
     test('shows loading state while creating sponsor', async ({ page }) => {
-      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`);
+      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       // Authenticate
       await page.waitForSelector('#admin-key-input');
@@ -370,7 +403,10 @@ test.describe('Sponsor Page', () => {
       });
       createdSponsorIds.push(sponsorId);
 
-      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`);
+      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       // Authenticate
       await page.waitForSelector('#admin-key-input');
@@ -412,7 +448,10 @@ test.describe('Sponsor Page', () => {
       });
       createdSponsorIds.push(sponsorId);
 
-      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`);
+      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       // Authenticate
       await page.waitForSelector('#admin-key-input');
@@ -445,7 +484,10 @@ test.describe('Sponsor Page', () => {
       });
       createdSponsorIds.push(sponsorId);
 
-      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`);
+      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       // Authenticate
       await page.waitForSelector('#admin-key-input');
@@ -489,7 +531,10 @@ test.describe('Sponsor Page', () => {
       });
       createdSponsorIds.push(sponsorId);
 
-      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`);
+      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       // Authenticate
       await page.waitForSelector('#admin-key-input');
@@ -516,7 +561,10 @@ test.describe('Sponsor Page', () => {
 
   test.describe('Navigation & UI', () => {
     test('has back to dashboard link', async ({ page }) => {
-      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`);
+      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       // Authenticate
       await page.waitForSelector('#admin-key-input');
@@ -535,7 +583,10 @@ test.describe('Sponsor Page', () => {
     });
 
     test('displays page title and subtitle', async ({ page }) => {
-      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`);
+      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       // Authenticate
       await page.waitForSelector('#admin-key-input');
@@ -554,7 +605,10 @@ test.describe('Sponsor Page', () => {
       // Set mobile viewport
       await page.setViewportSize({ width: 375, height: 667 });
 
-      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`);
+      await page.goto(`${baseUrl}?page=sponsor&brand=${brand}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
       // Authenticate
       await page.waitForSelector('#admin-key-input');

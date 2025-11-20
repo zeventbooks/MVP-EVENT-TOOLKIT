@@ -84,7 +84,10 @@ test.describe('🔌 API CONTRACT: Status Endpoint', () => {
 test.describe('🔌 API CONTRACT: Analytics Endpoint', () => {
 
   test('Analytics API exists and returns JSON', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=report&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=report&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     // Intercept network requests to analytics API
     const apiCalls = [];
@@ -122,7 +125,10 @@ test.describe('🔌 API CONTRACT: Analytics Endpoint', () => {
 test.describe('🔌 API CONTRACT: Event Creation Response', () => {
 
   test('Event creation API returns proper response structure', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     const ADMIN_KEY = process.env.ADMIN_KEY || 'CHANGE_ME_root';
     const responses = [];

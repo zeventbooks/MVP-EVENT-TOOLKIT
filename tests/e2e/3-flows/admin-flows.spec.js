@@ -15,7 +15,10 @@ test.describe('🔄 FLOW: Admin - Create and Publish Event', () => {
 
   test('Complete flow: Create event → Verify on public page', async ({ page }) => {
     // Step 1: Navigate to admin page
-    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
     await expect(page).toHaveTitle(/Admin/);
 
     // Step 2: Fill event creation form
@@ -55,7 +58,10 @@ test.describe('🔄 FLOW: Admin - Create and Publish Event', () => {
 
   test('Complete flow: Create event → Edit details → Verify changes', async ({ page }) => {
     // Step 1: Create initial event
-    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     page.on('dialog', async dialog => {
       await dialog.accept(ADMIN_KEY);
@@ -84,7 +90,10 @@ test.describe('🔄 FLOW: Admin - Configure Sponsors', () => {
 
   test('Complete flow: Create event → Add sponsors → Verify on display', async ({ page, context }) => {
     // Step 1: Create event
-    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     page.on('dialog', async dialog => {
       await dialog.accept(ADMIN_KEY);
@@ -146,7 +155,10 @@ test.describe('🔄 FLOW: Admin - Configure Sponsors', () => {
 
   test('Complete flow: Add sponsors → Reorder → Verify order', async ({ page }) => {
     // Step 1: Create event and open configuration
-    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     page.on('dialog', async dialog => {
       await dialog.accept(ADMIN_KEY);
@@ -191,7 +203,10 @@ test.describe('🔄 FLOW: Admin - Multi-Event Management', () => {
 
   test('Complete flow: Create multiple events → Manage list → Delete event', async ({ page }) => {
     // Step 1: Create first event
-    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     page.on('dialog', async dialog => {
       await dialog.accept(ADMIN_KEY);
@@ -224,7 +239,10 @@ test.describe('🔄 FLOW: Admin - Event Publishing Workflow', () => {
 
   test('Complete flow: Create draft → Configure → Publish → Monitor', async ({ page, context }) => {
     // Step 1: Create event
-    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     page.on('dialog', async dialog => {
       await dialog.accept(ADMIN_KEY);
@@ -286,7 +304,10 @@ test.describe('🔄 FLOW: Admin - Event Publishing Workflow', () => {
 test.describe('🔄 FLOW: Admin - Error Handling', () => {
 
   test('Flow: Invalid admin key → Show error → Retry with correct key', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     let dialogCount = 0;
     page.on('dialog', async dialog => {
@@ -317,7 +338,10 @@ test.describe('🔄 FLOW: Admin - Error Handling', () => {
   });
 
   test('Flow: Missing required fields → Show validation → Fill and submit', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     page.on('dialog', async dialog => {
       await dialog.accept(ADMIN_KEY);
@@ -344,7 +368,10 @@ test.describe('🔄 FLOW: Admin - Error Handling', () => {
 test.describe('🔄 FLOW: Admin - Bulk Operations', () => {
 
   test('Flow: Create multiple events rapidly → Verify all created', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     page.on('dialog', async dialog => {
       await dialog.accept(ADMIN_KEY);

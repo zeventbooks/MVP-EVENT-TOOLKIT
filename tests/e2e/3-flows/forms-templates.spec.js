@@ -47,7 +47,10 @@ test.describe('Google Forms Templates Flow', () => {
 
   test('Admin can open Forms Templates panel', async ({ page }) => {
     // Navigate to admin page with the test event
-    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}&p=events`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}&p=events`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     // Wait for page to load
     await expect(page.locator('main#app')).toBeVisible();
@@ -62,7 +65,10 @@ test.describe('Google Forms Templates Flow', () => {
   });
 
   test('Check-in form template creates form with shortlink', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}&p=events`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}&p=events`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
     await expect(page.locator('main#app')).toBeVisible();
 
     // Open Forms Templates panel
@@ -91,7 +97,10 @@ test.describe('Google Forms Templates Flow', () => {
   });
 
   test('Walk-in form template creates form with shortlink', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}&p=events`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}&p=events`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
     await page.locator('button:has-text("Create Forms from Templates")').click();
     await expect(page.locator('#formsCard')).toBeVisible();
 
@@ -107,7 +116,10 @@ test.describe('Google Forms Templates Flow', () => {
   });
 
   test('Survey form template creates form with shortlink', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}&p=events`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}&p=events`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
     await page.locator('button:has-text("Create Forms from Templates")').click();
     await expect(page.locator('#formsCard')).toBeVisible();
 
@@ -126,7 +138,10 @@ test.describe('Google Forms Templates Flow', () => {
     // Grant clipboard permissions
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
 
-    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}&p=events`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}&p=events`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
     await page.locator('button:has-text("Create Forms from Templates")').click();
 
     // Use existing check-in form or create new one
@@ -151,7 +166,10 @@ test.describe('Google Forms Templates Flow', () => {
   });
 
   test('Forms Templates panel can be closed', async ({ page }) => {
-    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}&p=events`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}&p=events`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
     await page.locator('button:has-text("Create Forms from Templates")').click();
     await expect(page.locator('#formsCard')).toBeVisible();
 
@@ -164,7 +182,10 @@ test.describe('Google Forms Templates Flow', () => {
 
   test('Form creation requires an event to be selected', async ({ page }) => {
     // Navigate to admin page without selecting an event
-    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}&p=events`);
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}&p=events`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
 
     // Clear any selected event (if there is one)
     await page.evaluate(() => {
