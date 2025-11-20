@@ -112,6 +112,8 @@
     "deploy:status": "node scripts/deploy-cli.js status",
     "deploy:history": "node scripts/deploy-cli.js history",
     "deploy:rollback": "node scripts/deploy-cli.js rollback",
+    "deploy:fix-permissions": "node scripts/fix-deployment-permissions.js",
+    "deploy:fix-permissions:test": "node scripts/fix-deployment-permissions.js --test",
     "pull": "clasp pull",
     "open": "clasp open",
     "logs": "clasp logs",
