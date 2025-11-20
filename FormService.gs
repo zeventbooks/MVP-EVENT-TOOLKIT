@@ -47,7 +47,7 @@ function FormService_getTemplate(templateType) {
  * @param {string} params.templateType - Template type
  * @param {string} [params.eventName] - Event name for form title
  * @param {string} [params.eventId] - Event ID to link form to
- * @param {string} [params.brandId] - Tenant ID
+ * @param {string} [params.brandId] - Brand ID
  * @returns {object} Result envelope with form details
  */
 function FormService_createFromTemplate(params) {
@@ -205,7 +205,7 @@ function FormService_addQuestionsToForm(form, questions) {
  * @param {string} params.formUrl - Form URL to shorten
  * @param {string} [params.formType] - Form type (signup, feedback, etc.)
  * @param {string} [params.eventId] - Event ID
- * @param {string} [params.brandId] - Tenant ID
+ * @param {string} [params.brandId] - Brand ID
  * @returns {object} Result envelope with shortlink details
  */
 function FormService_generateShortlink(params) {

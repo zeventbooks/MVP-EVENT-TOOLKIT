@@ -503,7 +503,7 @@
   <div id="overlay" class="loading-overlay"><div class="spinner"></div><p>Creating your event…</p></div>
 
   <script>
-    const TENANT = '<?= brandId ?>';
+    const BRAND = '<?= brandId ?>';
     const SCOPE = '<?= scope ?>';
     let currentStep = 1;
     let eventId = null;
@@ -687,7 +687,7 @@
       });
 
       const res = await NU.rpc('api_create', {
-        brandId: TENANT,
+        brandId: BRAND,
         scope: SCOPE,
         templateId: 'event',
         adminKey: getAdminKey(),
@@ -759,8 +759,8 @@
     }
 
     function getAdminKey() {
-      const k = sessionStorage.getItem('ADMIN_KEY:' + TENANT) || prompt('Admin key for ' + TENANT);
-      if (k) sessionStorage.setItem('ADMIN_KEY:' + TENANT, k);
+      const k = sessionStorage.getItem('ADMIN_KEY:' + BRAND) || prompt('Admin key for ' + BRAND);
+      if (k) sessionStorage.setItem('ADMIN_KEY:' + BRAND, k);
       return k || '';
     }
 

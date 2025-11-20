@@ -153,7 +153,7 @@ function SecurityMiddleware_verifyJWT(token, brand) {
     const payload = JSON.parse(Utilities.newBlob(Utilities.base64Decode(parts[1])).getDataAsString());
 
     // Verify brand
-    if (payload.tenant !== brand.id) {
+    if (payload.brand !== brand.id) {
       return Err(ERR.BAD_INPUT, 'Token brand mismatch');
     }
 
@@ -209,7 +209,7 @@ function SecurityMiddleware_generateJWT(params) {
   };
 
   const payload = {
-    tenant: brand.id,
+    brand: brand.id,
     iat: Math.floor(Date.now() / 1000),
     exp: Math.floor(Date.now() / 1000) + expiresIn,
     scope: scope,

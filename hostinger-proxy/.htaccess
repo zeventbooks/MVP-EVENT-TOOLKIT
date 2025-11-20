@@ -18,7 +18,7 @@ RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 # ============================================================================
 
 # Route all requests to index.php (except actual files/directories)
-# QSA = Query String Append (preserves ?p=status&tenant=root)
+# QSA = Query String Append (preserves ?p=status&brand=root)
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(.*)$ index.php [QSA,L]

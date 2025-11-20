@@ -5,14 +5,14 @@
  * - Sponsor analytics (impressions, clicks, CTR)
  * - Performance metrics and insights
  * - ROI calculations
- * - Portfolio reports (cross-tenant)
+ * - Portfolio reports (cross-brand)
  * - Engagement scoring
  *
  * Design principles:
  * - Encapsulates sponsor business logic
  * - Provides data aggregation and analysis
  * - Separates data retrieval from presentation
- * - Supports multi-tenant portfolio views
+ * - Supports multi-brand portfolio views
  *
  * @module SponsorService
  */

@@ -117,15 +117,15 @@
   </div>
 
   <script>
-    const TENANT = '<?= brandId ?>';
+    const BRAND = '<?= brandId ?>';
     const SCOPE = '<?= scope ?>';
 
     let testsPassed = 0;
     let testsFailed = 0;
 
     function getAdminKey() {
-      const k = sessionStorage.getItem('ADMIN_KEY:' + TENANT) || prompt('Admin key for ' + TENANT);
-      if (k) sessionStorage.setItem('ADMIN_KEY:' + TENANT, k);
+      const k = sessionStorage.getItem('ADMIN_KEY:' + BRAND) || prompt('Admin key for ' + BRAND);
+      if (k) sessionStorage.setItem('ADMIN_KEY:' + BRAND, k);
       return k || '';
     }
 
@@ -190,9 +190,9 @@
         const brands = ['root', 'abc', 'cbc', 'cbl'];
         const templates = ['event', 'sponsor'];
 
-        let result = 'Tenants: ' + tenants.join(', ') + '\n';
+        let result = 'Brands: ' + brands.join(', ') + '\n';
         result += 'Templates: ' + templates.join(', ') + '\n';
-        result += 'Current Tenant: ' + TENANT + '\n';
+        result += 'Current Brand: ' + BRAND + '\n';
         result += 'Current Scope: ' + SCOPE;
 
         passTest(card, result);
@@ -205,7 +205,7 @@
       const card = createTestCard('Create Event', 'Test event creation with full data model');
       try {
         const res = await NU.rpc('api_create', {
-          brandId: TENANT,
+          brandId: BRAND,
           scope: 'events',
           templateId: 'event',
           adminKey: getAdminKey(),
@@ -234,7 +234,7 @@
       const card = createTestCard('List Events', 'Test event listing');
       try {
         const res = await NU.rpc('api_list', {
-          brandId: TENANT,
+          brandId: BRAND,
           scope: 'events'
         });
 
@@ -280,7 +280,7 @@
       try {
         // Try to create event with missing required field
         const res = await NU.rpc('api_create', {
-          brandId: TENANT,
+          brandId: BRAND,
           scope: 'events',
           templateId: 'event',
           adminKey: getAdminKey(),

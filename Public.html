@@ -196,7 +196,7 @@
   </div>
 
   <script>
-    const TENANT = '<?= brandId ?>';
+    const BRAND = '<?= brandId ?>';
     const SCOPE = '<?= scope ?>';
     const EXEC_URL = '<?= execUrl ?>';
     const url = new URL(location.href);
@@ -278,7 +278,7 @@
           <h3>${esc(ev.data?.name || '(untitled)')}</h3>
           <p>${esc(ev.data?.dateISO || '')}</p>
           <div style="margin-top:12px;">
-            <a class="btn secondary" href="${EXEC_URL}?p=events&brand=${TENANT}&id=${ev.id}">Open</a>
+            <a class="btn secondary" href="${EXEC_URL}?p=events&brand=${BRAND}&id=${ev.id}">Open</a>
           </div>
         `;
         root.appendChild(d);
@@ -349,7 +349,7 @@
       if (data.checkinUrl) {
         html += `<a class="btn-secondary" href="${esc(data.checkinUrl)}" target="_blank" rel="noopener">Check In</a>`;
       }
-      html += `<a class="btn-secondary" href="${EXEC_URL}?p=events&brand=${TENANT}">← Back to Events</a>`;
+      html += `<a class="btn-secondary" href="${EXEC_URL}?p=events&brand=${BRAND}">← Back to Events</a>`;
       html += '</div>';
 
       // Event Image
@@ -457,12 +457,12 @@
     }
 
     if (ID) {
-      rpc('api_get', { brandId: TENANT, scope: SCOPE, id: ID }).then(res => {
+      rpc('api_get', { brandId: BRAND, scope: SCOPE, id: ID }).then(res => {
         if (res.ok && res.value) renderDetail(res.value);
         else document.getElementById('list').innerHTML = '<p class="muted">Event not found.</p>';
       });
     } else {
-      rpc('api_list', { brandId: TENANT, scope: SCOPE }).then(res => {
+      rpc('api_list', { brandId: BRAND, scope: SCOPE }).then(res => {
         if (res.ok && res.value) renderList(res.value.items || []);
         else document.getElementById('list').innerHTML = '<p class="muted">Could not load events.</p>';
       });

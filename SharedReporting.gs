@@ -340,7 +340,7 @@ function api_generateSharedReport(brandId, filters = {}) {
     const report = {
       reportType: 'shared-event-sponsor',
       generatedAt: new Date().toISOString(),
-      tenant: brandId,
+      brand: brandId,
       filters,
 
       // Executive Summary (shared key metrics)
@@ -471,7 +471,7 @@ function api_exportSharedReport(brandId, filters = {}) {
     // Write summary
     sheet.appendRow(['SHARED EVENT-SPONSOR REPORT']);
     sheet.appendRow(['Generated:', report.generatedAt]);
-    sheet.appendRow(['Tenant:', report.tenant]);
+    sheet.appendRow(['Brand:', report.brand]);
     sheet.appendRow([]);
 
     sheet.appendRow(['EXECUTIVE SUMMARY']);
