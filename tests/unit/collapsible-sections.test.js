@@ -1,4 +1,8 @@
 /**
+ * @jest-environment jsdom
+ */
+
+/**
  * Unit Tests for Collapsible Sections Functionality
  *
  * Tests the toggleSection function and collapsible section behavior
