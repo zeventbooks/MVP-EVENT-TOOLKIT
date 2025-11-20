@@ -322,8 +322,9 @@ function printSummary() {
 
 /**
  * Print usage instructions
+ * @private Reserved for future use
  */
-function printUsage() {
+function _printUsage() {
   console.log('');
   console.log(colors.bright + 'Usage:' + colors.reset);
   console.log('  node scripts/verify-secrets.js');

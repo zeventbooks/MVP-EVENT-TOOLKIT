@@ -30,6 +30,10 @@ module.exports = {
     '/tests/e2e/',
     '/tests/smoke/'
   ],
+  reporters: [
+    'default',
+    './tests/shared/jest-history-reporter.js'
+  ],
   // Coverage thresholds enabled (conservative initial values)
   // Mock Google Apps Script APIs in tests to achieve coverage
   coverageThreshold: {
