@@ -423,9 +423,9 @@ function EventService_persistEvent(brand, scope, templateId, data) {
  */
 function EventService_generateUrls(baseUrl, brandId, eventId, scope) {
   return {
-    publicUrl: `${baseUrl}?p=${scope}&brand=${brandId}&id=${eventId}`,
-    posterUrl: `${baseUrl}?page=poster&p=${scope}&brand=${brandId}&id=${eventId}`,
-    displayUrl: `${baseUrl}?page=display&p=${scope}&brand=${brandId}&id=${eventId}&tv=1`,
+    publicUrl: `${baseUrl}?page=${scope}&brand=${brandId}&id=${eventId}`,
+    posterUrl: `${baseUrl}?page=poster&brand=${brandId}&id=${eventId}`,
+    displayUrl: `${baseUrl}?page=display&brand=${brandId}&id=${eventId}&tv=1`,
     reportUrl: `${baseUrl}?page=report&brand=${brandId}&id=${eventId}`
   };
 }
