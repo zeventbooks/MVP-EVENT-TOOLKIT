@@ -231,7 +231,7 @@
         <div class="config-card">
           <h3>🌐 Current Session</h3>
           <div class="config-item">
-            <span class="config-label">Tenant ID</span>
+            <span class="config-label">Brand ID</span>
             <span class="config-value"><?= brandId ?></span>
           </div>
           <div class="config-item">
@@ -399,7 +399,7 @@
       <ol style="color: #6b7280; line-height: 1.8; margin-left: 1.5rem;">
         <li>Open Google Apps Script Editor (Extensions → Apps Script)</li>
         <li>Navigate to <code>Config.gs</code> file</li>
-        <li>Edit the <code>TENANTS</code> array or <code>ZEB</code> object</li>
+        <li>Edit the <code>BRANDS</code> array or <code>ZEB</code> object</li>
         <li>Save and deploy as a new version</li>
         <li>Refresh this page to see changes</li>
       </ol>
@@ -473,7 +473,7 @@
   </div>
 
   <script>
-    const TENANT = '<?= brandId ?>';
+    const BRAND = '<?= brandId ?>';
     let portfolioSponsorsCache = [];
 
     // Brand Portfolio Management
@@ -500,7 +500,7 @@
         card.innerHTML = `
           <h3>${escapeHtml(child.name)}</h3>
           <div class="config-item">
-            <span class="config-label">Tenant ID</span>
+            <span class="config-label">Brand ID</span>
             <span class="config-value">${child.id}</span>
           </div>
           <div class="config-item">
@@ -532,7 +532,7 @@
 
       try {
         const summaryRes = await NU.rpc('api_getPortfolioSummary', {
-          brandId: TENANT,
+          brandId: BRAND,
           adminKey: getAdminKey()
         });
 
@@ -631,7 +631,7 @@
 
       try {
         const reportRes = await NU.rpc('api_getPortfolioSponsorReport', {
-          brandId: TENANT,
+          brandId: BRAND,
           adminKey: getAdminKey(),
           sponsorId: sponsorId,
           options: {}
@@ -692,7 +692,7 @@
               <div>
                 <div class="config-label">${idx + 1}. ${escapeHtml(event.name)}</div>
                 <div style="font-size: 0.75rem; color: #6b7280; margin-top: 0.25rem;">
-                  ${escapeHtml(event.tenantName)} · ${event.date} · ${event.impressions.toLocaleString()} views · ${event.clicks} clicks · ${event.ctr}% CTR
+                  ${escapeHtml(event.brandName)} · ${event.date} · ${event.impressions.toLocaleString()} views · ${event.clicks} clicks · ${event.ctr}% CTR
                 </div>
               </div>
             `;
@@ -721,8 +721,8 @@
 
     // Helper Functions
     function getAdminKey() {
-      const k = sessionStorage.getItem('ADMIN_KEY:' + TENANT) || prompt('Admin key for ' + TENANT);
-      if (k) sessionStorage.setItem('ADMIN_KEY:' + TENANT, k);
+      const k = sessionStorage.getItem('ADMIN_KEY:' + BRAND) || prompt('Admin key for ' + BRAND);
+      if (k) sessionStorage.setItem('ADMIN_KEY:' + BRAND, k);
       return k || '';
     }
 

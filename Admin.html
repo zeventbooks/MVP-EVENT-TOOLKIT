@@ -387,7 +387,7 @@
   <div id="overlay" class="loading-overlay"><div class="spinner"></div><p>Working…</p></div>
 
   <script>
-    const TENANT = '<?= brandId ?>';
+    const BRAND = '<?= brandId ?>';
     const SCOPE = '<?= scope ?>';
     let currentEventId = null;
 
@@ -412,7 +412,7 @@
       });
 
       const res = await NU.rpc('api_create', {
-        brandId: TENANT,
+        brandId: BRAND,
         scope: SCOPE,
         templateId: 'event',
         adminKey: getAdminKey(),
@@ -592,7 +592,7 @@
 
       overlay(true);
       const res = await NU.rpc('api_updateEventData', {
-        brandId: TENANT,
+        brandId: BRAND,
         scope: SCOPE,
         id: currentEventId,
         adminKey: getAdminKey(),
@@ -643,7 +643,7 @@
 
       // Get event data for context
       const eventRes = await NU.rpc('api_get', {
-        brandId: TENANT,
+        brandId: BRAND,
         scope: SCOPE,
         id: currentEventId
       });
@@ -654,7 +654,7 @@
 
       // Create form from template
       const formRes = await NU.rpc('api_createFormFromTemplate', {
-        brandId: TENANT,
+        brandId: BRAND,
         adminKey: getAdminKey(),
         templateType,
         eventName,
@@ -671,7 +671,7 @@
 
       // Generate shortlink for the published form
       const shortlinkRes = await NU.rpc('api_generateFormShortlink', {
-        brandId: TENANT,
+        brandId: BRAND,
         adminKey: getAdminKey(),
         formUrl: publishedUrl,
         formType: templateType,
@@ -859,7 +859,7 @@
 
       overlay(true);
       const res = await NU.rpc('api_updateEventData', {
-        brandId: TENANT,
+        brandId: BRAND,
         scope: SCOPE,
         id: currentEventId,
         adminKey: getAdminKey(),
@@ -884,8 +884,8 @@
     }
 
     function getAdminKey() {
-      const k = sessionStorage.getItem('ADMIN_KEY:' + TENANT) || prompt('Admin key for ' + TENANT);
-      if (k) sessionStorage.setItem('ADMIN_KEY:' + TENANT, k);
+      const k = sessionStorage.getItem('ADMIN_KEY:' + BRAND) || prompt('Admin key for ' + BRAND);
+      if (k) sessionStorage.setItem('ADMIN_KEY:' + BRAND, k);
       return k || '';
     }
   </script>

@@ -805,7 +805,7 @@
     // Global state
     let currentEvent = null;
     let allEvents = [];
-    const TENANT_ID = 'root'; // Get from URL params or config
+    const BRAND_ID = 'root'; // Get from URL params or config
 
     // Initialize on load
     window.addEventListener('DOMContentLoaded', async () => {
@@ -823,8 +823,8 @@
         });
         document.getElementById('currentDate').textContent = `Today: ${today}`;
 
-        // Load tenant config
-        const config = await NU.rpc('api_getConfig', { brandId: TENANT_ID });
+        // Load brand config
+        const config = await NU.rpc('api_getConfig', { brandId: BRAND_ID });
         if (config.ok) {
           document.getElementById('brandName').textContent = config.value.name || 'Event Planner';
         }
@@ -846,7 +846,7 @@
     async function loadEvents() {
       try {
         const response = await NU.rpc('api_list', {
-          brandId: TENANT_ID,
+          brandId: BRAND_ID,
           scope: 'events'
         });
 
@@ -897,7 +897,7 @@
       e.preventDefault();
 
       const eventData = {
-        brandId: TENANT_ID,
+        brandId: BRAND_ID,
         scope: 'events',
         name: document.getElementById('eventName').value,
         date: document.getElementById('eventDate').value,

@@ -456,7 +456,7 @@
   </div>
 
   <script>
-    const TENANT_ID = '<?= brandId ?>';
+    const BRAND_ID = '<?= brandId ?>';
 
     // Detect sponsor view from URL params
     const urlParams = new URLSearchParams(window.location.search);
@@ -476,11 +476,11 @@
           result = await NU.rpc('api_getSponsorAnalytics', {
             sponsorId: SPONSOR_ID,
             eventId: EVENT_ID || null,
-            brandId: TENANT_ID
+            brandId: BRAND_ID
           });
         } else {
           result = await NU.rpc('api_getSharedAnalytics', {
-            brandId: TENANT_ID,
+            brandId: BRAND_ID,
             isSponsorView: IS_SPONSOR_VIEW
           });
         }
@@ -948,7 +948,7 @@
       try {
         if (!confirm('Export report to Google Sheets?')) return;
 
-        const result = await NU.rpc('api_exportSharedReport', TENANT_ID, {});
+        const result = await NU.rpc('api_exportSharedReport', BRAND_ID, {});
 
         if (!result.ok) {
           throw new Error(result.message || 'Failed to export');

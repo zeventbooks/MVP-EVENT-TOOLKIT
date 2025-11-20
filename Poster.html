@@ -253,7 +253,7 @@
   </div>
 
   <script>
-    const TENANT = '<?= brandId ?>';
+    const BRAND = '<?= brandId ?>';
     const SCOPE = '<?= scope ?>';
     const ID = new URL(location.href).searchParams.get('id');
 
@@ -397,7 +397,7 @@
         document.querySelector('.poster-container').innerHTML =
           '<p style="text-align:center; color:#ef4444; padding:40px;">Could not load event.</p>';
       })
-      .api_get({ brandId: TENANT, scope: SCOPE, id: ID });
+      .api_get({ brandId: BRAND, scope: SCOPE, id: ID });
   </script>
 </body>
 </html>
