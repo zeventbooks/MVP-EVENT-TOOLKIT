@@ -5,7 +5,7 @@
 (function() {
   const appTitle = '<?= appTitle ?>';
   const buildId = '<?= ZEB.BUILD_ID ?>';
-  const logoUrl = '<?= findTenant_(brandId)?.logoUrl || "/My files/Linux files/zeventbook/assets/logos/ABCMainTransparent.webp" ?>';
+  const logoUrl = '<?= findBrand_(brandId)?.logoUrl || "/My files/Linux files/zeventbook/assets/logos/ABCMainTransparent.webp" ?>';
 
   // Populate header elements
   const titleEl = document.getElementById('headerTitle');
