@@ -489,15 +489,43 @@ class Deployer {
       const fullUrl = url + check.path;
 
       try {
-        // Try to fetch with curl
-        const result = execCommand(`curl -s -o /dev/null -w "%{http_code}" "${fullUrl}" -m 10`, { silent: true });
+        // Validate URL to prevent command injection
+        let urlObj;
+        try {
+          urlObj = new URL(fullUrl);
+        } catch (urlError) {
+          printError(`${check.name}: Invalid URL`);
+          allPassed = false;
+          continue;
+        }
+
+        // Use Node's built-in https module instead of curl to avoid command injection
+        const https = require('https');
+        const http = require('http');
+        const protocol = urlObj.protocol === 'https:' ? https : http;
+
+        const result = await new Promise((resolve) => {
+          const req = protocol.get(fullUrl, { timeout: 10000 }, (res) => {
+            // Consume response data to free up memory
+            res.resume();
+            resolve({ success: true, statusCode: res.statusCode });
+          });
+
+          req.on('error', () => {
+            resolve({ success: false, statusCode: 0 });
+          });
+
+          req.on('timeout', () => {
+            req.destroy();
+            resolve({ success: false, statusCode: 0 });
+          });
+        });
 
         if (result.success) {
-          const statusCode = result.output.trim();
-          if (statusCode === '200') {
+          if (result.statusCode === 200) {
             printSuccess(`${check.name}: OK (200)`);
           } else {
-            printWarning(`${check.name}: ${statusCode}`);
+            printWarning(`${check.name}: ${result.statusCode}`);
             allPassed = false;
           }
         } else {

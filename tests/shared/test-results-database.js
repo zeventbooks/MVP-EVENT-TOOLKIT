@@ -9,7 +9,24 @@ const path = require('path');
 
 class TestResultsDatabase {
   constructor(dbPath = '.test-results/test-history.json') {
-    this.dbPath = path.resolve(dbPath);
+    // Validate and sanitize path to prevent path traversal
+    const resolvedPath = path.resolve(dbPath);
+    const projectRoot = path.resolve(process.cwd());
+
+    // Ensure the path is within the project directory
+    if (!resolvedPath.startsWith(projectRoot)) {
+      throw new Error('Security: Database path must be within project directory');
+    }
+
+    // Prevent access to sensitive directories
+    const normalizedPath = path.normalize(resolvedPath);
+    if (normalizedPath.includes('node_modules') ||
+        normalizedPath.includes('.git') ||
+        normalizedPath.includes('.env')) {
+      throw new Error('Security: Cannot create database in restricted directory');
+    }
+
+    this.dbPath = resolvedPath;
     this.ensureDbExists();
   }
 
