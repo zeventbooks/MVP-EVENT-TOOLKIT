@@ -14,7 +14,7 @@ test.describe('🔄 FLOW: Customer - Event Discovery', () => {
 
   test('Complete flow: Land on site → Browse events → View event details', async ({ page }) => {
     // Step 1: Land on public homepage
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`, {
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
@@ -51,7 +51,7 @@ test.describe('🔄 FLOW: Customer - Event Discovery', () => {
 
   test('Complete flow: Search events → Filter by category → View results', async ({ page }) => {
     // Step 1: Navigate to events page
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`, {
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
@@ -85,7 +85,7 @@ test.describe('🔄 FLOW: Customer - Event Discovery', () => {
 
   test('Complete flow: Browse by date → Select upcoming events → View calendar', async ({ page }) => {
     // Step 1: Navigate to events page
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`, {
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
@@ -119,7 +119,7 @@ test.describe('🔄 FLOW: Customer - Event Engagement', () => {
 
   test('Complete flow: View event → Read details → Click sponsor link', async ({ page, context }) => {
     // Step 1: Navigate to events
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`, {
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
@@ -152,7 +152,7 @@ test.describe('🔄 FLOW: Customer - Event Engagement', () => {
 
   test('Complete flow: View event → Share on social media → Verify share links', async ({ page }) => {
     // Step 1: Navigate to events
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`, {
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
@@ -186,7 +186,7 @@ test.describe('🔄 FLOW: Customer - Event Engagement', () => {
 
   test('Complete flow: Add event to calendar → Download ICS file', async ({ page }) => {
     // Step 1: Navigate to event detail
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`, {
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
@@ -228,7 +228,7 @@ test.describe('🔄 FLOW: Customer - Mobile Experience', () => {
     await page.setViewportSize({ width: 375, height: 667 });
 
     // Step 2: Navigate to events
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`, {
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
@@ -270,7 +270,7 @@ test.describe('🔄 FLOW: Customer - Mobile Experience', () => {
     await page.setViewportSize({ width: 667, height: 375 });
 
     // Step 2: Navigate to events
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`, {
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
@@ -296,7 +296,7 @@ test.describe('🔄 FLOW: Customer - Accessibility Journey', () => {
 
   test('Complete flow: Keyboard-only user → Navigate → View event', async ({ page }) => {
     // Step 1: Navigate to events
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`, {
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
@@ -338,7 +338,7 @@ test.describe('🔄 FLOW: Customer - Accessibility Journey', () => {
 
   test('Complete flow: Screen reader user → Read event details → Understand structure', async ({ page }) => {
     // Step 1: Navigate to events
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`, {
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
@@ -391,7 +391,7 @@ test.describe('🔄 FLOW: Customer - Performance Journey', () => {
 
     // Step 2: Navigate to events
     const start = Date.now();
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`, {
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
@@ -428,7 +428,7 @@ test.describe('🔄 FLOW: Customer - Returning Visitor', () => {
 
   test('Complete flow: Return to site → See new events → Check favorites', async ({ page, context }) => {
     // Step 1: First visit - browse events
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`, {
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
@@ -449,7 +449,7 @@ test.describe('🔄 FLOW: Customer - Returning Visitor', () => {
     await page.goto('about:blank');
 
     // Step 4: Return to site (simulating returning visitor)
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`, {
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });

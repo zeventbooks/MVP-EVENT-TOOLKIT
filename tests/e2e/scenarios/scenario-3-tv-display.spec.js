@@ -29,7 +29,7 @@ test.describe('SCENARIO 3: TV Display at Venue', () => {
 
   test('3.1.1 Config load from Public page → Should transfer config to Display page', async ({ page }) => {
     // Step 1: Load public page and verify config exists
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`, {
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });

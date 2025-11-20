@@ -46,7 +46,7 @@ test.describe('📱 Mobile Performance Tests', () => {
     test('should load public events page on mobile', async ({ page }) => {
       const startTime = Date.now();
 
-      await page.goto(`${process.env.BASE_URL || ''}?p=events`, {
+      await page.goto(`${process.env.BASE_URL || ''}?page=events`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
@@ -116,7 +116,7 @@ test.describe('📱 Mobile Performance Tests', () => {
     test('should be usable on low-end Android device', async ({ page }) => {
       const startTime = Date.now();
 
-      await page.goto(`${process.env.BASE_URL || ''}?p=events`, {
+      await page.goto(`${process.env.BASE_URL || ''}?page=events`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
@@ -210,7 +210,7 @@ test.describe('📱 Mobile Performance Tests', () => {
 
       const startTime = Date.now();
 
-      await page.goto(`${process.env.BASE_URL || ''}?p=events`, {
+      await page.goto(`${process.env.BASE_URL || ''}?page=events`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
@@ -223,7 +223,7 @@ test.describe('📱 Mobile Performance Tests', () => {
     });
 
     test('should handle slow API responses', async ({ page }) => {
-      await page.goto(`${process.env.BASE_URL || ''}?p=events`, {
+      await page.goto(`${process.env.BASE_URL || ''}?page=events`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
@@ -248,7 +248,7 @@ test.describe('📱 Mobile Performance Tests', () => {
         }
       });
 
-      await page.goto(`${process.env.BASE_URL || ''}?p=events`).catch(() => {
+      await page.goto(`${process.env.BASE_URL || ''}?page=events`).catch(() => {
         // Expected to fail
       });
 
@@ -262,7 +262,7 @@ test.describe('📱 Mobile Performance Tests', () => {
     test.use({ ...devices['Pixel 5'] });
 
     test('should meet Core Web Vitals for mobile', async ({ page }) => {
-      await page.goto(`${process.env.BASE_URL || ''}?p=events`, {
+      await page.goto(`${process.env.BASE_URL || ''}?page=events`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
@@ -307,7 +307,7 @@ test.describe('📱 Mobile Performance Tests', () => {
     });
 
     test('should minimize layout shifts on mobile', async ({ page }) => {
-      await page.goto(`${process.env.BASE_URL || ''}?p=events`, {
+      await page.goto(`${process.env.BASE_URL || ''}?page=events`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
@@ -348,7 +348,7 @@ test.describe('📱 Mobile Performance Tests', () => {
     test('should be responsive on portrait mobile', async ({ page }) => {
       await page.setViewportSize({ width: 375, height: 667 }); // iPhone SE
 
-      await page.goto(`${process.env.BASE_URL || ''}?p=events`, {
+      await page.goto(`${process.env.BASE_URL || ''}?page=events`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
@@ -384,7 +384,7 @@ test.describe('📱 Mobile Performance Tests', () => {
       // Test on high-DPI mobile screen
       await page.setViewportSize({ width: 393, height: 851 }); // Pixel 5
 
-      await page.goto(`${process.env.BASE_URL || ''}?p=events`, {
+      await page.goto(`${process.env.BASE_URL || ''}?page=events`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
@@ -404,7 +404,7 @@ test.describe('📱 Mobile Performance Tests', () => {
         { timeout: PERFORMANCE_THRESHOLDS.apiResponse }
       );
 
-      await page.goto(`${process.env.BASE_URL || ''}?p=events`, {
+      await page.goto(`${process.env.BASE_URL || ''}?page=events`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });

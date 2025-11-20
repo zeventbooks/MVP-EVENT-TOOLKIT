@@ -30,7 +30,7 @@ test.describe('SCENARIO 2: Mobile User at Event', () => {
     // Performance test: Measure page load time
     const startTime = Date.now();
 
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`, {
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
@@ -71,7 +71,7 @@ test.describe('SCENARIO 2: Mobile User at Event', () => {
   });
 
   test('2.2 Confirm Sponsor is present → Should display sponsor banner', async ({ page }) => {
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`, {
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
@@ -114,7 +114,7 @@ test.describe('SCENARIO 2: Mobile User at Event', () => {
   });
 
   test('2.3 Tap sponsor banner → Should log click + redirect', async ({ page }) => {
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`, {
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
@@ -201,7 +201,7 @@ test.describe('SCENARIO 2: Mobile User at Event', () => {
   });
 
   test('2.4 Tap "Check In" → Should open Google Form', async ({ page }) => {
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`, {
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
@@ -269,7 +269,7 @@ test.describe('SCENARIO 2: Mobile User at Event', () => {
   });
 
   test('2.5 View gallery → Images should lazy load', async ({ page }) => {
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`, {
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
@@ -346,7 +346,7 @@ test.describe('SCENARIO 2: Complete Mobile User Journey (Integration)', () => {
   test('Complete mobile event experience', async ({ page, context }) => {
     // Step 1: Fast page load
     const startTime = Date.now();
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`, {
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
@@ -396,7 +396,7 @@ test.describe('SCENARIO 2: Complete Mobile User Journey (Integration)', () => {
     });
 
     const startTime = Date.now();
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`, {
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
       waitUntil: 'domcontentloaded',
       timeout: 30000, // Longer timeout for slow network simulation
     });

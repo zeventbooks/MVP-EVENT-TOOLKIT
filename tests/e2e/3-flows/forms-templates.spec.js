@@ -87,7 +87,7 @@ test.describe('Google Forms Templates Flow', () => {
     // Verify the shortlink value is not empty
     const shortlinkValue = await page.locator('#check-in-shortlink').inputValue();
     expect(shortlinkValue).toContain(BASE_URL);
-    expect(shortlinkValue).toContain('?p=r&t=');
+    expect(shortlinkValue).toContain('?page=r&t=');
 
     // Verify "Edit Form" link is visible
     await expect(page.locator('a:has-text("Edit Form")')).toBeVisible();
@@ -112,7 +112,7 @@ test.describe('Google Forms Templates Flow', () => {
     await expect(page.locator('#walk-in-shortlink')).toBeVisible();
     const shortlinkValue = await page.locator('#walk-in-shortlink').inputValue();
     expect(shortlinkValue).toContain(BASE_URL);
-    expect(shortlinkValue).toContain('?p=r&t=');
+    expect(shortlinkValue).toContain('?page=r&t=');
   });
 
   test('Survey form template creates form with shortlink', async ({ page }) => {
@@ -131,7 +131,7 @@ test.describe('Google Forms Templates Flow', () => {
     await expect(page.locator('#survey-shortlink')).toBeVisible();
     const shortlinkValue = await page.locator('#survey-shortlink').inputValue();
     expect(shortlinkValue).toContain(BASE_URL);
-    expect(shortlinkValue).toContain('?p=r&t=');
+    expect(shortlinkValue).toContain('?page=r&t=');
   });
 
   test('Copy button functionality works', async ({ page, context }) => {

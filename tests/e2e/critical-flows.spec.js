@@ -106,7 +106,7 @@ test.describe('Critical User Flows - E2E', () => {
     // This test requires a pre-created event with sponsors
     // For now, we'll test the public page structure
 
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`, {
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
@@ -166,7 +166,7 @@ test.describe('Critical User Flows - E2E', () => {
     // This test requires a pre-created shortlink
     // For now, we'll test the redirect mechanism structure
 
-    await page.goto(`${BASE_URL}?p=r&t=invalid-token`, {
+    await page.goto(`${BASE_URL}?page=r&t=invalid-token`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
@@ -179,7 +179,7 @@ test.describe('Critical User Flows - E2E', () => {
     // Set mobile viewport
     await page.setViewportSize({ width: 375, height: 667 });
 
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`, {
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
@@ -271,7 +271,7 @@ test.describe('Performance Tests', () => {
 
   test('Public page should load within 3 seconds', async ({ page }) => {
     const start = Date.now();
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`, {
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });

@@ -34,7 +34,7 @@ test.describe('🚨 SMOKE: Critical Endpoints', () => {
 
   test('Status API responds with 200 and valid schema', async ({ page }) => {
     // Wait for load state to handle Google Apps Script cold starts
-    const response = await page.goto(`${BASE_URL}?p=status&brand=${BRAND_ID}`, {
+    const response = await page.goto(`${BASE_URL}?page=status&brand=${BRAND_ID}`, {
       waitUntil: 'networkidle',
       timeout: 20000, // Allow time for cold start
     });
@@ -64,7 +64,7 @@ test.describe('🚨 SMOKE: Critical Endpoints', () => {
   });
 
   test('Public page loads', async ({ page }) => {
-    const response = await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`, {
+    const response = await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
@@ -101,7 +101,7 @@ test.describe('🚨 SMOKE: Performance Baselines', () => {
 
   test('Status API responds within reasonable time', async ({ page }) => {
     const start = Date.now();
-    await page.goto(`${BASE_URL}?p=status&brand=${BRAND_ID}`, {
+    await page.goto(`${BASE_URL}?page=status&brand=${BRAND_ID}`, {
       waitUntil: 'domcontentloaded',
       timeout: 15000,
     });
@@ -117,7 +117,7 @@ test.describe('🚨 SMOKE: Performance Baselines', () => {
 
   test('Page loads within reasonable time', async ({ page }) => {
     const start = Date.now();
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`, {
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
@@ -166,7 +166,7 @@ test.describe('🚨 SMOKE: No JavaScript Errors', () => {
     const errors = [];
     page.on('pageerror', error => errors.push(error));
 
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`, {
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });

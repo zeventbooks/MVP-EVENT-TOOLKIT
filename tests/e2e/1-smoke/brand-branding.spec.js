@@ -93,7 +93,7 @@ test.describe('🎨 SMOKE: Brand Verification', () => {
   });
 
   test('Public page loads brand logo for abc brand', async ({ page }) => {
-    await page.goto(`${BASE_URL}?p=events&brand=abc`, {
+    await page.goto(`${BASE_URL}?page=events&brand=abc`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });

@@ -167,7 +167,7 @@ function getCurrentEnvironment() {
  */
 function getBrandUrl(brand = 'root', page = 'status') {
   const env = getCurrentEnvironment();
-  return `${env.baseUrl}?p=${page}&brand=${brand}`;
+  return `${env.baseUrl}?page=${page}&brand=${brand}`;
 }
 
 /**

@@ -401,7 +401,7 @@ test.describe('🔺 TRIANGLE: Public.html Complete Feature Flow', () => {
     // FEATURE 1: Public page templates
     // ====================
     console.log('🎨 Testing Public templates...');
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`, {
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });

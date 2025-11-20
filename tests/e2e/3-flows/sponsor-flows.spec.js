@@ -141,7 +141,7 @@ test.describe('🔄 FLOW: Sponsor - Click Tracking', () => {
 
   test('Complete flow: View sponsor on public page → Click sponsor link → Track analytics', async ({ page }) => {
     // Step 1: Navigate to public page
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`, {
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
@@ -185,7 +185,7 @@ test.describe('🔄 FLOW: Sponsor - Click Tracking', () => {
 
   test('Complete flow: Multiple sponsor clicks → Verify analytics increment', async ({ page }) => {
     // Step 1: Navigate to event with sponsors
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`, {
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
@@ -328,7 +328,7 @@ test.describe('🔄 FLOW: Sponsor - Mobile Banner Display', () => {
     await page.setViewportSize({ width: 375, height: 667 });
 
     // Step 2: Navigate to public page
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`, {
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
@@ -372,7 +372,7 @@ test.describe('🔄 FLOW: Sponsor - Mobile Banner Display', () => {
   test('Complete flow: Mobile → Rotate device → Banner adapts orientation', async ({ page }) => {
     // Step 1: Portrait orientation
     await page.setViewportSize({ width: 375, height: 667 });
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`, {
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
@@ -503,7 +503,7 @@ test.describe('🔄 FLOW: Sponsor - Performance & Loading', () => {
 
   test('Complete flow: Lazy load sponsor images → Verify progressive enhancement', async ({ page }) => {
     // Step 1: Navigate to public page
-    await page.goto(`${BASE_URL}?p=events&brand=${BRAND_ID}`, {
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });

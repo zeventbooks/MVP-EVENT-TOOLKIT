@@ -48,7 +48,7 @@ test.describe('♿ Accessibility Tests (WCAG 2.1 AA)', () => {
     });
 
     test('Public events page should have no accessibility violations', async ({ page }) => {
-      await page.goto(`${process.env.BASE_URL || ''}?p=events`, {
+      await page.goto(`${process.env.BASE_URL || ''}?page=events`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
@@ -113,7 +113,7 @@ test.describe('♿ Accessibility Tests (WCAG 2.1 AA)', () => {
     });
 
     test('Should navigate public events with arrow keys', async ({ page }) => {
-      await page.goto(`${process.env.BASE_URL || ''}?p=events`, {
+      await page.goto(`${process.env.BASE_URL || ''}?page=events`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
@@ -154,7 +154,7 @@ test.describe('♿ Accessibility Tests (WCAG 2.1 AA)', () => {
     });
 
     test('Should have skip link for keyboard users', async ({ page }) => {
-      await page.goto(`${process.env.BASE_URL || ''}?p=events`, {
+      await page.goto(`${process.env.BASE_URL || ''}?page=events`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
@@ -206,7 +206,7 @@ test.describe('♿ Accessibility Tests (WCAG 2.1 AA)', () => {
 
   test.describe('Screen Reader Support', () => {
     test('Should have proper heading hierarchy', async ({ page }) => {
-      await page.goto(`${process.env.BASE_URL || ''}?p=events`, {
+      await page.goto(`${process.env.BASE_URL || ''}?page=events`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
@@ -232,7 +232,7 @@ test.describe('♿ Accessibility Tests (WCAG 2.1 AA)', () => {
     });
 
     test('Should have proper ARIA landmarks', async ({ page }) => {
-      await page.goto(`${process.env.BASE_URL || ''}?p=events`, {
+      await page.goto(`${process.env.BASE_URL || ''}?page=events`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
@@ -253,7 +253,7 @@ test.describe('♿ Accessibility Tests (WCAG 2.1 AA)', () => {
     });
 
     test('Should have alt text for images', async ({ page }) => {
-      await page.goto(`${process.env.BASE_URL || ''}?p=events`, {
+      await page.goto(`${process.env.BASE_URL || ''}?page=events`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
@@ -355,7 +355,7 @@ test.describe('♿ Accessibility Tests (WCAG 2.1 AA)', () => {
 
   test.describe('Color Contrast', () => {
     test('Should have sufficient color contrast for text', async ({ page }) => {
-      await page.goto(`${process.env.BASE_URL || ''}?p=events`, {
+      await page.goto(`${process.env.BASE_URL || ''}?page=events`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
@@ -420,7 +420,7 @@ test.describe('♿ Accessibility Tests (WCAG 2.1 AA)', () => {
     test.use({ viewport: { width: 375, height: 667 } }); // iPhone SE
 
     test('Should have large enough touch targets', async ({ page }) => {
-      await page.goto(`${process.env.BASE_URL || ''}?p=events`, {
+      await page.goto(`${process.env.BASE_URL || ''}?page=events`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
@@ -446,7 +446,7 @@ test.describe('♿ Accessibility Tests (WCAG 2.1 AA)', () => {
     });
 
     test('Should not require pinch-to-zoom disabled', async ({ page }) => {
-      await page.goto(`${process.env.BASE_URL || ''}?p=events`, {
+      await page.goto(`${process.env.BASE_URL || ''}?page=events`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
@@ -467,7 +467,7 @@ test.describe('♿ Accessibility Tests (WCAG 2.1 AA)', () => {
     });
 
     test('Should support orientation changes', async ({ page }) => {
-      await page.goto(`${process.env.BASE_URL || ''}?p=events`, {
+      await page.goto(`${process.env.BASE_URL || ''}?page=events`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
@@ -549,7 +549,7 @@ test.describe('♿ Accessibility Tests (WCAG 2.1 AA)', () => {
 
   test.describe('Content Accessibility', () => {
     test('Should have proper page title', async ({ page }) => {
-      await page.goto(`${process.env.BASE_URL || ''}?p=events`, {
+      await page.goto(`${process.env.BASE_URL || ''}?page=events`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
@@ -563,7 +563,7 @@ test.describe('♿ Accessibility Tests (WCAG 2.1 AA)', () => {
     });
 
     test('Should have lang attribute on html', async ({ page }) => {
-      await page.goto(`${process.env.BASE_URL || ''}?p=events`, {
+      await page.goto(`${process.env.BASE_URL || ''}?page=events`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
@@ -579,7 +579,7 @@ test.describe('♿ Accessibility Tests (WCAG 2.1 AA)', () => {
     });
 
     test('Should have descriptive link text', async ({ page }) => {
-      await page.goto(`${process.env.BASE_URL || ''}?p=events`, {
+      await page.goto(`${process.env.BASE_URL || ''}?page=events`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
