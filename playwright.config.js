@@ -11,8 +11,12 @@ module.exports = defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: [
-    ['html'],
+    ['html', {
+      outputFolder: process.env.PLAYWRIGHT_HTML_REPORT || 'playwright-report',
+      open: 'never',  // Don't auto-open in CI
+    }],
     ['json', { outputFile: '.test-results/playwright-results.json' }],
+    ['junit', { outputFile: '.test-results/junit.xml' }],  // For GitHub Actions test result integration
     ['list']
   ],
 
