@@ -144,7 +144,7 @@ const BRANDS = [
     id: 'root',
     name: 'Zeventbook',
     hostnames: ['zeventbook.io','www.zeventbook.io'],
-    logoUrl: '/My files/Linux files/zeventbook/assets/logos/ABCMainTransparent.webp',
+    logoUrl: '', // Set to empty or use a valid HTTP/HTTPS URL
     // adminSecret: moved to Script Properties as 'ADMIN_SECRET_ROOT'
     store: { type: 'workbook', spreadsheetId: '1SV1oZMq4GbZBaRc0YmTeV02Tl5KXWD8R6FZXC7TwVCQ' },
     scopesAllowed: ['events', 'sponsors']
@@ -155,7 +155,7 @@ const BRANDS = [
     type: 'parent',  // Parent organization
     childBrands: ['cbc', 'cbl'],  // Child brands under ABC
     hostnames: ['americanbocceco.zeventbooks.io'],
-    logoUrl: '/My files/Linux files/zeventbook/assets/logos/ABCMainTransparent.webp',
+    logoUrl: '', // Set to empty or use a valid HTTP/HTTPS URL
     // adminSecret: moved to Script Properties as 'ADMIN_SECRET_ABC'
     store: { type: 'workbook', spreadsheetId: '1SV1oZMq4GbZBaRc0YmTeV02Tl5KXWD8R6FZXC7TwVCQ' },
     scopesAllowed: ['events', 'sponsors']
@@ -167,7 +167,7 @@ const BRANDS = [
     parentBrand: 'abc',  // Parent organization
     includeInPortfolioReports: true,  // Include this child in parent's brand portfolio analytics
     hostnames: ['chicagobocceclub.zeventbooks.io'],
-    logoUrl: '/My files/Linux files/zeventbook/assets/logos/ABCMainTransparent.webp',
+    logoUrl: '', // Set to empty or use a valid HTTP/HTTPS URL
     // adminSecret: moved to Script Properties as 'ADMIN_SECRET_CBC'
     store: { type: 'workbook', spreadsheetId: '1SV1oZMq4GbZBaRc0YmTeV02Tl5KXWD8R6FZXC7TwVCQ' },
     scopesAllowed: ['events', 'sponsors']
@@ -179,7 +179,7 @@ const BRANDS = [
     parentBrand: 'abc',  // Parent organization
     includeInPortfolioReports: true,  // Include this child in parent's brand portfolio analytics
     hostnames: ['chicagobocceleague.zeventbooks.io'],
-    logoUrl: '/My files/Linux files/zeventbook/assets/logos/ABCMainTransparent.webp',
+    logoUrl: '', // Set to empty or use a valid HTTP/HTTPS URL
     // adminSecret: moved to Script Properties as 'ADMIN_SECRET_CBL'
     store: { type: 'workbook', spreadsheetId: '1SV1oZMq4GbZBaRc0YmTeV02Tl5KXWD8R6FZXC7TwVCQ' },
     scopesAllowed: ['events', 'sponsors']

@@ -5,7 +5,7 @@
 (function() {
   const appTitle = '<?= appTitle ?>';
   const buildId = '<?= ZEB.BUILD_ID ?>';
-  const logoUrl = '<?= brand?.logoUrl || "/My files/Linux files/zeventbook/assets/logos/ABCMainTransparent.webp" ?>';
+  const logoUrl = '<?= brand?.logoUrl || "" ?>';
 
   // Populate header elements
   const titleEl = document.getElementById('headerTitle');
@@ -15,8 +15,15 @@
   if (titleEl) titleEl.textContent = appTitle;
   if (buildEl) buildEl.textContent = 'Build: ' + buildId;
   if (logoEl) {
-    logoEl.src = logoUrl;
-    logoEl.alt = appTitle;
+    if (logoUrl && logoUrl.startsWith('http')) {
+      // Only set logo if we have a valid HTTP/HTTPS URL
+      logoEl.src = logoUrl;
+      logoEl.alt = appTitle;
+      logoEl.style.display = '';
+    } else {
+      // Hide logo if no valid URL is provided
+      logoEl.style.display = 'none';
+    }
   }
 })();
 </script>
