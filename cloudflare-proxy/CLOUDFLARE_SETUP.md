@@ -18,14 +18,47 @@ Replace Hostinger with Cloudflare Workers as your proxy layer to Google Apps Scr
 ## Architecture
 
 ```
-Before (Hostinger):
-User → zeventbooks.com (PHP proxy) → Google Apps Script
+┌─────────────────────────────────────────────────────────────────────┐
+│                     DEPLOYMENT OPTIONS                               │
+└─────────────────────────────────────────────────────────────────────┘
 
-After (Cloudflare):
-User → api.zeventbooks.com (Edge Worker) → Google Apps Script
-       ↓
-    Cloudflare CDN (300+ locations)
+Option A: FULL SITE via Cloudflare (Recommended)
+─────────────────────────────────────────────────
+User → zeventbooks.com ────→ Cloudflare Worker ────→ Google Apps Script
+       (custom domain)       (edge: <50ms)           (backend)
+
+       Serves: HTML pages + API + All brands
+       URLs:
+         zeventbooks.com?page=admin&brand=root     (Admin page)
+         zeventbooks.com?page=display&brand=abc    (Display page)
+         zeventbooks.com?p=status&brand=cbc        (Status API)
+
+
+Option B: API Subdomain Only
+────────────────────────────
+User → api.zeventbooks.com ──→ Cloudflare Worker ──→ Google Apps Script
+       (API subdomain)         (edge: <50ms)         (backend)
+
+       Serves: API responses only
+       Main site: Still on Hostinger or elsewhere
+
+
+Option C: Direct Apps Script (No Proxy)
+───────────────────────────────────────
+User → script.google.com/macros/s/.../exec ──→ Google Apps Script
+       (Google's URL)                           (backend)
+
+       No custom domain, long URL
 ```
+
+## Deployment Commands
+
+| Environment | Command | Routes |
+|-------------|---------|--------|
+| Development | `wrangler deploy` | `*.workers.dev` |
+| Production (Full Site) | `wrangler deploy --env production` | `zeventbooks.com/*` |
+| Staging | `wrangler deploy --env staging` | `staging.zeventbooks.com/*` |
+| API Only | `wrangler deploy --env api-only` | `api.zeventbooks.com/*` |
 
 ## Prerequisites
 
