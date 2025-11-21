@@ -75,6 +75,7 @@ SecurityMiddleware_gate()          - Centralized security (in middleware)
 | `api_getConfig` | None | OK | Public config |
 | `api_list` | None | OK | Public event listing |
 | `api_get` | None | OK | Public event details |
+| `api_getPublicBundle` | None | OK | Bundled public data (event+sponsors+links) |
 | `api_generateToken` | `gate_()` | OK | Protected |
 | `api_create` | `gate_()` | OK | Protected |
 | `api_updateEventData` | `gate_()` | OK | Protected |
