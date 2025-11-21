@@ -55,8 +55,9 @@ describe('SponsorUtils', () => {
     test('should escape complex XSS attack vectors', () => {
       const xssVector = '<img src="x" onerror="alert(\'XSS\')">';
       const escaped = esc(xssVector);
+      // The angle brackets and quotes are escaped, making the HTML non-executable
       expect(escaped).not.toContain('<img');
-      expect(escaped).not.toContain('onerror');
+      expect(escaped).toContain('&lt;img'); // < is escaped to &lt;
       expect(escaped).toBe('&lt;img src=&quot;x&quot; onerror=&quot;alert(&#39;XSS&#39;)&quot;&gt;');
     });
 
@@ -145,7 +146,9 @@ describe('SponsorUtils', () => {
           evt.ua = navigator.userAgent;
           evt.ts = Date.now();
           logBatch.push(evt);
-        } catch (_) {}
+        } catch (_) {
+          // Silently ignore logging errors
+        }
       };
 
       flush = function() {
