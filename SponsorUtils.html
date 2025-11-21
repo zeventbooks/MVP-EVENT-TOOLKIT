@@ -1,0 +1,181 @@
+<script>
+/**
+ * SponsorUtils - Shared utilities for sponsor rendering across surfaces
+ * Used by: Display.html, Public.html, Poster.html
+ */
+window.SponsorUtils = (function() {
+  'use strict';
+
+  // === XSS Prevention ===
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, m => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[m]));
+  }
+
+  // === Analytics Logging ===
+  const BATCH_SIZE = 5;
+  const FLUSH_INTERVAL = 5000;
+  let logBatch = [];
+  let flushTimer = null;
+
+  function logEvent(evt) {
+    try {
+      evt.ua = navigator.userAgent;
+      evt.ts = Date.now();
+      logBatch.push(evt);
+      if (logBatch.length >= BATCH_SIZE) flush();
+    } catch (_) {}
+  }
+
+  function flush() {
+    if (!logBatch.length) return;
+    const copy = logBatch.splice(0, logBatch.length);
+    if (window.google?.script?.run) {
+      google.script.run.withFailureHandler(() => {}).api_logEvents({ items: copy });
+    }
+  }
+
+  function initLogging() {
+    if (flushTimer) clearInterval(flushTimer);
+    flushTimer = setInterval(flush, FLUSH_INTERVAL);
+    window.addEventListener('beforeunload', flush);
+  }
+
+  // === Sponsor Filtering ===
+  function filterByPlacement(sponsors, placement) {
+    return (sponsors || []).filter(s => s?.placements?.[placement]);
+  }
+
+  // === Generic Sponsor Renderer ===
+  /**
+   * Renders sponsors to a container element
+   * @param {Object} options
+   * @param {Array} options.sponsors - Array of sponsor objects
+   * @param {string} options.placement - Placement key (tvTop, tvSide, mobileBanner, posterTop)
+   * @param {HTMLElement} options.container - Target container element
+   * @param {string} options.surface - Surface name for logging (display, public, poster)
+   * @param {string} options.eventId - Event ID for logging
+   * @param {string} options.layout - 'inline' (top bar), 'cards' (side panel), 'banner' (single)
+   * @param {boolean} options.trackClicks - Whether to track click events
+   * @param {boolean} options.trackImpressions - Whether to log impressions
+   * @param {boolean} options.wrapLinks - Whether to wrap sponsors with URLs in anchor tags
+   * @param {number} options.maxSponsors - Max sponsors to show (0 = all)
+   * @returns {Array} - Filtered sponsors that were rendered
+   */
+  function renderSponsors(options) {
+    const {
+      sponsors = [],
+      placement,
+      container,
+      surface = 'unknown',
+      eventId = '',
+      layout = 'inline',
+      trackClicks = true,
+      trackImpressions = true,
+      wrapLinks = true,
+      maxSponsors = 0
+    } = options;
+
+    if (!container || !placement) return [];
+
+    let picks = filterByPlacement(sponsors, placement);
+    if (!picks.length) return [];
+
+    // Limit sponsors if maxSponsors is set
+    if (maxSponsors > 0) {
+      picks = picks.slice(0, maxSponsors);
+    }
+
+    // Render based on layout type
+    let html = '';
+    switch (layout) {
+      case 'cards':
+        html = picks.map(s => renderCard(s, wrapLinks)).join('');
+        break;
+      case 'banner':
+        html = picks.map(s => renderBanner(s, wrapLinks)).join('');
+        break;
+      case 'inline':
+      default:
+        html = picks.map(s => renderInline(s, wrapLinks)).join('');
+    }
+
+    container.innerHTML = html;
+    container.hidden = false;
+
+    // Log impressions
+    if (trackImpressions) {
+      picks.forEach(s => {
+        logEvent({ eventId, surface, metric: 'impression', sponsorId: s.id || '' });
+      });
+    }
+
+    // Attach click handlers
+    if (trackClicks && wrapLinks) {
+      container.querySelectorAll('a[data-sponsor-id]').forEach(a => {
+        a.addEventListener('click', () => {
+          logEvent({ eventId, surface, metric: 'click', sponsorId: a.dataset.sponsorId });
+        });
+      });
+    }
+
+    return picks;
+  }
+
+  // === Layout Renderers ===
+  function renderInline(s, wrapLinks) {
+    const content = s.img
+      ? `<img src="${esc(s.img)}" alt="${esc(s.name || '')}">`
+      : `<strong>${esc(s.name || '')}</strong>`;
+
+    if (wrapLinks && s.url) {
+      return `<a href="${esc(s.url)}" target="_blank" rel="noopener sponsored" data-sponsor-id="${esc(s.id || '')}">${content}</a>`;
+    }
+    return content;
+  }
+
+  function renderCard(s, wrapLinks) {
+    const card = `
+      <div class="sp-card" data-id="${esc(s.id || '')}">
+        ${s.img ? `<img src="${esc(s.img)}" alt="${esc(s.name || '')}">` : ''}
+        <div class="sp-name">${esc(s.name || '')}</div>
+      </div>
+    `;
+
+    if (wrapLinks && s.url) {
+      return `<a href="${esc(s.url)}" target="_blank" rel="noopener sponsored" data-sponsor-id="${esc(s.id || '')}" style="text-decoration:none;color:inherit;">${card}</a>`;
+    }
+    return card;
+  }
+
+  function renderBanner(s, wrapLinks) {
+    const content = `
+      ${s.img ? `<img src="${esc(s.img)}" alt="${esc(s.name || '')}">` : ''}
+      <strong>${esc(s.name || '')}</strong>
+    `;
+
+    if (wrapLinks && s.url) {
+      return `<a href="${esc(s.url)}" target="_blank" rel="noopener sponsored" data-sponsor-id="${esc(s.id || '')}">${content}</a>`;
+    }
+    return `<span>${content}</span>`;
+  }
+
+  // === Public API ===
+  return {
+    esc,
+    logEvent,
+    flush,
+    initLogging,
+    filterByPlacement,
+    renderSponsors,
+    // Expose individual renderers for custom use
+    renderInline,
+    renderCard,
+    renderBanner,
+    // Constants
+    BATCH_SIZE,
+    FLUSH_INTERVAL
+  };
+})();
+</script>

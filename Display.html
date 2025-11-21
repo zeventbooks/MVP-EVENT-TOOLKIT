@@ -5,6 +5,7 @@
   <title><?= appTitle ?> · TV Display</title>
   <?!= include('Styles'); ?>
   <?!= include('DemoMode'); ?>
+  <?!= include('SponsorUtils'); ?>
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <meta name="referrer" content="no-referrer" />
   <style>
@@ -121,31 +122,9 @@
       showToast._t = setTimeout(() => toast.hidden = true, ms);
     };
 
-    // XSS prevention - escape HTML entities
-    function esc(s) {
-      return String(s).replace(/[&<>"']/g, m => ({
-        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-      }[m]));
-    }
-
-    const logBatch = [];
-    function logEvent(evt) {
-      try {
-        evt.ua = navigator.userAgent;
-        evt.ts = Date.now();
-        logBatch.push(evt);
-        if (logBatch.length >= 5) flush();
-      } catch(_) {}
-    }
-    function flush() {
-      if (!logBatch.length) return;
-      const copy = logBatch.splice(0, logBatch.length);
-      if (google?.script?.run) {
-        google.script.run.withFailureHandler(() => {}).api_logEvents({ items: copy });
-      }
-    }
-    setInterval(flush, 5000);
-    window.addEventListener('beforeunload', flush);
+    // Use shared utilities from SponsorUtils
+    const { esc, logEvent, initLogging } = window.SponsorUtils;
+    initLogging();
 
     function renderSponsorTop(ev) {
       const picks = (ev?.data?.sponsors || []).filter(s => s?.placements?.tvTop);
