@@ -154,19 +154,24 @@ jobs:
         run: |
           echo "🚦 Gate 1: Evaluating API Test Results"
           echo "========================================="
-          
-          API_RESULT="${{ needs.api-tests.result }}"
-          
-          echo "API Tests Result: $API_RESULT"
+
+          # CRITICAL FIX: Check step OUTPUT result, not job result
+          # Job result is always "success" due to continue-on-error: true
+          # Step output captures actual test pass/fail status
+          API_RESULT="${{ needs.api-tests.outputs.result }}"
+          JOB_RESULT="${{ needs.api-tests.result }}"
+
+          echo "API Tests Step Output: $API_RESULT"
+          echo "API Tests Job Result: $JOB_RESULT"
           echo ""
-          
+
           if [[ "$API_RESULT" == "success" ]]; then
             echo "✅ API tests PASSED"
             echo "✅ Proceeding to Smoke Tests"
             echo "should_run=true" >> $GITHUB_OUTPUT
             echo "api_passed=true" >> $GITHUB_OUTPUT
           else
-            echo "❌ API tests FAILED"
+            echo "❌ API tests FAILED (test output: $API_RESULT)"
             echo "🛑 BLOCKING: Skipping Smoke Tests and Expensive Tests"
             echo "   Fix API issues before running further tests"
             echo "should_run=false" >> $GITHUB_OUTPUT
@@ -248,19 +253,24 @@ jobs:
         run: |
           echo "🚦 Gate 2: Evaluating Smoke Test Results"
           echo "=========================================="
-          
-          SMOKE_RESULT="${{ needs.smoke-tests.result }}"
-          
-          echo "Smoke Tests Result: $SMOKE_RESULT"
+
+          # CRITICAL FIX: Check step OUTPUT result, not job result
+          # Job result is always "success" due to continue-on-error: true
+          # Step output captures actual test pass/fail status
+          SMOKE_RESULT="${{ needs.smoke-tests.outputs.result }}"
+          JOB_RESULT="${{ needs.smoke-tests.result }}"
+
+          echo "Smoke Tests Step Output: $SMOKE_RESULT"
+          echo "Smoke Tests Job Result: $JOB_RESULT"
           echo ""
-          
+
           if [[ "$SMOKE_RESULT" == "success" ]]; then
             echo "✅ Smoke tests PASSED"
             echo "✅ Proceeding to Expensive Tests (Flow + Page)"
             echo "should_run=true" >> $GITHUB_OUTPUT
             echo "smoke_passed=true" >> $GITHUB_OUTPUT
           else
-            echo "❌ Smoke tests FAILED"
+            echo "❌ Smoke tests FAILED (test output: $SMOKE_RESULT)"
             echo "🛑 BLOCKING: Skipping Expensive Tests"
             echo "   Fix Smoke test issues before running expensive tests"
             echo "should_run=false" >> $GITHUB_OUTPUT
@@ -365,20 +375,19 @@ jobs:
           echo "Deployment URL: ${{ needs.setup.outputs.deployment_url }}"
           echo ""
           echo "Test Results (Sequential):"
-          echo "  🔥 API Tests (Critical):     ${{ needs.api-tests.result }}"
+          echo "  🔥 API Tests (Critical):     ${{ needs.api-tests.outputs.result }} (job: ${{ needs.api-tests.result }})"
           echo "  🚦 Gate 1 Decision:          ${{ needs.gate-1-api-results.outputs.should_run_smoke }}"
-          
+
           if [[ "${{ needs.gate-1-api-results.outputs.should_run_smoke }}" == "true" ]]; then
-            echo "  🔥 Smoke Tests (Critical):   ${{ needs.smoke-tests.result }}"
+            echo "  🔥 Smoke Tests (Critical):   ${{ needs.smoke-tests.outputs.result }} (job: ${{ needs.smoke-tests.result }})"
             echo "  🚦 Gate 2 Decision:          ${{ needs.gate-2-smoke-results.outputs.should_run_expensive }}"
           else
             echo "  🔥 Smoke Tests:              ⏭️ SKIPPED (API failed)"
             echo "  🚦 Gate 2 Decision:          N/A"
           fi
-          
+
           if [[ "${{ needs.gate-2-smoke-results.outputs.should_run_expensive }}" == "true" ]]; then
-            echo "  💰 Flow Tests (Expensive):   ${{ needs.expensive-tests.result }}"
-            echo "  💰 Page Tests (Expensive):   ${{ needs.expensive-tests.result }}"
+            echo "  💰 Expensive Tests:          ${{ needs.expensive-tests.result }}"
           else
             echo "  💰 Expensive Tests:          ⏭️ SKIPPED (Smoke failed or not run)"
           fi
@@ -440,20 +449,19 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Stage | Test Suite | Result | Gate Decision |" >> $GITHUB_STEP_SUMMARY
           echo "|-------|------------|--------|---------------|" >> $GITHUB_STEP_SUMMARY
-          echo "| 1️⃣ | 🔥 API Tests | ${{ needs.api-tests.result == 'success' && '✅ PASS' || '❌ FAIL' }} | - |" >> $GITHUB_STEP_SUMMARY
+          echo "| 1️⃣ | 🔥 API Tests | ${{ needs.api-tests.outputs.result == 'success' && '✅ PASS' || '❌ FAIL' }} | - |" >> $GITHUB_STEP_SUMMARY
           echo "| 🚦 | Gate 1 | - | ${{ needs.gate-1-api-results.outputs.should_run_smoke == 'true' && '✅ Proceed to Smoke' || '🛑 Block Smoke' }} |" >> $GITHUB_STEP_SUMMARY
-          
+
           if [[ "${{ needs.gate-1-api-results.outputs.should_run_smoke }}" == "true" ]]; then
-            echo "| 2️⃣ | 🔥 Smoke Tests | ${{ needs.smoke-tests.result == 'success' && '✅ PASS' || '❌ FAIL' }} | - |" >> $GITHUB_STEP_SUMMARY
+            echo "| 2️⃣ | 🔥 Smoke Tests | ${{ needs.smoke-tests.outputs.result == 'success' && '✅ PASS' || '❌ FAIL' }} | - |" >> $GITHUB_STEP_SUMMARY
             echo "| 🚦 | Gate 2 | - | ${{ needs.gate-2-smoke-results.outputs.should_run_expensive == 'true' && '✅ Proceed to Expensive' || '🛑 Block Expensive' }} |" >> $GITHUB_STEP_SUMMARY
           else
             echo "| 2️⃣ | 🔥 Smoke Tests | ⏭️ SKIPPED | API failed |" >> $GITHUB_STEP_SUMMARY
             echo "| 🚦 | Gate 2 | - | N/A |" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           if [[ "${{ needs.gate-2-smoke-results.outputs.should_run_expensive }}" == "true" ]]; then
-            echo "| 3️⃣ | 💰 Flow Tests | ${{ needs.expensive-tests.result == 'success' && '✅ PASS' || '❌ FAIL' }} | - |" >> $GITHUB_STEP_SUMMARY
-            echo "| 3️⃣ | 💰 Page Tests | ${{ needs.expensive-tests.result == 'success' && '✅ PASS' || '❌ FAIL' }} | - |" >> $GITHUB_STEP_SUMMARY
+            echo "| 3️⃣ | 💰 Expensive Tests | ${{ needs.expensive-tests.result == 'success' && '✅ PASS' || '❌ FAIL' }} | - |" >> $GITHUB_STEP_SUMMARY
           else
             echo "| 3️⃣ | 💰 Expensive Tests | ⏭️ SKIPPED | Smoke failed or not run |" >> $GITHUB_STEP_SUMMARY
           fi
