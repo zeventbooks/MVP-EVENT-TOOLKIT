@@ -54,7 +54,7 @@ Push to `main` branch - automatic deployment via CI/CD pipeline.
 npm run push   # Push code to Apps Script
 npm run deploy # Create new deployment
 ```
-- **First time setup:** Run `clasp login` (see [CLASP_SETUP.md](./CLASP_SETUP.md))
+- **First time setup:** Run `clasp login` (see [docs/CLASP_SETUP.md](./docs/CLASP_SETUP.md))
 
 ### Option 3: Manual Copy-Paste
 1. Open [Apps Script Editor](https://script.google.com/home/projects/1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l/edit)
@@ -65,29 +65,25 @@ npm run deploy # Create new deployment
 
 ## Documentation
 
-### For Developers Building Custom Frontends
-- **[Interactive API Docs](?page=docs)** - 🆕 Test API endpoints in your browser!
-- **[AUTHENTICATION_GUIDE.md](./AUTHENTICATION_GUIDE.md)** - 🆕 3 authentication methods explained
-- **[CUSTOM_FRONTEND_GUIDE.md](./CUSTOM_FRONTEND_GUIDE.md)** - Build React/Vue/mobile apps
-- **[POSTMAN_API_TESTING.md](./POSTMAN_API_TESTING.md)** - REST API reference & testing
-- **[postman-collection.json](./postman-collection.json)** - Import into Postman
-- **[openapi.yaml](./openapi.yaml)** - 🆕 OpenAPI 3.0 specification
+### Getting Started
+- **[docs/FIRST_TIME_SETUP.md](./docs/FIRST_TIME_SETUP.md)** - Complete setup guide from scratch
+- **[docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md)** - Deployment guide
 
-### For Deployment & DevOps
-- **[GOOGLE_CLOUD_SECRETS_SETUP.md](./GOOGLE_CLOUD_SECRETS_SETUP.md)** - 🆕 Configure Google Cloud secrets for GitHub Actions
-- **[DEPLOYMENT_AUTOMATION.md](./DEPLOYMENT_AUTOMATION.md)** - 🆕 Automated deployment CLI tool
-- **[DEPLOYMENT_CONFIGURATION.md](./DEPLOYMENT_CONFIGURATION.md)** - Single source of truth for deployment config
-- **[APPS_SCRIPT_PROJECT.md](./APPS_SCRIPT_PROJECT.md)** - Unified deployment configuration
-- **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Complete deployment guide
-- **[DEPLOYMENT_QUICK_START.md](./DEPLOYMENT_QUICK_START.md)** - DevOps quick start
-- **[GITHUB_ACTIONS_DEPLOYMENT.md](./GITHUB_ACTIONS_DEPLOYMENT.md)** - CI/CD setup
+### For Developers Building Custom Frontends
+- **[Interactive API Docs](?page=docs)** - Test API endpoints in your browser
+- **[docs/AUTHENTICATION_GUIDE.md](./docs/AUTHENTICATION_GUIDE.md)** - 3 authentication methods
+- **[docs/CUSTOM_FRONTEND_GUIDE.md](./docs/CUSTOM_FRONTEND_GUIDE.md)** - Build React/Vue/mobile apps
+- **[docs/DESIGN_SYSTEM.md](./docs/DESIGN_SYSTEM.md)** - UI patterns, SharedUtils, APIClient
+- **[openapi.yaml](./openapi.yaml)** - OpenAPI 3.0 specification
 
 ### For Architecture & Testing
-- **[ARCHITECTURE_REVIEW.md](./ARCHITECTURE_REVIEW.md)** - System architecture
-- **[TESTING.md](./TESTING.md)** - Test infrastructure (130+ tests)
-- **[tests/README.md](./tests/README.md)** - 🆕 Complete test suite documentation
-- **[TEST_INFRASTRUCTURE_SUMMARY.md](./TEST_INFRASTRUCTURE_SUMMARY.md)** - Test coverage matrix
-- **[LOAD_TESTING.md](./LOAD_TESTING.md)** - 🆕 Performance & load testing with k6
+- **[docs/TESTING.md](./docs/TESTING.md)** - Test infrastructure (260+ tests)
+- **[tests/README.md](./tests/README.md)** - Complete test suite documentation
+- **[docs/SECURITY.md](./docs/SECURITY.md)** - Security considerations
+
+### For DevOps
+- **[docs/CLASP_SETUP.md](./docs/CLASP_SETUP.md)** - clasp CLI setup
+- **[docs/DEPLOYMENT_FLOW.md](./docs/DEPLOYMENT_FLOW.md)** - CI/CD pipeline
 
 ## Notes
 - Poster shows a QR only when the server returns a verified `posterUrl`

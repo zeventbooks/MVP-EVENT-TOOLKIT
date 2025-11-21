@@ -895,10 +895,9 @@ Open your custom app → F12 → Network tab → See all API requests
 
 ## 🆘 Support
 
-- **API Issues:** Check [POSTMAN_API_TESTING.md](./POSTMAN_API_TESTING.md)
 - **Testing:** See [TESTING.md](./TESTING.md)
 - **Deployment:** See [DEPLOYMENT.md](./DEPLOYMENT.md)
-- **Architecture:** See [ARCHITECTURE_REVIEW.md](./ARCHITECTURE_REVIEW.md)
+- **Design System:** See [DESIGN_SYSTEM.md](./DESIGN_SYSTEM.md)
 
 ---
 

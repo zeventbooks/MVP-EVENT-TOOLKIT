@@ -627,10 +627,9 @@ When adding new features:
 
 ## 🔗 Related Documentation
 
-- [TESTING.md](../TESTING.md) - Testing strategy overview
-- [TEST_INFRASTRUCTURE_SUMMARY.md](../TEST_INFRASTRUCTURE_SUMMARY.md) - Infrastructure details
-- [E2E_TESTING_GUIDE.md](../E2E_TESTING_GUIDE.md) - E2E testing guide
-- [AUTHENTICATION_GUIDE.md](../AUTHENTICATION_GUIDE.md) - Authentication methods
+- [TESTING.md](../docs/TESTING.md) - Testing strategy overview
+- [E2E_TESTING_GUIDE.md](../docs/E2E_TESTING_GUIDE.md) - E2E testing guide
+- [AUTHENTICATION_GUIDE.md](../docs/AUTHENTICATION_GUIDE.md) - Authentication methods
 
 ---
 

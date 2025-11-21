@@ -363,9 +363,9 @@ Once your setup check passes:
    ```
 
 4. **Read the full documentation:**
-   - [DEPLOYMENT.md](../DEPLOYMENT.md)
-   - [API_GUIDE.md](../API_GUIDE.md)
-   - [ARCHITECTURE_REVIEW.md](../ARCHITECTURE_REVIEW.md)
+   - [DEPLOYMENT.md](./DEPLOYMENT.md)
+   - [AUTHENTICATION_GUIDE.md](./AUTHENTICATION_GUIDE.md)
+   - [CUSTOM_FRONTEND_GUIDE.md](./CUSTOM_FRONTEND_GUIDE.md)
 
 ---
 
