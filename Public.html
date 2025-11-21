@@ -208,7 +208,7 @@
         evt.ua = navigator.userAgent;
         evt.ts = Date.now();
         logBatch.push(evt);
-        if (logBatch.length >= 4) flush();
+        if (logBatch.length >= 5) flush();
       } catch (_) {}
     }
     function flush() {

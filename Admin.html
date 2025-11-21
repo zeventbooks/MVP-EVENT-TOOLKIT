@@ -568,7 +568,7 @@
     async function loadSignupForms() {
       if (!currentEventId) return;
       overlay(true);
-      const res = await NU.rpc('api_get', { brandId: TENANT, scope: SCOPE, id: currentEventId });
+      const res = await NU.rpc('api_get', { brandId: BRAND, scope: SCOPE, id: currentEventId });
       overlay(false);
 
       if (res.ok && res.value) {
@@ -736,7 +736,7 @@
     async function loadDisplayConfig() {
       if (!currentEventId) return;
       overlay(true);
-      const res = await NU.rpc('api_get', { brandId: TENANT, scope: SCOPE, id: currentEventId });
+      const res = await NU.rpc('api_get', { brandId: BRAND, scope: SCOPE, id: currentEventId });
       overlay(false);
 
       if (res.ok && res.value) {
