@@ -29,6 +29,15 @@ export default {
       return Response.redirect(staticUrl, 302);
     }
 
+    // Redirect Google's internal endpoints (warden, etc.)
+    // These are Google's security/analytics endpoints that must go to Google directly
+    if (url.pathname.startsWith('/wardeninit') ||
+        url.pathname.startsWith('/warden') ||
+        url.pathname.startsWith('/_/')) {
+      const googleUrl = `https://script.google.com${url.pathname}${url.search}`;
+      return Response.redirect(googleUrl, 302);
+    }
+
     // Handle CORS preflight
     if (request.method === 'OPTIONS') {
       return handleCORS();
