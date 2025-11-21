@@ -6,10 +6,13 @@
   <?!= include('Header'); ?>
   <?!= include('HeaderInit'); ?>
   <?!= include('NUSDK'); ?>
+  <?!= include('SharedUtils'); ?>
+  <?!= include('APIClient'); ?>
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <meta name="referrer" content="no-referrer"/>
   <?!= include('Styles'); ?>
   <style>
+    /* Page-specific styles (theme gradient) */
     body {
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       min-height: 100vh;
@@ -19,134 +22,15 @@
       max-width: 1200px;
       margin: 0 auto;
     }
-    .page-header {
-      background: white;
-      border-radius: 16px;
-      padding: 2rem;
-      margin-bottom: 2rem;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-    }
-    .page-header h1 {
-      margin: 0 0 0.5rem 0;
-      font-size: 2rem;
-      color: #1f2937;
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-    }
-    .page-header .subtitle {
-      color: #6b7280;
-      font-size: 1rem;
-    }
-    .nav-breadcrumb {
-      margin-bottom: 1rem;
-    }
+    /* Theme-specific accent color override */
     .nav-breadcrumb a {
       color: #667eea;
-      text-decoration: none;
     }
-    .nav-breadcrumb a:hover {
-      text-decoration: underline;
-    }
-    .section {
-      background: white;
-      border-radius: 16px;
-      padding: 2rem;
-      margin-bottom: 2rem;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-    }
-    .section h2 {
-      margin: 0 0 1.5rem 0;
-      font-size: 1.5rem;
-      color: #1f2937;
-      border-bottom: 2px solid #e5e7eb;
-      padding-bottom: 0.75rem;
-    }
-    .form-group {
-      margin-bottom: 1.5rem;
-    }
-    .form-group label {
-      display: block;
-      font-weight: 600;
-      margin-bottom: 0.5rem;
-      color: #374151;
-    }
-    .form-group input,
-    .form-group textarea,
-    .form-group select {
-      width: 100%;
-      padding: 0.75rem;
-      border: 2px solid #e5e7eb;
-      border-radius: 8px;
-      font-size: 1rem;
-      transition: border-color 0.2s;
-      box-sizing: border-box;
-    }
-    .form-group input:focus,
-    .form-group textarea:focus,
-    .form-group select:focus {
-      outline: none;
+    .entity-card:hover {
       border-color: #667eea;
     }
-    .btn {
-      padding: 0.75rem 1.5rem;
-      border-radius: 8px;
-      font-size: 1rem;
-      font-weight: 600;
-      cursor: pointer;
-      border: none;
-      transition: all 0.2s;
-    }
-    .btn-primary {
-      background: #667eea;
-      color: white;
-    }
-    .btn-primary:hover {
-      background: #5568d3;
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-    }
-    .btn-secondary {
-      background: #6b7280;
-      color: white;
-    }
-    .btn-secondary:hover {
-      background: #4b5563;
-    }
-    .btn-danger {
-      background: #ef4444;
-      color: white;
-    }
-    .btn-danger:hover {
-      background: #dc2626;
-    }
-    .btn-sm {
-      padding: 0.5rem 1rem;
-      font-size: 0.875rem;
-    }
-    .sponsor-list {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: 1.5rem;
-      margin-top: 1.5rem;
-    }
-    .sponsor-card {
-      background: #f9fafb;
-      border: 2px solid #e5e7eb;
-      border-radius: 12px;
-      padding: 1.5rem;
-      transition: all 0.2s;
-    }
-    .sponsor-card:hover {
-      border-color: #667eea;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    }
-    .sponsor-card h3 {
-      margin: 0 0 0.5rem 0;
-      font-size: 1.25rem;
-      color: #1f2937;
-    }
-    .sponsor-card .sponsor-logo {
+    /* Sponsor logo in card */
+    .sponsor-logo-img {
       width: 100%;
       height: 150px;
       object-fit: contain;
@@ -155,100 +39,7 @@
       margin-bottom: 1rem;
       border: 1px solid #e5e7eb;
     }
-    .sponsor-card .sponsor-info {
-      font-size: 0.875rem;
-      color: #6b7280;
-      margin-bottom: 0.5rem;
-    }
-    .sponsor-card .sponsor-actions {
-      display: flex;
-      gap: 0.5rem;
-      margin-top: 1rem;
-      flex-wrap: wrap;
-    }
-    .tier-badge {
-      display: inline-block;
-      padding: 0.25rem 0.75rem;
-      border-radius: 9999px;
-      font-size: 0.75rem;
-      font-weight: 600;
-      text-transform: uppercase;
-    }
-    .tier-platinum {
-      background: #e5e7eb;
-      color: #1f2937;
-    }
-    .tier-gold {
-      background: #fef3c7;
-      color: #92400e;
-    }
-    .tier-silver {
-      background: #f3f4f6;
-      color: #374151;
-    }
-    .tier-bronze {
-      background: #fed7aa;
-      color: #7c2d12;
-    }
-    .alert {
-      padding: 1rem;
-      border-radius: 8px;
-      margin-bottom: 1rem;
-    }
-    .alert-info {
-      background: #dbeafe;
-      border: 2px solid #93c5fd;
-      color: #1e40af;
-    }
-    .alert-success {
-      background: #d1fae5;
-      border: 2px solid #6ee7b7;
-      color: #065f46;
-    }
-    .alert-error {
-      background: #fee2e2;
-      border: 2px solid #fca5a5;
-      color: #991b1b;
-    }
-    .loading {
-      text-align: center;
-      padding: 2rem;
-      color: #6b7280;
-    }
-    .empty-state {
-      text-align: center;
-      padding: 3rem 1rem;
-      color: #6b7280;
-    }
-    .empty-state-icon {
-      font-size: 3rem;
-      margin-bottom: 1rem;
-    }
-    .analytics-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 1rem;
-      margin-top: 1rem;
-    }
-    .analytics-card {
-      background: #f9fafb;
-      border: 2px solid #e5e7eb;
-      border-radius: 8px;
-      padding: 1.5rem;
-      text-align: center;
-    }
-    .analytics-card .value {
-      font-size: 2rem;
-      font-weight: 700;
-      color: #1f2937;
-      margin-bottom: 0.5rem;
-    }
-    .analytics-card .label {
-      font-size: 0.875rem;
-      color: #6b7280;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
+    /* Auth modal */
     #auth-prompt {
       background: rgba(0,0,0,0.5);
       position: fixed;
@@ -295,7 +86,7 @@
 
   <div class="container" id="main-content" style="display: none;">
     <!-- Header -->
-    <div class="page-header">
+    <div class="page-header-card">
       <div class="nav-breadcrumb">
         <a href="?page=test&brand=<?= brandId ?>">← Back to Dashboard</a>
       </div>
@@ -310,7 +101,7 @@
     <div id="alert-container"></div>
 
     <!-- Analytics Section -->
-    <div class="section">
+    <div class="page-section">
       <h2>Sponsor Analytics</h2>
       <div class="analytics-grid">
         <div class="analytics-card">
@@ -333,7 +124,7 @@
     </div>
 
     <!-- Add New Sponsor Section -->
-    <div class="section">
+    <div class="page-section">
       <h2>Add New Sponsor</h2>
       <form id="add-sponsor-form">
         <div class="form-group">
@@ -374,9 +165,9 @@
     </div>
 
     <!-- Existing Sponsors Section -->
-    <div class="section">
+    <div class="page-section">
       <h2>Active Sponsors</h2>
-      <div id="loading-sponsors" class="loading">
+      <div id="loading-sponsors" class="loading-state">
         <div>Loading sponsors...</div>
       </div>
       <div id="empty-sponsors" class="empty-state" style="display: none;">
@@ -384,7 +175,7 @@
         <h3>No Sponsors Yet</h3>
         <p>Add your first sponsor using the form above to get started.</p>
       </div>
-      <div class="sponsor-list" id="sponsor-list"></div>
+      <div class="entity-grid" id="sponsor-list"></div>
     </div>
 
     <!-- Back to Dashboard Button -->
@@ -450,19 +241,9 @@
       loadSponsors();
     }
 
+    // Use SharedUtils.showAlert for consistent alert handling
     function showAlert(message, type = 'info') {
-      const container = document.getElementById('alert-container');
-      const alert = document.createElement('div');
-      alert.className = `alert alert-${type}`;
-      alert.textContent = message;
-
-      container.innerHTML = '';
-      container.appendChild(alert);
-
-      // Auto-dismiss after 5 seconds
-      setTimeout(() => {
-        alert.remove();
-      }, 5000);
+      SharedUtils.showAlert(message, type);
     }
 
     async function loadSponsors() {
@@ -511,23 +292,24 @@
 
     function createSponsorCard(sponsor) {
       const card = document.createElement('div');
-      card.className = 'sponsor-card';
+      card.className = 'entity-card';
+      // Use NU.esc from NUSDK for XSS prevention
       card.innerHTML = `
-        <h3>${escapeHtml(sponsor.name)}</h3>
-        ${sponsor.tier ? `<span class="tier-badge tier-${sponsor.tier}">${sponsor.tier}</span>` : ''}
-        ${sponsor.logo ? `<img src="${escapeHtml(sponsor.logo)}" alt="${escapeHtml(sponsor.name)} logo" class="sponsor-logo" onerror="this.style.display='none'">` : ''}
-        <div class="sponsor-info">
-          ${sponsor.website ? `🌐 <a href="${escapeHtml(sponsor.website)}" target="_blank" style="color: #667eea;">${escapeHtml(sponsor.website)}</a>` : ''}
+        <h3>${NU.esc(sponsor.name)}</h3>
+        ${sponsor.tier ? `<span class="tier-badge tier-${NU.esc(sponsor.tier)}">${NU.esc(sponsor.tier)}</span>` : ''}
+        ${sponsor.logo ? `<img src="${NU.esc(sponsor.logo)}" alt="${NU.esc(sponsor.name)} logo" class="sponsor-logo-img" onerror="this.style.display='none'">` : ''}
+        <div class="entity-card-info">
+          ${sponsor.website ? `🌐 <a href="${NU.esc(sponsor.website)}" target="_blank" rel="noopener" style="color: #667eea;">${NU.esc(sponsor.website)}</a>` : ''}
         </div>
-        ${sponsor.description ? `<div class="sponsor-info">${escapeHtml(sponsor.description)}</div>` : ''}
-        <div class="sponsor-info" style="font-size: 0.75rem; color: #9ca3af;">
-          ID: ${escapeHtml(sponsor.id)}
+        ${sponsor.description ? `<div class="entity-card-info">${NU.esc(sponsor.description)}</div>` : ''}
+        <div class="entity-card-info" style="font-size: 0.75rem; color: #9ca3af;">
+          ID: ${NU.esc(sponsor.id)}
         </div>
-        <div class="sponsor-actions">
-          <button class="btn btn-secondary btn-sm" onclick="editSponsor('${escapeHtml(sponsor.id)}')">
+        <div class="entity-card-actions">
+          <button class="btn-secondary btn-sm" onclick="editSponsor('${NU.esc(sponsor.id)}')">
             ✏️ Edit
           </button>
-          <button class="btn btn-danger btn-sm" onclick="deleteSponsor('${escapeHtml(sponsor.id)}', '${escapeHtml(sponsor.name)}')">
+          <button class="btn-danger btn-sm" onclick="deleteSponsor('${NU.esc(sponsor.id)}', '${NU.esc(sponsor.name)}')">
             🗑️ Delete
           </button>
         </div>
@@ -673,16 +455,7 @@
       }
     }
 
-    function escapeHtml(unsafe) {
-      if (!unsafe) return '';
-      return unsafe
-        .toString()
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-    }
+    // Note: escapeHtml removed - use NU.esc() from NUSDK for XSS prevention
   </script>
 </body>
 </html>

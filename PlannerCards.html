@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Event Planner - Card Interface</title>
+  <?!= HtmlService.createHtmlOutputFromFile('NUSDK').getContent(); ?>
+  <?!= HtmlService.createHtmlOutputFromFile('SharedUtils').getContent(); ?>
   <?!= HtmlService.createHtmlOutputFromFile('Styles').getContent(); ?>
   <style>
     /* Card-based layout styles */
@@ -1415,13 +1417,23 @@
       }, 5000);
     }
 
+    // Use NU.esc from NUSDK for XSS prevention (local wrapper for backward compatibility)
     function escapeHtml(text) {
+      if (window.NU && typeof window.NU.esc === 'function') {
+        return NU.esc(text);
+      }
+      // Fallback if NUSDK not loaded
       const div = document.createElement('div');
       div.textContent = text;
       return div.innerHTML;
     }
 
+    // Use SharedUtils.formatDate (local wrapper for backward compatibility)
     function formatDate(dateString) {
+      if (window.SharedUtils && typeof window.SharedUtils.formatDate === 'function') {
+        return SharedUtils.formatDate(dateString);
+      }
+      // Fallback if SharedUtils not loaded
       if (!dateString) return 'Date TBD';
       const date = new Date(dateString);
       return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });

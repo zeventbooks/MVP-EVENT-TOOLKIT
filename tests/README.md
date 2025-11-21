@@ -32,18 +32,20 @@ tests/
 The MVP Event Toolkit has **comprehensive test coverage** across unit, contract, and E2E tests:
 
 ```
-Total Tests: 200+ tests
-├── Unit Tests (Jest): 107 tests
+Total Tests: 260+ tests
+├── Unit Tests (Jest): 140 tests
 │   ├── backend.test.js: 78 tests
-│   └── sponsor-utils.test.js: 29 tests (XSS, filtering, analytics, carousel)
-├── Contract Tests (Jest): 23 tests
-│   └── api.contract.test.js: Includes api_getPublicBundle validation
+│   ├── sponsor-utils.test.js: 29 tests (XSS, filtering, analytics, carousel)
+│   └── shared-utils.test.js: 33 tests (alerts, dates, validation, XSS)
+├── Contract Tests (Jest): 48 tests
+│   ├── api.contract.test.js: Includes api_getPublicBundle validation
+│   └── api-client.contract.test.js: 25 tests (APIClient contracts)
 ├── Triangle Contract Tests (Jest): 56 tests
 │   ├── Before Event: 15 tests
 │   ├── During Event: 14 tests
 │   ├── After Event: 13 tests
 │   └── All Phases: 14 tests
-└── E2E Tests (Playwright): 80+ tests
+└── E2E Tests (Playwright): 100+ tests
     ├── Authentication: 25+ tests
     ├── API Docs Page: 15+ tests
     ├── Admin Workflows: 10 tests
@@ -51,7 +53,8 @@ Total Tests: 200+ tests
     ├── Diagnostics Page: 5 tests
     ├── Critical Flows: 12 tests
     ├── Public Page: 15+ tests (sponsor carousel, analytics)
-    └── Poster Page: 20+ tests (layout, QR codes, analytics, print)
+    ├── Poster Page: 20+ tests (layout, QR codes, analytics, print)
+    └── Shared Components: 20+ tests (SharedUtils, APIClient integration)
 ```
 
 ---
@@ -59,9 +62,11 @@ Total Tests: 200+ tests
 ## 🧪 Test Types
 
 ### 1. Unit Tests (Jest)
-**Location:** `tests/unit/backend.test.js`
+**Location:** `tests/unit/`
 
-Tests backend utility functions in isolation:
+Tests backend utility functions and front-end utilities in isolation:
+
+**backend.test.js** (78 tests):
 - Error envelopes (Ok/Err patterns)
 - Input sanitization (XSS prevention)
 - URL validation
@@ -70,6 +75,20 @@ Tests backend utility functions in isolation:
 - Rate limiting logic
 - Slug generation
 
+**sponsor-utils.test.js** (29 tests):
+- XSS prevention for sponsor rendering
+- Sponsor filtering by placement
+- Analytics logging
+- Carousel functionality
+
+**shared-utils.test.js** (33 tests):
+- Alert/notification system
+- Date formatting (formatDate, formatRelativeTime)
+- Input validation (isValidEmail, isValidUrl)
+- Form validation
+- XSS prevention (esc function)
+- Utility functions (debounce, throttle)
+
 **Run:**
 ```bash
 npm run test:unit
@@ -77,9 +96,9 @@ npm run test:coverage  # With coverage report
 ```
 
 ### 2. Contract Tests (Jest)
-**Location:** `tests/contract/api.contract.test.js`
+**Location:** `tests/contract/`
 
-Tests API response contracts for all 11 endpoints:
+**api.contract.test.js** - Tests API response contracts for all 11 endpoints:
 - `api_status` - Health check
 - `api_list` - List events with etag
 - `api_get` - Get single event
@@ -89,6 +108,13 @@ Tests API response contracts for all 11 endpoints:
 - `api_getReport` - Analytics report
 - `api_createShortlink` - Shortlink generation
 - Error codes and formats
+
+**api-client.contract.test.js** (25 tests) - Tests APIClient.html contracts:
+- Response envelope validation (Ok/Err patterns)
+- Request payload structures for CRUD operations
+- API method mapping (create/list/get/update/remove)
+- Configuration contracts
+- Error object structure
 
 **Run:**
 ```bash
@@ -601,10 +627,9 @@ When adding new features:
 
 ## 🔗 Related Documentation
 
-- [TESTING.md](../TESTING.md) - Testing strategy overview
-- [TEST_INFRASTRUCTURE_SUMMARY.md](../TEST_INFRASTRUCTURE_SUMMARY.md) - Infrastructure details
-- [E2E_TESTING_GUIDE.md](../E2E_TESTING_GUIDE.md) - E2E testing guide
-- [AUTHENTICATION_GUIDE.md](../AUTHENTICATION_GUIDE.md) - Authentication methods
+- [TESTING.md](../docs/TESTING.md) - Testing strategy overview
+- [E2E_TESTING_GUIDE.md](../docs/E2E_TESTING_GUIDE.md) - E2E testing guide
+- [AUTHENTICATION_GUIDE.md](../docs/AUTHENTICATION_GUIDE.md) - Authentication methods
 
 ---
 
