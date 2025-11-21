@@ -3,8 +3,29 @@
 
 const ZEB = Object.freeze({
   APP_TITLE: 'Zeventbook',
-  BUILD_ID: 'triangle-extended-v1.3',
+  BUILD_ID: 'triangle-extended-v1.4',
   CONTRACT_VER: '1.0.3',
+
+  // === Feature Flags ===
+  // Controls which features are active in the current deployment
+  // Set to false to defer non-MVP features without removing code
+  FEATURE_FLAGS: {
+    // MVP Features (always enabled)
+    EVENTS: true,           // Event CRUD operations
+    SPONSORS: true,         // Sponsor management
+    ANALYTICS: true,        // Basic analytics and reporting
+    FORMS: true,            // Google Forms integration
+    SHORTLINKS: true,       // URL shortening
+
+    // Deferred Features (disabled for MVP)
+    WEBHOOKS: false,        // External integrations (Zapier, Slack, etc.)
+    I18N: false,            // Multi-language support (EN, ES, FR, DE, etc.)
+    ADVANCED_ANALYTICS: false, // Advanced sponsor ROI calculations
+
+    // Experimental Features (disabled)
+    PORTFOLIO_ANALYTICS: true,  // Parent org portfolio reporting
+    SPONSOR_SELF_SERVICE: true  // Sponsor dashboard access
+  },
 
   // Customer-Friendly URL Routing
   // Maps friendly URLs to technical parameters for better UX
@@ -298,6 +319,28 @@ const FORM_TEMPLATES = [
 // Accessors
 function loadBrands_() { return BRANDS; }
 function findBrand_(id) { return BRANDS.find(b => b.id === id) || null; }
+
+/**
+ * Check if a feature is enabled
+ * @param {string} featureName - Feature name (e.g., 'WEBHOOKS', 'I18N')
+ * @returns {boolean} - True if feature is enabled
+ */
+function isFeatureEnabled_(featureName) {
+  return ZEB.FEATURE_FLAGS[featureName] === true;
+}
+
+/**
+ * Gate an API response based on feature flag
+ * Returns a "feature disabled" error if the feature is not enabled
+ * @param {string} featureName - Feature name to check
+ * @returns {object|null} - Error envelope if disabled, null if enabled
+ */
+function requireFeature_(featureName) {
+  if (!isFeatureEnabled_(featureName)) {
+    return Err('FEATURE_DISABLED', `Feature '${featureName}' is not enabled in this deployment. Contact admin to enable.`);
+  }
+  return null;
+}
 // Fixed: Bug #43 - Don't default to root brand for unknown hosts
 function findBrandByHost_(host) {
   host = String(host || '').toLowerCase();

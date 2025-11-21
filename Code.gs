@@ -652,8 +652,10 @@ function handleRestApiPost_(e, action, body, brand) {
     }));
   }
 
-  // Webhook Management Endpoints
+  // Webhook Management Endpoints (gated by WEBHOOKS feature flag)
   if (action === 'registerWebhook' || action === 'api_registerWebhook') {
+    const featureCheck = requireFeature_('WEBHOOKS');
+    if (featureCheck) return jsonResponse_(featureCheck);
     return jsonResponse_(WebhookService_register({
       brandId,
       adminKey,
@@ -666,6 +668,8 @@ function handleRestApiPost_(e, action, body, brand) {
   }
 
   if (action === 'unregisterWebhook' || action === 'api_unregisterWebhook') {
+    const featureCheck = requireFeature_('WEBHOOKS');
+    if (featureCheck) return jsonResponse_(featureCheck);
     return jsonResponse_(WebhookService_unregister({
       brandId,
       adminKey,
@@ -674,6 +678,8 @@ function handleRestApiPost_(e, action, body, brand) {
   }
 
   if (action === 'listWebhooks' || action === 'api_listWebhooks') {
+    const featureCheck = requireFeature_('WEBHOOKS');
+    if (featureCheck) return jsonResponse_(featureCheck);
     return jsonResponse_(WebhookService_list({
       brandId,
       adminKey
@@ -681,6 +687,8 @@ function handleRestApiPost_(e, action, body, brand) {
   }
 
   if (action === 'testWebhook' || action === 'api_testWebhook') {
+    const featureCheck = requireFeature_('WEBHOOKS');
+    if (featureCheck) return jsonResponse_(featureCheck);
     return jsonResponse_(WebhookService_test({
       brandId,
       adminKey,
@@ -689,6 +697,8 @@ function handleRestApiPost_(e, action, body, brand) {
   }
 
   if (action === 'getWebhookDeliveries' || action === 'api_getWebhookDeliveries') {
+    const featureCheck = requireFeature_('WEBHOOKS');
+    if (featureCheck) return jsonResponse_(featureCheck);
     return jsonResponse_(WebhookService_getDeliveries({
       brandId,
       adminKey,
@@ -697,8 +707,10 @@ function handleRestApiPost_(e, action, body, brand) {
     }));
   }
 
-  // i18n (Internationalization) Endpoints
+  // i18n (Internationalization) Endpoints (gated by I18N feature flag)
   if (action === 'translate' || action === 'api_translate') {
+    const featureCheck = requireFeature_('I18N');
+    if (featureCheck) return jsonResponse_(featureCheck);
     return jsonResponse_(api_translate({
       key: body.key || '',
       locale: body.locale || '',
@@ -707,10 +719,14 @@ function handleRestApiPost_(e, action, body, brand) {
   }
 
   if (action === 'getSupportedLocales' || action === 'api_getSupportedLocales') {
+    const featureCheck = requireFeature_('I18N');
+    if (featureCheck) return jsonResponse_(featureCheck);
     return jsonResponse_(i18n_getSupportedLocales());
   }
 
   if (action === 'setUserLocale' || action === 'api_setUserLocale') {
+    const featureCheck = requireFeature_('I18N');
+    if (featureCheck) return jsonResponse_(featureCheck);
     return jsonResponse_(i18n_setUserLocale(body.locale || ''));
   }
 
@@ -2087,6 +2103,11 @@ function api_logEvents(req){
     const items = (req && req.items) || [];
     if (!items.length) return Ok({count:0});
 
+    // Security fix: Require authentication to prevent analytics injection
+    const { brandId, adminKey } = req || {};
+    const g = gate_(brandId || 'root', adminKey);
+    if (!g.ok) return g;
+
     const sh = _ensureAnalyticsSheet_();
     const now = Date.now();
 
@@ -2193,7 +2214,9 @@ function api_exportReport(req){
     const eventId = String(req && req.id || '');
     if (!eventId) return Err(ERR.BAD_INPUT,'missing id');
 
-    const rep = api_getReport({id:eventId});
+    // Security fix: Pass credentials to api_getReport for proper authentication
+    const { brandId, adminKey } = req || {};
+    const rep = api_getReport({id: eventId, brandId: brandId || 'root', adminKey});
     if (!rep.ok) return rep;
 
     const ss = SpreadsheetApp.getActive();

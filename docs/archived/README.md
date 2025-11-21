@@ -1,31 +1,48 @@
 # Archived Documentation
 
-These documents are **archived** and no longer maintained. They relate to the legacy Hostinger proxy deployment which has been replaced by Cloudflare Workers.
+This directory contains archived documentation and code that is no longer part of the active MVP.
 
-## Why Archived?
+## Archive Structure
 
-The project has migrated from Hostinger PHP proxy to Cloudflare Workers for:
-- Better performance (edge computing vs PHP)
-- Simpler deployment (no FTP required)
-- Automatic HTTPS and caching
-- Lower latency globally
+### `/hostinger-proxy/`
+Legacy PHP proxy files replaced by Cloudflare Workers.
+- `index.php`, `index-advanced.php` - PHP proxy scripts
+- `.htaccess` - Apache rewrite rules
+- `README.md`, `ROUTING_EXAMPLES.md` - Proxy documentation
 
-## Current Deployment
+### `/experimental-frontends/`
+Alternative Admin interfaces that are not part of the MVP golden path.
+- `AdminEnhanced.html` - Enhanced admin UI (experimental)
+- `AdminWizard.html` - Step-by-step wizard (experimental)
 
-For current deployment instructions, see:
-- `/cloudflare-proxy/CLOUDFLARE_SETUP.md` - Cloudflare Workers setup
-- `/DEPLOYMENT_PIPELINE.md` - CI/CD pipeline documentation
+**MVP Admin**: Use `Admin.html` in the root directory.
 
-## Archived Files
+### `/experimental-dashboards/`
+Standalone dashboard experiments not integrated into main product.
+- `dashboard/` - Standalone monitoring dashboard
+- `test-dashboard.html` - Test dashboard page
 
-| File | Original Purpose |
-|------|------------------|
-| `HOSTINGER_DEPLOYMENT_STRATEGY.md` | Hostinger deployment planning |
-| `HOSTINGER_SETUP_INSTRUCTIONS.md` | Hostinger configuration steps |
-| `HOSTINGER_PROXY_SETUP.md` | PHP proxy setup guide |
-| `HOSTINGER_HPANEL_WALKTHROUGH.md` | Hostinger control panel guide |
-| `PR_DESCRIPTION_HOSTINGER.md` | PR template for Hostinger changes |
+### `/analysis-reports/`
+Historical analysis documents from previous sprints and reviews.
+- Architecture analyses
+- Deployment fix guides
+- CI/CD enhancement plans
+- Executive summaries
+- Consolidation reports
 
-## Note
+## Current Production Stack
 
-The `hostinger-proxy/` directory still exists for reference but is deprecated.
+| Component | Current | Archived |
+|-----------|---------|----------|
+| Proxy Layer | Cloudflare Workers | Hostinger PHP |
+| Admin Interface | `Admin.html` | `AdminEnhanced.html`, `AdminWizard.html` |
+| Documentation | 13 essential guides in root | 89+ analysis reports |
+
+## For Current Documentation
+
+See root directory for active documentation:
+- `README.md` - Project overview
+- `START_HERE.md` - Quick start guide
+- `DEPLOYMENT.md` - Deployment instructions
+- `TESTING.md` - Test infrastructure
+- `MVP_GOLDEN_PATH.md` - Canonical pages and architecture
