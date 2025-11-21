@@ -244,7 +244,7 @@ test.describe('📱 Network Conditions', () => {
     });
 
     // Wait for API response (with timeout)
-    const response = await Promise.race([
+    await Promise.race([
       page.waitForResponse(resp => resp.url().includes('action=list'), { timeout: 5000 }),
       new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
     ]).catch(() => null);
