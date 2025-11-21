@@ -1158,6 +1158,7 @@ function verifyJWT_(token, brand) {
 
 /**
  * Generate JWT token for a brand (for demo/testing)
+ * @tier mvp
  */
 function api_generateToken(req) {
   const authCheck = gate_(req.brandId, req.adminKey);
@@ -1394,6 +1395,10 @@ function _ensureShortlinksSheet_(spreadsheetId){
 
 // === APIs (uniform envelopes + SWR) =======================================
 
+/**
+ * System status check - verifies database connectivity and returns build info
+ * @tier mvp
+ */
 function api_status(brandId){
   return runSafe('api_status', () => {
     try {
@@ -1451,6 +1456,7 @@ function api_status(brandId){
 /**
  * Comprehensive setup verification endpoint for first-time configuration
  * Checks all critical setup requirements and provides actionable guidance
+ * @tier mvp
  */
 function api_setupCheck(brandId) {
   return runSafe('api_setupCheck', () => {
@@ -1696,6 +1702,7 @@ function api_setupCheck(brandId) {
  * - ok: true if all permissions are granted
  * - error: detailed error message if permissions are missing
  * - details: information about what was tested
+ * @tier mvp
  */
 function api_checkPermissions(brandId) {
   return runSafe('api_checkPermissions', () => {
@@ -1842,6 +1849,10 @@ function api_checkPermissions(brandId) {
   });
 }
 
+/**
+ * Simple health check endpoint
+ * @tier mvp
+ */
 function api_healthCheck(){
   return runSafe('api_healthCheck', () => {
     diag_('info','health','ping',{build:ZEB.BUILD_ID});
@@ -1849,6 +1860,10 @@ function api_healthCheck(){
   });
 }
 
+/**
+ * Get brand/environment configuration
+ * @tier mvp
+ */
 function api_getConfig(arg){
   return runSafe('api_getConfig', () => {
     const brands = loadBrands_().map(t => ({
@@ -1861,7 +1876,10 @@ function api_getConfig(arg){
   });
 }
 
-// Fixed: Bug #50 - Add pagination support to prevent loading all rows
+/**
+ * List events with pagination
+ * @tier mvp
+ */
 function api_list(payload){
   return runSafe('api_list', () => {
     const { brandId, scope, limit, offset } = payload||{};
@@ -1904,6 +1922,10 @@ function api_list(payload){
   });
 }
 
+/**
+ * Get single event by ID
+ * @tier mvp
+ */
 function api_get(payload){
   return runSafe('api_get', () => {
     const { brandId, scope, id } = payload||{};
@@ -1941,6 +1963,7 @@ function api_get(payload){
  * Reduces latency for detail views by eliminating multiple round-trips
  * @param {object} payload - { brandId, scope, id, ifNoneMatch }
  * @returns {object} { ok, value: { event, config, links }, etag }
+ * @tier mvp
  */
 function api_getPublicBundle(payload){
   return runSafe('api_getPublicBundle', () => {
@@ -1997,6 +2020,10 @@ function api_getPublicBundle(payload){
   });
 }
 
+/**
+ * Create new event
+ * @tier mvp
+ */
 function api_create(payload){
   return runSafe('api_create', () => {
     if(!payload||typeof payload!=='object') return Err(ERR.BAD_INPUT,'Missing payload');
@@ -2084,6 +2111,10 @@ function api_create(payload){
   });
 }
 
+/**
+ * Update event data (merge with existing)
+ * @tier mvp
+ */
 function api_updateEventData(req){
   return runSafe('api_updateEventData', () => {
     if(!req||typeof req!=='object') return Err(ERR.BAD_INPUT,'Missing payload');
@@ -2159,6 +2190,11 @@ function api_updateEventData(req){
   });
 }
 
+/**
+ * Log analytics events (impressions, clicks, dwell time)
+ * Core tracking endpoint for the analytics loop
+ * @tier mvp
+ */
 function api_logEvents(req){
   return runSafe('api_logEvents', () => {
     const items = (req && req.items) || [];
@@ -2190,6 +2226,10 @@ function api_logEvents(req){
   });
 }
 
+/**
+ * Get event analytics report
+ * @tier mvp
+ */
 function api_getReport(req){
   return runSafe('api_getReport', () => {
     const { brandId, adminKey } = req || {};
@@ -2270,6 +2310,10 @@ function api_getReport(req){
   });
 }
 
+/**
+ * Export report to spreadsheet
+ * @tier v2 - Advanced export matrix
+ */
 function api_exportReport(req){
   return runSafe('api_exportReport', () => {
     const eventId = String(req && req.id || '');
@@ -2321,6 +2365,7 @@ function api_exportReport(req){
  * Allows sponsors to view their performance metrics across events
  * @param {object} req - Request object with sponsorId, eventId (optional), dateFrom/dateTo (optional)
  * @returns {object} Sponsor analytics including impressions, clicks, CTR, ROI by surface
+ * @tier mvp - Core analytics for sponsor value proposition
  */
 function api_getSponsorAnalytics(req) {
   return runSafe('api_getSponsorAnalytics', () => {
@@ -2477,6 +2522,7 @@ function api_getSponsorAnalytics(req) {
  * @param {string} [req.brandId] - Brand ID
  * @param {string} [req.adminKey] - Admin key for authentication
  * @returns {object} ROI dashboard with metrics, financials, and insights
+ * @tier mvp - The WOW factor: real ROI numbers for sponsors
  */
 function api_getSponsorROI(req) {
   return runSafe('api_getSponsorROI', () => {
@@ -2530,6 +2576,7 @@ function api_getSponsorROI(req) {
  * @param {object} req - Request parameters
  * @param {string} [req.brandId] - Brand ID for brand-specific settings
  * @returns {object} Result envelope with sponsor settings
+ * @tier mvp
  */
 function api_getSponsorSettings(req) {
   return runSafe('api_getSponsorSettings', () => {
@@ -2560,6 +2607,7 @@ function api_getSponsorSettings(req) {
  * @param {array} req.sponsors - Array of sponsor objects with placements
  * @param {string} [req.brandId] - Brand ID for settings lookup
  * @returns {object} Result envelope with validation results
+ * @tier mvp
  */
 function api_validateSponsorPlacements(req) {
   return runSafe('api_validateSponsorPlacements', () => {
@@ -2722,6 +2770,10 @@ function generateSponsorInsights_(agg) {
   return insights;
 }
 
+/**
+ * Create trackable shortlink for CTR tracking
+ * @tier mvp - Core tracking for analytics loop
+ */
 function api_createShortlink(req){
   return runSafe('api_createShortlink', () => {
     if(!req||typeof req!=='object') return Err(ERR.BAD_INPUT,'Missing payload');
@@ -2764,6 +2816,10 @@ function api_createShortlink(req){
 
 // === Google Forms Template Creation ===
 
+/**
+ * List available form templates
+ * @tier mvp
+ */
 function api_listFormTemplates(){
   return runSafe('api_listFormTemplates', () => {
     const templates = listFormTemplates_();
@@ -2771,6 +2827,10 @@ function api_listFormTemplates(){
   });
 }
 
+/**
+ * Create Google Form from template
+ * @tier mvp
+ */
 function api_createFormFromTemplate(req){
   return runSafe('api_createFormFromTemplate', () => {
     if(!req||typeof req!=='object') return Err(ERR.BAD_INPUT,'Missing payload');
@@ -2864,6 +2924,10 @@ function api_createFormFromTemplate(req){
   });
 }
 
+/**
+ * Generate trackable shortlink for form URL
+ * @tier mvp
+ */
 function api_generateFormShortlink(req){
   return runSafe('api_generateFormShortlink', () => {
     if(!req||typeof req!=='object') return Err(ERR.BAD_INPUT,'Missing payload');
@@ -2889,6 +2953,7 @@ function api_generateFormShortlink(req){
  * Get consolidated sponsor report across brand portfolio
  * @param {object} req - Request with brandId, adminKey, sponsorId, options
  * @returns {object} - Portfolio-wide sponsor analytics
+ * @tier v2 - Multi-event portfolio analytics
  */
 function api_getPortfolioSponsorReport(req) {
   return runSafe('api_getPortfolioSponsorReport', () => {
@@ -2924,6 +2989,7 @@ function api_getPortfolioSponsorReport(req) {
  * Get brand portfolio summary for parent organization
  * @param {object} req - Request with brandId, adminKey
  * @returns {object} - Portfolio summary
+ * @tier v2 - Multi-event portfolio analytics
  */
 function api_getPortfolioSummary(req) {
   return runSafe('api_getPortfolioSummary', () => {
@@ -2959,6 +3025,7 @@ function api_getPortfolioSummary(req) {
  * Get list of all sponsors across brand portfolio
  * @param {object} req - Request with brandId, adminKey
  * @returns {object} - Portfolio sponsors list
+ * @tier v2 - Multi-event portfolio analytics
  */
 function api_getPortfolioSponsors(req) {
   return runSafe('api_getPortfolioSponsors', () => {
@@ -2990,6 +3057,10 @@ function api_getPortfolioSponsors(req) {
   });
 }
 
+/**
+ * Run full system diagnostics
+ * @tier mvp - Useful for debugging setup issues
+ */
 function api_runDiagnostics(){
   return runSafe('api_runDiagnostics', () => {
     const steps = [];
