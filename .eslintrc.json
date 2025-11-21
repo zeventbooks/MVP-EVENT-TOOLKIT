@@ -170,6 +170,17 @@
       "rules": {
         "no-undef": "off"
       }
+    },
+    {
+      "files": ["cloudflare-proxy/**/*.js"],
+      "parserOptions": {
+        "sourceType": "module"
+      },
+      "env": {
+        "browser": false,
+        "node": false,
+        "worker": true
+      }
     }
   ],
   "ignorePatterns": [
