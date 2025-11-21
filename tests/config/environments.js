@@ -1,25 +1,16 @@
 /**
  * Test Environment Configuration
  *
- * Supports testing against multiple deployment targets:
- * - Cloudflare/zeventbooks.com (production) - DEFAULT for testing
- * - Google Apps Script (direct)
- * - Local development
+ * APP_URL = https://zeventbooks.com (Cloudflare Workers)
  *
- * Environment Variables:
- * - APP_URL: Application URL for Playwright browser tests (default: zeventbooks.com)
- * - BASE_URL: API base URL (defaults to APP_URL if not set)
- * - TEST_ENV: Environment name override (production, staging, googleAppsScript)
+ * Override with: APP_URL=https://staging.zeventbooks.com npm run test:e2e
  */
 
-// Default production URL (Cloudflare Workers / custom domain)
-const DEFAULT_APP_URL = 'https://zeventbooks.com';
+// APP_URL = zeventbooks.com (Cloudflare Workers) - DEFAULT
+const APP_URL = process.env.APP_URL || 'https://zeventbooks.com';
 
-// Apps Script deployment ID (for direct testing if needed)
+// Apps Script deployment ID (for direct testing bypass)
 const DEFAULT_DEPLOYMENT_ID = 'AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw';
-
-// Resolve APP_URL with fallback chain
-const APP_URL = process.env.APP_URL || process.env.BASE_URL || DEFAULT_APP_URL;
 
 const ENVIRONMENTS = {
   // Cloudflare / zeventbooks.com - Production (DEFAULT)

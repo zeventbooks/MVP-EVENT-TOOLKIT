@@ -15,9 +15,8 @@
 
 const { test, expect } = require('@playwright/test');
 
-// Default to production (zeventbooks.com via Cloudflare Workers)
-// APP_URL = Application URL for Playwright browser tests
-const BASE_URL = process.env.APP_URL || process.env.BASE_URL || 'https://zeventbooks.com';
+// APP_URL = zeventbooks.com (Cloudflare Workers)
+const BASE_URL = process.env.APP_URL || 'https://zeventbooks.com';
 const BRAND_ID = 'root';
 
 // Validate environment configuration before running tests
