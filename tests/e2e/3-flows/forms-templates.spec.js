@@ -13,8 +13,11 @@
  */
 
 const { test, expect } = require('@playwright/test');
+const { getCurrentEnvironment } = require('../../config/environments');
 
-const BASE_URL = process.env.BASE_URL || 'https://script.google.com/macros/s/AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw/exec';
+// Use centralized environment config - single source of truth for deployment URL
+const env = getCurrentEnvironment();
+const BASE_URL = env.baseUrl;
 const BRAND_ID = process.env.BRAND_ID || 'root';
 const ADMIN_KEY = process.env.ADMIN_KEY || 'CHANGE_ME_root';
 
