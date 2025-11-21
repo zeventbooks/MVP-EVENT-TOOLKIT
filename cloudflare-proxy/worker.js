@@ -20,6 +20,24 @@ export default {
     const deploymentId = env.DEPLOYMENT_ID || DEFAULT_DEPLOYMENT_ID;
     const appsScriptBase = `https://script.google.com/macros/s/${deploymentId}/exec`;
 
+    const url = new URL(request.url);
+
+    // Redirect Google's static assets to script.google.com
+    // These cannot be proxied - must redirect to Google's CDN
+    if (url.pathname.startsWith('/static/')) {
+      const staticUrl = `https://script.google.com${url.pathname}${url.search}`;
+      return Response.redirect(staticUrl, 302);
+    }
+
+    // Redirect Google's internal endpoints (warden, etc.)
+    // These are Google's security/analytics endpoints that must go to Google directly
+    if (url.pathname.startsWith('/wardeninit') ||
+        url.pathname.startsWith('/warden') ||
+        url.pathname.startsWith('/_/')) {
+      const googleUrl = `https://script.google.com${url.pathname}${url.search}`;
+      return Response.redirect(googleUrl, 302);
+    }
+
     // Handle CORS preflight
     if (request.method === 'OPTIONS') {
       return handleCORS();
