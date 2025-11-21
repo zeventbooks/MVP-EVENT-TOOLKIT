@@ -2,24 +2,52 @@
  * Test Environment Configuration
  *
  * Supports testing against multiple deployment targets:
- * - Google Apps Script (production) - DEFAULT for testing
- * - Hostinger (proxy/CDN)
+ * - Cloudflare/zeventbooks.com (production) - DEFAULT for testing
+ * - Google Apps Script (direct)
  * - Local development
  *
- * Tests default to Google Apps Script endpoint for direct API testing.
+ * Tests default to zeventbooks.com (via Cloudflare Workers proxy).
  * Set BASE_URL or TEST_ENV environment variable to override.
  */
 
-// Default Apps Script deployment ID (from latest production deployment)
-// This is updated automatically by CI/CD or can be set via GOOGLE_SCRIPT_URL env var
+// Default production URL (Cloudflare Workers / custom domain)
+const DEFAULT_BASE_URL = 'https://zeventbooks.com';
+
+// Apps Script deployment ID (for direct testing if needed)
 const DEFAULT_DEPLOYMENT_ID = 'AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw';
 
 const ENVIRONMENTS = {
-  // Google Apps Script - Production deployment (DEFAULT)
+  // Cloudflare / zeventbooks.com - Production (DEFAULT)
+  production: {
+    name: 'Production',
+    baseUrl: process.env.BASE_URL || DEFAULT_BASE_URL,
+    description: 'Production via Cloudflare Workers (zeventbooks.com)',
+    brands: {
+      root: 'root',
+      abc: 'abc',
+      cbc: 'cbc',
+      cbl: 'cbl'
+    }
+  },
+
+  // API subdomain (Cloudflare)
+  api: {
+    name: 'API',
+    baseUrl: process.env.API_URL || 'https://api.zeventbooks.com',
+    description: 'API subdomain via Cloudflare Workers',
+    brands: {
+      root: 'root',
+      abc: 'abc',
+      cbc: 'cbc',
+      cbl: 'cbl'
+    }
+  },
+
+  // Google Apps Script - Direct access (for debugging)
   googleAppsScript: {
     name: 'Google Apps Script',
     baseUrl: process.env.GOOGLE_SCRIPT_URL || `https://script.google.com/macros/s/${DEFAULT_DEPLOYMENT_ID}/exec`,
-    description: 'Direct Google Apps Script deployment (Production)',
+    description: 'Direct Google Apps Script (bypass proxy)',
     brands: {
       root: 'root',
       abc: 'abc',
@@ -28,24 +56,11 @@ const ENVIRONMENTS = {
     }
   },
 
-  // Google Apps Script - QA deployment
-  qaAppsScript: {
-    name: 'QA Apps Script',
-    baseUrl: process.env.QA_SCRIPT_URL || `https://script.google.com/macros/s/${DEFAULT_DEPLOYMENT_ID}/exec`,
-    description: 'Direct Google Apps Script deployment (QA)',
-    brands: {
-      root: 'root',
-      abc: 'abc',
-      cbc: 'cbc',
-      cbl: 'cbl'
-    }
-  },
-
-  // Hostinger - Production domain
-  hostinger: {
-    name: 'Hostinger',
-    baseUrl: process.env.HOSTINGER_URL || 'https://zeventbooks.com',
-    description: 'Hostinger custom domain (Production)',
+  // Staging environment
+  staging: {
+    name: 'Staging',
+    baseUrl: process.env.STAGING_URL || 'https://staging.zeventbooks.com',
+    description: 'Staging environment via Cloudflare Workers',
     brands: {
       root: 'root',
       abc: 'abc',
@@ -100,8 +115,8 @@ function getCurrentEnvironment() {
 
   // Auto-detect based on BASE_URL
   if (!baseUrl) {
-    // Default to Google Apps Script for direct API testing
-    return { ...ENVIRONMENTS.googleAppsScript };
+    // Default to production (zeventbooks.com via Cloudflare)
+    return { ...ENVIRONMENTS.production };
   }
 
   // Parse URL securely to prevent substring injection attacks
