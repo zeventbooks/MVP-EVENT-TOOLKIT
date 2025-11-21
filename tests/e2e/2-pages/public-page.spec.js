@@ -443,3 +443,148 @@ test.describe('📄 PAGE: Public - Accessibility', () => {
     }
   });
 });
+
+test.describe('📄 PAGE: Public - Sponsor Carousel', () => {
+
+  test('Sponsor banner shows carousel indicator when multiple sponsors', async ({ page }) => {
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
+
+    // Navigate to event detail to see sponsor banner
+    const eventCards = page.locator('.event-card');
+    const count = await eventCards.count();
+
+    if (count > 0) {
+      await eventCards.first().locator('a').first().click();
+      await page.waitForLoadState('networkidle');
+
+      // Check for sponsor indicator (shows N/M when multiple sponsors)
+      const indicator = page.locator('.sponsor-indicator');
+      const hasIndicator = await indicator.count() > 0;
+
+      // Indicator only appears when multiple sponsors configured
+      if (hasIndicator) {
+        await expect(indicator).toBeVisible();
+        const text = await indicator.textContent();
+        // Should match pattern like "1/3" or "2/5"
+        expect(text).toMatch(/\d+\/\d+/);
+      }
+    }
+  });
+
+  test('Sponsor carousel rotates sponsors automatically', async ({ page }) => {
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
+
+    const eventCards = page.locator('.event-card');
+    const count = await eventCards.count();
+
+    if (count > 0) {
+      await eventCards.first().locator('a').first().click();
+      await page.waitForLoadState('networkidle');
+
+      const indicator = page.locator('.sponsor-indicator');
+      const hasIndicator = await indicator.count() > 0;
+
+      if (hasIndicator) {
+        // Get initial indicator text
+        const initialText = await indicator.textContent();
+
+        // Wait for carousel rotation (5 seconds + buffer)
+        await page.waitForTimeout(6000);
+
+        // Get new indicator text
+        const newText = await indicator.textContent();
+
+        // If multiple sponsors, text should change
+        if (initialText && initialText.includes('/')) {
+          const totalCount = parseInt(initialText.split('/')[1]);
+          if (totalCount > 1) {
+            expect(newText).not.toBe(initialText);
+          }
+        }
+      }
+    }
+  });
+
+  test('Sponsor click tracks analytics', async ({ page }) => {
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
+
+    const eventCards = page.locator('.event-card');
+    const count = await eventCards.count();
+
+    if (count > 0) {
+      await eventCards.first().locator('a').first().click();
+      await page.waitForLoadState('networkidle');
+
+      // Check for sponsor links with data-sponsor-id
+      const sponsorLinks = page.locator('a[data-sponsor-id]');
+      const linkCount = await sponsorLinks.count();
+
+      if (linkCount > 0) {
+        const firstLink = sponsorLinks.first();
+        await expect(firstLink).toBeVisible();
+
+        // Verify click tracking attribute exists
+        const sponsorId = await firstLink.getAttribute('data-sponsor-id');
+        expect(sponsorId).toBeTruthy();
+      }
+    }
+  });
+});
+
+test.describe('📄 PAGE: Public - Analytics Integration', () => {
+
+  test('SponsorUtils module is loaded', async ({ page }) => {
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
+
+    // Check if SponsorUtils is defined
+    const hasSponsorUtils = await page.evaluate(() => {
+      return typeof window.SponsorUtils !== 'undefined';
+    });
+
+    expect(hasSponsorUtils).toBe(true);
+  });
+
+  test('SponsorUtils has required methods', async ({ page }) => {
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
+
+    const methods = await page.evaluate(() => {
+      if (!window.SponsorUtils) return [];
+      return Object.keys(window.SponsorUtils);
+    });
+
+    // Should have core utilities
+    expect(methods).toContain('esc');
+    expect(methods).toContain('logEvent');
+    expect(methods).toContain('initLogging');
+  });
+
+  test('esc() properly escapes XSS vectors', async ({ page }) => {
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
+
+    const escaped = await page.evaluate(() => {
+      if (!window.SponsorUtils) return '';
+      return window.SponsorUtils.esc('<script>alert("xss")</script>');
+    });
+
+    expect(escaped).not.toContain('<script>');
+    expect(escaped).toContain('&lt;script&gt;');
+  });
+});

@@ -380,6 +380,113 @@ test.describe('Events CRUD APIs', () => {
     });
   });
 
+  test.describe('Get Public Bundle', () => {
+    let testEventId;
+
+    test.beforeEach(async () => {
+      // Create a test event with sponsors
+      const eventData = new EventBuilder()
+        .withName('Bundle Test Event')
+        .withDate('2025-12-20')
+        .withLocation('Bundle Venue')
+        .build();
+
+      // Add sponsor data
+      eventData.sponsors = [
+        { id: 'sp-test-1', name: 'Test Sponsor', placements: { mobileBanner: true, posterTop: true } }
+      ];
+      eventData.display = { mode: 'public' };
+
+      const response = await api.createEvent(brand, eventData, adminKey);
+      const data = await response.json();
+      testEventId = data.value.id;
+      createdEventIds.push(testEventId);
+    });
+
+    test('retrieves bundled event data', async () => {
+      const response = await api.post('?action=getPublicBundle', {
+        brandId: brand,
+        scope: 'events',
+        id: testEventId
+      });
+      const data = await response.json();
+
+      expect(response.ok()).toBe(true);
+      expect(data.ok).toBe(true);
+      expect(data.value).toHaveProperty('event');
+      expect(data.value).toHaveProperty('sponsors');
+      expect(data.value).toHaveProperty('display');
+      expect(data.value).toHaveProperty('links');
+      expect(data.value).toHaveProperty('config');
+    });
+
+    test('returns event with correct structure', async () => {
+      const response = await api.post('?action=getPublicBundle', {
+        brandId: brand,
+        scope: 'events',
+        id: testEventId
+      });
+      const data = await response.json();
+
+      expect(data.value.event).toHaveProperty('id', testEventId);
+      expect(data.value.event).toHaveProperty('data');
+      expect(data.value.event.data).toHaveProperty('name', 'Bundle Test Event');
+    });
+
+    test('returns sponsors at top level for convenience', async () => {
+      const response = await api.post('?action=getPublicBundle', {
+        brandId: brand,
+        scope: 'events',
+        id: testEventId
+      });
+      const data = await response.json();
+
+      expect(Array.isArray(data.value.sponsors)).toBe(true);
+    });
+
+    test('returns all link types', async () => {
+      const response = await api.post('?action=getPublicBundle', {
+        brandId: brand,
+        scope: 'events',
+        id: testEventId
+      });
+      const data = await response.json();
+
+      expect(data.value.links).toHaveProperty('publicUrl');
+      expect(data.value.links).toHaveProperty('posterUrl');
+      expect(data.value.links).toHaveProperty('displayUrl');
+      expect(data.value.links).toHaveProperty('reportUrl');
+    });
+
+    test('supports etag caching', async () => {
+      const response = await api.post('?action=getPublicBundle', {
+        brandId: brand,
+        scope: 'events',
+        id: testEventId
+      });
+      const data = await response.json();
+
+      expect(data).toHaveProperty('etag');
+      expect(typeof data.etag).toBe('string');
+    });
+
+    test('returns 404 for non-existent event', async () => {
+      const fakeId = 'non-existent-bundle-12345';
+      const response = await api.post('?action=getPublicBundle', {
+        brandId: brand,
+        scope: 'events',
+        id: fakeId
+      });
+
+      if (response.ok()) {
+        const data = await response.json();
+        expect(data.ok).toBe(false);
+      } else {
+        expect(response.status()).toBeGreaterThanOrEqual(400);
+      }
+    });
+  });
+
   test.describe('Event CRUD Flow', () => {
     test('complete CRUD lifecycle', async () => {
       // 1. CREATE
