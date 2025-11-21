@@ -295,7 +295,7 @@ jobs:
           echo "✅ Saved deployment URL for Stage 2 auto-trigger"
 
       - name: Upload deployment info artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: deployment-info
           path: deployment-info/deployment-url.txt
