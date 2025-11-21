@@ -1,7 +1,7 @@
 # Cloudflare Workers Configuration
 # https://developers.cloudflare.com/workers/wrangler/configuration/
 
-name = "zeventbooks"
+name = "eventangle"
 main = "worker.js"
 compatibility_date = "2024-01-01"
 
@@ -16,20 +16,20 @@ compatibility_date = "2024-01-01"
 DEPLOYMENT_ID = "AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw"
 
 # ============================================
-# Production - FULL SITE (zeventbooks.com)
+# Production - FULL SITE (eventangle.com)
 # ============================================
 # This serves EVERYTHING through Cloudflare:
 # - HTML pages (admin, public, display, etc.)
 # - API responses (status, events, sponsors)
 # - All brands (root, abc, cbc, cbl)
 [env.production]
-name = "zeventbooks-prod"
+name = "eventangle-prod"
 routes = [
   # Main domain - serves full site
-  { pattern = "zeventbooks.com/*", zone_name = "zeventbooks.com" },
-  { pattern = "www.zeventbooks.com/*", zone_name = "zeventbooks.com" },
+  { pattern = "eventangle.com/*", zone_name = "eventangle.com" },
+  { pattern = "www.eventangle.com/*", zone_name = "eventangle.com" },
   # API subdomain (optional, same worker)
-  { pattern = "api.zeventbooks.com/*", zone_name = "zeventbooks.com" }
+  { pattern = "api.eventangle.com/*", zone_name = "eventangle.com" }
 ]
 
 [env.production.vars]
@@ -39,10 +39,10 @@ DEPLOYMENT_ID = "AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV
 # Staging/QA Environment
 # ============================================
 [env.staging]
-name = "zeventbooks-staging"
+name = "eventangle-staging"
 routes = [
-  { pattern = "staging.zeventbooks.com/*", zone_name = "zeventbooks.com" },
-  { pattern = "api-staging.zeventbooks.com/*", zone_name = "zeventbooks.com" }
+  { pattern = "staging.eventangle.com/*", zone_name = "eventangle.com" },
+  { pattern = "api-staging.eventangle.com/*", zone_name = "eventangle.com" }
 ]
 
 [env.staging.vars]
@@ -51,12 +51,10 @@ DEPLOYMENT_ID = "AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV
 # ============================================
 # API Only (subdomain only, no main site)
 # ============================================
-# Use this if you want Cloudflare for API only
-# and keep Hostinger for the main site
 [env.api-only]
-name = "zeventbooks-api"
+name = "eventangle-api"
 routes = [
-  { pattern = "api.zeventbooks.com/*", zone_name = "zeventbooks.com" }
+  { pattern = "api.eventangle.com/*", zone_name = "eventangle.com" }
 ]
 
 [env.api-only.vars]
@@ -66,9 +64,9 @@ DEPLOYMENT_ID = "AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV
 # Development (workers.dev subdomain)
 # ============================================
 # Default deployment uses workers.dev:
-# https://zeventbooks.YOUR_SUBDOMAIN.workers.dev
+# https://eventangle.YOUR_SUBDOMAIN.workers.dev
 #
 # Test URLs:
-# - https://zeventbooks.YOUR_SUBDOMAIN.workers.dev?page=admin&brand=root
-# - https://zeventbooks.YOUR_SUBDOMAIN.workers.dev?p=status&brand=root
-# - https://zeventbooks.YOUR_SUBDOMAIN.workers.dev?page=display&brand=root
+# - https://eventangle.YOUR_SUBDOMAIN.workers.dev?page=admin&brand=root
+# - https://eventangle.YOUR_SUBDOMAIN.workers.dev?p=status&brand=root
+# - https://eventangle.YOUR_SUBDOMAIN.workers.dev?page=display&brand=root

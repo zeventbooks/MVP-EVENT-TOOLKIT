@@ -1,23 +1,23 @@
 /**
  * Test Environment Configuration
  *
- * APP_URL = https://zeventbooks.com (Cloudflare Workers)
+ * APP_URL = https://eventangle.com (Cloudflare Workers)
  *
- * Override with: APP_URL=https://staging.zeventbooks.com npm run test:e2e
+ * Override with: APP_URL=https://api.eventangle.com npm run test:e2e
  */
 
-// APP_URL = zeventbooks.com (Cloudflare Workers) - DEFAULT
-const APP_URL = process.env.APP_URL || 'https://zeventbooks.com';
+// APP_URL = eventangle.com (Cloudflare Workers) - DEFAULT
+const APP_URL = process.env.APP_URL || 'https://eventangle.com';
 
 // Apps Script deployment ID (for direct testing bypass)
 const DEFAULT_DEPLOYMENT_ID = 'AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw';
 
 const ENVIRONMENTS = {
-  // Cloudflare / zeventbooks.com - Production (DEFAULT)
+  // Cloudflare / eventangle.com - Production (DEFAULT)
   production: {
     name: 'Production',
     baseUrl: APP_URL,
-    description: 'Production via Cloudflare Workers (zeventbooks.com)',
+    description: 'Production via Cloudflare Workers (eventangle.com)',
     brands: {
       root: 'root',
       abc: 'abc',
