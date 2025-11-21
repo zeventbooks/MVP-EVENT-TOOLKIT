@@ -15,7 +15,9 @@
 
 const { test, expect } = require('@playwright/test');
 
-const BASE_URL = process.env.BASE_URL || process.env.GOOGLE_SCRIPT_URL || 'https://zeventbooks.com';
+// Default to Google Apps Script (not Hostinger proxy)
+const DEFAULT_DEPLOYMENT_ID = 'AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw';
+const BASE_URL = process.env.BASE_URL || process.env.GOOGLE_SCRIPT_URL || `https://script.google.com/macros/s/${DEFAULT_DEPLOYMENT_ID}/exec`;
 const BRAND_ID = 'root';
 
 // Validate environment configuration before running tests

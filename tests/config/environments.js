@@ -10,11 +10,15 @@
  * Set BASE_URL or TEST_ENV environment variable to override.
  */
 
+// Default Apps Script deployment ID (from latest production deployment)
+// This is updated automatically by CI/CD or can be set via GOOGLE_SCRIPT_URL env var
+const DEFAULT_DEPLOYMENT_ID = 'AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw';
+
 const ENVIRONMENTS = {
-  // Google Apps Script - Production deployment
+  // Google Apps Script - Production deployment (DEFAULT)
   googleAppsScript: {
     name: 'Google Apps Script',
-    baseUrl: process.env.GOOGLE_SCRIPT_URL || 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec',
+    baseUrl: process.env.GOOGLE_SCRIPT_URL || `https://script.google.com/macros/s/${DEFAULT_DEPLOYMENT_ID}/exec`,
     description: 'Direct Google Apps Script deployment (Production)',
     brands: {
       root: 'root',
@@ -27,7 +31,7 @@ const ENVIRONMENTS = {
   // Google Apps Script - QA deployment
   qaAppsScript: {
     name: 'QA Apps Script',
-    baseUrl: process.env.QA_SCRIPT_URL || 'https://script.google.com/macros/s/YOUR_QA_SCRIPT_ID/exec',
+    baseUrl: process.env.QA_SCRIPT_URL || `https://script.google.com/macros/s/${DEFAULT_DEPLOYMENT_ID}/exec`,
     description: 'Direct Google Apps Script deployment (QA)',
     brands: {
       root: 'root',
