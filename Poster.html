@@ -6,6 +6,7 @@
   <?!= include('Styles'); ?>
   <?!= include('DesignAdapter'); ?>
   <?!= include('DemoMode'); ?>
+  <?!= include('SponsorUtils'); ?>
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <meta name="referrer" content="no-referrer"/>
   <style>
@@ -257,11 +258,9 @@
     const SCOPE = '<?= scope ?>';
     const ID = new URL(location.href).searchParams.get('id');
 
-    function esc(s) {
-      return String(s).replace(/[&<>"']/g, m => ({
-        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-      }[m]));
-    }
+    // Use shared utilities from SponsorUtils
+    const { esc, logEvent, initLogging } = window.SponsorUtils;
+    initLogging();
 
     function renderSponsorStrip(evt) {
       const picks = (evt?.data?.sponsors || []).filter(s => s?.placements?.posterTop);
@@ -274,6 +273,11 @@
           : `<strong>${esc(s.name || '')}</strong>`
       ).join('');
       strip.hidden = false;
+
+      // Log sponsor impressions for poster surface
+      picks.forEach(s => {
+        logEvent({ eventId: evt.id, surface: 'poster', metric: 'impression', sponsorId: s.id || '' });
+      });
     }
 
     function renderEventDetails(evt) {
@@ -380,9 +384,17 @@
         return;
       }
 
+      // Log poster view
+      logEvent({ eventId: evt.id, surface: 'poster', metric: 'view', value: 1 });
+
       renderSponsorStrip(evt);
       renderEventDetails(evt);
       renderQRCodes(evt);
+
+      // Track print events
+      window.addEventListener('beforeprint', () => {
+        logEvent({ eventId: evt.id, surface: 'poster', metric: 'print', value: 1 });
+      });
     }
 
     google.script.run
