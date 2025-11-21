@@ -10,11 +10,17 @@
  * Set BASE_URL or TEST_ENV environment variable to override.
  */
 
+// IMPORTANT: This is the SINGLE SOURCE OF TRUTH for the deployment URL
+// When deployment changes, update this ID and all tests will use the new URL
+// The deployment must be configured with: Execute as=Me, Access=Anyone (no sign-in)
+const CURRENT_DEPLOYMENT_ID = 'AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw';
+const DEFAULT_SCRIPT_URL = `https://script.google.com/macros/s/${CURRENT_DEPLOYMENT_ID}/exec`;
+
 const ENVIRONMENTS = {
   // Google Apps Script - Production deployment
   googleAppsScript: {
     name: 'Google Apps Script',
-    baseUrl: process.env.GOOGLE_SCRIPT_URL || 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec',
+    baseUrl: process.env.GOOGLE_SCRIPT_URL || process.env.BASE_URL || DEFAULT_SCRIPT_URL,
     description: 'Direct Google Apps Script deployment (Production)',
     brands: {
       root: 'root',
@@ -27,7 +33,7 @@ const ENVIRONMENTS = {
   // Google Apps Script - QA deployment
   qaAppsScript: {
     name: 'QA Apps Script',
-    baseUrl: process.env.QA_SCRIPT_URL || 'https://script.google.com/macros/s/YOUR_QA_SCRIPT_ID/exec',
+    baseUrl: process.env.QA_SCRIPT_URL || DEFAULT_SCRIPT_URL,
     description: 'Direct Google Apps Script deployment (QA)',
     brands: {
       root: 'root',
@@ -209,6 +215,8 @@ function printEnvironmentInfo() {
 
 module.exports = {
   ENVIRONMENTS,
+  CURRENT_DEPLOYMENT_ID,
+  DEFAULT_SCRIPT_URL,
   getCurrentEnvironment,
   getBrandUrl,
   getAllBrandUrls,
