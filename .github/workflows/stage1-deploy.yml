@@ -270,6 +270,44 @@ jobs:
           echo "   https://zeventbooks.com?p=status&brand=root"
           echo "   https://zeventbooks.com?p=admin&brand=root"
 
+      - name: Update Cloudflare Worker (Optional)
+        if: success()
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          DEPLOYMENT_ID: ${{ steps.deploy.outputs.deployment_id }}
+        run: |
+          echo "☁️ Checking Cloudflare Worker configuration..."
+
+          # Check if Cloudflare secrets are configured
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "ℹ️ Cloudflare secrets not configured - skipping Worker update"
+            echo "   To enable Cloudflare Workers, add these secrets:"
+            echo "   - CLOUDFLARE_API_TOKEN"
+            echo "   - CLOUDFLARE_ACCOUNT_ID"
+            echo ""
+            echo "   See: cloudflare-proxy/CLOUDFLARE_SETUP.md"
+            exit 0
+          fi
+
+          echo "🔄 Updating Cloudflare Worker with new deployment ID..."
+
+          # Update wrangler.toml with new deployment ID
+          sed -i "s/DEPLOYMENT_ID = \"[^\"]*\"/DEPLOYMENT_ID = \"${DEPLOYMENT_ID}\"/" cloudflare-proxy/wrangler.toml
+
+          # Also update the worker.js default
+          sed -i "s/const DEFAULT_DEPLOYMENT_ID = '[^']*'/const DEFAULT_DEPLOYMENT_ID = '${DEPLOYMENT_ID}'/" cloudflare-proxy/worker.js
+
+          # Install and deploy with Wrangler
+          npm install -g wrangler
+
+          cd cloudflare-proxy
+          wrangler deploy
+
+          echo ""
+          echo "✅ Cloudflare Worker updated!"
+          echo "🔗 Worker URL: https://zeventbooks-api.workers.dev?p=status&brand=root"
+
       - name: Generate comprehensive brand URLs
         id: urls
         run: |

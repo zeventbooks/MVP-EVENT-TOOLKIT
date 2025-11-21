@@ -1,0 +1,46 @@
+# Cloudflare Workers Configuration
+# https://developers.cloudflare.com/workers/wrangler/configuration/
+
+name = "zeventbooks-api"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+# Account ID - Set via environment or wrangler login
+# account_id = "your-account-id"
+
+# ============================================
+# Environment Variables
+# ============================================
+# The deployment ID is updated by CI/CD after each Apps Script deployment
+[vars]
+DEPLOYMENT_ID = "AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw"
+
+# ============================================
+# Production Environment
+# ============================================
+[env.production]
+name = "zeventbooks-api-prod"
+routes = [
+  { pattern = "api.zeventbooks.com/*", zone_name = "zeventbooks.com" }
+]
+
+[env.production.vars]
+DEPLOYMENT_ID = "AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw"
+
+# ============================================
+# Staging/QA Environment
+# ============================================
+[env.staging]
+name = "zeventbooks-api-staging"
+routes = [
+  { pattern = "api-staging.zeventbooks.com/*", zone_name = "zeventbooks.com" }
+]
+
+[env.staging.vars]
+DEPLOYMENT_ID = "AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw"
+
+# ============================================
+# Development (workers.dev subdomain)
+# ============================================
+# Default deployment uses workers.dev:
+# https://zeventbooks-api.YOUR_SUBDOMAIN.workers.dev
