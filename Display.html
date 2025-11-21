@@ -121,6 +121,13 @@
       showToast._t = setTimeout(() => toast.hidden = true, ms);
     };
 
+    // XSS prevention - escape HTML entities
+    function esc(s) {
+      return String(s).replace(/[&<>"']/g, m => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[m]));
+    }
+
     const logBatch = [];
     function logEvent(evt) {
       try {
@@ -137,32 +144,53 @@
         google.script.run.withFailureHandler(() => {}).api_logEvents({ items: copy });
       }
     }
-    setInterval(flush, 6000);
+    setInterval(flush, 5000);
     window.addEventListener('beforeunload', flush);
 
     function renderSponsorTop(ev) {
       const picks = (ev?.data?.sponsors || []).filter(s => s?.placements?.tvTop);
       if (!picks.length) return;
-      topEl.innerHTML = picks.map(s => s.img
-        ? `<img src="${s.img}" alt="${s.name || ''}">`
-        : `<strong>${s.name || ''}</strong>`
-      ).join('');
+      topEl.innerHTML = picks.map(s => {
+        const content = s.img
+          ? `<img src="${esc(s.img)}" alt="${esc(s.name || '')}">`
+          : `<strong>${esc(s.name || '')}</strong>`;
+        return s.url
+          ? `<a href="${esc(s.url)}" target="_blank" rel="noopener sponsored" data-sponsor-id="${esc(s.id || '')}">${content}</a>`
+          : content;
+      }).join('');
       topEl.hidden = false;
       picks.forEach(s => logEvent({ eventId, surface: 'display', metric: 'impression', sponsorId: s.id || '' }));
+      // Track clicks on sponsor links
+      topEl.querySelectorAll('a[data-sponsor-id]').forEach(a => {
+        a.addEventListener('click', () => {
+          logEvent({ eventId, surface: 'display', metric: 'click', sponsorId: a.dataset.sponsorId });
+        });
+      });
     }
 
     function renderSponsorSide(ev) {
       const picks = (ev?.data?.sponsors || []).filter(s => s?.placements?.tvSide);
       if (!picks.length) return;
-      sideEl.innerHTML = picks.map(s => `
-        <div class="sp-card" data-id="${s.id || ''}">
-          ${s.img ? `<img src="${s.img}" alt="${s.name || ''}">` : ''}
-          <div class="sp-name">${s.name || ''}</div>
-        </div>
-      `).join('');
+      sideEl.innerHTML = picks.map(s => {
+        const card = `
+          <div class="sp-card" data-id="${esc(s.id || '')}">
+            ${s.img ? `<img src="${esc(s.img)}" alt="${esc(s.name || '')}">` : ''}
+            <div class="sp-name">${esc(s.name || '')}</div>
+          </div>
+        `;
+        return s.url
+          ? `<a href="${esc(s.url)}" target="_blank" rel="noopener sponsored" data-sponsor-id="${esc(s.id || '')}" style="text-decoration:none;color:inherit;">${card}</a>`
+          : card;
+      }).join('');
       sideEl.hidden = false;
       mainEl.classList.add('has-side');
       picks.forEach(s => logEvent({ eventId, surface: 'display', metric: 'impression', sponsorId: s.id || '' }));
+      // Track clicks on sponsor links
+      sideEl.querySelectorAll('a[data-sponsor-id]').forEach(a => {
+        a.addEventListener('click', () => {
+          logEvent({ eventId, surface: 'display', metric: 'click', sponsorId: a.dataset.sponsorId });
+        });
+      });
     }
 
     function startPublicMode() {
