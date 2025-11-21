@@ -22,14 +22,11 @@ export default {
 
     const url = new URL(request.url);
 
-    // Pass through Google's static assets directly (CSS, JS, images)
-    // These are served by Google at script.google.com/static/...
+    // Redirect Google's static assets to script.google.com
+    // These cannot be proxied - must redirect to Google's CDN
     if (url.pathname.startsWith('/static/')) {
       const staticUrl = `https://script.google.com${url.pathname}${url.search}`;
-      return fetch(staticUrl, {
-        headers: request.headers,
-        method: request.method,
-      });
+      return Response.redirect(staticUrl, 302);
     }
 
     // Handle CORS preflight
