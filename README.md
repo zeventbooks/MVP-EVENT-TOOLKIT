@@ -33,13 +33,14 @@ Project ID: 1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l
 - NUSDK.html
 - DesignAdapter.html
 - Header.html
+- SponsorUtils.html (Shared sponsor rendering utilities)
 - Admin.html
 - Public.html
 - Poster.html
 - Test.html
 - Display.html
 - Diagnostics.html
-- ApiDocs.html (🆕 Interactive API documentation)
+- ApiDocs.html (Interactive API documentation)
 
 ## Quick Deploy Options
 

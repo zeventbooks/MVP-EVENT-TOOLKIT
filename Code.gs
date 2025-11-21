@@ -1936,6 +1936,67 @@ function api_get(payload){
   });
 }
 
+/**
+ * Bundled endpoint for public pages - returns event + config in single call
+ * Reduces latency for detail views by eliminating multiple round-trips
+ * @param {object} payload - { brandId, scope, id, ifNoneMatch }
+ * @returns {object} { ok, value: { event, config, links }, etag }
+ */
+function api_getPublicBundle(payload){
+  return runSafe('api_getPublicBundle', () => {
+    const { brandId, scope, id } = payload||{};
+
+    // Validate ID format
+    const sanitizedId = sanitizeId_(id);
+    if (!sanitizedId) return Err(ERR.BAD_INPUT, 'Invalid ID format');
+
+    const brand = findBrand_(brandId);
+    if (!brand) return Err(ERR.NOT_FOUND, 'Unknown brand');
+
+    const a = assertScopeAllowed_(brand, scope);
+    if (!a.ok) return a;
+
+    // Get event data
+    const sh = getStoreSheet_(brand, scope);
+    const r = sh.getDataRange().getValues().slice(1).find(row => row[0]===sanitizedId && row[1]===brandId);
+    if (!r) return Err(ERR.NOT_FOUND, 'Not found');
+
+    const base = ScriptApp.getService().getUrl();
+    const eventData = safeJSONParse_(r[3], {});
+
+    // Build bundled response
+    const value = {
+      event: {
+        id: r[0],
+        brandId: r[1],
+        templateId: r[2],
+        data: eventData,
+        createdAt: r[4],
+        slug: r[5]
+      },
+      // Include sponsor data at top level for convenience
+      sponsors: eventData.sponsors || [],
+      display: eventData.display || {},
+      // Pre-computed links
+      links: {
+        publicUrl: `${base}?page=events&brand=${brandId}&id=${r[0]}`,
+        posterUrl: `${base}?page=poster&brand=${brandId}&id=${r[0]}`,
+        displayUrl: `${base}?page=display&brand=${brandId}&id=${r[0]}&tv=1`,
+        reportUrl: `${base}?page=report&brand=${brandId}&id=${r[0]}`
+      },
+      // Brand config subset (public-safe fields only)
+      config: {
+        appTitle: brand.appTitle || 'Events',
+        brandId: brand.brandId
+      }
+    };
+
+    const etag = Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(value)));
+    if (payload?.ifNoneMatch === etag) return { ok:true, notModified:true, etag };
+    return _ensureOk_('api_getPublicBundle', SC_GET, { ok:true, etag, value });
+  });
+}
+
 function api_create(payload){
   return runSafe('api_create', () => {
     if(!payload||typeof payload!=='object') return Err(ERR.BAD_INPUT,'Missing payload');

@@ -105,6 +105,65 @@ describe('API Contract Tests', () => {
     });
   });
 
+  describe('api_getPublicBundle', () => {
+    it('should return bundled event data with sponsors and config', () => {
+      const mockResponse = {
+        ok: true,
+        etag: 'bundle123',
+        value: {
+          event: {
+            id: 'event-1',
+            brandId: 'root',
+            templateId: 'event',
+            data: {
+              name: 'Test Event',
+              dateISO: '2025-12-01',
+              sponsors: [{ id: 'sp-1', name: 'Sponsor 1', placements: { mobileBanner: true } }]
+            },
+            createdAt: '2025-11-10T12:00:00.000Z',
+            slug: 'test-event'
+          },
+          sponsors: [{ id: 'sp-1', name: 'Sponsor 1', placements: { mobileBanner: true } }],
+          display: { mode: 'public' },
+          links: {
+            publicUrl: 'https://script.google.com/macros/s/.../exec?p=events&id=event-1',
+            posterUrl: 'https://script.google.com/macros/s/.../exec?page=poster&id=event-1',
+            displayUrl: 'https://script.google.com/macros/s/.../exec?page=display&id=event-1',
+            reportUrl: 'https://script.google.com/macros/s/.../exec?page=report&id=event-1'
+          },
+          config: {
+            appTitle: 'Events',
+            brandId: 'root'
+          }
+        }
+      };
+
+      validateEnvelope(mockResponse);
+      expect(mockResponse).toHaveProperty('etag');
+      expect(mockResponse.value).toHaveProperty('event');
+      expect(mockResponse.value).toHaveProperty('sponsors');
+      expect(mockResponse.value).toHaveProperty('display');
+      expect(mockResponse.value).toHaveProperty('links');
+      expect(mockResponse.value).toHaveProperty('config');
+      expect(mockResponse.value.event).toHaveProperty('id');
+      expect(mockResponse.value.event).toHaveProperty('data');
+      expect(Array.isArray(mockResponse.value.sponsors)).toBe(true);
+      expect(mockResponse.value.links).toHaveProperty('reportUrl');
+    });
+
+    it('should support notModified response', () => {
+      const mockResponse = {
+        ok: true,
+        notModified: true,
+        etag: 'bundle123'
+      };
+
+      validateEnvelope(mockResponse);
+      expect(mockResponse.notModified).toBe(true);
+      expect(mockResponse).toHaveProperty('etag');
+    });
+  });
+
   describe('api_create', () => {
     it('should return id and links on success', () => {
       const mockResponse = {

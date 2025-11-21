@@ -5,6 +5,7 @@
   <title><?= appTitle ?> · Public</title>
   <?!= include('Styles'); ?>
   <?!= include('DemoMode'); ?>
+  <?!= include('SponsorUtils'); ?>
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <meta name="referrer" content="no-referrer"/>
   <style>
@@ -40,6 +41,22 @@
       display: flex;
       align-items: center;
       gap: 12px;
+    }
+    .sponsor-indicator {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: rgba(0,0,0,0.6);
+      color: #fff;
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-weight: 500;
+    }
+    .sponsor-banner {
+      position: relative;
+      transition: opacity 0.3s ease;
     }
 
     /* Event Detail View */
@@ -202,30 +219,9 @@
     const url = new URL(location.href);
     const ID = url.searchParams.get('id');
 
-    const logBatch = [];
-    function logEvent(evt) {
-      try {
-        evt.ua = navigator.userAgent;
-        evt.ts = Date.now();
-        logBatch.push(evt);
-        if (logBatch.length >= 4) flush();
-      } catch (_) {}
-    }
-    function flush() {
-      if (!logBatch.length) return;
-      const copy = logBatch.splice(0, logBatch.length);
-      if (google?.script?.run) {
-        google.script.run.withFailureHandler(() => {}).api_logEvents({ items: copy });
-      }
-    }
-    setInterval(flush, 5000);
-    window.addEventListener('beforeunload', flush);
-
-    function esc(s) {
-      return String(s).replace(/[&<>"']/g, m => ({
-        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-      }[m]));
-    }
+    // Use shared utilities from SponsorUtils
+    const { esc, logEvent, initLogging } = window.SponsorUtils;
+    initLogging();
 
     async function rpc(method, payload) {
       return new Promise((resolve) => {
@@ -236,31 +232,54 @@
       });
     }
 
+    // Sponsor carousel state
+    let sponsorCarouselTimer = null;
+    let currentSponsorIndex = 0;
+
     function renderSponsorBanner(ev) {
       const picks = (ev?.data?.sponsors || []).filter(s => s?.placements?.mobileBanner);
       if (!picks.length) return;
 
-      const s = picks[0]; // MVP: show first sponsor only
       const banner = document.getElementById('sponsorBanner');
-      const link = s.url ? `<a href="${esc(s.url)}" target="_blank" rel="noopener sponsored" id="sponsorLink">` : '';
-      const linkClose = s.url ? '</a>' : '';
+      const eventId = ev.id;
 
-      banner.innerHTML = `
-        ${link}
-          ${s.img ? `<img src="${esc(s.img)}" alt="${esc(s.name || '')}">` : ''}
-          <strong>${esc(s.name || '')}</strong>
-        ${linkClose}
-      `;
+      // Render single sponsor
+      function showSponsor(index) {
+        const s = picks[index];
+        const link = s.url ? `<a href="${esc(s.url)}" target="_blank" rel="noopener sponsored" class="sponsor-link" data-sponsor-id="${esc(s.id || '')}">` : '';
+        const linkClose = s.url ? '</a>' : '';
+
+        banner.innerHTML = `
+          ${link}
+            ${s.img ? `<img src="${esc(s.img)}" alt="${esc(s.name || '')}">` : ''}
+            <strong>${esc(s.name || '')}</strong>
+          ${linkClose}
+          ${picks.length > 1 ? `<span class="sponsor-indicator">${index + 1}/${picks.length}</span>` : ''}
+        `;
+
+        // Log impression for this sponsor
+        logEvent({ eventId, surface: 'public', metric: 'impression', sponsorId: s.id || '' });
+
+        // Attach click handler
+        const linkEl = banner.querySelector('.sponsor-link');
+        if (linkEl) {
+          linkEl.addEventListener('click', () => {
+            logEvent({ eventId, surface: 'public', metric: 'click', sponsorId: s.id || '' });
+          });
+        }
+      }
+
+      // Show first sponsor
+      showSponsor(0);
       banner.hidden = false;
 
-      // Log impression
-      logEvent({ eventId: ev.id, surface: 'public', metric: 'impression', sponsorId: s.id || '' });
-
-      // Log click if link exists
-      if (s.url) {
-        document.getElementById('sponsorLink').addEventListener('click', () => {
-          logEvent({ eventId: ev.id, surface: 'public', metric: 'click', sponsorId: s.id || '' });
-        });
+      // Start carousel if multiple sponsors (rotate every 5 seconds)
+      if (picks.length > 1) {
+        if (sponsorCarouselTimer) clearInterval(sponsorCarouselTimer);
+        sponsorCarouselTimer = setInterval(() => {
+          currentSponsorIndex = (currentSponsorIndex + 1) % picks.length;
+          showSponsor(currentSponsorIndex);
+        }, 5000);
       }
     }
 

@@ -32,21 +32,26 @@ tests/
 The MVP Event Toolkit has **comprehensive test coverage** across unit, contract, and E2E tests:
 
 ```
-Total Tests: 150+ tests
-├── Unit Tests (Jest): 78 tests
-├── Contract Tests (Jest): 16 tests
+Total Tests: 200+ tests
+├── Unit Tests (Jest): 107 tests
+│   ├── backend.test.js: 78 tests
+│   └── sponsor-utils.test.js: 29 tests (XSS, filtering, analytics, carousel)
+├── Contract Tests (Jest): 23 tests
+│   └── api.contract.test.js: Includes api_getPublicBundle validation
 ├── Triangle Contract Tests (Jest): 56 tests
 │   ├── Before Event: 15 tests
 │   ├── During Event: 14 tests
 │   ├── After Event: 13 tests
 │   └── All Phases: 14 tests
-└── E2E Tests (Playwright): 40+ tests
+└── E2E Tests (Playwright): 80+ tests
     ├── Authentication: 25+ tests
     ├── API Docs Page: 15+ tests
     ├── Admin Workflows: 10 tests
     ├── Test Page: 8 tests
     ├── Diagnostics Page: 5 tests
-    └── Critical Flows: 12 tests
+    ├── Critical Flows: 12 tests
+    ├── Public Page: 15+ tests (sponsor carousel, analytics)
+    └── Poster Page: 20+ tests (layout, QR codes, analytics, print)
 ```
 
 ---
@@ -634,8 +639,8 @@ When adding new features:
 
 ---
 
-**Last Updated:** 2025-11-13
-**Total Tests:** 150+
+**Last Updated:** 2025-11-21
+**Total Tests:** 200+
 **Test Coverage:** ~90%
 **Test Execution Time:** < 3 seconds (Jest), varies (Playwright)
 **Structure:** Reorganized by Triangle Framework event phases
