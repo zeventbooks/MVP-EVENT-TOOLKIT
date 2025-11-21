@@ -20,6 +20,18 @@ export default {
     const deploymentId = env.DEPLOYMENT_ID || DEFAULT_DEPLOYMENT_ID;
     const appsScriptBase = `https://script.google.com/macros/s/${deploymentId}/exec`;
 
+    const url = new URL(request.url);
+
+    // Pass through Google's static assets directly (CSS, JS, images)
+    // These are served by Google at script.google.com/static/...
+    if (url.pathname.startsWith('/static/')) {
+      const staticUrl = `https://script.google.com${url.pathname}${url.search}`;
+      return fetch(staticUrl, {
+        headers: request.headers,
+        method: request.method,
+      });
+    }
+
     // Handle CORS preflight
     if (request.method === 'OPTIONS') {
       return handleCORS();
