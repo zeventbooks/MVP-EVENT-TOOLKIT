@@ -219,6 +219,160 @@ const progressive = createProgressiveImage({
 });
 ```
 
+### 8. Shared Utilities (`SharedUtils.html`)
+
+**Purpose**: Common utilities for alert notifications, date formatting, form validation, and XSS prevention across all pages.
+
+**Dependencies**: NUSDK.html (for `NU.esc`)
+
+**Usage**:
+```html
+<?!= include('NUSDK'); ?>
+<?!= include('SharedUtils'); ?>
+```
+
+**Available Functions**:
+
+| Function | Purpose |
+|----------|---------|
+| `SharedUtils.showAlert(message, type, options)` | Show dismissible notification |
+| `SharedUtils.formatDate(dateInput, options)` | Format date strings |
+| `SharedUtils.formatRelativeTime(dateInput)` | "2 days ago" style formatting |
+| `SharedUtils.isValidEmail(email)` | Email validation |
+| `SharedUtils.isValidUrl(url)` | URL validation |
+| `SharedUtils.validateForm(formIdOrEl)` | Form validation with error states |
+| `SharedUtils.debounce(fn, delay)` | Debounce function calls |
+| `SharedUtils.throttle(fn, limit)` | Throttle function calls |
+| `SharedUtils.esc(unsafe)` | XSS prevention (delegates to `NU.esc`) |
+
+**Example**:
+```javascript
+// Show success alert
+SharedUtils.showAlert('Sponsor created!', 'success');
+
+// Format date
+const formatted = SharedUtils.formatDate('2025-12-25'); // "Dec 25, 2025"
+
+// Validate form
+const { valid, errors } = SharedUtils.validateForm('my-form');
+if (!valid) {
+  errors.forEach(e => console.log(e.message));
+}
+```
+
+### 9. API Client (`APIClient.html`)
+
+**Purpose**: Standardized API client wrapping `NU.rpc` for CRUD operations.
+
+**Dependencies**: NUSDK.html
+
+**Usage**:
+```html
+<?!= include('NUSDK'); ?>
+<?!= include('APIClient'); ?>
+```
+
+**Configuration**:
+```javascript
+// Initialize with defaults
+APIClient.init({
+  brandId: 'my-brand',
+  adminKey: 'my-admin-key',
+  onSuccess: (response) => console.log('Success:', response),
+  onError: (error) => console.error('Error:', error)
+});
+```
+
+**CRUD Methods**:
+
+| Method | API Endpoint | Description |
+|--------|-------------|-------------|
+| `APIClient.create(scope, data, options)` | `api_create` | Create new resource |
+| `APIClient.list(scope, options)` | `api_list` | List resources |
+| `APIClient.get(scope, id, options)` | `api_get` | Get single resource |
+| `APIClient.update(scope, id, data, options)` | `api_update` | Update resource |
+| `APIClient.remove(scope, id, options)` | `api_delete` | Delete resource |
+
+**Example**:
+```javascript
+// List sponsors
+const sponsors = await APIClient.list('sponsors');
+
+// Create sponsor
+const newSponsor = await APIClient.create('sponsors', {
+  name: 'Acme Corp',
+  tier: 'gold',
+  website: 'https://acme.com'
+});
+
+// Update sponsor
+await APIClient.update('sponsors', 'sponsor-123', { tier: 'platinum' });
+
+// Delete sponsor
+await APIClient.remove('sponsors', 'sponsor-123');
+```
+
+### 10. Shared CSS Classes (`Styles.html`)
+
+**Purpose**: Reusable CSS classes for consistent page layouts and components.
+
+**Page Layout Classes**:
+```css
+.page-header-card  /* White card header with title/subtitle */
+.page-section      /* White card section with h2 heading */
+.nav-breadcrumb    /* Back navigation link container */
+```
+
+**Entity Card Grid**:
+```css
+.entity-grid       /* Responsive grid for cards (sponsors, events) */
+.entity-card       /* Individual card with hover effects */
+.entity-card-info  /* Card info text (muted) */
+.entity-card-actions /* Card action buttons container */
+```
+
+**Alert Components**:
+```css
+.alert             /* Base alert with slide-in animation */
+.alert-info        /* Blue info alert */
+.alert-success     /* Green success alert */
+.alert-error       /* Red error alert */
+.alert-warning     /* Yellow warning alert */
+.alert-dismiss     /* Dismiss button */
+```
+
+**Tier Badges**:
+```css
+.tier-badge        /* Base badge styling */
+.tier-platinum     /* Platinum tier styling */
+.tier-gold         /* Gold tier styling */
+.tier-silver       /* Silver tier styling */
+.tier-bronze       /* Bronze tier styling */
+```
+
+**Form Validation States**:
+```css
+.form-input-error   /* Red border + shadow for invalid fields */
+.form-input-success /* Green border + shadow for valid fields */
+.form-hint          /* Muted hint text below inputs */
+.form-error-message /* Red error message text */
+```
+
+**Analytics Cards**:
+```css
+.analytics-grid    /* Grid for stat cards */
+.analytics-card    /* Individual stat card */
+.analytics-card .value /* Large stat number */
+.analytics-card .label /* Stat label text */
+```
+
+**State Classes**:
+```css
+.empty-state       /* Centered empty state container */
+.empty-state-icon  /* Large emoji/icon */
+.loading-state     /* Centered loading indicator */
+```
+
 ---
 
 ## Responsive Flow

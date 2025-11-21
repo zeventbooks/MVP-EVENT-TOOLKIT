@@ -11,6 +11,93 @@ This gives you maximum flexibility to build the UI that fits your needs!
 
 ---
 
+## 📦 Built-in Shared Libraries (For Apps Script HTML Pages)
+
+When building **within the Apps Script HTML Service** (Admin.html, Sponsor.html, etc.), use these shared libraries:
+
+### SharedUtils.html
+
+Common utility functions for all pages:
+
+```html
+<!-- Include in your page -->
+<?!= include('SharedUtils'); ?>
+```
+
+```javascript
+// Alert notifications (auto-dismissing)
+SharedUtils.showAlert('Event created!', 'success');
+SharedUtils.showAlert('Invalid input', 'error');
+SharedUtils.showAlert('Loading...', 'info');
+
+// Date formatting
+SharedUtils.formatDate('2025-12-25');           // "Dec 25, 2025"
+SharedUtils.formatRelativeTime(new Date());     // "just now", "2 hours ago"
+
+// Validation
+SharedUtils.isValidEmail('user@example.com');   // true
+SharedUtils.isValidUrl('https://site.com');     // true
+SharedUtils.validateForm(formEl, { name: 'required', email: 'email' });
+
+// XSS prevention (delegates to NU.esc)
+SharedUtils.esc('<script>alert("xss")</script>'); // Escaped safely
+
+// Debounce/throttle
+const debouncedSearch = SharedUtils.debounce(searchFn, 300);
+const throttledScroll = SharedUtils.throttle(scrollFn, 100);
+```
+
+### APIClient.html
+
+Standardized CRUD operations wrapping `NU.rpc`:
+
+```html
+<!-- Include in your page (requires NUSDK.html) -->
+<?!= include('NUSDK'); ?>
+<?!= include('APIClient'); ?>
+```
+
+```javascript
+// Initialize once
+APIClient.init({
+  brandId: 'root',
+  adminKey: sessionStorage.getItem('adminKey'),
+  onError: (err) => SharedUtils.showAlert(err.message, 'error')
+});
+
+// CRUD operations
+const sponsors = await APIClient.list('sponsors');
+const event = await APIClient.get('events', 'evt_123');
+const created = await APIClient.create('sponsors', { name: 'Acme', tier: 'gold' });
+await APIClient.update('sponsors', 'spn_123', { tier: 'platinum' });
+await APIClient.remove('sponsors', 'spn_123');
+
+// Specialized methods
+const bundle = await APIClient.getPublicBundle('evt_123');
+const analytics = await APIClient.getSponsorAnalytics('spn_123');
+```
+
+### Styles.html (Shared CSS Classes)
+
+Include `Styles.html` for consistent UI components:
+
+```html
+<?!= include('Styles'); ?>
+```
+
+| Class | Description |
+|-------|-------------|
+| `.page-section` | White card container with shadow |
+| `.page-header-card` | Header section with navigation |
+| `.entity-grid` | Responsive grid for cards |
+| `.entity-card` | Individual entity card |
+| `.alert`, `.alert-success`, `.alert-error` | Notification alerts |
+| `.tier-badge`, `.tier-gold`, `.tier-platinum` | Sponsorship tier badges |
+| `.analytics-grid`, `.analytics-card` | Analytics dashboard layout |
+| `.loading-state`, `.empty-state` | Loading/empty placeholders |
+
+---
+
 ## 🚀 Quick Start
 
 ### 1. Get Your API URL
