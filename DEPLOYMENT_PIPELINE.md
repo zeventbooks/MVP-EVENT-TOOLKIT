@@ -40,7 +40,7 @@ GitHub Repository
 │     ├─ clasp push --force                                           │
 │     ├─ clasp deploy (update existing or create new)                 │
 │     ├─ Extract deployment ID and URL                                │
-│     └─ Update Hostinger proxy (automated FTP)                       │
+│     └─ Update Cloudflare Worker (automated wrangler)                │
 │                                                                      │
 │  5. Generate Brand URLs                                             │
 │     ├─ root, abc, cbc, cbl brands                                   │
@@ -85,7 +85,7 @@ https://script.google.com/u/0/home/projects/1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC
       ↓
 Live Web App URLs
 ├─ Apps Script: https://script.google.com/macros/s/[DEPLOYMENT_ID]/exec
-└─ Hostinger:   https://zeventbooks.com
+└─ Cloudflare:  https://eventangle.com
 ```
 
 ## Prerequisites
@@ -127,9 +127,8 @@ Configure in: `Settings → Secrets and variables → Actions`
 | `OAUTH_CREDENTIALS` | Google OAuth credentials (clasp) | `cat ~/.clasprc.json` |
 | `DEPLOYMENT_ID` | Existing deployment ID to update | From `clasp deployments` |
 | `ADMIN_KEY_ROOT` | Admin secret for E2E testing | From Config.gs |
-| `HOSTINGER_FTP_SERVER` | FTP server for proxy updates | Hostinger control panel |
-| `HOSTINGER_FTP_USERNAME` | FTP username | Hostinger control panel |
-| `HOSTINGER_FTP_PASSWORD` | FTP password | Hostinger control panel |
+| `CLOUDFLARE_API_TOKEN` | Cloudflare API token for Worker deploys | Cloudflare dashboard |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account ID | Cloudflare dashboard |
 
 **Getting OAUTH_CREDENTIALS:**
 ```bash
@@ -148,6 +147,20 @@ cat ~/.clasprc.json
   "oauth2ClientSettings": {...},
   "isLocalCreds": false
 }
+```
+
+**Getting Cloudflare Credentials:**
+```bash
+# 1. Create API Token at https://dash.cloudflare.com/profile/api-tokens
+#    - Use template: "Edit Cloudflare Workers"
+#    - Or custom with Workers:Edit permission
+
+# 2. Get Account ID from Cloudflare dashboard
+#    - Workers & Pages → Overview → Account ID (right sidebar)
+
+# 3. Add to GitHub Secrets:
+#    - CLOUDFLARE_API_TOKEN
+#    - CLOUDFLARE_ACCOUNT_ID
 ```
 
 ## Local Deployment
@@ -180,6 +193,45 @@ npm run deploy
 
 # 3. Get deployment URL
 clasp deployments
+```
+
+### Cloudflare Workers Deployment
+
+The Cloudflare Worker proxies requests to Google Apps Script, providing:
+- Custom domain (eventangle.com)
+- CORS headers for cross-origin requests
+- Edge caching
+- SSL/TLS termination
+
+```bash
+# 1. Install Wrangler CLI
+npm install -g wrangler
+
+# 2. Authenticate with Cloudflare
+wrangler login
+
+# 3. Deploy the Worker
+cd cloudflare-proxy
+wrangler deploy --env production
+
+# 4. Verify deployment
+curl "https://eventangle.com?p=status&brand=root"
+```
+
+**Configuration files:**
+- `cloudflare-proxy/worker.js` - Worker code
+- `cloudflare-proxy/wrangler.toml` - Deployment configuration
+
+**Environment-specific deployments:**
+```bash
+# Production (eventangle.com)
+wrangler deploy --env production
+
+# Staging (staging.eventangle.com)
+wrangler deploy --env staging
+
+# Development (workers.dev subdomain)
+wrangler deploy
 ```
 
 ### Local Testing (Before Push)
@@ -385,24 +437,24 @@ The application is deployed to two platforms:
 | Platform | Base URL | Use Case |
 |----------|----------|----------|
 | **Apps Script** | `https://script.google.com/macros/s/{ID}/exec` | Direct Google access |
-| **Hostinger** | `https://zeventbooks.com` | Custom domain, proxy |
+| **Cloudflare** | `https://eventangle.com` | Custom domain, Workers proxy |
 
 ### Production URLs by Brand
 
-**ROOT (Zeventbook):**
+**ROOT (Eventangle):**
 ```
-Status:  https://zeventbooks.com?p=status&brand=root
-Admin:   https://zeventbooks.com?page=admin&brand=root
-Events:  https://zeventbooks.com?p=events&brand=root
-Display: https://zeventbooks.com?p=display&brand=root
+Status:  https://eventangle.com?p=status&brand=root
+Admin:   https://eventangle.com?page=admin&brand=root
+Events:  https://eventangle.com?p=events&brand=root
+Display: https://eventangle.com?p=display&brand=root
 ```
 
 **ABC (American Bocce Co.):**
 ```
-Status:  https://zeventbooks.com?p=status&brand=abc
-Admin:   https://zeventbooks.com?page=admin&brand=abc
-Events:  https://zeventbooks.com?p=events&brand=abc
-Display: https://zeventbooks.com?p=display&brand=abc
+Status:  https://eventangle.com?p=status&brand=abc
+Admin:   https://eventangle.com?page=admin&brand=abc
+Events:  https://eventangle.com?p=events&brand=abc
+Display: https://eventangle.com?p=display&brand=abc
 ```
 
 ### Apps Script Project
@@ -421,9 +473,8 @@ clasp deployments
 ### Quick Smoke Test
 
 ```bash
-# Set environment variable
-export BASE_URL="https://script.google.com/macros/s/.../exec"
-export GOOGLE_SCRIPT_URL="$BASE_URL"
+# Set environment variable (defaults to eventangle.com if not set)
+export APP_URL="https://eventangle.com"
 
 # Run smoke tests
 npm run test:smoke
@@ -433,8 +484,7 @@ npm run test:smoke
 
 ```bash
 # Set environment variables
-export BASE_URL="https://script.google.com/macros/s/.../exec"
-export GOOGLE_SCRIPT_URL="$BASE_URL"
+export APP_URL="https://eventangle.com"
 export ADMIN_KEY="your-admin-secret"
 
 # Run all Playwright tests
@@ -513,14 +563,17 @@ clasp login
 4. Check `ADMIN_KEY_ROOT` secret is set for authenticated tests
 5. Test manually in browser first
 
-### Hostinger Proxy Not Updated
+### Cloudflare Worker Not Updated
 
-1. Verify FTP secrets are configured:
-   - `HOSTINGER_FTP_SERVER`
-   - `HOSTINGER_FTP_USERNAME`
-   - `HOSTINGER_FTP_PASSWORD`
-2. Check FTP credentials are valid
-3. Manual update: Edit `hostinger-proxy/index.php` and upload via FTP
+1. Verify Cloudflare secrets are configured:
+   - `CLOUDFLARE_API_TOKEN`
+   - `CLOUDFLARE_ACCOUNT_ID`
+2. Check API token has Workers permissions
+3. Manual update:
+   ```bash
+   cd cloudflare-proxy
+   wrangler deploy --env production
+   ```
 
 ## Best Practices
 

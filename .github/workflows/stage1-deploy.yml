@@ -251,7 +251,7 @@ jobs:
               await client.uploadFrom("hostinger-proxy/index.php", "public_html/index.php");
 
               console.log("✅ Hostinger proxy updated successfully!");
-              console.log("🌐 Changes will be live at https://zeventbooks.com in ~30 seconds");
+              console.log("🌐 Changes will be live at https://eventangle.com in ~30 seconds");
 
             } catch (err) {
               console.error("❌ FTP upload failed:", err.message);
@@ -267,8 +267,8 @@ jobs:
           echo ""
           echo "✅ Automated Hostinger deployment complete!"
           echo "🔗 Test URLs:"
-          echo "   https://zeventbooks.com?p=status&brand=root"
-          echo "   https://zeventbooks.com?p=admin&brand=root"
+          echo "   https://eventangle.com?p=status&brand=root"
+          echo "   https://eventangle.com?p=admin&brand=root"
 
       - name: Update Cloudflare Worker (Optional)
         if: success()
@@ -306,13 +306,13 @@ jobs:
 
           echo ""
           echo "✅ Cloudflare Worker updated!"
-          echo "🔗 Worker URL: https://zeventbooks-api.workers.dev?p=status&brand=root"
+          echo "🔗 Worker URL: https://eventangle.workers.dev?p=status&brand=root"
 
       - name: Generate comprehensive brand URLs
         id: urls
         run: |
           APPS_SCRIPT_BASE="${{ steps.deploy.outputs.url }}"
-          HOSTINGER_BASE="https://zeventbooks.com"
+          CLOUDFLARE_BASE="https://eventangle.com"
 
           # Brands: root, abc, cbc, cbl
           BRANDS=("root" "abc" "cbc" "cbl")
@@ -328,8 +328,8 @@ jobs:
           echo "🚀 Apps Script Base URL:"
           echo "$APPS_SCRIPT_BASE"
           echo ""
-          echo "🌐 Hostinger Base URL:"
-          echo "$HOSTINGER_BASE"
+          echo "🌐 Cloudflare Base URL:"
+          echo "$CLOUDFLARE_BASE"
           echo ""
           echo "=============================================="
           echo ""
@@ -347,11 +347,11 @@ jobs:
               fi
 
               APPS_URL="${APPS_SCRIPT_BASE}?${PARAM}=${page}&brand=${brand}"
-              HOST_URL="${HOSTINGER_BASE}?${PARAM}=${page}&brand=${brand}"
+              CF_URL="${CLOUDFLARE_BASE}?${PARAM}=${page}&brand=${brand}"
 
               echo "  ${page}:"
               echo "    Apps Script: $APPS_URL"
-              echo "    Hostinger:   $HOST_URL"
+              echo "    Cloudflare:  $CF_URL"
             done
             echo ""
           done
@@ -383,7 +383,7 @@ jobs:
       - name: Create comprehensive deployment summary
         run: |
           APPS_SCRIPT_BASE="${{ steps.deploy.outputs.url }}"
-          HOSTINGER_BASE="https://zeventbooks.com"
+          CLOUDFLARE_BASE="https://eventangle.com"
 
           echo "## 🚀 Stage 1 Deployment Complete!" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -396,21 +396,21 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## 🌐 Comprehensive Test URLs" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "> **Note:** Test both Apps Script and Hostinger URLs to verify which works best for your use case." >> $GITHUB_STEP_SUMMARY
+          echo "> **Note:** Test both Apps Script and Cloudflare URLs to verify which works best for your use case." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Base Deployment URLs" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Platform | Base URL |" >> $GITHUB_STEP_SUMMARY
           echo "|----------|----------|" >> $GITHUB_STEP_SUMMARY
           echo "| 🚀 **Apps Script** | \`${APPS_SCRIPT_BASE}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| 🌐 **Hostinger** | \`${HOSTINGER_BASE}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🌐 **Cloudflare** | \`${CLOUDFLARE_BASE}\` |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "---" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
           # Generate comprehensive URL tables for each brand
           BRANDS=("root" "abc" "cbc" "cbl")
-          BRAND_NAMES=("ROOT (Zeventbook)" "ABC (American Bocce Co.)" "CBC (Chicago Bocce Club)" "CBL (Chicago Bocce League)")
+          BRAND_NAMES=("ROOT (Eventangle)" "ABC (American Bocce Co.)" "CBC (Chicago Bocce Club)" "CBL (Chicago Bocce League)")
 
           for i in "${!BRANDS[@]}"; do
             brand="${BRANDS[$i]}"
@@ -418,26 +418,26 @@ jobs:
 
             echo "### 🎯 Brand: ${brand_name}" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "| Page | Apps Script URL | Hostinger URL |" >> $GITHUB_STEP_SUMMARY
+            echo "| Page | Apps Script URL | Cloudflare URL |" >> $GITHUB_STEP_SUMMARY
             echo "|------|-----------------|---------------|" >> $GITHUB_STEP_SUMMARY
 
             # Status
-            echo "| 🔍 **Status** | [Test](${APPS_SCRIPT_BASE}?p=status&brand=${brand}) | [Test](${HOSTINGER_BASE}?p=status&brand=${brand}) |" >> $GITHUB_STEP_SUMMARY
+            echo "| 🔍 **Status** | [Test](${APPS_SCRIPT_BASE}?p=status&brand=${brand}) | [Test](${CLOUDFLARE_BASE}?p=status&brand=${brand}) |" >> $GITHUB_STEP_SUMMARY
 
             # Admin
-            echo "| ⚙️ **Admin** | [Test](${APPS_SCRIPT_BASE}?page=admin&brand=${brand}) | [Test](${HOSTINGER_BASE}?page=admin&brand=${brand}) |" >> $GITHUB_STEP_SUMMARY
+            echo "| ⚙️ **Admin** | [Test](${APPS_SCRIPT_BASE}?page=admin&brand=${brand}) | [Test](${CLOUDFLARE_BASE}?page=admin&brand=${brand}) |" >> $GITHUB_STEP_SUMMARY
 
             # Events (Public listing)
-            echo "| 📅 **Events** | [Test](${APPS_SCRIPT_BASE}?p=events&brand=${brand}) | [Test](${HOSTINGER_BASE}?p=events&brand=${brand}) |" >> $GITHUB_STEP_SUMMARY
+            echo "| 📅 **Events** | [Test](${APPS_SCRIPT_BASE}?p=events&brand=${brand}) | [Test](${CLOUDFLARE_BASE}?p=events&brand=${brand}) |" >> $GITHUB_STEP_SUMMARY
 
             # Display (TV mode)
-            echo "| 📺 **Display** | [Test](${APPS_SCRIPT_BASE}?p=display&brand=${brand}) | [Test](${HOSTINGER_BASE}?p=display&brand=${brand}) |" >> $GITHUB_STEP_SUMMARY
+            echo "| 📺 **Display** | [Test](${APPS_SCRIPT_BASE}?p=display&brand=${brand}) | [Test](${CLOUDFLARE_BASE}?p=display&brand=${brand}) |" >> $GITHUB_STEP_SUMMARY
 
             # Sponsor
-            echo "| 💼 **Sponsor** | [Test](${APPS_SCRIPT_BASE}?p=sponsor&brand=${brand}) | [Test](${HOSTINGER_BASE}?p=sponsor&brand=${brand}) |" >> $GITHUB_STEP_SUMMARY
+            echo "| 💼 **Sponsor** | [Test](${APPS_SCRIPT_BASE}?p=sponsor&brand=${brand}) | [Test](${CLOUDFLARE_BASE}?p=sponsor&brand=${brand}) |" >> $GITHUB_STEP_SUMMARY
 
             # Public
-            echo "| 👥 **Public** | [Test](${APPS_SCRIPT_BASE}?p=public&brand=${brand}) | [Test](${HOSTINGER_BASE}?p=public&brand=${brand}) |" >> $GITHUB_STEP_SUMMARY
+            echo "| 👥 **Public** | [Test](${APPS_SCRIPT_BASE}?p=public&brand=${brand}) | [Test](${CLOUDFLARE_BASE}?p=public&brand=${brand}) |" >> $GITHUB_STEP_SUMMARY
 
             echo "" >> $GITHUB_STEP_SUMMARY
           done
@@ -465,12 +465,12 @@ jobs:
           echo "${APPS_SCRIPT_BASE}?p=status&brand=cbl" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "#### Hostinger - Status Endpoints (API Health)" >> $GITHUB_STEP_SUMMARY
+          echo "#### Cloudflare - Status Endpoints (API Health)" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          echo "${HOSTINGER_BASE}?p=status&brand=root" >> $GITHUB_STEP_SUMMARY
-          echo "${HOSTINGER_BASE}?p=status&brand=abc" >> $GITHUB_STEP_SUMMARY
-          echo "${HOSTINGER_BASE}?p=status&brand=cbc" >> $GITHUB_STEP_SUMMARY
-          echo "${HOSTINGER_BASE}?p=status&brand=cbl" >> $GITHUB_STEP_SUMMARY
+          echo "${CLOUDFLARE_BASE}?p=status&brand=root" >> $GITHUB_STEP_SUMMARY
+          echo "${CLOUDFLARE_BASE}?p=status&brand=abc" >> $GITHUB_STEP_SUMMARY
+          echo "${CLOUDFLARE_BASE}?p=status&brand=cbc" >> $GITHUB_STEP_SUMMARY
+          echo "${CLOUDFLARE_BASE}?p=status&brand=cbl" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "#### Apps Script - Admin Pages (Event Management)" >> $GITHUB_STEP_SUMMARY
@@ -481,12 +481,12 @@ jobs:
           echo "${APPS_SCRIPT_BASE}?page=admin&brand=cbl" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "#### Hostinger - Admin Pages (Event Management)" >> $GITHUB_STEP_SUMMARY
+          echo "#### Cloudflare - Admin Pages (Event Management)" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          echo "${HOSTINGER_BASE}?page=admin&brand=root" >> $GITHUB_STEP_SUMMARY
-          echo "${HOSTINGER_BASE}?page=admin&brand=abc" >> $GITHUB_STEP_SUMMARY
-          echo "${HOSTINGER_BASE}?page=admin&brand=cbc" >> $GITHUB_STEP_SUMMARY
-          echo "${HOSTINGER_BASE}?page=admin&brand=cbl" >> $GITHUB_STEP_SUMMARY
+          echo "${CLOUDFLARE_BASE}?page=admin&brand=root" >> $GITHUB_STEP_SUMMARY
+          echo "${CLOUDFLARE_BASE}?page=admin&brand=abc" >> $GITHUB_STEP_SUMMARY
+          echo "${CLOUDFLARE_BASE}?page=admin&brand=cbc" >> $GITHUB_STEP_SUMMARY
+          echo "${CLOUDFLARE_BASE}?page=admin&brand=cbl" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "---" >> $GITHUB_STEP_SUMMARY
