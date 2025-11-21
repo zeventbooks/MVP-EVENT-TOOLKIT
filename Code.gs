@@ -95,21 +95,9 @@ const DIAG_SHEET='DIAG', DIAG_MAX=3000, DIAG_PER_DAY=800;
  * @param {object} meta - Optional metadata object
  * @param {string} spreadsheetId - Optional spreadsheet ID (uses root brand if not provided)
  */
-// Fixed: Bug #17 - Sanitize sensitive data from metadata before logging
+// Delegate to SecurityMiddleware for consistent sanitization across codebase
 function sanitizeMetaForLogging_(meta) {
-  if (!meta || typeof meta !== 'object') return meta;
-
-  const sanitized = { ...meta };
-  const sensitiveKeys = ['adminkey', 'token', 'password', 'secret', 'authorization', 'bearer', 'csrf', 'csrftoken'];
-
-  for (const key of Object.keys(sanitized)) {
-    const lowerKey = key.toLowerCase();
-    if (sensitiveKeys.some(sk => lowerKey.includes(sk))) {
-      sanitized[key] = '[REDACTED]';
-    }
-  }
-
-  return sanitized;
+  return SecurityMiddleware_sanitizeMetaForLogging(meta);
 }
 
 function diag_(level, where, msg, meta, spreadsheetId){
@@ -373,11 +361,16 @@ function doGet(e){
  * @returns {HtmlOutput} - Rendered page
  */
 function routePage_(e, page, brand, demoMode, options = {}) {
-  // Route admin to wizard by default (simple mode), unless mode=advanced or mode=enhanced is specified
+  // Admin variant routing - three intentional modes:
+  //   - AdminWizard.html (default): Simplified event creation wizard for quick setup
+  //   - Admin.html (mode=advanced): Full admin dashboard with lifecycle, stats, analytics
+  //   - AdminEnhanced.html (mode=enhanced): Enhanced UI with component libraries (experimental)
+  // Access via: /manage, /admin, /dashboard → defaults to wizard
+  //             /manage?mode=advanced → full admin dashboard
+  //             /manage?mode=enhanced → enhanced components mode
   if (page === 'admin') {
     const mode = options.mode || '';
     if (mode === 'enhanced') {
-      // Use enhanced admin mode with components
       page = 'admin-enhanced';
     } else if (mode !== 'advanced') {
       page = 'wizard'; // Default to wizard (simple mode)
@@ -809,6 +802,18 @@ function jsonResponse_(data) {
   return output;
 }
 
+/**
+ * Map page identifiers to HTML template files
+ * Page routing: URL param → internal page → HTML file
+ *
+ * Admin variants (see routePage_ for mode logic):
+ *   admin → Admin.html (full dashboard, mode=advanced)
+ *   admin-enhanced → AdminEnhanced.html (experimental, mode=enhanced)
+ *   wizard → AdminWizard.html (default simplified wizard)
+ *
+ * @param {string} page - Page identifier from routing
+ * @returns {string} HTML template filename (without .html extension)
+ */
 function pageFile_(page){
   if (page==='admin') return 'Admin';
   if (page==='admin-enhanced') return 'AdminEnhanced';
@@ -1296,65 +1301,24 @@ function safeJSONParse_(jsonString, defaultValue = {}) {
   }
 }
 
-// Fixed: Bug #14 - Comprehensive input sanitization with context-aware escaping
+// Delegate to SecurityMiddleware for consistent sanitization across codebase
+// See SecurityMiddleware.gs for implementation details
 function sanitizeInput_(input, maxLength = 1000) {
-  if (!input || typeof input !== 'string') return '';
-
-  let sanitized = String(input)
-    // eslint-disable-next-line no-control-regex
-    .replace(/[\x00-\x1F\x7F]/g, '') // Remove control characters
-    .replace(/[\u200B-\u200D\uFEFF]/g, '') // Remove zero-width characters
-    .trim();
-
-  // Remove dangerous characters and patterns
-  sanitized = sanitized
-    .replace(/[<>"'`&]/g, '') // Remove HTML special chars and backticks
-    .replace(/javascript:/gi, '') // Remove javascript: protocol
-    .replace(/data:/gi, '') // Remove data: protocol
-    .replace(/vbscript:/gi, ''); // Remove vbscript: protocol
-
-  // Remove event handlers - use loop to prevent bypass via nesting (e.g., ononclick==)
-  // This addresses CodeQL warning: Incomplete multi-character sanitization
-  let previousLength;
-  do {
-    previousLength = sanitized.length;
-    sanitized = sanitized.replace(/on\w+=/gi, '');
-  } while (sanitized.length !== previousLength);
-
-  // Remove encoding attempts
-  sanitized = sanitized
-    .replace(/&#/g, '') // Remove HTML entity encoding
-    .replace(/\\x/g, '') // Remove hex encoding
-    .replace(/\\u/g, ''); // Remove unicode encoding
-
-  return sanitized.slice(0, maxLength);
+  return SecurityMiddleware_sanitizeInput(input, maxLength);
 }
 
-// Fixed: Bug #19 - Add ID format validation
 function sanitizeId_(id) {
-  if (!id || typeof id !== 'string') return null;
-  // Ensure ID is valid UUID format or safe alphanumeric string
-  if (!/^[a-zA-Z0-9-_]{1,100}$/.test(id)) return null;
-  return id;
+  return SecurityMiddleware_sanitizeId(id);
 }
 
-// Fixed: Bug #29 - Sanitize spreadsheet values to prevent formula injection
 function sanitizeSpreadsheetValue_(value) {
-  if (!value) return '';
-
-  const str = String(value);
-
-  // Prevent formula injection: strip leading special chars
-  const dangerous = ['=', '+', '-', '@', '\t', '\r', '\n'];
-  let sanitized = str;
-
-  // If starts with dangerous char, prefix with single quote to treat as text
-  while (dangerous.some(char => sanitized.startsWith(char))) {
-    sanitized = "'" + sanitized;
-  }
-
-  return sanitized;
+  return SecurityMiddleware_sanitizeSpreadsheetValue(value);
 }
+
+// === Sheet Utilities =========================================================
+// NOTE: These could be extracted to SheetUtils.gs in the future for better
+// modularity. Keeping here for now to minimize risk during refactoring.
+// Candidates for extraction: getStoreSheet_, _ensureAnalyticsSheet_, _ensureShortlinksSheet_
 
 function getStoreSheet_(brand, scope){
   const ss = SpreadsheetApp.openById(brand.store.spreadsheetId);

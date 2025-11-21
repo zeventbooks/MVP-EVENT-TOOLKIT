@@ -1,5 +1,13 @@
 # Hostinger Proxy Files
 
+> **DEPRECATED**: This proxy has been replaced by Cloudflare Workers.
+> For new deployments, use `/cloudflare-proxy/` instead.
+> See `/cloudflare-proxy/CLOUDFLARE_SETUP.md` for setup instructions.
+>
+> This directory is kept for reference only.
+
+---
+
 These files configure Hostinger to proxy requests from `zeventbooks.com` to your Google Apps Script deployment.
 
 ## Quick Start
@@ -235,4 +243,6 @@ error_log("Request took {$duration}ms");
 
 ## Need Help?
 
-See the complete guide: [docs/HOSTINGER_PROXY_SETUP.md](../docs/HOSTINGER_PROXY_SETUP.md)
+**Note**: Hostinger setup documentation has been archived. See [docs/archived/](../docs/archived/) for historical reference.
+
+For current deployment, use Cloudflare Workers: [cloudflare-proxy/CLOUDFLARE_SETUP.md](../cloudflare-proxy/CLOUDFLARE_SETUP.md)

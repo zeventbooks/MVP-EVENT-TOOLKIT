@@ -332,61 +332,87 @@ function SecurityMiddleware_gate(brandId, adminKey, ipAddress = null) {
 
 /**
  * Sanitize input to prevent injection attacks
+ * Enhanced: Comprehensive XSS prevention with context-aware escaping
  *
  * @param {string} input - Input string
  * @param {number} [maxLength=1000] - Maximum allowed length
  * @returns {string} Sanitized input
  */
 function SecurityMiddleware_sanitizeInput(input, maxLength = 1000) {
-  if (typeof input !== 'string') return '';
+  if (!input || typeof input !== 'string') return '';
 
-  // Truncate to max length
-  let sanitized = input.substring(0, maxLength);
+  let sanitized = String(input)
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\x00-\x1F\x7F]/g, '') // Remove control characters
+    .replace(/[\u200B-\u200D\uFEFF]/g, '') // Remove zero-width characters
+    .trim();
 
-  // Remove potential script tags and dangerous characters
+  // Remove dangerous characters and patterns
   sanitized = sanitized
-    .replace(/<script[^>]*>.*?<\/script>/gi, '')
-    .replace(/<iframe[^>]*>.*?<\/iframe>/gi, '')
-    .replace(/javascript:/gi, '')
-    .replace(/on\w+\s*=/gi, ''); // Remove event handlers
+    .replace(/[<>"'`&]/g, '') // Remove HTML special chars and backticks
+    .replace(/javascript:/gi, '') // Remove javascript: protocol
+    .replace(/data:/gi, '') // Remove data: protocol
+    .replace(/vbscript:/gi, ''); // Remove vbscript: protocol
+
+  // Remove event handlers - use loop to prevent bypass via nesting (e.g., ononclick==)
+  // This addresses CodeQL warning: Incomplete multi-character sanitization
+  let previousLength;
+  do {
+    previousLength = sanitized.length;
+    sanitized = sanitized.replace(/on\w+=/gi, '');
+  } while (sanitized.length !== previousLength);
+
+  // Remove encoding attempts
+  sanitized = sanitized
+    .replace(/&#/g, '') // Remove HTML entity encoding
+    .replace(/\\x/g, '') // Remove hex encoding
+    .replace(/\\u/g, ''); // Remove unicode encoding
+
+  return sanitized.slice(0, maxLength);
+}
+
+/**
+ * Sanitize ID to ensure it contains only safe characters
+ * Enhanced: Returns null for invalid IDs with strict validation
+ *
+ * @param {string} id - ID string
+ * @returns {string|null} Sanitized ID or null if invalid
+ */
+function SecurityMiddleware_sanitizeId(id) {
+  if (!id || typeof id !== 'string') return null;
+  // Ensure ID is valid UUID format or safe alphanumeric string (max 100 chars)
+  if (!/^[a-zA-Z0-9-_]{1,100}$/.test(id)) return null;
+  return id;
+}
+
+/**
+ * Sanitize value for spreadsheet storage
+ * Prevents formula injection with comprehensive protection
+ *
+ * @param {*} value - Value to sanitize
+ * @returns {string} Sanitized value safe for spreadsheet storage
+ */
+function SecurityMiddleware_sanitizeSpreadsheetValue(value) {
+  if (!value) return '';
+
+  const str = String(value);
+
+  // Prevent formula injection: strip leading special chars
+  const dangerous = ['=', '+', '-', '@', '\t', '\r', '\n'];
+  let sanitized = str;
+
+  // If starts with dangerous char, prefix with single quote to treat as text
+  while (dangerous.some(char => sanitized.startsWith(char))) {
+    sanitized = "'" + sanitized;
+  }
 
   return sanitized;
 }
 
 /**
- * Sanitize ID to ensure it contains only safe characters
- *
- * @param {string} id - ID string
- * @returns {string} Sanitized ID or empty string
- */
-function SecurityMiddleware_sanitizeId(id) {
-  if (typeof id !== 'string') return '';
-  // Allow only alphanumeric, dash, underscore
-  return id.match(/^[a-zA-Z0-9_-]+$/) ? id : '';
-}
-
-/**
- * Sanitize value for spreadsheet storage
- * Prevents formula injection
- *
- * @param {*} value - Value to sanitize
- * @returns {*} Sanitized value
- */
-function SecurityMiddleware_sanitizeSpreadsheetValue(value) {
-  if (typeof value !== 'string') return value;
-
-  // Prevent formula injection by escaping leading special characters
-  const dangerousChars = ['=', '+', '-', '@', '\t', '\r'];
-  if (dangerousChars.some(char => value.startsWith(char))) {
-    return "'" + value; // Prefix with single quote to treat as text
-  }
-
-  return value;
-}
-
-/**
  * Sanitize sensitive data from metadata before logging
- * Removes: passwords, keys, tokens, secrets, API keys
+ * Removes: passwords, keys, tokens, secrets, API keys, CSRF tokens, bearer tokens
+ * Enhanced: Recursively sanitizes nested objects
  *
  * @param {object} meta - Metadata object
  * @returns {object} Sanitized metadata
@@ -395,7 +421,10 @@ function SecurityMiddleware_sanitizeMetaForLogging(meta) {
   if (!meta || typeof meta !== 'object') return meta;
 
   const sanitized = {};
-  const sensitiveKeys = ['password', 'secret', 'key', 'token', 'adminKey', 'apiKey', 'authorization'];
+  const sensitiveKeys = [
+    'password', 'secret', 'key', 'token', 'adminkey', 'apikey',
+    'authorization', 'bearer', 'csrf', 'csrftoken'
+  ];
 
   for (const [key, value] of Object.entries(meta)) {
     const lowerKey = key.toLowerCase();
