@@ -15,7 +15,8 @@
 
 const { test, expect } = require('@playwright/test');
 
-const BASE_URL = process.env.BASE_URL || process.env.GOOGLE_SCRIPT_URL || 'https://zeventbooks.com';
+// APP_URL = eventangle.com (Cloudflare Workers)
+const BASE_URL = process.env.APP_URL || 'https://eventangle.com';
 const BRAND_ID = 'root';
 
 // Validate environment configuration before running tests

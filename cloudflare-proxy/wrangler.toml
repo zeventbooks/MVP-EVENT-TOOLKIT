@@ -1,0 +1,72 @@
+# Cloudflare Workers Configuration
+# https://developers.cloudflare.com/workers/wrangler/configuration/
+
+name = "eventangle"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+# Account ID - Set via environment or wrangler login
+# account_id = "your-account-id"
+
+# ============================================
+# Environment Variables
+# ============================================
+# The deployment ID is updated by CI/CD after each Apps Script deployment
+[vars]
+DEPLOYMENT_ID = "AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw"
+
+# ============================================
+# Production - FULL SITE (eventangle.com)
+# ============================================
+# This serves EVERYTHING through Cloudflare:
+# - HTML pages (admin, public, display, etc.)
+# - API responses (status, events, sponsors)
+# - All brands (root, abc, cbc, cbl)
+[env.production]
+name = "eventangle-prod"
+routes = [
+  # Main domain - serves full site
+  { pattern = "eventangle.com/*", zone_name = "eventangle.com" },
+  { pattern = "www.eventangle.com/*", zone_name = "eventangle.com" },
+  # API subdomain (optional, same worker)
+  { pattern = "api.eventangle.com/*", zone_name = "eventangle.com" }
+]
+
+[env.production.vars]
+DEPLOYMENT_ID = "AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw"
+
+# ============================================
+# Staging/QA Environment
+# ============================================
+[env.staging]
+name = "eventangle-staging"
+routes = [
+  { pattern = "staging.eventangle.com/*", zone_name = "eventangle.com" },
+  { pattern = "api-staging.eventangle.com/*", zone_name = "eventangle.com" }
+]
+
+[env.staging.vars]
+DEPLOYMENT_ID = "AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw"
+
+# ============================================
+# API Only (subdomain only, no main site)
+# ============================================
+[env.api-only]
+name = "eventangle-api"
+routes = [
+  { pattern = "api.eventangle.com/*", zone_name = "eventangle.com" }
+]
+
+[env.api-only.vars]
+DEPLOYMENT_ID = "AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw"
+
+# ============================================
+# Development (workers.dev subdomain)
+# ============================================
+# Default deployment uses workers.dev:
+# https://eventangle.YOUR_SUBDOMAIN.workers.dev
+#
+# Test URLs:
+# - https://eventangle.YOUR_SUBDOMAIN.workers.dev?page=admin&brand=root
+# - https://eventangle.YOUR_SUBDOMAIN.workers.dev?p=status&brand=root
+# - https://eventangle.YOUR_SUBDOMAIN.workers.dev?page=display&brand=root

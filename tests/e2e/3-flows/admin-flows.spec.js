@@ -7,7 +7,8 @@
 
 const { test, expect } = require('@playwright/test');
 
-const BASE_URL = process.env.BASE_URL || 'https://script.google.com/macros/s/.../exec';
+// APP_URL = eventangle.com (Cloudflare Workers)
+const BASE_URL = process.env.APP_URL || 'https://eventangle.com';
 const ADMIN_KEY = process.env.ADMIN_KEY || 'CHANGE_ME_root';
 const BRAND_ID = 'root';
 
