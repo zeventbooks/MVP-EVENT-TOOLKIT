@@ -723,8 +723,16 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       // Store for utility functions
       currentEventData = data;
 
-      // Render sponsor banner first
-      renderSponsorBanner(evt);
+      // MVP: Section visibility helper (defaults to true if not set)
+      const sectionEnabled = (key) => {
+        if (!data.sections) return true; // Backwards compat: show all if no sections set
+        return data.sections[key] !== false;
+      };
+
+      // Render sponsor banner first (respects sections.sponsors)
+      if (sectionEnabled('sponsors')) {
+        renderSponsorBanner(evt);
+      }
 
       // Build event detail HTML
       let html = '<div class="event-detail">';
@@ -789,8 +797,8 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       // Utility buttons: Maps, Calendar, Share
       html += '<div class="utility-buttons">';
 
-      // Directions/Maps button
-      if (data.location) {
+      // Directions/Maps button (respects sections.map)
+      if (data.location && sectionEnabled('map')) {
         const mapsUrl = buildMapsUrl(data.location);
         html += `<a class="btn-utility" href="${esc(mapsUrl)}" target="_blank" rel="noopener">📍 Get Directions</a>`;
       }
@@ -832,8 +840,8 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
         html += '</div>';
       }
 
-      // Video Section - Fixed: Bug #3 - XSS via video URL injection
-      if (data.videoUrl) {
+      // Video Section - Fixed: Bug #3 - XSS via video URL injection (respects sections.video)
+      if (data.videoUrl && sectionEnabled('video')) {
         html += '<div class="event-section">';
         html += '<h2>Video</h2>';
 
@@ -877,8 +885,8 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
         html += '</div>';
       }
 
-      // Gallery Section
-      if (data.galleryUrls) {
+      // Gallery Section (respects sections.gallery)
+      if (data.galleryUrls && sectionEnabled('gallery')) {
         const urls = data.galleryUrls.split(',').map(u => u.trim()).filter(u => u);
         if (urls.length > 0) {
           html += '<div class="event-section">';
@@ -892,8 +900,8 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
         }
       }
 
-      // Bio Section
-      if (data.bio || data.bioLink) {
+      // Bio/Notes Section (respects sections.notes)
+      if ((data.bio || data.bioLink) && sectionEnabled('notes')) {
         html += '<div class="event-section">';
         html += '<h2>More Information</h2>';
         if (data.bio) {
