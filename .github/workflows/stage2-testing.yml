@@ -119,19 +119,13 @@ jobs:
         continue-on-error: true
         env:
           BASE_URL: ${{ needs.setup.outputs.deployment_url }}
-
-          GOOGLE_SCRIPT_URL: ${{ needs.setup.outputs.deployment_url }}
           ADMIN_KEY: ${{ secrets.ADMIN_KEY_ROOT }}
         run: |
-          echo "🔥 Running API tests against Apps Script"
-          echo "URL: $GOOGLE_SCRIPT_URL"
-          
+          echo "🔥 Running API tests"
+          echo "BASE_URL: $BASE_URL"
           npm run test:api
-          TEST_EXIT=$?
-          
-          if [ $TEST_EXIT -eq 0 ]; then
+          if [ $? -eq 0 ]; then
             echo "result=success" >> $GITHUB_OUTPUT
-            exit 0
           else
             echo "result=failure" >> $GITHUB_OUTPUT
             exit 1
@@ -213,19 +207,13 @@ jobs:
         continue-on-error: true
         env:
           BASE_URL: ${{ needs.setup.outputs.deployment_url }}
-
-          GOOGLE_SCRIPT_URL: ${{ needs.setup.outputs.deployment_url }}
           ADMIN_KEY: ${{ secrets.ADMIN_KEY_ROOT }}
         run: |
-          echo "🔥 Running Smoke tests against Apps Script"
-          echo "URL: $GOOGLE_SCRIPT_URL"
-          
+          echo "🔥 Running Smoke tests"
+          echo "BASE_URL: $BASE_URL"
           npm run test:smoke
-          TEST_EXIT=$?
-          
-          if [ $TEST_EXIT -eq 0 ]; then
+          if [ $? -eq 0 ]; then
             echo "result=success" >> $GITHUB_OUTPUT
-            exit 0
           else
             echo "result=failure" >> $GITHUB_OUTPUT
             exit 1
@@ -314,18 +302,11 @@ jobs:
         continue-on-error: true
         env:
           BASE_URL: ${{ needs.setup.outputs.deployment_url }}
-
-          GOOGLE_SCRIPT_URL: ${{ needs.setup.outputs.deployment_url }}
           ADMIN_KEY: ${{ secrets.ADMIN_KEY_ROOT }}
         run: |
-          echo "💰 Running ${{ matrix.suite }} tests against Apps Script"
-          echo "URL: $GOOGLE_SCRIPT_URL"
-          
-          if [ "${{ matrix.suite }}" == "flows" ]; then
-            npm run test:flows
-          else
-            npm run test:pages
-          fi
+          echo "💰 Running ${{ matrix.suite }} tests"
+          echo "BASE_URL: $BASE_URL"
+          npm run test:${{ matrix.suite }}
 
       - name: Set result output
         id: set-result

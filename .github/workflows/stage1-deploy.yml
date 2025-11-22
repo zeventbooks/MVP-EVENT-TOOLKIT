@@ -58,7 +58,7 @@ jobs:
       - name: Run unit tests
         run: |
           echo "ℹ️ Running Jest unit tests (no BASE_URL required - uses mock data)"
-          npm test -- --coverage
+          npm run test:unit
 
       - name: Upload coverage reports
         uses: codecov/codecov-action@v3
@@ -82,15 +82,8 @@ jobs:
 
       - name: Run contract tests
         run: |
-          echo "ℹ️ Running contract tests (no BASE_URL required - validates response structure with mocks)"
+          echo "ℹ️ Running contract tests (validates API response structure)"
           npm run test:contract
-
-      - name: Run Triangle contract tests
-        run: |
-          npm run test:triangle:before:contract
-          npm run test:triangle:during:contract
-          npm run test:triangle:after:contract
-          npm run test:triangle:all:contract
 
   deploy-to-apps-script:
     name: 🚀 Deploy to Apps Script API

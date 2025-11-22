@@ -124,20 +124,48 @@ These run independently and don't block deploys:
 
 ## Commands
 
+### Local = CI (same commands)
+
 ```bash
-# Run Stage 1 tests locally
+# Stage 1: lint + unit + contract (no BASE_URL needed)
+npm run test:ci:stage1
+
+# Stage 2: api + fe (requires BASE_URL)
+BASE_URL=https://eventangle.com npm run test:ci:stage2
+```
+
+### Individual Test Suites
+
+```bash
+# Lint only
 npm run lint
-npm test
+
+# Unit tests only
+npm run test:unit
+
+# Contract tests only
 npm run test:contract
 
-# Run MVP Playwright tests locally
-npm run test:api
-npm run test:smoke
-npm run test:flows
-npm run test:pages
+# API tests (Playwright)
+BASE_URL=https://eventangle.com npm run test:api
 
-# Run specific MVP test file
-npx playwright test tests/e2e/3-flows/admin-flows.spec.js
+# Frontend tests (smoke + pages + flows)
+BASE_URL=https://eventangle.com npm run test:fe
+
+# Individual suites
+BASE_URL=https://eventangle.com npm run test:smoke
+BASE_URL=https://eventangle.com npm run test:pages
+BASE_URL=https://eventangle.com npm run test:flows
+```
+
+### Quick Validation
+
+```bash
+# Quick check before PR (lint + unit + api + smoke)
+BASE_URL=https://eventangle.com npm run test:quick
+
+# Full CI locally
+npm run test:ci:stage1 && BASE_URL=https://eventangle.com npm run test:ci:stage2
 ```
 
 ---
