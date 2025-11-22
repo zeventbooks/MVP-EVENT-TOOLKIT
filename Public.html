@@ -163,6 +163,57 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
     .gallery img:hover {
       transform: scale(1.05);
     }
+    /* Schedule section */
+    .schedule-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .schedule-item {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 8px 16px;
+      padding: 12px;
+      background: #f8fafc;
+      border-radius: 8px;
+      border-left: 3px solid #2563eb;
+    }
+    .schedule-time {
+      font-weight: 600;
+      color: #2563eb;
+      white-space: nowrap;
+    }
+    .schedule-title {
+      font-weight: 600;
+      color: #1e293b;
+    }
+    .schedule-desc {
+      grid-column: 2;
+      color: #64748b;
+      font-size: 0.9rem;
+    }
+    /* Fundraising progress */
+    .fundraising-progress {
+      margin: 16px 0;
+    }
+    .fundraising-progress .progress-bar {
+      height: 24px;
+      background: #e2e8f0;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .fundraising-progress .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #10b981, #059669);
+      border-radius: 12px;
+      transition: width 0.5s ease;
+    }
+    .fundraising-progress .progress-text {
+      text-align: center;
+      margin-top: 8px;
+      font-weight: 600;
+      color: #059669;
+    }
     .action-buttons {
       display: flex;
       gap: 12px;
@@ -473,6 +524,29 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       setTimeout(() => toast.classList.remove('show'), duration);
     }
 
+    // Map CTA label to URL from event data
+    function getCTAUrl(data, label) {
+      const labelLower = label.toLowerCase();
+      // Map common CTA labels to data fields
+      if (labelLower.includes('register') || labelLower.includes('rsvp')) return data.registerUrl || data.signupUrl;
+      if (labelLower.includes('sign up')) return data.signupUrl || data.registerUrl;
+      if (labelLower.includes('donate')) return data.donationUrl;
+      if (labelLower.includes('ticket')) return data.ticketUrl || data.registerUrl;
+      if (labelLower.includes('registry')) return data.registryUrl;
+      if (labelLower.includes('schedule') || labelLower.includes('itinerary')) return data.scheduleUrl;
+      if (labelLower.includes('standing')) return data.standingsUrl;
+      if (labelLower.includes('bracket')) return data.bracketUrl;
+      if (labelLower.includes('photo') || labelLower.includes('album')) return data.albumUrl;
+      if (labelLower.includes('download')) return data.downloadUrl;
+      if (labelLower.includes('vendor')) return data.vendorListUrl;
+      if (labelLower.includes('calendar')) return buildGoogleCalendarUrl(data);
+      if (labelLower.includes('direction') || labelLower.includes('map')) return buildMapsUrl(data.location);
+      if (labelLower.includes('rule')) return data.rulesUrl;
+      if (labelLower.includes('roster') || labelLower.includes('team')) return data.rosterUrl;
+      // Fallback to generic URLs
+      return data.registerUrl || data.signupUrl || data.summaryLink;
+    }
+
     // Build Google Maps URL from location string
     function buildMapsUrl(location) {
       if (!location) return null;
@@ -781,13 +855,30 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       html += '</div>';
       html += '</div>';
 
-      // Action buttons
+      // Action buttons - supports dynamic CTAs from template
       html += '<div class="action-buttons">';
-      if (data.registerUrl) {
-        html += `<a class="btn-primary" href="${esc(data.registerUrl)}" target="_blank" rel="noopener">Register</a>`;
-      } else if (data.signupUrl) {
-        html += `<a class="btn-primary" href="${esc(data.signupUrl)}" target="_blank" rel="noopener">Sign Up</a>`;
+
+      // Primary CTA (template-driven or fallback to register/signup)
+      if (data.ctaLabels && data.ctaLabels.length > 0) {
+        // Use template-defined CTAs
+        data.ctaLabels.forEach((label, i) => {
+          const ctaUrl = getCTAUrl(data, label);
+          if (ctaUrl) {
+            const btnClass = i === 0 ? 'btn-primary' : 'btn-secondary';
+            html += `<a class="${btnClass}" href="${esc(ctaUrl)}" target="_blank" rel="noopener">${esc(label)}</a>`;
+          }
+        });
+      } else {
+        // Fallback to hardcoded CTAs
+        if (data.registerUrl) {
+          html += `<a class="btn-primary" href="${esc(data.registerUrl)}" target="_blank" rel="noopener">Register</a>`;
+        } else if (data.signupUrl) {
+          html += `<a class="btn-primary" href="${esc(data.signupUrl)}" target="_blank" rel="noopener">Sign Up</a>`;
+        } else if (data.donationUrl) {
+          html += `<a class="btn-primary" href="${esc(data.donationUrl)}" target="_blank" rel="noopener">Donate</a>`;
+        }
       }
+
       if (data.checkinUrl) {
         html += `<a class="btn-secondary" href="${esc(data.checkinUrl)}" target="_blank" rel="noopener">Check In</a>`;
       }
@@ -900,15 +991,94 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
         }
       }
 
-      // Bio/Notes Section (respects sections.notes)
+      // Schedule Section (respects sections.schedule)
+      if (data.schedule && sectionEnabled('schedule')) {
+        html += '<div class="event-section">';
+        html += '<h2>Schedule</h2>';
+        if (Array.isArray(data.schedule)) {
+          html += '<div class="schedule-list">';
+          data.schedule.forEach(item => {
+            html += `<div class="schedule-item">`;
+            if (item.time) html += `<span class="schedule-time">${esc(item.time)}</span>`;
+            if (item.title) html += `<span class="schedule-title">${esc(item.title)}</span>`;
+            if (item.description) html += `<span class="schedule-desc">${esc(item.description)}</span>`;
+            html += `</div>`;
+          });
+          html += '</div>';
+        } else if (typeof data.schedule === 'string') {
+          html += `<p>${esc(data.schedule)}</p>`;
+        }
+        if (data.scheduleUrl) {
+          html += `<p><a href="${esc(data.scheduleUrl)}" target="_blank" rel="noopener">View Full Schedule →</a></p>`;
+        }
+        html += '</div>';
+      }
+
+      // Template-specific sections
+      // Photo Album (photo_gallery, wedding, shower templates)
+      if (data.albumUrl && sectionEnabled('gallery')) {
+        html += '<div class="event-section">';
+        html += '<h2>Photo Album</h2>';
+        html += `<p><a class="btn-primary" href="${esc(data.albumUrl)}" target="_blank" rel="noopener">📸 View Photo Album</a></p>`;
+        if (data.downloadUrl) {
+          html += `<p><a class="btn-secondary" href="${esc(data.downloadUrl)}" target="_blank" rel="noopener">⬇️ Download All Photos</a></p>`;
+        }
+        html += '</div>';
+      }
+
+      // Registry (wedding, shower templates)
+      if (data.registryUrl) {
+        html += '<div class="event-section">';
+        html += '<h2>Gift Registry</h2>';
+        html += `<p><a class="btn-primary" href="${esc(data.registryUrl)}" target="_blank" rel="noopener">🎁 View Registry</a></p>`;
+        html += '</div>';
+      }
+
+      // Standings/Bracket (league templates)
+      if (data.standingsUrl || data.bracketUrl) {
+        html += '<div class="event-section">';
+        html += '<h2>Standings & Results</h2>';
+        if (data.standingsUrl) {
+          html += `<p><a class="btn-secondary" href="${esc(data.standingsUrl)}" target="_blank" rel="noopener">📊 View Standings</a></p>`;
+        }
+        if (data.bracketUrl) {
+          html += `<p><a class="btn-secondary" href="${esc(data.bracketUrl)}" target="_blank" rel="noopener">🏆 View Bracket</a></p>`;
+        }
+        html += '</div>';
+      }
+
+      // Vendor List (farmers_market template)
+      if (data.vendorListUrl) {
+        html += '<div class="event-section">';
+        html += '<h2>Vendors</h2>';
+        html += `<p><a class="btn-secondary" href="${esc(data.vendorListUrl)}" target="_blank" rel="noopener">🛒 View Vendor List</a></p>`;
+        html += '</div>';
+      }
+
+      // Donation Progress (fundraiser template)
+      if (data.goalAmount && data.raisedAmount !== undefined) {
+        const progress = Math.min(100, Math.round((data.raisedAmount / data.goalAmount) * 100));
+        html += '<div class="event-section">';
+        html += '<h2>Fundraising Progress</h2>';
+        html += `<div class="fundraising-progress">`;
+        html += `<div class="progress-bar"><div class="progress-fill" style="width: ${progress}%"></div></div>`;
+        html += `<p class="progress-text">$${data.raisedAmount.toLocaleString()} raised of $${data.goalAmount.toLocaleString()} goal (${progress}%)</p>`;
+        html += `</div>`;
+        if (data.donationUrl) {
+          html += `<p><a class="btn-primary" href="${esc(data.donationUrl)}" target="_blank" rel="noopener">💝 Donate Now</a></p>`;
+        }
+        html += '</div>';
+      }
+
+      // Bio/Notes Section (respects sections.notes) - uses custom label
       if ((data.bio || data.bioLink) && sectionEnabled('notes')) {
         html += '<div class="event-section">';
-        html += '<h2>More Information</h2>';
+        html += `<h2>${esc(data.notesLabel || 'More Information')}</h2>`;
         if (data.bio) {
           html += `<p>${esc(data.bio)}</p>`;
         }
         if (data.bioLink) {
-          html += `<p><a href="${esc(data.bioLink)}" target="_blank" rel="noopener">Read full bio →</a></p>`;
+          html += `<p><a href="${esc(data.bioLink)}" target="_blank" rel="noopener">Read more →</a></p>`;
         }
         html += '</div>';
       }
