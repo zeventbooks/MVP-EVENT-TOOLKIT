@@ -5,7 +5,13 @@
  * Validates that templates correctly seed sections, ctaLabels, and defaults
  * while preserving user edits.
  *
+ * EVENT_CONTRACT.md v1.0 Compliance:
+ * - SectionConfig format: { enabled: bool, title: string|null, content: string|null }
+ * - CTALabel format: [{ key: string, label: string, url: string|null }]
+ * - Status defaults to 'draft'
+ *
  * @see TemplateService.gs
+ * @see EVENT_CONTRACT.md
  */
 
 // Mock template data matching TemplateService.gs
@@ -107,43 +113,80 @@ const EVENT_TEMPLATES = {
   }
 };
 
-// Implementation matching TemplateService.gs
+// Implementation matching TemplateService.gs (EVENT_CONTRACT.md v1.0)
 function getEventTemplate_(templateId) {
   return EVENT_TEMPLATES[templateId] || EVENT_TEMPLATES.custom;
 }
 
+/**
+ * Apply template defaults to an event object (EVENT_CONTRACT.md v1.0)
+ * Only sets values where user hasn't already provided data
+ *
+ * @param {Object} event - Event object (can be partial data from form)
+ * @param {string} templateId - Template ID to apply
+ * @returns {Object} Modified event object with template defaults applied
+ */
 function applyTemplateToEvent_(event, templateId) {
   const tpl = getEventTemplate_(templateId);
 
   // Set template reference
   event.templateId = tpl.id;
 
-  // Initialize sections if not present
+  // === Sections: Convert template booleans to SectionConfig objects ===
+  // EVENT_CONTRACT.md shape: { enabled: bool, title: string|null, content: string|null }
   event.sections = event.sections || {};
 
-  // Apply section defaults (only where user hasn't overridden)
-  Object.keys(tpl.sections).forEach(function(key) {
+  const sectionKeys = ['video', 'map', 'schedule', 'sponsors', 'notes', 'gallery'];
+  sectionKeys.forEach(function(key) {
+    // Don't overwrite if user already set a section config
     if (event.sections[key] == null) {
-      event.sections[key] = tpl.sections[key];
+      const enabled = tpl.sections[key] || false;
+      event.sections[key] = {
+        enabled: enabled,
+        title: null,
+        content: null
+      };
+    } else if (typeof event.sections[key] === 'boolean') {
+      // Convert legacy boolean to SectionConfig
+      event.sections[key] = {
+        enabled: event.sections[key],
+        title: null,
+        content: null
+      };
     }
+    // If it's already a SectionConfig object, leave it alone
   });
 
-  // Apply default CTAs if none set
-  if (!event.ctaLabels || !event.ctaLabels.length) {
-    event.ctaLabels = tpl.defaultCtas.slice();
+  // Apply custom titles from template defaults
+  if (tpl.defaults) {
+    if (tpl.defaults.notesLabel && event.sections.notes && !event.sections.notes.title) {
+      event.sections.notes.title = tpl.defaults.notesLabel;
+    }
+    if (tpl.defaults.sponsorStripLabel && event.sections.sponsors && !event.sections.sponsors.title) {
+      event.sections.sponsors.title = tpl.defaults.sponsorStripLabel;
+    }
   }
 
-  // Apply other defaults
-  if (tpl.defaults) {
-    if (!event.audience && tpl.defaults.audience) {
-      event.audience = tpl.defaults.audience;
-    }
-    if (!event.notesLabel && tpl.defaults.notesLabel) {
-      event.notesLabel = tpl.defaults.notesLabel;
-    }
-    if (!event.sponsorStripLabel && tpl.defaults.sponsorStripLabel) {
-      event.sponsorStripLabel = tpl.defaults.sponsorStripLabel;
-    }
+  // === CTA Labels: Convert template strings to CTALabel objects ===
+  // EVENT_CONTRACT.md shape: [{ key: string, label: string, url: string|null }]
+  if (!event.ctaLabels || !event.ctaLabels.length) {
+    event.ctaLabels = (tpl.defaultCtas || []).map(function(label, idx) {
+      return {
+        key: 'cta_' + idx,
+        label: label,
+        url: null
+      };
+    });
+  }
+
+  // === Audience: Apply default if not set ===
+  if (!event.audience && tpl.defaults && tpl.defaults.audience) {
+    event.audience = tpl.defaults.audience;
+  }
+
+  // === Status: Default to 'draft' per EVENT_CONTRACT.md ===
+  if (!event.status) {
+    event.status = 'draft';
   }
 
   return event;
@@ -156,23 +199,27 @@ function applyTemplateToEvent_(event, templateId) {
 describe('TemplateService - applyTemplateToEvent_', () => {
 
   describe('Bar Night Template', () => {
-    test('sets correct sections for bar_night', () => {
+    test('sets correct sections for bar_night (SectionConfig format)', () => {
       const event = { name: 'Trivia Night' };
       const result = applyTemplateToEvent_(event, 'bar_night');
 
       expect(result.templateId).toBe('bar_night');
-      expect(result.sections.video).toBe(true);
-      expect(result.sections.map).toBe(true);
-      expect(result.sections.schedule).toBe(false); // Bar events don't have schedules
-      expect(result.sections.sponsors).toBe(true);
-      expect(result.sections.gallery).toBe(false);
+      // EVENT_CONTRACT.md: sections use SectionConfig format
+      expect(result.sections.video.enabled).toBe(true);
+      expect(result.sections.map.enabled).toBe(true);
+      expect(result.sections.schedule.enabled).toBe(false); // Bar events don't have schedules
+      expect(result.sections.sponsors.enabled).toBe(true);
+      expect(result.sections.gallery.enabled).toBe(false);
     });
 
-    test('sets correct CTAs for bar_night', () => {
+    test('sets correct CTAs for bar_night (CTALabel format)', () => {
       const event = { name: 'Happy Hour' };
       const result = applyTemplateToEvent_(event, 'bar_night');
 
-      expect(result.ctaLabels).toEqual(['RSVP', 'Add to Calendar']);
+      // EVENT_CONTRACT.md: ctaLabels use CTALabel format
+      expect(result.ctaLabels).toHaveLength(2);
+      expect(result.ctaLabels[0]).toEqual({ key: 'cta_0', label: 'RSVP', url: null });
+      expect(result.ctaLabels[1]).toEqual({ key: 'cta_1', label: 'Add to Calendar', url: null });
     });
 
     test('sets correct defaults for bar_night', () => {
@@ -180,85 +227,97 @@ describe('TemplateService - applyTemplateToEvent_', () => {
       const result = applyTemplateToEvent_(event, 'bar_night');
 
       expect(result.audience).toBe('Adults 21+');
-      expect(result.notesLabel).toBe('House Rules');
-      expect(result.sponsorStripLabel).toBe("Tonight's Sponsors");
+      // Section titles from template defaults
+      expect(result.sections.notes.title).toBe('House Rules');
+      expect(result.sections.sponsors.title).toBe("Tonight's Sponsors");
+    });
+
+    test('defaults status to draft', () => {
+      const event = { name: 'Test Event' };
+      const result = applyTemplateToEvent_(event, 'bar_night');
+
+      expect(result.status).toBe('draft');
     });
   });
 
   describe('Rec League Template', () => {
-    test('sets correct sections for rec_league', () => {
+    test('sets correct sections for rec_league (SectionConfig format)', () => {
       const event = { name: 'Summer Softball' };
       const result = applyTemplateToEvent_(event, 'rec_league');
 
       expect(result.templateId).toBe('rec_league');
-      expect(result.sections.video).toBe(false); // Rec leagues don't need video
-      expect(result.sections.schedule).toBe(true); // Rec leagues NEED schedule
-      expect(result.sections.map).toBe(true);
-      expect(result.sections.sponsors).toBe(true);
+      expect(result.sections.video.enabled).toBe(false); // Rec leagues don't need video
+      expect(result.sections.schedule.enabled).toBe(true); // Rec leagues NEED schedule
+      expect(result.sections.map.enabled).toBe(true);
+      expect(result.sections.sponsors.enabled).toBe(true);
     });
 
-    test('sets correct CTAs for rec_league', () => {
+    test('sets correct CTAs for rec_league (CTALabel format)', () => {
       const event = { name: 'Basketball League' };
       const result = applyTemplateToEvent_(event, 'rec_league');
 
-      expect(result.ctaLabels).toEqual(['Register Team', 'View Schedule']);
+      expect(result.ctaLabels).toHaveLength(2);
+      expect(result.ctaLabels[0].label).toBe('Register Team');
+      expect(result.ctaLabels[1].label).toBe('View Schedule');
     });
 
-    test('sets league-specific labels', () => {
+    test('sets league-specific section titles', () => {
       const event = { name: 'Volleyball Tournament' };
       const result = applyTemplateToEvent_(event, 'rec_league');
 
-      expect(result.notesLabel).toBe('League Notes');
-      expect(result.sponsorStripLabel).toBe('Season Sponsors');
+      expect(result.sections.notes.title).toBe('League Notes');
+      expect(result.sections.sponsors.title).toBe('Season Sponsors');
     });
   });
 
   describe('School/Fundraiser Templates', () => {
-    test('school template enables gallery section', () => {
+    test('school template enables gallery section (SectionConfig format)', () => {
       const event = { name: 'Band Concert' };
       const result = applyTemplateToEvent_(event, 'school');
 
-      expect(result.sections.gallery).toBe(true);
-      expect(result.sections.schedule).toBe(false);
+      expect(result.sections.gallery.enabled).toBe(true);
+      expect(result.sections.schedule.enabled).toBe(false);
     });
 
     test('school template sets Buy Tickets / Donate CTAs', () => {
       const event = { name: 'Sports Banquet' };
       const result = applyTemplateToEvent_(event, 'school');
 
-      expect(result.ctaLabels).toContain('Buy Tickets');
-      expect(result.ctaLabels).toContain('Donate');
+      const labels = result.ctaLabels.map(c => c.label);
+      expect(labels).toContain('Buy Tickets');
+      expect(labels).toContain('Donate');
     });
 
     test('fundraiser template sets Donate as primary CTA', () => {
       const event = { name: 'Charity Gala' };
       const result = applyTemplateToEvent_(event, 'fundraiser');
 
-      expect(result.ctaLabels[0]).toBe('Donate'); // First CTA is Donate
-      expect(result.ctaLabels).toContain('Buy Tickets');
-      expect(result.ctaLabels).toContain('Share');
+      expect(result.ctaLabels[0].label).toBe('Donate'); // First CTA is Donate
+      const labels = result.ctaLabels.map(c => c.label);
+      expect(labels).toContain('Buy Tickets');
+      expect(labels).toContain('Share');
     });
 
-    test('fundraiser sets cause-specific labels', () => {
+    test('fundraiser sets cause-specific section title', () => {
       const event = { name: 'Benefit Night' };
       const result = applyTemplateToEvent_(event, 'fundraiser');
 
-      expect(result.notesLabel).toBe('About the Cause');
+      expect(result.sections.notes.title).toBe('About the Cause');
     });
   });
 
   describe('Custom Template', () => {
-    test('custom template enables all sections', () => {
+    test('custom template enables all sections (SectionConfig format)', () => {
       const event = { name: 'My Custom Event' };
       const result = applyTemplateToEvent_(event, 'custom');
 
       expect(result.templateId).toBe('custom');
-      expect(result.sections.video).toBe(true);
-      expect(result.sections.map).toBe(true);
-      expect(result.sections.schedule).toBe(true);
-      expect(result.sections.sponsors).toBe(true);
-      expect(result.sections.notes).toBe(true);
-      expect(result.sections.gallery).toBe(true);
+      expect(result.sections.video.enabled).toBe(true);
+      expect(result.sections.map.enabled).toBe(true);
+      expect(result.sections.schedule.enabled).toBe(true);
+      expect(result.sections.sponsors.enabled).toBe(true);
+      expect(result.sections.notes.enabled).toBe(true);
+      expect(result.sections.gallery.enabled).toBe(true);
     });
   });
 
@@ -271,46 +330,77 @@ describe('TemplateService - applyTemplateToEvent_', () => {
       expect(result1).toEqual(result2);
     });
 
-    test('preserves user-set sections when template is applied', () => {
+    test('preserves user-set sections when template is applied (SectionConfig)', () => {
       const event = {
         name: 'Custom Bar Event',
         sections: {
-          video: false, // User turned off video
-          schedule: true // User turned on schedule (unusual for bar)
+          video: { enabled: false, title: 'Custom Video', content: null }, // User turned off video
+          schedule: { enabled: true, title: 'My Schedule', content: null } // User turned on schedule
         }
       };
       const result = applyTemplateToEvent_(event, 'bar_night');
 
       // User overrides should be preserved
-      expect(result.sections.video).toBe(false); // User's choice
-      expect(result.sections.schedule).toBe(true); // User's choice
+      expect(result.sections.video.enabled).toBe(false); // User's choice
+      expect(result.sections.video.title).toBe('Custom Video');
+      expect(result.sections.schedule.enabled).toBe(true); // User's choice
+      expect(result.sections.schedule.title).toBe('My Schedule');
       // Template defaults should fill in the rest
-      expect(result.sections.map).toBe(true);
-      expect(result.sections.sponsors).toBe(true);
+      expect(result.sections.map.enabled).toBe(true);
+      expect(result.sections.sponsors.enabled).toBe(true);
     });
 
-    test('preserves user-set CTAs when template is applied', () => {
+    test('converts legacy boolean sections to SectionConfig', () => {
+      const event = {
+        name: 'Legacy Event',
+        sections: {
+          video: true, // Legacy boolean format
+          map: false
+        }
+      };
+      const result = applyTemplateToEvent_(event, 'custom');
+
+      // Should be converted to SectionConfig
+      expect(result.sections.video).toEqual({ enabled: true, title: null, content: null });
+      expect(result.sections.map).toEqual({ enabled: false, title: null, content: null });
+    });
+
+    test('preserves user-set CTAs when template is applied (CTALabel format)', () => {
       const event = {
         name: 'Special Event',
-        ctaLabels: ['Custom CTA', 'Another CTA']
+        ctaLabels: [
+          { key: 'custom', label: 'Custom CTA', url: 'https://example.com' },
+          { key: 'another', label: 'Another CTA', url: null }
+        ]
       };
       const result = applyTemplateToEvent_(event, 'bar_night');
 
       // User's custom CTAs should be preserved
-      expect(result.ctaLabels).toEqual(['Custom CTA', 'Another CTA']);
+      expect(result.ctaLabels).toHaveLength(2);
+      expect(result.ctaLabels[0].label).toBe('Custom CTA');
+      expect(result.ctaLabels[0].url).toBe('https://example.com');
     });
 
-    test('preserves user-set labels when template is applied', () => {
+    test('preserves user-set section titles', () => {
       const event = {
         name: 'My Event',
-        notesLabel: 'My Custom Notes Label',
-        sponsorStripLabel: 'My Custom Sponsors'
+        sections: {
+          notes: { enabled: true, title: 'My Custom Notes Label', content: null },
+          sponsors: { enabled: true, title: 'My Custom Sponsors', content: null }
+        }
       };
       const result = applyTemplateToEvent_(event, 'bar_night');
 
-      // User's labels should be preserved
-      expect(result.notesLabel).toBe('My Custom Notes Label');
-      expect(result.sponsorStripLabel).toBe('My Custom Sponsors');
+      // User's titles should be preserved, not replaced with template defaults
+      expect(result.sections.notes.title).toBe('My Custom Notes Label');
+      expect(result.sections.sponsors.title).toBe('My Custom Sponsors');
+    });
+
+    test('preserves explicit status value', () => {
+      const event = { name: 'Published Event', status: 'published' };
+      const result = applyTemplateToEvent_(event, 'bar_night');
+
+      expect(result.status).toBe('published');
     });
 
     test('preserves existing event data (name, date, location)', () => {
@@ -346,18 +436,16 @@ describe('TemplateService - applyTemplateToEvent_', () => {
       expect(result.templateId).toBe('rec_league');
     });
 
-    test('switching templates fills in missing sections from new template', () => {
-      const event = { name: 'Test', sections: { video: true } };
+    test('switching templates preserves existing SectionConfig values', () => {
+      const event = { name: 'Test', sections: { video: { enabled: true, title: 'My Video', content: null } } };
       let result = applyTemplateToEvent_(event, 'bar_night');
 
       // Now switch to rec_league which has schedule=true by default
       result = applyTemplateToEvent_(result, 'rec_league');
 
-      // video should stay as user set it
-      expect(result.sections.video).toBe(true);
-      // schedule was not set by user, so new template default applies
-      // (but since bar_night already set it to false, it stays false)
-      // This is correct behavior - template only sets null values
+      // video should stay as user set it (full SectionConfig preserved)
+      expect(result.sections.video.enabled).toBe(true);
+      expect(result.sections.video.title).toBe('My Video');
     });
   });
 
@@ -368,8 +456,53 @@ describe('TemplateService - applyTemplateToEvent_', () => {
 
       expect(result.templateId).toBe('custom');
       // Should get custom template's sections (all enabled)
-      expect(result.sections.video).toBe(true);
-      expect(result.sections.schedule).toBe(true);
+      expect(result.sections.video.enabled).toBe(true);
+      expect(result.sections.schedule.enabled).toBe(true);
+    });
+  });
+
+  describe('EVENT_CONTRACT.md v1.0 Format Compliance', () => {
+    test('sections produce SectionConfig format for all keys', () => {
+      const event = { name: 'Test' };
+      const result = applyTemplateToEvent_(event, 'custom');
+
+      const sectionKeys = ['video', 'map', 'schedule', 'sponsors', 'notes', 'gallery'];
+      sectionKeys.forEach(key => {
+        expect(result.sections[key]).toHaveProperty('enabled');
+        expect(result.sections[key]).toHaveProperty('title');
+        expect(result.sections[key]).toHaveProperty('content');
+        expect(typeof result.sections[key].enabled).toBe('boolean');
+      });
+    });
+
+    test('ctaLabels produce CTALabel format', () => {
+      const event = { name: 'Test' };
+      const result = applyTemplateToEvent_(event, 'bar_night');
+
+      result.ctaLabels.forEach(cta => {
+        expect(cta).toHaveProperty('key');
+        expect(cta).toHaveProperty('label');
+        expect(cta).toHaveProperty('url');
+        expect(typeof cta.key).toBe('string');
+        expect(typeof cta.label).toBe('string');
+      });
+    });
+
+    test('status defaults to draft per EVENT_CONTRACT.md', () => {
+      const event = { name: 'Test' };
+      const result = applyTemplateToEvent_(event, 'custom');
+
+      expect(result.status).toBe('draft');
+    });
+
+    test('supports all valid status values', () => {
+      const statuses = ['draft', 'published', 'cancelled', 'completed'];
+
+      statuses.forEach(status => {
+        const event = { name: 'Test', status };
+        const result = applyTemplateToEvent_(event, 'custom');
+        expect(result.status).toBe(status);
+      });
     });
   });
 
