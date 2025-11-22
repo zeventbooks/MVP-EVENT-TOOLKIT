@@ -686,51 +686,32 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
           if (!res?.ok || !res?.value) return startPublicMode();
 
           const bundle = res.value;
-          const event = bundle.event || {};
+          const ev = bundle.event || {};
           const rotation = bundle.rotation || {};
           const layout = bundle.layout || {};
 
-          // === CONTRACT FIELDS (MVP REQUIRED) ===
-          const eventId = event.id;
-          const eventName = event.name || '';
-          const startDateISO = event.startDateISO || '';
-          const venue = event.venue || '';
-          const settings = event.settings || { showSchedule: false, showStandings: false, showBracket: false, showSponsors: false };
-          const links = event.links || {};
+          // === LOG DISPLAY VIEW METRIC ===
+          logEvent({ eventId: ev.id, surface: 'display', metric: 'view', value: 1 });
 
-          // === CONTRACT FIELDS (MVP OPTIONAL) ===
-          const schedule = event.schedule || [];
-          const standings = event.standings || [];
-          const bracket = event.bracket || null;
+          // === CONTRACT FIELDS (MVP REQUIRED) ===
+          const settings = ev.settings || { showSchedule: false, showStandings: false, showBracket: false, showSponsors: false };
 
           // === CONTRACT FIELDS (V2 OPTIONAL) ===
-          const sponsors = event.sponsors || [];
-          const externalData = event.externalData || {};
+          const sponsors = ev.sponsors || [];
+          const externalData = ev.externalData || {};
 
-          // === RENDER EVENT INFO (TV Header) ===
-          renderEventInfo(eventName, startDateISO, venue);
-
-          // === RENDER SCHEDULE/STANDINGS/BRACKET PANELS ===
-          // Uses event.settings.* to decide visibility
-          if (settings.showSchedule && schedule.length > 0) {
-            renderSchedulePanel(schedule);
-          }
-          if (settings.showStandings && standings.length > 0) {
-            renderStandingsPanel(standings);
-          }
-          if (settings.showBracket && bracket) {
-            renderBracketPanel(bracket);
-          }
+          // === LEGACY DATA FOR DYNAMIC MODE ===
+          const legacyData = ev.data || {};
+          const displayConfig = legacyData.display || {};
 
           // === RENDER LEAGUE & BROADCAST STRIP ===
           // Uses event.externalData (V2 Optional)
           if (externalData.scheduleUrl || externalData.standingsUrl || externalData.bracketUrl ||
               externalData.statsUrl || externalData.scoreboardUrl || externalData.streamUrl) {
-            renderLeagueBroadcast(event.templateId || '', externalData);
+            renderLeagueBroadcast(ev.templateId || '', externalData);
           }
 
           // === RESERVED SPONSOR STRIP ===
-          // Always render sponsor bar container (even if empty for future use)
           // Uses event.settings.showSponsors and event.sponsors
           if (settings.showSponsors && sponsors.length > 0) {
             // Filter sponsors by placement for display/tv-banner
@@ -738,19 +719,23 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
               s.placement === 'display' || s.placement === 'tv-banner' || !s.placement
             );
             if (displaySponsors.length > 0) {
-              renderSponsorTopFromArray(event.id, displaySponsors);
+              renderSponsorTopFromArray(ev.id, displaySponsors);
               // Use layout.hasSidePane from DisplayBundle to show side panel
               if (layout.hasSidePane) {
-                renderSponsorSideFromArray(event.id, displaySponsors);
+                renderSponsorSideFromArray(ev.id, displaySponsors);
               }
             }
           }
-          // Reserved: Sponsor strip container exists but hidden when no sponsors
 
           // === START DISPLAY MODE ===
-          // For now, default to public mode (mirroring event page)
-          // Future: Use rotation config for dynamic sponsor/content rotation
-          startPublicMode();
+          // Dynamic mode: rotate through configured URLs
+          // Public mode: mirror the event public page
+          if (String(displayConfig.mode || '').toLowerCase() === 'dynamic'
+              && Array.isArray(displayConfig.urls) && displayConfig.urls.length) {
+            startDynamicMode(displayConfig.urls);
+          } else {
+            startPublicMode();
+          }
         })
         .withFailureHandler(() => startPublicMode())
         .api_getDisplayBundle({ brandId, scope: 'events', id: eventId });
