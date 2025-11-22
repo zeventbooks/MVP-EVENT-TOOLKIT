@@ -46,3 +46,14 @@ See root directory for active documentation:
 - `DEPLOYMENT.md` - Deployment instructions
 - `TESTING.md` - Test infrastructure
 - `MVP_GOLDEN_PATH.md` - Canonical pages and architecture
+
+See `docs/` for scope and architecture:
+- **`docs/MVP_SURFACES.md`** - MVP scope lock (6 surfaces for focus groups)
+- `docs/ARCHITECTURE.md` - System architecture
+- `docs/FRIENDLY_URLS.md` - URL routing documentation
+
+## MVP vs Archived
+
+**MVP Surfaces (6 total)**: Admin, Public, Display, Poster, Sponsor, SharedReport
+
+**Everything in this directory is NOT part of the MVP** and should NOT be wired into navigation or tests.

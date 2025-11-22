@@ -1,5 +1,22 @@
 // === Zeventbook Production-Grade Backend ===
 // Build: triangle-prod-v1.2
+//
+// =============================================================================
+// MVP SCOPE LOCK - Focus Group Critical
+// =============================================================================
+// MVP Surfaces (6 total - see docs/MVP_SURFACES.md):
+//   ✅ Admin.html        ?page=admin
+//   ✅ Public.html       ?page=public (default)
+//   ✅ Display.html      ?page=display
+//   ✅ Poster.html       ?page=poster
+//   ✅ Sponsor.html      ?page=sponsor
+//   ✅ SharedReport.html ?page=report
+//
+// Non-MVP (v2+ experimental):
+//   ❌ ApiDocs, Diagnostics, Test, Signup, PlannerCards, ConfigHtml
+//
+// DO NOT add new surfaces without updating docs/MVP_SURFACES.md
+// =============================================================================
 
 // === Constants / Envelopes / Errors =======================================
 const ERR = Object.freeze({
@@ -218,6 +235,10 @@ function validateCSRFToken_(token) {
 }
 
 // === Router ================================================================
+// MVP Routes: admin, public (default), display, poster, sponsor, report/analytics
+// Non-MVP Routes: docs/api, test, diagnostics, signup, config, planner, sponsor-roi
+// See docs/MVP_SURFACES.md for scope definition
+// ===========================================================================
 function doGet(e){
   const pageParam = (e?.parameter?.page || e?.parameter?.p || '').toString();
   const actionParam = (e?.parameter?.action || '').toString();
@@ -342,7 +363,8 @@ function doGet(e){
     return HtmlService.createHtmlOutput(`<meta http-equiv="refresh" content="0;url=?p=${first}&brand=${brand.id}">`);
   }
 
-  // Admin mode selection: default to wizard for simplicity, allow advanced mode via URL parameter
+  // Page routing - MVP surfaces are: admin, public (default), display, poster, sponsor, report/analytics
+  // Non-MVP routes (v2+): test, diagnostics, signup, config, planner, sponsor-roi
   let page = (pageParam==='admin' || pageParam==='wizard' || pageParam==='planner' || pageParam==='poster' || pageParam==='test' || pageParam==='display' || pageParam==='report' || pageParam==='analytics' || pageParam==='diagnostics' || pageParam==='sponsor' || pageParam==='sponsor-roi' || pageParam==='signup' || pageParam==='config') ? pageParam : 'public';
 
   // Route using helper function
