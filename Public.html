@@ -214,6 +214,86 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       font-weight: 600;
       color: #059669;
     }
+    /* Data tables (standings, etc.) */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+    .data-table th, .data-table td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .data-table th {
+      background: #f8fafc;
+      font-weight: 600;
+      color: #475569;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+    }
+    .data-table tbody tr:hover {
+      background: #f8fafc;
+    }
+    .standings-table .rank {
+      display: inline-block;
+      width: 24px;
+      height: 24px;
+      line-height: 24px;
+      text-align: center;
+      background: #e2e8f0;
+      border-radius: 50%;
+      font-weight: 600;
+      font-size: 0.75rem;
+      margin-right: 8px;
+    }
+    .standings-table .top-rank .rank {
+      background: #fef3c7;
+      color: #92400e;
+    }
+    .standings-table .top-rank:first-child .rank {
+      background: #fcd34d;
+      color: #78350f;
+    }
+    /* Vendor grid */
+    .vendor-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 16px;
+    }
+    .vendor-card {
+      padding: 16px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+    }
+    .vendor-card h4 {
+      margin: 0 0 8px 0;
+      color: #1e293b;
+    }
+    .vendor-card p {
+      margin: 0 0 12px 0;
+      color: #64748b;
+      font-size: 0.9rem;
+    }
+    .vendor-card a {
+      color: #2563eb;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    /* Loading placeholder */
+    .loading-placeholder {
+      padding: 24px;
+      text-align: center;
+      color: #64748b;
+      background: #f8fafc;
+      border-radius: 8px;
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
     .action-buttons {
       display: flex;
       gap: 12px;
@@ -522,6 +602,133 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       toast.textContent = message;
       toast.classList.add('show');
       setTimeout(() => toast.classList.remove('show'), duration);
+    }
+
+    // === Google Sheets "Bring Your Own Data" ===
+
+    // Detect if URL is a Google Sheets URL and extract sheet ID
+    function parseGoogleSheetUrl(url) {
+      if (!url) return null;
+      const match = url.match(/docs\.google\.com\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+      if (match) {
+        return { sheetId: match[1], originalUrl: url };
+      }
+      return null;
+    }
+
+    // Convert Google Sheets URL to CSV export URL
+    function getSheetCsvUrl(sheetId, sheetName = '') {
+      let csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv`;
+      if (sheetName) csvUrl += `&sheet=${encodeURIComponent(sheetName)}`;
+      return csvUrl;
+    }
+
+    // Fetch and parse CSV data from Google Sheets
+    async function fetchSheetData(url) {
+      const sheetInfo = parseGoogleSheetUrl(url);
+      if (!sheetInfo) return null; // Not a Google Sheet, fallback to link
+
+      try {
+        const csvUrl = getSheetCsvUrl(sheetInfo.sheetId);
+        const response = await fetch(csvUrl);
+        if (!response.ok) return null;
+
+        const csvText = await response.text();
+        return parseCSV(csvText);
+      } catch (e) {
+        console.warn('Failed to fetch sheet data:', e);
+        return null; // Fallback to link on error
+      }
+    }
+
+    // Simple CSV parser (handles quoted fields)
+    function parseCSV(csv) {
+      const lines = csv.split('\n').filter(line => line.trim());
+      if (lines.length === 0) return { headers: [], rows: [] };
+
+      const parseRow = (line) => {
+        const result = [];
+        let current = '';
+        let inQuotes = false;
+        for (let i = 0; i < line.length; i++) {
+          const char = line[i];
+          if (char === '"') {
+            inQuotes = !inQuotes;
+          } else if (char === ',' && !inQuotes) {
+            result.push(current.trim());
+            current = '';
+          } else {
+            current += char;
+          }
+        }
+        result.push(current.trim());
+        return result;
+      };
+
+      const headers = parseRow(lines[0]);
+      const rows = lines.slice(1).map(parseRow);
+      return { headers, rows };
+    }
+
+    // Render standings table from sheet data
+    function renderStandingsTable(data) {
+      if (!data || !data.rows.length) return '<p class="muted">No standings data available.</p>';
+
+      let html = '<table class="data-table standings-table">';
+      html += '<thead><tr>';
+      data.headers.forEach((h, i) => {
+        html += `<th>${esc(h)}</th>`;
+      });
+      html += '</tr></thead><tbody>';
+
+      data.rows.forEach((row, idx) => {
+        html += `<tr class="${idx < 3 ? 'top-rank' : ''}">`;
+        row.forEach((cell, i) => {
+          if (i === 0) {
+            html += `<td><span class="rank">${idx + 1}</span> ${esc(cell)}</td>`;
+          } else {
+            html += `<td>${esc(cell)}</td>`;
+          }
+        });
+        html += '</tr>';
+      });
+
+      html += '</tbody></table>';
+      return html;
+    }
+
+    // Render schedule/agenda from sheet data
+    function renderScheduleTable(data) {
+      if (!data || !data.rows.length) return '<p class="muted">No schedule data available.</p>';
+
+      let html = '<div class="schedule-list">';
+      data.rows.forEach(row => {
+        const [time, title, description] = row;
+        html += '<div class="schedule-item">';
+        if (time) html += `<span class="schedule-time">${esc(time)}</span>`;
+        if (title) html += `<span class="schedule-title">${esc(title)}</span>`;
+        if (description) html += `<span class="schedule-desc">${esc(description)}</span>`;
+        html += '</div>';
+      });
+      html += '</div>';
+      return html;
+    }
+
+    // Render vendor list from sheet data
+    function renderVendorList(data) {
+      if (!data || !data.rows.length) return '<p class="muted">No vendor data available.</p>';
+
+      let html = '<div class="vendor-grid">';
+      data.rows.forEach(row => {
+        const [name, description, url] = row;
+        html += '<div class="vendor-card">';
+        html += `<h4>${esc(name || 'Vendor')}</h4>`;
+        if (description) html += `<p>${esc(description)}</p>`;
+        if (url) html += `<a href="${esc(url)}" target="_blank" rel="noopener">Visit →</a>`;
+        html += '</div>';
+      });
+      html += '</div>';
+      return html;
     }
 
     // Map CTA label to URL from event data
@@ -991,11 +1198,12 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
         }
       }
 
-      // Schedule Section (respects sections.schedule)
-      if (data.schedule && sectionEnabled('schedule')) {
+      // Schedule Section (respects sections.schedule) - supports Google Sheets BYOD
+      if ((data.schedule || data.scheduleUrl) && sectionEnabled('schedule')) {
         html += '<div class="event-section">';
         html += '<h2>Schedule</h2>';
         if (Array.isArray(data.schedule)) {
+          // Pre-defined schedule array
           html += '<div class="schedule-list">';
           data.schedule.forEach(item => {
             html += `<div class="schedule-item">`;
@@ -1005,11 +1213,13 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
             html += `</div>`;
           });
           html += '</div>';
+        } else if (data.scheduleUrl) {
+          // Google Sheets BYOD for schedule
+          html += `<div id="schedule-container" data-url="${esc(data.scheduleUrl)}">
+            <div class="loading-placeholder">Loading schedule...</div>
+          </div>`;
         } else if (typeof data.schedule === 'string') {
           html += `<p>${esc(data.schedule)}</p>`;
-        }
-        if (data.scheduleUrl) {
-          html += `<p><a href="${esc(data.scheduleUrl)}" target="_blank" rel="noopener">View Full Schedule →</a></p>`;
         }
         html += '</div>';
       }
@@ -1034,12 +1244,14 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
         html += '</div>';
       }
 
-      // Standings/Bracket (league templates)
+      // Standings/Bracket (league templates) - supports Google Sheets BYOD
       if (data.standingsUrl || data.bracketUrl) {
         html += '<div class="event-section">';
         html += '<h2>Standings & Results</h2>';
         if (data.standingsUrl) {
-          html += `<p><a class="btn-secondary" href="${esc(data.standingsUrl)}" target="_blank" rel="noopener">📊 View Standings</a></p>`;
+          html += `<div id="standings-container" data-url="${esc(data.standingsUrl)}">
+            <div class="loading-placeholder">Loading standings...</div>
+          </div>`;
         }
         if (data.bracketUrl) {
           html += `<p><a class="btn-secondary" href="${esc(data.bracketUrl)}" target="_blank" rel="noopener">🏆 View Bracket</a></p>`;
@@ -1047,11 +1259,13 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
         html += '</div>';
       }
 
-      // Vendor List (farmers_market template)
+      // Vendor List (farmers_market template) - supports Google Sheets BYOD
       if (data.vendorListUrl) {
         html += '<div class="event-section">';
         html += '<h2>Vendors</h2>';
-        html += `<p><a class="btn-secondary" href="${esc(data.vendorListUrl)}" target="_blank" rel="noopener">🛒 View Vendor List</a></p>`;
+        html += `<div id="vendors-container" data-url="${esc(data.vendorListUrl)}">
+          <div class="loading-placeholder">Loading vendors...</div>
+        </div>`;
         html += '</div>';
       }
 
@@ -1094,6 +1308,34 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       html += '</div>';
 
       root.innerHTML = html;
+
+      // Populate Google Sheets data asynchronously (BYOD)
+      populateSheetData();
+    }
+
+    // Fetch and populate all sheet data containers
+    async function populateSheetData() {
+      const containers = [
+        { id: 'schedule-container', renderer: renderScheduleTable },
+        { id: 'standings-container', renderer: renderStandingsTable },
+        { id: 'vendors-container', renderer: renderVendorList }
+      ];
+
+      for (const { id, renderer } of containers) {
+        const container = document.getElementById(id);
+        if (!container) continue;
+
+        const url = container.dataset.url;
+        const sheetData = await fetchSheetData(url);
+
+        if (sheetData && sheetData.rows.length > 0) {
+          // Google Sheet data fetched - render styled
+          container.innerHTML = renderer(sheetData);
+        } else {
+          // Not a Google Sheet or fetch failed - show link fallback
+          container.innerHTML = `<p><a class="btn-secondary" href="${esc(url)}" target="_blank" rel="noopener">View Full Data →</a></p>`;
+        }
+      }
     }
 
     // Error state renderer
