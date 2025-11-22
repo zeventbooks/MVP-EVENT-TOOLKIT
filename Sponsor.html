@@ -26,11 +26,12 @@ Related MVP Surfaces: Admin, Poster, Display, Public, SharedReport
   <?!= include('APIClient'); ?>
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <meta name="referrer" content="no-referrer"/>
+  <?!= include('DesignTokens'); ?>
   <?!= include('Styles'); ?>
   <style>
-    /* Page-specific styles (theme gradient) */
+    /* Page-specific styles - uses design tokens from Styles.html */
     body {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: linear-gradient(135deg, var(--color-primary, #2563eb) 0%, var(--color-primary-dark, #1d4ed8) 100%);
       min-height: 100vh;
       padding: 2rem 1rem;
     }
@@ -38,12 +39,20 @@ Related MVP Surfaces: Admin, Poster, Display, Public, SharedReport
       max-width: 1200px;
       margin: 0 auto;
     }
-    /* Theme-specific accent color override */
+    /* Use primary color for accents (consistent with other surfaces) */
     .nav-breadcrumb a {
-      color: #667eea;
+      color: var(--color-primary, #2563eb);
     }
     .entity-card:hover {
-      border-color: #667eea;
+      border-color: var(--color-primary, #2563eb);
+    }
+    /* Sponsor link styling */
+    .sponsor-link {
+      color: var(--color-primary, #2563eb);
+      text-decoration: none;
+    }
+    .sponsor-link:hover {
+      text-decoration: underline;
     }
     /* Sponsor logo in card */
     .sponsor-logo-img {
@@ -315,7 +324,7 @@ Related MVP Surfaces: Admin, Poster, Display, Public, SharedReport
         ${sponsor.tier ? `<span class="tier-badge tier-${NU.esc(sponsor.tier)}">${NU.esc(sponsor.tier)}</span>` : ''}
         ${sponsor.logo ? `<img src="${NU.esc(sponsor.logo)}" alt="${NU.esc(sponsor.name)} logo" class="sponsor-logo-img" onerror="this.style.display='none'">` : ''}
         <div class="entity-card-info">
-          ${sponsor.website ? `🌐 <a href="${NU.esc(sponsor.website)}" target="_blank" rel="noopener" style="color: #667eea;">${NU.esc(sponsor.website)}</a>` : ''}
+          ${sponsor.website ? `🌐 <a href="${NU.esc(sponsor.website)}" target="_blank" rel="noopener" class="sponsor-link">${NU.esc(sponsor.website)}</a>` : ''}
         </div>
         ${sponsor.description ? `<div class="entity-card-info">${NU.esc(sponsor.description)}</div>` : ''}
         <div class="entity-card-info" style="font-size: 0.75rem; color: #9ca3af;">
