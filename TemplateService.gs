@@ -183,6 +183,50 @@ var EVENT_TEMPLATES = {
     }
   },
 
+  shower: {
+    id: 'shower',
+    label: 'Shower (Baby/Bridal)',
+    description: 'Baby showers, bridal showers, gift registries',
+    exampleName: "Sarah's Baby Shower",
+    icon: '🎀',
+    sections: {
+      video: false,
+      map: true,
+      schedule: true,
+      sponsors: false,
+      notes: true,
+      gallery: true
+    },
+    defaultCtas: ['RSVP', 'View Registry'],
+    defaults: {
+      audience: 'Friends & Family',
+      notesLabel: 'Party Details',
+      sponsorStripLabel: ''
+    }
+  },
+
+  bachelor_party: {
+    id: 'bachelor_party',
+    label: 'Bachelor / Bachelorette',
+    description: 'Bachelor parties, bachelorette weekends, stag nights',
+    exampleName: "Jake's Bachelor Party",
+    icon: '🥳',
+    sections: {
+      video: false,
+      map: true,
+      schedule: true,
+      sponsors: false,
+      notes: true,
+      gallery: true
+    },
+    defaultCtas: ['RSVP', 'View Itinerary'],
+    defaults: {
+      audience: 'Wedding Party & Friends',
+      notesLabel: 'Party Details',
+      sponsorStripLabel: ''
+    }
+  },
+
   // === Market & Arts Templates ===
 
   farmers_market: {

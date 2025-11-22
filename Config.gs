@@ -220,7 +220,7 @@ var BRAND_TEMPLATE_CONFIG = {
       // Core
       'bar_night', 'rec_league', 'school', 'fundraiser', 'corporate',
       // Social & Celebration
-      'wedding', 'photo_gallery',
+      'wedding', 'photo_gallery', 'shower', 'bachelor_party',
       // Market & Arts
       'farmers_market', 'art_show', 'carnival',
       // Bar Games & Leagues
