@@ -831,19 +831,21 @@ function jsonResponse_(data) {
  * @returns {string} HTML template filename (without .html extension)
  */
 function pageFile_(page){
+  // === MVP SURFACES ===
   if (page==='admin') return 'Admin';
-  if (page==='admin-enhanced') return 'AdminEnhanced';
-  if (page==='wizard') return 'AdminWizard';
-  if (page==='planner') return 'PlannerCards';
   if (page==='poster') return 'Poster';
-  if (page==='test') return 'Test';
   if (page==='display') return 'Display';
   if (page==='report' || page==='analytics') return 'SharedReport';
-  if (page==='diagnostics') return 'Diagnostics';
   if (page==='sponsor') return 'Sponsor';
+  // === Supporting Pages ===
+  if (page==='test') return 'Test';
+  if (page==='diagnostics') return 'Diagnostics';
   if (page==='sponsor-roi') return 'SponsorDashboard';
   if (page==='signup') return 'Signup';
   if (page==='config') return 'ConfigHtml';
+  if (page==='planner') return 'PlannerCards';
+  // === v2+ (archived) - redirect to Admin ===
+  if (page==='wizard' || page==='admin-enhanced') return 'Admin';
   return 'Public';
 }
 
