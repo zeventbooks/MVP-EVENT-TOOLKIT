@@ -15,7 +15,7 @@
  * - Smoke tests must pass before expensive tests (flows + pages)
  */
 
-const { execSync, spawn } = require('child_process');
+const { execSync } = require('child_process');
 
 // ANSI colors for terminal output
 const colors = {
@@ -323,11 +323,12 @@ ${colors.reset}`);
       printSummary(null, stage2Results);
       break;
 
-    case 'quick':
+    case 'quick': {
       const quickResults = await runQuickCI();
       console.log(`\n${colors.bright}QUICK CI: ${quickResults.success ? colors.green + 'PASS' : colors.red + 'FAIL'}${colors.reset}`);
       success = quickResults.success;
       break;
+    }
 
     case 'full':
     default:
