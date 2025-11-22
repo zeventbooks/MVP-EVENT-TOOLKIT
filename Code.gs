@@ -290,13 +290,45 @@ function doGet(e){
       const aliasConfig = resolveUrlAlias_(aliasFromPath, brandFromPath?.id || brand.id);
 
       if (aliasConfig) {
+        // API endpoints should return JSON/special content, not HTML pages
+        // Handle these directly instead of routing through routePage_()
+        const resolvedPage = aliasConfig.page;
+
+        // Handle API-like pages that return JSON
+        if (resolvedPage === 'status') {
+          const brandParam = (e?.parameter?.brand || brand.id || 'root').toString();
+          const status = api_status(brandParam);
+          return ContentService.createTextOutput(JSON.stringify(status, null, 2))
+            .setMimeType(ContentService.MimeType.JSON);
+        }
+
+        if (resolvedPage === 'setup' || resolvedPage === 'setupcheck') {
+          const brandParam = (e?.parameter?.brand || brand.id || 'root').toString();
+          const setupResult = api_setupCheck(brandParam);
+          return ContentService.createTextOutput(JSON.stringify(setupResult, null, 2))
+            .setMimeType(ContentService.MimeType.JSON);
+        }
+
+        if (resolvedPage === 'permissions' || resolvedPage === 'checkpermissions') {
+          const brandParam = (e?.parameter?.brand || brand.id || 'root').toString();
+          const permissionResult = api_checkPermissions(brandParam);
+          return ContentService.createTextOutput(JSON.stringify(permissionResult, null, 2))
+            .setMimeType(ContentService.MimeType.JSON);
+        }
+
+        // Handle API docs page (returns HTML, but special)
+        if (resolvedPage === 'api' || resolvedPage === 'docs') {
+          return HtmlService.createHtmlOutputFromFile('ApiDocs')
+            .setTitle('API Documentation - MVP Event Toolkit')
+            .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.DENY);
+        }
+
+        // Standard HTML page routing
         // Override brand if specified in path
         if (brandFromPath) {
           brand = brandFromPath;
         }
 
-        // Set page and mode from alias
-        const resolvedPage = aliasConfig.page;
         const resolvedMode = aliasConfig.mode;
 
         // Continue routing with resolved values
@@ -510,6 +542,32 @@ function handleRestApiGet_(e, action, brand) {
     return jsonResponse_(api_get({brandId, scope, id, ifNoneMatch: etag}));
   }
 
+  // Public bundle endpoints (no auth required)
+  if (action === 'getPublicBundle') {
+    if (!id) return jsonResponse_(Err(ERR.BAD_INPUT, 'Missing id parameter'));
+    return jsonResponse_(api_getPublicBundle({brandId, scope, id, ifNoneMatch: etag}));
+  }
+
+  if (action === 'getDisplayBundle') {
+    if (!id) return jsonResponse_(Err(ERR.BAD_INPUT, 'Missing id parameter'));
+    return jsonResponse_(api_getDisplayBundle({brandId, scope, id, ifNoneMatch: etag}));
+  }
+
+  if (action === 'getPosterBundle') {
+    if (!id) return jsonResponse_(Err(ERR.BAD_INPUT, 'Missing id parameter'));
+    return jsonResponse_(api_getPosterBundle({brandId, scope, id, ifNoneMatch: etag}));
+  }
+
+  if (action === 'getSponsorBundle') {
+    if (!id) return jsonResponse_(Err(ERR.BAD_INPUT, 'Missing id parameter'));
+    return jsonResponse_(api_getSponsorBundle({brandId, scope, id, ifNoneMatch: etag}));
+  }
+
+  if (action === 'getSharedReportBundle') {
+    if (!id) return jsonResponse_(Err(ERR.BAD_INPUT, 'Missing id parameter'));
+    return jsonResponse_(api_getSharedReportBundle({brandId, scope, id, ifNoneMatch: etag}));
+  }
+
   return jsonResponse_(Err(ERR.BAD_INPUT, `Unknown action: ${action}`));
 }
 
@@ -571,6 +629,17 @@ function handleRestApiPost_(e, action, body, brand) {
       id: body.eventId || '',  // Fixed: Changed eventId to id to match api_getReport
       startDate: body.startDate || '',
       endDate: body.endDate || ''
+    }));
+  }
+
+  // Admin Bundle - optimized bundle for Admin.html surface
+  if (action === 'getAdminBundle') {
+    return jsonResponse_(api_getAdminBundle({
+      brandId,
+      adminKey,
+      scope,
+      id: body.id || body.eventId || '',
+      ifNoneMatch: body.ifNoneMatch || ''
     }));
   }
 
@@ -1448,7 +1517,8 @@ function _ensureAnalyticsSheet_(spreadsheetId){
   let sh = ss.getSheetByName('ANALYTICS');
   if (!sh){
     sh = ss.insertSheet('ANALYTICS');
-    sh.appendRow(['timestamp','eventId','surface','metric','sponsorId','value','token','userAgent']);
+    // Extended columns for sponsor/BBN attribution: sessionId ties events together, visibleSponsorIds for context
+    sh.appendRow(['timestamp','eventId','surface','metric','sponsorId','value','token','userAgent','sessionId','visibleSponsorIds']);
     sh.setFrozenRows(1);
   }
   return sh;
@@ -2265,6 +2335,747 @@ function api_getPublicBundle(payload){
 }
 
 /**
+ * Admin Bundle - Optimized bundle for Admin.html surface
+ * Returns event + admin-specific config, templates, diagnostics, and all sponsors
+ *
+ * AdminEventBundle interface:
+ * - event: EventCore (full canonical event shape)
+ * - brandConfig: { brandId, allowedTemplates, defaultTemplateId }
+ * - templates: TemplateDescriptor[] (available templates for this brand)
+ * - diagnostics: { hasForm, hasShortlinks, lastPublishedAt }
+ * - allSponsors: Sponsor[] (all sponsors for brand, for dropdown linking)
+ *
+ * Admin editable fields (MVP):
+ *   templateId (while status === 'draft'), name, description, dateTime, timezone,
+ *   location, venueName, imageUrl, videoUrl, mapEmbedUrl, audience, notesLabel, notes,
+ *   sections.*.enabled, sections.*.label, ctaLabels (labels only),
+ *   externalData.scheduleUrl/standingsUrl/bracketUrl, sponsor attachments
+ *
+ * Admin cannot edit: id, short*Url fields, analytics-derived data
+ *
+ * @param {object} payload - { brandId, scope, id, adminKey, ifNoneMatch }
+ * @returns {object} { ok, value: AdminEventBundle, etag }
+ * @tier mvp
+ */
+function api_getAdminBundle(payload){
+  return runSafe('api_getAdminBundle', () => {
+    const { brandId, scope, id, adminKey } = payload||{};
+
+    // Auth required for admin bundle
+    const g = gate_(brandId, adminKey);
+    if (!g.ok) return g;
+
+    // Validate ID format
+    const sanitizedId = sanitizeId_(id);
+    if (!sanitizedId) return Err(ERR.BAD_INPUT, 'Invalid ID format');
+
+    const brand = findBrand_(brandId);
+    if (!brand) return Err(ERR.NOT_FOUND, 'Unknown brand');
+
+    const a = assertScopeAllowed_(brand, scope);
+    if (!a.ok) return a;
+
+    // Get event data
+    const sh = getStoreSheet_(brand, scope);
+    const r = sh.getDataRange().getValues().slice(1).find(row => row[0]===sanitizedId && row[1]===brandId);
+    if (!r) return Err(ERR.NOT_FOUND, 'Event not found');
+
+    // Hydrate to canonical Event shape with full sponsor data
+    const baseUrl = ScriptApp.getService().getUrl();
+    const event = hydrateEvent_(r, { baseUrl, hydrateSponsors: true });
+
+    // Get brand template config
+    const templateConfig = getBrandTemplateConfig_(brandId);
+    const templates = getTemplatesForBrand_(brandId);
+
+    // Get all sponsors for brand (for dropdown linking)
+    const allSponsors = getAllSponsorsForBrand_(brandId);
+
+    // Build diagnostics - check for forms and shortlinks
+    const diagnostics = getEventDiagnostics_(brandId, sanitizedId);
+
+    // Build bundled response matching AdminEventBundle interface
+    const value = {
+      // Full canonical event shape
+      event: event,
+
+      // Brand configuration for admin
+      brandConfig: {
+        brandId: brand.id,
+        allowedTemplates: templateConfig.templates,
+        defaultTemplateId: templateConfig.defaultTemplateId
+      },
+
+      // Available templates for this brand
+      templates: templates,
+
+      // System diagnostics (readonly in UI)
+      diagnostics: diagnostics,
+
+      // All sponsors for dropdown/linking
+      allSponsors: allSponsors
+    };
+
+    const etag = Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(value)));
+    if (payload?.ifNoneMatch === etag) return { ok:true, notModified:true, etag };
+    return _ensureOk_('api_getAdminBundle', SC_GET, { ok:true, etag, value });
+  });
+}
+
+/**
+ * Get all sponsors for a brand (helper for admin bundle)
+ * @param {string} brandId - Brand ID
+ * @returns {Array} Array of sponsor objects
+ * @private
+ */
+function getAllSponsorsForBrand_(brandId) {
+  try {
+    const brand = findBrand_(brandId);
+    if (!brand) return [];
+
+    const sh = getStoreSheet_(brand, 'sponsors');
+    const lastRow = sh.getLastRow();
+    if (lastRow <= 1) return [];
+
+    const rows = sh.getRange(2, 1, lastRow - 1, 6).getValues();
+
+    return rows
+      .filter(r => r[1] === brandId)
+      .map(row => {
+        const data = safeJSONParse_(row[3], {});
+        return {
+          id: row[0],
+          name: data.name || 'Unknown',
+          logoUrl: data.logoUrl || null,
+          website: data.website || null,
+          tier: data.tier || null,
+          entity: data.entity || null
+        };
+      });
+  } catch (e) {
+    diag_('error', 'getAllSponsorsForBrand_', 'Failed to get sponsors', { brandId, error: String(e) });
+    return [];
+  }
+}
+
+/**
+ * Get event diagnostics for admin bundle
+ * @param {string} brandId - Brand ID
+ * @param {string} eventId - Event ID
+ * @returns {object} Diagnostics object
+ * @private
+ */
+function getEventDiagnostics_(brandId, eventId) {
+  try {
+    // Check for shortlinks (look in SHORTLINKS sheet)
+    let hasShortlinks = false;
+    let hasForm = false;
+    let lastPublishedAt = null;
+
+    const brand = findBrand_(brandId);
+    if (brand) {
+      const ss = SpreadsheetApp.openById(brand.store.spreadsheetId);
+
+      // Check SHORTLINKS sheet for this event
+      const slSheet = ss.getSheetByName('SHORTLINKS');
+      if (slSheet && slSheet.getLastRow() > 1) {
+        const slData = slSheet.getDataRange().getValues().slice(1);
+        hasShortlinks = slData.some(row => row[2] === eventId || String(row[1]).includes(eventId));
+      }
+
+      // Check if event has form URLs set (signupUrl, checkinUrl, feedbackUrl)
+      const evSheet = ss.getSheetByName('events');
+      if (evSheet) {
+        const evData = evSheet.getDataRange().getValues().slice(1);
+        const eventRow = evData.find(r => r[0] === eventId && r[1] === brandId);
+        if (eventRow) {
+          const data = safeJSONParse_(eventRow[3], {});
+          hasForm = !!(data.signupUrl || data.checkinUrl || data.feedbackUrl);
+
+          // Check for lastPublishedAt in data or use status change
+          if (data.status === 'published' && data.publishedAt) {
+            lastPublishedAt = data.publishedAt;
+          }
+        }
+      }
+    }
+
+    return {
+      hasForm: hasForm,
+      hasShortlinks: hasShortlinks,
+      lastPublishedAt: lastPublishedAt
+    };
+  } catch (e) {
+    diag_('error', 'getEventDiagnostics_', 'Failed to get diagnostics', { brandId, eventId, error: String(e) });
+    return {
+      hasForm: false,
+      hasShortlinks: false,
+      lastPublishedAt: null
+    };
+  }
+}
+
+/**
+ * Display Bundle - Optimized bundle for Display.html (TV mode)
+ * Returns event + rotation/layout config computed from Config + Template + Brand
+ *
+ * DisplayBundle interface:
+ * - event: EventCore (full canonical event shape with hydrated sponsors)
+ * - rotation: { sponsorSlots, rotationMs } - sponsor display config
+ * - layout: { hasSidePane, emphasis } - layout emphasis ('scores'|'sponsors'|'hero')
+ *
+ * All values are computed from ZEB.DISPLAY_CONFIG with template-specific overrides.
+ * No extra DB fields needed.
+ *
+ * @param {object} payload - { brandId, scope, id, ifNoneMatch }
+ * @returns {object} { ok, value: DisplayBundle, etag }
+ * @tier mvp
+ */
+function api_getDisplayBundle(payload){
+  return runSafe('api_getDisplayBundle', () => {
+    const { brandId, scope, id } = payload||{};
+
+    // Validate ID format
+    const sanitizedId = sanitizeId_(id);
+    if (!sanitizedId) return Err(ERR.BAD_INPUT, 'Invalid ID format');
+
+    const brand = findBrand_(brandId);
+    if (!brand) return Err(ERR.NOT_FOUND, 'Unknown brand');
+
+    const a = assertScopeAllowed_(brand, scope);
+    if (!a.ok) return a;
+
+    // Get event data
+    const sh = getStoreSheet_(brand, scope);
+    const r = sh.getDataRange().getValues().slice(1).find(row => row[0]===sanitizedId && row[1]===brandId);
+    if (!r) return Err(ERR.NOT_FOUND, 'Event not found');
+
+    // Hydrate to canonical Event shape with full sponsor data
+    const baseUrl = ScriptApp.getService().getUrl();
+    const event = hydrateEvent_(r, { baseUrl, hydrateSponsors: true });
+
+    // Get display config computed from Config + Template
+    const displayConfig = getDisplayConfig_(event.templateId, brandId);
+
+    // Build bundled response matching DisplayBundle interface
+    const value = {
+      // Full canonical event shape
+      event: event,
+
+      // Rotation config (sponsor display settings)
+      rotation: {
+        sponsorSlots: displayConfig.rotation.sponsorSlots,
+        rotationMs: displayConfig.rotation.rotationMs
+      },
+
+      // Layout config (emphasis and pane settings)
+      layout: {
+        hasSidePane: displayConfig.layout.hasSidePane,
+        emphasis: displayConfig.layout.emphasis
+      }
+    };
+
+    const etag = Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(value)));
+    if (payload?.ifNoneMatch === etag) return { ok:true, notModified:true, etag };
+    return _ensureOk_('api_getDisplayBundle', SC_GET, { ok:true, etag, value });
+  });
+}
+
+/**
+ * Get display configuration for a template/brand
+ * Merges ZEB.DISPLAY_CONFIG defaults with template-specific overrides
+ *
+ * @param {string} templateId - Event template ID
+ * @param {string} brandId - Brand ID (for future brand-specific overrides)
+ * @returns {object} Display config { rotation, layout }
+ * @private
+ */
+function getDisplayConfig_(templateId, brandId) {
+  const defaults = ZEB.DISPLAY_CONFIG;
+
+  // Start with global defaults
+  const config = {
+    rotation: { ...defaults.rotation },
+    layout: { ...defaults.layout }
+  };
+
+  // Apply template-specific overrides
+  const templateOverrides = defaults.templateOverrides?.[templateId];
+  if (templateOverrides) {
+    if (templateOverrides.rotation) {
+      Object.assign(config.rotation, templateOverrides.rotation);
+    }
+    if (templateOverrides.layout) {
+      Object.assign(config.layout, templateOverrides.layout);
+    }
+  }
+
+  // Future: Apply brand-specific overrides here
+  // const brand = findBrand_(brandId);
+  // if (brand?.displayConfig) { ... }
+
+  return config;
+}
+
+/**
+ * Poster Bundle - Optimized bundle for Poster.html (print-friendly)
+ * Returns event + QR codes + print-formatted strings
+ *
+ * PosterBundle interface:
+ * - event: EventCore (full canonical event shape with hydrated sponsors)
+ * - qrCodes: { public, signup } - QR code URLs for scanning
+ * - print: { dateLine, venueLine } - Pre-formatted strings for print
+ *
+ * Note: Tracking is maintained through event.links URLs which can be
+ * shortlinks created via api_createShortlink for full analytics.
+ *
+ * @param {object} payload - { brandId, scope, id, ifNoneMatch }
+ * @returns {object} { ok, value: PosterBundle, etag }
+ * @tier mvp
+ */
+function api_getPosterBundle(payload){
+  return runSafe('api_getPosterBundle', () => {
+    const { brandId, scope, id } = payload||{};
+
+    // Validate ID format
+    const sanitizedId = sanitizeId_(id);
+    if (!sanitizedId) return Err(ERR.BAD_INPUT, 'Invalid ID format');
+
+    const brand = findBrand_(brandId);
+    if (!brand) return Err(ERR.NOT_FOUND, 'Unknown brand');
+
+    const a = assertScopeAllowed_(brand, scope);
+    if (!a.ok) return a;
+
+    // Get event data
+    const sh = getStoreSheet_(brand, scope);
+    const r = sh.getDataRange().getValues().slice(1).find(row => row[0]===sanitizedId && row[1]===brandId);
+    if (!r) return Err(ERR.NOT_FOUND, 'Event not found');
+
+    // Hydrate to canonical Event shape with full sponsor data
+    const baseUrl = ScriptApp.getService().getUrl();
+    const event = hydrateEvent_(r, { baseUrl, hydrateSponsors: true });
+
+    // Generate QR code URLs using quickchart.io (works for print)
+    const qrCodes = generateQRCodes_(event);
+
+    // Generate print-friendly formatted strings
+    const printStrings = generatePrintStrings_(event);
+
+    // Build bundled response matching PosterBundle interface
+    const value = {
+      // Full canonical event shape (includes links for tracking)
+      event: event,
+
+      // QR code URLs
+      qrCodes: qrCodes,
+
+      // Print-friendly formatted strings
+      print: printStrings
+    };
+
+    const etag = Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(value)));
+    if (payload?.ifNoneMatch === etag) return { ok:true, notModified:true, etag };
+    return _ensureOk_('api_getPosterBundle', SC_GET, { ok:true, etag, value });
+  });
+}
+
+/**
+ * Generate QR code URLs for poster
+ * Uses quickchart.io API which is reliable for print use
+ *
+ * @param {object} event - Hydrated event object
+ * @returns {object} { public, signup } QR code image URLs
+ * @private
+ */
+function generateQRCodes_(event) {
+  const QR_SIZE = 200;
+  const QR_MARGIN = 1;
+
+  // Helper to generate QR URL
+  const qrUrl = (targetUrl) => {
+    if (!targetUrl) return null;
+    return `https://quickchart.io/qr?text=${encodeURIComponent(targetUrl)}&size=${QR_SIZE}&margin=${QR_MARGIN}`;
+  };
+
+  return {
+    // Public event page QR - uses event.links.publicUrl (can be shortlink for tracking)
+    public: qrUrl(event.links?.publicUrl),
+
+    // Signup form QR - uses signupUrl (can be shortlink for tracking)
+    signup: qrUrl(event.signupUrl)
+  };
+}
+
+/**
+ * Generate print-friendly formatted strings
+ *
+ * @param {object} event - Hydrated event object
+ * @returns {object} { dateLine, venueLine } formatted strings
+ * @private
+ */
+function generatePrintStrings_(event) {
+  let dateLine = null;
+  let venueLine = null;
+
+  // Format date line
+  if (event.dateTime) {
+    try {
+      const dt = new Date(event.dateTime);
+      if (!isNaN(dt.getTime())) {
+        // Format: "Saturday, August 15, 2025 at 6:00 PM"
+        const dateOpts = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        const timeOpts = { hour: 'numeric', minute: '2-digit', hour12: true };
+        const datePart = dt.toLocaleDateString('en-US', dateOpts);
+        const timePart = dt.toLocaleTimeString('en-US', timeOpts);
+        dateLine = `${datePart} at ${timePart}`;
+      }
+    } catch (e) {
+      // If date parsing fails, leave as null
+    }
+  }
+
+  // Format venue line
+  if (event.venueName && event.location && event.venueName !== event.location) {
+    // Show both: "Chicago Bocce Club · 123 Main St, Chicago, IL"
+    venueLine = `${event.venueName} · ${event.location}`;
+  } else if (event.location) {
+    venueLine = event.location;
+  } else if (event.venueName) {
+    venueLine = event.venueName;
+  }
+
+  return {
+    dateLine: dateLine,
+    venueLine: venueLine
+  };
+}
+
+/**
+ * api_getSponsorBundle - Optimized bundle for sponsor portal
+ * Returns thin event view + sponsors with analytics metrics
+ *
+ * @param {object} payload - { brandId, scope, id, ifNoneMatch }
+ * @returns {object} { ok, value: SponsorBundle, etag }
+ * @tier mvp
+ */
+function api_getSponsorBundle(payload){
+  return runSafe('api_getSponsorBundle', () => {
+    const { brandId, scope, id } = payload||{};
+
+    // Validate ID format
+    const sanitizedId = sanitizeId_(id);
+    if (!sanitizedId) return Err(ERR.BAD_INPUT, 'Invalid ID format');
+
+    const brand = findBrand_(brandId);
+    if (!brand) return Err(ERR.NOT_FOUND, 'Unknown brand');
+
+    const a = assertScopeAllowed_(brand, scope);
+    if (!a.ok) return a;
+
+    // Get event data
+    const sh = getStoreSheet_(brand, scope);
+    const r = sh.getDataRange().getValues().slice(1).find(row => row[0]===sanitizedId && row[1]===brandId);
+    if (!r) return Err(ERR.NOT_FOUND, 'Event not found');
+
+    // Hydrate with sponsors
+    const baseUrl = ScriptApp.getService().getUrl();
+    const event = hydrateEvent_(r, { baseUrl, hydrateSponsors: true });
+
+    // Get sponsor metrics from ANALYTICS sheet
+    const sponsorMetrics = getSponsorMetricsForEvent_(brand, sanitizedId);
+
+    // Build thin event view per SponsorBundle interface
+    const thinEvent = {
+      id: event.id,
+      name: event.name,
+      dateTime: event.dateTime,
+      location: event.location,
+      brandId: event.brandId
+    };
+
+    // Enrich sponsors with metrics
+    const sponsorsWithMetrics = (event.hydratedSponsors || []).map(sponsor => {
+      const metrics = sponsorMetrics[sponsor.id] || { impressions: 0, clicks: 0 };
+      const ctr = metrics.impressions > 0
+        ? +((metrics.clicks / metrics.impressions) * 100).toFixed(2)
+        : 0;
+      return {
+        ...sponsor,
+        metrics: {
+          impressions: metrics.impressions,
+          clicks: metrics.clicks,
+          ctr: ctr
+        }
+      };
+    });
+
+    // Build bundled response matching SponsorBundle interface
+    const value = {
+      event: thinEvent,
+      sponsors: sponsorsWithMetrics
+    };
+
+    const etag = Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(value)));
+    if (payload?.ifNoneMatch === etag) return { ok:true, notModified:true, etag };
+    return _ensureOk_('api_getSponsorBundle', SC_GET, { ok:true, etag, value });
+  });
+}
+
+/**
+ * Get sponsor metrics (impressions, clicks) for a specific event
+ * Reads from ANALYTICS sheet and aggregates by sponsorId
+ *
+ * @param {object} brand - Brand configuration
+ * @param {string} eventId - Event ID to filter by
+ * @returns {object} { [sponsorId]: { impressions, clicks } }
+ * @private
+ */
+function getSponsorMetricsForEvent_(brand, eventId) {
+  const metrics = {};
+
+  try {
+    // Get analytics sheet
+    const spreadsheetId = brand.spreadsheetId || ZEB.MASTER_SHEET_ID;
+    const ss = SpreadsheetApp.openById(spreadsheetId);
+    const analyticsSheet = ss.getSheetByName('ANALYTICS');
+
+    if (!analyticsSheet) {
+      // No analytics sheet yet - return empty metrics
+      return metrics;
+    }
+
+    const data = analyticsSheet.getDataRange().getValues().slice(1); // Skip header
+
+    // Filter by eventId and aggregate by sponsorId
+    // Columns: 0=timestamp, 1=eventId, 2=surface, 3=metric, 4=sponsorId, 5=value
+    for (const row of data) {
+      const rowEventId = row[1];
+      const metricType = row[3];
+      const sponsorId = row[4];
+
+      // Skip if not for this event or no sponsorId
+      if (rowEventId !== eventId || !sponsorId) continue;
+
+      // Initialize sponsor entry if needed
+      if (!metrics[sponsorId]) {
+        metrics[sponsorId] = { impressions: 0, clicks: 0 };
+      }
+
+      // Aggregate based on metric type
+      if (metricType === 'impression') {
+        metrics[sponsorId].impressions++;
+      } else if (metricType === 'click') {
+        metrics[sponsorId].clicks++;
+      }
+    }
+  } catch (e) {
+    // If analytics sheet doesn't exist or error, return empty metrics
+    Logger.log('getSponsorMetricsForEvent_ error: ' + e.message);
+  }
+
+  return metrics;
+}
+
+/**
+ * api_getSharedReportBundle - Optimized bundle for shared analytics reports
+ * Returns thin event view + aggregated metrics from ANALYTICS sheet
+ *
+ * @param {object} payload - { brandId, scope, id, ifNoneMatch }
+ * @returns {object} { ok, value: SharedReportBundle, etag }
+ * @tier mvp
+ */
+function api_getSharedReportBundle(payload){
+  return runSafe('api_getSharedReportBundle', () => {
+    const { brandId, scope, id } = payload||{};
+
+    // Validate ID format
+    const sanitizedId = sanitizeId_(id);
+    if (!sanitizedId) return Err(ERR.BAD_INPUT, 'Invalid ID format');
+
+    const brand = findBrand_(brandId);
+    if (!brand) return Err(ERR.NOT_FOUND, 'Unknown brand');
+
+    const a = assertScopeAllowed_(brand, scope);
+    if (!a.ok) return a;
+
+    // Get event data
+    const sh = getStoreSheet_(brand, scope);
+    const r = sh.getDataRange().getValues().slice(1).find(row => row[0]===sanitizedId && row[1]===brandId);
+    if (!r) return Err(ERR.NOT_FOUND, 'Event not found');
+
+    // Hydrate event (no sponsors needed for report bundle)
+    const baseUrl = ScriptApp.getService().getUrl();
+    const event = hydrateEvent_(r, { baseUrl, hydrateSponsors: false });
+
+    // Get event metrics from ANALYTICS sheet
+    const metrics = getEventMetricsForReport_(brand, sanitizedId);
+
+    // Build thin event view per SharedReportBundle interface
+    const thinEvent = {
+      id: event.id,
+      name: event.name,
+      dateTime: event.dateTime,
+      brandId: event.brandId,
+      templateId: event.templateId
+    };
+
+    // Build bundled response matching SharedReportBundle interface
+    const value = {
+      event: thinEvent,
+      metrics: metrics
+    };
+
+    const etag = Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(value)));
+    if (payload?.ifNoneMatch === etag) return { ok:true, notModified:true, etag };
+    return _ensureOk_('api_getSharedReportBundle', SC_GET, { ok:true, etag, value });
+  });
+}
+
+/**
+ * Get aggregated event metrics for SharedReportBundle
+ * Reads from ANALYTICS sheet and aggregates by metric type
+ *
+ * All metrics are derived from logs, not stored on EventCore:
+ * - views/uniqueViews from 'view' metric
+ * - signupClicks/checkinClicks/feedbackClicks from 'click' with token
+ * - sponsor metrics from 'impression'/'click' with sponsorId
+ * - league metrics from 'click' with token (schedule/standings/bracket)
+ *
+ * @param {object} brand - Brand configuration
+ * @param {string} eventId - Event ID to filter by
+ * @returns {object} SharedReportBundle.metrics structure
+ * @private
+ */
+function getEventMetricsForReport_(brand, eventId) {
+  // Initialize metrics structure
+  const metrics = {
+    views: 0,
+    uniqueViews: 0,
+    signupClicks: 0,
+    checkinClicks: 0,
+    feedbackClicks: 0,
+    sponsor: {
+      totalImpressions: 0,
+      totalClicks: 0,
+      avgCtr: 0
+    },
+    league: {
+      scheduleClicks: 0,
+      standingsClicks: 0,
+      bracketClicks: 0
+    },
+    broadcast: {
+      statsClicks: 0,
+      scoreboardClicks: 0,
+      streamClicks: 0
+    }
+  };
+
+  try {
+    // Get analytics sheet
+    const spreadsheetId = brand.spreadsheetId || ZEB.MASTER_SHEET_ID;
+    const ss = SpreadsheetApp.openById(spreadsheetId);
+    const analyticsSheet = ss.getSheetByName('ANALYTICS');
+
+    if (!analyticsSheet) {
+      // No analytics sheet yet - return zero metrics
+      return metrics;
+    }
+
+    const data = analyticsSheet.getDataRange().getValues().slice(1); // Skip header
+
+    // Track unique userAgents for uniqueViews
+    const uniqueUserAgents = new Set();
+
+    // Filter by eventId and aggregate metrics
+    // Columns: 0=timestamp, 1=eventId, 2=surface, 3=metric, 4=sponsorId, 5=value, 6=token, 7=userAgent
+    for (const row of data) {
+      const rowEventId = row[1];
+
+      // Skip if not for this event
+      if (rowEventId !== eventId) continue;
+
+      const metricType = row[3];
+      const sponsorId = row[4];
+      const token = row[6] || '';
+      const userAgent = row[7] || '';
+
+      // Aggregate based on metric type
+      switch (metricType) {
+        case 'view':
+        case 'pageview':
+          metrics.views++;
+          if (userAgent) uniqueUserAgents.add(userAgent);
+          break;
+
+        case 'impression':
+          if (sponsorId) {
+            metrics.sponsor.totalImpressions++;
+          }
+          break;
+
+        case 'click':
+          if (sponsorId) {
+            // Sponsor click
+            metrics.sponsor.totalClicks++;
+          } else {
+            // Non-sponsor click - check token for type
+            const tokenLower = token.toLowerCase();
+            if (tokenLower === 'signup' || tokenLower.includes('signup')) {
+              metrics.signupClicks++;
+            } else if (tokenLower === 'checkin' || tokenLower.includes('checkin')) {
+              metrics.checkinClicks++;
+            } else if (tokenLower === 'feedback' || tokenLower.includes('feedback')) {
+              metrics.feedbackClicks++;
+            }
+          }
+          break;
+
+        case 'external_click':
+          // BBN external link clicks (api_logExternalClick stores linkType in sponsorId column)
+          // Valid linkTypes: schedule, standings, bracket, stats, scoreboard, stream
+          switch (sponsorId) {
+            case 'schedule':
+              metrics.league.scheduleClicks++;
+              break;
+            case 'standings':
+              metrics.league.standingsClicks++;
+              break;
+            case 'bracket':
+              metrics.league.bracketClicks++;
+              break;
+            case 'stats':
+              metrics.broadcast.statsClicks++;
+              break;
+            case 'scoreboard':
+              metrics.broadcast.scoreboardClicks++;
+              break;
+            case 'stream':
+              metrics.broadcast.streamClicks++;
+              break;
+          }
+          break;
+      }
+    }
+
+    // Calculate unique views
+    metrics.uniqueViews = uniqueUserAgents.size;
+
+    // Calculate sponsor avgCtr
+    if (metrics.sponsor.totalImpressions > 0) {
+      metrics.sponsor.avgCtr = +((metrics.sponsor.totalClicks / metrics.sponsor.totalImpressions) * 100).toFixed(2);
+    }
+
+  } catch (e) {
+    // If analytics sheet doesn't exist or error, return zero metrics
+    Logger.log('getEventMetricsForReport_ error: ' + e.message);
+  }
+
+  return metrics;
+}
+
+/**
  * Create new event
  * Applies template defaults per EVENT_CONTRACT.md
  * @tier mvp
@@ -2458,6 +3269,12 @@ function api_updateEventData(req){
 /**
  * Log analytics events (impressions, clicks, dwell time)
  * Core tracking endpoint for the analytics loop
+ * Fire-and-forget - no auth required for public tracking
+ *
+ * Extended columns for attribution:
+ * - sessionId: ties events from same page visit together
+ * - visibleSponsorIds: (reserved for external_click, not used here)
+ *
  * @tier mvp
  */
 function api_logEvents(req){
@@ -2465,15 +3282,11 @@ function api_logEvents(req){
     const items = (req && req.items) || [];
     if (!items.length) return Ok({count:0});
 
-    // Security fix: Require authentication to prevent analytics injection
-    const { brandId, adminKey } = req || {};
-    const g = gate_(brandId || 'root', adminKey);
-    if (!g.ok) return g;
-
     const sh = _ensureAnalyticsSheet_();
     const now = Date.now();
 
     // Fixed: Bug #29 - Sanitize all values for spreadsheet to prevent formula injection
+    // Extended to 10 columns: +sessionId, +visibleSponsorIds (empty for regular events)
     const rows = items.map(it => [
       new Date(it.ts || now),
       sanitizeSpreadsheetValue_(it.eventId || ''),
@@ -2482,9 +3295,11 @@ function api_logEvents(req){
       sanitizeSpreadsheetValue_(it.sponsorId || ''),
       Number(it.value || 0),
       sanitizeSpreadsheetValue_(it.token || ''),
-      sanitizeSpreadsheetValue_((it.ua || '').slice(0, 200))
+      sanitizeSpreadsheetValue_((it.ua || '').slice(0, 200)),
+      sanitizeSpreadsheetValue_(it.sessionId || ''),  // Session ID for attribution
+      ''  // visibleSponsorIds - not used for regular sponsor events
     ]);
-    sh.getRange(sh.getLastRow()+1, 1, rows.length, 8).setValues(rows);
+    sh.getRange(sh.getLastRow()+1, 1, rows.length, 10).setValues(rows);
 
     diag_('info','api_logEvents','logged',{count: rows.length});
     return Ok({count: rows.length});
@@ -2492,14 +3307,24 @@ function api_logEvents(req){
 }
 
 /**
- * Log external link clicks from League & Broadcast card
- * Fire-and-forget analytics - no storage schema change needed
- * Logs to analytics sheet with metric='external_click' and linkType in sponsorId column
+ * Log external link clicks from League & Broadcast card (BBN/BocceLabs)
+ * Fire-and-forget analytics for sponsor/BBN attribution
+ *
+ * Extended for attribution analysis:
+ * - sessionId: ties this click to sponsor impressions in same session
+ * - visibleSponsorIds: which sponsors were on-screen when click happened
+ *
+ * @param {Object} req
+ * @param {string} req.eventId - Event ID
+ * @param {string} req.linkType - schedule|standings|bracket|stats|scoreboard|stream
+ * @param {string} [req.sessionId] - Session UUID for attribution
+ * @param {string[]} [req.visibleSponsorIds] - Sponsor IDs visible at click time
+ * @param {string} [req.surface] - Surface where click happened (default: 'public')
  * @tier mvp
  */
 function api_logExternalClick(req) {
   return runSafe('api_logExternalClick', () => {
-    const { eventId, linkType } = req || {};
+    const { eventId, linkType, sessionId, visibleSponsorIds, surface } = req || {};
 
     // Validate inputs
     if (!eventId || typeof eventId !== 'string') {
@@ -2515,27 +3340,33 @@ function api_logExternalClick(req) {
       return Err(ERR.BAD_INPUT, 'invalid linkType');
     }
 
-    // Log to analytics sheet (reuse existing structure)
+    // Log to analytics sheet
     const sh = _ensureAnalyticsSheet_();
     const now = new Date();
 
-    // Use existing analytics columns:
-    // [timestamp, eventId, surface, metric, sponsorId, value, token, ua]
-    // We'll use: surface='public', metric='external_click', sponsorId=linkType, value=1
+    // Serialize visibleSponsorIds as JSON if provided
+    const sponsorIdsJson = Array.isArray(visibleSponsorIds) && visibleSponsorIds.length > 0
+      ? JSON.stringify(visibleSponsorIds.slice(0, 20))  // Cap at 20 to prevent bloat
+      : '';
+
+    // Extended analytics columns (10 total):
+    // [timestamp, eventId, surface, metric, sponsorId/linkType, value, token, ua, sessionId, visibleSponsorIds]
     const row = [
       now,
       sanitizeSpreadsheetValue_(eventId),
-      'public',                              // surface
-      'external_click',                      // metric (new metric type)
-      sanitizeSpreadsheetValue_(linkType),   // repurpose sponsorId column for linkType
-      1,                                     // value (1 click)
-      '',                                    // token (unused)
-      ''                                     // ua (unused for this simple log)
+      sanitizeSpreadsheetValue_(surface || 'public'),  // surface
+      'external_click',                                 // metric
+      sanitizeSpreadsheetValue_(linkType),              // linkType in sponsorId column
+      1,                                                // value (1 click)
+      '',                                               // token (unused)
+      '',                                               // ua (unused for this endpoint)
+      sanitizeSpreadsheetValue_(sessionId || ''),       // sessionId for attribution
+      sanitizeSpreadsheetValue_(sponsorIdsJson)         // visibleSponsorIds JSON
     ];
 
-    sh.getRange(sh.getLastRow() + 1, 1, 1, 8).setValues([row]);
+    sh.getRange(sh.getLastRow() + 1, 1, 1, 10).setValues([row]);
 
-    diag_('info', 'api_logExternalClick', 'logged', { eventId, linkType });
+    diag_('info', 'api_logExternalClick', 'logged', { eventId, linkType, hasSession: !!sessionId, sponsorCount: visibleSponsorIds?.length || 0 });
     return Ok({ logged: true });
   });
 }

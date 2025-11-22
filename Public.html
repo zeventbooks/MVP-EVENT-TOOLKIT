@@ -776,17 +776,22 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
     }
 
     // === League & Broadcast Link Analytics ===
-    // Logs external link clicks to api_logExternalClick (no storage change needed)
+    // Logs external link clicks with sponsor attribution context
     let currentEventId = null; // Set when event is loaded
+    let currentRenderedSponsorIds = []; // Track sponsors visible on page for attribution
 
     function onLeagueLinkClick(e) {
       const linkType = e.currentTarget.dataset.linkType;
       if (!linkType || !currentEventId) return;
 
       // Fire and forget - don't block the navigation
+      // Include sessionId and visibleSponsorIds for sponsor/BBN attribution
       NU.rpc('api_logExternalClick', {
         eventId: currentEventId,
-        linkType: linkType
+        linkType: linkType,
+        surface: 'public',
+        sessionId: window.SponsorUtils?.getSessionId?.() || '',
+        visibleSponsorIds: currentRenderedSponsorIds
       }).catch(err => console.warn('Failed to log external click:', err));
     }
 
@@ -1183,6 +1188,9 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       const picks = (ev?.data?.sponsors || []).filter(s => s?.placements?.mobileBanner);
       if (!picks.length) return;
 
+      // Track rendered sponsor IDs for BBN attribution
+      currentRenderedSponsorIds = picks.map(s => s.id).filter(Boolean);
+
       const banner = document.getElementById('sponsorBanner');
       const eventId = ev.id;
 
@@ -1234,6 +1242,9 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       const picks = sponsors.filter(s => s.name); // Filter out invalid sponsors
 
       if (!picks.length) return;
+
+      // Track rendered sponsor IDs for BBN attribution
+      currentRenderedSponsorIds = picks.map(s => s.id).filter(Boolean);
 
       // Render single sponsor
       function showSponsor(index) {

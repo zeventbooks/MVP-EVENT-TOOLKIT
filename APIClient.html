@@ -260,6 +260,121 @@ window.APIClient = (function() {
   }
 
   /**
+   * Get admin bundle (for Admin.html - optimized bundle with event + config)
+   * Returns: event, brandConfig, templates, diagnostics, allSponsors
+   * @param {string} eventId - Event ID
+   * @param {Object} options - Additional options
+   * @returns {Promise<Object>} Admin bundle data (AdminEventBundle)
+   */
+  async function getAdminBundle(eventId, options = {}) {
+    const payload = {
+      brandId: options.brandId || defaultConfig.brandId,
+      adminKey: options.adminKey || defaultConfig.adminKey,
+      scope: options.scope || 'events',
+      id: eventId
+    };
+
+    if (options.ifNoneMatch) {
+      payload.ifNoneMatch = options.ifNoneMatch;
+    }
+
+    const response = await request('api_getAdminBundle', payload);
+    return response;
+  }
+
+  /**
+   * Get display bundle (for Display.html TV mode)
+   * Returns: event, rotation config, layout config
+   * All config computed from Config + Template + Brand (no extra DB fields)
+   * @param {string} eventId - Event ID
+   * @param {Object} options - Additional options
+   * @returns {Promise<Object>} Display bundle data (DisplayBundle)
+   */
+  async function getDisplayBundle(eventId, options = {}) {
+    const payload = {
+      brandId: options.brandId || defaultConfig.brandId,
+      scope: options.scope || 'events',
+      id: eventId
+    };
+
+    if (options.ifNoneMatch) {
+      payload.ifNoneMatch = options.ifNoneMatch;
+    }
+
+    const response = await request('api_getDisplayBundle', payload);
+    return response;
+  }
+
+  /**
+   * Get poster bundle (for Poster.html - print-friendly)
+   * Returns: event, qrCodes { public, signup }, print { dateLine, venueLine }
+   * QR codes point to trackable URLs (shortlinks) for analytics
+   * @param {string} eventId - Event ID
+   * @param {Object} options - Additional options
+   * @returns {Promise<Object>} Poster bundle data (PosterBundle)
+   */
+  async function getPosterBundle(eventId, options = {}) {
+    const payload = {
+      brandId: options.brandId || defaultConfig.brandId,
+      scope: options.scope || 'events',
+      id: eventId
+    };
+
+    if (options.ifNoneMatch) {
+      payload.ifNoneMatch = options.ifNoneMatch;
+    }
+
+    const response = await request('api_getPosterBundle', payload);
+    return response;
+  }
+
+  /**
+   * Get sponsor bundle for sponsor portal
+   * Returns thin event view + sponsors with analytics metrics
+   * Metrics (impressions, clicks, ctr) come from ANALYTICS sheet
+   * @param {string} eventId - Event ID
+   * @param {Object} options - brandId, scope, ifNoneMatch
+   * @returns {Promise<Object>} SponsorBundle with event and sponsors with metrics
+   */
+  async function getSponsorBundle(eventId, options = {}) {
+    const payload = {
+      brandId: options.brandId || defaultConfig.brandId,
+      scope: options.scope || 'events',
+      id: eventId
+    };
+
+    if (options.ifNoneMatch) {
+      payload.ifNoneMatch = options.ifNoneMatch;
+    }
+
+    const response = await request('api_getSponsorBundle', payload);
+    return response;
+  }
+
+  /**
+   * Get shared report bundle for analytics dashboard
+   * Returns thin event view + aggregated metrics from ANALYTICS sheet
+   * Metrics include views, clicks, sponsor stats, and league stats
+   * @param {string} eventId - Event ID
+   * @param {Object} options - brandId, scope, ifNoneMatch
+   * @returns {Promise<Object>} SharedReportBundle with event and metrics
+   */
+  async function getSharedReportBundle(eventId, options = {}) {
+    const payload = {
+      brandId: options.brandId || defaultConfig.brandId,
+      scope: options.scope || 'events',
+      id: eventId
+    };
+
+    if (options.ifNoneMatch) {
+      payload.ifNoneMatch = options.ifNoneMatch;
+    }
+
+    const response = await request('api_getSharedReportBundle', payload);
+    return response;
+  }
+
+  /**
    * Generate form shortlink
    * @param {string} formUrl - Form URL
    * @param {Object} options - Additional options
@@ -366,6 +481,11 @@ window.APIClient = (function() {
     getEvent,
     updateEvent,
     getPublicBundle,
+    getAdminBundle,
+    getDisplayBundle,
+    getPosterBundle,
+    getSponsorBundle,
+    getSharedReportBundle,
     generateFormShortlink,
     createFormFromTemplate,
 
