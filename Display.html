@@ -124,6 +124,51 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
       color: rgba(255,255,255,0.6);
     }
 
+    /* === League Info Overlay (for rec_league template) === */
+    .league-info-overlay {
+      position: fixed;
+      bottom: 40px;
+      right: 20px;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(12px);
+      border-radius: 16px;
+      padding: 20px 24px;
+      z-index: 50;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      max-width: 320px;
+    }
+    .league-info-overlay h3 {
+      color: #f59e0b;
+      font-size: 1rem;
+      margin: 0 0 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .league-info-overlay .league-links {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .league-info-overlay .league-link {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #eee;
+      text-decoration: none;
+      padding: 10px 14px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      font-size: 0.9em;
+      transition: all 0.2s ease;
+    }
+    .league-info-overlay .league-link:hover {
+      background: rgba(255, 255, 255, 0.12);
+      transform: translateX(4px);
+    }
+    .league-info-overlay .league-link .icon {
+      font-size: 1.2em;
+    }
+
     /* === MVP Essential: Error State (TV-themed) === */
     .error-state-tv {
       position: absolute;
@@ -182,6 +227,12 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
   </main>
   <div class="toast" id="toast" hidden></div>
 
+  <!-- League Info Overlay (for rec_league template) -->
+  <div id="leagueInfoOverlay" class="league-info-overlay" hidden>
+    <h3>📊 League Info</h3>
+    <div id="leagueLinks" class="league-links"></div>
+  </div>
+
   <!-- Trust Footer (subtle for TV) -->
   <footer class="site-footer">
     <span>Powered by <a href="https://eventangle.com" target="_blank" rel="noopener">EventAngle</a></span>
@@ -208,6 +259,101 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
     const { esc, logEvent, initLogging } = window.SponsorUtils;
     initLogging();
 
+    // === EVENT_CONTRACT.md v1.0 Support ===
+    // Helper to check if section is enabled
+    function sectionEnabled(sections, key) {
+      if (!sections) return true;
+      const section = sections[key];
+      if (section === null || section === undefined) return true;
+      if (typeof section === 'boolean') return section;
+      return section.enabled !== false;
+    }
+
+    // Render league info overlay for rec_league template
+    function renderLeagueInfo(templateId, externalData) {
+      // Only show for rec_league template
+      if (templateId !== 'rec_league') return;
+
+      const ext = externalData || {};
+      const links = [];
+
+      if (ext.scheduleUrl) {
+        links.push({ icon: '📅', label: 'Schedule', url: ext.scheduleUrl });
+      }
+      if (ext.standingsUrl) {
+        links.push({ icon: '🏆', label: 'Standings', url: ext.standingsUrl });
+      }
+      if (ext.bracketUrl) {
+        links.push({ icon: '🎯', label: 'Bracket', url: ext.bracketUrl });
+      }
+
+      if (!links.length) return;
+
+      const overlay = document.getElementById('leagueInfoOverlay');
+      const linksEl = document.getElementById('leagueLinks');
+
+      linksEl.innerHTML = links.map(l => `
+        <a href="${esc(l.url)}" target="_blank" rel="noopener" class="league-link">
+          <span class="icon">${l.icon}</span>
+          <span>${esc(l.label)}</span>
+        </a>
+      `).join('');
+
+      overlay.hidden = false;
+    }
+
+    // Render sponsor top bar from canonical sponsors[] array
+    function renderSponsorTopFromArray(eventId, sponsors) {
+      if (!sponsors || !sponsors.length) return;
+      const picks = sponsors.filter(s => s.name);
+      if (!picks.length) return;
+
+      topEl.innerHTML = picks.map(s => {
+        const content = s.logoUrl
+          ? `<img src="${esc(s.logoUrl)}" alt="${esc(s.name || '')}">`
+          : `<strong>${esc(s.name || '')}</strong>`;
+        return s.website
+          ? `<a href="${esc(s.website)}" target="_blank" rel="noopener sponsored" data-sponsor-id="${esc(s.id || '')}">${content}</a>`
+          : content;
+      }).join('');
+      topEl.hidden = false;
+      picks.forEach(s => logEvent({ eventId, surface: 'display', metric: 'impression', sponsorId: s.id || '' }));
+      topEl.querySelectorAll('a[data-sponsor-id]').forEach(a => {
+        a.addEventListener('click', () => {
+          logEvent({ eventId, surface: 'display', metric: 'click', sponsorId: a.dataset.sponsorId });
+        });
+      });
+    }
+
+    // Render sponsor side panel from canonical sponsors[] array
+    function renderSponsorSideFromArray(eventId, sponsors) {
+      if (!sponsors || !sponsors.length) return;
+      const picks = sponsors.filter(s => s.name);
+      if (!picks.length) return;
+
+      sideEl.innerHTML = picks.map(s => {
+        const tierBadge = s.tier ? `<span style="font-size:0.7em;color:#f59e0b;margin-left:8px;">${esc(s.tier)}</span>` : '';
+        const card = `
+          <div class="sp-card" data-id="${esc(s.id || '')}">
+            ${s.logoUrl ? `<img src="${esc(s.logoUrl)}" alt="${esc(s.name || '')}">` : ''}
+            <div class="sp-name">${esc(s.name || '')}${tierBadge}</div>
+          </div>
+        `;
+        return s.website
+          ? `<a href="${esc(s.website)}" target="_blank" rel="noopener sponsored" data-sponsor-id="${esc(s.id || '')}" style="text-decoration:none;color:inherit;">${card}</a>`
+          : card;
+      }).join('');
+      sideEl.hidden = false;
+      mainEl.classList.add('has-side');
+      picks.forEach(s => logEvent({ eventId, surface: 'display', metric: 'impression', sponsorId: s.id || '' }));
+      sideEl.querySelectorAll('a[data-sponsor-id]').forEach(a => {
+        a.addEventListener('click', () => {
+          logEvent({ eventId, surface: 'display', metric: 'click', sponsorId: a.dataset.sponsorId });
+        });
+      });
+    }
+
+    // Legacy sponsor rendering (for backward compat)
     function renderSponsorTop(ev) {
       const picks = (ev?.data?.sponsors || []).filter(s => s?.placements?.tvTop);
       if (!picks.length) return;
@@ -341,14 +487,36 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
       google.script.run
         .withSuccessHandler(res => {
           const ev = res?.value || {};
-          const d = ev?.data?.display || {};
 
-          renderSponsorTop(ev);
-          renderSponsorSide(ev);
+          // EVENT_CONTRACT.md v1.0: Read from top-level with legacy fallback
+          const legacyData = ev.data || {};
+          const templateId = ev.templateId || legacyData.templateId || '';
+          const sections = ev.sections || legacyData.sections || {};
+          const sponsors = ev.sponsors || [];
+          const externalData = ev.externalData || legacyData.externalData || {};
+          const displayConfig = legacyData.display || {};
+
+          // Render league info for rec_league template
+          renderLeagueInfo(templateId, externalData);
+
+          // Only render sponsors if sections.sponsors is enabled
+          if (sectionEnabled(sections, 'sponsors')) {
+            // Try canonical sponsors[] first, then legacy format
+            if (sponsors.length > 0) {
+              renderSponsorTopFromArray(ev.id, sponsors);
+              // Side panel: show all sponsors if we have them
+              renderSponsorSideFromArray(ev.id, sponsors);
+            } else {
+              // Fallback to legacy placement-based rendering
+              renderSponsorTop(ev);
+              renderSponsorSide(ev);
+            }
+          }
+          // If no sponsors or sections.sponsors disabled: layout still looks clean (no ugly empty bar)
 
           // Check display mode: 'dynamic' uses carousel with configured URLs, 'public' mirrors event page
-          if (String(d.mode || '').toLowerCase() === 'dynamic' && Array.isArray(d.urls) && d.urls.length) {
-            startDynamicMode(d.urls);
+          if (String(displayConfig.mode || '').toLowerCase() === 'dynamic' && Array.isArray(displayConfig.urls) && displayConfig.urls.length) {
+            startDynamicMode(displayConfig.urls);
           } else {
             startPublicMode();
           }
