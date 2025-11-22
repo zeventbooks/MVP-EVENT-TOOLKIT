@@ -412,6 +412,77 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
           </div>
         </div>
 
+        <!-- Template-Specific Fields (MVP) -->
+        <div class="subsection">
+          <div class="collapsible-header collapsed" onclick="toggleSection(this)">
+            <h3>Additional Links</h3>
+            <span class="collapsible-icon">▼</span>
+          </div>
+          <div class="collapsible-content" style="display: none;">
+            <p class="muted" style="margin-bottom: 12px;">Optional fields based on your event type</p>
+
+            <!-- Registration & Tickets -->
+            <div class="form-row">
+              <div class="form-group">
+                <label>🎟️ Ticket URL</label>
+                <input id="ticketUrl" type="url" placeholder="Ticket purchase link">
+              </div>
+              <div class="form-group">
+                <label>💝 Donation URL</label>
+                <input id="donationUrl" type="url" placeholder="Donation page link">
+              </div>
+            </div>
+
+            <!-- Photos & Registry -->
+            <div class="form-row">
+              <div class="form-group">
+                <label>📸 Photo Album URL</label>
+                <input id="albumUrl" type="url" placeholder="Google Photos, Flickr, etc.">
+              </div>
+              <div class="form-group">
+                <label>🎁 Gift Registry URL</label>
+                <input id="registryUrl" type="url" placeholder="Amazon, Zola, etc.">
+              </div>
+            </div>
+
+            <!-- League/Tournament -->
+            <div class="form-row">
+              <div class="form-group">
+                <label>📊 Standings URL</label>
+                <input id="standingsUrl" type="url" placeholder="League standings page">
+              </div>
+              <div class="form-group">
+                <label>🏆 Bracket URL</label>
+                <input id="bracketUrl" type="url" placeholder="Tournament bracket">
+              </div>
+            </div>
+
+            <!-- Schedule & Vendors -->
+            <div class="form-row">
+              <div class="form-group">
+                <label>📅 Schedule URL</label>
+                <input id="scheduleUrl" type="url" placeholder="Full schedule/itinerary">
+              </div>
+              <div class="form-group">
+                <label>🛒 Vendor List URL</label>
+                <input id="vendorListUrl" type="url" placeholder="List of vendors">
+              </div>
+            </div>
+
+            <!-- Fundraising -->
+            <div class="form-row">
+              <div class="form-group">
+                <label>🎯 Fundraising Goal ($)</label>
+                <input id="goalAmount" type="number" placeholder="5000">
+              </div>
+              <div class="form-group">
+                <label>💰 Amount Raised ($)</label>
+                <input id="raisedAmount" type="number" placeholder="2500">
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="button-group">
           <button class="btn-primary" type="submit">Create Event</button>
           <button class="btn-secondary" type="button" onclick="clearForm()">Clear</button>
@@ -731,14 +802,27 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
         sections: getSectionsFromForm()
       };
 
-      // Optional fields
-      const optional = ['timeISO', 'location', 'entity', 'summary', 'summaryLink',
-                       'imageUrl', 'videoUrl', 'galleryUrls', 'bio', 'bioLink'];
+      // Optional fields (core + template-specific)
+      const optional = [
+        // Core fields
+        'timeISO', 'location', 'entity', 'summary', 'summaryLink',
+        'imageUrl', 'videoUrl', 'galleryUrls', 'bio', 'bioLink',
+        // Template-specific fields
+        'ticketUrl', 'donationUrl', 'albumUrl', 'registryUrl',
+        'standingsUrl', 'bracketUrl', 'scheduleUrl', 'vendorListUrl'
+      ];
 
       optional.forEach(field => {
         const elem = document.getElementById(field);
         const val = elem ? elem.value.trim() : '';
         if (val) data[field] = val;
+      });
+
+      // Numeric fields (fundraising)
+      ['goalAmount', 'raisedAmount'].forEach(field => {
+        const elem = document.getElementById(field);
+        const val = elem ? parseFloat(elem.value) : NaN;
+        if (!isNaN(val) && val > 0) data[field] = val;
       });
 
       const res = await NU.rpc('api_create', {
