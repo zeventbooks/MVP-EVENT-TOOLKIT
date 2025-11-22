@@ -260,6 +260,29 @@ window.APIClient = (function() {
   }
 
   /**
+   * Get admin bundle (for Admin.html - optimized bundle with event + config)
+   * Returns: event, brandConfig, templates, diagnostics, allSponsors
+   * @param {string} eventId - Event ID
+   * @param {Object} options - Additional options
+   * @returns {Promise<Object>} Admin bundle data (AdminEventBundle)
+   */
+  async function getAdminBundle(eventId, options = {}) {
+    const payload = {
+      brandId: options.brandId || defaultConfig.brandId,
+      adminKey: options.adminKey || defaultConfig.adminKey,
+      scope: options.scope || 'events',
+      id: eventId
+    };
+
+    if (options.ifNoneMatch) {
+      payload.ifNoneMatch = options.ifNoneMatch;
+    }
+
+    const response = await request('api_getAdminBundle', payload);
+    return response;
+  }
+
+  /**
    * Generate form shortlink
    * @param {string} formUrl - Form URL
    * @param {Object} options - Additional options
@@ -366,6 +389,7 @@ window.APIClient = (function() {
     getEvent,
     updateEvent,
     getPublicBundle,
+    getAdminBundle,
     generateFormShortlink,
     createFormFromTemplate,
 

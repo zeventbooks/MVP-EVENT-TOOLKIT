@@ -606,6 +606,17 @@ function handleRestApiPost_(e, action, body, brand) {
     }));
   }
 
+  // Admin Bundle - optimized bundle for Admin.html surface
+  if (action === 'getAdminBundle') {
+    return jsonResponse_(api_getAdminBundle({
+      brandId,
+      adminKey,
+      scope,
+      id: body.id || body.eventId || '',
+      ifNoneMatch: body.ifNoneMatch || ''
+    }));
+  }
+
   if (action === 'createShortlink') {
     return jsonResponse_(api_createShortlink({
       brandId,
@@ -2294,6 +2305,187 @@ function api_getPublicBundle(payload){
     if (payload?.ifNoneMatch === etag) return { ok:true, notModified:true, etag };
     return _ensureOk_('api_getPublicBundle', SC_GET, { ok:true, etag, value });
   });
+}
+
+/**
+ * Admin Bundle - Optimized bundle for Admin.html surface
+ * Returns event + admin-specific config, templates, diagnostics, and all sponsors
+ *
+ * AdminEventBundle interface:
+ * - event: EventCore (full canonical event shape)
+ * - brandConfig: { brandId, allowedTemplates, defaultTemplateId }
+ * - templates: TemplateDescriptor[] (available templates for this brand)
+ * - diagnostics: { hasForm, hasShortlinks, lastPublishedAt }
+ * - allSponsors: Sponsor[] (all sponsors for brand, for dropdown linking)
+ *
+ * Admin editable fields (MVP):
+ *   templateId (while status === 'draft'), name, description, dateTime, timezone,
+ *   location, venueName, imageUrl, videoUrl, mapEmbedUrl, audience, notesLabel, notes,
+ *   sections.*.enabled, sections.*.label, ctaLabels (labels only),
+ *   externalData.scheduleUrl/standingsUrl/bracketUrl, sponsor attachments
+ *
+ * Admin cannot edit: id, short*Url fields, analytics-derived data
+ *
+ * @param {object} payload - { brandId, scope, id, adminKey, ifNoneMatch }
+ * @returns {object} { ok, value: AdminEventBundle, etag }
+ * @tier mvp
+ */
+function api_getAdminBundle(payload){
+  return runSafe('api_getAdminBundle', () => {
+    const { brandId, scope, id, adminKey } = payload||{};
+
+    // Auth required for admin bundle
+    const g = gate_(brandId, adminKey);
+    if (!g.ok) return g;
+
+    // Validate ID format
+    const sanitizedId = sanitizeId_(id);
+    if (!sanitizedId) return Err(ERR.BAD_INPUT, 'Invalid ID format');
+
+    const brand = findBrand_(brandId);
+    if (!brand) return Err(ERR.NOT_FOUND, 'Unknown brand');
+
+    const a = assertScopeAllowed_(brand, scope);
+    if (!a.ok) return a;
+
+    // Get event data
+    const sh = getStoreSheet_(brand, scope);
+    const r = sh.getDataRange().getValues().slice(1).find(row => row[0]===sanitizedId && row[1]===brandId);
+    if (!r) return Err(ERR.NOT_FOUND, 'Event not found');
+
+    // Hydrate to canonical Event shape with full sponsor data
+    const baseUrl = ScriptApp.getService().getUrl();
+    const event = hydrateEvent_(r, { baseUrl, hydrateSponsors: true });
+
+    // Get brand template config
+    const templateConfig = getBrandTemplateConfig_(brandId);
+    const templates = getTemplatesForBrand_(brandId);
+
+    // Get all sponsors for brand (for dropdown linking)
+    const allSponsors = getAllSponsorsForBrand_(brandId);
+
+    // Build diagnostics - check for forms and shortlinks
+    const diagnostics = getEventDiagnostics_(brandId, sanitizedId);
+
+    // Build bundled response matching AdminEventBundle interface
+    const value = {
+      // Full canonical event shape
+      event: event,
+
+      // Brand configuration for admin
+      brandConfig: {
+        brandId: brand.id,
+        allowedTemplates: templateConfig.templates,
+        defaultTemplateId: templateConfig.defaultTemplateId
+      },
+
+      // Available templates for this brand
+      templates: templates,
+
+      // System diagnostics (readonly in UI)
+      diagnostics: diagnostics,
+
+      // All sponsors for dropdown/linking
+      allSponsors: allSponsors
+    };
+
+    const etag = Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(value)));
+    if (payload?.ifNoneMatch === etag) return { ok:true, notModified:true, etag };
+    return _ensureOk_('api_getAdminBundle', SC_GET, { ok:true, etag, value });
+  });
+}
+
+/**
+ * Get all sponsors for a brand (helper for admin bundle)
+ * @param {string} brandId - Brand ID
+ * @returns {Array} Array of sponsor objects
+ * @private
+ */
+function getAllSponsorsForBrand_(brandId) {
+  try {
+    const brand = findBrand_(brandId);
+    if (!brand) return [];
+
+    const sh = getStoreSheet_(brand, 'sponsors');
+    const lastRow = sh.getLastRow();
+    if (lastRow <= 1) return [];
+
+    const rows = sh.getRange(2, 1, lastRow - 1, 6).getValues();
+
+    return rows
+      .filter(r => r[1] === brandId)
+      .map(row => {
+        const data = safeJSONParse_(row[3], {});
+        return {
+          id: row[0],
+          name: data.name || 'Unknown',
+          logoUrl: data.logoUrl || null,
+          website: data.website || null,
+          tier: data.tier || null,
+          entity: data.entity || null
+        };
+      });
+  } catch (e) {
+    diag_('error', 'getAllSponsorsForBrand_', 'Failed to get sponsors', { brandId, error: String(e) });
+    return [];
+  }
+}
+
+/**
+ * Get event diagnostics for admin bundle
+ * @param {string} brandId - Brand ID
+ * @param {string} eventId - Event ID
+ * @returns {object} Diagnostics object
+ * @private
+ */
+function getEventDiagnostics_(brandId, eventId) {
+  try {
+    // Check for shortlinks (look in SHORTLINKS sheet)
+    let hasShortlinks = false;
+    let hasForm = false;
+    let lastPublishedAt = null;
+
+    const brand = findBrand_(brandId);
+    if (brand) {
+      const ss = SpreadsheetApp.openById(brand.store.spreadsheetId);
+
+      // Check SHORTLINKS sheet for this event
+      const slSheet = ss.getSheetByName('SHORTLINKS');
+      if (slSheet && slSheet.getLastRow() > 1) {
+        const slData = slSheet.getDataRange().getValues().slice(1);
+        hasShortlinks = slData.some(row => row[2] === eventId || String(row[1]).includes(eventId));
+      }
+
+      // Check if event has form URLs set (signupUrl, checkinUrl, feedbackUrl)
+      const evSheet = ss.getSheetByName('events');
+      if (evSheet) {
+        const evData = evSheet.getDataRange().getValues().slice(1);
+        const eventRow = evData.find(r => r[0] === eventId && r[1] === brandId);
+        if (eventRow) {
+          const data = safeJSONParse_(eventRow[3], {});
+          hasForm = !!(data.signupUrl || data.checkinUrl || data.feedbackUrl);
+
+          // Check for lastPublishedAt in data or use status change
+          if (data.status === 'published' && data.publishedAt) {
+            lastPublishedAt = data.publishedAt;
+          }
+        }
+      }
+    }
+
+    return {
+      hasForm: hasForm,
+      hasShortlinks: hasShortlinks,
+      lastPublishedAt: lastPublishedAt
+    };
+  } catch (e) {
+    diag_('error', 'getEventDiagnostics_', 'Failed to get diagnostics', { brandId, eventId, error: String(e) });
+    return {
+      hasForm: false,
+      hasShortlinks: false,
+      lastPublishedAt: null
+    };
+  }
 }
 
 /**
