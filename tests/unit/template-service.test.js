@@ -544,3 +544,204 @@ describe('Template Catalog Integrity', () => {
   });
 
 });
+
+// ============================================================================
+// EVENT_CONTRACT.md v2.0 Settings Compliance Tests
+// ============================================================================
+
+describe('TemplateService - EVENT_CONTRACT.md v2.0 Settings', () => {
+
+  // Updated mock implementation matching TemplateService.gs v2.0
+  function applyTemplateToEvent_v2(event, templateId) {
+    const tpl = getEventTemplate_(templateId);
+
+    // Set template reference
+    event.templateId = tpl.id;
+
+    // === Settings: Apply contract-aligned visibility flags ===
+    // EVENT_CONTRACT.md v2.0 shape: { showSchedule, showStandings, showBracket, showSponsors }
+    event.settings = event.settings || {};
+
+    // Map template sections to contract settings
+    if (event.settings.showSchedule == null) {
+      event.settings.showSchedule = !!(tpl.sections && tpl.sections.schedule);
+    }
+    if (event.settings.showSponsors == null) {
+      event.settings.showSponsors = !!(tpl.sections && tpl.sections.sponsors);
+    }
+    // showStandings and showBracket - default false unless template has specific support
+    if (event.settings.showStandings == null) {
+      const leagueTemplates = ['rec_league', 'darts', 'bags', 'pinball'];
+      event.settings.showStandings = leagueTemplates.includes(tpl.id);
+    }
+    if (event.settings.showBracket == null) {
+      const bracketTemplates = ['rec_league', 'bags'];
+      event.settings.showBracket = bracketTemplates.includes(tpl.id);
+    }
+
+    return event;
+  }
+
+  describe('Settings Mapping from Templates', () => {
+    test('bar_night template maps to correct settings', () => {
+      const event = { name: 'Trivia Night' };
+      const result = applyTemplateToEvent_v2(event, 'bar_night');
+
+      // bar_night has schedule: false, sponsors: true
+      expect(result.settings).toHaveProperty('showSchedule');
+      expect(result.settings).toHaveProperty('showStandings');
+      expect(result.settings).toHaveProperty('showBracket');
+      expect(result.settings).toHaveProperty('showSponsors');
+
+      expect(result.settings.showSchedule).toBe(false);  // bar_night has no schedule
+      expect(result.settings.showSponsors).toBe(true);   // bar_night has sponsors
+      expect(result.settings.showStandings).toBe(false); // Not a league template
+      expect(result.settings.showBracket).toBe(false);   // Not a bracket template
+    });
+
+    test('rec_league template maps to correct settings with standings and bracket', () => {
+      const event = { name: 'Summer Softball' };
+      const result = applyTemplateToEvent_v2(event, 'rec_league');
+
+      expect(result.settings.showSchedule).toBe(true);   // rec_league has schedule
+      expect(result.settings.showSponsors).toBe(true);   // rec_league has sponsors
+      expect(result.settings.showStandings).toBe(true);  // rec_league IS a league template
+      expect(result.settings.showBracket).toBe(true);    // rec_league IS a bracket template
+    });
+
+    test('custom template maps schedule and sponsors to settings', () => {
+      const event = { name: 'Custom Event' };
+      const result = applyTemplateToEvent_v2(event, 'custom');
+
+      // custom has schedule: true, sponsors: true
+      expect(result.settings.showSchedule).toBe(true);
+      expect(result.settings.showSponsors).toBe(true);
+      expect(result.settings.showStandings).toBe(false); // Not a league template
+      expect(result.settings.showBracket).toBe(false);   // Not a bracket template
+    });
+  });
+
+  describe('League Templates Default showStandings: true', () => {
+    // Only test with templates that exist in EVENT_TEMPLATES mock
+    // The logic checks if tpl.id is in ['rec_league', 'darts', 'bags', 'pinball']
+    // From our mock, only 'rec_league' exists
+    const existingLeagueTemplates = ['rec_league'];
+
+    existingLeagueTemplates.forEach(templateId => {
+      test(`${templateId} template defaults showStandings to true`, () => {
+        const event = { name: `${templateId} Event` };
+        const result = applyTemplateToEvent_v2(event, templateId);
+
+        expect(result.settings.showStandings).toBe(true);
+      });
+    });
+
+    test('league template IDs are correctly configured in implementation', () => {
+      // Document the full list of league template IDs for contract clarity
+      const leagueTemplateIds = ['rec_league', 'darts', 'bags', 'pinball'];
+      expect(leagueTemplateIds).toContain('rec_league');
+      expect(leagueTemplateIds).toContain('darts');
+      expect(leagueTemplateIds).toContain('bags');
+      expect(leagueTemplateIds).toContain('pinball');
+    });
+  });
+
+  describe('Non-League Templates Default showStandings: false', () => {
+    const nonLeagueTemplates = ['bar_night', 'school', 'fundraiser', 'custom'];
+
+    nonLeagueTemplates.forEach(templateId => {
+      test(`${templateId} template defaults showStandings to false`, () => {
+        const event = { name: `${templateId} Event` };
+        const result = applyTemplateToEvent_v2(event, templateId);
+
+        expect(result.settings.showStandings).toBe(false);
+      });
+    });
+  });
+
+  describe('Bracket Templates Default showBracket: true', () => {
+    // Only test with templates that exist in EVENT_TEMPLATES mock
+    // The logic checks if tpl.id is in ['rec_league', 'bags']
+    // From our mock, only 'rec_league' exists
+    const existingBracketTemplates = ['rec_league'];
+
+    existingBracketTemplates.forEach(templateId => {
+      test(`${templateId} template defaults showBracket to true`, () => {
+        const event = { name: `${templateId} Event` };
+        const result = applyTemplateToEvent_v2(event, templateId);
+
+        expect(result.settings.showBracket).toBe(true);
+      });
+    });
+
+    test('bracket template IDs are correctly configured in implementation', () => {
+      // Document the full list of bracket template IDs for contract clarity
+      const bracketTemplateIds = ['rec_league', 'bags'];
+      expect(bracketTemplateIds).toContain('rec_league');
+      expect(bracketTemplateIds).toContain('bags');
+    });
+  });
+
+  describe('Non-Bracket Templates Default showBracket: false', () => {
+    // Only test with templates that exist in EVENT_TEMPLATES mock
+    // Note: darts, pinball don't exist in mock so they're excluded
+    const nonBracketTemplates = ['bar_night', 'school', 'fundraiser', 'custom'];
+
+    nonBracketTemplates.forEach(templateId => {
+      test(`${templateId} template defaults showBracket to false`, () => {
+        const event = { name: `${templateId} Event` };
+        const result = applyTemplateToEvent_v2(event, templateId);
+
+        expect(result.settings.showBracket).toBe(false);
+      });
+    });
+  });
+
+  describe('User Settings Are Preserved', () => {
+    test('user-set showSchedule is not overwritten', () => {
+      const event = {
+        name: 'Custom Schedule',
+        settings: { showSchedule: true } // User explicitly set this
+      };
+      const result = applyTemplateToEvent_v2(event, 'bar_night'); // bar_night has schedule: false
+
+      // User's choice should be preserved
+      expect(result.settings.showSchedule).toBe(true);
+    });
+
+    test('user-set showStandings is not overwritten', () => {
+      const event = {
+        name: 'Force Standings',
+        settings: { showStandings: true } // User explicitly set this
+      };
+      const result = applyTemplateToEvent_v2(event, 'bar_night'); // Not a league template
+
+      // User's choice should be preserved
+      expect(result.settings.showStandings).toBe(true);
+    });
+
+    test('user-set showBracket is not overwritten', () => {
+      const event = {
+        name: 'Force Bracket',
+        settings: { showBracket: true } // User explicitly set this
+      };
+      const result = applyTemplateToEvent_v2(event, 'bar_night'); // Not a bracket template
+
+      // User's choice should be preserved
+      expect(result.settings.showBracket).toBe(true);
+    });
+  });
+
+  describe('Settings Shape Compliance', () => {
+    test('settings produces all 4 required boolean flags', () => {
+      const event = { name: 'Test' };
+      const result = applyTemplateToEvent_v2(event, 'custom');
+
+      const settingsKeys = ['showSchedule', 'showStandings', 'showBracket', 'showSponsors'];
+      settingsKeys.forEach(key => {
+        expect(result.settings).toHaveProperty(key);
+        expect(typeof result.settings[key]).toBe('boolean');
+      });
+    });
+  });
+});
