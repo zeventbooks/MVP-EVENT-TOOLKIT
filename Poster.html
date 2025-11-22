@@ -238,6 +238,76 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
         font-size: 1.1rem;
       }
     }
+
+    /* === MVP Essential: Empty/Error States === */
+    .empty-state, .error-state {
+      text-align: center;
+      padding: 48px 24px;
+      max-width: 400px;
+      margin: 60px auto;
+    }
+    .empty-state-icon, .error-state-icon {
+      font-size: 3rem;
+      margin-bottom: 16px;
+      opacity: 0.6;
+    }
+    .empty-state h3, .error-state h3 {
+      color: #475569;
+      margin-bottom: 8px;
+      font-size: 1.25rem;
+    }
+    .empty-state p, .error-state p {
+      color: #64748b;
+      margin-bottom: 16px;
+      line-height: 1.6;
+    }
+    .error-state {
+      background: #fef2f2;
+      border-radius: 12px;
+      border: 1px solid #fecaca;
+    }
+    .error-state h3 { color: #dc2626; }
+    .error-state p { color: #b91c1c; }
+    .btn-retry {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 20px;
+      background: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .btn-retry:hover { background: #1d4ed8; }
+
+    /* === MVP Essential: Trust Footer === */
+    .site-footer {
+      text-align: center;
+      padding: 24px 16px;
+      margin-top: 40px;
+      border-top: 1px solid #e2e8f0;
+      color: #94a3b8;
+      font-size: 0.7rem;
+    }
+    .site-footer a {
+      color: #64748b;
+      text-decoration: none;
+    }
+    .site-footer a:hover {
+      color: #2563eb;
+      text-decoration: underline;
+    }
+    @media print {
+      .site-footer {
+        border-top: none;
+        padding: 12px;
+        font-size: 8pt;
+      }
+    }
   </style>
 </head>
 <body>
@@ -270,6 +340,11 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
       <div id="qrGrid" class="qr-grid"></div>
     </section>
   </div>
+
+  <!-- Trust Footer -->
+  <footer class="site-footer">
+    <p>Powered by <a href="https://eventangle.com" target="_blank" rel="noopener">EventAngle</a></p>
+  </footer>
 
   <script>
     const BRAND = '<?= brandId ?>';
@@ -397,8 +472,14 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
 
     function renderPoster(evt) {
       if (!evt) {
-        document.querySelector('.poster-container').innerHTML =
-          '<p style="text-align:center; color:#94a3b8; padding:40px;">Event not found.</p>';
+        document.querySelector('.poster-container').innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">🔍</div>
+            <h3>Event Not Found</h3>
+            <p>This poster link may be outdated or the event has been removed.</p>
+            <a class="btn-retry" href="javascript:history.back()">← Go Back</a>
+          </div>
+        `;
         return;
       }
 
@@ -424,8 +505,14 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
         }
       })
       .withFailureHandler(() => {
-        document.querySelector('.poster-container').innerHTML =
-          '<p style="text-align:center; color:#ef4444; padding:40px;">Could not load event.</p>';
+        document.querySelector('.poster-container').innerHTML = `
+          <div class="error-state">
+            <div class="error-state-icon">⚠️</div>
+            <h3>Trouble Loading</h3>
+            <p>We couldn't load this poster right now.</p>
+            <button class="btn-retry" onclick="location.reload()">🔄 Try Again</button>
+          </div>
+        `;
       })
       .api_get({ brandId: BRAND, scope: SCOPE, id: ID });
   </script>

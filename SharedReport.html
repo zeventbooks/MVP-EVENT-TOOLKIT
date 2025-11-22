@@ -247,6 +247,69 @@ Related MVP Surfaces: Admin, Poster, Display, Public, Sponsor
     .metrics-grid .metric-card .trend.negative {
       color: var(--color-danger, #ef4444);
     }
+
+    /* === MVP Essential: Empty/Error States === */
+    .empty-state, .error-state {
+      text-align: center;
+      padding: 48px 24px;
+      max-width: 500px;
+      margin: 40px auto;
+    }
+    .empty-state-icon, .error-state-icon {
+      font-size: 3rem;
+      margin-bottom: 16px;
+      opacity: 0.6;
+    }
+    .empty-state h3, .error-state h3 {
+      color: var(--color-gray-700, #374151);
+      margin-bottom: 8px;
+      font-size: 1.25rem;
+    }
+    .empty-state p, .error-state p {
+      color: var(--color-gray-500, #6b7280);
+      margin-bottom: 16px;
+      line-height: 1.6;
+    }
+    .error-state {
+      background: #fef2f2;
+      border-radius: var(--radius-md, 12px);
+      border: 1px solid #fecaca;
+    }
+    .error-state h3 { color: #dc2626; }
+    .error-state p { color: #b91c1c; }
+    .btn-retry {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 20px;
+      background: var(--color-primary, #2563eb);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .btn-retry:hover { background: var(--color-primary-dark, #1d4ed8); }
+
+    /* === MVP Essential: Trust Footer === */
+    .site-footer {
+      text-align: center;
+      padding: 32px 16px;
+      margin-top: 48px;
+      border-top: 1px solid var(--color-gray-200, #e2e8f0);
+      color: var(--color-gray-400, #9ca3af);
+      font-size: 0.75rem;
+    }
+    .site-footer a {
+      color: var(--color-gray-500, #6b7280);
+      text-decoration: none;
+    }
+    .site-footer a:hover {
+      color: var(--color-primary, #2563eb);
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
@@ -325,7 +388,22 @@ Related MVP Surfaces: Admin, Poster, Display, Public, Sponsor
         <div id="recommendations"></div>
       </div>
     </div>
+
+    <!-- Error State (hidden by default) -->
+    <div id="errorState" style="display:none;">
+      <div class="error-state">
+        <div class="error-state-icon">⚠️</div>
+        <h3>Trouble Loading Analytics</h3>
+        <p id="errorMessage">We couldn't load the report data. Please try again.</p>
+        <button class="btn-retry" onclick="loadReport()">🔄 Try Again</button>
+      </div>
+    </div>
   </div>
+
+  <!-- Trust Footer -->
+  <footer class="site-footer">
+    <p>Powered by <a href="https://eventangle.com" target="_blank" rel="noopener">EventAngle</a></p>
+  </footer>
 
   <script>
     const BRAND_ID = '<?= brandId ?>';
@@ -368,8 +446,11 @@ Related MVP Surfaces: Admin, Poster, Display, Public, Sponsor
         document.getElementById('lastUpdated').textContent = `Last updated: ${new Date().toLocaleString()}`;
 
       } catch (e) {
-        alert('Error loading report: ' + e.message);
         console.error(e);
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('metrics').style.display = 'none';
+        document.getElementById('errorMessage').textContent = e.message || 'We couldn\'t load the report data. Please try again.';
+        document.getElementById('errorState').style.display = 'block';
       }
     }
 
