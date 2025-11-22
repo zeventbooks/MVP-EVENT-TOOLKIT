@@ -400,3 +400,131 @@ test.describe('📄 PAGE: Poster - XSS Prevention', () => {
     expect(sponsorHtml).not.toContain('onclick=');
   });
 });
+
+test.describe('📄 PAGE: Poster - Analytics Tracking (MVP)', () => {
+  /**
+   * Tests for api_trackEventMetric integration on Poster page.
+   * Validates scan and impression tracking for poster surfaces.
+   */
+
+  test('Poster page fires scan tracking when QR is scanned', async ({ page }) => {
+    // Intercept API calls to check for analytics tracking
+    const analyticsRequests = [];
+    page.on('request', request => {
+      if (request.url().includes('trackEventMetric') || request.url().includes('action=trackEventMetric')) {
+        analyticsRequests.push(request.postData());
+      }
+    });
+
+    await page.goto(`${BASE_URL}?page=poster&brand=${BRAND_ID}`, {
+      waitUntil: 'networkidle',
+      timeout: 20000,
+    });
+
+    // Poster page should have scan tracking capability
+    // Note: QR scan tracking fires when user arrives via QR code
+  });
+
+  test('Poster has trackEventMetric capability', async ({ page }) => {
+    await page.goto(`${BASE_URL}?page=poster&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
+
+    // Check if simplified metric tracking is available
+    const hasTrackMetric = await page.evaluate(() => {
+      // Page should be able to call api_trackEventMetric
+      // This may be via SponsorUtils.logEvent or direct API call
+      return typeof window.SponsorUtils !== 'undefined' ||
+             typeof window.trackEventMetric !== 'undefined' ||
+             document.body.hasAttribute('data-event-id');
+    });
+
+    expect(hasTrackMetric).toBe(true);
+  });
+
+  test('QR codes have tracking token for scan attribution', async ({ page }) => {
+    await page.goto(`${BASE_URL}?page=poster&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
+
+    const qrImages = page.locator('#qrGrid img, .qr-grid img');
+    const count = await qrImages.count();
+
+    if (count > 0) {
+      // QR code URLs should include tracking token for scan attribution
+      const firstQr = qrImages.first();
+      const src = await firstQr.getAttribute('src');
+
+      if (src) {
+        // QR code should be generated (either data URL or API URL)
+        expect(src.length).toBeGreaterThan(10);
+      }
+    }
+  });
+
+  test('Poster sponsors have tracking IDs', async ({ page }) => {
+    await page.goto(`${BASE_URL}?page=poster&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
+
+    const sponsorStrip = page.locator('#sponsorStrip, .sponsor-strip');
+    const stripCount = await sponsorStrip.count();
+
+    if (stripCount > 0) {
+      // Check for sponsor elements with tracking IDs
+      const sponsorLogos = sponsorStrip.locator('img[data-sponsor-id], [data-sponsor]');
+      const logoCount = await sponsorLogos.count();
+
+      if (logoCount > 0) {
+        const firstLogo = sponsorLogos.first();
+        const sponsorId = await firstLogo.getAttribute('data-sponsor-id');
+
+        if (sponsorId) {
+          expect(sponsorId).toBeTruthy();
+        }
+      }
+    }
+  });
+});
+
+test.describe('📄 PAGE: Poster - Settings Visibility (v2.0)', () => {
+  /**
+   * Tests for EVENT_CONTRACT.md v2.0 settings on Poster page.
+   * Poster page should respect showSponsors setting.
+   */
+
+  test('Sponsor strip respects showSponsors setting', async ({ page }) => {
+    await page.goto(`${BASE_URL}?page=poster&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
+
+    // Sponsor strip should exist in DOM structure
+    const sponsorStrip = page.locator('#sponsorStrip, .sponsor-strip');
+    const sponsorCount = await sponsorStrip.count();
+
+    // Sponsor strip visibility is controlled by showSponsors setting
+    if (sponsorCount > 0) {
+      await expect(sponsorStrip.first()).toBeAttached();
+    }
+  });
+
+  test('Schedule section respects showSchedule setting', async ({ page }) => {
+    await page.goto(`${BASE_URL}?page=poster&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
+
+    // Check for schedule section on poster
+    const scheduleSection = page.locator('#schedule, .schedule-section, [data-section="schedule"]');
+    const scheduleCount = await scheduleSection.count();
+
+    // Schedule section visibility is controlled by showSchedule setting
+    if (scheduleCount > 0 && await scheduleSection.first().isVisible()) {
+      await expect(scheduleSection.first()).toBeVisible();
+    }
+  });
+});

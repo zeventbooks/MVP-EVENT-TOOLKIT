@@ -564,4 +564,272 @@ test.describe('Events CRUD APIs', () => {
       }
     });
   });
+
+  test.describe('Analytics: api_trackEventMetric (MVP)', () => {
+    /**
+     * Tests for the simplified analytics tracking endpoint.
+     * Validates the MVP analytics seam for public surfaces.
+     */
+    let testEventId;
+
+    test.beforeEach(async () => {
+      const { eventId } = await api.createTestEvent(brand, adminKey);
+      testEventId = eventId;
+      createdEventIds.push(testEventId);
+    });
+
+    test('tracks page view metric', async () => {
+      const response = await api.post('?action=trackEventMetric', {
+        brandId: brand,
+        eventId: testEventId,
+        surface: 'public',
+        action: 'view'
+      });
+
+      if (response.ok()) {
+        const data = await response.json();
+        // Should return ok:true with count
+        expect(data.ok).toBe(true);
+        expect(data.value).toHaveProperty('count');
+        expect(data.value.count).toBeGreaterThanOrEqual(1);
+      }
+    });
+
+    test('tracks CTA click metric', async () => {
+      const response = await api.post('?action=trackEventMetric', {
+        brandId: brand,
+        eventId: testEventId,
+        surface: 'public',
+        action: 'cta_click'
+      });
+
+      if (response.ok()) {
+        const data = await response.json();
+        expect(data.ok).toBe(true);
+        expect(data.value.count).toBeGreaterThanOrEqual(1);
+      }
+    });
+
+    test('tracks sponsor click with sponsorId', async () => {
+      const response = await api.post('?action=trackEventMetric', {
+        brandId: brand,
+        eventId: testEventId,
+        surface: 'public',
+        action: 'sponsor_click',
+        sponsorId: 'test-sponsor-123'
+      });
+
+      if (response.ok()) {
+        const data = await response.json();
+        expect(data.ok).toBe(true);
+      }
+    });
+
+    test('tracks display dwell time with value', async () => {
+      const response = await api.post('?action=trackEventMetric', {
+        brandId: brand,
+        eventId: testEventId,
+        surface: 'display',
+        action: 'dwell',
+        value: 30  // 30 seconds
+      });
+
+      if (response.ok()) {
+        const data = await response.json();
+        expect(data.ok).toBe(true);
+      }
+    });
+
+    test('validates required eventId', async () => {
+      const response = await api.post('?action=trackEventMetric', {
+        brandId: brand,
+        // Missing eventId
+        surface: 'public',
+        action: 'view'
+      });
+
+      const data = await response.json();
+      expect(data.ok).toBe(false);
+      expect(data.code).toBe('BAD_INPUT');
+    });
+
+    test('validates surface enum', async () => {
+      const response = await api.post('?action=trackEventMetric', {
+        brandId: brand,
+        eventId: testEventId,
+        surface: 'invalid_surface',
+        action: 'view'
+      });
+
+      const data = await response.json();
+      expect(data.ok).toBe(false);
+    });
+
+    test('validates action enum', async () => {
+      const response = await api.post('?action=trackEventMetric', {
+        brandId: brand,
+        eventId: testEventId,
+        surface: 'public',
+        action: 'invalid_action'
+      });
+
+      const data = await response.json();
+      expect(data.ok).toBe(false);
+    });
+
+    test('accepts all valid surface values', async () => {
+      const surfaces = ['public', 'display', 'poster', 'admin'];
+
+      for (const surface of surfaces) {
+        const response = await api.post('?action=trackEventMetric', {
+          brandId: brand,
+          eventId: testEventId,
+          surface,
+          action: 'view'
+        });
+
+        if (response.ok()) {
+          const data = await response.json();
+          expect(data.ok).toBe(true);
+        }
+      }
+    });
+
+    test('accepts all valid action values', async () => {
+      const actions = ['view', 'impression', 'click', 'scan', 'cta_click', 'sponsor_click', 'dwell'];
+
+      for (const action of actions) {
+        const response = await api.post('?action=trackEventMetric', {
+          brandId: brand,
+          eventId: testEventId,
+          surface: 'public',
+          action,
+          value: action === 'dwell' ? 10 : undefined
+        });
+
+        if (response.ok()) {
+          const data = await response.json();
+          expect(data.ok).toBe(true);
+        }
+      }
+    });
+  });
+
+  test.describe('Payments Seam (Stripe MVP)', () => {
+    /**
+     * Tests for the payments seam infrastructure.
+     * Validates the Stripe seam shape in event responses.
+     */
+    let testEventId;
+
+    test.beforeEach(async () => {
+      const { eventId } = await api.createTestEvent(brand, adminKey);
+      testEventId = eventId;
+      createdEventIds.push(testEventId);
+    });
+
+    test('event includes payments seam in default shape', async () => {
+      const response = await api.getEvent(brand, testEventId);
+      const data = await response.json();
+
+      expect(data.ok).toBe(true);
+
+      // v2.0: payments seam should exist with Stripe structure
+      if (data.value.payments) {
+        expect(data.value.payments).toHaveProperty('enabled');
+        expect(data.value.payments).toHaveProperty('provider');
+        expect(data.value.payments.provider).toBe('stripe');
+        expect(data.value.payments).toHaveProperty('price');
+        expect(data.value.payments).toHaveProperty('currency');
+        expect(data.value.payments).toHaveProperty('checkoutUrl');
+      }
+    });
+
+    test('payments seam defaults to disabled', async () => {
+      const response = await api.getEvent(brand, testEventId);
+      const data = await response.json();
+
+      if (data.value.payments) {
+        expect(data.value.payments.enabled).toBe(false);
+        expect(data.value.payments.checkoutUrl).toBeNull();
+      }
+    });
+
+    test('public bundle includes payments seam', async () => {
+      const response = await api.post('?action=getPublicBundle', {
+        brandId: brand,
+        scope: 'events',
+        id: testEventId
+      });
+      const data = await response.json();
+
+      expect(data.ok).toBe(true);
+
+      // payments should be in event object
+      if (data.value.event.payments) {
+        expect(data.value.event.payments).toHaveProperty('enabled');
+        expect(data.value.event.payments).toHaveProperty('provider');
+      }
+    });
+  });
+
+  test.describe('Settings Visibility (v2.0)', () => {
+    /**
+     * Tests for EVENT_CONTRACT.md v2.0 settings structure.
+     * Validates showSchedule, showStandings, showBracket, showSponsors.
+     */
+
+    test('event includes v2.0 settings shape', async () => {
+      const { eventId } = await api.createTestEvent(brand, adminKey);
+      createdEventIds.push(eventId);
+
+      const response = await api.getEvent(brand, eventId);
+      const data = await response.json();
+
+      expect(data.ok).toBe(true);
+      expect(data.value.settings).toBeDefined();
+      expect(data.value.settings).toHaveProperty('showSchedule');
+      expect(data.value.settings).toHaveProperty('showStandings');
+      expect(data.value.settings).toHaveProperty('showBracket');
+      expect(data.value.settings).toHaveProperty('showSponsors');
+    });
+
+    test('settings are boolean values', async () => {
+      const { eventId } = await api.createTestEvent(brand, adminKey);
+      createdEventIds.push(eventId);
+
+      const response = await api.getEvent(brand, eventId);
+      const data = await response.json();
+
+      const { settings } = data.value;
+      expect(typeof settings.showSchedule).toBe('boolean');
+      expect(typeof settings.showStandings).toBe('boolean');
+      expect(typeof settings.showBracket).toBe('boolean');
+      expect(typeof settings.showSponsors).toBe('boolean');
+    });
+
+    test('settings can be updated', async () => {
+      const { eventId } = await api.createTestEvent(brand, adminKey);
+      createdEventIds.push(eventId);
+
+      const updateResponse = await api.updateEvent(brand, eventId, {
+        settings: {
+          showSchedule: true,
+          showStandings: true,
+          showBracket: false,
+          showSponsors: true
+        }
+      }, adminKey);
+
+      expect(updateResponse.ok()).toBe(true);
+
+      const getResponse = await api.getEvent(brand, eventId);
+      const getData = await getResponse.json();
+
+      expect(getData.value.settings.showSchedule).toBe(true);
+      expect(getData.value.settings.showStandings).toBe(true);
+      expect(getData.value.settings.showBracket).toBe(false);
+      expect(getData.value.settings.showSponsors).toBe(true);
+    });
+  });
 });
