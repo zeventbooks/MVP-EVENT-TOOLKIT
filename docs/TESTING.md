@@ -287,14 +287,47 @@ npm run test:smoke -- --workers=1
 
 ---
 
+## Feature Coverage Matrix (Tests-as-Documentation)
+
+The project uses **Feature Coverage Matrix specs** to ensure tests remain synchronized with documentation. These tests verify that test files contain expected keywords and feature references.
+
+**Location:**
+- `tests/unit/coverage-matrix.test.js` - Unit test coverage verification
+- `tests/e2e/1-smoke/coverage-matrix.spec.js` - E2E test coverage verification
+
+**What they verify:**
+- Test files exist for documented features
+- Test files contain expected keywords (describe blocks, test names)
+- Feature references are present in actual test content
+- If someone renames a test file, specs fail
+- If someone removes feature keywords from tests, specs fail
+
+**Run coverage matrix tests:**
+```bash
+npm run test:unit -- coverage-matrix  # Unit coverage matrix
+npm run test:smoke -- coverage-matrix # E2E coverage matrix
+```
+
+This creates tight coupling between documentation and tests - the documentation stays synchronized with actual test behavior.
+
+---
+
 ## CI/CD Pipeline
 
 GitHub Actions runs tests automatically:
 
+### Stage 1 (Build & Deploy)
 ```
-Lint → Unit → Contract → Deploy → Smoke → E2E
-  ↓      ↓       ↓          ↓       ↓       ↓
- 10s    5s      3s        30s     1min    3min
+Lint → Unit → Contract → Deploy
+  ↓      ↓       ↓          ↓
+ 10s    5s      3s        30s
+```
+
+### Stage 2 (Testing)
+```
+Smoke → Page → Flow
+  ↓       ↓      ↓
+1min    2min   3min
 ```
 
 **Triggers:**
@@ -302,7 +335,22 @@ Lint → Unit → Contract → Deploy → Smoke → E2E
 - Push to `claude/**` → Tests only (no deploy)
 - Pull requests → Tests only
 
-**Configuration:** `.github/workflows/ci.yml`
+**Configuration:**
+- `.github/workflows/stage1-deploy.yml` - Build and deploy
+- `.github/workflows/stage2-testing.yml` - E2E testing
+
+### Local CI Parity Commands
+
+Mirror the CI pipeline locally:
+
+```bash
+npm run test:ci:stage1   # Stage 1: lint + unit + contract
+npm run test:ci:stage2   # Stage 2: Playwright e2e tests
+npm run test:ci:quick    # Quick: critical tests only
+npm run ci:local         # Interactive runner with progressive gating
+```
+
+See `scripts/README.md` for detailed documentation.
 
 ---
 

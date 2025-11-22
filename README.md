@@ -17,13 +17,34 @@ Project ID: 1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l
 
 ## What's here
 - **REST API** - Build custom frontends in React, Vue, mobile apps!
-- **3 Authentication Methods** - adminKey, JWT tokens, API key header (✅ NEW!)
-- **Interactive API Docs** - Test endpoints right in your browser! (✅ NEW!)
-- **Built-in HTML Pages** - Admin, Public, Display, Poster, Test, Diagnostics
+- **3 Authentication Methods** - adminKey, JWT tokens, API key header
+- **Interactive API Docs** - Test endpoints right in your browser!
+- **6 MVP Surfaces** - Admin, Public, Display, Poster, Sponsor, SharedReport (LOCKED for focus groups)
+- **Experimental Pages** - ApiDocs, Diagnostics, Signup, Test (labeled v2+)
 - Multi-brand config (events-only flags)
 - Uniform API envelopes, DIAG logging, idempotency, rate-limits
 - SWR helper (etag + localStorage)
 - Styles: your patched `Styles.html` + DesignAdapter map
+
+## MVP Status
+
+**Surfaces are LOCKED for focus group testing.** Each MVP page has a header comment:
+
+```
+MVP SURFACE - Focus Group Critical
+Status: LOCKED for MVP v1.0
+```
+
+| Surface | Purpose | Status |
+|---------|---------|--------|
+| Admin.html | Event management dashboard | MVP LOCKED |
+| Poster.html | Printable poster with QR | MVP LOCKED |
+| Display.html | TV/kiosk display | MVP LOCKED |
+| Public.html | Public event listing | MVP LOCKED |
+| Sponsor.html | Sponsor management | MVP LOCKED |
+| SharedReport.html | Shared analytics | MVP LOCKED |
+
+See **[docs/MVP_SCOPE.md](./docs/MVP_SCOPE.md)** for full MVP definition.
 
 ## Files to paste into Apps Script
 - appsscript.json
@@ -80,6 +101,7 @@ npm run deploy # Create new deployment
 - **[docs/TESTING.md](./docs/TESTING.md)** - Test infrastructure (260+ tests)
 - **[tests/README.md](./tests/README.md)** - Complete test suite documentation
 - **[docs/SECURITY.md](./docs/SECURITY.md)** - Security considerations
+- **[scripts/README.md](./scripts/README.md)** - Local CI parity commands (`npm run ci:local`)
 
 ### For DevOps
 - **[docs/CLASP_SETUP.md](./docs/CLASP_SETUP.md)** - clasp CLI setup
@@ -90,4 +112,4 @@ npm run deploy # Create new deployment
 - `EVENTS` & `DIAG` sheets are created on-demand in the bound spreadsheet
 - Add brands by extending `BRANDS` in `Config.gs`; later enable more scopes by adding `'leagues'` or `'tournaments'`
 
-# Deployment test - Thu Nov 13 05:41:27 PM CST 2025
+# Last updated: 2025-11-22

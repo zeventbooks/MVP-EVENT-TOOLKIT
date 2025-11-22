@@ -17,18 +17,30 @@ User Request → eventangle.com → Cloudflare Worker → Google Apps Script →
 
 ## Canonical Frontend Pages
 
-These are the **only** frontend pages that should be developed and tested:
+### MVP Surfaces (LOCKED - Focus Group Critical)
 
-| Page | File | Purpose | Auth |
-|------|------|---------|------|
-| **Admin** | `Admin.html` | Event management dashboard | Admin key |
-| **Public** | `Public.html` | Public event listing | None |
-| **Display** | `Display.html` | TV/kiosk mode | None |
-| **Poster** | `Poster.html` | Printable poster with QR | None |
-| **Signup** | `Signup.html` | Registration forms | None |
-| **Sponsor** | `Sponsor.html` | Sponsor registration | None |
-| **SponsorDashboard** | `SponsorDashboard.html` | Sponsor self-service | Sponsor auth |
-| **SharedReport** | `SharedReport.html` | Analytics sharing | Report token |
+These pages have `MVP SURFACE` headers and are locked for focus group testing:
+
+| Page | File | Purpose | Auth | Status |
+|------|------|---------|------|--------|
+| **Admin** | `Admin.html` | Event management dashboard | Admin key | MVP LOCKED |
+| **Public** | `Public.html` | Public event listing | None | MVP LOCKED |
+| **Display** | `Display.html` | TV/kiosk mode | None | MVP LOCKED |
+| **Poster** | `Poster.html` | Printable poster with QR | None | MVP LOCKED |
+| **Sponsor** | `Sponsor.html` | Sponsor management | None | MVP LOCKED |
+| **SharedReport** | `SharedReport.html` | Analytics sharing | Report token | MVP LOCKED |
+
+### Experimental Pages (v2+)
+
+These pages have `EXPERIMENTAL` headers and are NOT part of MVP focus group testing:
+
+| Page | File | Purpose | Status |
+|------|------|---------|--------|
+| **Signup** | `Signup.html` | Registration forms | EXPERIMENTAL |
+| **SponsorDashboard** | `SponsorDashboard.html` | Advanced sponsor ROI | EXPERIMENTAL |
+| **ApiDocs** | `ApiDocs.html` | API documentation | EXPERIMENTAL |
+| **Diagnostics** | `Diagnostics.html` | System diagnostics | EXPERIMENTAL |
+| **Test** | `Test.html` | Development testing | EXPERIMENTAL |
 
 ### Archived/Deprecated Pages
 

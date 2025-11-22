@@ -6,12 +6,61 @@ This directory contains helper scripts for Clasp deployment, authentication, and
 
 | Script | Purpose | When to Use |
 |--------|---------|-------------|
+| `run-ci-local.js` | Interactive CI runner with gates | Mirror CI pipeline locally |
 | `validate-clasp-setup.sh` | Validate local Clasp configuration | Before configuring GitHub Actions secrets |
 | `refresh-clasp-auth.sh` | Refresh OAuth credentials | When tokens expire or authentication fails |
 | `dev-deploy.sh` | Development deployment | During local development |
 | `create-staging.sh` | Create staging deployment | For testing before production |
 | `tag-staging.sh` | Tag staging deployment | Mark a staging version |
 | `promote-to-production.sh` | Promote to production | Deploy staging to production |
+
+## 🚦 Local CI Parity Commands (NEW)
+
+These commands mirror the GitHub Actions CI/CD pipeline for local development:
+
+### npm Commands
+
+| Command | Purpose | Mirrors |
+|---------|---------|---------|
+| `npm run test:ci:stage1` | Run Stage 1 tests (lint, unit, contract) | Stage 1 GitHub Actions |
+| `npm run test:ci:stage2` | Run Stage 2 tests (Playwright e2e) | Stage 2 GitHub Actions |
+| `npm run test:ci:quick` | Run critical tests only (fast) | Quick validation |
+| `npm run ci:local` | Interactive CI runner with progressive gating | Full CI pipeline |
+
+### Interactive CI Runner (`run-ci-local.js`)
+
+**Purpose:** Full CI pipeline locally with progressive gating - tests stop on first failure.
+
+**Usage:**
+```bash
+npm run ci:local
+```
+
+**What it does:**
+1. **Gate 1:** Linting (ESLint)
+2. **Gate 2:** Unit tests (Jest)
+3. **Gate 3:** Contract tests (API contracts)
+4. **Gate 4:** E2E Smoke tests (if Stage 2 enabled)
+5. **Gate 5:** E2E Page tests (if all gates pass)
+6. **Gate 6:** E2E Flow tests (if all gates pass)
+
+**Flags:**
+- `--stage1-only` - Only run Stage 1 tests
+- `--stage2-only` - Only run Stage 2 tests
+- `--skip-lint` - Skip linting gate
+- `--verbose` - Show full test output
+
+**Example:**
+```bash
+# Full CI run
+npm run ci:local
+
+# Stage 1 only (quick validation)
+npm run test:ci:stage1
+
+# Stage 2 only (e2e tests)
+npm run test:ci:stage2
+```
 
 ---
 
@@ -350,5 +399,5 @@ bash -x ./scripts/validate-clasp-setup.sh
 
 ---
 
-**Last Updated:** 2025-11-12
-**Version:** 1.0
+**Last Updated:** 2025-11-22
+**Version:** 1.1
