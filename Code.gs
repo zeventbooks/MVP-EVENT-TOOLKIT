@@ -2492,6 +2492,55 @@ function api_logEvents(req){
 }
 
 /**
+ * Log external link clicks from League & Broadcast card
+ * Fire-and-forget analytics - no storage schema change needed
+ * Logs to analytics sheet with metric='external_click' and linkType in sponsorId column
+ * @tier mvp
+ */
+function api_logExternalClick(req) {
+  return runSafe('api_logExternalClick', () => {
+    const { eventId, linkType } = req || {};
+
+    // Validate inputs
+    if (!eventId || typeof eventId !== 'string') {
+      return Err(ERR.BAD_INPUT, 'missing or invalid eventId');
+    }
+    if (!linkType || typeof linkType !== 'string') {
+      return Err(ERR.BAD_INPUT, 'missing or invalid linkType');
+    }
+
+    // Validate linkType is one of the expected values
+    const validLinkTypes = ['schedule', 'standings', 'bracket', 'stats', 'scoreboard', 'stream'];
+    if (!validLinkTypes.includes(linkType)) {
+      return Err(ERR.BAD_INPUT, 'invalid linkType');
+    }
+
+    // Log to analytics sheet (reuse existing structure)
+    const sh = _ensureAnalyticsSheet_();
+    const now = new Date();
+
+    // Use existing analytics columns:
+    // [timestamp, eventId, surface, metric, sponsorId, value, token, ua]
+    // We'll use: surface='public', metric='external_click', sponsorId=linkType, value=1
+    const row = [
+      now,
+      sanitizeSpreadsheetValue_(eventId),
+      'public',                              // surface
+      'external_click',                      // metric (new metric type)
+      sanitizeSpreadsheetValue_(linkType),   // repurpose sponsorId column for linkType
+      1,                                     // value (1 click)
+      '',                                    // token (unused)
+      ''                                     // ua (unused for this simple log)
+    ];
+
+    sh.getRange(sh.getLastRow() + 1, 1, 1, 8).setValues([row]);
+
+    diag_('info', 'api_logExternalClick', 'logged', { eventId, linkType });
+    return Ok({ logged: true });
+  });
+}
+
+/**
  * Get event analytics report
  * @tier mvp
  */
