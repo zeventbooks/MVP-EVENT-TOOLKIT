@@ -290,13 +290,45 @@ function doGet(e){
       const aliasConfig = resolveUrlAlias_(aliasFromPath, brandFromPath?.id || brand.id);
 
       if (aliasConfig) {
+        // API endpoints should return JSON/special content, not HTML pages
+        // Handle these directly instead of routing through routePage_()
+        const resolvedPage = aliasConfig.page;
+
+        // Handle API-like pages that return JSON
+        if (resolvedPage === 'status') {
+          const brandParam = (e?.parameter?.brand || brand.id || 'root').toString();
+          const status = api_status(brandParam);
+          return ContentService.createTextOutput(JSON.stringify(status, null, 2))
+            .setMimeType(ContentService.MimeType.JSON);
+        }
+
+        if (resolvedPage === 'setup' || resolvedPage === 'setupcheck') {
+          const brandParam = (e?.parameter?.brand || brand.id || 'root').toString();
+          const setupResult = api_setupCheck(brandParam);
+          return ContentService.createTextOutput(JSON.stringify(setupResult, null, 2))
+            .setMimeType(ContentService.MimeType.JSON);
+        }
+
+        if (resolvedPage === 'permissions' || resolvedPage === 'checkpermissions') {
+          const brandParam = (e?.parameter?.brand || brand.id || 'root').toString();
+          const permissionResult = api_checkPermissions(brandParam);
+          return ContentService.createTextOutput(JSON.stringify(permissionResult, null, 2))
+            .setMimeType(ContentService.MimeType.JSON);
+        }
+
+        // Handle API docs page (returns HTML, but special)
+        if (resolvedPage === 'api' || resolvedPage === 'docs') {
+          return HtmlService.createHtmlOutputFromFile('ApiDocs')
+            .setTitle('API Documentation - MVP Event Toolkit')
+            .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.DENY);
+        }
+
+        // Standard HTML page routing
         // Override brand if specified in path
         if (brandFromPath) {
           brand = brandFromPath;
         }
 
-        // Set page and mode from alias
-        const resolvedPage = aliasConfig.page;
         const resolvedMode = aliasConfig.mode;
 
         // Continue routing with resolved values
