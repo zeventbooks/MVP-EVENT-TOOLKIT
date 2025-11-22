@@ -2,9 +2,14 @@ name: Stage 1 - Build & Deploy
 
 on:
   push:
-    branches: [ main, 'claude/**' ]
+    branches: [ main ]  # Only deploy on main push (after PR merge)
   pull_request:
-    branches: [ main ]
+    branches: [ main ]  # Validate PRs before merge
+
+# Prevent duplicate runs: cancel in-progress runs for the same PR/branch
+concurrency:
+  group: stage1-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   # ============================================================================

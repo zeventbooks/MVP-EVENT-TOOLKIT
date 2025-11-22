@@ -1,14 +1,20 @@
 name: Unit & Contract Tests
 
 on:
-  # Run on every push and pull request
+  # Run on feature branch pushes for fast feedback (not main - handled by Stage 1)
   push:
-    branches: ['**']
-  pull_request:
-    branches: [main]
+    branches-ignore:
+      - main  # Stage 1 handles main branch
+  # Note: PRs are handled by Stage 1 which includes these tests
+  # This workflow provides fast feedback on feature branches only
 
   # Allow manual trigger
   workflow_dispatch:
+
+# Prevent duplicate runs: cancel in-progress runs for the same branch
+concurrency:
+  group: unit-tests-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   unit-and-contract-tests:
