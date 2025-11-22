@@ -348,14 +348,18 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
     // Track rendered sponsor IDs for BBN attribution
     let currentRenderedSponsorIds = [];
 
-    // === EVENT_CONTRACT.md v1.0 Support ===
-    // Helper to check if section is enabled
-    function sectionEnabled(sections, key) {
-      if (!sections) return true;
-      const section = sections[key];
-      if (section === null || section === undefined) return true;
-      if (typeof section === 'boolean') return section;
-      return section.enabled !== false;
+    // === EVENT_CONTRACT.md v2.0 Support ===
+    // Helper to check if section is enabled using event.settings.*
+    // Trust the contract - never invent flags
+    function sectionEnabled(settings, key) {
+      if (!settings) return false;
+      switch (key) {
+        case 'schedule': return settings.showSchedule === true;
+        case 'standings': return settings.showStandings === true;
+        case 'bracket': return settings.showBracket === true;
+        case 'sponsors': return settings.showSponsors === true;
+        default: return false;
+      }
     }
 
     // League templates that show the League & Broadcast strip
@@ -665,47 +669,131 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
       next();
     }
 
+    /**
+     * Boot Display.html
+     * EVENT_CONTRACT.md v2.0: Uses api_getDisplayBundle for TV-optimized data
+     *
+     * DisplayBundle returns:
+     * - event: Full canonical Event shape
+     * - rotation: { sponsorSlots, rotationMs }
+     * - layout: { hasSidePane, emphasis }
+     */
     function boot() {
       if (!eventId || !google?.script?.run) return startPublicMode();
 
       google.script.run
         .withSuccessHandler(res => {
-          const ev = res?.value || {};
+          if (!res?.ok || !res?.value) return startPublicMode();
 
-          // EVENT_CONTRACT.md v2.0: Canonical shape with backward compat
-          const legacyData = ev.data || {};
-          const settings = ev.settings || {};
-          const sponsors = ev.sponsors || null;
-          const externalData = ev.externalData || null;
-          const displayConfig = legacyData.display || {};
+          const bundle = res.value;
+          const event = bundle.event || {};
+          const rotation = bundle.rotation || {};
+          const layout = bundle.layout || {};
 
-          // Render League & Broadcast strip (V2 Optional: externalData)
-          if (externalData) {
-            renderLeagueBroadcast('', externalData);
+          // === CONTRACT FIELDS (MVP REQUIRED) ===
+          const eventId = event.id;
+          const eventName = event.name || '';
+          const startDateISO = event.startDateISO || '';
+          const venue = event.venue || '';
+          const settings = event.settings || { showSchedule: false, showStandings: false, showBracket: false, showSponsors: false };
+          const links = event.links || {};
+
+          // === CONTRACT FIELDS (MVP OPTIONAL) ===
+          const schedule = event.schedule || [];
+          const standings = event.standings || [];
+          const bracket = event.bracket || null;
+
+          // === CONTRACT FIELDS (V2 OPTIONAL) ===
+          const sponsors = event.sponsors || [];
+          const externalData = event.externalData || {};
+
+          // === RENDER EVENT INFO (TV Header) ===
+          renderEventInfo(eventName, startDateISO, venue);
+
+          // === RENDER SCHEDULE/STANDINGS/BRACKET PANELS ===
+          // Uses event.settings.* to decide visibility
+          if (settings.showSchedule && schedule.length > 0) {
+            renderSchedulePanel(schedule);
+          }
+          if (settings.showStandings && standings.length > 0) {
+            renderStandingsPanel(standings);
+          }
+          if (settings.showBracket && bracket) {
+            renderBracketPanel(bracket);
           }
 
-          // Only render sponsors if settings.showSponsors is true (V2 Optional)
-          if (settings.showSponsors && sponsors && sponsors.length > 0) {
+          // === RENDER LEAGUE & BROADCAST STRIP ===
+          // Uses event.externalData (V2 Optional)
+          if (externalData.scheduleUrl || externalData.standingsUrl || externalData.bracketUrl ||
+              externalData.statsUrl || externalData.scoreboardUrl || externalData.streamUrl) {
+            renderLeagueBroadcast(event.templateId || '', externalData);
+          }
+
+          // === RESERVED SPONSOR STRIP ===
+          // Always render sponsor bar container (even if empty for future use)
+          // Uses event.settings.showSponsors and event.sponsors
+          if (settings.showSponsors && sponsors.length > 0) {
             // Filter sponsors by placement for display/tv-banner
             const displaySponsors = sponsors.filter(s =>
               s.placement === 'display' || s.placement === 'tv-banner' || !s.placement
             );
             if (displaySponsors.length > 0) {
-              renderSponsorTopFromArray(ev.id, displaySponsors);
-              renderSponsorSideFromArray(ev.id, displaySponsors);
+              renderSponsorTopFromArray(event.id, displaySponsors);
+              // Use layout.hasSidePane from DisplayBundle to show side panel
+              if (layout.hasSidePane) {
+                renderSponsorSideFromArray(event.id, displaySponsors);
+              }
             }
           }
-          // If no sponsors or settings.showSponsors false: layout still looks clean
+          // Reserved: Sponsor strip container exists but hidden when no sponsors
 
-          // Check display mode: 'dynamic' uses carousel with configured URLs, 'public' mirrors event page
-          if (String(displayConfig.mode || '').toLowerCase() === 'dynamic' && Array.isArray(displayConfig.urls) && displayConfig.urls.length) {
-            startDynamicMode(displayConfig.urls);
-          } else {
-            startPublicMode();
-          }
+          // === START DISPLAY MODE ===
+          // For now, default to public mode (mirroring event page)
+          // Future: Use rotation config for dynamic sponsor/content rotation
+          startPublicMode();
         })
         .withFailureHandler(() => startPublicMode())
-        .api_get({ brandId, scope: 'events', id: eventId });
+        .api_getDisplayBundle({ brandId, scope: 'events', id: eventId });
+    }
+
+    /**
+     * Render event info header for TV
+     * Uses: event.name, event.startDateISO, event.venue
+     */
+    function renderEventInfo(name, startDateISO, venue) {
+      // Event info is shown in the sponsor top bar area if no sponsors
+      // For now we'll just log it - the public mode iframe shows this
+      console.log('Display: Event info', { name, startDateISO, venue });
+    }
+
+    /**
+     * Render schedule panel for TV (MVP Optional)
+     * Uses: event.schedule per EVENT_CONTRACT.md
+     */
+    function renderSchedulePanel(schedule) {
+      // For MVP, schedule is shown in the embedded public page
+      // Future: Dedicated TV schedule overlay
+      console.log('Display: Schedule panel', schedule.length, 'items');
+    }
+
+    /**
+     * Render standings panel for TV (MVP Optional)
+     * Uses: event.standings per EVENT_CONTRACT.md
+     */
+    function renderStandingsPanel(standings) {
+      // For MVP, standings is shown in the embedded public page
+      // Future: Dedicated TV standings overlay
+      console.log('Display: Standings panel', standings.length, 'rows');
+    }
+
+    /**
+     * Render bracket panel for TV (MVP Optional)
+     * Uses: event.bracket per EVENT_CONTRACT.md
+     */
+    function renderBracketPanel(bracket) {
+      // For MVP, bracket is shown in the embedded public page
+      // Future: Dedicated TV bracket overlay
+      console.log('Display: Bracket panel', bracket?.rounds?.length || 0, 'rounds');
     }
 
     boot();
