@@ -85,8 +85,130 @@ const SCHEMAS = {
   },
 
   // === Event Schemas =======================================================
+  // Canonical Event Contract v1.0 - See EVENT_CONTRACT.md for documentation
 
   events: {
+    // Shared schema definitions for reuse
+    _eventStatus: {
+      type: 'string',
+      enum: ['draft', 'published', 'cancelled', 'completed']
+    },
+
+    _sectionConfig: {
+      type: ['object', 'null'],
+      properties: {
+        enabled: { type: 'boolean' },
+        title: { type: ['string', 'null'] },
+        content: { type: ['string', 'null'] }
+      }
+    },
+
+    _ctaLabel: {
+      type: 'object',
+      required: ['key', 'label'],
+      properties: {
+        key: { type: 'string' },
+        label: { type: 'string' },
+        url: { type: ['string', 'null'] }
+      }
+    },
+
+    _sponsor: {
+      type: 'object',
+      required: ['id', 'name'],
+      properties: {
+        id: { type: 'string' },
+        name: { type: 'string' },
+        logoUrl: { type: ['string', 'null'] },
+        website: { type: ['string', 'null'] },
+        tier: { type: ['string', 'null'] }
+      }
+    },
+
+    // Full event shape per EVENT_CONTRACT.md
+    _eventShape: {
+      type: 'object',
+      required: ['id', 'brandId', 'templateId', 'name', 'status', 'createdAt', 'slug', 'links'],
+      properties: {
+        // Envelope (system-managed)
+        id: { $ref: '#/common/id' },
+        brandId: { $ref: '#/common/brandId' },
+        templateId: { type: 'string' },
+
+        // Core Identity
+        name: { type: 'string', minLength: 1, maxLength: 200 },
+        status: { $ref: '#/schemas/events/_eventStatus' },
+        dateTime: { type: ['string', 'null'] },
+        location: { type: ['string', 'null'] },
+        venueName: { type: ['string', 'null'] },
+
+        // Content
+        summary: { type: ['string', 'null'] },
+        notes: { type: ['string', 'null'] },
+        audience: { type: ['string', 'null'] },
+
+        // Sections
+        sections: {
+          type: 'object',
+          properties: {
+            video: { $ref: '#/schemas/events/_sectionConfig' },
+            map: { $ref: '#/schemas/events/_sectionConfig' },
+            schedule: { $ref: '#/schemas/events/_sectionConfig' },
+            sponsors: { $ref: '#/schemas/events/_sectionConfig' },
+            notes: { $ref: '#/schemas/events/_sectionConfig' },
+            gallery: { $ref: '#/schemas/events/_sectionConfig' }
+          }
+        },
+
+        // CTA Labels
+        ctaLabels: {
+          type: 'array',
+          items: { $ref: '#/schemas/events/_ctaLabel' }
+        },
+
+        // External Data
+        externalData: {
+          type: 'object',
+          properties: {
+            scheduleUrl: { type: ['string', 'null'] },
+            standingsUrl: { type: ['string', 'null'] },
+            bracketUrl: { type: ['string', 'null'] }
+          }
+        },
+
+        // Media URLs
+        videoUrl: { type: ['string', 'null'] },
+        mapEmbedUrl: { type: ['string', 'null'] },
+
+        // Action URLs
+        signupUrl: { type: ['string', 'null'] },
+        checkinUrl: { type: ['string', 'null'] },
+        feedbackUrl: { type: ['string', 'null'] },
+
+        // Sponsors (hydrated)
+        sponsors: {
+          type: 'array',
+          items: { $ref: '#/schemas/events/_sponsor' }
+        },
+
+        // Metadata
+        createdAt: { $ref: '#/common/isoDate' },
+        slug: { type: 'string' },
+
+        // Generated Links
+        links: {
+          type: 'object',
+          required: ['publicUrl', 'posterUrl', 'displayUrl', 'reportUrl'],
+          properties: {
+            publicUrl: { $ref: '#/common/url' },
+            posterUrl: { $ref: '#/common/url' },
+            displayUrl: { $ref: '#/common/url' },
+            reportUrl: { $ref: '#/common/url' }
+          }
+        }
+      }
+    },
+
     list: {
       request: {
         type: 'object',
@@ -112,17 +234,7 @@ const SCHEMAS = {
             properties: {
               items: {
                 type: 'array',
-                items: {
-                  type: 'object',
-                  required: ['id', 'templateId', 'data', 'createdAt', 'slug'],
-                  properties: {
-                    id: { $ref: '#/common/id' },
-                    templateId: { type: 'string' },
-                    data: { type: 'object' },
-                    createdAt: { $ref: '#/common/isoDate' },
-                    slug: { type: 'string' }
-                  }
-                }
+                items: { $ref: '#/schemas/events/_eventShape' }
               },
               pagination: {
                 type: 'object',
@@ -158,28 +270,7 @@ const SCHEMAS = {
           ok: { type: 'boolean' },
           etag: { type: 'string' },
           notModified: { type: 'boolean' },
-          value: {
-            type: 'object',
-            required: ['id', 'brandId', 'templateId', 'data', 'createdAt', 'slug', 'links'],
-            properties: {
-              id: { $ref: '#/common/id' },
-              brandId: { $ref: '#/common/brandId' },
-              templateId: { type: 'string' },
-              data: { type: 'object' },
-              createdAt: { $ref: '#/common/isoDate' },
-              slug: { type: 'string' },
-              links: {
-                type: 'object',
-                required: ['publicUrl', 'posterUrl', 'displayUrl', 'reportUrl'],
-                properties: {
-                  publicUrl: { $ref: '#/common/url' },
-                  posterUrl: { $ref: '#/common/url' },
-                  displayUrl: { $ref: '#/common/url' },
-                  reportUrl: { $ref: '#/common/url' }
-                }
-              }
-            }
-          }
+          value: { $ref: '#/schemas/events/_eventShape' }
         }
       }
     },

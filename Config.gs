@@ -3,8 +3,8 @@
 
 const ZEB = Object.freeze({
   APP_TITLE: 'Zeventbook',
-  BUILD_ID: 'triangle-extended-v1.4',
-  CONTRACT_VER: '1.0.3',
+  BUILD_ID: 'triangle-extended-v1.5',
+  CONTRACT_VER: '1.0.0', // EVENT_CONTRACT.md v1.0.0
 
   // === Feature Flags ===
   // Controls which features are active in the current deployment
@@ -272,40 +272,58 @@ function getTemplatesForBrand_(brandId) {
 }
 
 // Templates - Extended event model
+// See EVENT_CONTRACT.md for canonical field documentation
 const TEMPLATES = [
   {
     id: 'event',
     label: 'Event',
     fields: [
-      // Core fields
-      { id: 'name',        type: 'text', required: true },
-      { id: 'dateISO',     type: 'date', required: true },
+      // === Core Identity (per EVENT_CONTRACT.md) ===
+      { id: 'name',        type: 'text', required: true, maxLength: 200 },
+      { id: 'status',      type: 'text', required: false }, // draft|published|cancelled|completed
+      { id: 'dateISO',     type: 'date', required: false }, // Combined with timeISO → dateTime
       { id: 'timeISO',     type: 'time', required: false },
       { id: 'location',    type: 'text', required: false },
-      { id: 'entity',      type: 'text', required: false },
+      { id: 'venueName',   type: 'text', required: false }, // NEW: Separate venue name
 
-      // Summary
+      // === Content ===
       { id: 'summary',     type: 'text', required: false },
-      { id: 'summaryLink', type: 'url',  required: false },
+      { id: 'notes',       type: 'text', required: false }, // NEW: Admin-only notes
+      { id: 'audience',    type: 'text', required: false }, // NEW: Target audience
 
-      // Media
+      // === Sections (JSON object) ===
+      // Each section: { enabled: bool, title: string|null, content: string|null }
+      { id: 'sections',    type: 'json', required: false },
+
+      // === CTA Labels (JSON array) ===
+      // Each: { key: string, label: string, url: string|null }
+      { id: 'ctaLabels',   type: 'json', required: false },
+
+      // === External Data (JSON object) ===
+      { id: 'externalData', type: 'json', required: false },
+
+      // === Media URLs ===
       { id: 'imageUrl',    type: 'url',  required: false },
       { id: 'videoUrl',    type: 'url',  required: false },
+      { id: 'mapEmbedUrl', type: 'url',  required: false }, // NEW: Google Maps embed
       { id: 'galleryUrls', type: 'text', required: false }, // Comma-separated URLs
 
-      // Bio
+      // === Action URLs ===
+      { id: 'signupUrl',   type: 'url',  required: false },
+      { id: 'checkinUrl',  type: 'url',  required: false },
+      { id: 'feedbackUrl', type: 'url',  required: false }, // NEW: Replaces surveyUrl
+      { id: 'surveyUrl',   type: 'url',  required: false }, // DEPRECATED: Use feedbackUrl
+
+      // === Legacy fields (kept for backward compatibility) ===
+      { id: 'entity',      type: 'text', required: false },
+      { id: 'summaryLink', type: 'url',  required: false },
       { id: 'bio',         type: 'text', required: false },
       { id: 'bioLink',     type: 'url',  required: false },
-
-      // Sign-up URLs
-      { id: 'signupUrl',   type: 'url',  required: false },
       { id: 'registerUrl', type: 'url',  required: false },
-      { id: 'checkinUrl',  type: 'url',  required: false },
       { id: 'walkinUrl',   type: 'url',  required: false },
-      { id: 'surveyUrl',   type: 'url',  required: false },
 
-      // Sponsors (comma-separated IDs)
-      { id: 'sponsorIds',  type: 'text', required: false }
+      // === Sponsors ===
+      { id: 'sponsorIds',  type: 'text', required: false } // Comma-separated IDs, hydrated to sponsors[]
     ]
   },
   {
