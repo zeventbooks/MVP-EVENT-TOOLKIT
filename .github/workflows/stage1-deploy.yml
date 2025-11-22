@@ -18,6 +18,10 @@ jobs:
   # ============================================================================
   # STAGE 1: BUILD, TEST & DEPLOY
   # ============================================================================
+  # Local equivalent: npm run test:ci:stage1
+  # Runs: lint && test:unit && test:contract
+  # Stage 1 red → DO NOT DEPLOY
+  # ============================================================================
 
   lint:
     name: 🔍 Code Quality (ESLint)

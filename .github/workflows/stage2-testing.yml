@@ -27,6 +27,14 @@ concurrency:
 
 jobs:
   # ============================================================================
+  # STAGE 2: E2E TESTING (API → SMOKE → FLOWS → PAGES)
+  # ============================================================================
+  # Local equivalent: BASE_URL='<url>' ADMIN_KEY='<key>' npm run test:ci:stage2
+  # Runs: test:api && test:fe (smoke + flows + pages)
+  # Stage 2 red → DEPLOYMENT BROKEN, fix before release
+  # ============================================================================
+
+  # ============================================================================
   # SETUP: Extract deployment URL from Stage 1
   # ============================================================================
 
