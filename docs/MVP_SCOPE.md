@@ -94,92 +94,56 @@ DO NOT modify this file's contracts without updating:
 
 ---
 
-## API Tiers
+## API Contracts
 
-### MVP-Critical APIs (LOCKED)
+### MVP Contracts (LOCKED - Don't Break)
 
-These APIs are tagged in `Code.gs` (line ~1159) with a comment block:
-
-```javascript
-// === MVP SURFACES (focus-group critical) =====================================
-// Used by: Admin, Poster, Display, Public, Sponsor, SharedReport
-//
-// DO NOT change API contracts without updating:
-//   - NUSDK.html (API client)
-//   - tests/e2e/* (end-to-end tests)
-//   - tests/unit/* (unit tests)
-//
-// MVP-Critical APIs:
-//   - api_create()              → Create new event (Admin)
-//   - api_get()                 → Get single event (all surfaces)
-//   - api_updateEventData()     → Update event data (Admin)
-//   - api_getPublicBundle()     → Public event bundle (Public, Poster, Display)
-//   - api_generateFormShortlink() → Form shortlink generation (Admin)
-//   - api_getSharedAnalytics()  → Shared analytics (SharedReport) [SharedReporting.gs]
-//   - api_getSponsorAnalytics() → Sponsor analytics (Sponsor, SharedReport)
-//   - api_getSponsorROI()       → Sponsor ROI calculation (Sponsor, SharedReport)
-//
-// Everything else under api_* is v2+.
-```
-
-### @tier mvp - Must Work Today
-
-These APIs form the core analytics loop that makes the product valuable:
+These are the **only** APIs that matter for focus group testing. See `Code.gs:1159` for the canonical list.
 
 ```
-Event Management:
-  api_create              - Create event
-  api_get                 - Get event by ID
-  api_list                - List events (paginated)
-  api_updateEventData     - Update event data
-  api_getPublicBundle     - Bundled data for public pages
-
-System:
-  api_status              - Health check
-  api_healthCheck         - Simple ping
-  api_getConfig           - Brand/env configuration
-  api_setupCheck          - First-time setup validation
-  api_checkPermissions    - Permission verification
-  api_runDiagnostics      - Full diagnostic suite
-
-Auth:
-  api_generateToken       - JWT token generation
-
-Analytics (THE WOW FACTOR):
-  api_logEvents           - Track impressions, clicks, dwell time
-  api_getReport           - Event analytics report
-  api_getSponsorAnalytics - Sponsor performance metrics (impressions, CTR, ROI by surface)
-  api_getSponsorROI       - ROI dashboard with financials & insights
-
-Sponsors:
-  api_getSponsorSettings         - Placement configuration
-  api_validateSponsorPlacements  - Validate placements
-
-Tracking:
-  api_createShortlink       - Create trackable links (CTR tracking)
-  api_generateFormShortlink - Trackable form links
-
-Forms:
-  api_listFormTemplates      - Available templates
-  api_createFormFromTemplate - Create registration forms
+┌─────────────────────────────────────────────────────────────────────────────
+│ EVENT CORE
+├─────────────────────────────────────────────────────────────────────────────
+│ api_create()              → Create new event (Admin)
+│ api_get()                 → Get single event (all surfaces)
+│ api_updateEventData()     → Update event data (Admin)
+│ api_getPublicBundle()     → Public bundle (Public, Poster, Display)
+├─────────────────────────────────────────────────────────────────────────────
+│ FORMS
+├─────────────────────────────────────────────────────────────────────────────
+│ api_createFormFromTemplate() → Create registration form (Admin)
+│ api_generateFormShortlink()  → Trackable form links (Admin)
+├─────────────────────────────────────────────────────────────────────────────
+│ SPONSORS & ANALYTICS
+├─────────────────────────────────────────────────────────────────────────────
+│ api_getSponsorSettings()  → Sponsor placements (all surfaces)
+│ api_getSharedAnalytics()  → Shared analytics (SharedReport) [SharedReporting.gs]
+│ api_getSponsorAnalytics() → Sponsor metrics (Sponsor, SharedReport)
+│ api_getSponsorROI()       → ROI calculation (Sponsor, SharedReport)
+└─────────────────────────────────────────────────────────────────────────────
 ```
 
-### @tier v2 - Future Releases
+### Supporting APIs (MVP but secondary)
 
-These features work but are not critical for initial launch:
+These support the MVP but aren't surface contracts:
 
 ```
-Portfolio Analytics (Multi-event):
-  api_getPortfolioSponsorReport - Cross-event sponsor reports
-  api_getPortfolioSummary       - Portfolio-wide summary
-  api_getPortfolioSponsors      - All sponsors across events
+System:       api_status, api_healthCheck, api_getConfig
+Auth:         api_generateToken
+Tracking:     api_logEvents, api_createShortlink
+Diagnostics:  api_runDiagnostics, api_setupCheck, api_checkPermissions
+```
 
-Advanced Exports:
-  api_exportReport - Spreadsheet export matrix
+### v2+ APIs (Working but not MVP focus)
 
-Not Yet Built:
-  Full i18n system
-  Multi-brand beyond primary tenant
+Don't delete, but stop designing around these:
+
+```
+Portfolio:    api_getPortfolioSponsorReport, api_getPortfolioSummary,
+              api_getPortfolioSponsors
+Exports:      api_exportReport (advanced spreadsheet matrix)
+Multi-brand:  Brand hierarchy, child brand rollups
+i18n:         Full internationalization system
 ```
 
 ---

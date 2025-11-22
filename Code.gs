@@ -1157,26 +1157,44 @@ function verifyJWT_(token, brand) {
 }
 
 // =============================================================================
-// === MVP SURFACES (focus-group critical) =====================================
+// === MVP API CONTRACTS (Triangle Live Demo) ==================================
 // =============================================================================
-// Used by: Admin, Poster, Display, Public, Sponsor, SharedReport
+// Surfaces: Admin, Poster, Display, Public, Sponsor, SharedReport
 //
-// DO NOT change API contracts without updating:
+// DO NOT change these contracts without updating:
 //   - NUSDK.html (API client)
 //   - tests/e2e/* (end-to-end tests)
 //   - tests/unit/* (unit tests)
 //
-// MVP-Critical APIs:
-//   - api_create()              → Create new event (Admin)
-//   - api_get()                 → Get single event (all surfaces)
-//   - api_updateEventData()     → Update event data (Admin)
-//   - api_getPublicBundle()     → Public event bundle (Public, Poster, Display)
-//   - api_generateFormShortlink() → Form shortlink generation (Admin)
-//   - api_getSharedAnalytics()  → Shared analytics (SharedReport) [SharedReporting.gs]
-//   - api_getSponsorAnalytics() → Sponsor analytics (Sponsor, SharedReport)
-//   - api_getSponsorROI()       → Sponsor ROI calculation (Sponsor, SharedReport)
+// ┌─────────────────────────────────────────────────────────────────────────────
+// │ MVP CONTRACTS - Don't break during iteration
+// ├─────────────────────────────────────────────────────────────────────────────
+// │ Event Core:
+// │   api_create()              → Create new event (Admin)
+// │   api_get()                 → Get single event (all surfaces)
+// │   api_updateEventData()     → Update event data (Admin)
+// │   api_getPublicBundle()     → Public bundle (Public, Poster, Display)
+// │
+// │ Forms:
+// │   api_createFormFromTemplate() → Create registration form (Admin)
+// │   api_generateFormShortlink()  → Trackable form links (Admin)
+// │
+// │ Sponsors & Analytics:
+// │   api_getSponsorSettings()  → Sponsor placements (all surfaces)
+// │   api_getSharedAnalytics()  → Shared analytics (SharedReport) [SharedReporting.gs]
+// │   api_getSponsorAnalytics() → Sponsor metrics (Sponsor, SharedReport)
+// │   api_getSponsorROI()       → ROI calculation (Sponsor, SharedReport)
+// └─────────────────────────────────────────────────────────────────────────────
 //
-// Everything else under api_* is v2+.
+// ┌─────────────────────────────────────────────────────────────────────────────
+// │ v2+ APIs - Working but not MVP focus
+// ├─────────────────────────────────────────────────────────────────────────────
+// │ Portfolio:     api_getPortfolioSponsorReport, api_getPortfolioSummary,
+// │                api_getPortfolioSponsors
+// │ Multi-brand:   Brand hierarchy, child brand rollups
+// │ Exports:       api_exportReport (advanced spreadsheet exports)
+// │ i18n:          Full internationalization system
+// └─────────────────────────────────────────────────────────────────────────────
 // =============================================================================
 
 /**
@@ -2969,6 +2987,13 @@ function api_generateFormShortlink(req){
     });
   });
 }
+
+// =============================================================================
+// === v2+ APIs - Working but NOT MVP focus ====================================
+// =============================================================================
+// These APIs work but are not critical for focus group testing.
+// Don't delete, but don't design around them for MVP.
+// =============================================================================
 
 // === Brand Portfolio Analytics API (Parent Organizations) =================
 
