@@ -166,13 +166,21 @@ const SCHEMAS = {
           items: { $ref: '#/schemas/events/_ctaLabel' }
         },
 
-        // External Data
+        // External Data (ExternalLeagueData per EVENT_CONTRACT.md)
         externalData: {
           type: 'object',
           properties: {
+            // Core league links
             scheduleUrl: { type: ['string', 'null'] },
             standingsUrl: { type: ['string', 'null'] },
-            bracketUrl: { type: ['string', 'null'] }
+            bracketUrl: { type: ['string', 'null'] },
+            // Advanced integrations
+            statsUrl: { type: ['string', 'null'] },
+            scoreboardUrl: { type: ['string', 'null'] },
+            streamUrl: { type: ['string', 'null'] },
+            // Provider metadata
+            providerName: { type: ['string', 'null'] },
+            providerLeagueId: { type: ['string', 'null'] }
           }
         },
 

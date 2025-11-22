@@ -1984,9 +1984,17 @@ const EVENT_DEFAULTS_ = {
   },
   ctaLabels: [],
   externalData: {
+    // Core league links
     scheduleUrl: null,
     standingsUrl: null,
-    bracketUrl: null
+    bracketUrl: null,
+    // Advanced integrations
+    statsUrl: null,
+    scoreboardUrl: null,
+    streamUrl: null,
+    // Provider metadata
+    providerName: null,
+    providerLeagueId: null
   },
   videoUrl: null,
   mapEmbedUrl: null,
@@ -2049,11 +2057,19 @@ function hydrateEvent_(row, options = {}) {
     // CTA Labels
     ctaLabels: Array.isArray(data.ctaLabels) ? data.ctaLabels : EVENT_DEFAULTS_.ctaLabels,
 
-    // External Data
+    // External Data (ExternalLeagueData per EVENT_CONTRACT.md)
     externalData: {
+      // Core league links
       scheduleUrl: data.externalData?.scheduleUrl || data.scheduleUrl || EVENT_DEFAULTS_.externalData.scheduleUrl,
       standingsUrl: data.externalData?.standingsUrl || data.standingsUrl || EVENT_DEFAULTS_.externalData.standingsUrl,
-      bracketUrl: data.externalData?.bracketUrl || data.bracketUrl || EVENT_DEFAULTS_.externalData.bracketUrl
+      bracketUrl: data.externalData?.bracketUrl || data.bracketUrl || EVENT_DEFAULTS_.externalData.bracketUrl,
+      // Advanced integrations
+      statsUrl: data.externalData?.statsUrl || EVENT_DEFAULTS_.externalData.statsUrl,
+      scoreboardUrl: data.externalData?.scoreboardUrl || EVENT_DEFAULTS_.externalData.scoreboardUrl,
+      streamUrl: data.externalData?.streamUrl || EVENT_DEFAULTS_.externalData.streamUrl,
+      // Provider metadata
+      providerName: data.externalData?.providerName || EVENT_DEFAULTS_.externalData.providerName,
+      providerLeagueId: data.externalData?.providerLeagueId || EVENT_DEFAULTS_.externalData.providerLeagueId
     },
 
     // Media URLs
