@@ -558,6 +558,11 @@ function handleRestApiGet_(e, action, brand) {
     return jsonResponse_(api_getPosterBundle({brandId, scope, id, ifNoneMatch: etag}));
   }
 
+  if (action === 'getSponsorBundle') {
+    if (!id) return jsonResponse_(Err(ERR.BAD_INPUT, 'Missing id parameter'));
+    return jsonResponse_(api_getSponsorBundle({brandId, scope, id, ifNoneMatch: etag}));
+  }
+
   return jsonResponse_(Err(ERR.BAD_INPUT, `Unknown action: ${action}`));
 }
 
@@ -2738,6 +2743,132 @@ function generatePrintStrings_(event) {
     dateLine: dateLine,
     venueLine: venueLine
   };
+}
+
+/**
+ * api_getSponsorBundle - Optimized bundle for sponsor portal
+ * Returns thin event view + sponsors with analytics metrics
+ *
+ * @param {object} payload - { brandId, scope, id, ifNoneMatch }
+ * @returns {object} { ok, value: SponsorBundle, etag }
+ * @tier mvp
+ */
+function api_getSponsorBundle(payload){
+  return runSafe('api_getSponsorBundle', () => {
+    const { brandId, scope, id } = payload||{};
+
+    // Validate ID format
+    const sanitizedId = sanitizeId_(id);
+    if (!sanitizedId) return Err(ERR.BAD_INPUT, 'Invalid ID format');
+
+    const brand = findBrand_(brandId);
+    if (!brand) return Err(ERR.NOT_FOUND, 'Unknown brand');
+
+    const a = assertScopeAllowed_(brand, scope);
+    if (!a.ok) return a;
+
+    // Get event data
+    const sh = getStoreSheet_(brand, scope);
+    const r = sh.getDataRange().getValues().slice(1).find(row => row[0]===sanitizedId && row[1]===brandId);
+    if (!r) return Err(ERR.NOT_FOUND, 'Event not found');
+
+    // Hydrate with sponsors
+    const baseUrl = ScriptApp.getService().getUrl();
+    const event = hydrateEvent_(r, { baseUrl, hydrateSponsors: true });
+
+    // Get sponsor metrics from ANALYTICS sheet
+    const sponsorMetrics = getSponsorMetricsForEvent_(brand, sanitizedId);
+
+    // Build thin event view per SponsorBundle interface
+    const thinEvent = {
+      id: event.id,
+      name: event.name,
+      dateTime: event.dateTime,
+      location: event.location,
+      brandId: event.brandId
+    };
+
+    // Enrich sponsors with metrics
+    const sponsorsWithMetrics = (event.hydratedSponsors || []).map(sponsor => {
+      const metrics = sponsorMetrics[sponsor.id] || { impressions: 0, clicks: 0 };
+      const ctr = metrics.impressions > 0
+        ? +((metrics.clicks / metrics.impressions) * 100).toFixed(2)
+        : 0;
+      return {
+        ...sponsor,
+        metrics: {
+          impressions: metrics.impressions,
+          clicks: metrics.clicks,
+          ctr: ctr
+        }
+      };
+    });
+
+    // Build bundled response matching SponsorBundle interface
+    const value = {
+      event: thinEvent,
+      sponsors: sponsorsWithMetrics
+    };
+
+    const etag = Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(value)));
+    if (payload?.ifNoneMatch === etag) return { ok:true, notModified:true, etag };
+    return _ensureOk_('api_getSponsorBundle', SC_GET, { ok:true, etag, value });
+  });
+}
+
+/**
+ * Get sponsor metrics (impressions, clicks) for a specific event
+ * Reads from ANALYTICS sheet and aggregates by sponsorId
+ *
+ * @param {object} brand - Brand configuration
+ * @param {string} eventId - Event ID to filter by
+ * @returns {object} { [sponsorId]: { impressions, clicks } }
+ * @private
+ */
+function getSponsorMetricsForEvent_(brand, eventId) {
+  const metrics = {};
+
+  try {
+    // Get analytics sheet
+    const spreadsheetId = brand.spreadsheetId || ZEB.MASTER_SHEET_ID;
+    const ss = SpreadsheetApp.openById(spreadsheetId);
+    const analyticsSheet = ss.getSheetByName('ANALYTICS');
+
+    if (!analyticsSheet) {
+      // No analytics sheet yet - return empty metrics
+      return metrics;
+    }
+
+    const data = analyticsSheet.getDataRange().getValues().slice(1); // Skip header
+
+    // Filter by eventId and aggregate by sponsorId
+    // Columns: 0=timestamp, 1=eventId, 2=surface, 3=metric, 4=sponsorId, 5=value
+    for (const row of data) {
+      const rowEventId = row[1];
+      const metricType = row[3];
+      const sponsorId = row[4];
+
+      // Skip if not for this event or no sponsorId
+      if (rowEventId !== eventId || !sponsorId) continue;
+
+      // Initialize sponsor entry if needed
+      if (!metrics[sponsorId]) {
+        metrics[sponsorId] = { impressions: 0, clicks: 0 };
+      }
+
+      // Aggregate based on metric type
+      if (metricType === 'impression') {
+        metrics[sponsorId].impressions++;
+      } else if (metricType === 'click') {
+        metrics[sponsorId].clicks++;
+      }
+    }
+  } catch (e) {
+    // If analytics sheet doesn't exist or error, return empty metrics
+    Logger.log('getSponsorMetricsForEvent_ error: ' + e.message);
+  }
+
+  return metrics;
 }
 
 /**

@@ -329,6 +329,29 @@ window.APIClient = (function() {
   }
 
   /**
+   * Get sponsor bundle for sponsor portal
+   * Returns thin event view + sponsors with analytics metrics
+   * Metrics (impressions, clicks, ctr) come from ANALYTICS sheet
+   * @param {string} eventId - Event ID
+   * @param {Object} options - brandId, scope, ifNoneMatch
+   * @returns {Promise<Object>} SponsorBundle with event and sponsors with metrics
+   */
+  async function getSponsorBundle(eventId, options = {}) {
+    const payload = {
+      brandId: options.brandId || defaultConfig.brandId,
+      scope: options.scope || 'events',
+      id: eventId
+    };
+
+    if (options.ifNoneMatch) {
+      payload.ifNoneMatch = options.ifNoneMatch;
+    }
+
+    const response = await request('api_getSponsorBundle', payload);
+    return response;
+  }
+
+  /**
    * Generate form shortlink
    * @param {string} formUrl - Form URL
    * @param {Object} options - Additional options
@@ -438,6 +461,7 @@ window.APIClient = (function() {
     getAdminBundle,
     getDisplayBundle,
     getPosterBundle,
+    getSponsorBundle,
     generateFormShortlink,
     createFormFromTemplate,
 
