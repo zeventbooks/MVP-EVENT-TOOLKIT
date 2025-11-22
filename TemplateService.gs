@@ -479,7 +479,7 @@ function getEventTemplate_(templateId) {
 /**
  * Apply template defaults to an event object (MVP)
  * Only sets values where user hasn't already provided data
- * Conforms to EVENT_CONTRACT.md v1.0.0
+ * Conforms to EVENT_CONTRACT.md v2.0
  *
  * @param {Object} event - Event object (can be partial data from form)
  * @param {string} templateId - Template ID to apply
@@ -491,8 +491,33 @@ function applyTemplateToEvent_(event, templateId) {
   // Set template reference
   event.templateId = tpl.id;
 
-  // === Sections: Convert template booleans to SectionConfig objects ===
-  // EVENT_CONTRACT.md shape: { enabled: bool, title: string|null, content: string|null }
+  // === Settings: Apply contract-aligned visibility flags ===
+  // EVENT_CONTRACT.md v2.0 shape: { showSchedule, showStandings, showBracket, showSponsors }
+  event.settings = event.settings || {};
+
+  // Map template sections to contract settings
+  // Template sections.schedule → settings.showSchedule
+  if (event.settings.showSchedule == null) {
+    event.settings.showSchedule = !!(tpl.sections && tpl.sections.schedule);
+  }
+  // Template sections.sponsors → settings.showSponsors
+  if (event.settings.showSponsors == null) {
+    event.settings.showSponsors = !!(tpl.sections && tpl.sections.sponsors);
+  }
+  // showStandings and showBracket - default false unless template has specific support
+  if (event.settings.showStandings == null) {
+    // Only rec_league and league-type templates default to true
+    var leagueTemplates = ['rec_league', 'darts', 'bags', 'pinball'];
+    event.settings.showStandings = leagueTemplates.includes(tpl.id);
+  }
+  if (event.settings.showBracket == null) {
+    // Only tournament-style templates default to true
+    var bracketTemplates = ['rec_league', 'bags'];
+    event.settings.showBracket = bracketTemplates.includes(tpl.id);
+  }
+
+  // === Legacy sections support (for backward compatibility) ===
+  // Keep sections for Admin UI form rendering, but settings is the source of truth for frontends
   event.sections = event.sections || {};
 
   var sectionKeys = ['video', 'map', 'schedule', 'sponsors', 'notes', 'gallery'];

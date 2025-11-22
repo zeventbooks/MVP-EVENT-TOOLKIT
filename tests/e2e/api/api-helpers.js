@@ -338,6 +338,14 @@ export class EventBuilder {
         showStandings: false,
         showBracket: false,
         showSponsors: false
+      },
+      // v2.0: Payments seam (Stripe MVP)
+      payments: {
+        enabled: false,
+        provider: 'stripe',
+        price: null,
+        currency: 'USD',
+        checkoutUrl: null
       }
     };
   }
@@ -389,6 +397,21 @@ export class EventBuilder {
     if (sponsors && sponsors.length > 0) {
       this.data.settings.showSponsors = true;
     }
+    return this;
+  }
+
+  withPayments(payments) {
+    this.data.payments = { ...this.data.payments, ...payments };
+    return this;
+  }
+
+  withCheckoutUrl(url, price = null) {
+    this.data.payments = {
+      ...this.data.payments,
+      enabled: true,
+      checkoutUrl: url,
+      price: price
+    };
     return this;
   }
 

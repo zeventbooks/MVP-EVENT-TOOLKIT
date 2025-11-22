@@ -77,7 +77,7 @@ describe('API Contract Tests', () => {
               media: {},
               externalData: {},
               analytics: { enabled: false },
-              payments: { enabled: false },
+              payments: { enabled: false, provider: 'stripe', price: null, currency: 'USD', checkoutUrl: null },
 
               // Timestamps
               createdAtISO: '2025-11-10T12:00:00.000Z',
@@ -197,7 +197,7 @@ describe('API Contract Tests', () => {
           media: {},
           externalData: {},
           analytics: { enabled: false },
-          payments: { enabled: false },
+          payments: { enabled: false, provider: 'stripe', price: null, currency: 'USD', checkoutUrl: null },
 
           // MVP Required - Timestamps
           createdAtISO: '2025-11-10T12:00:00.000Z',
@@ -295,7 +295,7 @@ describe('API Contract Tests', () => {
             media: {},
             externalData: {},
             analytics: { enabled: false },
-            payments: { enabled: false },
+            payments: { enabled: false, provider: 'stripe', price: null, currency: 'USD', checkoutUrl: null },
             createdAtISO: '2025-11-10T12:00:00.000Z',
             updatedAtISO: '2025-11-10T12:00:00.000Z'
           },
@@ -372,7 +372,7 @@ describe('API Contract Tests', () => {
             media: {},
             externalData: {},
             analytics: { enabled: false },
-            payments: { enabled: false },
+            payments: { enabled: false, provider: 'stripe', price: null, currency: 'USD', checkoutUrl: null },
             createdAtISO: '2025-11-10T12:00:00.000Z',
             updatedAtISO: '2025-11-10T12:00:00.000Z'
           },
@@ -424,7 +424,7 @@ describe('API Contract Tests', () => {
             media: {},
             externalData: {},
             analytics: { enabled: false },
-            payments: { enabled: false },
+            payments: { enabled: false, provider: 'stripe', price: null, currency: 'USD', checkoutUrl: null },
             createdAtISO: '2025-11-10T12:00:00.000Z',
             updatedAtISO: '2025-11-10T12:00:00.000Z'
           },
@@ -496,7 +496,7 @@ describe('API Contract Tests', () => {
           media: {},
           externalData: {},
           analytics: { enabled: false },
-          payments: { enabled: false },
+          payments: { enabled: false, provider: 'stripe', price: null, currency: 'USD', checkoutUrl: null },
 
           // MVP Required - Timestamps
           createdAtISO: '2025-11-22T12:00:00.000Z',
@@ -616,6 +616,60 @@ describe('API Contract Tests', () => {
       validateEnvelope(mockResponse);
       expect(mockResponse.value).toHaveProperty('count');
       expect(typeof mockResponse.value.count).toBe('number');
+    });
+  });
+
+  describe('api_trackEventMetric', () => {
+    it('should return count of 1 for single metric tracking', () => {
+      const mockResponse = {
+        ok: true,
+        value: { count: 1 }
+      };
+
+      validateEnvelope(mockResponse);
+      expect(mockResponse.value).toHaveProperty('count');
+      expect(mockResponse.value.count).toBe(1);
+    });
+
+    it('should validate required fields: eventId, surface, action', () => {
+      // Missing eventId
+      const mockMissingEventId = {
+        ok: false,
+        code: 'BAD_INPUT',
+        message: 'missing eventId'
+      };
+      validateEnvelope(mockMissingEventId);
+      expect(mockMissingEventId.code).toBe('BAD_INPUT');
+    });
+
+    it('should validate surface enum values', () => {
+      const validSurfaces = ['public', 'display', 'poster', 'admin'];
+      validSurfaces.forEach(surface => {
+        expect(validSurfaces).toContain(surface);
+      });
+    });
+
+    it('should validate action enum values', () => {
+      const validActions = ['view', 'impression', 'click', 'scan', 'cta_click', 'sponsor_click', 'dwell'];
+      validActions.forEach(action => {
+        expect(validActions).toContain(action);
+      });
+    });
+
+    it('should accept optional sponsorId for sponsor-specific tracking', () => {
+      const mockResponse = {
+        ok: true,
+        value: { count: 1 }
+      };
+      validateEnvelope(mockResponse);
+    });
+
+    it('should accept optional value for dwell time tracking', () => {
+      const mockResponse = {
+        ok: true,
+        value: { count: 1 }
+      };
+      validateEnvelope(mockResponse);
     });
   });
 
@@ -992,11 +1046,22 @@ describe('API Contract Tests', () => {
         expect(mockAnalytics.enabled).toBe(false);
       });
 
-      it('should validate payments default shape', () => {
-        const mockPayments = { enabled: false };
+      it('should validate payments default shape (Stripe seam)', () => {
+        const mockPayments = {
+          enabled: false,
+          provider: 'stripe',
+          price: null,
+          currency: 'USD',
+          checkoutUrl: null
+        };
 
         expect(mockPayments).toHaveProperty('enabled');
+        expect(mockPayments).toHaveProperty('provider');
+        expect(mockPayments).toHaveProperty('price');
+        expect(mockPayments).toHaveProperty('currency');
+        expect(mockPayments).toHaveProperty('checkoutUrl');
         expect(mockPayments.enabled).toBe(false);
+        expect(mockPayments.provider).toBe('stripe');
       });
 
       it('should validate media default shape', () => {
@@ -1011,7 +1076,7 @@ describe('API Contract Tests', () => {
           media: {},
           externalData: {},
           analytics: { enabled: false },
-          payments: { enabled: false }
+          payments: { enabled: false, provider: 'stripe', price: null, currency: 'USD', checkoutUrl: null }
         };
 
         expect(Array.isArray(mockEvent.sponsors)).toBe(true);
@@ -1071,7 +1136,7 @@ describe('API Contract Tests', () => {
           media: {},
           externalData: {},
           analytics: { enabled: false },
-          payments: { enabled: false },
+          payments: { enabled: false, provider: 'stripe', price: null, currency: 'USD', checkoutUrl: null },
 
           // Timestamps (MVP Required)
           createdAtISO: '2025-11-22T10:30:00.000Z',

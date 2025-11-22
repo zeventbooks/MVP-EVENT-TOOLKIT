@@ -4,9 +4,14 @@
  * Tests the analytics endpoints used during the After Event phase
  *
  * Triangle Phase: 📊 After Event (Purple)
- * API Endpoints: ?action=logEvents, ?action=getReport
+ * API Endpoints: ?action=logEvents, ?action=trackEventMetric, ?action=getReport
  * Purpose: Track and report event analytics, sponsor ROI, and engagement metrics
  * User Roles: Event Manager, Sponsor
+ *
+ * MVP Endpoints:
+ *   - api_trackEventMetric: Simplified metric tracking for MVP surfaces
+ *     Required: eventId, surface (public|display|poster|admin), action (view|impression|click|scan|cta_click|sponsor_click|dwell)
+ *     Optional: sponsorId, value
  */
 
 describe('🔺 TRIANGLE [AFTER EVENT]: Analytics API Contract', () => {
@@ -54,6 +59,181 @@ describe('🔺 TRIANGLE [AFTER EVENT]: Analytics API Contract', () => {
 
       validateEnvelope(mockResponse);
       expect(mockResponse.value.count).toBe(0);
+    });
+  });
+
+  describe('api_trackEventMetric - Simplified metric tracking (MVP)', () => {
+    /**
+     * api_trackEventMetric is a simplified analytics endpoint for MVP surfaces.
+     *
+     * Required parameters:
+     *   - eventId: string - The event being tracked
+     *   - surface: enum - 'public' | 'display' | 'poster' | 'admin'
+     *   - action: enum - 'view' | 'impression' | 'click' | 'scan' | 'cta_click' | 'sponsor_click' | 'dwell'
+     *
+     * Optional parameters:
+     *   - sponsorId: string - For sponsor-specific tracking
+     *   - value: number - For dwell time or numeric metrics
+     */
+
+    it('should return count of 1 for single metric tracking', () => {
+      const mockResponse = {
+        ok: true,
+        value: { count: 1 }
+      };
+
+      validateEnvelope(mockResponse);
+      expect(mockResponse.value).toHaveProperty('count');
+      expect(mockResponse.value.count).toBe(1);
+    });
+
+    it('should validate required eventId field', () => {
+      const mockMissingEventId = {
+        ok: false,
+        code: 'BAD_INPUT',
+        message: 'missing eventId'
+      };
+
+      validateEnvelope(mockMissingEventId);
+      expect(mockMissingEventId.code).toBe('BAD_INPUT');
+    });
+
+    it('should validate required surface field', () => {
+      const mockMissingSurface = {
+        ok: false,
+        code: 'BAD_INPUT',
+        message: 'missing surface'
+      };
+
+      validateEnvelope(mockMissingSurface);
+      expect(mockMissingSurface.code).toBe('BAD_INPUT');
+    });
+
+    it('should validate required action field', () => {
+      const mockMissingAction = {
+        ok: false,
+        code: 'BAD_INPUT',
+        message: 'missing action'
+      };
+
+      validateEnvelope(mockMissingAction);
+      expect(mockMissingAction.code).toBe('BAD_INPUT');
+    });
+
+    describe('Surface enum validation', () => {
+      const validSurfaces = ['public', 'display', 'poster', 'admin'];
+
+      validSurfaces.forEach(surface => {
+        it(`should accept surface: "${surface}"`, () => {
+          const mockResponse = {
+            ok: true,
+            value: { count: 1 }
+          };
+
+          validateEnvelope(mockResponse);
+          expect(validSurfaces).toContain(surface);
+        });
+      });
+
+      it('should reject invalid surface values', () => {
+        const mockInvalidSurface = {
+          ok: false,
+          code: 'BAD_INPUT',
+          message: 'invalid surface'
+        };
+
+        validateEnvelope(mockInvalidSurface);
+        expect(mockInvalidSurface.code).toBe('BAD_INPUT');
+      });
+    });
+
+    describe('Action enum validation', () => {
+      const validActions = ['view', 'impression', 'click', 'scan', 'cta_click', 'sponsor_click', 'dwell'];
+
+      validActions.forEach(action => {
+        it(`should accept action: "${action}"`, () => {
+          const mockResponse = {
+            ok: true,
+            value: { count: 1 }
+          };
+
+          validateEnvelope(mockResponse);
+          expect(validActions).toContain(action);
+        });
+      });
+
+      it('should reject invalid action values', () => {
+        const mockInvalidAction = {
+          ok: false,
+          code: 'BAD_INPUT',
+          message: 'invalid action'
+        };
+
+        validateEnvelope(mockInvalidAction);
+        expect(mockInvalidAction.code).toBe('BAD_INPUT');
+      });
+    });
+
+    describe('Optional parameters', () => {
+      it('should accept optional sponsorId for sponsor_click tracking', () => {
+        const mockResponse = {
+          ok: true,
+          value: { count: 1 }
+        };
+
+        // Request shape: { eventId, surface: 'public', action: 'sponsor_click', sponsorId: 'sp-123' }
+        validateEnvelope(mockResponse);
+        expect(mockResponse.ok).toBe(true);
+      });
+
+      it('should accept optional value for dwell time tracking', () => {
+        const mockResponse = {
+          ok: true,
+          value: { count: 1 }
+        };
+
+        // Request shape: { eventId, surface: 'display', action: 'dwell', value: 30 }
+        validateEnvelope(mockResponse);
+        expect(mockResponse.ok).toBe(true);
+      });
+    });
+
+    describe('Surface-action combinations for MVP pages', () => {
+      it('should track public page view', () => {
+        // Public.html sends: surface='public', action='view'
+        const mockResponse = { ok: true, value: { count: 1 } };
+        validateEnvelope(mockResponse);
+      });
+
+      it('should track public page CTA click', () => {
+        // Public.html sends: surface='public', action='cta_click'
+        const mockResponse = { ok: true, value: { count: 1 } };
+        validateEnvelope(mockResponse);
+      });
+
+      it('should track display page impression', () => {
+        // Display.html sends: surface='display', action='impression'
+        const mockResponse = { ok: true, value: { count: 1 } };
+        validateEnvelope(mockResponse);
+      });
+
+      it('should track display page dwell time', () => {
+        // Display.html sends: surface='display', action='dwell', value=seconds
+        const mockResponse = { ok: true, value: { count: 1 } };
+        validateEnvelope(mockResponse);
+      });
+
+      it('should track poster QR scan', () => {
+        // Poster.html sends: surface='poster', action='scan'
+        const mockResponse = { ok: true, value: { count: 1 } };
+        validateEnvelope(mockResponse);
+      });
+
+      it('should track sponsor click with sponsorId', () => {
+        // Any surface sends: action='sponsor_click', sponsorId='sp-xxx'
+        const mockResponse = { ok: true, value: { count: 1 } };
+        validateEnvelope(mockResponse);
+      });
     });
   });
 

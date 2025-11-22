@@ -1021,74 +1021,79 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       return `https://www.google.com/maps/search/?api=1&query=${encoded}`;
     }
 
-    // Build Google Calendar URL
+    /**
+     * Format price from cents to display string
+     * PAYMENTS SEAM: Stripe uses smallest currency unit (cents)
+     * @param {number} price - Price in smallest currency unit (e.g., 1500 = $15.00)
+     * @param {string} currency - Currency code (e.g., 'USD')
+     * @returns {string} Formatted price string (e.g., '$15.00')
+     */
+    function formatPrice(price, currency) {
+      if (!price || !currency) return '';
+      try {
+        // Convert from cents to dollars
+        const amount = price / 100;
+        return new Intl.NumberFormat('en-US', {
+          style: 'currency',
+          currency: currency.toUpperCase()
+        }).format(amount);
+      } catch (e) {
+        // Fallback for unsupported currencies
+        return `${currency} ${(price / 100).toFixed(2)}`;
+      }
+    }
+
+    /**
+     * Build Google Calendar URL
+     * EVENT_CONTRACT.md v2.0: Uses canonical fields
+     * - data.name (from event.name)
+     * - data.dateISO (from event.startDateISO)
+     * - data.venue (from event.venue)
+     */
     function buildGoogleCalendarUrl(data) {
       if (!data.name || !data.dateISO) return null;
       const params = new URLSearchParams();
       params.set('action', 'TEMPLATE');
       params.set('text', data.name);
 
-      // Format date: YYYYMMDD or with time YYYYMMDDTHHMMSS
-      let startDate = data.dateISO.replace(/-/g, '');
-      let endDate = startDate;
-      if (data.timeISO) {
-        // Parse time like "7:00 PM" or "19:00"
-        const timeParts = data.timeISO.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
-        if (timeParts) {
-          let hours = parseInt(timeParts[1]);
-          const mins = timeParts[2];
-          const ampm = timeParts[3];
-          if (ampm && ampm.toUpperCase() === 'PM' && hours < 12) hours += 12;
-          if (ampm && ampm.toUpperCase() === 'AM' && hours === 12) hours = 0;
-          startDate += 'T' + String(hours).padStart(2, '0') + mins + '00';
-          // Assume 2 hour event
-          const endHours = (hours + 2) % 24;
-          endDate += 'T' + String(endHours).padStart(2, '0') + mins + '00';
-        }
-      }
-      params.set('dates', `${startDate}/${endDate}`);
+      // Format date: YYYYMMDD (MVP v2.0 has date only, no time)
+      const startDate = data.dateISO.replace(/-/g, '');
+      params.set('dates', `${startDate}/${startDate}`);
 
-      if (data.location) params.set('location', data.location);
-      if (data.summary) params.set('details', data.summary);
+      // Use venue (canonical) with fallback to location (legacy)
+      if (data.venue || data.location) {
+        params.set('location', data.venue || data.location);
+      }
 
       return `https://calendar.google.com/calendar/render?${params.toString()}`;
     }
 
-    // Generate ICS file content for Apple/Outlook
+    /**
+     * Generate ICS file content for Apple/Outlook
+     * EVENT_CONTRACT.md v2.0: Uses canonical fields
+     * - data.name (from event.name)
+     * - data.dateISO (from event.startDateISO)
+     * - data.venue (from event.venue)
+     */
     function generateICS(data) {
       if (!data.name || !data.dateISO) return null;
 
-      const formatDate = (dateStr, timeStr) => {
-        let dt = dateStr.replace(/-/g, '');
-        if (timeStr) {
-          const timeParts = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
-          if (timeParts) {
-            let hours = parseInt(timeParts[1]);
-            const mins = timeParts[2];
-            const ampm = timeParts[3];
-            if (ampm && ampm.toUpperCase() === 'PM' && hours < 12) hours += 12;
-            if (ampm && ampm.toUpperCase() === 'AM' && hours === 12) hours = 0;
-            dt += 'T' + String(hours).padStart(2, '0') + mins + '00';
-          }
-        }
-        return dt;
-      };
+      // Format date: YYYYMMDD (MVP v2.0 has date only, no time)
+      const start = data.dateISO.replace(/-/g, '');
+      const end = start;
 
-      const start = formatDate(data.dateISO, data.timeISO);
-      const end = data.timeISO
-        ? formatDate(data.dateISO, data.timeISO).replace(/T(\d{2})/, (m, h) => 'T' + String((parseInt(h) + 2) % 24).padStart(2, '0'))
-        : start;
+      // Use venue (canonical) with fallback to location (legacy)
+      const venueStr = data.venue || data.location || '';
 
       const ics = [
         'BEGIN:VCALENDAR',
         'VERSION:2.0',
         'PRODID:-//EventAngle//Event//EN',
         'BEGIN:VEVENT',
-        `DTSTART:${start}`,
-        `DTEND:${end}`,
+        `DTSTART;VALUE=DATE:${start}`,
+        `DTEND;VALUE=DATE:${end}`,
         `SUMMARY:${data.name.replace(/[,;\\]/g, ' ')}`,
-        data.location ? `LOCATION:${data.location.replace(/[,;\\]/g, ' ')}` : '',
-        data.summary ? `DESCRIPTION:${data.summary.replace(/[,;\\]/g, ' ').substring(0, 200)}` : '',
+        venueStr ? `LOCATION:${venueStr.replace(/[,;\\]/g, ' ')}` : '',
         `UID:${Date.now()}@eventangle.com`,
         'END:VEVENT',
         'END:VCALENDAR'
@@ -1289,6 +1294,11 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       }
     }
 
+    /**
+     * Render event list view
+     * EVENT_CONTRACT.md v2.0: Consumes canonical Event shapes from api_list
+     * Uses: event.name, event.startDateISO, event.venue
+     */
     async function renderList(items) {
       const root = document.getElementById('list');
       root.innerHTML = '';
@@ -1302,28 +1312,23 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
         `;
         return;
       }
-      for (const ev of items) {
-        // Support both canonical shape (name at top level) and legacy (data.name)
-        const name = ev.name || ev.data?.name || '(untitled)';
-        const dateTime = ev.dateTime || ev.data?.dateISO || '';
-        const location = ev.location || ev.data?.location || '';
-        const venueName = ev.venueName || ev.data?.venueName || '';
-        const status = ev.status || ev.data?.status || 'draft';
+      for (const event of items) {
+        // EVENT_CONTRACT.md v2.0: Use canonical fields directly
+        const name = event.name || '(untitled)';
+        const startDateISO = event.startDateISO || '';
+        const venue = event.venue || '';
 
         // Format date for display
         let dateDisplay = '';
-        if (dateTime) {
-          const datePart = dateTime.split('T')[0];
-          const date = new Date(datePart + 'T00:00:00');
+        if (startDateISO) {
+          const date = new Date(startDateISO + 'T00:00:00');
           dateDisplay = date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
         }
 
-        // Status badge
+        // Status badge based on date
         let statusBadge = '';
-        if (status === 'cancelled') {
-          statusBadge = '<span class="status-badge cancelled" style="font-size:0.65rem;padding:2px 6px;">Cancelled</span>';
-        } else if (dateTime) {
-          const eventDate = new Date(dateTime.split('T')[0] + 'T00:00:00');
+        if (startDateISO) {
+          const eventDate = new Date(startDateISO + 'T00:00:00');
           const today = new Date();
           today.setHours(0, 0, 0, 0);
           if (eventDate.getTime() === today.getTime()) {
@@ -1339,112 +1344,103 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
             ${statusBadge}
           </div>
           ${dateDisplay ? `<p>📅 ${esc(dateDisplay)}</p>` : ''}
-          ${venueName || location ? `<p>📍 ${esc(venueName || location)}</p>` : ''}
+          ${venue ? `<p>📍 ${esc(venue)}</p>` : ''}
           <div style="margin-top:12px;">
-            <a class="btn secondary" href="${EXEC_URL}?p=events&brand=${BRAND}&id=${ev.id}">View Details →</a>
+            <a class="btn secondary" href="${EXEC_URL}?p=events&brand=${BRAND}&id=${event.id}">View Details →</a>
           </div>
         `;
         root.appendChild(d);
       }
     }
 
-    async function renderDetail(evt) {
+    /**
+     * Render event detail view
+     * EVENT_CONTRACT.md v2.0: Consumes canonical Event shape from getPublicBundle
+     *
+     * Contract fields used:
+     * - event.name (MVP Required)
+     * - event.startDateISO (MVP Required)
+     * - event.venue (MVP Required)
+     * - event.ctas.primary / event.ctas.secondary (MVP Required)
+     * - event.settings.showSchedule / showStandings / showBracket / showSponsors (MVP Required)
+     * - event.links.* (MVP Required - never hardcode URLs)
+     * - event.schedule / event.standings / event.bracket (MVP Optional)
+     * - event.sponsors (V2 Optional)
+     * - event.media (V2 Optional)
+     * - event.externalData (V2 Optional)
+     *
+     * @param {Object} event - Canonical Event object per EVENT_CONTRACT.md
+     * @param {Object} config - Brand config from getPublicBundle
+     */
+    async function renderDetail(event, config = {}) {
       const root = document.getElementById('list');
 
+      // === CONTRACT FIELDS (MVP REQUIRED) ===
+      // Trust the contract - no fallback chains
+      const eventId = event.id;
+      const eventName = event.name;
+      const startDateISO = event.startDateISO;
+      const venue = event.venue;
+      const ctas = event.ctas || { primary: { label: 'Sign Up', url: '' }, secondary: null };
+      const settings = event.settings || { showSchedule: false, showStandings: false, showBracket: false, showSponsors: false };
+      const links = event.links || {};
+
+      // === CONTRACT FIELDS (MVP OPTIONAL) ===
+      const schedule = event.schedule || [];
+      const standings = event.standings || [];
+      const bracket = event.bracket || null;
+
+      // === CONTRACT FIELDS (V2 OPTIONAL) ===
+      const sponsors = event.sponsors || [];
+      const media = event.media || {};
+      const externalData = event.externalData || {};
+
+      // === PAYMENTS SEAM (Reserved - Stripe integration) ===
+      const payments = event.payments || { enabled: false, provider: 'stripe', checkoutUrl: null };
+
       // Set currentEventId for analytics tracking
-      currentEventId = evt.id;
+      currentEventId = eventId;
 
-      // EVENT_CONTRACT.md v2.0: Canonical shape with backward compat
-      const legacyData = evt.data || {};
-      const settings = evt.settings || {};
-
-      // MVP Required fields (v2.0)
-      const startDateISO = evt.startDateISO || evt.dateTime?.split('T')[0] || legacyData.dateISO || null;
-      const venue = evt.venue || evt.location || evt.venueName || legacyData.location || legacyData.venueName || null;
-      const ctas = evt.ctas || { primary: { label: 'Sign Up', url: '' } };
-      const links = evt.links || {};
-
-      // Build data object for rendering (with backward compat)
+      // Build data object for utility functions (calendar, maps, share)
       const data = {
-        // Core Identity (MVP Required)
-        name: evt.name || legacyData.name || '',
-        startDateISO: startDateISO,
-        venue: venue,
-
-        // Parsed date for display
+        name: eventName,
         dateISO: startDateISO,
-        timeISO: null, // v2.0 doesn't have time
-
-        // CTAs (MVP Required)
+        venue: venue,
         ctas: ctas,
-        signupUrl: links.signupUrl || ctas.primary?.url || legacyData.signupUrl || '',
-
-        // Settings (MVP Required)
-        settings: settings,
-
-        // Schedule/Standings/Bracket (MVP Optional)
-        schedule: evt.schedule || null,
-        standings: evt.standings || null,
-        bracket: evt.bracket || null,
-
-        // Sponsors (V2 Optional)
-        sponsors: evt.sponsors || null,
-
-        // Media (V2 Optional)
-        media: evt.media || null,
-        videoUrl: evt.media?.videoUrl || legacyData.videoUrl || null,
-        mapUrl: evt.media?.mapUrl || legacyData.mapEmbedUrl || null,
-        gallery: evt.media?.gallery || null,
-
-        // External Data (V2 Optional)
-        externalData: evt.externalData || null,
-
-        // Links
         links: links,
-
-        // Legacy compat
-        imageUrl: legacyData.imageUrl,
-        galleryUrls: legacyData.galleryUrls,
-        summary: legacyData.summary,
-        summaryLink: legacyData.summaryLink,
-        entity: legacyData.entity
+        settings: settings
       };
-
-      // Store for utility functions
       currentEventData = data;
 
-      // MVP: Settings-based visibility (EVENT_CONTRACT.md v2.0)
+      // === SETTINGS-BASED VISIBILITY ===
+      // EVENT_CONTRACT.md v2.0: Trust event.settings.* - never invent flags
       const sectionEnabled = (key) => {
-        // Map old section keys to new settings keys
-        const settingsMap = {
-          'schedule': 'showSchedule',
-          'standings': 'showStandings',
-          'bracket': 'showBracket',
-          'sponsors': 'showSponsors',
-          // Legacy keys - default to true for backward compat
-          'video': true,
-          'map': true,
-          'gallery': true,
-          'notes': true
-        };
-
-        const settingKey = settingsMap[key];
-        if (typeof settingKey === 'boolean') return settingKey;
-        if (settingKey && settings[settingKey] !== undefined) {
-          return settings[settingKey];
+        switch (key) {
+          case 'schedule': return settings.showSchedule === true;
+          case 'standings': return settings.showStandings === true;
+          case 'bracket': return settings.showBracket === true;
+          case 'sponsors': return settings.showSponsors === true;
+          default: return true; // Media sections default to visible if data exists
         }
-        return true; // Default: show
       };
 
-      // Get section title (legacy support)
-      const getSectionTitle = (key, defaultTitle) => defaultTitle;
-
-      // Render sponsor banner (V2 Optional, respects settings.showSponsors)
-      if (sectionEnabled('sponsors') && data.sponsors && data.sponsors.length > 0) {
-        const publicSponsors = data.sponsors.filter(s => s.placement === 'public' || !s.placement);
+      // === RESERVED SPONSOR BAR ===
+      // Always render sponsor bar container (even if empty for future use)
+      const sponsorBanner = document.getElementById('sponsorBanner');
+      if (sectionEnabled('sponsors') && sponsors.length > 0) {
+        // Filter for public placement sponsors
+        const publicSponsors = sponsors.filter(s => s.placement === 'public' || !s.placement);
         if (publicSponsors.length > 0) {
-          renderSponsorBannerFromArray(evt.id, publicSponsors);
+          renderSponsorBannerFromArray(eventId, publicSponsors);
+        } else {
+          // Reserved: Show placeholder for future sponsors
+          sponsorBanner.innerHTML = '';
+          sponsorBanner.hidden = true;
         }
+      } else {
+        // Reserved: Sponsor bar exists but hidden when no sponsors
+        sponsorBanner.innerHTML = '';
+        sponsorBanner.hidden = true;
       }
 
       // Build event detail HTML
@@ -1453,14 +1449,10 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       // Header with name and meta
       html += '<div class="event-header">';
 
-      // Determine event status from canonical status field or date
+      // Determine event status from startDateISO
       let statusBadge = '';
-      if (data.status === 'cancelled') {
-        statusBadge = '<span class="status-badge cancelled">Cancelled</span>';
-      } else if (data.status === 'completed') {
-        statusBadge = '<span class="status-badge ended">Completed</span>';
-      } else if (data.dateISO) {
-        const eventDate = new Date(data.dateISO + 'T00:00:00');
+      if (startDateISO) {
+        const eventDate = new Date(startDateISO + 'T00:00:00');
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const eventDay = new Date(eventDate);
@@ -1476,21 +1468,20 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       }
 
       html += `<div style="margin-bottom: 12px;">${statusBadge}</div>`;
-      html += `<h1>${esc(data.name || '(untitled)')}</h1>`;
 
-      // Meta information (v2.0: venue, startDateISO)
+      // EVENT_CONTRACT.md v2.0: event.name (MVP Required)
+      html += `<h1>${esc(eventName || '(untitled)')}</h1>`;
+
+      // Meta information - event.startDateISO + event.venue (MVP Required)
       html += '<div class="event-meta">';
-      if (data.dateISO) {
-        const date = new Date(data.dateISO + 'T00:00:00');
+      if (startDateISO) {
+        const date = new Date(startDateISO + 'T00:00:00');
         html += `<div class="event-meta-item"><strong>📅</strong> ${date.toLocaleDateString('en-US', {
           weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
         })}</div>`;
       }
-      if (data.venue) {
-        html += `<div class="event-meta-item"><strong>📍</strong> ${esc(data.venue)}</div>`;
-      }
-      if (data.entity) {
-        html += `<div class="event-meta-item"><strong>🏢</strong> ${esc(data.entity)}</div>`;
+      if (venue) {
+        html += `<div class="event-meta-item"><strong>📍</strong> ${esc(venue)}</div>`;
       }
       html += '</div>';
       html += '</div>';
@@ -1498,41 +1489,45 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       // === ACTION ROW (EVENT_CONTRACT.md v2.0: ctas.primary / ctas.secondary) ===
       html += '<div class="action-buttons">';
 
-      // Primary CTA (MVP Required)
-      const primaryCta = data.ctas?.primary;
-      if (primaryCta?.url) {
-        html += `<a class="btn-primary" href="${esc(primaryCta.url)}" target="_blank" rel="noopener">📝 ${esc(primaryCta.label || 'Sign Up')}</a>`;
-      } else if (data.signupUrl) {
-        // Backward compat
-        html += `<a class="btn-primary" href="${esc(data.signupUrl)}" target="_blank" rel="noopener">📝 Sign Up</a>`;
+      // Primary CTA (MVP Required) - trust event.ctas.primary
+      // PAYMENTS SEAM: If payments.enabled && payments.checkoutUrl, override with checkout link
+      if (payments.enabled && payments.checkoutUrl) {
+        // Stripe checkout flow - use payment icon and checkout URL
+        const priceLabel = payments.price && payments.currency
+          ? ` - ${formatPrice(payments.price, payments.currency)}`
+          : '';
+        html += `<a class="btn-primary" href="${esc(payments.checkoutUrl)}" target="_blank" rel="noopener">💳 ${esc(ctas.primary?.label || 'Buy Tickets')}${priceLabel}</a>`;
+      } else if (ctas.primary?.url) {
+        html += `<a class="btn-primary" href="${esc(ctas.primary.url)}" target="_blank" rel="noopener">📝 ${esc(ctas.primary.label || 'Sign Up')}</a>`;
+      } else if (ctas.primary?.label) {
+        // CTA has label but no URL - show disabled state
+        html += `<span class="btn-primary" style="opacity: 0.5; cursor: not-allowed;">📝 ${esc(ctas.primary.label)}</span>`;
       }
 
-      // Secondary CTA (V2 Optional)
-      const secondaryCta = data.ctas?.secondary;
-      if (secondaryCta?.url) {
-        html += `<a class="btn-secondary" href="${esc(secondaryCta.url)}" target="_blank" rel="noopener">${esc(secondaryCta.label)}</a>`;
+      // Secondary CTA (optional) - trust event.ctas.secondary
+      if (ctas.secondary?.url && ctas.secondary?.label) {
+        html += `<a class="btn-secondary" href="${esc(ctas.secondary.url)}" target="_blank" rel="noopener">${esc(ctas.secondary.label)}</a>`;
       }
 
+      // Back to all events - use links.publicUrl base or fallback
       html += `<a class="btn-secondary" href="${EXEC_URL}?p=events&brand=${BRAND}">← All Events</a>`;
       html += '</div>';
 
       // === UTILITY BUTTONS: Maps, Calendar, Share ===
       html += '<div class="utility-buttons">';
 
-      // Open in Maps (use media.mapUrl or venue)
-      if (sectionEnabled('map')) {
-        if (data.mapUrl) {
-          // Direct map URL provided (V2: media.mapUrl)
-          html += `<a class="btn-utility" href="${esc(data.mapUrl)}" target="_blank" rel="noopener">📍 Open in Maps</a>`;
-        } else if (data.venue) {
-          // Build Google Maps search URL from venue
-          const mapsUrl = buildMapsUrl(data.venue);
-          html += `<a class="btn-utility" href="${esc(mapsUrl)}" target="_blank" rel="noopener">📍 Open in Maps</a>`;
-        }
+      // Open in Maps - use media.mapUrl or build from venue
+      if (media.mapUrl) {
+        // Direct map URL from event.media.mapUrl (V2 Optional)
+        html += `<a class="btn-utility" href="${esc(media.mapUrl)}" target="_blank" rel="noopener">📍 Open in Maps</a>`;
+      } else if (venue) {
+        // Build Google Maps search URL from event.venue (MVP Required)
+        const mapsUrl = buildMapsUrl(venue);
+        html += `<a class="btn-utility" href="${esc(mapsUrl)}" target="_blank" rel="noopener">📍 Open in Maps</a>`;
       }
 
-      // 4. Add to Calendar (Google URL + .ics)
-      if (data.dateISO) {
+      // Add to Calendar (Google URL + .ics) - uses event.startDateISO
+      if (startDateISO) {
         const gcalUrl = buildGoogleCalendarUrl(data);
         html += `
           <div class="calendar-dropdown">
@@ -1545,7 +1540,7 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
         `;
       }
 
-      // 5. Share / Copy Link
+      // Share / Copy Link - uses current page URL
       html += `<button class="btn-utility" onclick="shareEvent(currentEventData)">🔗 Share / Copy Link</button>`;
 
       html += '</div>';
@@ -1628,14 +1623,14 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
         }
       }
 
-      // Schedule Section (respects sections.schedule) - supports Google Sheets BYOD
-      if ((data.schedule || data.scheduleUrl) && sectionEnabled('schedule')) {
+      // Schedule Section - uses event.schedule (MVP Optional) + event.settings.showSchedule
+      if (sectionEnabled('schedule') && (schedule.length > 0 || externalData.scheduleUrl)) {
         html += '<div class="event-section">';
         html += '<h2>Schedule</h2>';
-        if (Array.isArray(data.schedule)) {
-          // Pre-defined schedule array
+        if (schedule.length > 0) {
+          // Render from event.schedule array per EVENT_CONTRACT.md
           html += '<div class="schedule-list">';
-          data.schedule.forEach(item => {
+          schedule.forEach(item => {
             html += `<div class="schedule-item">`;
             if (item.time) html += `<span class="schedule-time">${esc(item.time)}</span>`;
             if (item.title) html += `<span class="schedule-title">${esc(item.title)}</span>`;
@@ -1643,13 +1638,11 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
             html += `</div>`;
           });
           html += '</div>';
-        } else if (data.scheduleUrl) {
-          // Google Sheets BYOD for schedule
-          html += `<div id="schedule-container" data-url="${esc(data.scheduleUrl)}">
+        } else if (externalData.scheduleUrl) {
+          // External data URL from event.externalData.scheduleUrl (V2 Optional)
+          html += `<div id="schedule-container" data-url="${esc(externalData.scheduleUrl)}">
             <div class="loading-placeholder">Loading schedule...</div>
           </div>`;
-        } else if (typeof data.schedule === 'string') {
-          html += `<p>${esc(data.schedule)}</p>`;
         }
         html += '</div>';
       }
@@ -1674,111 +1667,66 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
         html += '</div>';
       }
 
-      // === LEAGUE & BROADCAST CARD (ExternalLeagueData per EVENT_CONTRACT.md) ===
-      // Core links: scheduleUrl, standingsUrl, bracketUrl
-      // Broadcast links: statsUrl, scoreboardUrl, streamUrl
-      // Provider metadata: providerName, providerLeagueId
-      const ed = data.externalData || {};
-      const hasLeagueLinks = !!(ed.scheduleUrl || ed.standingsUrl || ed.bracketUrl ||
-                                data.scheduleUrl || data.standingsUrl || data.bracketUrl);
-      const hasBroadcastLinks = !!(ed.statsUrl || ed.scoreboardUrl || ed.streamUrl);
-
-      if ((hasLeagueLinks || hasBroadcastLinks) && sectionEnabled('schedule')) {
-        html += '<div class="event-section league-info-card">';
-
-        // Dynamic card title based on providerName
-        const providerName = ed.providerName;
-        const cardTitle = providerName && providerName !== 'None' && providerName !== 'Custom'
-          ? `League & Broadcast (via ${esc(providerName)})`
-          : getSectionTitle('schedule', 'League & Broadcast');
-        html += `<h2>${cardTitle}</h2>`;
-
-        // === League Links Row ===
-        if (hasLeagueLinks) {
-          html += '<div class="league-links">';
-
-          // Schedule link
-          const scheduleUrl = ed.scheduleUrl || data.scheduleUrl;
-          if (scheduleUrl) {
-            html += `<a class="league-link-btn" href="${esc(scheduleUrl)}" target="_blank" rel="noopener"
-                        data-link-type="schedule" onclick="onLeagueLinkClick(event)">
-              <span class="league-link-icon">📅</span>
-              <span class="league-link-label">View Schedule</span>
-            </a>`;
-          }
-
-          // Standings
-          const standingsUrl = ed.standingsUrl || data.standingsUrl;
-          if (standingsUrl) {
-            html += `<a class="league-link-btn" href="${esc(standingsUrl)}" target="_blank" rel="noopener"
-                        data-link-type="standings" onclick="onLeagueLinkClick(event)">
-              <span class="league-link-icon">🏆</span>
-              <span class="league-link-label">View Standings</span>
-            </a>`;
-          }
-
-          // Bracket
-          const bracketUrl = ed.bracketUrl || data.bracketUrl;
-          if (bracketUrl) {
-            html += `<a class="league-link-btn" href="${esc(bracketUrl)}" target="_blank" rel="noopener"
-                        data-link-type="bracket" onclick="onLeagueLinkClick(event)">
-              <span class="league-link-icon">🎯</span>
-              <span class="league-link-label">View Bracket</span>
-            </a>`;
-          }
-
-          html += '</div>'; // .league-links
-        }
-
-        // === Broadcast / Stats Row ===
-        if (hasBroadcastLinks) {
-          html += '<div class="league-links broadcast-links">';
-
-          // Stats URL (e.g., BocceLabs league page)
-          if (ed.statsUrl) {
-            html += `<a class="league-link-btn" href="${esc(ed.statsUrl)}" target="_blank" rel="noopener"
-                        data-link-type="stats" onclick="onLeagueLinkClick(event)">
-              <span class="league-link-icon">📈</span>
-              <span class="league-link-label">View Stats</span>
-            </a>`;
-          }
-
-          // Live Scoreboard / Game Center
-          if (ed.scoreboardUrl) {
-            html += `<a class="league-link-btn" href="${esc(ed.scoreboardUrl)}" target="_blank" rel="noopener"
-                        data-link-type="scoreboard" onclick="onLeagueLinkClick(event)">
-              <span class="league-link-icon">📺</span>
-              <span class="league-link-label">Live Scoreboard</span>
-            </a>`;
-          }
-
-          // Stream URL (BBN / YouTube / Twitch)
-          if (ed.streamUrl) {
-            html += `<a class="league-link-btn stream-btn" href="${esc(ed.streamUrl)}" target="_blank" rel="noopener"
-                        data-link-type="stream" onclick="onLeagueLinkClick(event)">
-              <span class="league-link-icon">🎥</span>
-              <span class="league-link-label">Watch Stream</span>
-            </a>`;
-          }
-
-          html += '</div>'; // .broadcast-links
-        }
-
-        // Try to render Google Sheets data inline if available
-        const standingsUrl = ed.standingsUrl || data.standingsUrl;
-        if (standingsUrl) {
-          html += `<div id="standings-container" data-url="${esc(standingsUrl)}" class="league-data-section">
+      // === STANDINGS SECTION - uses event.standings (MVP Optional) + event.settings.showStandings ===
+      if (sectionEnabled('standings') && (standings.length > 0 || externalData.standingsUrl)) {
+        html += '<div class="event-section">';
+        html += '<h2>Standings</h2>';
+        if (standings.length > 0) {
+          // Render from event.standings array per EVENT_CONTRACT.md
+          html += '<table class="data-table standings-table">';
+          html += '<thead><tr><th>Team</th><th>W</th><th>L</th><th>Pts</th></tr></thead>';
+          html += '<tbody>';
+          standings.forEach((row, idx) => {
+            html += `<tr class="${idx < 3 ? 'top-rank' : ''}">`;
+            html += `<td><span class="rank">${row.rank || idx + 1}</span> ${esc(row.team || '')}</td>`;
+            html += `<td>${row.wins || 0}</td>`;
+            html += `<td>${row.losses || 0}</td>`;
+            html += `<td>${row.points || 0}</td>`;
+            html += '</tr>';
+          });
+          html += '</tbody></table>';
+        } else if (externalData.standingsUrl) {
+          // External data URL from event.externalData.standingsUrl (V2 Optional)
+          html += `<div id="standings-container" data-url="${esc(externalData.standingsUrl)}">
             <div class="loading-placeholder">Loading standings...</div>
           </div>`;
         }
+        html += '</div>';
+      }
 
-        const bracketUrl = ed.bracketUrl || data.bracketUrl;
-        if (bracketUrl) {
-          html += `<div id="bracket-container" data-url="${esc(bracketUrl)}" class="league-data-section">
+      // === BRACKET SECTION - uses event.bracket (MVP Optional) + event.settings.showBracket ===
+      if (sectionEnabled('bracket') && (bracket || externalData.bracketUrl)) {
+        html += '<div class="event-section">';
+        html += '<h2>Bracket</h2>';
+        if (bracket && bracket.rounds && bracket.rounds.length > 0) {
+          // Render from event.bracket per EVENT_CONTRACT.md
+          html += '<div class="bracket-container"><div class="bracket-rounds">';
+          bracket.rounds.forEach(round => {
+            html += `<div class="bracket-round">`;
+            html += `<h4 class="round-title">${esc(round.name || 'Round')}</h4>`;
+            html += '<div class="bracket-matches">';
+            (round.matches || []).forEach(match => {
+              html += '<div class="bracket-match">';
+              html += `<div class="match-team ${match.winner === match.team1 ? 'winner' : ''}">`;
+              html += `<span class="team-name">${esc(match.team1 || 'TBD')}</span>`;
+              if (match.score1 !== undefined) html += `<span class="team-score">${match.score1}</span>`;
+              html += '</div>';
+              html += '<div class="match-vs">vs</div>';
+              html += `<div class="match-team ${match.winner === match.team2 ? 'winner' : ''}">`;
+              html += `<span class="team-name">${esc(match.team2 || 'TBD')}</span>`;
+              if (match.score2 !== undefined) html += `<span class="team-score">${match.score2}</span>`;
+              html += '</div>';
+              html += '</div>';
+            });
+            html += '</div></div>';
+          });
+          html += '</div></div>';
+        } else if (externalData.bracketUrl) {
+          // External data URL from event.externalData.bracketUrl (V2 Optional)
+          html += `<div id="bracket-container" data-url="${esc(externalData.bracketUrl)}">
             <div class="loading-placeholder">Loading bracket...</div>
           </div>`;
         }
-
         html += '</div>';
       }
 
@@ -1890,12 +1838,18 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
     }
 
     // Load event data
+    // EVENT_CONTRACT.md v2.0: Use getPublicBundle for single event (returns { event, config })
     if (ID) {
-      rpc('api_get', { brandId: BRAND, scope: SCOPE, id: ID }).then(res => {
-        if (res.ok && res.value) renderDetail(res.value);
-        else showError('notfound');
+      rpc('api_getPublicBundle', { brandId: BRAND, scope: SCOPE, id: ID }).then(res => {
+        if (res.ok && res.value && res.value.event) {
+          // getPublicBundle returns { event: Event, config: { brandId, brandName, appTitle } }
+          renderDetail(res.value.event, res.value.config);
+        } else {
+          showError('notfound');
+        }
       });
     } else {
+      // List view uses api_list which returns canonical Event shapes
       rpc('api_list', { brandId: BRAND, scope: SCOPE }).then(res => {
         if (res.ok && res.value) renderList(res.value.items || []);
         else showError('load');

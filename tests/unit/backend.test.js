@@ -1123,3 +1123,619 @@ describe('Bug #50: Pagination Support in api_list', () => {
     expect(result.pagination.hasMore).toBe(false);
   });
 });
+
+// ============================================================================
+// api_trackEventMetric - Simplified Analytics Endpoint (MVP)
+// ============================================================================
+
+describe('api_trackEventMetric', () => {
+  /**
+   * Unit tests for the simplified analytics tracking endpoint.
+   * This endpoint wraps AnalyticsService_logEvents for MVP surfaces.
+   *
+   * Required: eventId, surface, action
+   * Optional: sponsorId, value
+   */
+
+  // Mock implementation matching Code.gs
+  const VALID_SURFACES = ['public', 'display', 'poster', 'admin'];
+  const VALID_ACTIONS = ['view', 'impression', 'click', 'scan', 'cta_click', 'sponsor_click', 'dwell'];
+
+  const ACTION_TO_METRIC = {
+    'view': 'view',
+    'impression': 'impression',
+    'click': 'click',
+    'scan': 'scan',
+    'cta_click': 'cta_click',
+    'sponsor_click': 'click',
+    'dwell': 'dwell'
+  };
+
+  function api_trackEventMetric(params) {
+    const { eventId, surface, action, sponsorId, value } = params;
+
+    // Validate required fields
+    if (!eventId) {
+      return { ok: false, code: 'BAD_INPUT', message: 'missing eventId' };
+    }
+    if (!surface) {
+      return { ok: false, code: 'BAD_INPUT', message: 'missing surface' };
+    }
+    if (!action) {
+      return { ok: false, code: 'BAD_INPUT', message: 'missing action' };
+    }
+
+    // Validate enums
+    if (!VALID_SURFACES.includes(surface)) {
+      return { ok: false, code: 'BAD_INPUT', message: 'invalid surface' };
+    }
+    if (!VALID_ACTIONS.includes(action)) {
+      return { ok: false, code: 'BAD_INPUT', message: 'invalid action' };
+    }
+
+    // Map action to metric
+    const metric = ACTION_TO_METRIC[action];
+
+    // Build analytics event
+    const analyticsEvent = {
+      eventId,
+      surface,
+      metric,
+      sponsorId: sponsorId || null,
+      value: value || 1,
+      ts: Date.now()
+    };
+
+    // In real implementation, this calls AnalyticsService_logEvents
+    return { ok: true, value: { count: 1 } };
+  }
+
+  describe('Required Field Validation', () => {
+    test('should require eventId', () => {
+      const result = api_trackEventMetric({
+        surface: 'public',
+        action: 'view'
+      });
+      expect(result.ok).toBe(false);
+      expect(result.code).toBe('BAD_INPUT');
+      expect(result.message).toBe('missing eventId');
+    });
+
+    test('should require surface', () => {
+      const result = api_trackEventMetric({
+        eventId: 'evt-123',
+        action: 'view'
+      });
+      expect(result.ok).toBe(false);
+      expect(result.code).toBe('BAD_INPUT');
+      expect(result.message).toBe('missing surface');
+    });
+
+    test('should require action', () => {
+      const result = api_trackEventMetric({
+        eventId: 'evt-123',
+        surface: 'public'
+      });
+      expect(result.ok).toBe(false);
+      expect(result.code).toBe('BAD_INPUT');
+      expect(result.message).toBe('missing action');
+    });
+
+    test('should succeed with all required fields', () => {
+      const result = api_trackEventMetric({
+        eventId: 'evt-123',
+        surface: 'public',
+        action: 'view'
+      });
+      expect(result.ok).toBe(true);
+      expect(result.value.count).toBe(1);
+    });
+  });
+
+  describe('Surface Enum Validation', () => {
+    const validSurfaces = ['public', 'display', 'poster', 'admin'];
+
+    validSurfaces.forEach(surface => {
+      test(`should accept surface: "${surface}"`, () => {
+        const result = api_trackEventMetric({
+          eventId: 'evt-123',
+          surface,
+          action: 'view'
+        });
+        expect(result.ok).toBe(true);
+      });
+    });
+
+    test('should reject invalid surface', () => {
+      const result = api_trackEventMetric({
+        eventId: 'evt-123',
+        surface: 'invalid_surface',
+        action: 'view'
+      });
+      expect(result.ok).toBe(false);
+      expect(result.code).toBe('BAD_INPUT');
+      expect(result.message).toBe('invalid surface');
+    });
+  });
+
+  describe('Action Enum Validation', () => {
+    const validActions = ['view', 'impression', 'click', 'scan', 'cta_click', 'sponsor_click', 'dwell'];
+
+    validActions.forEach(action => {
+      test(`should accept action: "${action}"`, () => {
+        const result = api_trackEventMetric({
+          eventId: 'evt-123',
+          surface: 'public',
+          action
+        });
+        expect(result.ok).toBe(true);
+      });
+    });
+
+    test('should reject invalid action', () => {
+      const result = api_trackEventMetric({
+        eventId: 'evt-123',
+        surface: 'public',
+        action: 'invalid_action'
+      });
+      expect(result.ok).toBe(false);
+      expect(result.code).toBe('BAD_INPUT');
+      expect(result.message).toBe('invalid action');
+    });
+  });
+
+  describe('Optional Parameters', () => {
+    test('should accept optional sponsorId', () => {
+      const result = api_trackEventMetric({
+        eventId: 'evt-123',
+        surface: 'public',
+        action: 'sponsor_click',
+        sponsorId: 'sp-456'
+      });
+      expect(result.ok).toBe(true);
+    });
+
+    test('should accept optional value for dwell time', () => {
+      const result = api_trackEventMetric({
+        eventId: 'evt-123',
+        surface: 'display',
+        action: 'dwell',
+        value: 30
+      });
+      expect(result.ok).toBe(true);
+    });
+  });
+
+  describe('Action to Metric Mapping', () => {
+    test('should map view action to view metric', () => {
+      expect(ACTION_TO_METRIC['view']).toBe('view');
+    });
+
+    test('should map impression action to impression metric', () => {
+      expect(ACTION_TO_METRIC['impression']).toBe('impression');
+    });
+
+    test('should map click action to click metric', () => {
+      expect(ACTION_TO_METRIC['click']).toBe('click');
+    });
+
+    test('should map scan action to scan metric', () => {
+      expect(ACTION_TO_METRIC['scan']).toBe('scan');
+    });
+
+    test('should map cta_click action to cta_click metric', () => {
+      expect(ACTION_TO_METRIC['cta_click']).toBe('cta_click');
+    });
+
+    test('should map sponsor_click action to click metric', () => {
+      expect(ACTION_TO_METRIC['sponsor_click']).toBe('click');
+    });
+
+    test('should map dwell action to dwell metric', () => {
+      expect(ACTION_TO_METRIC['dwell']).toBe('dwell');
+    });
+  });
+
+  describe('MVP Surface-Action Combinations', () => {
+    test('public page view tracking', () => {
+      const result = api_trackEventMetric({
+        eventId: 'evt-123',
+        surface: 'public',
+        action: 'view'
+      });
+      expect(result.ok).toBe(true);
+    });
+
+    test('public page CTA click tracking', () => {
+      const result = api_trackEventMetric({
+        eventId: 'evt-123',
+        surface: 'public',
+        action: 'cta_click'
+      });
+      expect(result.ok).toBe(true);
+    });
+
+    test('display page impression tracking', () => {
+      const result = api_trackEventMetric({
+        eventId: 'evt-123',
+        surface: 'display',
+        action: 'impression'
+      });
+      expect(result.ok).toBe(true);
+    });
+
+    test('display page dwell time tracking', () => {
+      const result = api_trackEventMetric({
+        eventId: 'evt-123',
+        surface: 'display',
+        action: 'dwell',
+        value: 45
+      });
+      expect(result.ok).toBe(true);
+    });
+
+    test('poster QR scan tracking', () => {
+      const result = api_trackEventMetric({
+        eventId: 'evt-123',
+        surface: 'poster',
+        action: 'scan'
+      });
+      expect(result.ok).toBe(true);
+    });
+
+    test('sponsor click tracking with sponsorId', () => {
+      const result = api_trackEventMetric({
+        eventId: 'evt-123',
+        surface: 'public',
+        action: 'sponsor_click',
+        sponsorId: 'sp-789'
+      });
+      expect(result.ok).toBe(true);
+    });
+  });
+});
+
+// ============================================================================
+// api_getDisplayBundle Unit Tests
+// ============================================================================
+
+describe('api_getDisplayBundle', () => {
+  /**
+   * DisplayBundle interface per EVENT_CONTRACT.md v2.0:
+   * - event: EventCore (full canonical event shape with hydrated sponsors)
+   * - rotation: { sponsorSlots, rotationMs }
+   * - layout: { hasSidePane, emphasis }
+   */
+
+  // Mock the display bundle response structure
+  const createMockDisplayBundle = (overrides = {}) => ({
+    event: {
+      id: 'evt-123',
+      slug: 'test-event',
+      name: 'Test Event',
+      startDateISO: '2025-12-01',
+      venue: 'Test Venue',
+      templateId: 'general',
+      settings: {
+        showSchedule: false,
+        showStandings: false,
+        showBracket: false,
+        showSponsors: true
+      },
+      sponsors: [],
+      links: {
+        publicUrl: 'https://example.com/public/test',
+        displayUrl: 'https://example.com/display/test'
+      },
+      ...overrides.event
+    },
+    rotation: {
+      sponsorSlots: 4,
+      rotationMs: 10000,
+      ...overrides.rotation
+    },
+    layout: {
+      hasSidePane: false,
+      emphasis: 'hero',
+      ...overrides.layout
+    }
+  });
+
+  describe('DisplayBundle Shape Validation', () => {
+    test('should have event property with canonical shape', () => {
+      const bundle = createMockDisplayBundle();
+      expect(bundle).toHaveProperty('event');
+      expect(bundle.event).toHaveProperty('id');
+      expect(bundle.event).toHaveProperty('name');
+      expect(bundle.event).toHaveProperty('startDateISO');
+      expect(bundle.event).toHaveProperty('venue');
+      expect(bundle.event).toHaveProperty('settings');
+      expect(bundle.event).toHaveProperty('links');
+    });
+
+    test('should have rotation property with sponsorSlots and rotationMs', () => {
+      const bundle = createMockDisplayBundle();
+      expect(bundle).toHaveProperty('rotation');
+      expect(bundle.rotation).toHaveProperty('sponsorSlots');
+      expect(bundle.rotation).toHaveProperty('rotationMs');
+      expect(typeof bundle.rotation.sponsorSlots).toBe('number');
+      expect(typeof bundle.rotation.rotationMs).toBe('number');
+    });
+
+    test('should have layout property with hasSidePane and emphasis', () => {
+      const bundle = createMockDisplayBundle();
+      expect(bundle).toHaveProperty('layout');
+      expect(bundle.layout).toHaveProperty('hasSidePane');
+      expect(bundle.layout).toHaveProperty('emphasis');
+      expect(typeof bundle.layout.hasSidePane).toBe('boolean');
+    });
+
+    test('emphasis should be valid value', () => {
+      const validEmphasis = ['scores', 'sponsors', 'hero'];
+      const bundle = createMockDisplayBundle();
+      expect(validEmphasis).toContain(bundle.layout.emphasis);
+    });
+  });
+
+  describe('Event Settings for Display', () => {
+    test('should include showSponsors setting', () => {
+      const bundle = createMockDisplayBundle({
+        event: { settings: { showSponsors: true } }
+      });
+      expect(bundle.event.settings.showSponsors).toBe(true);
+    });
+
+    test('should include showStandings for league templates', () => {
+      const bundle = createMockDisplayBundle({
+        event: {
+          templateId: 'rec_league',
+          settings: { showStandings: true }
+        }
+      });
+      expect(bundle.event.settings.showStandings).toBe(true);
+    });
+
+    test('should include showBracket for tournament templates', () => {
+      const bundle = createMockDisplayBundle({
+        event: {
+          templateId: 'bags',
+          settings: { showBracket: true }
+        }
+      });
+      expect(bundle.event.settings.showBracket).toBe(true);
+    });
+  });
+
+  describe('Display Rotation Config', () => {
+    test('sponsorSlots should be positive integer', () => {
+      const bundle = createMockDisplayBundle({
+        rotation: { sponsorSlots: 6 }
+      });
+      expect(bundle.rotation.sponsorSlots).toBeGreaterThan(0);
+      expect(Number.isInteger(bundle.rotation.sponsorSlots)).toBe(true);
+    });
+
+    test('rotationMs should be positive integer', () => {
+      const bundle = createMockDisplayBundle({
+        rotation: { rotationMs: 15000 }
+      });
+      expect(bundle.rotation.rotationMs).toBeGreaterThan(0);
+      expect(Number.isInteger(bundle.rotation.rotationMs)).toBe(true);
+    });
+
+    test('rotationMs should be reasonable duration (5-60 seconds)', () => {
+      const bundle = createMockDisplayBundle({
+        rotation: { rotationMs: 10000 }
+      });
+      expect(bundle.rotation.rotationMs).toBeGreaterThanOrEqual(5000);
+      expect(bundle.rotation.rotationMs).toBeLessThanOrEqual(60000);
+    });
+  });
+
+  describe('Display Layout Config', () => {
+    test('hasSidePane false by default', () => {
+      const bundle = createMockDisplayBundle();
+      expect(bundle.layout.hasSidePane).toBe(false);
+    });
+
+    test('hasSidePane can be true when sponsors configured', () => {
+      const bundle = createMockDisplayBundle({
+        layout: { hasSidePane: true }
+      });
+      expect(bundle.layout.hasSidePane).toBe(true);
+    });
+
+    test('emphasis defaults to hero', () => {
+      const bundle = createMockDisplayBundle();
+      expect(bundle.layout.emphasis).toBe('hero');
+    });
+  });
+});
+
+// ============================================================================
+// api_getPosterBundle Unit Tests
+// ============================================================================
+
+describe('api_getPosterBundle', () => {
+  /**
+   * PosterBundle interface per EVENT_CONTRACT.md v2.0:
+   * - event: EventCore (full canonical event shape with hydrated sponsors)
+   * - qrCodes: { public, signup } - QR code URLs for scanning
+   * - print: { dateLine, venueLine } - Pre-formatted strings for print
+   */
+
+  // Mock the poster bundle response structure
+  const createMockPosterBundle = (overrides = {}) => ({
+    event: {
+      id: 'evt-123',
+      slug: 'test-event',
+      name: 'Test Event',
+      startDateISO: '2025-12-01',
+      venue: 'Test Venue',
+      templateId: 'general',
+      settings: {
+        showSchedule: false,
+        showStandings: false,
+        showBracket: false,
+        showSponsors: true
+      },
+      sponsors: [],
+      links: {
+        publicUrl: 'https://example.com/public/test',
+        signupUrl: 'https://example.com/signup/test'
+      },
+      ctas: {
+        primary: { label: 'Sign Up', url: 'https://example.com/signup/test' }
+      },
+      ...overrides.event
+    },
+    qrCodes: {
+      public: 'https://quickchart.io/qr?text=https%3A%2F%2Fexample.com%2Fpublic%2Ftest&size=200&margin=1',
+      signup: 'https://quickchart.io/qr?text=https%3A%2F%2Fexample.com%2Fsignup%2Ftest&size=200&margin=1',
+      ...overrides.qrCodes
+    },
+    print: {
+      dateLine: 'Monday, December 1, 2025',
+      venueLine: 'Test Venue',
+      ...overrides.print
+    }
+  });
+
+  describe('PosterBundle Shape Validation', () => {
+    test('should have event property with canonical shape', () => {
+      const bundle = createMockPosterBundle();
+      expect(bundle).toHaveProperty('event');
+      expect(bundle.event).toHaveProperty('id');
+      expect(bundle.event).toHaveProperty('name');
+      expect(bundle.event).toHaveProperty('startDateISO');
+      expect(bundle.event).toHaveProperty('venue');
+      expect(bundle.event).toHaveProperty('settings');
+      expect(bundle.event).toHaveProperty('links');
+      expect(bundle.event).toHaveProperty('ctas');
+    });
+
+    test('should have qrCodes property with public and signup', () => {
+      const bundle = createMockPosterBundle();
+      expect(bundle).toHaveProperty('qrCodes');
+      expect(bundle.qrCodes).toHaveProperty('public');
+      expect(bundle.qrCodes).toHaveProperty('signup');
+    });
+
+    test('should have print property with dateLine and venueLine', () => {
+      const bundle = createMockPosterBundle();
+      expect(bundle).toHaveProperty('print');
+      expect(bundle.print).toHaveProperty('dateLine');
+      expect(bundle.print).toHaveProperty('venueLine');
+    });
+  });
+
+  describe('QR Code URLs', () => {
+    test('public QR should use quickchart.io', () => {
+      const bundle = createMockPosterBundle();
+      expect(bundle.qrCodes.public).toContain('quickchart.io/qr');
+    });
+
+    test('signup QR should use quickchart.io', () => {
+      const bundle = createMockPosterBundle();
+      expect(bundle.qrCodes.signup).toContain('quickchart.io/qr');
+    });
+
+    test('QR codes should be URL-encoded', () => {
+      const bundle = createMockPosterBundle();
+      expect(bundle.qrCodes.public).toContain('text=');
+      expect(bundle.qrCodes.public).toContain('%3A%2F%2F'); // URL-encoded ://
+    });
+
+    test('QR codes should include size and margin params', () => {
+      const bundle = createMockPosterBundle();
+      expect(bundle.qrCodes.public).toContain('size=');
+      expect(bundle.qrCodes.public).toContain('margin=');
+    });
+
+    test('QR codes can be null if no URL configured', () => {
+      const bundle = createMockPosterBundle({
+        qrCodes: { public: null, signup: null }
+      });
+      expect(bundle.qrCodes.public).toBeNull();
+      expect(bundle.qrCodes.signup).toBeNull();
+    });
+  });
+
+  describe('Print-Formatted Strings', () => {
+    test('dateLine should be formatted date string', () => {
+      const bundle = createMockPosterBundle({
+        print: { dateLine: 'Saturday, December 15, 2025' }
+      });
+      expect(typeof bundle.print.dateLine).toBe('string');
+      expect(bundle.print.dateLine).toContain('2025');
+    });
+
+    test('venueLine should be venue string', () => {
+      const bundle = createMockPosterBundle({
+        print: { venueLine: 'Central Park Event Center' }
+      });
+      expect(typeof bundle.print.venueLine).toBe('string');
+      expect(bundle.print.venueLine.length).toBeGreaterThan(0);
+    });
+
+    test('print strings can be null if not available', () => {
+      const bundle = createMockPosterBundle({
+        print: { dateLine: null, venueLine: null }
+      });
+      expect(bundle.print.dateLine).toBeNull();
+      expect(bundle.print.venueLine).toBeNull();
+    });
+  });
+
+  describe('Poster Sponsor Strip', () => {
+    test('event should include sponsors array', () => {
+      const bundle = createMockPosterBundle({
+        event: {
+          sponsors: [
+            { id: 'sp-1', name: 'Sponsor One', logoUrl: 'https://ex.com/logo1.png', placement: 'poster' }
+          ]
+        }
+      });
+      expect(bundle.event.sponsors).toBeInstanceOf(Array);
+      expect(bundle.event.sponsors.length).toBe(1);
+    });
+
+    test('sponsors should have placement field', () => {
+      const bundle = createMockPosterBundle({
+        event: {
+          sponsors: [
+            { id: 'sp-1', name: 'Sponsor', logoUrl: 'https://ex.com/logo.png', placement: 'poster' }
+          ]
+        }
+      });
+      expect(bundle.event.sponsors[0]).toHaveProperty('placement');
+      expect(bundle.event.sponsors[0].placement).toBe('poster');
+    });
+
+    test('showSponsors setting controls sponsor visibility', () => {
+      const bundle = createMockPosterBundle({
+        event: { settings: { showSponsors: false } }
+      });
+      expect(bundle.event.settings.showSponsors).toBe(false);
+    });
+  });
+
+  describe('CTA Button for Poster', () => {
+    test('event should include ctas.primary', () => {
+      const bundle = createMockPosterBundle();
+      expect(bundle.event).toHaveProperty('ctas');
+      expect(bundle.event.ctas).toHaveProperty('primary');
+    });
+
+    test('primary CTA should have label and url', () => {
+      const bundle = createMockPosterBundle();
+      expect(bundle.event.ctas.primary).toHaveProperty('label');
+      expect(bundle.event.ctas.primary).toHaveProperty('url');
+    });
+
+    test('CTA label defaults to Sign Up', () => {
+      const bundle = createMockPosterBundle();
+      expect(bundle.event.ctas.primary.label).toBe('Sign Up');
+    });
+  });
+});

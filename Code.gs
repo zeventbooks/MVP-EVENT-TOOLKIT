@@ -2063,8 +2063,14 @@ const EVENT_DEFAULTS_ = {
   // Analytics (Reserved)
   analytics: { enabled: false },
 
-  // Payments (Reserved)
-  payments: { enabled: false },
+  // Payments (Reserved - Stripe seam)
+  payments: {
+    enabled: false,
+    provider: 'stripe',
+    price: null,        // e.g., 1500 for $15.00
+    currency: 'USD',
+    checkoutUrl: null   // Stripe checkout session URL when enabled
+  },
 
   // Settings (MVP Required)
   settings: {
@@ -2245,6 +2251,469 @@ function hydrateEvent_(row, options = {}) {
   };
 }
 
+// === Contract Validation & Single Source of Truth Loaders =====================
+// All event read/write operations MUST go through these functions
+// See EVENT_CONTRACT.md for the canonical shape specification
+
+/**
+ * Validate an event against EVENT_CONTRACT.md v2.0 requirements
+ * Checks all MVP REQUIRED fields are present and valid
+ *
+ * @param {Object} event - Event object to validate (hydrated or raw data)
+ * @param {Object} options - { allowPartial: boolean } for update operations
+ * @returns {Object} { ok: true } or { ok: false, code: 'CONTRACT', message: string, errors: string[] }
+ * @private
+ */
+function validateEventContract_(event, options = {}) {
+  const errors = [];
+  const { allowPartial = false } = options;
+
+  if (!event || typeof event !== 'object') {
+    return Err(ERR.CONTRACT, 'Event must be an object');
+  }
+
+  // === IDENTITY (MVP REQUIRED) ===
+  if (!allowPartial) {
+    if (!event.id || typeof event.id !== 'string') {
+      errors.push('Missing required field: id');
+    }
+    if (!event.slug || typeof event.slug !== 'string') {
+      errors.push('Missing required field: slug');
+    }
+  }
+
+  if (!event.name || typeof event.name !== 'string' || !event.name.trim()) {
+    errors.push('Missing required field: name (non-empty string)');
+  } else if (event.name.length > 200) {
+    errors.push('Field name exceeds max length of 200 characters');
+  }
+
+  if (!event.startDateISO || typeof event.startDateISO !== 'string') {
+    errors.push('Missing required field: startDateISO');
+  } else if (!/^\d{4}-\d{2}-\d{2}$/.test(event.startDateISO)) {
+    errors.push('Invalid startDateISO format: must be YYYY-MM-DD');
+  }
+
+  if (!event.venue || typeof event.venue !== 'string' || !event.venue.trim()) {
+    errors.push('Missing required field: venue (non-empty string)');
+  } else if (event.venue.length > 200) {
+    errors.push('Field venue exceeds max length of 200 characters');
+  }
+
+  // === LINKS (MVP REQUIRED - validated only on full event, not input) ===
+  if (!allowPartial && event.links) {
+    if (!event.links.publicUrl) errors.push('Missing required field: links.publicUrl');
+    if (!event.links.displayUrl) errors.push('Missing required field: links.displayUrl');
+    if (!event.links.posterUrl) errors.push('Missing required field: links.posterUrl');
+    if (event.links.signupUrl === undefined) errors.push('Missing required field: links.signupUrl');
+  }
+
+  // === QR CODES (MVP REQUIRED - validated only on full event) ===
+  if (!allowPartial && event.qr) {
+    if (!event.qr.public) errors.push('Missing required field: qr.public');
+    if (!event.qr.signup) errors.push('Missing required field: qr.signup');
+  }
+
+  // === CTAs (MVP REQUIRED) ===
+  if (!event.ctas || !event.ctas.primary) {
+    errors.push('Missing required field: ctas.primary');
+  } else {
+    if (!event.ctas.primary.label || typeof event.ctas.primary.label !== 'string') {
+      errors.push('Missing required field: ctas.primary.label');
+    }
+    if (event.ctas.primary.url === undefined) {
+      errors.push('Missing required field: ctas.primary.url');
+    }
+  }
+
+  // === SETTINGS (MVP REQUIRED) ===
+  if (!event.settings || typeof event.settings !== 'object') {
+    errors.push('Missing required field: settings');
+  } else {
+    if (typeof event.settings.showSchedule !== 'boolean') {
+      errors.push('Missing required field: settings.showSchedule (boolean)');
+    }
+    if (typeof event.settings.showStandings !== 'boolean') {
+      errors.push('Missing required field: settings.showStandings (boolean)');
+    }
+    if (typeof event.settings.showBracket !== 'boolean') {
+      errors.push('Missing required field: settings.showBracket (boolean)');
+    }
+  }
+
+  // === METADATA (MVP REQUIRED - validated only on full event) ===
+  if (!allowPartial) {
+    if (!event.createdAtISO) errors.push('Missing required field: createdAtISO');
+    if (!event.updatedAtISO) errors.push('Missing required field: updatedAtISO');
+  }
+
+  // === URL VALIDATION for optional URL fields ===
+  const urlFields = [
+    { path: 'ctas.secondary.url', value: event.ctas?.secondary?.url },
+    { path: 'media.videoUrl', value: event.media?.videoUrl },
+    { path: 'media.mapUrl', value: event.media?.mapUrl },
+    { path: 'externalData.scheduleUrl', value: event.externalData?.scheduleUrl },
+    { path: 'externalData.standingsUrl', value: event.externalData?.standingsUrl },
+    { path: 'externalData.bracketUrl', value: event.externalData?.bracketUrl }
+  ];
+
+  for (const { path, value } of urlFields) {
+    if (value && typeof value === 'string' && value.trim()) {
+      if (!/^https?:\/\/.+/.test(value)) {
+        errors.push(`Invalid URL format for ${path}: must start with http:// or https://`);
+      }
+    }
+  }
+
+  // === SPONSOR VALIDATION (V2 OPTIONAL but must be valid if present) ===
+  if (Array.isArray(event.sponsors)) {
+    event.sponsors.forEach((sponsor, idx) => {
+      if (!sponsor.id) errors.push(`sponsors[${idx}]: missing id`);
+      if (!sponsor.name) errors.push(`sponsors[${idx}]: missing name`);
+      if (!sponsor.logoUrl) errors.push(`sponsors[${idx}]: missing logoUrl`);
+      if (sponsor.placement && !['poster', 'display', 'public', 'tv-banner'].includes(sponsor.placement)) {
+        errors.push(`sponsors[${idx}]: invalid placement value`);
+      }
+    });
+  }
+
+  if (errors.length > 0) {
+    const result = Err(ERR.CONTRACT, `Event contract validation failed: ${errors.join('; ')}`);
+    result.errors = errors;
+    return result;
+  }
+
+  return Ok();
+}
+
+/**
+ * Get event by ID - Single Source of Truth Loader
+ * Reads the row, hydrates to canonical shape, validates contract
+ *
+ * @param {string} brandId - Brand ID
+ * @param {string} id - Event ID
+ * @param {Object} options - { scope?: string, hydrateSponsors?: boolean, skipValidation?: boolean }
+ * @returns {Object} { ok: true, value: Event } or { ok: false, code, message }
+ * @private
+ */
+function getEventById_(brandId, id, options = {}) {
+  const { scope = 'events', hydrateSponsors = true, skipValidation = false } = options;
+
+  // Validate ID format
+  const sanitizedId = sanitizeId_(id);
+  if (!sanitizedId) {
+    return Err(ERR.BAD_INPUT, 'Invalid ID format');
+  }
+
+  // Get brand
+  const brand = findBrand_(brandId);
+  if (!brand) {
+    return Err(ERR.NOT_FOUND, 'Unknown brand');
+  }
+
+  // Check scope
+  const scopeCheck = assertScopeAllowed_(brand, scope);
+  if (!scopeCheck.ok) return scopeCheck;
+
+  // Get event row
+  const sh = getStoreSheet_(brand, scope);
+  const rows = sh.getDataRange().getValues().slice(1);
+  const row = rows.find(r => r[0] === sanitizedId && r[1] === brandId);
+
+  if (!row) {
+    return Err(ERR.NOT_FOUND, 'Event not found');
+  }
+
+  // Hydrate to canonical shape
+  const baseUrl = ScriptApp.getService().getUrl();
+  const event = hydrateEvent_(row, { baseUrl, hydrateSponsors });
+
+  // Validate contract (unless explicitly skipped for performance)
+  if (!skipValidation) {
+    const validation = validateEventContract_(event);
+    if (!validation.ok) {
+      diag_('warn', 'getEventById_', 'Event failed contract validation', {
+        id: sanitizedId,
+        brandId,
+        errors: validation.errors
+      });
+      // Still return the event but log the warning
+      // In strict mode, we could return the error instead
+    }
+  }
+
+  return Ok(event);
+}
+
+/**
+ * Get all events for a brand with pagination - List variant of single source of truth
+ * Returns canonical Event shapes with contract validation
+ *
+ * @param {string} brandId - Brand ID
+ * @param {Object} options - { scope, limit, offset, hydrateSponsors }
+ * @returns {Object} { ok: true, value: { items: Event[], pagination: {...} } }
+ * @private
+ */
+function getEventsByBrand_(brandId, options = {}) {
+  const {
+    scope = 'events',
+    limit = 100,
+    offset = 0,
+    hydrateSponsors = false  // Default false for list performance
+  } = options;
+
+  // Get brand
+  const brand = findBrand_(brandId);
+  if (!brand) {
+    return Err(ERR.NOT_FOUND, 'Unknown brand');
+  }
+
+  // Check scope
+  const scopeCheck = assertScopeAllowed_(brand, scope);
+  if (!scopeCheck.ok) return scopeCheck;
+
+  // Get all events for brand
+  const sh = getStoreSheet_(brand, scope);
+  const lastRow = sh.getLastRow();
+
+  const allRows = lastRow > 1
+    ? sh.getRange(2, 1, lastRow - 1, 6).getValues().filter(r => r[1] === brandId)
+    : [];
+
+  // Pagination
+  const pageLimit = Math.min(parseInt(limit) || 100, 1000);
+  const pageOffset = Math.max(parseInt(offset) || 0, 0);
+  const totalCount = allRows.length;
+
+  // Hydrate each event to canonical shape
+  const baseUrl = ScriptApp.getService().getUrl();
+  const items = allRows
+    .slice(pageOffset, pageOffset + pageLimit)
+    .map(row => {
+      const event = hydrateEvent_(row, { baseUrl, hydrateSponsors });
+      // Validate but don't block - log warnings for broken events
+      const validation = validateEventContract_(event);
+      if (!validation.ok) {
+        diag_('warn', 'getEventsByBrand_', 'Event failed contract validation', {
+          id: event.id,
+          brandId,
+          errors: validation.errors
+        });
+      }
+      return event;
+    });
+
+  return Ok({
+    items,
+    pagination: {
+      total: totalCount,
+      limit: pageLimit,
+      offset: pageOffset,
+      hasMore: (pageOffset + pageLimit) < totalCount
+    }
+  });
+}
+
+/**
+ * Save/Update event with contract enforcement
+ * Validates required fields, regenerates URLs/QRs, writes canonical shape
+ *
+ * @param {string} brandId - Brand ID
+ * @param {string} id - Event ID (existing event to update)
+ * @param {Object} data - Event data to save (partial or full)
+ * @param {Object} options - { scope, createIfMissing }
+ * @returns {Object} { ok: true, value: Event } or { ok: false, ... }
+ * @private
+ */
+function saveEvent_(brandId, id, data, options = {}) {
+  const { scope = 'events' } = options;
+
+  // Validate ID format
+  const sanitizedId = sanitizeId_(id);
+  if (!sanitizedId) {
+    return Err(ERR.BAD_INPUT, 'Invalid ID format');
+  }
+
+  // Get brand
+  const brand = findBrand_(brandId);
+  if (!brand) {
+    return Err(ERR.NOT_FOUND, 'Unknown brand');
+  }
+
+  // Check scope
+  const scopeCheck = assertScopeAllowed_(brand, scope);
+  if (!scopeCheck.ok) return scopeCheck;
+
+  const sh = getStoreSheet_(brand, scope);
+  const baseUrl = ScriptApp.getService().getUrl();
+  const now = new Date().toISOString();
+
+  // Use lock for read-modify-write
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+
+    // Find existing event
+    const rows = sh.getDataRange().getValues();
+    const rowIdx = rows.findIndex((r, i) => i > 0 && r[0] === sanitizedId && r[1] === brandId);
+
+    if (rowIdx === -1) {
+      lock.releaseLock();
+      return Err(ERR.NOT_FOUND, 'Event not found');
+    }
+
+    const existingRow = rows[rowIdx];
+    const existingData = safeJSONParse_(existingRow[3], {});
+    const templateId = existingRow[2];
+    const createdAt = existingRow[4];
+    const existingSlug = existingRow[5];
+
+    // Merge with existing data
+    const mergedData = { ...existingData };
+
+    // === Apply updates with validation ===
+
+    // Name (MVP REQUIRED)
+    if (data.name !== undefined) {
+      const name = sanitizeInput_(String(data.name).trim());
+      if (!name) {
+        lock.releaseLock();
+        return Err(ERR.BAD_INPUT, 'name cannot be empty');
+      }
+      if (name.length > 200) {
+        lock.releaseLock();
+        return Err(ERR.BAD_INPUT, 'name exceeds max length of 200 characters');
+      }
+      mergedData.name = name;
+    }
+
+    // startDateISO (MVP REQUIRED)
+    if (data.startDateISO !== undefined) {
+      const startDateISO = String(data.startDateISO).trim();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(startDateISO)) {
+        lock.releaseLock();
+        return Err(ERR.BAD_INPUT, 'startDateISO must be YYYY-MM-DD format');
+      }
+      mergedData.startDateISO = startDateISO;
+    }
+
+    // venue (MVP REQUIRED)
+    if (data.venue !== undefined) {
+      const venue = sanitizeInput_(String(data.venue).trim());
+      if (!venue) {
+        lock.releaseLock();
+        return Err(ERR.BAD_INPUT, 'venue cannot be empty');
+      }
+      if (venue.length > 200) {
+        lock.releaseLock();
+        return Err(ERR.BAD_INPUT, 'venue exceeds max length of 200 characters');
+      }
+      mergedData.venue = venue;
+    }
+
+    // CTAs (MVP REQUIRED)
+    if (data.ctas !== undefined) {
+      if (!data.ctas.primary || !data.ctas.primary.label) {
+        lock.releaseLock();
+        return Err(ERR.BAD_INPUT, 'ctas.primary.label is required');
+      }
+      mergedData.ctas = {
+        primary: {
+          label: sanitizeInput_(String(data.ctas.primary.label).trim()),
+          url: data.ctas.primary.url || ''
+        },
+        secondary: data.ctas.secondary ? {
+          label: sanitizeInput_(String(data.ctas.secondary.label || '').trim()),
+          url: data.ctas.secondary.url || ''
+        } : null
+      };
+    }
+
+    // Settings (MVP REQUIRED)
+    if (data.settings !== undefined) {
+      mergedData.settings = {
+        showSchedule: !!data.settings.showSchedule,
+        showStandings: !!data.settings.showStandings,
+        showBracket: !!data.settings.showBracket,
+        showSponsors: !!data.settings.showSponsors
+      };
+    }
+
+    // Schedule (MVP OPTIONAL)
+    if (data.schedule !== undefined) {
+      mergedData.schedule = Array.isArray(data.schedule) ? data.schedule : null;
+    }
+
+    // Standings (MVP OPTIONAL)
+    if (data.standings !== undefined) {
+      mergedData.standings = Array.isArray(data.standings) ? data.standings : null;
+    }
+
+    // Bracket (MVP OPTIONAL)
+    if (data.bracket !== undefined) {
+      mergedData.bracket = data.bracket || null;
+    }
+
+    // Sponsors (V2 OPTIONAL)
+    if (data.sponsors !== undefined) {
+      mergedData.sponsors = Array.isArray(data.sponsors) ? data.sponsors : [];
+    }
+
+    // Media (V2 OPTIONAL)
+    if (data.media !== undefined) {
+      mergedData.media = data.media || {};
+    }
+
+    // External Data (V2 OPTIONAL)
+    if (data.externalData !== undefined) {
+      mergedData.externalData = data.externalData || {};
+    }
+
+    // Analytics (RESERVED)
+    if (data.analytics !== undefined) {
+      mergedData.analytics = data.analytics || { enabled: false };
+    }
+
+    // Payments (RESERVED)
+    if (data.payments !== undefined) {
+      mergedData.payments = data.payments || { enabled: false };
+    }
+
+    // Update timestamp
+    mergedData.updatedAtISO = now;
+
+    // Regenerate signupUrl in links if ctas.primary.url changed
+    const signupUrl = mergedData.ctas?.primary?.url || '';
+
+    // Write updated data
+    sh.getRange(rowIdx + 1, 4).setValue(JSON.stringify(mergedData));
+
+    lock.releaseLock();
+
+    // Return hydrated event
+    const updatedRow = [sanitizedId, brandId, templateId, JSON.stringify(mergedData), createdAt, existingSlug];
+    const event = hydrateEvent_(updatedRow, { baseUrl, hydrateSponsors: true });
+
+    // Validate the result
+    const validation = validateEventContract_(event);
+    if (!validation.ok) {
+      diag_('warn', 'saveEvent_', 'Saved event has contract warnings', {
+        id: sanitizedId,
+        brandId,
+        errors: validation.errors
+      });
+    }
+
+    diag_('info', 'saveEvent_', 'Event saved', { id: sanitizedId, brandId });
+    return Ok(event);
+
+  } catch (e) {
+    lock.releaseLock();
+    diag_('error', 'saveEvent_', 'Failed to save event', { id: sanitizedId, error: e.message });
+    return Err(ERR.INTERNAL, 'Failed to save event: ' + e.message);
+  }
+}
+
 /**
  * Generate QR code as base64 PNG data URI
  * Uses Google Charts API for QR code generation
@@ -2310,47 +2779,25 @@ function hydrateSponsorIds_(brandId, sponsorIds) {
 
 /**
  * List events with pagination
+ * Uses getEventsByBrand_() single source of truth loader
+ * Returns canonical Event shapes per EVENT_CONTRACT.md v2.0
  * @tier mvp
  */
 function api_list(payload){
   return runSafe('api_list', () => {
     const { brandId, scope, limit, offset } = payload||{};
-    const brand=findBrand_(brandId); if(!brand) return Err(ERR.NOT_FOUND,'Unknown brand');
-    const a=assertScopeAllowed_(brand, scope); if(!a.ok) return a;
 
-    // Pagination parameters (default: 100 items per page, max 1000)
-    const pageLimit = Math.min(parseInt(limit) || 100, 1000);
-    const pageOffset = Math.max(parseInt(offset) || 0, 0);
+    // Use single source of truth loader with contract validation
+    const result = getEventsByBrand_(brandId, {
+      scope: scope || 'events',
+      limit: limit,
+      offset: offset,
+      hydrateSponsors: false  // Performance: don't hydrate sponsors in list
+    });
 
-    const sh = getStoreSheet_(brand, scope);
-    // Fixed: Bug #24 - Check if sheet has more than just header before getRange
-    const lastRow = sh.getLastRow();
+    if (!result.ok) return result;
 
-    // Load and filter rows (Apps Script doesn't support query-level filtering)
-    const allRows = lastRow > 1
-      ? sh.getRange(2, 1, lastRow - 1, 6).getValues()
-          .filter(r => r[1]===brandId)
-      : [];
-
-    // Apply pagination after filtering
-    const totalCount = allRows.length;
-    const baseUrl = ScriptApp.getService().getUrl();
-
-    // Hydrate each event to canonical shape (sponsors not hydrated in list for performance)
-    const paginatedRows = allRows
-      .slice(pageOffset, pageOffset + pageLimit)
-      .map(r => hydrateEvent_(r, { baseUrl, hydrateSponsors: false }));
-
-    const value = {
-      items: paginatedRows,
-      pagination: {
-        total: totalCount,
-        limit: pageLimit,
-        offset: pageOffset,
-        hasMore: (pageOffset + pageLimit) < totalCount
-      }
-    };
-
+    const value = result.value;
     const etag = Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(value)));
     if (payload?.ifNoneMatch === etag) return { ok:true, notModified:true, etag };
     return _ensureOk_('api_list', SC_LIST, { ok:true, etag, value });
@@ -2359,27 +2806,23 @@ function api_list(payload){
 
 /**
  * Get single event by ID
- * Returns full canonical Event shape per EVENT_CONTRACT.md
+ * Uses getEventById_() single source of truth loader
+ * Returns full canonical Event shape per EVENT_CONTRACT.md v2.0
  * @tier mvp
  */
 function api_get(payload){
   return runSafe('api_get', () => {
     const { brandId, scope, id } = payload||{};
 
-    // Fixed: Bug #19 - Validate ID format
-    const sanitizedId = sanitizeId_(id);
-    if (!sanitizedId) return Err(ERR.BAD_INPUT, 'Invalid ID format');
+    // Use single source of truth loader with contract validation
+    const result = getEventById_(brandId, id, {
+      scope: scope || 'events',
+      hydrateSponsors: true
+    });
 
-    const brand=findBrand_(brandId); if(!brand) return Err(ERR.NOT_FOUND,'Unknown brand');
-    const a=assertScopeAllowed_(brand, scope); if(!a.ok) return a;
-    const sh = getStoreSheet_(brand, scope);
-    const r = sh.getDataRange().getValues().slice(1).find(row => row[0]===sanitizedId && row[1]===brandId);
-    if (!r) return Err(ERR.NOT_FOUND,'Not found');
+    if (!result.ok) return result;
 
-    // Hydrate to canonical Event shape with full sponsor data
-    const baseUrl = ScriptApp.getService().getUrl();
-    const value = hydrateEvent_(r, { baseUrl, hydrateSponsors: true });
-
+    const value = result.value;
     const etag = Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(value)));
     if (payload?.ifNoneMatch === etag) return { ok:true, notModified:true, etag };
     return _ensureOk_('api_get', SC_GET, { ok:true, etag, value });
@@ -2388,8 +2831,8 @@ function api_get(payload){
 
 /**
  * Bundled endpoint for public pages - returns event + config in single call
- * Reduces latency for detail views by eliminating multiple round-trips
- * Returns canonical Event shape per EVENT_CONTRACT.md
+ * Uses getEventById_() single source of truth loader
+ * Returns canonical Event shape per EVENT_CONTRACT.md v2.0
  * @param {object} payload - { brandId, scope, id, ifNoneMatch }
  * @returns {object} { ok, value: { event, config }, etag }
  * @tier mvp
@@ -2398,26 +2841,18 @@ function api_getPublicBundle(payload){
   return runSafe('api_getPublicBundle', () => {
     const { brandId, scope, id } = payload||{};
 
-    // Validate ID format
-    const sanitizedId = sanitizeId_(id);
-    if (!sanitizedId) return Err(ERR.BAD_INPUT, 'Invalid ID format');
+    // Use single source of truth loader with contract validation
+    const result = getEventById_(brandId, id, {
+      scope: scope || 'events',
+      hydrateSponsors: true
+    });
 
+    if (!result.ok) return result;
+
+    const event = result.value;
     const brand = findBrand_(brandId);
-    if (!brand) return Err(ERR.NOT_FOUND, 'Unknown brand');
 
-    const a = assertScopeAllowed_(brand, scope);
-    if (!a.ok) return a;
-
-    // Get event data
-    const sh = getStoreSheet_(brand, scope);
-    const r = sh.getDataRange().getValues().slice(1).find(row => row[0]===sanitizedId && row[1]===brandId);
-    if (!r) return Err(ERR.NOT_FOUND, 'Not found');
-
-    // Hydrate to canonical Event shape with full sponsor data
-    const baseUrl = ScriptApp.getService().getUrl();
-    const event = hydrateEvent_(r, { baseUrl, hydrateSponsors: true });
-
-    // Build bundled response
+    // Build bundled response - derive public DTO from canonical event
     const value = {
       // Full canonical event shape
       event: event,
@@ -2466,24 +2901,17 @@ function api_getAdminBundle(payload){
     const g = gate_(brandId, adminKey);
     if (!g.ok) return g;
 
-    // Validate ID format
-    const sanitizedId = sanitizeId_(id);
-    if (!sanitizedId) return Err(ERR.BAD_INPUT, 'Invalid ID format');
+    // Use single source of truth loader with contract validation
+    const result = getEventById_(brandId, id, {
+      scope: scope || 'events',
+      hydrateSponsors: true
+    });
 
+    if (!result.ok) return result;
+
+    const event = result.value;
     const brand = findBrand_(brandId);
-    if (!brand) return Err(ERR.NOT_FOUND, 'Unknown brand');
-
-    const a = assertScopeAllowed_(brand, scope);
-    if (!a.ok) return a;
-
-    // Get event data
-    const sh = getStoreSheet_(brand, scope);
-    const r = sh.getDataRange().getValues().slice(1).find(row => row[0]===sanitizedId && row[1]===brandId);
-    if (!r) return Err(ERR.NOT_FOUND, 'Event not found');
-
-    // Hydrate to canonical Event shape with full sponsor data
-    const baseUrl = ScriptApp.getService().getUrl();
-    const event = hydrateEvent_(r, { baseUrl, hydrateSponsors: true });
+    const sanitizedId = event.id;
 
     // Get brand template config
     const templateConfig = getBrandTemplateConfig_(brandId);
@@ -2636,24 +3064,15 @@ function api_getDisplayBundle(payload){
   return runSafe('api_getDisplayBundle', () => {
     const { brandId, scope, id } = payload||{};
 
-    // Validate ID format
-    const sanitizedId = sanitizeId_(id);
-    if (!sanitizedId) return Err(ERR.BAD_INPUT, 'Invalid ID format');
+    // Use single source of truth loader with contract validation
+    const result = getEventById_(brandId, id, {
+      scope: scope || 'events',
+      hydrateSponsors: true
+    });
 
-    const brand = findBrand_(brandId);
-    if (!brand) return Err(ERR.NOT_FOUND, 'Unknown brand');
+    if (!result.ok) return result;
 
-    const a = assertScopeAllowed_(brand, scope);
-    if (!a.ok) return a;
-
-    // Get event data
-    const sh = getStoreSheet_(brand, scope);
-    const r = sh.getDataRange().getValues().slice(1).find(row => row[0]===sanitizedId && row[1]===brandId);
-    if (!r) return Err(ERR.NOT_FOUND, 'Event not found');
-
-    // Hydrate to canonical Event shape with full sponsor data
-    const baseUrl = ScriptApp.getService().getUrl();
-    const event = hydrateEvent_(r, { baseUrl, hydrateSponsors: true });
+    const event = result.value;
 
     // Get display config computed from Config + Template
     const displayConfig = getDisplayConfig_(event.templateId, brandId);
@@ -2738,24 +3157,15 @@ function api_getPosterBundle(payload){
   return runSafe('api_getPosterBundle', () => {
     const { brandId, scope, id } = payload||{};
 
-    // Validate ID format
-    const sanitizedId = sanitizeId_(id);
-    if (!sanitizedId) return Err(ERR.BAD_INPUT, 'Invalid ID format');
+    // Use single source of truth loader with contract validation
+    const result = getEventById_(brandId, id, {
+      scope: scope || 'events',
+      hydrateSponsors: true
+    });
 
-    const brand = findBrand_(brandId);
-    if (!brand) return Err(ERR.NOT_FOUND, 'Unknown brand');
+    if (!result.ok) return result;
 
-    const a = assertScopeAllowed_(brand, scope);
-    if (!a.ok) return a;
-
-    // Get event data
-    const sh = getStoreSheet_(brand, scope);
-    const r = sh.getDataRange().getValues().slice(1).find(row => row[0]===sanitizedId && row[1]===brandId);
-    if (!r) return Err(ERR.NOT_FOUND, 'Event not found');
-
-    // Hydrate to canonical Event shape with full sponsor data
-    const baseUrl = ScriptApp.getService().getUrl();
-    const event = hydrateEvent_(r, { baseUrl, hydrateSponsors: true });
+    const event = result.value;
 
     // Generate QR code URLs using quickchart.io (works for print)
     const qrCodes = generateQRCodes_(event);
@@ -2810,8 +3220,9 @@ function generateQRCodes_(event) {
 
 /**
  * Generate print-friendly formatted strings
+ * EVENT_CONTRACT.md v2.0: Uses canonical fields
  *
- * @param {object} event - Hydrated event object
+ * @param {object} event - Hydrated event object per EVENT_CONTRACT.md
  * @returns {object} { dateLine, venueLine } formatted strings
  * @private
  */
@@ -2819,31 +3230,24 @@ function generatePrintStrings_(event) {
   let dateLine = null;
   let venueLine = null;
 
-  // Format date line
-  if (event.dateTime) {
+  // Format date line from event.startDateISO (MVP Required)
+  if (event.startDateISO) {
     try {
-      const dt = new Date(event.dateTime);
+      // startDateISO is YYYY-MM-DD format, no time in MVP
+      const dt = new Date(event.startDateISO + 'T00:00:00');
       if (!isNaN(dt.getTime())) {
-        // Format: "Saturday, August 15, 2025 at 6:00 PM"
+        // Format: "Saturday, August 15, 2025"
         const dateOpts = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-        const timeOpts = { hour: 'numeric', minute: '2-digit', hour12: true };
-        const datePart = dt.toLocaleDateString('en-US', dateOpts);
-        const timePart = dt.toLocaleTimeString('en-US', timeOpts);
-        dateLine = `${datePart} at ${timePart}`;
+        dateLine = dt.toLocaleDateString('en-US', dateOpts);
       }
     } catch (e) {
       // If date parsing fails, leave as null
     }
   }
 
-  // Format venue line
-  if (event.venueName && event.location && event.venueName !== event.location) {
-    // Show both: "Chicago Bocce Club · 123 Main St, Chicago, IL"
-    venueLine = `${event.venueName} · ${event.location}`;
-  } else if (event.location) {
-    venueLine = event.location;
-  } else if (event.venueName) {
-    venueLine = event.venueName;
+  // Format venue line from event.venue (MVP Required)
+  if (event.venue) {
+    venueLine = event.venue;
   }
 
   return {
@@ -2864,35 +3268,29 @@ function api_getSponsorBundle(payload){
   return runSafe('api_getSponsorBundle', () => {
     const { brandId, scope, id } = payload||{};
 
-    // Validate ID format
-    const sanitizedId = sanitizeId_(id);
-    if (!sanitizedId) return Err(ERR.BAD_INPUT, 'Invalid ID format');
+    // Use single source of truth loader with contract validation
+    const result = getEventById_(brandId, id, {
+      scope: scope || 'events',
+      hydrateSponsors: true
+    });
 
+    if (!result.ok) return result;
+
+    const event = result.value;
     const brand = findBrand_(brandId);
-    if (!brand) return Err(ERR.NOT_FOUND, 'Unknown brand');
-
-    const a = assertScopeAllowed_(brand, scope);
-    if (!a.ok) return a;
-
-    // Get event data
-    const sh = getStoreSheet_(brand, scope);
-    const r = sh.getDataRange().getValues().slice(1).find(row => row[0]===sanitizedId && row[1]===brandId);
-    if (!r) return Err(ERR.NOT_FOUND, 'Event not found');
-
-    // Hydrate with sponsors
-    const baseUrl = ScriptApp.getService().getUrl();
-    const event = hydrateEvent_(r, { baseUrl, hydrateSponsors: true });
+    const sanitizedId = event.id;
 
     // Get sponsor metrics from ANALYTICS sheet
     const sponsorMetrics = getSponsorMetricsForEvent_(brand, sanitizedId);
 
-    // Build thin event view per SponsorBundle interface
+    // Build thin event view per EVENT_CONTRACT.md v2.0
+    // Derived DTO from canonical Event - uses only contract fields
     const thinEvent = {
       id: event.id,
       name: event.name,
-      dateTime: event.dateTime,
-      location: event.location,
-      brandId: event.brandId
+      startDateISO: event.startDateISO,  // MVP Required (was: dateTime)
+      venue: event.venue,                 // MVP Required (was: location)
+      templateId: event.templateId
     };
 
     // Enrich sponsors with metrics
@@ -2990,34 +3388,28 @@ function api_getSharedReportBundle(payload){
   return runSafe('api_getSharedReportBundle', () => {
     const { brandId, scope, id } = payload||{};
 
-    // Validate ID format
-    const sanitizedId = sanitizeId_(id);
-    if (!sanitizedId) return Err(ERR.BAD_INPUT, 'Invalid ID format');
+    // Use single source of truth loader with contract validation (no sponsors for reports)
+    const result = getEventById_(brandId, id, {
+      scope: scope || 'events',
+      hydrateSponsors: false
+    });
 
+    if (!result.ok) return result;
+
+    const event = result.value;
     const brand = findBrand_(brandId);
-    if (!brand) return Err(ERR.NOT_FOUND, 'Unknown brand');
-
-    const a = assertScopeAllowed_(brand, scope);
-    if (!a.ok) return a;
-
-    // Get event data
-    const sh = getStoreSheet_(brand, scope);
-    const r = sh.getDataRange().getValues().slice(1).find(row => row[0]===sanitizedId && row[1]===brandId);
-    if (!r) return Err(ERR.NOT_FOUND, 'Event not found');
-
-    // Hydrate event (no sponsors needed for report bundle)
-    const baseUrl = ScriptApp.getService().getUrl();
-    const event = hydrateEvent_(r, { baseUrl, hydrateSponsors: false });
+    const sanitizedId = event.id;
 
     // Get event metrics from ANALYTICS sheet
     const metrics = getEventMetricsForReport_(brand, sanitizedId);
 
-    // Build thin event view per SharedReportBundle interface
+    // Build thin event view per EVENT_CONTRACT.md v2.0
+    // Derived DTO from canonical Event - uses only contract fields
     const thinEvent = {
       id: event.id,
       name: event.name,
-      dateTime: event.dateTime,
-      brandId: event.brandId,
+      startDateISO: event.startDateISO,  // MVP Required (was: dateTime)
+      venue: event.venue,                 // MVP Required
       templateId: event.templateId
     };
 
@@ -3341,6 +3733,7 @@ function api_create(payload){
 
 /**
  * Update event data (merge with existing)
+ * Uses saveEvent_() for contract enforcement per EVENT_CONTRACT.md v2.0
  * @tier mvp
  */
 function api_updateEventData(req){
@@ -3348,73 +3741,23 @@ function api_updateEventData(req){
     if(!req||typeof req!=='object') return Err(ERR.BAD_INPUT,'Missing payload');
     const { brandId, scope, id, data, adminKey } = req;
 
-    // Fixed: Bug #19 - Validate ID format
-    const sanitizedId = sanitizeId_(id);
-    if (!sanitizedId) return Err(ERR.BAD_INPUT, 'Invalid ID format');
+    // Auth gate
+    const g = gate_(brandId, adminKey);
+    if (!g.ok) return g;
 
-    const g=gate_(brandId, adminKey); if(!g.ok) return g;
-    const a=assertScopeAllowed_(findBrand_(brandId), scope||'events'); if(!a.ok) return a;
+    // Use saveEvent_() for contract-enforced update
+    // This handles validation, locking, and canonical shape
+    const result = saveEvent_(brandId, id, data, {
+      scope: scope || 'events'
+    });
 
-    const brand= findBrand_(brandId);
-    const sh = getStoreSheet_(brand, scope||'events');
+    if (!result.ok) return result;
 
-    // Fixed: Bug #13 - Add LockService for read-modify-write operation
-    const lock = LockService.getScriptLock();
-    try {
-      lock.waitLock(10000); // Wait up to 10 seconds
+    // saveEvent_ returns the full hydrated event
+    const event = result.value;
+    const etag = Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(event)));
 
-      const rows = sh.getDataRange().getValues();
-      const rowIdx = rows.findIndex((r, i) => i > 0 && r[0]===sanitizedId && r[1]===brandId);
-
-      if (rowIdx === -1) {
-        lock.releaseLock();
-        return Err(ERR.NOT_FOUND,'Event not found');
-      }
-
-      const existingData = safeJSONParse_(rows[rowIdx][3], {});
-      const templateId = rows[rowIdx][2];
-      const tpl = findTemplate_(templateId);
-
-      if (!tpl) {
-        lock.releaseLock();
-        return Err(ERR.INTERNAL, 'Template not found');
-      }
-
-      // Fixed: Bug #27 - Validate update data against template schema
-      for (const [key, value] of Object.entries(data || {})) {
-        const field = tpl.fields.find(f => f.id === key);
-
-        // Reject unknown fields
-        if (!field) {
-          lock.releaseLock();
-          return Err(ERR.BAD_INPUT, `Unknown field: ${key}`);
-        }
-
-        // Validate field type
-        if (value !== null && value !== undefined) {
-          if (field.type === 'url' && !isUrl(value)) {
-            lock.releaseLock();
-            return Err(ERR.BAD_INPUT, `Invalid URL for field: ${key}`);
-          }
-
-          // Sanitize non-URL fields
-          if (field.type !== 'url' && typeof value === 'string') {
-            data[key] = sanitizeInput_(value);
-          }
-        }
-      }
-
-      const mergedData = Object.assign({}, existingData, data || {});
-
-      sh.getRange(rowIdx + 1, 4).setValue(JSON.stringify(mergedData));
-
-    } finally {
-      lock.releaseLock();
-    }
-
-    diag_('info','api_updateEventData','updated',{id: sanitizedId,brandId,scope,data});
-
-    return api_get({ brandId, scope: scope||'events', id: sanitizedId });
+    return _ensureOk_('api_updateEventData', SC_GET, { ok: true, etag, value: event });
   });
 }
 
@@ -3455,6 +3798,86 @@ function api_logEvents(req){
 
     diag_('info','api_logEvents','logged',{count: rows.length});
     return Ok({count: rows.length});
+  });
+}
+
+/**
+ * Track a single event metric (simplified analytics seam)
+ * Simplified frontend-facing API for analytics tracking
+ *
+ * Usage from frontend:
+ *   trackEventMetric(event.id, 'public', 'view')
+ *   trackEventMetric(event.id, 'display', 'impression')
+ *   trackEventMetric(event.id, 'poster', 'scan')
+ *
+ * @param {Object} req
+ * @param {string} req.eventId - Event ID (required)
+ * @param {string} req.surface - Surface: 'public'|'display'|'poster'|'admin' (required)
+ * @param {string} req.action - Action: 'view'|'impression'|'click'|'scan'|'cta_click' (required)
+ * @param {string} [req.sponsorId] - Optional sponsor ID for sponsor-specific tracking
+ * @param {number} [req.value] - Optional numeric value (e.g., dwell time in seconds)
+ * @returns {Object} Result envelope with logged count
+ * @tier mvp
+ */
+function api_trackEventMetric(req) {
+  return runSafe('api_trackEventMetric', () => {
+    const { eventId, surface, action, sponsorId, value } = req || {};
+
+    // Validate required fields
+    if (!eventId || typeof eventId !== 'string') {
+      return Err(ERR.BAD_INPUT, 'missing eventId');
+    }
+    if (!surface || typeof surface !== 'string') {
+      return Err(ERR.BAD_INPUT, 'missing surface');
+    }
+    if (!action || typeof action !== 'string') {
+      return Err(ERR.BAD_INPUT, 'missing action');
+    }
+
+    // Validate surface is one of the expected values
+    const validSurfaces = ['public', 'display', 'poster', 'admin'];
+    if (!validSurfaces.includes(surface)) {
+      return Err(ERR.BAD_INPUT, 'invalid surface - expected: ' + validSurfaces.join(', '));
+    }
+
+    // Validate action is one of the expected values
+    const validActions = ['view', 'impression', 'click', 'scan', 'cta_click', 'sponsor_click', 'dwell'];
+    if (!validActions.includes(action)) {
+      return Err(ERR.BAD_INPUT, 'invalid action - expected: ' + validActions.join(', '));
+    }
+
+    // Log to analytics sheet via existing infrastructure
+    const sh = _ensureAnalyticsSheet_();
+    const now = new Date();
+
+    // Map action to metric name for consistency
+    const metricMap = {
+      'view': 'impression',
+      'impression': 'impression',
+      'click': 'click',
+      'scan': 'impression',
+      'cta_click': 'click',
+      'sponsor_click': 'click',
+      'dwell': 'dwellSec'
+    };
+
+    const row = [
+      now,
+      sanitizeSpreadsheetValue_(eventId),
+      sanitizeSpreadsheetValue_(surface),
+      sanitizeSpreadsheetValue_(metricMap[action] || action),
+      sanitizeSpreadsheetValue_(sponsorId || ''),
+      Number(value || (action === 'dwell' ? 0 : 1)),
+      '', // token - not used for simple tracking
+      '', // ua - not used for simple tracking
+      '', // sessionId - not used for simple tracking
+      ''  // visibleSponsorIds - not used for simple tracking
+    ];
+
+    sh.getRange(sh.getLastRow() + 1, 1, 1, 10).setValues([row]);
+
+    diag_('info', 'api_trackEventMetric', 'tracked', { eventId, surface, action });
+    return Ok({ count: 1 });
   });
 }
 
