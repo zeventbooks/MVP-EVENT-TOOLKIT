@@ -2063,8 +2063,14 @@ const EVENT_DEFAULTS_ = {
   // Analytics (Reserved)
   analytics: { enabled: false },
 
-  // Payments (Reserved)
-  payments: { enabled: false },
+  // Payments (Reserved - Stripe seam)
+  payments: {
+    enabled: false,
+    provider: 'stripe',
+    price: null,        // e.g., 1500 for $15.00
+    currency: 'USD',
+    checkoutUrl: null   // Stripe checkout session URL when enabled
+  },
 
   // Settings (MVP Required)
   settings: {
@@ -3792,6 +3798,86 @@ function api_logEvents(req){
 
     diag_('info','api_logEvents','logged',{count: rows.length});
     return Ok({count: rows.length});
+  });
+}
+
+/**
+ * Track a single event metric (simplified analytics seam)
+ * Simplified frontend-facing API for analytics tracking
+ *
+ * Usage from frontend:
+ *   trackEventMetric(event.id, 'public', 'view')
+ *   trackEventMetric(event.id, 'display', 'impression')
+ *   trackEventMetric(event.id, 'poster', 'scan')
+ *
+ * @param {Object} req
+ * @param {string} req.eventId - Event ID (required)
+ * @param {string} req.surface - Surface: 'public'|'display'|'poster'|'admin' (required)
+ * @param {string} req.action - Action: 'view'|'impression'|'click'|'scan'|'cta_click' (required)
+ * @param {string} [req.sponsorId] - Optional sponsor ID for sponsor-specific tracking
+ * @param {number} [req.value] - Optional numeric value (e.g., dwell time in seconds)
+ * @returns {Object} Result envelope with logged count
+ * @tier mvp
+ */
+function api_trackEventMetric(req) {
+  return runSafe('api_trackEventMetric', () => {
+    const { eventId, surface, action, sponsorId, value } = req || {};
+
+    // Validate required fields
+    if (!eventId || typeof eventId !== 'string') {
+      return Err(ERR.BAD_INPUT, 'missing eventId');
+    }
+    if (!surface || typeof surface !== 'string') {
+      return Err(ERR.BAD_INPUT, 'missing surface');
+    }
+    if (!action || typeof action !== 'string') {
+      return Err(ERR.BAD_INPUT, 'missing action');
+    }
+
+    // Validate surface is one of the expected values
+    const validSurfaces = ['public', 'display', 'poster', 'admin'];
+    if (!validSurfaces.includes(surface)) {
+      return Err(ERR.BAD_INPUT, 'invalid surface - expected: ' + validSurfaces.join(', '));
+    }
+
+    // Validate action is one of the expected values
+    const validActions = ['view', 'impression', 'click', 'scan', 'cta_click', 'sponsor_click', 'dwell'];
+    if (!validActions.includes(action)) {
+      return Err(ERR.BAD_INPUT, 'invalid action - expected: ' + validActions.join(', '));
+    }
+
+    // Log to analytics sheet via existing infrastructure
+    const sh = _ensureAnalyticsSheet_();
+    const now = new Date();
+
+    // Map action to metric name for consistency
+    const metricMap = {
+      'view': 'impression',
+      'impression': 'impression',
+      'click': 'click',
+      'scan': 'impression',
+      'cta_click': 'click',
+      'sponsor_click': 'click',
+      'dwell': 'dwellSec'
+    };
+
+    const row = [
+      now,
+      sanitizeSpreadsheetValue_(eventId),
+      sanitizeSpreadsheetValue_(surface),
+      sanitizeSpreadsheetValue_(metricMap[action] || action),
+      sanitizeSpreadsheetValue_(sponsorId || ''),
+      Number(value || (action === 'dwell' ? 0 : 1)),
+      '', // token - not used for simple tracking
+      '', // ua - not used for simple tracking
+      '', // sessionId - not used for simple tracking
+      ''  // visibleSponsorIds - not used for simple tracking
+    ];
+
+    sh.getRange(sh.getLastRow() + 1, 1, 1, 10).setValues([row]);
+
+    diag_('info', 'api_trackEventMetric', 'tracked', { eventId, surface, action });
+    return Ok({ count: 1 });
   });
 }
 

@@ -1022,6 +1022,28 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
     }
 
     /**
+     * Format price from cents to display string
+     * PAYMENTS SEAM: Stripe uses smallest currency unit (cents)
+     * @param {number} price - Price in smallest currency unit (e.g., 1500 = $15.00)
+     * @param {string} currency - Currency code (e.g., 'USD')
+     * @returns {string} Formatted price string (e.g., '$15.00')
+     */
+    function formatPrice(price, currency) {
+      if (!price || !currency) return '';
+      try {
+        // Convert from cents to dollars
+        const amount = price / 100;
+        return new Intl.NumberFormat('en-US', {
+          style: 'currency',
+          currency: currency.toUpperCase()
+        }).format(amount);
+      } catch (e) {
+        // Fallback for unsupported currencies
+        return `${currency} ${(price / 100).toFixed(2)}`;
+      }
+    }
+
+    /**
      * Build Google Calendar URL
      * EVENT_CONTRACT.md v2.0: Uses canonical fields
      * - data.name (from event.name)
@@ -1373,6 +1395,9 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       const media = event.media || {};
       const externalData = event.externalData || {};
 
+      // === PAYMENTS SEAM (Reserved - Stripe integration) ===
+      const payments = event.payments || { enabled: false, provider: 'stripe', checkoutUrl: null };
+
       // Set currentEventId for analytics tracking
       currentEventId = eventId;
 
@@ -1465,7 +1490,14 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       html += '<div class="action-buttons">';
 
       // Primary CTA (MVP Required) - trust event.ctas.primary
-      if (ctas.primary?.url) {
+      // PAYMENTS SEAM: If payments.enabled && payments.checkoutUrl, override with checkout link
+      if (payments.enabled && payments.checkoutUrl) {
+        // Stripe checkout flow - use payment icon and checkout URL
+        const priceLabel = payments.price && payments.currency
+          ? ` - ${formatPrice(payments.price, payments.currency)}`
+          : '';
+        html += `<a class="btn-primary" href="${esc(payments.checkoutUrl)}" target="_blank" rel="noopener">💳 ${esc(ctas.primary?.label || 'Buy Tickets')}${priceLabel}</a>`;
+      } else if (ctas.primary?.url) {
         html += `<a class="btn-primary" href="${esc(ctas.primary.url)}" target="_blank" rel="noopener">📝 ${esc(ctas.primary.label || 'Sign Up')}</a>`;
       } else if (ctas.primary?.label) {
         // CTA has label but no URL - show disabled state
