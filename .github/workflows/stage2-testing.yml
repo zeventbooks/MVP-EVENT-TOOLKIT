@@ -2,12 +2,16 @@ name: Stage 2 - Sequential Progressive Testing
 
 on:
   # Auto-trigger when Stage 1 completes successfully
+  # MVP SRE Policy: Only run full Playwright on main/release, not feature branches
   workflow_run:
     workflows: ["Stage 1 - Build & Deploy"]
     types: [completed]
-    branches: [main]
+    branches:
+      - main
+      - 'release/**'
+      - 'release/*'
 
-  # Keep manual trigger as fallback
+  # Manual trigger for "I want full regression" runs
   workflow_dispatch:
     inputs:
       deployment_url:

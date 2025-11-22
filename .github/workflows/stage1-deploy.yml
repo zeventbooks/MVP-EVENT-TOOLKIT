@@ -2,7 +2,10 @@ name: Stage 1 - Build & Deploy
 
 on:
   push:
-    branches: [ main ]  # Only deploy on main push (after PR merge)
+    branches:
+      - main           # Deploy on main push (after PR merge)
+      - 'release/**'   # Deploy on release branches
+      - 'release/*'
   pull_request:
     branches: [ main ]  # Validate PRs before merge
 
@@ -93,7 +96,8 @@ jobs:
     name: 🚀 Deploy to Apps Script API
     runs-on: ubuntu-latest
     needs: [lint, unit-tests, contract-tests]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    # MVP SRE Policy: Deploy only if Stage 1 passes AND push to main/release branches
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/'))
     outputs:
       deployment_url: ${{ steps.deploy.outputs.url }}
       root_url: ${{ steps.urls.outputs.root_url }}
