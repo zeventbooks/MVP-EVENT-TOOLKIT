@@ -947,12 +947,12 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
           showSponsors: false  // V2 - always false for MVP
         },
 
-        // V2 Optional fields - reserved with defaults
-        sponsors: null,
-        media: null,
-        externalData: null,
-        analytics: null,
-        payments: null,
+        // V2 Optional fields - reserved with proper defaults per EVENT_CONTRACT.md
+        sponsors: [],
+        media: {},
+        externalData: {},
+        analytics: { enabled: false },
+        payments: { enabled: false },
 
         // Timestamps - server will set
         createdAtISO: '',

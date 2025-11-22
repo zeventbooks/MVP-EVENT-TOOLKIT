@@ -2052,19 +2052,19 @@ const EVENT_DEFAULTS_ = {
   },
 
   // Sponsors (V2 Optional)
-  sponsors: null,
+  sponsors: [],
 
   // Media (V2 Optional)
-  media: null,
+  media: {},
 
   // External Data (V2 Optional)
-  externalData: null,
+  externalData: {},
 
   // Analytics (Reserved)
-  analytics: null,
+  analytics: { enabled: false },
 
   // Payments (Reserved)
-  payments: null,
+  payments: { enabled: false },
 
   // Settings (MVP Required)
   settings: {
@@ -2156,7 +2156,7 @@ function hydrateEvent_(row, options = {}) {
   }
 
   // Hydrate sponsors from IDs if requested (V2 Optional)
-  let sponsors = null;
+  let sponsors = [];
   if (options.hydrateSponsors && data.sponsorIds) {
     const hydratedSponsors = hydrateSponsorIds_(brandId, data.sponsorIds);
     // Add default placement for V2 compat
@@ -2167,13 +2167,13 @@ function hydrateEvent_(row, options = {}) {
       linkUrl: s.website || null,
       placement: 'public'  // Default placement
     }));
-  } else if (Array.isArray(data.sponsors) && data.sponsors.length > 0) {
+  } else if (Array.isArray(data.sponsors)) {
     sponsors = data.sponsors;
   }
 
   // Build media object (V2 Optional, backward compat from videoUrl/mapEmbedUrl)
-  let media = null;
-  if (data.media) {
+  let media = {};
+  if (data.media && typeof data.media === 'object') {
     media = data.media;
   } else if (data.videoUrl || data.mapEmbedUrl) {
     media = {
@@ -2184,8 +2184,8 @@ function hydrateEvent_(row, options = {}) {
   }
 
   // Build externalData (V2 Optional, simplified)
-  let externalData = null;
-  if (data.externalData) {
+  let externalData = {};
+  if (data.externalData && typeof data.externalData === 'object') {
     externalData = {
       scheduleUrl: data.externalData.scheduleUrl || null,
       standingsUrl: data.externalData.standingsUrl || null,
@@ -3276,11 +3276,11 @@ function api_create(payload){
         schedule: data?.schedule || null,
         standings: data?.standings || null,
         bracket: data?.bracket || null,
-        sponsors: data?.sponsors || null,
-        media: data?.media || null,
-        externalData: data?.externalData || null,
-        analytics: data?.analytics || null,
-        payments: data?.payments || null,
+        sponsors: data?.sponsors || [],
+        media: data?.media || {},
+        externalData: data?.externalData || {},
+        analytics: data?.analytics || { enabled: false },
+        payments: data?.payments || { enabled: false },
         updatedAtISO: now
       };
 
