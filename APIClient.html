@@ -306,6 +306,29 @@ window.APIClient = (function() {
   }
 
   /**
+   * Get poster bundle (for Poster.html - print-friendly)
+   * Returns: event, qrCodes { public, signup }, print { dateLine, venueLine }
+   * QR codes point to trackable URLs (shortlinks) for analytics
+   * @param {string} eventId - Event ID
+   * @param {Object} options - Additional options
+   * @returns {Promise<Object>} Poster bundle data (PosterBundle)
+   */
+  async function getPosterBundle(eventId, options = {}) {
+    const payload = {
+      brandId: options.brandId || defaultConfig.brandId,
+      scope: options.scope || 'events',
+      id: eventId
+    };
+
+    if (options.ifNoneMatch) {
+      payload.ifNoneMatch = options.ifNoneMatch;
+    }
+
+    const response = await request('api_getPosterBundle', payload);
+    return response;
+  }
+
+  /**
    * Generate form shortlink
    * @param {string} formUrl - Form URL
    * @param {Object} options - Additional options
@@ -414,6 +437,7 @@ window.APIClient = (function() {
     getPublicBundle,
     getAdminBundle,
     getDisplayBundle,
+    getPosterBundle,
     generateFormShortlink,
     createFormFromTemplate,
 

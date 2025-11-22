@@ -553,6 +553,11 @@ function handleRestApiGet_(e, action, brand) {
     return jsonResponse_(api_getDisplayBundle({brandId, scope, id, ifNoneMatch: etag}));
   }
 
+  if (action === 'getPosterBundle') {
+    if (!id) return jsonResponse_(Err(ERR.BAD_INPUT, 'Missing id parameter'));
+    return jsonResponse_(api_getPosterBundle({brandId, scope, id, ifNoneMatch: etag}));
+  }
+
   return jsonResponse_(Err(ERR.BAD_INPUT, `Unknown action: ${action}`));
 }
 
@@ -2599,6 +2604,140 @@ function getDisplayConfig_(templateId, brandId) {
   // if (brand?.displayConfig) { ... }
 
   return config;
+}
+
+/**
+ * Poster Bundle - Optimized bundle for Poster.html (print-friendly)
+ * Returns event + QR codes + print-formatted strings
+ *
+ * PosterBundle interface:
+ * - event: EventCore (full canonical event shape with hydrated sponsors)
+ * - qrCodes: { public, signup } - QR code URLs for scanning
+ * - print: { dateLine, venueLine } - Pre-formatted strings for print
+ *
+ * Note: Tracking is maintained through event.links URLs which can be
+ * shortlinks created via api_createShortlink for full analytics.
+ *
+ * @param {object} payload - { brandId, scope, id, ifNoneMatch }
+ * @returns {object} { ok, value: PosterBundle, etag }
+ * @tier mvp
+ */
+function api_getPosterBundle(payload){
+  return runSafe('api_getPosterBundle', () => {
+    const { brandId, scope, id } = payload||{};
+
+    // Validate ID format
+    const sanitizedId = sanitizeId_(id);
+    if (!sanitizedId) return Err(ERR.BAD_INPUT, 'Invalid ID format');
+
+    const brand = findBrand_(brandId);
+    if (!brand) return Err(ERR.NOT_FOUND, 'Unknown brand');
+
+    const a = assertScopeAllowed_(brand, scope);
+    if (!a.ok) return a;
+
+    // Get event data
+    const sh = getStoreSheet_(brand, scope);
+    const r = sh.getDataRange().getValues().slice(1).find(row => row[0]===sanitizedId && row[1]===brandId);
+    if (!r) return Err(ERR.NOT_FOUND, 'Event not found');
+
+    // Hydrate to canonical Event shape with full sponsor data
+    const baseUrl = ScriptApp.getService().getUrl();
+    const event = hydrateEvent_(r, { baseUrl, hydrateSponsors: true });
+
+    // Generate QR code URLs using quickchart.io (works for print)
+    const qrCodes = generateQRCodes_(event);
+
+    // Generate print-friendly formatted strings
+    const printStrings = generatePrintStrings_(event);
+
+    // Build bundled response matching PosterBundle interface
+    const value = {
+      // Full canonical event shape (includes links for tracking)
+      event: event,
+
+      // QR code URLs
+      qrCodes: qrCodes,
+
+      // Print-friendly formatted strings
+      print: printStrings
+    };
+
+    const etag = Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(value)));
+    if (payload?.ifNoneMatch === etag) return { ok:true, notModified:true, etag };
+    return _ensureOk_('api_getPosterBundle', SC_GET, { ok:true, etag, value });
+  });
+}
+
+/**
+ * Generate QR code URLs for poster
+ * Uses quickchart.io API which is reliable for print use
+ *
+ * @param {object} event - Hydrated event object
+ * @returns {object} { public, signup } QR code image URLs
+ * @private
+ */
+function generateQRCodes_(event) {
+  const QR_SIZE = 200;
+  const QR_MARGIN = 1;
+
+  // Helper to generate QR URL
+  const qrUrl = (targetUrl) => {
+    if (!targetUrl) return null;
+    return `https://quickchart.io/qr?text=${encodeURIComponent(targetUrl)}&size=${QR_SIZE}&margin=${QR_MARGIN}`;
+  };
+
+  return {
+    // Public event page QR - uses event.links.publicUrl (can be shortlink for tracking)
+    public: qrUrl(event.links?.publicUrl),
+
+    // Signup form QR - uses signupUrl (can be shortlink for tracking)
+    signup: qrUrl(event.signupUrl)
+  };
+}
+
+/**
+ * Generate print-friendly formatted strings
+ *
+ * @param {object} event - Hydrated event object
+ * @returns {object} { dateLine, venueLine } formatted strings
+ * @private
+ */
+function generatePrintStrings_(event) {
+  let dateLine = null;
+  let venueLine = null;
+
+  // Format date line
+  if (event.dateTime) {
+    try {
+      const dt = new Date(event.dateTime);
+      if (!isNaN(dt.getTime())) {
+        // Format: "Saturday, August 15, 2025 at 6:00 PM"
+        const dateOpts = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        const timeOpts = { hour: 'numeric', minute: '2-digit', hour12: true };
+        const datePart = dt.toLocaleDateString('en-US', dateOpts);
+        const timePart = dt.toLocaleTimeString('en-US', timeOpts);
+        dateLine = `${datePart} at ${timePart}`;
+      }
+    } catch (e) {
+      // If date parsing fails, leave as null
+    }
+  }
+
+  // Format venue line
+  if (event.venueName && event.location && event.venueName !== event.location) {
+    // Show both: "Chicago Bocce Club · 123 Main St, Chicago, IL"
+    venueLine = `${event.venueName} · ${event.location}`;
+  } else if (event.location) {
+    venueLine = event.location;
+  } else if (event.venueName) {
+    venueLine = event.venueName;
+  }
+
+  return {
+    dateLine: dateLine,
+    venueLine: venueLine
+  };
 }
 
 /**
