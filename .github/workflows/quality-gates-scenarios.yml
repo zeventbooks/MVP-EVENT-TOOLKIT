@@ -33,7 +33,7 @@ jobs:
       github.event_name == 'schedule' ||
       github.event.workflow_run.conclusion == 'success'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -64,7 +64,7 @@ jobs:
     needs: quality-gate-unit
     if: ${{ !failure() }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -123,7 +123,7 @@ jobs:
     needs: quality-gate-scenario-1
     if: ${{ !failure() }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -160,7 +160,7 @@ jobs:
     needs: quality-gate-scenario-2
     if: ${{ !failure() }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -197,7 +197,7 @@ jobs:
     needs: [quality-gate-scenario-1, quality-gate-scenario-2, quality-gate-scenario-3]
     if: always()
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -256,7 +256,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: quality-gate-unit
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

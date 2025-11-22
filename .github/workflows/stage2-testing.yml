@@ -48,7 +48,7 @@ jobs:
       deployment_url: ${{ steps.get-url.outputs.url }}
       skip_tests: ${{ steps.check.outputs.skip }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check if Stage 1 failed
         id: check
@@ -108,7 +108,7 @@ jobs:
     outputs:
       result: ${{ steps.test.outputs.result }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -196,7 +196,7 @@ jobs:
     outputs:
       result: ${{ steps.test.outputs.result }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -292,7 +292,7 @@ jobs:
       flows_result: ${{ steps.set-result.outputs.flows_result }}
       pages_result: ${{ steps.set-result.outputs.pages_result }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
