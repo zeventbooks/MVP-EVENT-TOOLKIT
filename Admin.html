@@ -27,7 +27,7 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <meta name="referrer" content="no-referrer"/>
   <style>
-    /* MVP Template Picker */
+    /* MVP Template Picker - matches .event-card pattern */
     .template-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
@@ -35,19 +35,23 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
     }
     .template-card {
       padding: 16px 12px;
-      border: 2px solid #e2e8f0;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-left: 3px solid #94a3b8;
       border-radius: 12px;
       text-align: center;
       cursor: pointer;
       transition: all 0.2s ease;
-      background: #fff;
     }
     .template-card:hover {
-      border-color: #94a3b8;
-      background: #f8fafc;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      border-left-color: #2563eb;
+      background: #fff;
     }
     .template-card.selected {
-      border-color: #2563eb;
+      border-left-color: #2563eb;
+      border-color: #bfdbfe;
       background: #eff6ff;
       box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
     }
