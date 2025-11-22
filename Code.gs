@@ -3199,6 +3199,24 @@ function api_create(payload){
     if (!/^\d{4}-\d{2}-\d{2}$/.test(startDateISO)) return Err(ERR.BAD_INPUT, 'Invalid date format: startDateISO must be YYYY-MM-DD');
     if (!venue) return Err(ERR.BAD_INPUT, 'Missing required field: venue');
 
+    // Validate id if provided by Admin, otherwise generate
+    let id = data?.id;
+    if (id) {
+      // Validate UUID format from Admin
+      if (!/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(id)) {
+        return Err(ERR.BAD_INPUT, 'Invalid id format: must be UUID v4');
+      }
+    } else {
+      id = Utilities.getUuid();
+    }
+
+    // Validate slug if provided by Admin
+    let slug = data?.slug;
+    if (slug) {
+      slug = String(slug).toLowerCase().replace(/[^a-z0-9-]/g, '').substring(0, 50);
+      if (!slug) return Err(ERR.BAD_INPUT, 'Invalid slug format');
+    }
+
     // Idempotency check
     if (idemKey){
       if (!/^[a-zA-Z0-9-]{1,128}$/.test(idemKey)) {
@@ -3209,20 +3227,23 @@ function api_create(payload){
       c.put(k, '1', 600);
     }
 
-    // Generate ID and prepare storage
+    // Prepare storage
     const brand = findBrand_(brandId);
     const sh = getStoreSheet_(brand, scope);
-    const id = Utilities.getUuid();
     const now = new Date().toISOString();
     const baseUrl = ScriptApp.getService().getUrl();
 
-    // Build slug with collision detection under lock
+    // Build/validate slug with collision detection under lock
     const lock = LockService.getScriptLock();
-    let slug;
     try {
       lock.waitLock(10000);
 
-      slug = (data?.slug || name).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'').substring(0, 50);
+      // If no slug provided, generate from name
+      if (!slug) {
+        slug = name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'').substring(0, 50);
+      }
+
+      // Check for slug collisions and handle
       const existingSlugs = sh.getDataRange().getValues().slice(1).map(r => r[5]);
       let counter = 2;
       let originalSlug = slug;
