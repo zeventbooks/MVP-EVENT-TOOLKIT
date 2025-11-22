@@ -418,7 +418,106 @@ START: What's your priority?
 
 ---
 
-## My Recommendation
+## Current Implementation (November 2025)
+
+**Implemented: Process 3 (Fast-Fail Progressive) with Smart Gating**
+
+The CI/CD pipeline now uses a two-stage approach with automatic gating:
+
+### Stage 1 (`stage1-deploy.yml`)
+- Triggers on: `push` to main, `pull_request` to main
+- Runs: ESLint, Unit Tests, Contract Tests, Triangle Contract Tests
+- Deploys to Apps Script (only on main push)
+- Uses concurrency groups to prevent duplicate runs
+
+### Stage 2 (`stage2-testing.yml`)
+- Auto-triggers via `workflow_run` when Stage 1 succeeds on main
+- Progressive gates: API Tests -> Smoke Tests -> Expensive Tests (Flows + Pages)
+- Quality gate evaluation before deployment approval
+
+### Workflow Trigger Strategy (Prevents Duplicates)
+
+| Event | `unit-contract-tests.yml` | `stage1-deploy.yml` |
+|-------|---------------------------|---------------------|
+| Push to `main` | Not triggered | Runs full pipeline + deploy |
+| Push to feature branch | Runs (fast feedback) | Not triggered |
+| PR to `main` | Not triggered | Runs validation (no deploy) |
+
+---
+
+## Local CI Parity
+
+**Problem Solved:** No single command locally matched CI behavior.
+
+### Quick Reference - npm Scripts
+
+```bash
+# Full CI pipeline (Stage 1 + Stage 2)
+npm run test:ci
+
+# Stage 1 only (lint + unit + contract tests)
+npm run test:ci:stage1
+
+# Stage 2 only (API + smoke + flows + pages)
+npm run test:ci:stage2
+
+# Stage 2 critical only (API + smoke)
+npm run test:ci:stage2:critical
+
+# Quick CI (critical tests only - fast feedback)
+npm run test:ci:quick
+```
+
+### Local CI Runner Script
+
+For detailed output with progressive gating (mirrors CI exactly):
+
+```bash
+# Full CI with visual feedback
+npm run ci:local
+
+# Stage 1 only
+npm run ci:local:stage1
+
+# Stage 2 only (requires BASE_URL for E2E tests)
+npm run ci:local:stage2
+
+# Quick CI (before committing)
+npm run ci:local:quick
+
+# Test against specific deployment
+BASE_URL=https://your-deployment.com npm run ci:local:stage2
+```
+
+### CI Parity Mapping
+
+| CI Workflow | Local Command | What it runs |
+|-------------|---------------|--------------|
+| `stage1-deploy.yml` | `npm run test:ci:stage1` | Lint, Unit, Contract, Triangle Contract |
+| `stage2-testing.yml` | `npm run test:ci:stage2` | API, Smoke, Flows, Pages |
+| Full Pipeline | `npm run test:ci` | Both stages sequentially |
+| PR Validation | `npm run test:ci:quick` | Critical path only |
+
+### Developer Workflow
+
+**Before committing:**
+```bash
+npm run ci:local:quick  # Fast - ~3-5 minutes
+```
+
+**Before creating PR:**
+```bash
+npm run ci:local:stage1  # Full Stage 1 validation
+```
+
+**Before merging (optional):**
+```bash
+npm run ci:local  # Full CI pipeline locally
+```
+
+---
+
+## Original Recommendation
 
 **Choose Process 2 (Straight Through Sequential)**
 
@@ -432,9 +531,4 @@ START: What's your priority?
 
 **If budget becomes an issue later**: Easy migration to Process 3.
 
-**Next Steps:**
-1. I can implement Process 2 for you
-2. Or migrate to Process 3 if you prefer cost optimization
-3. Or customize Process 5 if preview environments appeal to you
-
-Which would you like me to implement?
+**Update (Nov 2025):** Process 3 was implemented due to cost efficiency requirements. The local CI parity commands now mirror this setup exactly.

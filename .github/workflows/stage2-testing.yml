@@ -16,6 +16,11 @@ on:
         type: string
         default: ''
 
+# Prevent duplicate runs: only one Stage 2 at a time per branch
+concurrency:
+  group: stage2-${{ github.event.workflow_run.head_branch || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   # ============================================================================
   # SETUP: Extract deployment URL from Stage 1
