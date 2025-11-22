@@ -65,7 +65,7 @@ export function checkStructure(response, name = 'response') {
     [`${name}: has envelope structure`]: (r) => {
       try {
         const body = JSON.parse(r.body);
-        return body.hasOwnProperty('ok') && body.hasOwnProperty('value');
+        return Object.prototype.hasOwnProperty.call(body, 'ok') && Object.prototype.hasOwnProperty.call(body, 'value');
       } catch (e) {
         return false;
       }

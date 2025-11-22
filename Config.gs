@@ -207,6 +207,70 @@ const BRANDS = [
   }
 ];
 
+// ============================================================================
+// [MVP] Brand → Event Template Mappings
+// ============================================================================
+// Controls which event templates each brand can access
+// Templates are defined in TemplateService.gs (EVENT_TEMPLATES)
+
+var BRAND_TEMPLATE_CONFIG = {
+  // Root brand sees ALL templates
+  root: {
+    templates: [
+      // Core
+      'bar_night', 'rec_league', 'school', 'fundraiser', 'corporate',
+      // Social & Celebration
+      'wedding', 'photo_gallery', 'shower', 'bachelor_party',
+      // Market & Arts
+      'farmers_market', 'art_show', 'carnival',
+      // Bar Games & Leagues
+      'trivia', 'darts', 'bags', 'pinball',
+      // Faith & Community
+      'church', 'church_club',
+      // Always last
+      'custom'
+    ],
+    defaultTemplateId: 'custom'
+  },
+  // ABC - Rec/bar-focused brand
+  abc: {
+    templates: ['rec_league', 'trivia', 'darts', 'bags', 'pinball', 'fundraiser', 'corporate', 'custom'],
+    defaultTemplateId: 'rec_league'
+  },
+  // CBC - Community-focused brand
+  cbc: {
+    templates: ['rec_league', 'fundraiser', 'church', 'church_club', 'farmers_market', 'carnival', 'custom'],
+    defaultTemplateId: 'rec_league'
+  },
+  // CBL - League-only brand
+  cbl: {
+    templates: ['rec_league', 'darts', 'bags', 'pinball', 'custom'],
+    defaultTemplateId: 'rec_league'
+  }
+};
+
+/**
+ * Get template config for a brand (MVP)
+ * @param {string} brandId - Brand identifier
+ * @returns {Object} Brand template config (defaults to root if not found)
+ */
+function getBrandTemplateConfig_(brandId) {
+  return BRAND_TEMPLATE_CONFIG[brandId] || BRAND_TEMPLATE_CONFIG.root;
+}
+
+/**
+ * Get available templates for a brand (MVP)
+ * @param {string} brandId - Brand identifier
+ * @returns {Array} Array of template objects available for this brand
+ */
+function getTemplatesForBrand_(brandId) {
+  var cfg = getBrandTemplateConfig_(brandId);
+  var allTemplates = getEventTemplates_();
+  return allTemplates.filter(function(t) {
+    return cfg.templates.indexOf(t.id) !== -1;
+  });
+}
+
 // Templates - Extended event model
 const TEMPLATES = [
   {

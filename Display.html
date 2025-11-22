@@ -104,6 +104,67 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
       box-shadow: 0 4px 12px rgba(0,0,0,0.5);
       backdrop-filter: blur(8px);
     }
+
+    /* === MVP Essential: Trust Footer (TV-optimized) === */
+    .site-footer {
+      position: fixed;
+      bottom: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: rgba(255,255,255,0.3);
+      font-size: 0.6rem;
+      z-index: 100;
+      text-align: center;
+    }
+    .site-footer a {
+      color: rgba(255,255,255,0.4);
+      text-decoration: none;
+    }
+    .site-footer a:hover {
+      color: rgba(255,255,255,0.6);
+    }
+
+    /* === MVP Essential: Error State (TV-themed) === */
+    .error-state-tv {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%);
+      text-align: center;
+      padding: 40px;
+    }
+    .error-state-tv .error-icon {
+      font-size: 4rem;
+      margin-bottom: 20px;
+      opacity: 0.7;
+    }
+    .error-state-tv h2 {
+      color: #ef4444;
+      font-size: 1.8em;
+      margin-bottom: 12px;
+    }
+    .error-state-tv p {
+      color: #9ca3af;
+      font-size: 1.1em;
+      margin: 8px 0;
+      max-width: 500px;
+    }
+    .error-state-tv .btn-retry {
+      margin-top: 24px;
+      padding: 14px 28px;
+      background: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1em;
+      cursor: pointer;
+    }
+    .error-state-tv .btn-retry:hover {
+      background: #1d4ed8;
+    }
   </style>
 </head>
 <body data-tv="1">
@@ -120,6 +181,11 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
     <aside id="sponsorSide" hidden></aside>
   </main>
   <div class="toast" id="toast" hidden></div>
+
+  <!-- Trust Footer (subtle for TV) -->
+  <footer class="site-footer">
+    <span>Powered by <a href="https://eventangle.com" target="_blank" rel="noopener">EventAngle</a></span>
+  </footer>
 
   <script>
     const qs = new URLSearchParams(location.search);

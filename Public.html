@@ -163,6 +163,212 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
     .gallery img:hover {
       transform: scale(1.05);
     }
+    /* Schedule section */
+    .schedule-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .schedule-item {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 8px 16px;
+      padding: 12px;
+      background: #f8fafc;
+      border-radius: 8px;
+      border-left: 3px solid #2563eb;
+    }
+    .schedule-time {
+      font-weight: 600;
+      color: #2563eb;
+      white-space: nowrap;
+    }
+    .schedule-title {
+      font-weight: 600;
+      color: #1e293b;
+    }
+    .schedule-desc {
+      grid-column: 2;
+      color: #64748b;
+      font-size: 0.9rem;
+    }
+    /* Fundraising progress */
+    .fundraising-progress {
+      margin: 16px 0;
+    }
+    .fundraising-progress .progress-bar {
+      height: 24px;
+      background: #e2e8f0;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .fundraising-progress .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #10b981, #059669);
+      border-radius: 12px;
+      transition: width 0.5s ease;
+    }
+    .fundraising-progress .progress-text {
+      text-align: center;
+      margin-top: 8px;
+      font-weight: 600;
+      color: #059669;
+    }
+    /* Data tables (standings, etc.) */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+    .data-table th, .data-table td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .data-table th {
+      background: #f8fafc;
+      font-weight: 600;
+      color: #475569;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+    }
+    .data-table tbody tr:hover {
+      background: #f8fafc;
+    }
+    .standings-table .rank {
+      display: inline-block;
+      width: 24px;
+      height: 24px;
+      line-height: 24px;
+      text-align: center;
+      background: #e2e8f0;
+      border-radius: 50%;
+      font-weight: 600;
+      font-size: 0.75rem;
+      margin-right: 8px;
+    }
+    .standings-table .top-rank .rank {
+      background: #fef3c7;
+      color: #92400e;
+    }
+    .standings-table .top-rank:first-child .rank {
+      background: #fcd34d;
+      color: #78350f;
+    }
+    /* Vendor grid */
+    .vendor-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 16px;
+    }
+    .vendor-card {
+      padding: 16px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+    }
+    .vendor-card h4 {
+      margin: 0 0 8px 0;
+      color: #1e293b;
+    }
+    .vendor-card p {
+      margin: 0 0 12px 0;
+      color: #64748b;
+      font-size: 0.9rem;
+    }
+    .vendor-card a {
+      color: #2563eb;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    /* Bracket/Tournament styling */
+    .bracket-container {
+      overflow-x: auto;
+    }
+    .bracket-rounds {
+      display: flex;
+      gap: 24px;
+      min-width: max-content;
+      padding: 12px 0;
+    }
+    .bracket-round {
+      min-width: 200px;
+    }
+    .round-title {
+      font-size: 0.85rem;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin: 0 0 12px 0;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #e2e8f0;
+    }
+    .bracket-matches {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .bracket-match-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .match-num {
+      font-size: 0.75rem;
+      color: #94a3b8;
+      font-weight: 600;
+      min-width: 28px;
+    }
+    .bracket-match {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 12px;
+      flex: 1;
+    }
+    .match-team {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      background: white;
+      border-radius: 6px;
+      margin: 4px 0;
+    }
+    .match-team.winner {
+      background: #dcfce7;
+      border-left: 3px solid #22c55e;
+    }
+    .team-name {
+      font-weight: 500;
+      color: #1e293b;
+    }
+    .team-score {
+      font-weight: 700;
+      color: #2563eb;
+      font-size: 1.1rem;
+    }
+    .match-vs {
+      text-align: center;
+      font-size: 0.7rem;
+      color: #94a3b8;
+      text-transform: uppercase;
+      margin: 2px 0;
+    }
+    /* Loading placeholder */
+    .loading-placeholder {
+      padding: 24px;
+      text-align: center;
+      color: #64748b;
+      background: #f8fafc;
+      border-radius: 8px;
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
     .action-buttons {
       display: flex;
       gap: 12px;
@@ -216,6 +422,210 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
         margin: 24px 0;
       }
     }
+
+    /* === MVP Essential Additions === */
+
+    /* Loading Skeletons */
+    .skeleton {
+      background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 8px;
+    }
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    .skeleton-title { height: 2.5rem; width: 70%; margin: 0 auto 16px; }
+    .skeleton-meta { height: 1.2rem; width: 50%; margin: 8px auto; }
+    .skeleton-image { height: 300px; width: 100%; margin: 24px 0; }
+    .skeleton-button { height: 44px; width: 140px; display: inline-block; margin: 8px; }
+    .skeleton-text { height: 1rem; width: 100%; margin: 8px 0; }
+    .skeleton-text.short { width: 60%; }
+
+    /* Utility Action Bar (Maps, Calendar, Share) */
+    .utility-buttons {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin: 16px 0;
+    }
+    .btn-utility {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 16px;
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      color: #475569;
+      font-size: 0.875rem;
+      font-weight: 500;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-utility:hover {
+      background: #e2e8f0;
+      color: #1e293b;
+      border-color: #cbd5e1;
+    }
+    .btn-utility:active {
+      transform: scale(0.98);
+    }
+
+    /* Calendar Dropdown */
+    .calendar-dropdown {
+      position: relative;
+      display: inline-block;
+    }
+    .calendar-menu {
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      padding: 8px 0;
+      min-width: 180px;
+      z-index: 200;
+      display: none;
+    }
+    .calendar-dropdown.open .calendar-menu {
+      display: block;
+    }
+    .calendar-menu a {
+      display: block;
+      padding: 10px 16px;
+      color: #475569;
+      text-decoration: none;
+      font-size: 0.875rem;
+    }
+    .calendar-menu a:hover {
+      background: #f1f5f9;
+      color: #1e293b;
+    }
+
+    /* Toast Notification */
+    .toast {
+      position: fixed;
+      bottom: 100px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: #1e293b;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      opacity: 0;
+      transition: all 0.3s ease;
+      z-index: 300;
+    }
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    /* Trust Footer */
+    .site-footer {
+      text-align: center;
+      padding: 32px 16px;
+      margin-top: 48px;
+      border-top: 1px solid #e2e8f0;
+      color: #94a3b8;
+      font-size: 0.75rem;
+    }
+    .site-footer a {
+      color: #64748b;
+      text-decoration: none;
+    }
+    .site-footer a:hover {
+      color: #2563eb;
+      text-decoration: underline;
+    }
+
+    /* Better Empty States */
+    .empty-state {
+      text-align: center;
+      padding: 48px 24px;
+      color: #64748b;
+    }
+    .empty-state-icon {
+      font-size: 3rem;
+      margin-bottom: 16px;
+      opacity: 0.5;
+    }
+    .empty-state h3 {
+      color: #475569;
+      margin-bottom: 8px;
+      font-size: 1.25rem;
+    }
+    .empty-state p {
+      margin-bottom: 16px;
+      line-height: 1.6;
+    }
+
+    /* Error State */
+    .error-state {
+      text-align: center;
+      padding: 48px 24px;
+      background: #fef2f2;
+      border-radius: 12px;
+      border: 1px solid #fecaca;
+    }
+    .error-state-icon {
+      font-size: 2.5rem;
+      margin-bottom: 12px;
+    }
+    .error-state h3 {
+      color: #dc2626;
+      margin-bottom: 8px;
+    }
+    .error-state p {
+      color: #b91c1c;
+      margin-bottom: 16px;
+    }
+    .btn-retry {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 20px;
+      background: #dc2626;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .btn-retry:hover {
+      background: #b91c1c;
+    }
+
+    /* Mobile adjustments for utility buttons */
+    @media (max-width: 640px) {
+      .utility-buttons {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 0 16px;
+      }
+      .btn-utility {
+        justify-content: center;
+      }
+      .calendar-menu {
+        left: 0;
+        right: 0;
+        transform: none;
+        width: auto;
+      }
+      .site-footer {
+        padding-bottom: 100px; /* Space for sticky buttons */
+      }
+    }
   </style>
 </head>
 <body>
@@ -224,9 +634,29 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
     <div id="sponsorBanner" hidden></div>
     <section class="card">
       <h2>Events</h2>
-      <div id="list" class="events-grid"></div>
+      <div id="list" class="events-grid">
+        <!-- Skeleton loader shown during fetch -->
+        <div class="skeleton-loader">
+          <div class="skeleton skeleton-title"></div>
+          <div class="skeleton skeleton-meta"></div>
+          <div class="skeleton skeleton-meta" style="width: 40%;"></div>
+          <div style="text-align: center; margin: 16px 0;">
+            <div class="skeleton skeleton-button"></div>
+            <div class="skeleton skeleton-button"></div>
+          </div>
+          <div class="skeleton skeleton-image"></div>
+        </div>
+      </div>
     </section>
   </div>
+
+  <!-- Toast notification -->
+  <div id="toast" class="toast"></div>
+
+  <!-- Trust Footer -->
+  <footer class="site-footer">
+    <p>Powered by <a href="https://eventangle.com" target="_blank" rel="noopener">EventAngle</a></p>
+  </footer>
 
   <script>
     const BRAND = '<?= brandId ?>';
@@ -238,6 +668,391 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
     // Use shared utilities from SponsorUtils
     const { esc, logEvent, initLogging } = window.SponsorUtils;
     initLogging();
+
+    // === MVP Essential Utilities ===
+
+    // Toast notification
+    function showToast(message, duration = 3000) {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), duration);
+    }
+
+    // === Google Sheets "Bring Your Own Data" ===
+
+    // Detect if URL is a Google Sheets URL and extract sheet ID
+    function parseGoogleSheetUrl(url) {
+      if (!url) return null;
+      const match = url.match(/docs\.google\.com\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+      if (match) {
+        return { sheetId: match[1], originalUrl: url };
+      }
+      return null;
+    }
+
+    // Convert Google Sheets URL to CSV export URL
+    function getSheetCsvUrl(sheetId, sheetName = '') {
+      let csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv`;
+      if (sheetName) csvUrl += `&sheet=${encodeURIComponent(sheetName)}`;
+      return csvUrl;
+    }
+
+    // Fetch and parse CSV data from Google Sheets
+    async function fetchSheetData(url) {
+      const sheetInfo = parseGoogleSheetUrl(url);
+      if (!sheetInfo) return null; // Not a Google Sheet, fallback to link
+
+      try {
+        const csvUrl = getSheetCsvUrl(sheetInfo.sheetId);
+        const response = await fetch(csvUrl);
+        if (!response.ok) return null;
+
+        const csvText = await response.text();
+        return parseCSV(csvText);
+      } catch (e) {
+        console.warn('Failed to fetch sheet data:', e);
+        return null; // Fallback to link on error
+      }
+    }
+
+    // Simple CSV parser (handles quoted fields)
+    function parseCSV(csv) {
+      const lines = csv.split('\n').filter(line => line.trim());
+      if (lines.length === 0) return { headers: [], rows: [] };
+
+      const parseRow = (line) => {
+        const result = [];
+        let current = '';
+        let inQuotes = false;
+        for (let i = 0; i < line.length; i++) {
+          const char = line[i];
+          if (char === '"') {
+            inQuotes = !inQuotes;
+          } else if (char === ',' && !inQuotes) {
+            result.push(current.trim());
+            current = '';
+          } else {
+            current += char;
+          }
+        }
+        result.push(current.trim());
+        return result;
+      };
+
+      const headers = parseRow(lines[0]);
+      const rows = lines.slice(1).map(parseRow);
+      return { headers, rows };
+    }
+
+    // Render standings table from sheet data
+    function renderStandingsTable(data) {
+      if (!data || !data.rows.length) return '<p class="muted">No standings data available.</p>';
+
+      let html = '<table class="data-table standings-table">';
+      html += '<thead><tr>';
+      data.headers.forEach((h, i) => {
+        html += `<th>${esc(h)}</th>`;
+      });
+      html += '</tr></thead><tbody>';
+
+      data.rows.forEach((row, idx) => {
+        html += `<tr class="${idx < 3 ? 'top-rank' : ''}">`;
+        row.forEach((cell, i) => {
+          if (i === 0) {
+            html += `<td><span class="rank">${idx + 1}</span> ${esc(cell)}</td>`;
+          } else {
+            html += `<td>${esc(cell)}</td>`;
+          }
+        });
+        html += '</tr>';
+      });
+
+      html += '</tbody></table>';
+      return html;
+    }
+
+    // Render schedule/agenda from sheet data
+    function renderScheduleTable(data) {
+      if (!data || !data.rows.length) return '<p class="muted">No schedule data available.</p>';
+
+      let html = '<div class="schedule-list">';
+      data.rows.forEach(row => {
+        const [time, title, description] = row;
+        html += '<div class="schedule-item">';
+        if (time) html += `<span class="schedule-time">${esc(time)}</span>`;
+        if (title) html += `<span class="schedule-title">${esc(title)}</span>`;
+        if (description) html += `<span class="schedule-desc">${esc(description)}</span>`;
+        html += '</div>';
+      });
+      html += '</div>';
+      return html;
+    }
+
+    // Render vendor list from sheet data
+    function renderVendorList(data) {
+      if (!data || !data.rows.length) return '<p class="muted">No vendor data available.</p>';
+
+      let html = '<div class="vendor-grid">';
+      data.rows.forEach(row => {
+        const [name, description, url] = row;
+        html += '<div class="vendor-card">';
+        html += `<h4>${esc(name || 'Vendor')}</h4>`;
+        if (description) html += `<p>${esc(description)}</p>`;
+        if (url) html += `<a href="${esc(url)}" target="_blank" rel="noopener">Visit →</a>`;
+        html += '</div>';
+      });
+      html += '</div>';
+      return html;
+    }
+
+    // Render bracket/tournament from sheet data
+    // Supports formats: Round, Match, Team1, Score1, Team2, Score2 -OR- Team1, Team2, Winner, Score
+    function renderBracketTable(data) {
+      if (!data || !data.rows.length) return '<p class="muted">No bracket data available.</p>';
+
+      // Detect format based on headers
+      const headers = data.headers.map(h => h.toLowerCase());
+      const hasRound = headers.some(h => h.includes('round'));
+
+      let html = '<div class="bracket-container">';
+
+      if (hasRound) {
+        // Group by round for tournament bracket view
+        const rounds = {};
+        data.rows.forEach(row => {
+          const round = row[0] || 'Round 1';
+          if (!rounds[round]) rounds[round] = [];
+          rounds[round].push(row.slice(1)); // Rest of columns are match data
+        });
+
+        html += '<div class="bracket-rounds">';
+        Object.keys(rounds).forEach(round => {
+          html += `<div class="bracket-round">`;
+          html += `<h4 class="round-title">${esc(round)}</h4>`;
+          rounds[round].forEach(match => {
+            html += renderBracketMatch(match, headers.slice(1));
+          });
+          html += '</div>';
+        });
+        html += '</div>';
+      } else {
+        // Simple match list format
+        html += '<div class="bracket-matches">';
+        data.rows.forEach((row, idx) => {
+          html += `<div class="bracket-match-row">`;
+          html += `<span class="match-num">#${idx + 1}</span>`;
+          html += renderBracketMatch(row, headers);
+          html += '</div>';
+        });
+        html += '</div>';
+      }
+
+      html += '</div>';
+      return html;
+    }
+
+    // Render a single bracket match
+    function renderBracketMatch(row, headers) {
+      // Try to identify team columns and scores
+      const team1 = row[0] || '—';
+      const team2 = row[headers.indexOf('team2') > -1 ? headers.indexOf('team2') : 2] || row[2] || '—';
+      const score1 = row[1] || '';
+      const score2 = row[3] || '';
+      const winner = row[headers.indexOf('winner') > -1 ? headers.indexOf('winner') : row.length - 1] || '';
+
+      let html = '<div class="bracket-match">';
+      html += `<div class="match-team ${winner && winner.toLowerCase() === team1.toLowerCase() ? 'winner' : ''}">`;
+      html += `<span class="team-name">${esc(team1)}</span>`;
+      if (score1) html += `<span class="team-score">${esc(score1)}</span>`;
+      html += '</div>';
+      html += '<div class="match-vs">vs</div>';
+      html += `<div class="match-team ${winner && winner.toLowerCase() === team2.toLowerCase() ? 'winner' : ''}">`;
+      html += `<span class="team-name">${esc(team2)}</span>`;
+      if (score2) html += `<span class="team-score">${esc(score2)}</span>`;
+      html += '</div>';
+      html += '</div>';
+      return html;
+    }
+
+    // Map CTA label to URL from event data
+    function getCTAUrl(data, label) {
+      const labelLower = label.toLowerCase();
+      // Map common CTA labels to data fields
+      if (labelLower.includes('register') || labelLower.includes('rsvp')) return data.registerUrl || data.signupUrl;
+      if (labelLower.includes('sign up')) return data.signupUrl || data.registerUrl;
+      if (labelLower.includes('donate')) return data.donationUrl;
+      if (labelLower.includes('ticket')) return data.ticketUrl || data.registerUrl;
+      if (labelLower.includes('registry')) return data.registryUrl;
+      if (labelLower.includes('schedule') || labelLower.includes('itinerary')) return data.scheduleUrl;
+      if (labelLower.includes('standing')) return data.standingsUrl;
+      if (labelLower.includes('bracket')) return data.bracketUrl;
+      if (labelLower.includes('photo') || labelLower.includes('album')) return data.albumUrl;
+      if (labelLower.includes('download')) return data.downloadUrl;
+      if (labelLower.includes('vendor')) return data.vendorListUrl;
+      if (labelLower.includes('calendar')) return buildGoogleCalendarUrl(data);
+      if (labelLower.includes('direction') || labelLower.includes('map')) return buildMapsUrl(data.location);
+      if (labelLower.includes('rule')) return data.rulesUrl;
+      if (labelLower.includes('roster') || labelLower.includes('team')) return data.rosterUrl;
+      // Fallback to generic URLs
+      return data.registerUrl || data.signupUrl || data.summaryLink;
+    }
+
+    // Build Google Maps URL from location string
+    function buildMapsUrl(location) {
+      if (!location) return null;
+      const encoded = encodeURIComponent(location);
+      return `https://www.google.com/maps/search/?api=1&query=${encoded}`;
+    }
+
+    // Build Google Calendar URL
+    function buildGoogleCalendarUrl(data) {
+      if (!data.name || !data.dateISO) return null;
+      const params = new URLSearchParams();
+      params.set('action', 'TEMPLATE');
+      params.set('text', data.name);
+
+      // Format date: YYYYMMDD or with time YYYYMMDDTHHMMSS
+      let startDate = data.dateISO.replace(/-/g, '');
+      let endDate = startDate;
+      if (data.timeISO) {
+        // Parse time like "7:00 PM" or "19:00"
+        const timeParts = data.timeISO.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+        if (timeParts) {
+          let hours = parseInt(timeParts[1]);
+          const mins = timeParts[2];
+          const ampm = timeParts[3];
+          if (ampm && ampm.toUpperCase() === 'PM' && hours < 12) hours += 12;
+          if (ampm && ampm.toUpperCase() === 'AM' && hours === 12) hours = 0;
+          startDate += 'T' + String(hours).padStart(2, '0') + mins + '00';
+          // Assume 2 hour event
+          const endHours = (hours + 2) % 24;
+          endDate += 'T' + String(endHours).padStart(2, '0') + mins + '00';
+        }
+      }
+      params.set('dates', `${startDate}/${endDate}`);
+
+      if (data.location) params.set('location', data.location);
+      if (data.summary) params.set('details', data.summary);
+
+      return `https://calendar.google.com/calendar/render?${params.toString()}`;
+    }
+
+    // Generate ICS file content for Apple/Outlook
+    function generateICS(data) {
+      if (!data.name || !data.dateISO) return null;
+
+      const formatDate = (dateStr, timeStr) => {
+        let dt = dateStr.replace(/-/g, '');
+        if (timeStr) {
+          const timeParts = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+          if (timeParts) {
+            let hours = parseInt(timeParts[1]);
+            const mins = timeParts[2];
+            const ampm = timeParts[3];
+            if (ampm && ampm.toUpperCase() === 'PM' && hours < 12) hours += 12;
+            if (ampm && ampm.toUpperCase() === 'AM' && hours === 12) hours = 0;
+            dt += 'T' + String(hours).padStart(2, '0') + mins + '00';
+          }
+        }
+        return dt;
+      };
+
+      const start = formatDate(data.dateISO, data.timeISO);
+      const end = data.timeISO
+        ? formatDate(data.dateISO, data.timeISO).replace(/T(\d{2})/, (m, h) => 'T' + String((parseInt(h) + 2) % 24).padStart(2, '0'))
+        : start;
+
+      const ics = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'PRODID:-//EventAngle//Event//EN',
+        'BEGIN:VEVENT',
+        `DTSTART:${start}`,
+        `DTEND:${end}`,
+        `SUMMARY:${data.name.replace(/[,;\\]/g, ' ')}`,
+        data.location ? `LOCATION:${data.location.replace(/[,;\\]/g, ' ')}` : '',
+        data.summary ? `DESCRIPTION:${data.summary.replace(/[,;\\]/g, ' ').substring(0, 200)}` : '',
+        `UID:${Date.now()}@eventangle.com`,
+        'END:VEVENT',
+        'END:VCALENDAR'
+      ].filter(Boolean).join('\r\n');
+
+      return ics;
+    }
+
+    // Download ICS file
+    function downloadICS(data) {
+      const ics = generateICS(data);
+      if (!ics) return;
+
+      const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${(data.name || 'event').replace(/[^a-z0-9]/gi, '-')}.ics`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('Calendar file downloaded');
+    }
+
+    // Share event (Web Share API with clipboard fallback)
+    async function shareEvent(data) {
+      const shareData = {
+        title: data.name || 'Event',
+        text: `Check out this event: ${data.name}`,
+        url: window.location.href
+      };
+
+      if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+        try {
+          await navigator.share(shareData);
+        } catch (err) {
+          if (err.name !== 'AbortError') {
+            copyToClipboard();
+          }
+        }
+      } else {
+        copyToClipboard();
+      }
+    }
+
+    // Copy link to clipboard
+    function copyToClipboard() {
+      navigator.clipboard.writeText(window.location.href).then(() => {
+        showToast('Link copied to clipboard');
+      }).catch(() => {
+        // Fallback for older browsers
+        const input = document.createElement('input');
+        input.value = window.location.href;
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand('copy');
+        document.body.removeChild(input);
+        showToast('Link copied to clipboard');
+      });
+    }
+
+    // Toggle calendar dropdown
+    function toggleCalendarDropdown(e) {
+      e.stopPropagation();
+      const dropdown = e.target.closest('.calendar-dropdown');
+      dropdown.classList.toggle('open');
+
+      // Close when clicking outside
+      const closeDropdown = () => {
+        dropdown.classList.remove('open');
+        document.removeEventListener('click', closeDropdown);
+      };
+      if (dropdown.classList.contains('open')) {
+        setTimeout(() => document.addEventListener('click', closeDropdown), 0);
+      }
+    }
+
+    // Store current event data for utility functions
+    let currentEventData = null;
 
     async function rpc(method, payload) {
       return new Promise((resolve) => {
@@ -303,7 +1118,13 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       const root = document.getElementById('list');
       root.innerHTML = '';
       if (!items || !items.length) {
-        root.innerHTML = '<p class="muted">No events found.</p>';
+        root.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">📅</div>
+            <h3>No Upcoming Events</h3>
+            <p>Check back soon for new events, or contact the organizer for more information.</p>
+          </div>
+        `;
         return;
       }
       for (const ev of items) {
@@ -324,8 +1145,19 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       const root = document.getElementById('list');
       const data = evt.data || {};
 
-      // Render sponsor banner first
-      renderSponsorBanner(evt);
+      // Store for utility functions
+      currentEventData = data;
+
+      // MVP: Section visibility helper (defaults to true if not set)
+      const sectionEnabled = (key) => {
+        if (!data.sections) return true; // Backwards compat: show all if no sections set
+        return data.sections[key] !== false;
+      };
+
+      // Render sponsor banner first (respects sections.sponsors)
+      if (sectionEnabled('sponsors')) {
+        renderSponsorBanner(evt);
+      }
 
       // Build event detail HTML
       let html = '<div class="event-detail">';
@@ -374,17 +1206,62 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       html += '</div>';
       html += '</div>';
 
-      // Action buttons
+      // Action buttons - supports dynamic CTAs from template
       html += '<div class="action-buttons">';
-      if (data.registerUrl) {
-        html += `<a class="btn-primary" href="${esc(data.registerUrl)}" target="_blank" rel="noopener">Register</a>`;
-      } else if (data.signupUrl) {
-        html += `<a class="btn-primary" href="${esc(data.signupUrl)}" target="_blank" rel="noopener">Sign Up</a>`;
+
+      // Primary CTA (template-driven or fallback to register/signup)
+      if (data.ctaLabels && data.ctaLabels.length > 0) {
+        // Use template-defined CTAs
+        data.ctaLabels.forEach((label, i) => {
+          const ctaUrl = getCTAUrl(data, label);
+          if (ctaUrl) {
+            const btnClass = i === 0 ? 'btn-primary' : 'btn-secondary';
+            html += `<a class="${btnClass}" href="${esc(ctaUrl)}" target="_blank" rel="noopener">${esc(label)}</a>`;
+          }
+        });
+      } else {
+        // Fallback to hardcoded CTAs
+        if (data.registerUrl) {
+          html += `<a class="btn-primary" href="${esc(data.registerUrl)}" target="_blank" rel="noopener">Register</a>`;
+        } else if (data.signupUrl) {
+          html += `<a class="btn-primary" href="${esc(data.signupUrl)}" target="_blank" rel="noopener">Sign Up</a>`;
+        } else if (data.donationUrl) {
+          html += `<a class="btn-primary" href="${esc(data.donationUrl)}" target="_blank" rel="noopener">Donate</a>`;
+        }
       }
+
       if (data.checkinUrl) {
         html += `<a class="btn-secondary" href="${esc(data.checkinUrl)}" target="_blank" rel="noopener">Check In</a>`;
       }
       html += `<a class="btn-secondary" href="${EXEC_URL}?p=events&brand=${BRAND}">← Back to Events</a>`;
+      html += '</div>';
+
+      // Utility buttons: Maps, Calendar, Share
+      html += '<div class="utility-buttons">';
+
+      // Directions/Maps button (respects sections.map)
+      if (data.location && sectionEnabled('map')) {
+        const mapsUrl = buildMapsUrl(data.location);
+        html += `<a class="btn-utility" href="${esc(mapsUrl)}" target="_blank" rel="noopener">📍 Get Directions</a>`;
+      }
+
+      // Calendar dropdown
+      if (data.dateISO) {
+        const gcalUrl = buildGoogleCalendarUrl(data);
+        html += `
+          <div class="calendar-dropdown">
+            <button class="btn-utility" onclick="toggleCalendarDropdown(event)">📅 Add to Calendar</button>
+            <div class="calendar-menu">
+              <a href="${esc(gcalUrl || '#')}" target="_blank" rel="noopener">Google Calendar</a>
+              <a href="#" onclick="event.preventDefault(); downloadICS(currentEventData);">Apple / Outlook (.ics)</a>
+            </div>
+          </div>
+        `;
+      }
+
+      // Share button
+      html += `<button class="btn-utility" onclick="shareEvent(currentEventData)">🔗 Share Event</button>`;
+
       html += '</div>';
 
       // Event Image
@@ -405,8 +1282,8 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
         html += '</div>';
       }
 
-      // Video Section - Fixed: Bug #3 - XSS via video URL injection
-      if (data.videoUrl) {
+      // Video Section - Fixed: Bug #3 - XSS via video URL injection (respects sections.video)
+      if (data.videoUrl && sectionEnabled('video')) {
         html += '<div class="event-section">';
         html += '<h2>Video</h2>';
 
@@ -450,8 +1327,8 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
         html += '</div>';
       }
 
-      // Gallery Section
-      if (data.galleryUrls) {
+      // Gallery Section (respects sections.gallery)
+      if (data.galleryUrls && sectionEnabled('gallery')) {
         const urls = data.galleryUrls.split(',').map(u => u.trim()).filter(u => u);
         if (urls.length > 0) {
           html += '<div class="event-section">';
@@ -465,15 +1342,106 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
         }
       }
 
-      // Bio Section
-      if (data.bio || data.bioLink) {
+      // Schedule Section (respects sections.schedule) - supports Google Sheets BYOD
+      if ((data.schedule || data.scheduleUrl) && sectionEnabled('schedule')) {
         html += '<div class="event-section">';
-        html += '<h2>More Information</h2>';
+        html += '<h2>Schedule</h2>';
+        if (Array.isArray(data.schedule)) {
+          // Pre-defined schedule array
+          html += '<div class="schedule-list">';
+          data.schedule.forEach(item => {
+            html += `<div class="schedule-item">`;
+            if (item.time) html += `<span class="schedule-time">${esc(item.time)}</span>`;
+            if (item.title) html += `<span class="schedule-title">${esc(item.title)}</span>`;
+            if (item.description) html += `<span class="schedule-desc">${esc(item.description)}</span>`;
+            html += `</div>`;
+          });
+          html += '</div>';
+        } else if (data.scheduleUrl) {
+          // Google Sheets BYOD for schedule
+          html += `<div id="schedule-container" data-url="${esc(data.scheduleUrl)}">
+            <div class="loading-placeholder">Loading schedule...</div>
+          </div>`;
+        } else if (typeof data.schedule === 'string') {
+          html += `<p>${esc(data.schedule)}</p>`;
+        }
+        html += '</div>';
+      }
+
+      // Template-specific sections
+      // Photo Album (photo_gallery, wedding, shower templates)
+      if (data.albumUrl && sectionEnabled('gallery')) {
+        html += '<div class="event-section">';
+        html += '<h2>Photo Album</h2>';
+        html += `<p><a class="btn-primary" href="${esc(data.albumUrl)}" target="_blank" rel="noopener">📸 View Photo Album</a></p>`;
+        if (data.downloadUrl) {
+          html += `<p><a class="btn-secondary" href="${esc(data.downloadUrl)}" target="_blank" rel="noopener">⬇️ Download All Photos</a></p>`;
+        }
+        html += '</div>';
+      }
+
+      // Registry (wedding, shower templates)
+      if (data.registryUrl) {
+        html += '<div class="event-section">';
+        html += '<h2>Gift Registry</h2>';
+        html += `<p><a class="btn-primary" href="${esc(data.registryUrl)}" target="_blank" rel="noopener">🎁 View Registry</a></p>`;
+        html += '</div>';
+      }
+
+      // Standings (league templates) - supports Google Sheets BYOD
+      if (data.standingsUrl) {
+        html += '<div class="event-section">';
+        html += '<h2>Standings</h2>';
+        html += `<div id="standings-container" data-url="${esc(data.standingsUrl)}">
+          <div class="loading-placeholder">Loading standings...</div>
+        </div>`;
+        html += '</div>';
+      }
+
+      // Bracket/Tournament - supports Google Sheets BYOD
+      if (data.bracketUrl) {
+        html += '<div class="event-section">';
+        html += '<h2>Tournament Bracket</h2>';
+        html += `<div id="bracket-container" data-url="${esc(data.bracketUrl)}">
+          <div class="loading-placeholder">Loading bracket...</div>
+        </div>`;
+        html += '</div>';
+      }
+
+      // Vendor List (farmers_market template) - supports Google Sheets BYOD
+      if (data.vendorListUrl) {
+        html += '<div class="event-section">';
+        html += '<h2>Vendors</h2>';
+        html += `<div id="vendors-container" data-url="${esc(data.vendorListUrl)}">
+          <div class="loading-placeholder">Loading vendors...</div>
+        </div>`;
+        html += '</div>';
+      }
+
+      // Donation Progress (fundraiser template)
+      if (data.goalAmount && data.raisedAmount !== undefined) {
+        const progress = Math.min(100, Math.round((data.raisedAmount / data.goalAmount) * 100));
+        html += '<div class="event-section">';
+        html += '<h2>Fundraising Progress</h2>';
+        html += `<div class="fundraising-progress">`;
+        html += `<div class="progress-bar"><div class="progress-fill" style="width: ${progress}%"></div></div>`;
+        html += `<p class="progress-text">$${data.raisedAmount.toLocaleString()} raised of $${data.goalAmount.toLocaleString()} goal (${progress}%)</p>`;
+        html += `</div>`;
+        if (data.donationUrl) {
+          html += `<p><a class="btn-primary" href="${esc(data.donationUrl)}" target="_blank" rel="noopener">💝 Donate Now</a></p>`;
+        }
+        html += '</div>';
+      }
+
+      // Bio/Notes Section (respects sections.notes) - uses custom label
+      if ((data.bio || data.bioLink) && sectionEnabled('notes')) {
+        html += '<div class="event-section">';
+        html += `<h2>${esc(data.notesLabel || 'More Information')}</h2>`;
         if (data.bio) {
           html += `<p>${esc(data.bio)}</p>`;
         }
         if (data.bioLink) {
-          html += `<p><a href="${esc(data.bioLink)}" target="_blank" rel="noopener">Read full bio →</a></p>`;
+          html += `<p><a href="${esc(data.bioLink)}" target="_blank" rel="noopener">Read more →</a></p>`;
         }
         html += '</div>';
       }
@@ -489,17 +1457,71 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       html += '</div>';
 
       root.innerHTML = html;
+
+      // Populate Google Sheets data asynchronously (BYOD)
+      populateSheetData();
     }
 
+    // Fetch and populate all sheet data containers
+    async function populateSheetData() {
+      const containers = [
+        { id: 'schedule-container', renderer: renderScheduleTable },
+        { id: 'standings-container', renderer: renderStandingsTable },
+        { id: 'bracket-container', renderer: renderBracketTable },
+        { id: 'vendors-container', renderer: renderVendorList }
+      ];
+
+      for (const { id, renderer } of containers) {
+        const container = document.getElementById(id);
+        if (!container) continue;
+
+        const url = container.dataset.url;
+        const sheetData = await fetchSheetData(url);
+
+        if (sheetData && sheetData.rows.length > 0) {
+          // Google Sheet data fetched - render styled
+          container.innerHTML = renderer(sheetData);
+        } else {
+          // Not a Google Sheet or fetch failed - show link fallback
+          container.innerHTML = `<p><a class="btn-secondary" href="${esc(url)}" target="_blank" rel="noopener">View Full Data →</a></p>`;
+        }
+      }
+    }
+
+    // Error state renderer
+    function showError(type = 'load') {
+      const root = document.getElementById('list');
+      if (type === 'notfound') {
+        root.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">🔍</div>
+            <h3>Event Not Found</h3>
+            <p>This event link may be outdated or incorrect.<br>Please check the URL or return to the events list.</p>
+            <a class="btn-secondary" href="${EXEC_URL}?p=events&brand=${BRAND}">← View All Events</a>
+          </div>
+        `;
+      } else {
+        root.innerHTML = `
+          <div class="error-state">
+            <div class="error-state-icon">⚠️</div>
+            <h3>Trouble Loading</h3>
+            <p>We couldn't load the events right now. Please try again.</p>
+            <button class="btn-retry" onclick="location.reload()">🔄 Try Again</button>
+          </div>
+        `;
+      }
+    }
+
+    // Load event data
     if (ID) {
       rpc('api_get', { brandId: BRAND, scope: SCOPE, id: ID }).then(res => {
         if (res.ok && res.value) renderDetail(res.value);
-        else document.getElementById('list').innerHTML = '<p class="muted">Event not found.</p>';
+        else showError('notfound');
       });
     } else {
       rpc('api_list', { brandId: BRAND, scope: SCOPE }).then(res => {
         if (res.ok && res.value) renderList(res.value.items || []);
-        else document.getElementById('list').innerHTML = '<p class="muted">Could not load events.</p>';
+        else showError('load');
       });
     }
   </script>

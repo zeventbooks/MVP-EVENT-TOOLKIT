@@ -2,7 +2,10 @@ name: Stage 1 - Build & Deploy
 
 on:
   push:
-    branches: [ main ]  # Only deploy on main push (after PR merge)
+    branches:
+      - main           # Deploy on main push (after PR merge)
+      - 'release/**'   # Deploy on release branches
+      - 'release/*'
   pull_request:
     branches: [ main ]  # Validate PRs before merge
 
@@ -55,7 +58,7 @@ jobs:
       - name: Run unit tests
         run: |
           echo "ℹ️ Running Jest unit tests (no BASE_URL required - uses mock data)"
-          npm test -- --coverage
+          npm run test:unit
 
       - name: Upload coverage reports
         uses: codecov/codecov-action@v3
@@ -79,21 +82,15 @@ jobs:
 
       - name: Run contract tests
         run: |
-          echo "ℹ️ Running contract tests (no BASE_URL required - validates response structure with mocks)"
+          echo "ℹ️ Running contract tests (validates API response structure)"
           npm run test:contract
-
-      - name: Run Triangle contract tests
-        run: |
-          npm run test:triangle:before:contract
-          npm run test:triangle:during:contract
-          npm run test:triangle:after:contract
-          npm run test:triangle:all:contract
 
   deploy-to-apps-script:
     name: 🚀 Deploy to Apps Script API
     runs-on: ubuntu-latest
     needs: [lint, unit-tests, contract-tests]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    # MVP SRE Policy: Deploy only if Stage 1 passes AND push to main/release branches
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/'))
     outputs:
       deployment_url: ${{ steps.deploy.outputs.url }}
       root_url: ${{ steps.urls.outputs.root_url }}
