@@ -3214,8 +3214,9 @@ function generateQRCodes_(event) {
 
 /**
  * Generate print-friendly formatted strings
+ * EVENT_CONTRACT.md v2.0: Uses canonical fields
  *
- * @param {object} event - Hydrated event object
+ * @param {object} event - Hydrated event object per EVENT_CONTRACT.md
  * @returns {object} { dateLine, venueLine } formatted strings
  * @private
  */
@@ -3223,31 +3224,24 @@ function generatePrintStrings_(event) {
   let dateLine = null;
   let venueLine = null;
 
-  // Format date line
-  if (event.dateTime) {
+  // Format date line from event.startDateISO (MVP Required)
+  if (event.startDateISO) {
     try {
-      const dt = new Date(event.dateTime);
+      // startDateISO is YYYY-MM-DD format, no time in MVP
+      const dt = new Date(event.startDateISO + 'T00:00:00');
       if (!isNaN(dt.getTime())) {
-        // Format: "Saturday, August 15, 2025 at 6:00 PM"
+        // Format: "Saturday, August 15, 2025"
         const dateOpts = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-        const timeOpts = { hour: 'numeric', minute: '2-digit', hour12: true };
-        const datePart = dt.toLocaleDateString('en-US', dateOpts);
-        const timePart = dt.toLocaleTimeString('en-US', timeOpts);
-        dateLine = `${datePart} at ${timePart}`;
+        dateLine = dt.toLocaleDateString('en-US', dateOpts);
       }
     } catch (e) {
       // If date parsing fails, leave as null
     }
   }
 
-  // Format venue line
-  if (event.venueName && event.location && event.venueName !== event.location) {
-    // Show both: "Chicago Bocce Club · 123 Main St, Chicago, IL"
-    venueLine = `${event.venueName} · ${event.location}`;
-  } else if (event.location) {
-    venueLine = event.location;
-  } else if (event.venueName) {
-    venueLine = event.venueName;
+  // Format venue line from event.venue (MVP Required)
+  if (event.venue) {
+    venueLine = event.venue;
   }
 
   return {
@@ -3283,13 +3277,14 @@ function api_getSponsorBundle(payload){
     // Get sponsor metrics from ANALYTICS sheet
     const sponsorMetrics = getSponsorMetricsForEvent_(brand, sanitizedId);
 
-    // Build thin event view per SponsorBundle interface
+    // Build thin event view per EVENT_CONTRACT.md v2.0
+    // Derived DTO from canonical Event - uses only contract fields
     const thinEvent = {
       id: event.id,
       name: event.name,
-      dateTime: event.dateTime,
-      location: event.location,
-      brandId: event.brandId
+      startDateISO: event.startDateISO,  // MVP Required (was: dateTime)
+      venue: event.venue,                 // MVP Required (was: location)
+      templateId: event.templateId
     };
 
     // Enrich sponsors with metrics
@@ -3402,12 +3397,13 @@ function api_getSharedReportBundle(payload){
     // Get event metrics from ANALYTICS sheet
     const metrics = getEventMetricsForReport_(brand, sanitizedId);
 
-    // Build thin event view per SharedReportBundle interface
+    // Build thin event view per EVENT_CONTRACT.md v2.0
+    // Derived DTO from canonical Event - uses only contract fields
     const thinEvent = {
       id: event.id,
       name: event.name,
-      dateTime: event.dateTime,
-      brandId: event.brandId,
+      startDateISO: event.startDateISO,  // MVP Required (was: dateTime)
+      venue: event.venue,                 // MVP Required
       templateId: event.templateId
     };
 

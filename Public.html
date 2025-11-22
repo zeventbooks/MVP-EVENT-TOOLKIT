@@ -1021,74 +1021,57 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       return `https://www.google.com/maps/search/?api=1&query=${encoded}`;
     }
 
-    // Build Google Calendar URL
+    /**
+     * Build Google Calendar URL
+     * EVENT_CONTRACT.md v2.0: Uses canonical fields
+     * - data.name (from event.name)
+     * - data.dateISO (from event.startDateISO)
+     * - data.venue (from event.venue)
+     */
     function buildGoogleCalendarUrl(data) {
       if (!data.name || !data.dateISO) return null;
       const params = new URLSearchParams();
       params.set('action', 'TEMPLATE');
       params.set('text', data.name);
 
-      // Format date: YYYYMMDD or with time YYYYMMDDTHHMMSS
-      let startDate = data.dateISO.replace(/-/g, '');
-      let endDate = startDate;
-      if (data.timeISO) {
-        // Parse time like "7:00 PM" or "19:00"
-        const timeParts = data.timeISO.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
-        if (timeParts) {
-          let hours = parseInt(timeParts[1]);
-          const mins = timeParts[2];
-          const ampm = timeParts[3];
-          if (ampm && ampm.toUpperCase() === 'PM' && hours < 12) hours += 12;
-          if (ampm && ampm.toUpperCase() === 'AM' && hours === 12) hours = 0;
-          startDate += 'T' + String(hours).padStart(2, '0') + mins + '00';
-          // Assume 2 hour event
-          const endHours = (hours + 2) % 24;
-          endDate += 'T' + String(endHours).padStart(2, '0') + mins + '00';
-        }
-      }
-      params.set('dates', `${startDate}/${endDate}`);
+      // Format date: YYYYMMDD (MVP v2.0 has date only, no time)
+      const startDate = data.dateISO.replace(/-/g, '');
+      params.set('dates', `${startDate}/${startDate}`);
 
-      if (data.location) params.set('location', data.location);
-      if (data.summary) params.set('details', data.summary);
+      // Use venue (canonical) with fallback to location (legacy)
+      if (data.venue || data.location) {
+        params.set('location', data.venue || data.location);
+      }
 
       return `https://calendar.google.com/calendar/render?${params.toString()}`;
     }
 
-    // Generate ICS file content for Apple/Outlook
+    /**
+     * Generate ICS file content for Apple/Outlook
+     * EVENT_CONTRACT.md v2.0: Uses canonical fields
+     * - data.name (from event.name)
+     * - data.dateISO (from event.startDateISO)
+     * - data.venue (from event.venue)
+     */
     function generateICS(data) {
       if (!data.name || !data.dateISO) return null;
 
-      const formatDate = (dateStr, timeStr) => {
-        let dt = dateStr.replace(/-/g, '');
-        if (timeStr) {
-          const timeParts = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
-          if (timeParts) {
-            let hours = parseInt(timeParts[1]);
-            const mins = timeParts[2];
-            const ampm = timeParts[3];
-            if (ampm && ampm.toUpperCase() === 'PM' && hours < 12) hours += 12;
-            if (ampm && ampm.toUpperCase() === 'AM' && hours === 12) hours = 0;
-            dt += 'T' + String(hours).padStart(2, '0') + mins + '00';
-          }
-        }
-        return dt;
-      };
+      // Format date: YYYYMMDD (MVP v2.0 has date only, no time)
+      const start = data.dateISO.replace(/-/g, '');
+      const end = start;
 
-      const start = formatDate(data.dateISO, data.timeISO);
-      const end = data.timeISO
-        ? formatDate(data.dateISO, data.timeISO).replace(/T(\d{2})/, (m, h) => 'T' + String((parseInt(h) + 2) % 24).padStart(2, '0'))
-        : start;
+      // Use venue (canonical) with fallback to location (legacy)
+      const venueStr = data.venue || data.location || '';
 
       const ics = [
         'BEGIN:VCALENDAR',
         'VERSION:2.0',
         'PRODID:-//EventAngle//Event//EN',
         'BEGIN:VEVENT',
-        `DTSTART:${start}`,
-        `DTEND:${end}`,
+        `DTSTART;VALUE=DATE:${start}`,
+        `DTEND;VALUE=DATE:${end}`,
         `SUMMARY:${data.name.replace(/[,;\\]/g, ' ')}`,
-        data.location ? `LOCATION:${data.location.replace(/[,;\\]/g, ' ')}` : '',
-        data.summary ? `DESCRIPTION:${data.summary.replace(/[,;\\]/g, ' ').substring(0, 200)}` : '',
+        venueStr ? `LOCATION:${venueStr.replace(/[,;\\]/g, ' ')}` : '',
         `UID:${Date.now()}@eventangle.com`,
         'END:VEVENT',
         'END:VCALENDAR'
