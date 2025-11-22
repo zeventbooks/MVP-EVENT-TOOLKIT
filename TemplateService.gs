@@ -1,19 +1,249 @@
 /**
  * TemplateService.gs
  *
- * Enhanced multi-template system for event-agnostic, flexible event management
+ * Event Template System
  *
- * Features:
- * - Template versioning with migration paths
- * - Template inheritance and composition
- * - Conditional fields based on template type
- * - Dynamic template rendering
- * - Multi-language template support
- * - Template validation and testing
+ * MVP (Triangle Live Demo):
+ *   - Simple event archetypes: bar_night, rec_league, school, fundraiser, custom
+ *   - Templates define sections ON/OFF, default CTAs, labels
+ *   - Config.gs handles brand-level wiring
  *
- * @version 1.0.0
+ * v2+ (Below, marked as EXPERIMENTAL):
+ *   - Template versioning with migration paths
+ *   - Template inheritance and composition
+ *   - Multi-language template support
+ *
+ * @version 1.1.0
  * @since 2025-11-18
  */
+
+// ============================================================================
+// [MVP] EVENT TEMPLATE CATALOG - Triangle Live Demo
+// ============================================================================
+
+/**
+ * Event archetypes for different verticals
+ * Templates = reusable patterns (sections, CTAs, defaults)
+ * Config = brand-level wiring (which templates each brand sees)
+ */
+var EVENT_TEMPLATES = {
+  bar_night: {
+    id: 'bar_night',
+    label: 'Bar / Tavern Event',
+    description: 'Trivia nights, live music, happy hours',
+    exampleName: 'Thursday Trivia Night',
+    icon: '🍺',
+    sections: {
+      video: true,
+      map: true,
+      schedule: false,
+      sponsors: true,
+      notes: true,
+      gallery: false
+    },
+    defaultCtas: ['RSVP', 'Add to Calendar'],
+    defaults: {
+      audience: 'Adults 21+',
+      notesLabel: 'House Rules',
+      sponsorStripLabel: "Tonight's Sponsors"
+    }
+  },
+
+  rec_league: {
+    id: 'rec_league',
+    label: 'Rec League / Season',
+    description: 'Sports leagues, tournaments, team registrations',
+    exampleName: 'Summer Softball League',
+    icon: '⚾',
+    sections: {
+      video: false,
+      map: true,
+      schedule: true,
+      sponsors: true,
+      notes: true,
+      gallery: false
+    },
+    defaultCtas: ['Register Team', 'View Schedule'],
+    defaults: {
+      audience: 'Teams & Captains',
+      notesLabel: 'League Notes',
+      sponsorStripLabel: 'Season Sponsors'
+    }
+  },
+
+  school: {
+    id: 'school',
+    label: 'School / Youth Event',
+    description: 'School fundraisers, band boosters, sports events',
+    exampleName: 'Band Booster Fundraiser',
+    icon: '🎓',
+    sections: {
+      video: true,
+      map: true,
+      schedule: false,
+      sponsors: true,
+      notes: true,
+      gallery: true
+    },
+    defaultCtas: ['Buy Tickets', 'Donate'],
+    defaults: {
+      audience: 'Families & Supporters',
+      notesLabel: 'Event Details',
+      sponsorStripLabel: 'Our Sponsors'
+    }
+  },
+
+  fundraiser: {
+    id: 'fundraiser',
+    label: 'Fundraiser / Charity',
+    description: 'Charity events, donation drives, benefit nights',
+    exampleName: 'Trivia Night for a Cause',
+    icon: '💝',
+    sections: {
+      video: true,
+      map: true,
+      schedule: false,
+      sponsors: true,
+      notes: true,
+      gallery: true
+    },
+    defaultCtas: ['Donate', 'Buy Tickets', 'Share'],
+    defaults: {
+      audience: 'Donors & Guests',
+      notesLabel: 'About the Cause',
+      sponsorStripLabel: 'Event Sponsors'
+    }
+  },
+
+  corporate: {
+    id: 'corporate',
+    label: 'Corporate / Professional',
+    description: 'Conferences, networking, company events',
+    exampleName: 'Q4 Sales Kickoff',
+    icon: '💼',
+    sections: {
+      video: true,
+      map: true,
+      schedule: true,
+      sponsors: true,
+      notes: true,
+      gallery: false
+    },
+    defaultCtas: ['Register', 'Add to Calendar'],
+    defaults: {
+      audience: 'Employees & Partners',
+      notesLabel: 'Agenda',
+      sponsorStripLabel: 'Event Partners'
+    }
+  },
+
+  custom: {
+    id: 'custom',
+    label: 'Custom Event',
+    description: 'Start from scratch with all options available',
+    exampleName: 'My Custom Event',
+    icon: '✨',
+    sections: {
+      video: true,
+      map: true,
+      schedule: true,
+      sponsors: true,
+      notes: true,
+      gallery: true
+    },
+    defaultCtas: ['Register', 'Add to Calendar'],
+    defaults: {}
+  }
+};
+
+// ============================================================================
+// [MVP] Template Helpers
+// ============================================================================
+
+/**
+ * Get all available event templates (MVP)
+ * @returns {Array} Array of template objects
+ */
+function getEventTemplates_() {
+  return Object.values(EVENT_TEMPLATES);
+}
+
+/**
+ * Get a specific template by ID (MVP)
+ * @param {string} templateId - Template identifier
+ * @returns {Object} Template object (defaults to 'custom' if not found)
+ */
+function getEventTemplate_(templateId) {
+  return EVENT_TEMPLATES[templateId] || EVENT_TEMPLATES.custom;
+}
+
+/**
+ * Apply template defaults to an event object (MVP)
+ * Only sets values where user hasn't already provided data
+ *
+ * @param {Object} event - Event object to apply template to
+ * @param {string} templateId - Template ID to apply
+ * @returns {Object} Modified event object
+ */
+function applyTemplateToEvent_(event, templateId) {
+  var tpl = getEventTemplate_(templateId);
+
+  // Set template reference
+  event.templateId = tpl.id;
+
+  // Initialize sections if not present
+  event.sections = event.sections || {};
+
+  // Apply section defaults (only where user hasn't overridden)
+  Object.keys(tpl.sections).forEach(function(key) {
+    if (event.sections[key] == null) {
+      event.sections[key] = tpl.sections[key];
+    }
+  });
+
+  // Apply default CTAs if none set
+  if (!event.ctaLabels || !event.ctaLabels.length) {
+    event.ctaLabels = tpl.defaultCtas.slice();
+  }
+
+  // Apply other defaults
+  if (tpl.defaults) {
+    if (!event.audience && tpl.defaults.audience) {
+      event.audience = tpl.defaults.audience;
+    }
+    if (!event.notesLabel && tpl.defaults.notesLabel) {
+      event.notesLabel = tpl.defaults.notesLabel;
+    }
+    if (!event.sponsorStripLabel && tpl.defaults.sponsorStripLabel) {
+      event.sponsorStripLabel = tpl.defaults.sponsorStripLabel;
+    }
+  }
+
+  return event;
+}
+
+/**
+ * Validate that a template ID exists (MVP)
+ * @param {string} templateId - Template ID to validate
+ * @returns {boolean} True if valid
+ */
+function isValidTemplate_(templateId) {
+  return templateId && EVENT_TEMPLATES.hasOwnProperty(templateId);
+}
+
+/**
+ * Get template display name with icon (MVP)
+ * @param {string} templateId - Template ID
+ * @returns {string} Display string like "🍺 Bar / Tavern Event"
+ */
+function getTemplateDisplayName_(templateId) {
+  var tpl = getEventTemplate_(templateId);
+  return (tpl.icon || '') + ' ' + (tpl.label || 'Custom Event');
+}
+
+// ============================================================================
+// [v2+] EXPERIMENTAL - Enhanced Template System
+// ============================================================================
 
 /**
  * Get template by ID with inheritance resolution

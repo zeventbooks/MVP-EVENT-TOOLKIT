@@ -1186,6 +1186,9 @@ function verifyJWT_(token, brand) {
 // │   api_getSharedAnalytics()  → Shared analytics (SharedReport) [SharedReporting.gs]
 // │   api_getSponsorAnalytics() → Sponsor metrics (Sponsor, SharedReport)
 // │   api_getSponsorROI()       → ROI calculation (Sponsor, SharedReport)
+// │
+// │ Templates:
+// │   api_getEventTemplates()   → Available templates for brand (Admin)
 // └─────────────────────────────────────────────────────────────────────────────
 //
 // ┌─────────────────────────────────────────────────────────────────────────────
@@ -1243,6 +1246,21 @@ function api_generateToken(req) {
 function generateJWTSignature_(data, secret) {
   const signature = Utilities.computeHmacSha256Signature(data, secret);
   return Utilities.base64EncodeWebSafe(signature);
+}
+
+/**
+ * Get available event templates for a brand
+ * Admin calls this to populate template picker dropdown/tiles
+ * @tier mvp
+ */
+function api_getEventTemplates(payload, ctx) {
+  const brandId = (ctx && ctx.brandId) || (payload && payload.brandId) || 'root';
+  const cfg = getBrandTemplateConfig_(brandId);
+  const templates = getTemplatesForBrand_(brandId);
+  return Ok({
+    items: templates,
+    defaultTemplateId: cfg.defaultTemplateId
+  });
 }
 
 // === Guards / Helpers ======================================================

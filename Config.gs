@@ -207,6 +207,53 @@ const BRANDS = [
   }
 ];
 
+// ============================================================================
+// [MVP] Brand → Event Template Mappings
+// ============================================================================
+// Controls which event templates each brand can access
+// Templates are defined in TemplateService.gs (EVENT_TEMPLATES)
+
+var BRAND_TEMPLATE_CONFIG = {
+  root: {
+    templates: ['bar_night', 'rec_league', 'school', 'fundraiser', 'corporate', 'custom'],
+    defaultTemplateId: 'custom'
+  },
+  abc: {
+    templates: ['rec_league', 'fundraiser', 'corporate', 'custom'],
+    defaultTemplateId: 'rec_league'
+  },
+  cbc: {
+    templates: ['rec_league', 'fundraiser', 'custom'],
+    defaultTemplateId: 'rec_league'
+  },
+  cbl: {
+    templates: ['rec_league', 'custom'],
+    defaultTemplateId: 'rec_league'
+  }
+};
+
+/**
+ * Get template config for a brand (MVP)
+ * @param {string} brandId - Brand identifier
+ * @returns {Object} Brand template config (defaults to root if not found)
+ */
+function getBrandTemplateConfig_(brandId) {
+  return BRAND_TEMPLATE_CONFIG[brandId] || BRAND_TEMPLATE_CONFIG.root;
+}
+
+/**
+ * Get available templates for a brand (MVP)
+ * @param {string} brandId - Brand identifier
+ * @returns {Array} Array of template objects available for this brand
+ */
+function getTemplatesForBrand_(brandId) {
+  var cfg = getBrandTemplateConfig_(brandId);
+  var allTemplates = getEventTemplates_();
+  return allTemplates.filter(function(t) {
+    return cfg.templates.indexOf(t.id) !== -1;
+  });
+}
+
 // Templates - Extended event model
 const TEMPLATES = [
   {
