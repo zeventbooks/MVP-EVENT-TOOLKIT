@@ -281,6 +281,81 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       text-decoration: none;
       font-weight: 500;
     }
+    /* Bracket/Tournament styling */
+    .bracket-container {
+      overflow-x: auto;
+    }
+    .bracket-rounds {
+      display: flex;
+      gap: 24px;
+      min-width: max-content;
+      padding: 12px 0;
+    }
+    .bracket-round {
+      min-width: 200px;
+    }
+    .round-title {
+      font-size: 0.85rem;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin: 0 0 12px 0;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #e2e8f0;
+    }
+    .bracket-matches {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .bracket-match-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .match-num {
+      font-size: 0.75rem;
+      color: #94a3b8;
+      font-weight: 600;
+      min-width: 28px;
+    }
+    .bracket-match {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 12px;
+      flex: 1;
+    }
+    .match-team {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      background: white;
+      border-radius: 6px;
+      margin: 4px 0;
+    }
+    .match-team.winner {
+      background: #dcfce7;
+      border-left: 3px solid #22c55e;
+    }
+    .team-name {
+      font-weight: 500;
+      color: #1e293b;
+    }
+    .team-score {
+      font-weight: 700;
+      color: #2563eb;
+      font-size: 1.1rem;
+    }
+    .match-vs {
+      text-align: center;
+      font-size: 0.7rem;
+      color: #94a3b8;
+      text-transform: uppercase;
+      margin: 2px 0;
+    }
     /* Loading placeholder */
     .loading-placeholder {
       padding: 24px;
@@ -727,6 +802,75 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
         if (url) html += `<a href="${esc(url)}" target="_blank" rel="noopener">Visit →</a>`;
         html += '</div>';
       });
+      html += '</div>';
+      return html;
+    }
+
+    // Render bracket/tournament from sheet data
+    // Supports formats: Round, Match, Team1, Score1, Team2, Score2 -OR- Team1, Team2, Winner, Score
+    function renderBracketTable(data) {
+      if (!data || !data.rows.length) return '<p class="muted">No bracket data available.</p>';
+
+      // Detect format based on headers
+      const headers = data.headers.map(h => h.toLowerCase());
+      const hasRound = headers.some(h => h.includes('round'));
+
+      let html = '<div class="bracket-container">';
+
+      if (hasRound) {
+        // Group by round for tournament bracket view
+        const rounds = {};
+        data.rows.forEach(row => {
+          const round = row[0] || 'Round 1';
+          if (!rounds[round]) rounds[round] = [];
+          rounds[round].push(row.slice(1)); // Rest of columns are match data
+        });
+
+        html += '<div class="bracket-rounds">';
+        Object.keys(rounds).forEach(round => {
+          html += `<div class="bracket-round">`;
+          html += `<h4 class="round-title">${esc(round)}</h4>`;
+          rounds[round].forEach(match => {
+            html += renderBracketMatch(match, headers.slice(1));
+          });
+          html += '</div>';
+        });
+        html += '</div>';
+      } else {
+        // Simple match list format
+        html += '<div class="bracket-matches">';
+        data.rows.forEach((row, idx) => {
+          html += `<div class="bracket-match-row">`;
+          html += `<span class="match-num">#${idx + 1}</span>`;
+          html += renderBracketMatch(row, headers);
+          html += '</div>';
+        });
+        html += '</div>';
+      }
+
+      html += '</div>';
+      return html;
+    }
+
+    // Render a single bracket match
+    function renderBracketMatch(row, headers) {
+      // Try to identify team columns and scores
+      const team1 = row[0] || '—';
+      const team2 = row[headers.indexOf('team2') > -1 ? headers.indexOf('team2') : 2] || row[2] || '—';
+      const score1 = row[1] || '';
+      const score2 = row[3] || '';
+      const winner = row[headers.indexOf('winner') > -1 ? headers.indexOf('winner') : row.length - 1] || '';
+
+      let html = '<div class="bracket-match">';
+      html += `<div class="match-team ${winner && winner.toLowerCase() === team1.toLowerCase() ? 'winner' : ''}">`;
+      html += `<span class="team-name">${esc(team1)}</span>`;
+      if (score1) html += `<span class="team-score">${esc(score1)}</span>`;
+      html += '</div>';
+      html += '<div class="match-vs">vs</div>';
+      html += `<div class="match-team ${winner && winner.toLowerCase() === team2.toLowerCase() ? 'winner' : ''}">`;
+      html += `<span class="team-name">${esc(team2)}</span>`;
+      if (score2) html += `<span class="team-score">${esc(score2)}</span>`;
+      html += '</div>';
       html += '</div>';
       return html;
     }
@@ -1244,18 +1388,23 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
         html += '</div>';
       }
 
-      // Standings/Bracket (league templates) - supports Google Sheets BYOD
-      if (data.standingsUrl || data.bracketUrl) {
+      // Standings (league templates) - supports Google Sheets BYOD
+      if (data.standingsUrl) {
         html += '<div class="event-section">';
-        html += '<h2>Standings & Results</h2>';
-        if (data.standingsUrl) {
-          html += `<div id="standings-container" data-url="${esc(data.standingsUrl)}">
-            <div class="loading-placeholder">Loading standings...</div>
-          </div>`;
-        }
-        if (data.bracketUrl) {
-          html += `<p><a class="btn-secondary" href="${esc(data.bracketUrl)}" target="_blank" rel="noopener">🏆 View Bracket</a></p>`;
-        }
+        html += '<h2>Standings</h2>';
+        html += `<div id="standings-container" data-url="${esc(data.standingsUrl)}">
+          <div class="loading-placeholder">Loading standings...</div>
+        </div>`;
+        html += '</div>';
+      }
+
+      // Bracket/Tournament - supports Google Sheets BYOD
+      if (data.bracketUrl) {
+        html += '<div class="event-section">';
+        html += '<h2>Tournament Bracket</h2>';
+        html += `<div id="bracket-container" data-url="${esc(data.bracketUrl)}">
+          <div class="loading-placeholder">Loading bracket...</div>
+        </div>`;
         html += '</div>';
       }
 
@@ -1318,6 +1467,7 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       const containers = [
         { id: 'schedule-container', renderer: renderScheduleTable },
         { id: 'standings-container', renderer: renderStandingsTable },
+        { id: 'bracket-container', renderer: renderBracketTable },
         { id: 'vendors-container', renderer: renderVendorList }
       ];
 
