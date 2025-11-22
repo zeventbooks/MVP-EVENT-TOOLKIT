@@ -20,7 +20,55 @@
 
 ---
 
-## Quick Start
+## Quick Start: Running Tests Locally
+
+### Stage 1 (Fast Gate - Must Pass Before Deploy)
+
+```bash
+npm run test:ci:stage1
+```
+
+This runs:
+- `npm run lint` - ESLint code quality
+- `npm run test:unit` - Unit tests (~512 tests)
+- `npm run test:contract` - Contract tests (~155 tests)
+
+**If Stage 1 is red, do not merge.**
+
+### Stage 2 (E2E Browser Tests)
+
+```bash
+# Install Playwright first (one time)
+npx playwright install
+
+# Run Stage 2
+npm run test:ci:stage2
+```
+
+This runs:
+- `npm run test:api` - API integration tests
+- `npm run test:fe` - Frontend E2E (smoke + pages + flows)
+
+Requires `BASE_URL` environment variable pointing to deployed app.
+
+---
+
+## Current Live Build
+
+| Field | Value |
+|-------|-------|
+| **BUILD_ID** | Check Admin footer or `?p=status&brand=root` |
+| **Deployment URL** | https://script.google.com/macros/s/AKfycbxaTPh3FS4NHJblIcUrz4k01kWAdxsKzLNnYRf0TXe18lBditTm3hqbBoQ4ZxbGhhGuCA/exec |
+| **Custom Domain** | eventangle.com |
+
+To check current version:
+```bash
+curl "DEPLOYMENT_URL?p=status&brand=root" | jq '.value.version'
+```
+
+---
+
+## Deployment Options
 
 ### Option 1: GitHub Actions (Recommended)
 
