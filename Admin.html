@@ -769,7 +769,7 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
       };
       Object.keys(sectionMap).forEach(key => {
         const checkbox = document.getElementById(sectionMap[key]);
-        if (checkbox && sections.hasOwnProperty(key)) {
+        if (checkbox && Object.prototype.hasOwnProperty.call(sections, key)) {
           checkbox.checked = !!sections[key];
         }
       });

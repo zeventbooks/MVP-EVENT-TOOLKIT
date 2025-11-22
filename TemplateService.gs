@@ -522,7 +522,7 @@ function applyTemplateToEvent_(event, templateId) {
  * @returns {boolean} True if valid
  */
 function isValidTemplate_(templateId) {
-  return templateId && EVENT_TEMPLATES.hasOwnProperty(templateId);
+  return templateId && Object.prototype.hasOwnProperty.call(EVENT_TEMPLATES, templateId);
 }
 
 /**
