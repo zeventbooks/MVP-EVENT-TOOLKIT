@@ -352,6 +352,29 @@ window.APIClient = (function() {
   }
 
   /**
+   * Get shared report bundle for analytics dashboard
+   * Returns thin event view + aggregated metrics from ANALYTICS sheet
+   * Metrics include views, clicks, sponsor stats, and league stats
+   * @param {string} eventId - Event ID
+   * @param {Object} options - brandId, scope, ifNoneMatch
+   * @returns {Promise<Object>} SharedReportBundle with event and metrics
+   */
+  async function getSharedReportBundle(eventId, options = {}) {
+    const payload = {
+      brandId: options.brandId || defaultConfig.brandId,
+      scope: options.scope || 'events',
+      id: eventId
+    };
+
+    if (options.ifNoneMatch) {
+      payload.ifNoneMatch = options.ifNoneMatch;
+    }
+
+    const response = await request('api_getSharedReportBundle', payload);
+    return response;
+  }
+
+  /**
    * Generate form shortlink
    * @param {string} formUrl - Form URL
    * @param {Object} options - Additional options
@@ -462,6 +485,7 @@ window.APIClient = (function() {
     getDisplayBundle,
     getPosterBundle,
     getSponsorBundle,
+    getSharedReportBundle,
     generateFormShortlink,
     createFormFromTemplate,
 

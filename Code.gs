@@ -563,6 +563,11 @@ function handleRestApiGet_(e, action, brand) {
     return jsonResponse_(api_getSponsorBundle({brandId, scope, id, ifNoneMatch: etag}));
   }
 
+  if (action === 'getSharedReportBundle') {
+    if (!id) return jsonResponse_(Err(ERR.BAD_INPUT, 'Missing id parameter'));
+    return jsonResponse_(api_getSharedReportBundle({brandId, scope, id, ifNoneMatch: etag}));
+  }
+
   return jsonResponse_(Err(ERR.BAD_INPUT, `Unknown action: ${action}`));
 }
 
@@ -2866,6 +2871,180 @@ function getSponsorMetricsForEvent_(brand, eventId) {
   } catch (e) {
     // If analytics sheet doesn't exist or error, return empty metrics
     Logger.log('getSponsorMetricsForEvent_ error: ' + e.message);
+  }
+
+  return metrics;
+}
+
+/**
+ * api_getSharedReportBundle - Optimized bundle for shared analytics reports
+ * Returns thin event view + aggregated metrics from ANALYTICS sheet
+ *
+ * @param {object} payload - { brandId, scope, id, ifNoneMatch }
+ * @returns {object} { ok, value: SharedReportBundle, etag }
+ * @tier mvp
+ */
+function api_getSharedReportBundle(payload){
+  return runSafe('api_getSharedReportBundle', () => {
+    const { brandId, scope, id } = payload||{};
+
+    // Validate ID format
+    const sanitizedId = sanitizeId_(id);
+    if (!sanitizedId) return Err(ERR.BAD_INPUT, 'Invalid ID format');
+
+    const brand = findBrand_(brandId);
+    if (!brand) return Err(ERR.NOT_FOUND, 'Unknown brand');
+
+    const a = assertScopeAllowed_(brand, scope);
+    if (!a.ok) return a;
+
+    // Get event data
+    const sh = getStoreSheet_(brand, scope);
+    const r = sh.getDataRange().getValues().slice(1).find(row => row[0]===sanitizedId && row[1]===brandId);
+    if (!r) return Err(ERR.NOT_FOUND, 'Event not found');
+
+    // Hydrate event (no sponsors needed for report bundle)
+    const baseUrl = ScriptApp.getService().getUrl();
+    const event = hydrateEvent_(r, { baseUrl, hydrateSponsors: false });
+
+    // Get event metrics from ANALYTICS sheet
+    const metrics = getEventMetricsForReport_(brand, sanitizedId);
+
+    // Build thin event view per SharedReportBundle interface
+    const thinEvent = {
+      id: event.id,
+      name: event.name,
+      dateTime: event.dateTime,
+      brandId: event.brandId,
+      templateId: event.templateId
+    };
+
+    // Build bundled response matching SharedReportBundle interface
+    const value = {
+      event: thinEvent,
+      metrics: metrics
+    };
+
+    const etag = Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(value)));
+    if (payload?.ifNoneMatch === etag) return { ok:true, notModified:true, etag };
+    return _ensureOk_('api_getSharedReportBundle', SC_GET, { ok:true, etag, value });
+  });
+}
+
+/**
+ * Get aggregated event metrics for SharedReportBundle
+ * Reads from ANALYTICS sheet and aggregates by metric type
+ *
+ * All metrics are derived from logs, not stored on EventCore:
+ * - views/uniqueViews from 'view' metric
+ * - signupClicks/checkinClicks/feedbackClicks from 'click' with token
+ * - sponsor metrics from 'impression'/'click' with sponsorId
+ * - league metrics from 'click' with token (schedule/standings/bracket)
+ *
+ * @param {object} brand - Brand configuration
+ * @param {string} eventId - Event ID to filter by
+ * @returns {object} SharedReportBundle.metrics structure
+ * @private
+ */
+function getEventMetricsForReport_(brand, eventId) {
+  // Initialize metrics structure
+  const metrics = {
+    views: 0,
+    uniqueViews: 0,
+    signupClicks: 0,
+    checkinClicks: 0,
+    feedbackClicks: 0,
+    sponsor: {
+      totalImpressions: 0,
+      totalClicks: 0,
+      avgCtr: 0
+    },
+    league: {
+      scheduleClicks: 0,
+      standingsClicks: 0,
+      bracketClicks: 0
+    }
+  };
+
+  try {
+    // Get analytics sheet
+    const spreadsheetId = brand.spreadsheetId || ZEB.MASTER_SHEET_ID;
+    const ss = SpreadsheetApp.openById(spreadsheetId);
+    const analyticsSheet = ss.getSheetByName('ANALYTICS');
+
+    if (!analyticsSheet) {
+      // No analytics sheet yet - return zero metrics
+      return metrics;
+    }
+
+    const data = analyticsSheet.getDataRange().getValues().slice(1); // Skip header
+
+    // Track unique userAgents for uniqueViews
+    const uniqueUserAgents = new Set();
+
+    // Filter by eventId and aggregate metrics
+    // Columns: 0=timestamp, 1=eventId, 2=surface, 3=metric, 4=sponsorId, 5=value, 6=token, 7=userAgent
+    for (const row of data) {
+      const rowEventId = row[1];
+
+      // Skip if not for this event
+      if (rowEventId !== eventId) continue;
+
+      const metricType = row[3];
+      const sponsorId = row[4];
+      const token = row[6] || '';
+      const userAgent = row[7] || '';
+
+      // Aggregate based on metric type
+      switch (metricType) {
+        case 'view':
+        case 'pageview':
+          metrics.views++;
+          if (userAgent) uniqueUserAgents.add(userAgent);
+          break;
+
+        case 'impression':
+          if (sponsorId) {
+            metrics.sponsor.totalImpressions++;
+          }
+          break;
+
+        case 'click':
+          if (sponsorId) {
+            // Sponsor click
+            metrics.sponsor.totalClicks++;
+          } else {
+            // Non-sponsor click - check token for type
+            const tokenLower = token.toLowerCase();
+            if (tokenLower === 'signup' || tokenLower.includes('signup')) {
+              metrics.signupClicks++;
+            } else if (tokenLower === 'checkin' || tokenLower.includes('checkin')) {
+              metrics.checkinClicks++;
+            } else if (tokenLower === 'feedback' || tokenLower.includes('feedback')) {
+              metrics.feedbackClicks++;
+            } else if (tokenLower === 'schedule' || tokenLower.includes('schedule')) {
+              metrics.league.scheduleClicks++;
+            } else if (tokenLower === 'standings' || tokenLower.includes('standings')) {
+              metrics.league.standingsClicks++;
+            } else if (tokenLower === 'bracket' || tokenLower.includes('bracket')) {
+              metrics.league.bracketClicks++;
+            }
+          }
+          break;
+      }
+    }
+
+    // Calculate unique views
+    metrics.uniqueViews = uniqueUserAgents.size;
+
+    // Calculate sponsor avgCtr
+    if (metrics.sponsor.totalImpressions > 0) {
+      metrics.sponsor.avgCtr = +((metrics.sponsor.totalClicks / metrics.sponsor.totalImpressions) * 100).toFixed(2);
+    }
+
+  } catch (e) {
+    // If analytics sheet doesn't exist or error, return zero metrics
+    Logger.log('getEventMetricsForReport_ error: ' + e.message);
   }
 
   return metrics;
