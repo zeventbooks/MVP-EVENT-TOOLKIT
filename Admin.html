@@ -318,7 +318,7 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
           </div>
         </div>
 
-        <!-- Core Event Details Section -->
+        <!-- Core Event Details Section (MVP Required) -->
         <div class="subsection">
           <div class="collapsible-header" onclick="toggleSection(this)">
             <h3>Core Event Details</h3>
@@ -327,35 +327,56 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
           <div class="collapsible-content">
             <div class="form-group">
               <label>Event Name *</label>
-              <input id="name" type="text" required>
+              <input id="name" type="text" required placeholder="Enter event name">
             </div>
 
             <div class="form-row">
               <div class="form-group">
-                <label>Date *</label>
-                <input id="dateISO" type="date" required>
+                <label>Event Date *</label>
+                <input id="startDateISO" type="date" required>
               </div>
               <div class="form-group">
-                <label>Time</label>
-                <input id="timeISO" type="time">
+                <label>Venue *</label>
+                <input id="venue" type="text" required placeholder="Venue name or address">
               </div>
             </div>
 
-            <div class="form-row">
-              <div class="form-group">
-                <label>Location</label>
-                <input id="location" type="text" placeholder="Venue name or address">
-              </div>
-              <div class="form-group">
-                <label>Entity</label>
-                <input id="entity" type="text" placeholder="Organization or department">
-              </div>
+            <div class="form-group">
+              <label>Primary CTA Label</label>
+              <input id="ctaLabel" type="text" value="Sign Up" placeholder="e.g., Sign Up, Register, Join">
+              <small style="color:#64748b;">This appears on the main call-to-action button</small>
             </div>
           </div>
         </div>
 
-        <!-- Summary Section -->
+        <!-- Settings Section (MVP Required) -->
         <div class="subsection">
+          <div class="collapsible-header" onclick="toggleSection(this)">
+            <h3>Display Settings</h3>
+            <span class="collapsible-icon">▼</span>
+          </div>
+          <div class="collapsible-content">
+            <p style="color:#64748b; font-size:0.9rem; margin-bottom:12px;">Control what sections are visible on event pages</p>
+            <div class="checkbox-group">
+              <label class="checkbox-label">
+                <input type="checkbox" id="showSchedule">
+                <span>Show Schedule</span>
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" id="showStandings">
+                <span>Show Standings</span>
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" id="showBracket">
+                <span>Show Bracket</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- V2 FIELDS: Hidden but preserved in event object -->
+        <!-- Summary Section (V2 - Hidden) -->
+        <div class="subsection" id="v2SummarySection" style="display:none;">
           <div class="collapsible-header" onclick="toggleSection(this)">
             <h3>Summary</h3>
             <span class="collapsible-icon">▼</span>
@@ -372,8 +393,8 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
           </div>
         </div>
 
-        <!-- Media Section -->
-        <div class="subsection">
+        <!-- Media Section (V2 - Hidden) -->
+        <div class="subsection" id="v2MediaSection" style="display:none;">
           <div class="collapsible-header" onclick="toggleSection(this)">
             <h3>Media</h3>
             <span class="collapsible-icon">▼</span>
@@ -394,8 +415,8 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
           </div>
         </div>
 
-        <!-- Bio Section -->
-        <div class="subsection">
+        <!-- Bio Section (V2 - Hidden) -->
+        <div class="subsection" id="v2BioSection" style="display:none;">
           <div class="collapsible-header" onclick="toggleSection(this)">
             <h3>Bio</h3>
             <span class="collapsible-icon">▼</span>
@@ -412,7 +433,7 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
           </div>
         </div>
 
-        <!-- League & Broadcast Section (visible for rec_league or custom templates) -->
+        <!-- League & Broadcast Section (V2 - Hidden) -->
         <div class="subsection" id="leagueBroadcastPanel" data-template-filter="rec_league,custom">
           <div class="collapsible-header" onclick="toggleSection(this)">
             <h3>League & Broadcast</h3>
@@ -865,44 +886,106 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
     // Load templates when page loads
     document.addEventListener('DOMContentLoaded', loadTemplates);
 
+    /**
+     * Build canonical Event object from form per EVENT_CONTRACT.md v2.0
+     * This ensures Admin always produces a valid Event Contract structure
+     */
+    function buildEventFromForm() {
+      const name = document.getElementById('name').value.trim();
+      const startDateISO = document.getElementById('startDateISO').value;
+      const venue = document.getElementById('venue').value.trim();
+      const ctaLabel = document.getElementById('ctaLabel').value.trim() || 'Sign Up';
+
+      // Generate slug from name (URL-safe)
+      const slug = name.toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .substring(0, 50);
+
+      // Build canonical event structure per EVENT_CONTRACT.md v2.0
+      return {
+        // Identity (MVP Required) - id generated by server
+        slug: slug,
+        name: name,
+        startDateISO: startDateISO,
+        venue: venue,
+
+        // Links - server will fill these
+        links: {
+          publicUrl: '',
+          displayUrl: '',
+          posterUrl: '',
+          signupUrl: ''
+        },
+
+        // QR Codes - server will generate
+        qr: {
+          public: '',
+          signup: ''
+        },
+
+        // CTAs (MVP Required)
+        ctas: {
+          primary: {
+            label: ctaLabel,
+            url: ''  // Server injects signupUrl
+          },
+          secondary: null  // V2 Optional
+        },
+
+        // Schedule/Standings/Bracket (MVP Optional)
+        schedule: null,
+        standings: null,
+        bracket: null,
+
+        // Settings (MVP Required)
+        settings: {
+          showSchedule: document.getElementById('showSchedule').checked,
+          showStandings: document.getElementById('showStandings').checked,
+          showBracket: document.getElementById('showBracket').checked,
+          showSponsors: false  // V2 - always false for MVP
+        },
+
+        // V2 Optional fields - reserved with defaults
+        sponsors: null,
+        media: null,
+        externalData: null,
+        analytics: null,
+        payments: null,
+
+        // Timestamps - server will set
+        createdAtISO: '',
+        updatedAtISO: ''
+      };
+    }
+
     // Create Event
     document.getElementById('createForm').addEventListener('submit', async (e) => {
       e.preventDefault();
+
+      // Validate required fields
+      const name = document.getElementById('name').value.trim();
+      const startDateISO = document.getElementById('startDateISO').value;
+      const venue = document.getElementById('venue').value.trim();
+
+      if (!name) {
+        alert('Event Name is required');
+        return;
+      }
+      if (!startDateISO) {
+        alert('Event Date is required');
+        return;
+      }
+      if (!venue) {
+        alert('Venue is required');
+        return;
+      }
+
       overlay(true);
 
-      const data = {
-        name: document.getElementById('name').value.trim(),
-        dateISO: document.getElementById('dateISO').value,
-        // MVP: Include sections from form (template sets defaults for missing)
-        sections: getSectionsFromForm()
-        // Note: templateId is passed in the payload, not data - backend applies template defaults
-      };
-
-      // Optional fields (core + template-specific)
-      const optional = [
-        // Core fields
-        'timeISO', 'location', 'entity', 'summary', 'summaryLink',
-        'imageUrl', 'videoUrl', 'galleryUrls', 'bio', 'bioLink',
-        // Template-specific fields
-        'ticketUrl', 'donationUrl', 'albumUrl', 'registryUrl', 'vendorListUrl',
-        // League & Broadcast fields (ExternalLeagueData)
-        'scheduleUrl', 'standingsUrl', 'bracketUrl',
-        'statsUrl', 'scoreboardUrl', 'streamUrl',
-        'providerName', 'providerLeagueId'
-      ];
-
-      optional.forEach(field => {
-        const elem = document.getElementById(field);
-        const val = elem ? elem.value.trim() : '';
-        if (val) data[field] = val;
-      });
-
-      // Numeric fields (fundraising)
-      ['goalAmount', 'raisedAmount'].forEach(field => {
-        const elem = document.getElementById(field);
-        const val = elem ? parseFloat(elem.value) : NaN;
-        if (!isNaN(val) && val > 0) data[field] = val;
-      });
+      // Build canonical event object
+      const eventData = buildEventFromForm();
 
       // Get the selected event template (bar_night, rec_league, etc.)
       const selectedTemplateId = document.getElementById('templateId').value || 'custom';
@@ -910,10 +993,10 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
       const res = await NU.rpc('api_create', {
         brandId: BRAND,
         scope: SCOPE,
-        templateId: selectedTemplateId, // Event template from picker (bar_night, rec_league, etc.)
+        templateId: selectedTemplateId,
         adminKey: getAdminKey(),
         idemKey: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        data
+        data: eventData
       });
 
       overlay(false);
@@ -927,20 +1010,28 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
       showEventCard(res.value);
     });
 
+    /**
+     * Show event card with canonical event data per EVENT_CONTRACT.md v2.0
+     */
     function showEventCard(event) {
-      const { publicUrl, posterUrl, displayUrl, reportUrl } = event.links;
-      const d = event.data || {};
+      // EVENT_CONTRACT.md v2.0: Links at top level
+      const links = event.links || {};
+      const qr = event.qr || {};
+      const ctas = event.ctas || {};
+      const settings = event.settings || {};
 
-      setLink('lnkPublic', publicUrl);
-      setLink('lnkDisplay', displayUrl);
-      setLink('lnkPoster', posterUrl);
-      setLink('lnkReport', reportUrl);
+      // Set links
+      setLink('lnkPublic', links.publicUrl);
+      setLink('lnkDisplay', links.displayUrl);
+      setLink('lnkPoster', links.posterUrl);
+      if (links.signupUrl) setLink('lnkSignup', links.signupUrl);
 
       document.getElementById('eventCard').style.display = '';
       document.getElementById('dashboardCard').style.display = '';
 
-      // Determine event phase based on date
-      const eventDate = new Date(d.dateISO || '');
+      // Determine event phase based on date (v2.0: startDateISO)
+      const dateStr = event.startDateISO || '';
+      const eventDate = new Date(dateStr + 'T00:00:00');
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const eventDay = new Date(eventDate);
@@ -949,12 +1040,14 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
       let phase = 'pre-event';
       let phaseLabel = 'Pre-Event Preparation';
 
-      if (eventDay.getTime() === today.getTime()) {
-        phase = 'event-day';
-        phaseLabel = 'Event Day - Live';
-      } else if (eventDay < today) {
-        phase = 'post-event';
-        phaseLabel = 'Post-Event Analytics';
+      if (!isNaN(eventDay.getTime())) {
+        if (eventDay.getTime() === today.getTime()) {
+          phase = 'event-day';
+          phaseLabel = 'Event Day - Live';
+        } else if (eventDay < today) {
+          phase = 'post-event';
+          phaseLabel = 'Post-Event Analytics';
+        }
       }
 
       // Update phase indicator
@@ -966,17 +1059,11 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
         </div>
       `;
 
-      // Calculate mock metrics (in real implementation, fetch from analytics)
-      const sponsors = d.sponsors || [];
-      const mockViews = Math.floor(Math.random() * 500) + 100;
-      const mockImpressions = sponsors.length * Math.floor(Math.random() * 1000) + 200;
-      const mockCTR = ((Math.random() * 5) + 1).toFixed(1) + '%';
-      const mockEngagement = Math.floor(Math.random() * 100);
-
-      document.getElementById('statViews').textContent = mockViews;
-      document.getElementById('statImpressions').textContent = mockImpressions.toLocaleString();
-      document.getElementById('statCTR').textContent = mockCTR;
-      document.getElementById('statEngagement').textContent = mockEngagement + '/100';
+      // Stats (placeholder - in MVP these are not tracked)
+      document.getElementById('statViews').textContent = '—';
+      document.getElementById('statImpressions').textContent = '—';
+      document.getElementById('statCTR').textContent = '—';
+      document.getElementById('statEngagement').textContent = '—';
 
       // Update progress bars based on phase
       const preEventProg = phase === 'pre-event' ? 50 : 100;
@@ -987,61 +1074,88 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
       document.getElementById('eventDayProgress').style.width = eventDayProg + '%';
       document.getElementById('postEventProgress').style.width = postEventProg + '%';
 
-      // Event info
+      // Format date for display
+      let dateDisplay = dateStr;
+      if (dateStr && !isNaN(eventDate.getTime())) {
+        dateDisplay = eventDate.toLocaleDateString('en-US', {
+          weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+        });
+      }
+
+      // Event info - using canonical v2.0 fields
       let info = `
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px;">
           <div>
             <p style="color: #64748b; font-size: 13px; margin-bottom: 4px;">EVENT NAME</p>
-            <p style="font-weight: 600; font-size: 16px;">${NU.esc(d.name || '')}</p>
+            <p style="font-weight: 600; font-size: 16px;">${NU.esc(event.name || '')}</p>
           </div>
           <div>
-            <p style="color: #64748b; font-size: 13px; margin-bottom: 4px;">DATE & TIME</p>
-            <p style="font-weight: 600; font-size: 16px;">${NU.esc(d.dateISO || '')}${d.timeISO ? ' at ' + NU.esc(d.timeISO) : ''}</p>
+            <p style="color: #64748b; font-size: 13px; margin-bottom: 4px;">DATE</p>
+            <p style="font-weight: 600; font-size: 16px;">${NU.esc(dateDisplay)}</p>
           </div>
+          <div>
+            <p style="color: #64748b; font-size: 13px; margin-bottom: 4px;">VENUE</p>
+            <p style="font-weight: 600; font-size: 16px;">${NU.esc(event.venue || '')}</p>
+          </div>
+          <div>
+            <p style="color: #64748b; font-size: 13px; margin-bottom: 4px;">PRIMARY CTA</p>
+            <p style="font-weight: 600; font-size: 16px;">${NU.esc(ctas.primary?.label || 'Sign Up')}</p>
+          </div>
+        </div>
       `;
 
-      if (d.location) {
+      // Settings display
+      const enabledSettings = [];
+      if (settings.showSchedule) enabledSettings.push('Schedule');
+      if (settings.showStandings) enabledSettings.push('Standings');
+      if (settings.showBracket) enabledSettings.push('Bracket');
+
+      if (enabledSettings.length > 0) {
         info += `
-          <div>
-            <p style="color: #64748b; font-size: 13px; margin-bottom: 4px;">LOCATION</p>
-            <p style="font-weight: 600; font-size: 16px;">${NU.esc(d.location)}</p>
+          <div style="margin-top: 16px;">
+            <p style="color: #64748b; font-size: 13px; margin-bottom: 4px;">ENABLED SECTIONS</p>
+            <p style="font-weight: 600; font-size: 16px;">${enabledSettings.join(', ')}</p>
           </div>
         `;
       }
 
-      if (d.entity) {
-        info += `
-          <div>
-            <p style="color: #64748b; font-size: 13px; margin-bottom: 4px;">ORGANIZATION</p>
-            <p style="font-weight: 600; font-size: 16px;">${NU.esc(d.entity)}</p>
-          </div>
-        `;
-      }
-
-      // Show template type if set
-      if (d.templateId) {
-        const tpl = availableTemplates.find(t => t.id === d.templateId);
-        const tplLabel = tpl ? `${tpl.icon || ''} ${tpl.label || d.templateId}` : d.templateId;
-        info += `
-          <div>
-            <p style="color: #64748b; font-size: 13px; margin-bottom: 4px;">TEMPLATE</p>
-            <p style="font-weight: 600; font-size: 16px;">${NU.esc(tplLabel)}</p>
-          </div>
-        `;
-      }
-
-      info += `</div>`;
-
-      if (d.summary) {
+      // QR Codes preview
+      if (qr.public || qr.signup) {
         info += `
           <div style="margin-top: 16px; padding: 16px; background: #f8fafc; border-radius: 8px;">
-            <p style="color: #64748b; font-size: 13px; margin-bottom: 4px;">SUMMARY</p>
-            <p style="color: #1e293b; line-height: 1.6;">${NU.esc(d.summary)}</p>
+            <p style="color: #64748b; font-size: 13px; margin-bottom: 12px;">QR CODES</p>
+            <div style="display: flex; gap: 24px; flex-wrap: wrap;">
+              ${qr.public ? `
+                <div style="text-align: center;">
+                  <img src="${qr.public}" alt="Public QR" style="width: 100px; height: 100px; border: 1px solid #e2e8f0; border-radius: 8px;">
+                  <p style="font-size: 12px; color: #64748b; margin-top: 4px;">Event Page</p>
+                </div>
+              ` : ''}
+              ${qr.signup ? `
+                <div style="text-align: center;">
+                  <img src="${qr.signup}" alt="Signup QR" style="width: 100px; height: 100px; border: 1px solid #e2e8f0; border-radius: 8px;">
+                  <p style="font-size: 12px; color: #64748b; margin-top: 4px;">Sign Up</p>
+                </div>
+              ` : ''}
+            </div>
           </div>
         `;
       }
 
-      info += `<p style="margin-top: 16px;"><strong>Event ID:</strong> <code>${event.id}</code></p>`;
+      // Links summary
+      info += `
+        <div style="margin-top: 16px; padding: 16px; background: #f0f9ff; border-radius: 8px; border: 1px solid #bae6fd;">
+          <p style="color: #0369a1; font-size: 13px; margin-bottom: 8px; font-weight: 600;">EVENT LINKS</p>
+          <div style="display: grid; gap: 8px; font-size: 13px;">
+            <div><strong>Public:</strong> <a href="${NU.esc(links.publicUrl || '')}" target="_blank" style="color: #2563eb;">${NU.esc(links.publicUrl || '')}</a></div>
+            <div><strong>Display:</strong> <a href="${NU.esc(links.displayUrl || '')}" target="_blank" style="color: #2563eb;">${NU.esc(links.displayUrl || '')}</a></div>
+            <div><strong>Poster:</strong> <a href="${NU.esc(links.posterUrl || '')}" target="_blank" style="color: #2563eb;">${NU.esc(links.posterUrl || '')}</a></div>
+            ${links.signupUrl ? `<div><strong>Sign Up:</strong> <a href="${NU.esc(links.signupUrl)}" target="_blank" style="color: #2563eb;">${NU.esc(links.signupUrl)}</a></div>` : ''}
+          </div>
+        </div>
+      `;
+
+      info += `<p style="margin-top: 16px;"><strong>Event ID:</strong> <code>${event.id}</code> &nbsp; <strong>Slug:</strong> <code>${event.slug || ''}</code></p>`;
 
       document.getElementById('eventInfo').innerHTML = info;
     }

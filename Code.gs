@@ -3178,7 +3178,7 @@ function getEventMetricsForReport_(brand, eventId) {
 
 /**
  * Create new event
- * Applies template defaults per EVENT_CONTRACT.md
+ * Builds canonical event per EVENT_CONTRACT.md v2.0
  * @tier mvp
  */
 function api_create(payload){
@@ -3189,78 +3189,40 @@ function api_create(payload){
     const g=gate_(brandId, adminKey); if(!g.ok) return g;
     const a=assertScopeAllowed_(findBrand_(brandId), scope); if(!a.ok) return a;
 
-    // Validate template exists in EVENT_TEMPLATES (TemplateService)
-    if (!isValidTemplate_(templateId)) {
-      return Err(ERR.BAD_INPUT, `Unknown event template: ${templateId}`);
-    }
+    // === EVENT_CONTRACT.md v2.0: Validate MVP Required Fields ===
+    const name = sanitizeInput_(String(data?.name || '').trim());
+    const startDateISO = String(data?.startDateISO || data?.dateISO || '').trim();
+    const venue = sanitizeInput_(String(data?.venue || data?.location || '').trim());
 
-    // Also validate against Config.gs TEMPLATES for field schema
-    const tpl = findTemplate_('event'); // Use 'event' schema for field validation
-    if(!tpl) return Err(ERR.BAD_INPUT,'Event template schema not found');
+    if (!name) return Err(ERR.BAD_INPUT, 'Missing required field: name');
+    if (!startDateISO) return Err(ERR.BAD_INPUT, 'Missing required field: startDateISO');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(startDateISO)) return Err(ERR.BAD_INPUT, 'Invalid date format: startDateISO must be YYYY-MM-DD');
+    if (!venue) return Err(ERR.BAD_INPUT, 'Missing required field: venue');
 
-    // Validate required + simple types
-    for (const f of tpl.fields){
-      const v = data?.[f.id];
-      if (f.required && (v===undefined || v==='')) return Err(ERR.BAD_INPUT,`Missing field: ${f.id}`);
-      if (v!=null && f.type==='url' && !isUrl(v)) return Err(ERR.BAD_INPUT,`Invalid URL: ${f.id}`);
-    }
-
-    // Idempotency (10m) - Fixed: Bug #38 - Add LockService for race condition
+    // Idempotency check
     if (idemKey){
-      // Validate idemKey format
       if (!/^[a-zA-Z0-9-]{1,128}$/.test(idemKey)) {
         return Err(ERR.BAD_INPUT, 'Invalid idempotency key format');
       }
-
-      const lock = LockService.getScriptLock();
-      try {
-        lock.waitLock(5000); // Wait up to 5 seconds
-
-        const c=CacheService.getScriptCache(), k=`idem:${brandId}:${scope}:${idemKey}`;
-        if (c.get(k)) {
-          lock.releaseLock();
-          return Err(ERR.BAD_INPUT,'Duplicate create');
-        }
-        c.put(k, JSON.stringify({ timestamp: Date.now(), status: 'processing' }), 86400); // 24 hours
-
-      } finally {
-        lock.releaseLock();
-      }
+      const c=CacheService.getScriptCache(), k=`idem:${brandId}:${scope}:${idemKey}`;
+      if (c.get(k)) return Err(ERR.BAD_INPUT,'Duplicate create');
+      c.put(k, '1', 600);
     }
 
-    // Sanitize data inputs
-    const sanitizedData = {};
-    for (const f of tpl.fields) {
-      const val = data?.[f.id];
-      if (val !== undefined && val !== null) {
-        if (f.type === 'url') {
-          sanitizedData[f.id] = String(val);
-        } else if (f.type === 'json') {
-          // JSON fields (sections, ctaLabels, externalData) - pass through if object
-          sanitizedData[f.id] = typeof val === 'object' ? val : safeJSONParse_(val, null);
-        } else {
-          sanitizedData[f.id] = sanitizeInput_(String(val));
-        }
-      }
-    }
-
-    // === Apply template defaults per EVENT_CONTRACT.md ===
-    // This sets sections, ctaLabels, audience, status defaults
-    const eventWithDefaults = applyTemplateToEvent_(sanitizedData, templateId);
-
-    // Write row with collision-safe slug - Fixed: Bug #12 - Add LockService
-    const brand= findBrand_(brandId);
+    // Generate ID and prepare storage
+    const brand = findBrand_(brandId);
     const sh = getStoreSheet_(brand, scope);
     const id = Utilities.getUuid();
+    const now = new Date().toISOString();
+    const baseUrl = ScriptApp.getService().getUrl();
 
-    // Acquire lock for read-modify-write operation
+    // Build slug with collision detection under lock
     const lock = LockService.getScriptLock();
+    let slug;
     try {
-      lock.waitLock(10000); // Wait up to 10 seconds
+      lock.waitLock(10000);
 
-      let slug = String((eventWithDefaults?.name || id)).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
-
-      // Handle slug collisions - INSIDE lock
+      slug = (data?.slug || name).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'').substring(0, 50);
       const existingSlugs = sh.getDataRange().getValues().slice(1).map(r => r[5]);
       let counter = 2;
       let originalSlug = slug;
@@ -3269,22 +3231,90 @@ function api_create(payload){
         counter++;
       }
 
-      // Store with templateId from the applied template
-      sh.appendRow([id, brandId, eventWithDefaults.templateId, JSON.stringify(eventWithDefaults), new Date().toISOString(), slug]);
+      // === Build canonical event per EVENT_CONTRACT.md v2.0 ===
+      const signupUrl = data?.links?.signupUrl || data?.signupUrl || '';
+
+      const links = {
+        publicUrl: `${baseUrl}?page=events&brand=${brandId}&id=${id}`,
+        displayUrl: `${baseUrl}?page=display&brand=${brandId}&id=${id}&tv=1`,
+        posterUrl: `${baseUrl}?page=poster&brand=${brandId}&id=${id}`,
+        signupUrl: signupUrl,
+        sharedReportUrl: null
+      };
+
+      // Generate QR codes
+      const qr = {
+        public: generateQRDataUri_(links.publicUrl),
+        signup: signupUrl ? generateQRDataUri_(signupUrl) : generateQRDataUri_(links.publicUrl)
+      };
+
+      // Build CTA (use provided or default)
+      const ctaLabel = sanitizeInput_(String(data?.ctas?.primary?.label || 'Sign Up').trim());
+      const ctas = {
+        primary: {
+          label: ctaLabel,
+          url: signupUrl || links.publicUrl
+        },
+        secondary: data?.ctas?.secondary || null
+      };
+
+      // Build settings (MVP Required)
+      const settings = {
+        showSchedule: !!data?.settings?.showSchedule,
+        showStandings: !!data?.settings?.showStandings,
+        showBracket: !!data?.settings?.showBracket,
+        showSponsors: !!data?.settings?.showSponsors
+      };
+
+      // Build complete canonical event object for storage
+      const canonicalEvent = {
+        name: name,
+        startDateISO: startDateISO,
+        venue: venue,
+        ctas: ctas,
+        settings: settings,
+        schedule: data?.schedule || null,
+        standings: data?.standings || null,
+        bracket: data?.bracket || null,
+        sponsors: data?.sponsors || null,
+        media: data?.media || null,
+        externalData: data?.externalData || null,
+        analytics: data?.analytics || null,
+        payments: data?.payments || null,
+        updatedAtISO: now
+      };
+
+      // Store event
+      sh.appendRow([id, brandId, templateId || 'custom', JSON.stringify(canonicalEvent), now, slug]);
+
+      diag_('info','api_create','created',{id,brandId,scope,templateId});
+
+      // Return full hydrated event per EVENT_CONTRACT.md v2.0
+      return Ok({
+        id: id,
+        slug: slug,
+        name: name,
+        startDateISO: startDateISO,
+        venue: venue,
+        links: links,
+        qr: qr,
+        ctas: ctas,
+        settings: settings,
+        schedule: canonicalEvent.schedule,
+        standings: canonicalEvent.standings,
+        bracket: canonicalEvent.bracket,
+        sponsors: canonicalEvent.sponsors,
+        media: canonicalEvent.media,
+        externalData: canonicalEvent.externalData,
+        analytics: canonicalEvent.analytics,
+        payments: canonicalEvent.payments,
+        createdAtISO: now,
+        updatedAtISO: now
+      });
 
     } finally {
       lock.releaseLock();
     }
-
-    const base = ScriptApp.getService().getUrl();
-    const links = {
-      publicUrl: `${base}?page=events&brand=${brandId}&id=${id}`,
-      posterUrl: `${base}?page=poster&brand=${brandId}&id=${id}`,
-      displayUrl: `${base}?page=display&brand=${brandId}&id=${id}&tv=1`,
-      reportUrl: `${base}?page=report&brand=${brandId}&id=${id}`
-    };
-    diag_('info','api_create','created',{id,brandId,scope,templateId});
-    return Ok({ id, links });
   });
 }
 
