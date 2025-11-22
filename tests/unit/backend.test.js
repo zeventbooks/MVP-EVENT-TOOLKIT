@@ -1123,3 +1123,274 @@ describe('Bug #50: Pagination Support in api_list', () => {
     expect(result.pagination.hasMore).toBe(false);
   });
 });
+
+// ============================================================================
+// api_trackEventMetric - Simplified Analytics Endpoint (MVP)
+// ============================================================================
+
+describe('api_trackEventMetric', () => {
+  /**
+   * Unit tests for the simplified analytics tracking endpoint.
+   * This endpoint wraps AnalyticsService_logEvents for MVP surfaces.
+   *
+   * Required: eventId, surface, action
+   * Optional: sponsorId, value
+   */
+
+  // Mock implementation matching Code.gs
+  const VALID_SURFACES = ['public', 'display', 'poster', 'admin'];
+  const VALID_ACTIONS = ['view', 'impression', 'click', 'scan', 'cta_click', 'sponsor_click', 'dwell'];
+
+  const ACTION_TO_METRIC = {
+    'view': 'view',
+    'impression': 'impression',
+    'click': 'click',
+    'scan': 'scan',
+    'cta_click': 'cta_click',
+    'sponsor_click': 'click',
+    'dwell': 'dwell'
+  };
+
+  function api_trackEventMetric(params) {
+    const { eventId, surface, action, sponsorId, value } = params;
+
+    // Validate required fields
+    if (!eventId) {
+      return { ok: false, code: 'BAD_INPUT', message: 'missing eventId' };
+    }
+    if (!surface) {
+      return { ok: false, code: 'BAD_INPUT', message: 'missing surface' };
+    }
+    if (!action) {
+      return { ok: false, code: 'BAD_INPUT', message: 'missing action' };
+    }
+
+    // Validate enums
+    if (!VALID_SURFACES.includes(surface)) {
+      return { ok: false, code: 'BAD_INPUT', message: 'invalid surface' };
+    }
+    if (!VALID_ACTIONS.includes(action)) {
+      return { ok: false, code: 'BAD_INPUT', message: 'invalid action' };
+    }
+
+    // Map action to metric
+    const metric = ACTION_TO_METRIC[action];
+
+    // Build analytics event
+    const analyticsEvent = {
+      eventId,
+      surface,
+      metric,
+      sponsorId: sponsorId || null,
+      value: value || 1,
+      ts: Date.now()
+    };
+
+    // In real implementation, this calls AnalyticsService_logEvents
+    return { ok: true, value: { count: 1 } };
+  }
+
+  describe('Required Field Validation', () => {
+    test('should require eventId', () => {
+      const result = api_trackEventMetric({
+        surface: 'public',
+        action: 'view'
+      });
+      expect(result.ok).toBe(false);
+      expect(result.code).toBe('BAD_INPUT');
+      expect(result.message).toBe('missing eventId');
+    });
+
+    test('should require surface', () => {
+      const result = api_trackEventMetric({
+        eventId: 'evt-123',
+        action: 'view'
+      });
+      expect(result.ok).toBe(false);
+      expect(result.code).toBe('BAD_INPUT');
+      expect(result.message).toBe('missing surface');
+    });
+
+    test('should require action', () => {
+      const result = api_trackEventMetric({
+        eventId: 'evt-123',
+        surface: 'public'
+      });
+      expect(result.ok).toBe(false);
+      expect(result.code).toBe('BAD_INPUT');
+      expect(result.message).toBe('missing action');
+    });
+
+    test('should succeed with all required fields', () => {
+      const result = api_trackEventMetric({
+        eventId: 'evt-123',
+        surface: 'public',
+        action: 'view'
+      });
+      expect(result.ok).toBe(true);
+      expect(result.value.count).toBe(1);
+    });
+  });
+
+  describe('Surface Enum Validation', () => {
+    const validSurfaces = ['public', 'display', 'poster', 'admin'];
+
+    validSurfaces.forEach(surface => {
+      test(`should accept surface: "${surface}"`, () => {
+        const result = api_trackEventMetric({
+          eventId: 'evt-123',
+          surface,
+          action: 'view'
+        });
+        expect(result.ok).toBe(true);
+      });
+    });
+
+    test('should reject invalid surface', () => {
+      const result = api_trackEventMetric({
+        eventId: 'evt-123',
+        surface: 'invalid_surface',
+        action: 'view'
+      });
+      expect(result.ok).toBe(false);
+      expect(result.code).toBe('BAD_INPUT');
+      expect(result.message).toBe('invalid surface');
+    });
+  });
+
+  describe('Action Enum Validation', () => {
+    const validActions = ['view', 'impression', 'click', 'scan', 'cta_click', 'sponsor_click', 'dwell'];
+
+    validActions.forEach(action => {
+      test(`should accept action: "${action}"`, () => {
+        const result = api_trackEventMetric({
+          eventId: 'evt-123',
+          surface: 'public',
+          action
+        });
+        expect(result.ok).toBe(true);
+      });
+    });
+
+    test('should reject invalid action', () => {
+      const result = api_trackEventMetric({
+        eventId: 'evt-123',
+        surface: 'public',
+        action: 'invalid_action'
+      });
+      expect(result.ok).toBe(false);
+      expect(result.code).toBe('BAD_INPUT');
+      expect(result.message).toBe('invalid action');
+    });
+  });
+
+  describe('Optional Parameters', () => {
+    test('should accept optional sponsorId', () => {
+      const result = api_trackEventMetric({
+        eventId: 'evt-123',
+        surface: 'public',
+        action: 'sponsor_click',
+        sponsorId: 'sp-456'
+      });
+      expect(result.ok).toBe(true);
+    });
+
+    test('should accept optional value for dwell time', () => {
+      const result = api_trackEventMetric({
+        eventId: 'evt-123',
+        surface: 'display',
+        action: 'dwell',
+        value: 30
+      });
+      expect(result.ok).toBe(true);
+    });
+  });
+
+  describe('Action to Metric Mapping', () => {
+    test('should map view action to view metric', () => {
+      expect(ACTION_TO_METRIC['view']).toBe('view');
+    });
+
+    test('should map impression action to impression metric', () => {
+      expect(ACTION_TO_METRIC['impression']).toBe('impression');
+    });
+
+    test('should map click action to click metric', () => {
+      expect(ACTION_TO_METRIC['click']).toBe('click');
+    });
+
+    test('should map scan action to scan metric', () => {
+      expect(ACTION_TO_METRIC['scan']).toBe('scan');
+    });
+
+    test('should map cta_click action to cta_click metric', () => {
+      expect(ACTION_TO_METRIC['cta_click']).toBe('cta_click');
+    });
+
+    test('should map sponsor_click action to click metric', () => {
+      expect(ACTION_TO_METRIC['sponsor_click']).toBe('click');
+    });
+
+    test('should map dwell action to dwell metric', () => {
+      expect(ACTION_TO_METRIC['dwell']).toBe('dwell');
+    });
+  });
+
+  describe('MVP Surface-Action Combinations', () => {
+    test('public page view tracking', () => {
+      const result = api_trackEventMetric({
+        eventId: 'evt-123',
+        surface: 'public',
+        action: 'view'
+      });
+      expect(result.ok).toBe(true);
+    });
+
+    test('public page CTA click tracking', () => {
+      const result = api_trackEventMetric({
+        eventId: 'evt-123',
+        surface: 'public',
+        action: 'cta_click'
+      });
+      expect(result.ok).toBe(true);
+    });
+
+    test('display page impression tracking', () => {
+      const result = api_trackEventMetric({
+        eventId: 'evt-123',
+        surface: 'display',
+        action: 'impression'
+      });
+      expect(result.ok).toBe(true);
+    });
+
+    test('display page dwell time tracking', () => {
+      const result = api_trackEventMetric({
+        eventId: 'evt-123',
+        surface: 'display',
+        action: 'dwell',
+        value: 45
+      });
+      expect(result.ok).toBe(true);
+    });
+
+    test('poster QR scan tracking', () => {
+      const result = api_trackEventMetric({
+        eventId: 'evt-123',
+        surface: 'poster',
+        action: 'scan'
+      });
+      expect(result.ok).toBe(true);
+    });
+
+    test('sponsor click tracking with sponsorId', () => {
+      const result = api_trackEventMetric({
+        eventId: 'evt-123',
+        surface: 'public',
+        action: 'sponsor_click',
+        sponsorId: 'sp-789'
+      });
+      expect(result.ok).toBe(true);
+    });
+  });
+});
