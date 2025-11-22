@@ -59,7 +59,7 @@ const validateErrorEnvelope = (response, expectedCode = null) => {
 };
 
 /**
- * Validates event object structure
+ * Validates event object structure (legacy format)
  *
  * @param {Object} event - Event object
  */
@@ -70,6 +70,69 @@ const validateEventStructure = (event) => {
   expect(event).toHaveProperty('data');
   expect(event).toHaveProperty('createdAt');
   expect(event).toHaveProperty('slug');
+};
+
+/**
+ * Validates EVENT_CONTRACT.md v1.0 canonical event shape
+ *
+ * @param {Object} event - Event object in canonical format
+ */
+const validateEventContractV1 = (event) => {
+  // Required envelope fields
+  expect(event).toHaveProperty('id');
+  expect(event).toHaveProperty('brandId');
+  expect(event).toHaveProperty('templateId');
+  expect(event).toHaveProperty('name');
+  expect(event).toHaveProperty('status');
+  expect(event).toHaveProperty('createdAt');
+  expect(event).toHaveProperty('slug');
+  expect(event).toHaveProperty('links');
+
+  // Validate status is one of valid values
+  expect(['draft', 'published', 'cancelled', 'completed']).toContain(event.status);
+
+  // Validate links
+  expect(event.links).toHaveProperty('publicUrl');
+  expect(event.links).toHaveProperty('posterUrl');
+  expect(event.links).toHaveProperty('displayUrl');
+  expect(event.links).toHaveProperty('reportUrl');
+};
+
+/**
+ * Validates SectionConfig format per EVENT_CONTRACT.md
+ *
+ * @param {Object} section - Section config object
+ */
+const validateSectionConfig = (section) => {
+  expect(section).toHaveProperty('enabled');
+  expect(section).toHaveProperty('title');
+  expect(section).toHaveProperty('content');
+  expect(typeof section.enabled).toBe('boolean');
+};
+
+/**
+ * Validates CTALabel format per EVENT_CONTRACT.md
+ *
+ * @param {Object} cta - CTA label object
+ */
+const validateCTALabel = (cta) => {
+  expect(cta).toHaveProperty('key');
+  expect(cta).toHaveProperty('label');
+  expect(cta).toHaveProperty('url');
+  expect(typeof cta.key).toBe('string');
+  expect(typeof cta.label).toBe('string');
+};
+
+/**
+ * Validates Sponsor format (hydrated) per EVENT_CONTRACT.md
+ *
+ * @param {Object} sponsor - Sponsor object
+ */
+const validateSponsor = (sponsor) => {
+  expect(sponsor).toHaveProperty('id');
+  expect(sponsor).toHaveProperty('name');
+  expect(typeof sponsor.id).toBe('string');
+  expect(typeof sponsor.name).toBe('string');
 };
 
 /**
@@ -265,10 +328,16 @@ module.exports = {
   validateSuccessEnvelope,
   validateErrorEnvelope,
 
-  // Structure validation
+  // Structure validation (legacy)
   validateEventStructure,
   validateEventLinks,
   validateAnalyticsStructure,
+
+  // EVENT_CONTRACT.md v1.0 validation
+  validateEventContractV1,
+  validateSectionConfig,
+  validateCTALabel,
+  validateSponsor,
 
   // Error codes
   ERROR_CODES,

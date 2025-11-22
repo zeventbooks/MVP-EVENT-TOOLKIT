@@ -1959,6 +1959,168 @@ function api_getConfig(arg){
   });
 }
 
+// === Event Contract Hydration ================================================
+// Transforms raw storage data into canonical Event shape per EVENT_CONTRACT.md
+
+/**
+ * Default values for event fields per EVENT_CONTRACT.md
+ * @private
+ */
+const EVENT_DEFAULTS_ = {
+  status: 'draft',
+  dateTime: null,
+  location: null,
+  venueName: null,
+  summary: null,
+  notes: null,
+  audience: null,
+  sections: {
+    video: null,
+    map: null,
+    schedule: null,
+    sponsors: null,
+    notes: null,
+    gallery: null
+  },
+  ctaLabels: [],
+  externalData: {
+    scheduleUrl: null,
+    standingsUrl: null,
+    bracketUrl: null
+  },
+  videoUrl: null,
+  mapEmbedUrl: null,
+  signupUrl: null,
+  checkinUrl: null,
+  feedbackUrl: null,
+  sponsors: []
+};
+
+/**
+ * Hydrate raw event row into canonical Event shape
+ * @param {Array} row - Raw spreadsheet row [id, brandId, templateId, data, createdAt, slug]
+ * @param {Object} options - { baseUrl, hydrateSponors: boolean }
+ * @returns {Object} Canonical Event object per EVENT_CONTRACT.md
+ * @private
+ */
+function hydrateEvent_(row, options = {}) {
+  const [id, brandId, templateId, dataJson, createdAt, slug] = row;
+  const data = safeJSONParse_(dataJson, {});
+  const baseUrl = options.baseUrl || ScriptApp.getService().getUrl();
+
+  // Combine dateISO + timeISO into single dateTime
+  let dateTime = null;
+  if (data.dateISO) {
+    dateTime = data.timeISO
+      ? `${data.dateISO}T${data.timeISO}:00`
+      : data.dateISO;
+  }
+
+  // Hydrate sponsors from IDs if requested
+  let sponsors = [];
+  if (options.hydrateSponsors && data.sponsorIds) {
+    sponsors = hydrateSponsorIds_(brandId, data.sponsorIds);
+  } else if (Array.isArray(data.sponsors)) {
+    sponsors = data.sponsors;
+  }
+
+  // Build canonical event shape
+  return {
+    // Envelope
+    id: id,
+    brandId: brandId,
+    templateId: templateId,
+
+    // Core Identity
+    name: data.name || '',
+    status: data.status || EVENT_DEFAULTS_.status,
+    dateTime: dateTime,
+    location: data.location || EVENT_DEFAULTS_.location,
+    venueName: data.venueName || EVENT_DEFAULTS_.venueName,
+
+    // Content
+    summary: data.summary || EVENT_DEFAULTS_.summary,
+    notes: data.notes || EVENT_DEFAULTS_.notes,
+    audience: data.audience || EVENT_DEFAULTS_.audience,
+
+    // Sections
+    sections: data.sections || EVENT_DEFAULTS_.sections,
+
+    // CTA Labels
+    ctaLabels: Array.isArray(data.ctaLabels) ? data.ctaLabels : EVENT_DEFAULTS_.ctaLabels,
+
+    // External Data
+    externalData: {
+      scheduleUrl: data.externalData?.scheduleUrl || data.scheduleUrl || EVENT_DEFAULTS_.externalData.scheduleUrl,
+      standingsUrl: data.externalData?.standingsUrl || data.standingsUrl || EVENT_DEFAULTS_.externalData.standingsUrl,
+      bracketUrl: data.externalData?.bracketUrl || data.bracketUrl || EVENT_DEFAULTS_.externalData.bracketUrl
+    },
+
+    // Media URLs
+    videoUrl: data.videoUrl || EVENT_DEFAULTS_.videoUrl,
+    mapEmbedUrl: data.mapEmbedUrl || EVENT_DEFAULTS_.mapEmbedUrl,
+
+    // Action URLs
+    signupUrl: data.signupUrl || EVENT_DEFAULTS_.signupUrl,
+    checkinUrl: data.checkinUrl || EVENT_DEFAULTS_.checkinUrl,
+    feedbackUrl: data.surveyUrl || data.feedbackUrl || EVENT_DEFAULTS_.feedbackUrl, // backward compat: surveyUrl → feedbackUrl
+
+    // Sponsors (hydrated)
+    sponsors: sponsors,
+
+    // Metadata
+    createdAt: createdAt,
+    slug: slug,
+
+    // Generated Links
+    links: {
+      publicUrl: `${baseUrl}?page=events&brand=${brandId}&id=${id}`,
+      posterUrl: `${baseUrl}?page=poster&brand=${brandId}&id=${id}`,
+      displayUrl: `${baseUrl}?page=display&brand=${brandId}&id=${id}&tv=1`,
+      reportUrl: `${baseUrl}?page=report&brand=${brandId}&id=${id}`
+    }
+  };
+}
+
+/**
+ * Hydrate sponsor IDs into full sponsor objects
+ * @param {string} brandId - Brand to look up sponsors in
+ * @param {string} sponsorIds - Comma-separated sponsor IDs
+ * @returns {Array} Array of sponsor objects
+ * @private
+ */
+function hydrateSponsorIds_(brandId, sponsorIds) {
+  if (!sponsorIds) return [];
+
+  const ids = String(sponsorIds).split(',').map(s => s.trim()).filter(Boolean);
+  if (ids.length === 0) return [];
+
+  try {
+    const brand = findBrand_(brandId);
+    if (!brand) return [];
+
+    const sh = getStoreSheet_(brand, 'sponsors');
+    const rows = sh.getDataRange().getValues().slice(1);
+
+    return ids.map(id => {
+      const row = rows.find(r => r[0] === id && r[1] === brandId);
+      if (!row) return { id, name: 'Unknown', logoUrl: null, website: null, tier: null };
+
+      const data = safeJSONParse_(row[3], {});
+      return {
+        id: row[0],
+        name: data.name || 'Unknown',
+        logoUrl: data.logoUrl || null,
+        website: data.website || null,
+        tier: data.tier || null
+      };
+    });
+  } catch (e) {
+    diag_('warn', 'hydrateSponsorIds_', 'Failed to hydrate sponsors', { brandId, error: e.message });
+    return [];
+  }
+}
+
 /**
  * List events with pagination
  * @tier mvp
@@ -1985,9 +2147,12 @@ function api_list(payload){
 
     // Apply pagination after filtering
     const totalCount = allRows.length;
+    const baseUrl = ScriptApp.getService().getUrl();
+
+    // Hydrate each event to canonical shape (sponsors not hydrated in list for performance)
     const paginatedRows = allRows
       .slice(pageOffset, pageOffset + pageLimit)
-      .map(r => ({ id:r[0], templateId:r[2], data:safeJSONParse_(r[3], {}), createdAt:r[4], slug:r[5] }));
+      .map(r => hydrateEvent_(r, { baseUrl, hydrateSponsors: false }));
 
     const value = {
       items: paginatedRows,
@@ -2007,6 +2172,7 @@ function api_list(payload){
 
 /**
  * Get single event by ID
+ * Returns full canonical Event shape per EVENT_CONTRACT.md
  * @tier mvp
  */
 function api_get(payload){
@@ -2023,18 +2189,10 @@ function api_get(payload){
     const r = sh.getDataRange().getValues().slice(1).find(row => row[0]===sanitizedId && row[1]===brandId);
     if (!r) return Err(ERR.NOT_FOUND,'Not found');
 
-    const base = ScriptApp.getService().getUrl();
-    const value = {
-      id:r[0], brandId:r[1], templateId:r[2],
-      data:safeJSONParse_(r[3], {}),
-      createdAt:r[4], slug:r[5],
-      links: {
-        publicUrl: `${base}?page=events&brand=${brandId}&id=${r[0]}`,
-        posterUrl: `${base}?page=poster&brand=${brandId}&id=${r[0]}`,
-        displayUrl: `${base}?page=display&brand=${brandId}&id=${r[0]}&tv=1`,
-        reportUrl: `${base}?page=report&brand=${brandId}&id=${r[0]}`
-      }
-    };
+    // Hydrate to canonical Event shape with full sponsor data
+    const baseUrl = ScriptApp.getService().getUrl();
+    const value = hydrateEvent_(r, { baseUrl, hydrateSponsors: true });
+
     const etag = Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(value)));
     if (payload?.ifNoneMatch === etag) return { ok:true, notModified:true, etag };
     return _ensureOk_('api_get', SC_GET, { ok:true, etag, value });
@@ -2044,8 +2202,9 @@ function api_get(payload){
 /**
  * Bundled endpoint for public pages - returns event + config in single call
  * Reduces latency for detail views by eliminating multiple round-trips
+ * Returns canonical Event shape per EVENT_CONTRACT.md
  * @param {object} payload - { brandId, scope, id, ifNoneMatch }
- * @returns {object} { ok, value: { event, config, links }, etag }
+ * @returns {object} { ok, value: { event, config }, etag }
  * @tier mvp
  */
 function api_getPublicBundle(payload){
@@ -2067,33 +2226,19 @@ function api_getPublicBundle(payload){
     const r = sh.getDataRange().getValues().slice(1).find(row => row[0]===sanitizedId && row[1]===brandId);
     if (!r) return Err(ERR.NOT_FOUND, 'Not found');
 
-    const base = ScriptApp.getService().getUrl();
-    const eventData = safeJSONParse_(r[3], {});
+    // Hydrate to canonical Event shape with full sponsor data
+    const baseUrl = ScriptApp.getService().getUrl();
+    const event = hydrateEvent_(r, { baseUrl, hydrateSponsors: true });
 
     // Build bundled response
     const value = {
-      event: {
-        id: r[0],
-        brandId: r[1],
-        templateId: r[2],
-        data: eventData,
-        createdAt: r[4],
-        slug: r[5]
-      },
-      // Include sponsor data at top level for convenience
-      sponsors: eventData.sponsors || [],
-      display: eventData.display || {},
-      // Pre-computed links
-      links: {
-        publicUrl: `${base}?page=events&brand=${brandId}&id=${r[0]}`,
-        posterUrl: `${base}?page=poster&brand=${brandId}&id=${r[0]}`,
-        displayUrl: `${base}?page=display&brand=${brandId}&id=${r[0]}&tv=1`,
-        reportUrl: `${base}?page=report&brand=${brandId}&id=${r[0]}`
-      },
+      // Full canonical event shape
+      event: event,
       // Brand config subset (public-safe fields only)
       config: {
-        appTitle: brand.appTitle || 'Events',
-        brandId: brand.brandId
+        appTitle: brand.appTitle || brand.name || 'Events',
+        brandId: brand.id,
+        brandName: brand.name
       }
     };
 
@@ -2105,6 +2250,7 @@ function api_getPublicBundle(payload){
 
 /**
  * Create new event
+ * Applies template defaults per EVENT_CONTRACT.md
  * @tier mvp
  */
 function api_create(payload){
@@ -2114,7 +2260,15 @@ function api_create(payload){
 
     const g=gate_(brandId, adminKey); if(!g.ok) return g;
     const a=assertScopeAllowed_(findBrand_(brandId), scope); if(!a.ok) return a;
-    const tpl = findTemplate_(templateId); if(!tpl) return Err(ERR.BAD_INPUT,'Unknown template');
+
+    // Validate template exists in EVENT_TEMPLATES (TemplateService)
+    if (!isValidTemplate_(templateId)) {
+      return Err(ERR.BAD_INPUT, `Unknown event template: ${templateId}`);
+    }
+
+    // Also validate against Config.gs TEMPLATES for field schema
+    const tpl = findTemplate_('event'); // Use 'event' schema for field validation
+    if(!tpl) return Err(ERR.BAD_INPUT,'Event template schema not found');
 
     // Validate required + simple types
     for (const f of tpl.fields){
@@ -2151,9 +2305,20 @@ function api_create(payload){
     for (const f of tpl.fields) {
       const val = data?.[f.id];
       if (val !== undefined && val !== null) {
-        sanitizedData[f.id] = (f.type === 'url') ? String(val) : sanitizeInput_(String(val));
+        if (f.type === 'url') {
+          sanitizedData[f.id] = String(val);
+        } else if (f.type === 'json') {
+          // JSON fields (sections, ctaLabels, externalData) - pass through if object
+          sanitizedData[f.id] = typeof val === 'object' ? val : safeJSONParse_(val, null);
+        } else {
+          sanitizedData[f.id] = sanitizeInput_(String(val));
+        }
       }
     }
+
+    // === Apply template defaults per EVENT_CONTRACT.md ===
+    // This sets sections, ctaLabels, audience, status defaults
+    const eventWithDefaults = applyTemplateToEvent_(sanitizedData, templateId);
 
     // Write row with collision-safe slug - Fixed: Bug #12 - Add LockService
     const brand= findBrand_(brandId);
@@ -2165,7 +2330,7 @@ function api_create(payload){
     try {
       lock.waitLock(10000); // Wait up to 10 seconds
 
-      let slug = String((sanitizedData?.name || id)).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+      let slug = String((eventWithDefaults?.name || id)).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
 
       // Handle slug collisions - INSIDE lock
       const existingSlugs = sh.getDataRange().getValues().slice(1).map(r => r[5]);
@@ -2176,7 +2341,8 @@ function api_create(payload){
         counter++;
       }
 
-      sh.appendRow([id, brandId, templateId, JSON.stringify(sanitizedData), new Date().toISOString(), slug]);
+      // Store with templateId from the applied template
+      sh.appendRow([id, brandId, eventWithDefaults.templateId, JSON.stringify(eventWithDefaults), new Date().toISOString(), slug]);
 
     } finally {
       lock.releaseLock();
@@ -2189,7 +2355,7 @@ function api_create(payload){
       displayUrl: `${base}?page=display&brand=${brandId}&id=${id}&tv=1`,
       reportUrl: `${base}?page=report&brand=${brandId}&id=${id}`
     };
-    diag_('info','api_create','created',{id,brandId,scope});
+    diag_('info','api_create','created',{id,brandId,scope,templateId});
     return Ok({ id, links });
   });
 }

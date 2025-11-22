@@ -1,13 +1,20 @@
 name: Quality Gates - Agile Test Automation
 
 on:
-  push:
-    branches: [main, develop, 'claude/**']
-  pull_request:
-    branches: [main, develop]
+  # REMOVED: claude/** branches - E2E scenarios require deployed backend
+  # Feature branches should use unit-contract-tests.yml for fast feedback
+  # Scenarios run after Stage 1 deploys via stage2-testing.yml
+
+  # Only run scenarios after Stage 1 deployment completes
+  workflow_run:
+    workflows: ["Stage 1 - Build & Deploy"]
+    types: [completed]
+    branches: [main]
+
   schedule:
     # Run daily at 6 AM UTC to catch regressions
     - cron: '0 6 * * *'
+
   workflow_dispatch:
     inputs:
       scenario:
@@ -20,13 +27,18 @@ jobs:
   quality-gate-unit:
     name: 'QG1: Unit & Contract Tests'
     runs-on: ubuntu-latest
+    # Only run if Stage 1 deployment succeeded (when triggered by workflow_run)
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'schedule' ||
+      github.event.workflow_run.conclusion == 'success'
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '18'
           cache: 'npm'
 
       - name: Install dependencies
@@ -52,12 +64,12 @@ jobs:
     needs: quality-gate-unit
     if: ${{ !failure() }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '18'
           cache: 'npm'
 
       - name: Install dependencies
@@ -70,7 +82,8 @@ jobs:
         run: npm run test:scenario:1
         env:
           # Use Google Apps Script endpoint for direct API testing
-          GOOGLE_SCRIPT_URL: ${{ secrets.GOOGLE_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbzu-U4UgdjdAiXHTg9TD5Y-1gDkc798YSTqQCdhOddG/exec' }}
+          BASE_URL: https://eventangle.com
+          ADMIN_KEY: ${{ secrets.ADMIN_KEY_ROOT }}
           ADMIN_KEY: ${{ secrets.ADMIN_KEY_ROOT }}
           BRAND_ID: root
 
@@ -110,12 +123,12 @@ jobs:
     needs: quality-gate-scenario-1
     if: ${{ !failure() }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '18'
           cache: 'npm'
 
       - name: Install dependencies
@@ -128,7 +141,8 @@ jobs:
         run: npm run test:scenario:2
         env:
           # Use Google Apps Script endpoint for direct API testing
-          GOOGLE_SCRIPT_URL: ${{ secrets.GOOGLE_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbzu-U4UgdjdAiXHTg9TD5Y-1gDkc798YSTqQCdhOddG/exec' }}
+          BASE_URL: https://eventangle.com
+          ADMIN_KEY: ${{ secrets.ADMIN_KEY_ROOT }}
 
       - name: Upload Scenario 2 Results
         if: always()
@@ -146,12 +160,12 @@ jobs:
     needs: quality-gate-scenario-2
     if: ${{ !failure() }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '18'
           cache: 'npm'
 
       - name: Install dependencies
@@ -164,7 +178,8 @@ jobs:
         run: npm run test:scenario:3
         env:
           # Use Google Apps Script endpoint for direct API testing
-          GOOGLE_SCRIPT_URL: ${{ secrets.GOOGLE_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbzu-U4UgdjdAiXHTg9TD5Y-1gDkc798YSTqQCdhOddG/exec' }}
+          BASE_URL: https://eventangle.com
+          ADMIN_KEY: ${{ secrets.ADMIN_KEY_ROOT }}
 
       - name: Upload Scenario 3 Results
         if: always()
@@ -182,12 +197,12 @@ jobs:
     needs: [quality-gate-scenario-1, quality-gate-scenario-2, quality-gate-scenario-3]
     if: always()
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '18'
           cache: 'npm'
 
       - name: Install dependencies
@@ -241,12 +256,12 @@ jobs:
     runs-on: ubuntu-latest
     needs: quality-gate-unit
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '18'
           cache: 'npm'
 
       - name: Install dependencies
@@ -259,7 +274,8 @@ jobs:
         run: npm run test:scenario:2  # Mobile performance tests
         env:
           # Use Google Apps Script endpoint for direct API testing
-          GOOGLE_SCRIPT_URL: ${{ secrets.GOOGLE_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbzu-U4UgdjdAiXHTg9TD5Y-1gDkc798YSTqQCdhOddG/exec' }}
+          BASE_URL: https://eventangle.com
+          ADMIN_KEY: ${{ secrets.ADMIN_KEY_ROOT }}
 
       - name: Check Performance Budgets
         run: |
