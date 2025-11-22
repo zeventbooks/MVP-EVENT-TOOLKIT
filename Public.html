@@ -626,6 +626,102 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
         padding-bottom: 100px; /* Space for sticky buttons */
       }
     }
+
+    /* Status Badges */
+    .status-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 16px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .status-badge.active {
+      background: #dcfce7;
+      color: #166534;
+    }
+    .status-badge.upcoming {
+      background: #dbeafe;
+      color: #1e40af;
+    }
+    .status-badge.ended {
+      background: #f1f5f9;
+      color: #64748b;
+    }
+    .status-badge.cancelled {
+      background: #fef2f2;
+      color: #dc2626;
+    }
+
+    /* League Info Card */
+    .league-info-card {
+      background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+      border-radius: 12px;
+      padding: 24px;
+    }
+    .league-links {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+    .league-link-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      padding: 16px 24px;
+      background: white;
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      text-decoration: none;
+      color: #1e293b;
+      transition: all 0.2s;
+      min-width: 120px;
+    }
+    .league-link-btn:hover {
+      border-color: #2563eb;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);
+      transform: translateY(-2px);
+    }
+    .league-link-icon {
+      font-size: 1.5rem;
+    }
+    .league-link-label {
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+    .league-data-section {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    /* Sponsor tier badge */
+    .sponsor-tier {
+      display: inline-block;
+      padding: 2px 8px;
+      background: #fef3c7;
+      color: #92400e;
+      font-size: 0.7rem;
+      font-weight: 600;
+      border-radius: 10px;
+      text-transform: uppercase;
+      margin-left: 8px;
+    }
+
+    @media (max-width: 640px) {
+      .league-links {
+        flex-direction: column;
+      }
+      .league-link-btn {
+        flex-direction: row;
+        justify-content: flex-start;
+        gap: 12px;
+        padding: 12px 16px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -1067,6 +1163,7 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
     let sponsorCarouselTimer = null;
     let currentSponsorIndex = 0;
 
+    // Render sponsor banner from legacy format (ev.data.sponsors with placements)
     function renderSponsorBanner(ev) {
       const picks = (ev?.data?.sponsors || []).filter(s => s?.placements?.mobileBanner);
       if (!picks.length) return;
@@ -1114,6 +1211,58 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       }
     }
 
+    // Render sponsor banner from EVENT_CONTRACT.md format (hydrated sponsors array)
+    function renderSponsorBannerFromArray(eventId, sponsors) {
+      if (!sponsors || !sponsors.length) return;
+
+      const banner = document.getElementById('sponsorBanner');
+      const picks = sponsors.filter(s => s.name); // Filter out invalid sponsors
+
+      if (!picks.length) return;
+
+      // Render single sponsor
+      function showSponsor(index) {
+        const s = picks[index];
+        const link = s.website ? `<a href="${esc(s.website)}" target="_blank" rel="noopener sponsored" class="sponsor-link" data-sponsor-id="${esc(s.id || '')}">` : '';
+        const linkClose = s.website ? '</a>' : '';
+        const tierBadge = s.tier ? `<span class="sponsor-tier">${esc(s.tier)}</span>` : '';
+
+        banner.innerHTML = `
+          ${link}
+            ${s.logoUrl ? `<img src="${esc(s.logoUrl)}" alt="${esc(s.name || '')}">` : ''}
+            <strong>${esc(s.name || '')}</strong>
+            ${tierBadge}
+          ${linkClose}
+          ${picks.length > 1 ? `<span class="sponsor-indicator">${index + 1}/${picks.length}</span>` : ''}
+        `;
+
+        // Log impression for this sponsor
+        logEvent({ eventId, surface: 'public', metric: 'impression', sponsorId: s.id || '' });
+
+        // Attach click handler
+        const linkEl = banner.querySelector('.sponsor-link');
+        if (linkEl) {
+          linkEl.addEventListener('click', () => {
+            logEvent({ eventId, surface: 'public', metric: 'click', sponsorId: s.id || '' });
+          });
+        }
+      }
+
+      // Show first sponsor
+      showSponsor(0);
+      banner.hidden = false;
+
+      // Start carousel if multiple sponsors (rotate every 5 seconds)
+      if (picks.length > 1) {
+        if (sponsorCarouselTimer) clearInterval(sponsorCarouselTimer);
+        currentSponsorIndex = 0;
+        sponsorCarouselTimer = setInterval(() => {
+          currentSponsorIndex = (currentSponsorIndex + 1) % picks.length;
+          showSponsor(currentSponsorIndex);
+        }, 5000);
+      }
+    }
+
     async function renderList(items) {
       const root = document.getElementById('list');
       root.innerHTML = '';
@@ -1128,13 +1277,45 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
         return;
       }
       for (const ev of items) {
+        // Support both canonical shape (name at top level) and legacy (data.name)
+        const name = ev.name || ev.data?.name || '(untitled)';
+        const dateTime = ev.dateTime || ev.data?.dateISO || '';
+        const location = ev.location || ev.data?.location || '';
+        const venueName = ev.venueName || ev.data?.venueName || '';
+        const status = ev.status || ev.data?.status || 'draft';
+
+        // Format date for display
+        let dateDisplay = '';
+        if (dateTime) {
+          const datePart = dateTime.split('T')[0];
+          const date = new Date(datePart + 'T00:00:00');
+          dateDisplay = date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+        }
+
+        // Status badge
+        let statusBadge = '';
+        if (status === 'cancelled') {
+          statusBadge = '<span class="status-badge cancelled" style="font-size:0.65rem;padding:2px 6px;">Cancelled</span>';
+        } else if (dateTime) {
+          const eventDate = new Date(dateTime.split('T')[0] + 'T00:00:00');
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          if (eventDate.getTime() === today.getTime()) {
+            statusBadge = '<span class="status-badge active" style="font-size:0.65rem;padding:2px 6px;">Today</span>';
+          }
+        }
+
         const d = document.createElement('div');
         d.className = 'event-card';
         d.innerHTML = `
-          <h3>${esc(ev.data?.name || '(untitled)')}</h3>
-          <p>${esc(ev.data?.dateISO || '')}</p>
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+            <h3 style="flex:1;">${esc(name)}</h3>
+            ${statusBadge}
+          </div>
+          ${dateDisplay ? `<p>📅 ${esc(dateDisplay)}</p>` : ''}
+          ${venueName || location ? `<p>📍 ${esc(venueName || location)}</p>` : ''}
           <div style="margin-top:12px;">
-            <a class="btn secondary" href="${EXEC_URL}?p=events&brand=${BRAND}&id=${ev.id}">Open</a>
+            <a class="btn secondary" href="${EXEC_URL}?p=events&brand=${BRAND}&id=${ev.id}">View Details →</a>
           </div>
         `;
         root.appendChild(d);
@@ -1143,20 +1324,90 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
 
     async function renderDetail(evt) {
       const root = document.getElementById('list');
-      const data = evt.data || {};
+
+      // EVENT_CONTRACT.md v1.0: Fields are now at top level, with backward compat for old data
+      // Merge top-level fields with nested data for backward compatibility
+      const legacyData = evt.data || {};
+      const data = {
+        // Core Identity (from canonical shape)
+        name: evt.name || legacyData.name || '',
+        status: evt.status || legacyData.status || 'draft',
+        dateTime: evt.dateTime,
+        location: evt.location || legacyData.location,
+        venueName: evt.venueName || legacyData.venueName,
+
+        // Content
+        summary: evt.summary || legacyData.summary,
+        notes: evt.notes || legacyData.notes,
+        audience: evt.audience || legacyData.audience,
+
+        // Sections (canonical: { key: { enabled, title, content } })
+        sections: evt.sections || legacyData.sections || {},
+
+        // CTA Labels (canonical: [{ key, label, url }])
+        ctaLabels: evt.ctaLabels || legacyData.ctaLabels || [],
+
+        // External Data
+        externalData: evt.externalData || legacyData.externalData || {},
+
+        // Media URLs
+        videoUrl: evt.videoUrl || legacyData.videoUrl,
+        mapEmbedUrl: evt.mapEmbedUrl || legacyData.mapEmbedUrl,
+        imageUrl: legacyData.imageUrl,
+        galleryUrls: legacyData.galleryUrls,
+
+        // Action URLs
+        signupUrl: evt.signupUrl || legacyData.signupUrl,
+        checkinUrl: evt.checkinUrl || legacyData.checkinUrl,
+        feedbackUrl: evt.feedbackUrl || legacyData.surveyUrl || legacyData.feedbackUrl,
+
+        // Sponsors (canonical: hydrated array)
+        sponsors: evt.sponsors || [],
+
+        // Legacy fields for backward compat
+        dateISO: legacyData.dateISO,
+        timeISO: legacyData.timeISO,
+        entity: legacyData.entity,
+        summaryLink: legacyData.summaryLink,
+        bio: legacyData.bio,
+        bioLink: legacyData.bioLink,
+        registerUrl: legacyData.registerUrl,
+
+        // Template info
+        templateId: evt.templateId
+      };
+
+      // Parse dateTime into dateISO/timeISO if needed
+      if (evt.dateTime && !data.dateISO) {
+        const dt = evt.dateTime.split('T');
+        data.dateISO = dt[0];
+        data.timeISO = dt[1] ? dt[1].substring(0, 5) : null;
+      }
 
       // Store for utility functions
       currentEventData = data;
 
-      // MVP: Section visibility helper (defaults to true if not set)
+      // MVP: Section visibility helper (EVENT_CONTRACT.md: sections.key.enabled)
       const sectionEnabled = (key) => {
         if (!data.sections) return true; // Backwards compat: show all if no sections set
-        return data.sections[key] !== false;
+        const section = data.sections[key];
+        if (section === null || section === undefined) return true;
+        if (typeof section === 'boolean') return section; // Legacy boolean format
+        return section.enabled !== false; // New SectionConfig format
+      };
+
+      // Get section title (from section config or default)
+      const getSectionTitle = (key, defaultTitle) => {
+        const section = data.sections?.[key];
+        if (section && typeof section === 'object' && section.title) {
+          return section.title;
+        }
+        return defaultTitle;
       };
 
       // Render sponsor banner first (respects sections.sponsors)
-      if (sectionEnabled('sponsors')) {
-        renderSponsorBanner(evt);
+      if (sectionEnabled('sponsors') && data.sponsors && data.sponsors.length > 0) {
+        renderSponsorBannerFromArray(evt.id, data.sponsors);
       }
 
       // Build event detail HTML
@@ -1165,9 +1416,13 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       // Header with name and meta
       html += '<div class="event-header">';
 
-      // Determine event status
+      // Determine event status from canonical status field or date
       let statusBadge = '';
-      if (data.dateISO) {
+      if (data.status === 'cancelled') {
+        statusBadge = '<span class="status-badge cancelled">Cancelled</span>';
+      } else if (data.status === 'completed') {
+        statusBadge = '<span class="status-badge ended">Completed</span>';
+      } else if (data.dateISO) {
         const eventDate = new Date(data.dateISO + 'T00:00:00');
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -1197,6 +1452,9 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       if (data.timeISO) {
         html += `<div class="event-meta-item"><strong>🕒</strong> ${esc(data.timeISO)}</div>`;
       }
+      if (data.venueName) {
+        html += `<div class="event-meta-item"><strong>🏟️</strong> ${esc(data.venueName)}</div>`;
+      }
       if (data.location) {
         html += `<div class="event-meta-item"><strong>📍</strong> ${esc(data.location)}</div>`;
       }
@@ -1206,61 +1464,71 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       html += '</div>';
       html += '</div>';
 
-      // Action buttons - supports dynamic CTAs from template
+      // === ACTION ROW (top priority per requirements) ===
       html += '<div class="action-buttons">';
 
-      // Primary CTA (template-driven or fallback to register/signup)
+      // 1. Primary CTA: Register / Sign Up
+      if (data.signupUrl) {
+        html += `<a class="btn-primary" href="${esc(data.signupUrl)}" target="_blank" rel="noopener">📝 Register / Sign Up</a>`;
+      } else if (data.registerUrl) {
+        html += `<a class="btn-primary" href="${esc(data.registerUrl)}" target="_blank" rel="noopener">📝 Register</a>`;
+      }
+
+      // 2. Check In (if available)
+      if (data.checkinUrl) {
+        html += `<a class="btn-secondary" href="${esc(data.checkinUrl)}" target="_blank" rel="noopener">✅ Check In</a>`;
+      }
+
+      // Additional template-driven CTAs (EVENT_CONTRACT.md: [{ key, label, url }])
       if (data.ctaLabels && data.ctaLabels.length > 0) {
-        // Use template-defined CTAs
-        data.ctaLabels.forEach((label, i) => {
-          const ctaUrl = getCTAUrl(data, label);
-          if (ctaUrl) {
-            const btnClass = i === 0 ? 'btn-primary' : 'btn-secondary';
-            html += `<a class="${btnClass}" href="${esc(ctaUrl)}" target="_blank" rel="noopener">${esc(label)}</a>`;
-          }
+        data.ctaLabels.forEach((cta) => {
+          // Skip if we already rendered signup/checkin
+          const label = typeof cta === 'string' ? cta : cta.label;
+          const url = typeof cta === 'string' ? getCTAUrl(data, cta) : (cta.url || getCTAUrl(data, cta.label));
+          const labelLower = label.toLowerCase();
+
+          // Skip duplicates
+          if (labelLower.includes('sign up') || labelLower.includes('register') || labelLower.includes('check in')) return;
+          if (!url) return;
+
+          html += `<a class="btn-secondary" href="${esc(url)}" target="_blank" rel="noopener">${esc(label)}</a>`;
         });
-      } else {
-        // Fallback to hardcoded CTAs
-        if (data.registerUrl) {
-          html += `<a class="btn-primary" href="${esc(data.registerUrl)}" target="_blank" rel="noopener">Register</a>`;
-        } else if (data.signupUrl) {
-          html += `<a class="btn-primary" href="${esc(data.signupUrl)}" target="_blank" rel="noopener">Sign Up</a>`;
-        } else if (data.donationUrl) {
-          html += `<a class="btn-primary" href="${esc(data.donationUrl)}" target="_blank" rel="noopener">Donate</a>`;
+      }
+
+      html += `<a class="btn-secondary" href="${EXEC_URL}?p=events&brand=${BRAND}">← All Events</a>`;
+      html += '</div>';
+
+      // === UTILITY BUTTONS: Maps, Calendar, Share ===
+      html += '<div class="utility-buttons">';
+
+      // 3. Open in Maps (use mapEmbedUrl or location)
+      if (sectionEnabled('map')) {
+        if (data.mapEmbedUrl) {
+          // Direct map embed URL provided
+          html += `<a class="btn-utility" href="${esc(data.mapEmbedUrl)}" target="_blank" rel="noopener">📍 Open in Maps</a>`;
+        } else if (data.location) {
+          // Build Google Maps search URL from location text
+          const mapsUrl = buildMapsUrl(data.location);
+          html += `<a class="btn-utility" href="${esc(mapsUrl)}" target="_blank" rel="noopener">📍 Open in Maps</a>`;
         }
       }
 
-      if (data.checkinUrl) {
-        html += `<a class="btn-secondary" href="${esc(data.checkinUrl)}" target="_blank" rel="noopener">Check In</a>`;
-      }
-      html += `<a class="btn-secondary" href="${EXEC_URL}?p=events&brand=${BRAND}">← Back to Events</a>`;
-      html += '</div>';
-
-      // Utility buttons: Maps, Calendar, Share
-      html += '<div class="utility-buttons">';
-
-      // Directions/Maps button (respects sections.map)
-      if (data.location && sectionEnabled('map')) {
-        const mapsUrl = buildMapsUrl(data.location);
-        html += `<a class="btn-utility" href="${esc(mapsUrl)}" target="_blank" rel="noopener">📍 Get Directions</a>`;
-      }
-
-      // Calendar dropdown
+      // 4. Add to Calendar (Google URL + .ics)
       if (data.dateISO) {
         const gcalUrl = buildGoogleCalendarUrl(data);
         html += `
           <div class="calendar-dropdown">
             <button class="btn-utility" onclick="toggleCalendarDropdown(event)">📅 Add to Calendar</button>
             <div class="calendar-menu">
-              <a href="${esc(gcalUrl || '#')}" target="_blank" rel="noopener">Google Calendar</a>
-              <a href="#" onclick="event.preventDefault(); downloadICS(currentEventData);">Apple / Outlook (.ics)</a>
+              <a href="${esc(gcalUrl || '#')}" target="_blank" rel="noopener">📆 Google Calendar</a>
+              <a href="#" onclick="event.preventDefault(); downloadICS(currentEventData);">📱 Apple / Outlook (.ics)</a>
             </div>
           </div>
         `;
       }
 
-      // Share button
-      html += `<button class="btn-utility" onclick="shareEvent(currentEventData)">🔗 Share Event</button>`;
+      // 5. Share / Copy Link
+      html += `<button class="btn-utility" onclick="shareEvent(currentEventData)">🔗 Share / Copy Link</button>`;
 
       html += '</div>';
 
@@ -1388,23 +1656,60 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
         html += '</div>';
       }
 
-      // Standings (league templates) - supports Google Sheets BYOD
-      if (data.standingsUrl) {
-        html += '<div class="event-section">';
-        html += '<h2>Standings</h2>';
-        html += `<div id="standings-container" data-url="${esc(data.standingsUrl)}">
-          <div class="loading-placeholder">Loading standings...</div>
-        </div>`;
-        html += '</div>';
-      }
+      // === LEAGUE INFO CARD (consolidated for rec_league template) ===
+      // Uses externalData: { scheduleUrl, standingsUrl, bracketUrl }
+      const hasLeagueData = data.externalData?.scheduleUrl || data.externalData?.standingsUrl ||
+                           data.externalData?.bracketUrl || data.standingsUrl || data.bracketUrl;
 
-      // Bracket/Tournament - supports Google Sheets BYOD
-      if (data.bracketUrl) {
-        html += '<div class="event-section">';
-        html += '<h2>Tournament Bracket</h2>';
-        html += `<div id="bracket-container" data-url="${esc(data.bracketUrl)}">
-          <div class="loading-placeholder">Loading bracket...</div>
-        </div>`;
+      if (hasLeagueData && sectionEnabled('schedule')) {
+        html += '<div class="event-section league-info-card">';
+        html += `<h2>${getSectionTitle('schedule', 'League Info')}</h2>`;
+
+        // League info links grid
+        html += '<div class="league-links">';
+
+        // Schedule link
+        const scheduleUrl = data.externalData?.scheduleUrl || data.scheduleUrl;
+        if (scheduleUrl) {
+          html += `<a class="league-link-btn" href="${esc(scheduleUrl)}" target="_blank" rel="noopener">
+            <span class="league-link-icon">📅</span>
+            <span class="league-link-label">View Schedule</span>
+          </a>`;
+        }
+
+        // Standings
+        const standingsUrl = data.externalData?.standingsUrl || data.standingsUrl;
+        if (standingsUrl) {
+          html += `<a class="league-link-btn" href="${esc(standingsUrl)}" target="_blank" rel="noopener">
+            <span class="league-link-icon">🏆</span>
+            <span class="league-link-label">View Standings</span>
+          </a>`;
+        }
+
+        // Bracket
+        const bracketUrl = data.externalData?.bracketUrl || data.bracketUrl;
+        if (bracketUrl) {
+          html += `<a class="league-link-btn" href="${esc(bracketUrl)}" target="_blank" rel="noopener">
+            <span class="league-link-icon">🎯</span>
+            <span class="league-link-label">View Bracket</span>
+          </a>`;
+        }
+
+        html += '</div>'; // .league-links
+
+        // Try to render Google Sheets data inline if available
+        if (standingsUrl) {
+          html += `<div id="standings-container" data-url="${esc(standingsUrl)}" class="league-data-section">
+            <div class="loading-placeholder">Loading standings...</div>
+          </div>`;
+        }
+
+        if (bracketUrl) {
+          html += `<div id="bracket-container" data-url="${esc(bracketUrl)}" class="league-data-section">
+            <div class="loading-placeholder">Loading bracket...</div>
+          </div>`;
+        }
+
         html += '</div>';
       }
 
@@ -1433,10 +1738,13 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
         html += '</div>';
       }
 
-      // Bio/Notes Section (respects sections.notes) - uses custom label
-      if ((data.bio || data.bioLink) && sectionEnabled('notes')) {
+      // Bio/Notes Section (respects sections.notes) - uses custom label from template
+      if ((data.bio || data.bioLink || data.notes) && sectionEnabled('notes')) {
         html += '<div class="event-section">';
-        html += `<h2>${esc(data.notesLabel || 'More Information')}</h2>`;
+        html += `<h2>${esc(getSectionTitle('notes', 'More Information'))}</h2>`;
+        if (data.notes) {
+          html += `<p>${esc(data.notes)}</p>`;
+        }
         if (data.bio) {
           html += `<p>${esc(data.bio)}</p>`;
         }
@@ -1446,11 +1754,11 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
         html += '</div>';
       }
 
-      // Post-event Survey
-      if (data.surveyUrl) {
+      // Feedback Survey (uses feedbackUrl per EVENT_CONTRACT.md)
+      if (data.feedbackUrl) {
         html += '<div class="event-section">';
         html += '<h2>Feedback</h2>';
-        html += `<p><a class="btn-primary" href="${esc(data.surveyUrl)}" target="_blank" rel="noopener">Share Your Feedback</a></p>`;
+        html += `<p><a class="btn-primary" href="${esc(data.feedbackUrl)}" target="_blank" rel="noopener">📋 Share Your Feedback</a></p>`;
         html += '</div>';
       }
 
