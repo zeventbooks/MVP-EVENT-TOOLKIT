@@ -2250,6 +2250,7 @@ function api_getPublicBundle(payload){
 
 /**
  * Create new event
+ * Applies template defaults per EVENT_CONTRACT.md
  * @tier mvp
  */
 function api_create(payload){
@@ -2259,7 +2260,15 @@ function api_create(payload){
 
     const g=gate_(brandId, adminKey); if(!g.ok) return g;
     const a=assertScopeAllowed_(findBrand_(brandId), scope); if(!a.ok) return a;
-    const tpl = findTemplate_(templateId); if(!tpl) return Err(ERR.BAD_INPUT,'Unknown template');
+
+    // Validate template exists in EVENT_TEMPLATES (TemplateService)
+    if (!isValidTemplate_(templateId)) {
+      return Err(ERR.BAD_INPUT, `Unknown event template: ${templateId}`);
+    }
+
+    // Also validate against Config.gs TEMPLATES for field schema
+    const tpl = findTemplate_('event'); // Use 'event' schema for field validation
+    if(!tpl) return Err(ERR.BAD_INPUT,'Event template schema not found');
 
     // Validate required + simple types
     for (const f of tpl.fields){
@@ -2296,9 +2305,20 @@ function api_create(payload){
     for (const f of tpl.fields) {
       const val = data?.[f.id];
       if (val !== undefined && val !== null) {
-        sanitizedData[f.id] = (f.type === 'url') ? String(val) : sanitizeInput_(String(val));
+        if (f.type === 'url') {
+          sanitizedData[f.id] = String(val);
+        } else if (f.type === 'json') {
+          // JSON fields (sections, ctaLabels, externalData) - pass through if object
+          sanitizedData[f.id] = typeof val === 'object' ? val : safeJSONParse_(val, null);
+        } else {
+          sanitizedData[f.id] = sanitizeInput_(String(val));
+        }
       }
     }
+
+    // === Apply template defaults per EVENT_CONTRACT.md ===
+    // This sets sections, ctaLabels, audience, status defaults
+    const eventWithDefaults = applyTemplateToEvent_(sanitizedData, templateId);
 
     // Write row with collision-safe slug - Fixed: Bug #12 - Add LockService
     const brand= findBrand_(brandId);
@@ -2310,7 +2330,7 @@ function api_create(payload){
     try {
       lock.waitLock(10000); // Wait up to 10 seconds
 
-      let slug = String((sanitizedData?.name || id)).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+      let slug = String((eventWithDefaults?.name || id)).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
 
       // Handle slug collisions - INSIDE lock
       const existingSlugs = sh.getDataRange().getValues().slice(1).map(r => r[5]);
@@ -2321,7 +2341,8 @@ function api_create(payload){
         counter++;
       }
 
-      sh.appendRow([id, brandId, templateId, JSON.stringify(sanitizedData), new Date().toISOString(), slug]);
+      // Store with templateId from the applied template
+      sh.appendRow([id, brandId, eventWithDefaults.templateId, JSON.stringify(eventWithDefaults), new Date().toISOString(), slug]);
 
     } finally {
       lock.releaseLock();
@@ -2334,7 +2355,7 @@ function api_create(payload){
       displayUrl: `${base}?page=display&brand=${brandId}&id=${id}&tv=1`,
       reportUrl: `${base}?page=report&brand=${brandId}&id=${id}`
     };
-    diag_('info','api_create','created',{id,brandId,scope});
+    diag_('info','api_create','created',{id,brandId,scope,templateId});
     return Ok({ id, links });
   });
 }

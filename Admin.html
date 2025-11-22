@@ -797,9 +797,9 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
       const data = {
         name: document.getElementById('name').value.trim(),
         dateISO: document.getElementById('dateISO').value,
-        // MVP: Include template and sections
-        templateId: document.getElementById('templateId').value || 'custom',
+        // MVP: Include sections from form (template sets defaults for missing)
         sections: getSectionsFromForm()
+        // Note: templateId is passed in the payload, not data - backend applies template defaults
       };
 
       // Optional fields (core + template-specific)
@@ -825,10 +825,13 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
         if (!isNaN(val) && val > 0) data[field] = val;
       });
 
+      // Get the selected event template (bar_night, rec_league, etc.)
+      const selectedTemplateId = document.getElementById('templateId').value || 'custom';
+
       const res = await NU.rpc('api_create', {
         brandId: BRAND,
         scope: SCOPE,
-        templateId: 'event', // This is the resource type, not event template
+        templateId: selectedTemplateId, // Event template from picker (bar_night, rec_league, etc.)
         adminKey: getAdminKey(),
         idemKey: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         data

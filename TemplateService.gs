@@ -474,10 +474,11 @@ function getEventTemplate_(templateId) {
 /**
  * Apply template defaults to an event object (MVP)
  * Only sets values where user hasn't already provided data
+ * Conforms to EVENT_CONTRACT.md v1.0.0
  *
- * @param {Object} event - Event object to apply template to
+ * @param {Object} event - Event object (can be partial data from form)
  * @param {string} templateId - Template ID to apply
- * @returns {Object} Modified event object
+ * @returns {Object} Modified event object with template defaults applied
  */
 function applyTemplateToEvent_(event, templateId) {
   var tpl = getEventTemplate_(templateId);
@@ -485,35 +486,90 @@ function applyTemplateToEvent_(event, templateId) {
   // Set template reference
   event.templateId = tpl.id;
 
-  // Initialize sections if not present
+  // === Sections: Convert template booleans to SectionConfig objects ===
+  // EVENT_CONTRACT.md shape: { enabled: bool, title: string|null, content: string|null }
   event.sections = event.sections || {};
 
-  // Apply section defaults (only where user hasn't overridden)
-  Object.keys(tpl.sections).forEach(function(key) {
+  var sectionKeys = ['video', 'map', 'schedule', 'sponsors', 'notes', 'gallery'];
+  sectionKeys.forEach(function(key) {
+    // Don't overwrite if user already set a section config
     if (event.sections[key] == null) {
-      event.sections[key] = tpl.sections[key];
+      var enabled = tpl.sections[key] || false;
+      event.sections[key] = {
+        enabled: enabled,
+        title: null,  // Use default title from UI
+        content: null
+      };
+    } else if (typeof event.sections[key] === 'boolean') {
+      // Convert legacy boolean to SectionConfig
+      event.sections[key] = {
+        enabled: event.sections[key],
+        title: null,
+        content: null
+      };
     }
+    // If it's already a SectionConfig object, leave it alone
   });
 
-  // Apply default CTAs if none set
-  if (!event.ctaLabels || !event.ctaLabels.length) {
-    event.ctaLabels = tpl.defaultCtas.slice();
+  // Apply custom titles from template defaults
+  if (tpl.defaults) {
+    if (tpl.defaults.notesLabel && event.sections.notes && !event.sections.notes.title) {
+      event.sections.notes.title = tpl.defaults.notesLabel;
+    }
+    if (tpl.defaults.sponsorStripLabel && event.sections.sponsors && !event.sections.sponsors.title) {
+      event.sections.sponsors.title = tpl.defaults.sponsorStripLabel;
+    }
   }
 
-  // Apply other defaults
-  if (tpl.defaults) {
-    if (!event.audience && tpl.defaults.audience) {
-      event.audience = tpl.defaults.audience;
-    }
-    if (!event.notesLabel && tpl.defaults.notesLabel) {
-      event.notesLabel = tpl.defaults.notesLabel;
-    }
-    if (!event.sponsorStripLabel && tpl.defaults.sponsorStripLabel) {
-      event.sponsorStripLabel = tpl.defaults.sponsorStripLabel;
-    }
+  // === CTA Labels: Convert template strings to CTALabel objects ===
+  // EVENT_CONTRACT.md shape: [{ key: string, label: string, url: string|null }]
+  if (!event.ctaLabels || !event.ctaLabels.length) {
+    event.ctaLabels = (tpl.defaultCtas || []).map(function(label, idx) {
+      return {
+        key: 'cta_' + idx,
+        label: label,
+        url: null  // Will be filled by specific URL fields (signupUrl, etc.)
+      };
+    });
+  }
+
+  // === Audience: Apply default if not set ===
+  if (!event.audience && tpl.defaults && tpl.defaults.audience) {
+    event.audience = tpl.defaults.audience;
+  }
+
+  // === Status: Default to 'draft' per EVENT_CONTRACT.md ===
+  if (!event.status) {
+    event.status = 'draft';
   }
 
   return event;
+}
+
+/**
+ * Convert flat section booleans (from Admin form) to SectionConfig objects
+ * Helper for api_create when receiving legacy format from Admin.html
+ *
+ * @param {Object} sections - { video: true, map: false, ... }
+ * @returns {Object} - { video: { enabled: true, title: null, content: null }, ... }
+ */
+function normalizeSections_(sections) {
+  if (!sections) return null;
+
+  var result = {};
+  var keys = ['video', 'map', 'schedule', 'sponsors', 'notes', 'gallery'];
+
+  keys.forEach(function(key) {
+    if (sections[key] != null) {
+      if (typeof sections[key] === 'boolean') {
+        result[key] = { enabled: sections[key], title: null, content: null };
+      } else if (typeof sections[key] === 'object') {
+        result[key] = sections[key];
+      }
+    }
+  });
+
+  return result;
 }
 
 /**
