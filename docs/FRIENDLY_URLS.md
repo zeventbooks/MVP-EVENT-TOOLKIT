@@ -118,16 +118,16 @@ customAliases: {
 
 **Before (Technical):**
 ```
-https://zeventbooks.com?p=public&brand=abc
-https://zeventbooks.com?p=display&brand=cbc
-https://zeventbooks.com?p=admin&mode=advanced&brand=abc
+https://eventangle.com?p=public&brand=abc
+https://eventangle.com?p=display&brand=cbc
+https://eventangle.com?p=admin&mode=advanced&brand=abc
 ```
 
 **After (Friendly):**
 ```
-https://zeventbooks.com/abc/events
-https://zeventbooks.com/cbc/display
-https://zeventbooks.com/abc/manage
+https://eventangle.com/abc/events
+https://eventangle.com/cbc/display
+https://eventangle.com/abc/manage
 ```
 
 ### For Marketing Materials
@@ -135,16 +135,16 @@ https://zeventbooks.com/abc/manage
 **Print Flyers:**
 ```
 Visit our events page:
-zeventbooks.com/abc/events
+eventangle.com/abc/events
 
 Scan QR code or visit:
-zeventbooks.com/abc/tournaments
+eventangle.com/abc/tournaments
 ```
 
 **TV Display Setup:**
 ```
 Setup Instructions:
-1. Navigate to: zeventbooks.com/cbc/display
+1. Navigate to: eventangle.com/cbc/display
 2. Let it run in fullscreen
 3. Events will auto-rotate
 ```
@@ -152,10 +152,10 @@ Setup Instructions:
 **Email to Event Managers:**
 ```
 Manage your events at:
-zeventbooks.com/abc/manage
+eventangle.com/abc/manage
 
 Create a new event:
-zeventbooks.com/abc/create
+eventangle.com/abc/create
 ```
 
 ---
@@ -279,14 +279,14 @@ Both route to the same page.
 
 ### 1. Marketing & Promotions
 ```
-Print materials: zeventbooks.com/abc/events
-QR codes: zeventbooks.com/abc/tournaments
-Social media: zeventbooks.com/cbc/schedule
+Print materials: eventangle.com/abc/events
+QR codes: eventangle.com/abc/tournaments
+Social media: eventangle.com/cbc/schedule
 ```
 
 ### 2. TV/Kiosk Displays
 ```
-Simple setup URL: zeventbooks.com/cbc/display
+Simple setup URL: eventangle.com/cbc/display
 Easy to type, no query parameters needed
 ```
 
@@ -300,8 +300,8 @@ Clear, memorable instructions
 ### 4. Multi-brand Branding
 ```
 Each brand gets branded URLs:
-- americanbocceco.com → zeventbooks.com/abc/events
-- chicagoboccclub.org → zeventbooks.com/cbc/events
+- americanbocceco.com → eventangle.com/abc/events
+- chicagoboccclub.org → eventangle.com/cbc/events
 ```
 
 ---
@@ -312,19 +312,19 @@ Each brand gets branded URLs:
 
 ```bash
 # Public events
-curl https://zeventbooks.com/abc/events
+curl https://eventangle.com/abc/events
 
 # Admin interface
-curl https://zeventbooks.com/abc/manage
+curl https://eventangle.com/abc/manage
 
 # Display page
-curl https://zeventbooks.com/cbc/display
+curl https://eventangle.com/cbc/display
 
 # Custom brand alias
-curl https://zeventbooks.com/abc/tournaments
+curl https://eventangle.com/abc/tournaments
 
 # With demo mode
-curl https://zeventbooks.com/abc/events?demo=true
+curl https://eventangle.com/abc/events?demo=true
 ```
 
 ### Verify Alias Resolution
@@ -396,8 +396,8 @@ Subject: New Easier URLs!
 
 We've simplified our event URLs:
 
-OLD: zeventbooks.com?p=public&brand=abc
-NEW: zeventbooks.com/abc/events ✨
+OLD: eventangle.com?p=public&brand=abc
+NEW: eventangle.com/abc/events ✨
 
 Both URLs work - use whichever you prefer!
 
@@ -415,16 +415,16 @@ Bookmarks and old links still work!
 
 ### Subdomain Routing (Planned)
 ```
-abc.zeventbooks.com/events
-cbc.zeventbooks.com/display
+abc.eventangle.com/events
+cbc.eventangle.com/display
 ```
 
 Requires DNS configuration - set `enableSubdomainRouting: true` when ready.
 
 ### Short Link Integration
 ```
-zeventbooks.com/e/summer-tournament → Event detail page
-zeventbooks.com/s/abc123 → Shortlink redirect
+eventangle.com/e/summer-tournament → Event detail page
+eventangle.com/s/abc123 → Shortlink redirect
 ```
 
 Already supported via `/e/` and `/s/` patterns.
@@ -442,7 +442,7 @@ Already supported via `/e/` and `/s/` patterns.
 ✅ Configurable per brand
 
 **Next Steps:**
-1. Test your aliases: [https://zeventbooks.com/abc/events](https://zeventbooks.com/abc/events)
+1. Test your aliases: [https://eventangle.com/abc/events](https://eventangle.com/abc/events)
 2. Add custom aliases for your brands in `Config.gs`
 3. Update marketing materials with new URLs
 4. Enjoy cleaner, more professional URLs!
