@@ -412,6 +412,78 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
           </div>
         </div>
 
+        <!-- League & Broadcast Section (visible for rec_league or custom templates) -->
+        <div class="subsection" id="leagueBroadcastPanel" data-template-filter="rec_league,custom">
+          <div class="collapsible-header" onclick="toggleSection(this)">
+            <h3>League & Broadcast</h3>
+            <span class="collapsible-icon">▼</span>
+          </div>
+          <div class="collapsible-content">
+            <p class="muted" style="margin-bottom: 12px;">Add league schedule, standings, and broadcast information</p>
+
+            <!-- Core League Links -->
+            <div class="form-row">
+              <div class="form-group">
+                <label>📅 Schedule URL</label>
+                <input id="scheduleUrl" type="url" placeholder="https://...">
+                <small class="muted">Link to full schedule or season calendar</small>
+              </div>
+              <div class="form-group">
+                <label>📊 Standings URL</label>
+                <input id="standingsUrl" type="url" placeholder="https://...">
+                <small class="muted">Link to current standings or rankings</small>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label>🏆 Bracket URL</label>
+                <input id="bracketUrl" type="url" placeholder="https://...">
+                <small class="muted">Tournament bracket or playoff tree</small>
+              </div>
+              <div class="form-group">
+                <label>📈 Stats URL</label>
+                <input id="statsUrl" type="url" placeholder="https://...">
+                <small class="muted">Stats hub (e.g., BocceLabs league page)</small>
+              </div>
+            </div>
+
+            <!-- Broadcast Links -->
+            <div class="form-row">
+              <div class="form-group">
+                <label>📺 Scoreboard URL</label>
+                <input id="scoreboardUrl" type="url" placeholder="https://...">
+                <small class="muted">Live scoreboard or game center</small>
+              </div>
+              <div class="form-group">
+                <label>🎥 Stream URL</label>
+                <input id="streamUrl" type="url" placeholder="https://...">
+                <small class="muted">Live or VOD stream (YouTube, Twitch, BBN)</small>
+              </div>
+            </div>
+
+            <!-- Provider Integration -->
+            <div class="form-row">
+              <div class="form-group">
+                <label>Provider</label>
+                <select id="providerName">
+                  <option value="">-- Select Provider --</option>
+                  <option value="BocceLabs">BocceLabs</option>
+                  <option value="BBN">BBN (Bocce Broadcast Network)</option>
+                  <option value="Custom">Custom</option>
+                  <option value="None">None</option>
+                </select>
+                <small class="muted">External league platform if applicable</small>
+              </div>
+              <div class="form-group">
+                <label>Provider League ID</label>
+                <input id="providerLeagueId" type="text" placeholder="External league ID">
+                <small class="muted">ID from the league platform (optional)</small>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Template-Specific Fields (MVP) -->
         <div class="subsection">
           <div class="collapsible-header collapsed" onclick="toggleSection(this)">
@@ -445,27 +517,14 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
               </div>
             </div>
 
-            <!-- League/Tournament -->
+            <!-- Vendors (League fields moved to League & Broadcast panel) -->
             <div class="form-row">
-              <div class="form-group">
-                <label>📊 Standings URL</label>
-                <input id="standingsUrl" type="url" placeholder="League standings page">
-              </div>
-              <div class="form-group">
-                <label>🏆 Bracket URL</label>
-                <input id="bracketUrl" type="url" placeholder="Tournament bracket">
-              </div>
-            </div>
-
-            <!-- Schedule & Vendors -->
-            <div class="form-row">
-              <div class="form-group">
-                <label>📅 Schedule URL</label>
-                <input id="scheduleUrl" type="url" placeholder="Full schedule/itinerary">
-              </div>
               <div class="form-group">
                 <label>🛒 Vendor List URL</label>
                 <input id="vendorListUrl" type="url" placeholder="List of vendors">
+              </div>
+              <div class="form-group">
+                <!-- Empty for layout balance -->
               </div>
             </div>
 
@@ -685,11 +744,13 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
         } else {
           document.getElementById('templatePicker').innerHTML =
             '<p class="muted">Could not load templates. Using defaults.</p>';
+          updateTemplatePanelVisibility('custom'); // Show league panel for custom fallback
         }
       } catch (e) {
         console.error('Failed to load templates:', e);
         document.getElementById('templatePicker').innerHTML =
           '<p class="muted">Could not load templates. Using defaults.</p>';
+        updateTemplatePanelVisibility('custom'); // Show league panel for custom fallback
       }
     }
 
@@ -739,6 +800,21 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
         applySectionDefaults(tpl.sections);
         checkSectionsModified(); // Reset notice
       }
+
+      // Update template-filtered panel visibility
+      updateTemplatePanelVisibility(templateId);
+    }
+
+    /**
+     * Show/hide panels based on data-template-filter attribute
+     * Panels with data-template-filter="rec_league,custom" only show for those templates
+     */
+    function updateTemplatePanelVisibility(templateId) {
+      document.querySelectorAll('[data-template-filter]').forEach(panel => {
+        const allowedTemplates = panel.dataset.templateFilter.split(',').map(t => t.trim());
+        const shouldShow = allowedTemplates.includes(templateId);
+        panel.style.display = shouldShow ? '' : 'none';
+      });
     }
 
     function checkSectionsModified() {
@@ -808,8 +884,11 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
         'timeISO', 'location', 'entity', 'summary', 'summaryLink',
         'imageUrl', 'videoUrl', 'galleryUrls', 'bio', 'bioLink',
         // Template-specific fields
-        'ticketUrl', 'donationUrl', 'albumUrl', 'registryUrl',
-        'standingsUrl', 'bracketUrl', 'scheduleUrl', 'vendorListUrl'
+        'ticketUrl', 'donationUrl', 'albumUrl', 'registryUrl', 'vendorListUrl',
+        // League & Broadcast fields (ExternalLeagueData)
+        'scheduleUrl', 'standingsUrl', 'bracketUrl',
+        'statsUrl', 'scoreboardUrl', 'streamUrl',
+        'providerName', 'providerLeagueId'
       ];
 
       optional.forEach(field => {
