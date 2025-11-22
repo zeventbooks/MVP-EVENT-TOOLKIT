@@ -1056,6 +1056,10 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
 
     async function rpc(method, payload) {
       return new Promise((resolve) => {
+        if (!method || typeof google.script.run[method] !== 'function') {
+          resolve({ ok: false, code: 'INVALID_METHOD', message: `Method '${method}' is not a valid function` });
+          return;
+        }
         google.script.run
           .withSuccessHandler(res => resolve(res))
           .withFailureHandler(err => resolve({ ok: false, code: 'INTERNAL', message: String(err) }))

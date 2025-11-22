@@ -807,6 +807,10 @@ This page is an experimental UI and is not part of the core MVP surfaces.
     const NU = {
       rpc: function(method, params) {
         return new Promise((resolve, reject) => {
+          if (!method || typeof google.script.run[method] !== 'function') {
+            reject(new Error(`Method '${method}' is not a valid function`));
+            return;
+          }
           google.script.run
             .withSuccessHandler(resolve)
             .withFailureHandler(reject)
