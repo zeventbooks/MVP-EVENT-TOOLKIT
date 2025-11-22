@@ -137,6 +137,256 @@ var EVENT_TEMPLATES = {
     }
   },
 
+  // === Social & Celebration Templates ===
+
+  wedding: {
+    id: 'wedding',
+    label: 'Wedding',
+    description: 'Wedding celebrations, ceremonies, receptions',
+    exampleName: 'Sarah & John Wedding',
+    icon: '💒',
+    sections: {
+      video: true,
+      map: true,
+      schedule: true,
+      sponsors: false,
+      notes: true,
+      gallery: true
+    },
+    defaultCtas: ['RSVP', 'View Registry'],
+    defaults: {
+      audience: 'Guests & Family',
+      notesLabel: 'Event Details',
+      sponsorStripLabel: ''
+    }
+  },
+
+  photo_gallery: {
+    id: 'photo_gallery',
+    label: 'Photo Gallery / Sharing',
+    description: 'Weddings, birthdays, anniversaries - share photos',
+    exampleName: 'Johnson Family Reunion Photos',
+    icon: '📸',
+    sections: {
+      video: true,
+      map: false,
+      schedule: false,
+      sponsors: false,
+      notes: true,
+      gallery: true
+    },
+    defaultCtas: ['View Photos', 'Download'],
+    defaults: {
+      audience: 'Friends & Family',
+      notesLabel: 'About This Event',
+      sponsorStripLabel: ''
+    }
+  },
+
+  // === Market & Arts Templates ===
+
+  farmers_market: {
+    id: 'farmers_market',
+    label: 'Farmers Market',
+    description: 'Local markets, vendor fairs, craft shows',
+    exampleName: 'Saturday Farmers Market',
+    icon: '🥕',
+    sections: {
+      video: false,
+      map: true,
+      schedule: true,
+      sponsors: true,
+      notes: true,
+      gallery: true
+    },
+    defaultCtas: ['Get Directions', 'View Vendors'],
+    defaults: {
+      audience: 'Shoppers & Vendors',
+      notesLabel: 'Market Info',
+      sponsorStripLabel: 'Market Sponsors'
+    }
+  },
+
+  art_show: {
+    id: 'art_show',
+    label: 'Art Show / Exhibition',
+    description: 'Art exhibits, gallery shows, artist showcases',
+    exampleName: 'Spring Art Walk',
+    icon: '🎨',
+    sections: {
+      video: true,
+      map: true,
+      schedule: false,
+      sponsors: true,
+      notes: true,
+      gallery: true
+    },
+    defaultCtas: ['RSVP', 'View Gallery'],
+    defaults: {
+      audience: 'Art Enthusiasts',
+      notesLabel: 'Exhibition Details',
+      sponsorStripLabel: 'Gallery Sponsors'
+    }
+  },
+
+  carnival: {
+    id: 'carnival',
+    label: 'Carnival / Fair',
+    description: 'Carnivals, county fairs, community festivals',
+    exampleName: 'Summer Carnival',
+    icon: '🎡',
+    sections: {
+      video: true,
+      map: true,
+      schedule: true,
+      sponsors: true,
+      notes: true,
+      gallery: true
+    },
+    defaultCtas: ['Buy Tickets', 'View Schedule'],
+    defaults: {
+      audience: 'Families & Community',
+      notesLabel: 'Event Info',
+      sponsorStripLabel: 'Carnival Sponsors'
+    }
+  },
+
+  // === Bar Games & League Templates ===
+
+  trivia: {
+    id: 'trivia',
+    label: 'Trivia Night',
+    description: 'Pub trivia, quiz nights, team competitions',
+    exampleName: 'Wednesday Trivia',
+    icon: '🧠',
+    sections: {
+      video: false,
+      map: true,
+      schedule: false,
+      sponsors: true,
+      notes: true,
+      gallery: false
+    },
+    defaultCtas: ['Register Team', 'View Rules'],
+    defaults: {
+      audience: 'Teams & Players',
+      notesLabel: 'House Rules',
+      sponsorStripLabel: "Tonight's Sponsors"
+    }
+  },
+
+  darts: {
+    id: 'darts',
+    label: 'Darts League',
+    description: 'Dart leagues, tournaments, competitions',
+    exampleName: 'Tuesday Darts League',
+    icon: '🎯',
+    sections: {
+      video: false,
+      map: true,
+      schedule: true,
+      sponsors: true,
+      notes: true,
+      gallery: false
+    },
+    defaultCtas: ['Register', 'View Standings'],
+    defaults: {
+      audience: 'Players & Teams',
+      notesLabel: 'League Rules',
+      sponsorStripLabel: 'League Sponsors'
+    }
+  },
+
+  bags: {
+    id: 'bags',
+    label: 'Bags / Cornhole',
+    description: 'Cornhole leagues, bags tournaments',
+    exampleName: 'Summer Bags League',
+    icon: '🥏',
+    sections: {
+      video: false,
+      map: true,
+      schedule: true,
+      sponsors: true,
+      notes: true,
+      gallery: false
+    },
+    defaultCtas: ['Register Team', 'View Bracket'],
+    defaults: {
+      audience: 'Players & Teams',
+      notesLabel: 'League Rules',
+      sponsorStripLabel: 'League Sponsors'
+    }
+  },
+
+  pinball: {
+    id: 'pinball',
+    label: 'Pinball League',
+    description: 'Pinball leagues, arcade tournaments',
+    exampleName: 'Monday Pinball League',
+    icon: '🕹️',
+    sections: {
+      video: false,
+      map: true,
+      schedule: true,
+      sponsors: true,
+      notes: true,
+      gallery: false
+    },
+    defaultCtas: ['Register', 'View Rankings'],
+    defaults: {
+      audience: 'Players',
+      notesLabel: 'League Rules',
+      sponsorStripLabel: 'League Sponsors'
+    }
+  },
+
+  // === Faith & Community Templates ===
+
+  church: {
+    id: 'church',
+    label: 'Church Event',
+    description: 'Services, potlucks, community gatherings',
+    exampleName: 'Easter Service',
+    icon: '⛪',
+    sections: {
+      video: true,
+      map: true,
+      schedule: true,
+      sponsors: false,
+      notes: true,
+      gallery: true
+    },
+    defaultCtas: ['RSVP', 'Get Directions'],
+    defaults: {
+      audience: 'Congregation & Guests',
+      notesLabel: 'Event Details',
+      sponsorStripLabel: ''
+    }
+  },
+
+  church_club: {
+    id: 'church_club',
+    label: "Church Group / Club",
+    description: "Men's, women's, youth groups and ministries",
+    exampleName: "Women's Bible Study",
+    icon: '✝️',
+    sections: {
+      video: false,
+      map: true,
+      schedule: true,
+      sponsors: false,
+      notes: true,
+      gallery: true
+    },
+    defaultCtas: ['Join Group', 'Contact Leader'],
+    defaults: {
+      audience: 'Group Members',
+      notesLabel: 'Group Info',
+      sponsorStripLabel: ''
+    }
+  },
+
   custom: {
     id: 'custom',
     label: 'Custom Event',
