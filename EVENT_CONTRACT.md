@@ -295,11 +295,33 @@ Each display surface uses specific fields:
 
 | Surface | Fields Used |
 |---------|-------------|
-| **Public** | All except `notes` (admin-only) |
+| **Public** | All except `notes` (admin-only), includes `externalData.*` for League & Broadcast card |
 | **Poster** | `name`, `dateTime`, `location`, `venueName`, `summary`, `sponsors` |
-| **Display** | `name`, `dateTime`, `location`, `sponsors`, `sections.schedule` |
-| **Admin** | All fields |
-| **Report** | `id`, `name`, `dateTime`, `sponsors` + analytics |
+| **Display** | `name`, `dateTime`, `location`, `sponsors`, `sections.schedule`, `externalData.*` for bottom strip |
+| **Admin** | All fields (full ExternalLeagueData in League & Broadcast panel) |
+| **Report** | `id`, `name`, `dateTime`, `sponsors` + analytics (includes `external_click` metrics) |
+
+### League & Broadcast Card (Public.html)
+
+Shows when `hasLeagueLinks || hasBroadcastLinks`:
+```javascript
+const hasLeagueLinks = !!(ed.scheduleUrl || ed.standingsUrl || ed.bracketUrl);
+const hasBroadcastLinks = !!(ed.statsUrl || ed.scoreboardUrl || ed.streamUrl);
+```
+
+**Card title**: `"League & Broadcast (via {providerName})"` when provider set, else `"League & Broadcast"`
+
+**Links rendered** (only if URL is non-null):
+- League row: Schedule 📅, Standings 🏆, Bracket 🎯
+- Broadcast row: Stats 📈, Scoreboard 📺, Watch Stream 🎥
+
+### League & Broadcast Strip (Display.html / TV)
+
+Bottom strip for TV layout, same visibility rules as Public.html.
+
+**Layout**: `[ Title  |  League: Schedule | Standings | Bracket  •  Broadcast: Stats | Scoreboard | Watch ]`
+
+**Analytics**: All link clicks logged via `api_logExternalClick` with `linkType` (fire-and-forget).
 
 ---
 
