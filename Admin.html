@@ -299,8 +299,9 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
                 <input type="checkbox" id="sectionSchedule" checked>
                 <span class="section-label">📅 Schedule</span>
               </label>
-              <label class="section-toggle">
-                <input type="checkbox" id="sectionSponsors" checked>
+              <!-- V2: Sponsors section hidden until V2 release -->
+              <label class="section-toggle" id="v2SectionSponsorsToggle" style="display:none;">
+                <input type="checkbox" id="sectionSponsors">
                 <span class="section-label">🤝 Sponsors</span>
               </label>
               <label class="section-toggle">
@@ -605,7 +606,7 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
       </div>
 
       <div class="button-group">
-        <button class="btn-primary" onclick="configureDisplay()">Configure Display & Sponsors</button>
+        <button class="btn-primary" onclick="configureDisplay()">Configure Display</button>
         <button class="btn-secondary" onclick="configureSignup()">Configure Sign-Up Forms</button>
         <button class="btn-secondary <? if (demoMode && ZEB.DEMO_MODE.highlightNewFeatures) { ?>demo-new-feature<? } ?>" onclick="openFormsTemplates()">
           Google Forms Templates
@@ -731,9 +732,12 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
         <button class="btn-secondary" onclick="addUrl()">Add URL</button>
       </div>
 
-      <h3>Sponsors</h3>
-      <div id="sponsorList"></div>
-      <button class="btn-secondary" onclick="addSponsor()">Add Sponsor</button>
+      <!-- V2: Sponsors hidden until V2 release -->
+      <div id="v2SponsorsSection" style="display:none;">
+        <h3>Sponsors</h3>
+        <div id="sponsorList"></div>
+        <button class="btn-secondary" onclick="addSponsor()">Add Sponsor</button>
+      </div>
 
       <div class="button-group">
         <button class="btn-primary" onclick="saveDisplayConfig()">Save Configuration</button>
@@ -1424,7 +1428,7 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
       }
     }
 
-    // Configure Display & Sponsors
+    // Configure Display (V2: Sponsors hidden)
     function configureDisplay() {
       document.getElementById('displayCard').style.display = '';
       loadDisplayConfig();
