@@ -1,6 +1,10 @@
 /**
  * API Testing Helpers for Playwright
  * Replaces Newman/Postman API testing with native Playwright API testing
+ *
+ * EVENT_CONTRACT.md v2.0 Compliance:
+ * - EventBuilder uses v2.0 field names: startDateISO, venue
+ * - API responses validated for canonical event shape
  */
 
 export class ApiHelpers {
@@ -250,20 +254,29 @@ export class ApiHelpers {
   }
 
   /**
-   * Create test event with default values
+   * Create test event with default values per EVENT_CONTRACT.md v2.0
    * @param {string} brand - Brand ID
    * @param {string} adminKey - Admin key
    * @param {object} overrides - Override default values
    */
   async createTestEvent(brand, adminKey, overrides = {}) {
     const timestamp = Date.now();
+    // v2.0: Use canonical field names (startDateISO, venue)
     const defaultEvent = {
       name: `Test Event ${timestamp}`,
-      dateISO: '2025-12-01',
-      timeISO: '18:00',
-      location: 'Test Venue',
-      summary: 'Test event created by automated tests',
-      entity: 'test',
+      startDateISO: '2025-12-01',  // v2.0: was dateISO
+      venue: 'Test Venue',          // v2.0: was location
+      // V2 optional defaults
+      ctas: {
+        primary: { label: 'Sign Up', url: '' },
+        secondary: null
+      },
+      settings: {
+        showSchedule: false,
+        showStandings: false,
+        showBracket: false,
+        showSponsors: false
+      },
       ...overrides
     };
 
@@ -307,16 +320,25 @@ export class ApiHelpers {
 }
 
 /**
- * Test data builders
+ * Test data builders per EVENT_CONTRACT.md v2.0
  */
 export class EventBuilder {
   constructor() {
+    // v2.0 canonical field names
     this.data = {
       name: 'Test Event',
-      dateISO: '2025-12-01',
-      timeISO: '18:00',
-      location: 'Test Venue',
-      entity: 'test'
+      startDateISO: '2025-12-01',  // v2.0: was dateISO
+      venue: 'Test Venue',          // v2.0: was location
+      ctas: {
+        primary: { label: 'Sign Up', url: '' },
+        secondary: null
+      },
+      settings: {
+        showSchedule: false,
+        showStandings: false,
+        showBracket: false,
+        showSponsors: false
+      }
     };
   }
 
@@ -326,32 +348,47 @@ export class EventBuilder {
   }
 
   withDate(date) {
-    this.data.dateISO = date;
+    this.data.startDateISO = date;  // v2.0 field name
     return this;
   }
 
-  withTime(time) {
-    this.data.timeISO = time;
+  withVenue(venue) {
+    this.data.venue = venue;  // v2.0 field name
     return this;
   }
 
+  // Legacy alias for backward compatibility
   withLocation(location) {
-    this.data.location = location;
+    this.data.venue = location;  // Maps to v2.0 venue field
     return this;
   }
 
-  withSummary(summary) {
-    this.data.summary = summary;
+  withSignupUrl(url) {
+    this.data.ctas.primary.url = url;
     return this;
   }
 
-  withSponsors(sponsorIds) {
-    this.data.sponsorIds = Array.isArray(sponsorIds) ? sponsorIds.join(',') : sponsorIds;
+  withCTALabel(label) {
+    this.data.ctas.primary.label = label;
     return this;
   }
 
-  withEntity(entity) {
-    this.data.entity = entity;
+  withSchedule(schedule) {
+    this.data.schedule = schedule;
+    this.data.settings.showSchedule = true;
+    return this;
+  }
+
+  withSettings(settings) {
+    this.data.settings = { ...this.data.settings, ...settings };
+    return this;
+  }
+
+  withSponsors(sponsors) {
+    this.data.sponsors = sponsors;
+    if (sponsors && sponsors.length > 0) {
+      this.data.settings.showSponsors = true;
+    }
     return this;
   }
 
