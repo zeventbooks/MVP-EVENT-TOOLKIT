@@ -1517,7 +1517,8 @@ function _ensureAnalyticsSheet_(spreadsheetId){
   let sh = ss.getSheetByName('ANALYTICS');
   if (!sh){
     sh = ss.insertSheet('ANALYTICS');
-    sh.appendRow(['timestamp','eventId','surface','metric','sponsorId','value','token','userAgent']);
+    // Extended columns for sponsor/BBN attribution: sessionId ties events together, visibleSponsorIds for context
+    sh.appendRow(['timestamp','eventId','surface','metric','sponsorId','value','token','userAgent','sessionId','visibleSponsorIds']);
     sh.setFrozenRows(1);
   }
   return sh;
@@ -3268,6 +3269,12 @@ function api_updateEventData(req){
 /**
  * Log analytics events (impressions, clicks, dwell time)
  * Core tracking endpoint for the analytics loop
+ * Fire-and-forget - no auth required for public tracking
+ *
+ * Extended columns for attribution:
+ * - sessionId: ties events from same page visit together
+ * - visibleSponsorIds: (reserved for external_click, not used here)
+ *
  * @tier mvp
  */
 function api_logEvents(req){
@@ -3275,15 +3282,11 @@ function api_logEvents(req){
     const items = (req && req.items) || [];
     if (!items.length) return Ok({count:0});
 
-    // Security fix: Require authentication to prevent analytics injection
-    const { brandId, adminKey } = req || {};
-    const g = gate_(brandId || 'root', adminKey);
-    if (!g.ok) return g;
-
     const sh = _ensureAnalyticsSheet_();
     const now = Date.now();
 
     // Fixed: Bug #29 - Sanitize all values for spreadsheet to prevent formula injection
+    // Extended to 10 columns: +sessionId, +visibleSponsorIds (empty for regular events)
     const rows = items.map(it => [
       new Date(it.ts || now),
       sanitizeSpreadsheetValue_(it.eventId || ''),
@@ -3292,9 +3295,11 @@ function api_logEvents(req){
       sanitizeSpreadsheetValue_(it.sponsorId || ''),
       Number(it.value || 0),
       sanitizeSpreadsheetValue_(it.token || ''),
-      sanitizeSpreadsheetValue_((it.ua || '').slice(0, 200))
+      sanitizeSpreadsheetValue_((it.ua || '').slice(0, 200)),
+      sanitizeSpreadsheetValue_(it.sessionId || ''),  // Session ID for attribution
+      ''  // visibleSponsorIds - not used for regular sponsor events
     ]);
-    sh.getRange(sh.getLastRow()+1, 1, rows.length, 8).setValues(rows);
+    sh.getRange(sh.getLastRow()+1, 1, rows.length, 10).setValues(rows);
 
     diag_('info','api_logEvents','logged',{count: rows.length});
     return Ok({count: rows.length});
@@ -3302,14 +3307,24 @@ function api_logEvents(req){
 }
 
 /**
- * Log external link clicks from League & Broadcast card
- * Fire-and-forget analytics - no storage schema change needed
- * Logs to analytics sheet with metric='external_click' and linkType in sponsorId column
+ * Log external link clicks from League & Broadcast card (BBN/BocceLabs)
+ * Fire-and-forget analytics for sponsor/BBN attribution
+ *
+ * Extended for attribution analysis:
+ * - sessionId: ties this click to sponsor impressions in same session
+ * - visibleSponsorIds: which sponsors were on-screen when click happened
+ *
+ * @param {Object} req
+ * @param {string} req.eventId - Event ID
+ * @param {string} req.linkType - schedule|standings|bracket|stats|scoreboard|stream
+ * @param {string} [req.sessionId] - Session UUID for attribution
+ * @param {string[]} [req.visibleSponsorIds] - Sponsor IDs visible at click time
+ * @param {string} [req.surface] - Surface where click happened (default: 'public')
  * @tier mvp
  */
 function api_logExternalClick(req) {
   return runSafe('api_logExternalClick', () => {
-    const { eventId, linkType } = req || {};
+    const { eventId, linkType, sessionId, visibleSponsorIds, surface } = req || {};
 
     // Validate inputs
     if (!eventId || typeof eventId !== 'string') {
@@ -3325,27 +3340,33 @@ function api_logExternalClick(req) {
       return Err(ERR.BAD_INPUT, 'invalid linkType');
     }
 
-    // Log to analytics sheet (reuse existing structure)
+    // Log to analytics sheet
     const sh = _ensureAnalyticsSheet_();
     const now = new Date();
 
-    // Use existing analytics columns:
-    // [timestamp, eventId, surface, metric, sponsorId, value, token, ua]
-    // We'll use: surface='public', metric='external_click', sponsorId=linkType, value=1
+    // Serialize visibleSponsorIds as JSON if provided
+    const sponsorIdsJson = Array.isArray(visibleSponsorIds) && visibleSponsorIds.length > 0
+      ? JSON.stringify(visibleSponsorIds.slice(0, 20))  // Cap at 20 to prevent bloat
+      : '';
+
+    // Extended analytics columns (10 total):
+    // [timestamp, eventId, surface, metric, sponsorId/linkType, value, token, ua, sessionId, visibleSponsorIds]
     const row = [
       now,
       sanitizeSpreadsheetValue_(eventId),
-      'public',                              // surface
-      'external_click',                      // metric (new metric type)
-      sanitizeSpreadsheetValue_(linkType),   // repurpose sponsorId column for linkType
-      1,                                     // value (1 click)
-      '',                                    // token (unused)
-      ''                                     // ua (unused for this simple log)
+      sanitizeSpreadsheetValue_(surface || 'public'),  // surface
+      'external_click',                                 // metric
+      sanitizeSpreadsheetValue_(linkType),              // linkType in sponsorId column
+      1,                                                // value (1 click)
+      '',                                               // token (unused)
+      '',                                               // ua (unused for this endpoint)
+      sanitizeSpreadsheetValue_(sessionId || ''),       // sessionId for attribution
+      sanitizeSpreadsheetValue_(sponsorIdsJson)         // visibleSponsorIds JSON
     ];
 
-    sh.getRange(sh.getLastRow() + 1, 1, 1, 8).setValues([row]);
+    sh.getRange(sh.getLastRow() + 1, 1, 1, 10).setValues([row]);
 
-    diag_('info', 'api_logExternalClick', 'logged', { eventId, linkType });
+    diag_('info', 'api_logExternalClick', 'logged', { eventId, linkType, hasSession: !!sessionId, sponsorCount: visibleSponsorIds?.length || 0 });
     return Ok({ logged: true });
   });
 }

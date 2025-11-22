@@ -342,8 +342,11 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
     };
 
     // Use shared utilities from SponsorUtils
-    const { esc, logEvent, initLogging } = window.SponsorUtils;
+    const { esc, logEvent, initLogging, getSessionId } = window.SponsorUtils;
     initLogging();
+
+    // Track rendered sponsor IDs for BBN attribution
+    let currentRenderedSponsorIds = [];
 
     // === EVENT_CONTRACT.md v1.0 Support ===
     // Helper to check if section is enabled
@@ -421,11 +424,17 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
 
       strip.hidden = false;
 
-      // Analytics: log clicks (fire-and-forget)
+      // Analytics: log clicks with sponsor attribution (fire-and-forget)
       strip.querySelectorAll('a[data-link-type]').forEach(a => {
         a.addEventListener('click', () => {
           const linkType = a.dataset.linkType;
-          NU.rpc('api_logExternalClick', { eventId, linkType }).catch(() => {});
+          NU.rpc('api_logExternalClick', {
+            eventId,
+            linkType,
+            surface: 'display',
+            sessionId: getSessionId?.() || '',
+            visibleSponsorIds: currentRenderedSponsorIds
+          }).catch(() => {});
         });
       });
     }
@@ -469,6 +478,9 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
       const picks = sponsors.filter(s => s.name);
       if (!picks.length) return;
 
+      // Track rendered sponsor IDs for BBN attribution
+      currentRenderedSponsorIds = [...new Set([...currentRenderedSponsorIds, ...picks.map(s => s.id).filter(Boolean)])];
+
       topEl.innerHTML = picks.map(s => {
         const content = s.logoUrl
           ? `<img src="${esc(s.logoUrl)}" alt="${esc(s.name || '')}">`
@@ -491,6 +503,9 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
       if (!sponsors || !sponsors.length) return;
       const picks = sponsors.filter(s => s.name);
       if (!picks.length) return;
+
+      // Track rendered sponsor IDs for BBN attribution
+      currentRenderedSponsorIds = [...new Set([...currentRenderedSponsorIds, ...picks.map(s => s.id).filter(Boolean)])];
 
       sideEl.innerHTML = picks.map(s => {
         const tierBadge = s.tier ? `<span style="font-size:0.7em;color:#f59e0b;margin-left:8px;">${esc(s.tier)}</span>` : '';
@@ -518,6 +533,10 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
     function renderSponsorTop(ev) {
       const picks = (ev?.data?.sponsors || []).filter(s => s?.placements?.tvTop);
       if (!picks.length) return;
+
+      // Track rendered sponsor IDs for BBN attribution
+      currentRenderedSponsorIds = [...new Set([...currentRenderedSponsorIds, ...picks.map(s => s.id).filter(Boolean)])];
+
       topEl.innerHTML = picks.map(s => {
         const content = s.img
           ? `<img src="${esc(s.img)}" alt="${esc(s.name || '')}">`
@@ -539,6 +558,10 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
     function renderSponsorSide(ev) {
       const picks = (ev?.data?.sponsors || []).filter(s => s?.placements?.tvSide);
       if (!picks.length) return;
+
+      // Track rendered sponsor IDs for BBN attribution
+      currentRenderedSponsorIds = [...new Set([...currentRenderedSponsorIds, ...picks.map(s => s.id).filter(Boolean)])];
+
       sideEl.innerHTML = picks.map(s => {
         const card = `
           <div class="sp-card" data-id="${esc(s.id || '')}">

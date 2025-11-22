@@ -13,6 +13,34 @@ window.SponsorUtils = (function() {
     }[m]));
   }
 
+  // === Session ID for analytics attribution ===
+  // Ties all events from same page visit together
+  let sessionId = null;
+
+  function getSessionId() {
+    if (sessionId) return sessionId;
+    // Check sessionStorage first (persists across page reloads in same tab)
+    try {
+      sessionId = sessionStorage.getItem('zeb_session_id');
+      if (!sessionId) {
+        sessionId = crypto.randomUUID ? crypto.randomUUID() :
+          'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+            const r = Math.random() * 16 | 0;
+            return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+          });
+        sessionStorage.setItem('zeb_session_id', sessionId);
+      }
+    } catch (_) {
+      // sessionStorage not available, use in-memory only
+      sessionId = crypto.randomUUID ? crypto.randomUUID() :
+        'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+          const r = Math.random() * 16 | 0;
+          return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+        });
+    }
+    return sessionId;
+  }
+
   // === Analytics Logging ===
   const BATCH_SIZE = 5;
   const FLUSH_INTERVAL = 5000;
@@ -23,6 +51,7 @@ window.SponsorUtils = (function() {
     try {
       evt.ua = navigator.userAgent;
       evt.ts = Date.now();
+      evt.sessionId = getSessionId();  // Always include sessionId
       logBatch.push(evt);
       if (logBatch.length >= BATCH_SIZE) flush();
     } catch (_) {}
@@ -40,6 +69,7 @@ window.SponsorUtils = (function() {
     if (flushTimer) clearInterval(flushTimer);
     flushTimer = setInterval(flush, FLUSH_INTERVAL);
     window.addEventListener('beforeunload', flush);
+    getSessionId(); // Initialize sessionId early
   }
 
   // === Sponsor Filtering ===
@@ -167,6 +197,7 @@ window.SponsorUtils = (function() {
     logEvent,
     flush,
     initLogging,
+    getSessionId,  // For external click handlers that need sessionId
     filterByPlacement,
     renderSponsors,
     // Expose individual renderers for custom use
