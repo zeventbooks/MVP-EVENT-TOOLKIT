@@ -1171,20 +1171,42 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
         `;
       }
 
-      // Links summary
+      // Links summary with copy/open buttons
       info += `
         <div style="margin-top: 16px; padding: 16px; background: #f0f9ff; border-radius: 8px; border: 1px solid #bae6fd;">
-          <p style="color: #0369a1; font-size: 13px; margin-bottom: 8px; font-weight: 600;">EVENT LINKS</p>
-          <div style="display: grid; gap: 8px; font-size: 13px;">
-            <div><strong>Public:</strong> <a href="${NU.esc(links.publicUrl || '')}" target="_blank" style="color: #2563eb;">${NU.esc(links.publicUrl || '')}</a></div>
-            <div><strong>Display:</strong> <a href="${NU.esc(links.displayUrl || '')}" target="_blank" style="color: #2563eb;">${NU.esc(links.displayUrl || '')}</a></div>
-            <div><strong>Poster:</strong> <a href="${NU.esc(links.posterUrl || '')}" target="_blank" style="color: #2563eb;">${NU.esc(links.posterUrl || '')}</a></div>
-            ${links.signupUrl ? `<div><strong>Sign Up:</strong> <a href="${NU.esc(links.signupUrl)}" target="_blank" style="color: #2563eb;">${NU.esc(links.signupUrl)}</a></div>` : ''}
+          <p style="color: #0369a1; font-size: 13px; margin-bottom: 12px; font-weight: 600;">EVENT LINKS</p>
+          <div style="display: grid; gap: 12px; font-size: 13px;">
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <strong style="min-width: 70px;">Public:</strong>
+              <code style="flex: 1; background: #fff; padding: 4px 8px; border-radius: 4px; font-size: 12px; overflow: hidden; text-overflow: ellipsis;">${NU.esc(links.publicUrl || '')}</code>
+              <button onclick="copyUrl('${NU.esc(links.publicUrl || '')}')" style="padding: 4px 8px; font-size: 12px; cursor: pointer; border: 1px solid #cbd5e1; border-radius: 4px; background: #fff;">Copy</button>
+              <a href="${NU.esc(links.publicUrl || '')}" target="_blank" style="padding: 4px 8px; font-size: 12px; text-decoration: none; border: 1px solid #2563eb; border-radius: 4px; background: #2563eb; color: #fff;">Open</a>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <strong style="min-width: 70px;">Display:</strong>
+              <code style="flex: 1; background: #fff; padding: 4px 8px; border-radius: 4px; font-size: 12px; overflow: hidden; text-overflow: ellipsis;">${NU.esc(links.displayUrl || '')}</code>
+              <button onclick="copyUrl('${NU.esc(links.displayUrl || '')}')" style="padding: 4px 8px; font-size: 12px; cursor: pointer; border: 1px solid #cbd5e1; border-radius: 4px; background: #fff;">Copy</button>
+              <a href="${NU.esc(links.displayUrl || '')}" target="_blank" style="padding: 4px 8px; font-size: 12px; text-decoration: none; border: 1px solid #2563eb; border-radius: 4px; background: #2563eb; color: #fff;">Open</a>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <strong style="min-width: 70px;">Poster:</strong>
+              <code style="flex: 1; background: #fff; padding: 4px 8px; border-radius: 4px; font-size: 12px; overflow: hidden; text-overflow: ellipsis;">${NU.esc(links.posterUrl || '')}</code>
+              <button onclick="copyUrl('${NU.esc(links.posterUrl || '')}')" style="padding: 4px 8px; font-size: 12px; cursor: pointer; border: 1px solid #cbd5e1; border-radius: 4px; background: #fff;">Copy</button>
+              <a href="${NU.esc(links.posterUrl || '')}" target="_blank" style="padding: 4px 8px; font-size: 12px; text-decoration: none; border: 1px solid #2563eb; border-radius: 4px; background: #2563eb; color: #fff;">Open</a>
+            </div>
+            ${links.signupUrl ? `
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <strong style="min-width: 70px;">Sign Up:</strong>
+              <code style="flex: 1; background: #fff; padding: 4px 8px; border-radius: 4px; font-size: 12px; overflow: hidden; text-overflow: ellipsis;">${NU.esc(links.signupUrl)}</code>
+              <button onclick="copyUrl('${NU.esc(links.signupUrl)}')" style="padding: 4px 8px; font-size: 12px; cursor: pointer; border: 1px solid #cbd5e1; border-radius: 4px; background: #fff;">Copy</button>
+              <a href="${NU.esc(links.signupUrl)}" target="_blank" style="padding: 4px 8px; font-size: 12px; text-decoration: none; border: 1px solid #2563eb; border-radius: 4px; background: #2563eb; color: #fff;">Open</a>
+            </div>
+            ` : ''}
           </div>
         </div>
       `;
 
-      info += `<p style="margin-top: 16px;"><strong>Event ID:</strong> <code>${event.id}</code> &nbsp; <strong>Slug:</strong> <code>${event.slug || ''}</code></p>`;
+      info += `<p style="margin-top: 16px;"><strong>Event ID:</strong> <code style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px;">${event.id}</code> &nbsp; <strong>Slug:</strong> <code style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px;">${event.slug || ''}</code></p>`;
 
       document.getElementById('eventInfo').innerHTML = info;
     }
@@ -1199,6 +1221,22 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
       const url = document.getElementById(id).textContent;
       await navigator.clipboard.writeText(url);
       alert('Link copied!');
+    }
+
+    async function copyUrl(url) {
+      try {
+        await navigator.clipboard.writeText(url);
+        alert('Link copied!');
+      } catch (e) {
+        // Fallback for older browsers
+        const ta = document.createElement('textarea');
+        ta.value = url;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        alert('Link copied!');
+      }
     }
 
     function clearForm() {
