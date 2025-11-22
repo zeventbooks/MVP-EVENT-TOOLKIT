@@ -283,6 +283,29 @@ window.APIClient = (function() {
   }
 
   /**
+   * Get display bundle (for Display.html TV mode)
+   * Returns: event, rotation config, layout config
+   * All config computed from Config + Template + Brand (no extra DB fields)
+   * @param {string} eventId - Event ID
+   * @param {Object} options - Additional options
+   * @returns {Promise<Object>} Display bundle data (DisplayBundle)
+   */
+  async function getDisplayBundle(eventId, options = {}) {
+    const payload = {
+      brandId: options.brandId || defaultConfig.brandId,
+      scope: options.scope || 'events',
+      id: eventId
+    };
+
+    if (options.ifNoneMatch) {
+      payload.ifNoneMatch = options.ifNoneMatch;
+    }
+
+    const response = await request('api_getDisplayBundle', payload);
+    return response;
+  }
+
+  /**
    * Generate form shortlink
    * @param {string} formUrl - Form URL
    * @param {Object} options - Additional options
@@ -390,6 +413,7 @@ window.APIClient = (function() {
     updateEvent,
     getPublicBundle,
     getAdminBundle,
+    getDisplayBundle,
     generateFormShortlink,
     createFormFromTemplate,
 

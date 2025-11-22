@@ -153,6 +153,44 @@ const ZEB = Object.freeze({
       entity: 'Chicago Bocce League',
       logoUrl: 'https://picsum.photos/200/200?random=2'
     }
+  },
+
+  // Display/TV Mode Configuration
+  // Settings for Display.html TV display surface
+  // All values computed from Config + Template + Brand; no extra DB fields needed
+  DISPLAY_CONFIG: {
+    // Default rotation settings (can be overridden per brand/template)
+    rotation: {
+      sponsorSlots: 4,           // How many sponsor tiles to show at once
+      rotationMs: 8000,          // Cycle interval in milliseconds (8 seconds)
+      refreshMs: 300000          // Page refresh interval (5 minutes)
+    },
+
+    // Default layout settings
+    layout: {
+      hasSidePane: true,         // Show sponsor side panel
+      emphasis: 'hero'           // 'scores' | 'sponsors' | 'hero' - what to emphasize
+    },
+
+    // Template-specific overrides (merged with defaults)
+    templateOverrides: {
+      'rec_league': {
+        layout: { emphasis: 'scores', hasSidePane: true },
+        rotation: { sponsorSlots: 3, rotationMs: 6000 }
+      },
+      'bar_night': {
+        layout: { emphasis: 'sponsors', hasSidePane: true },
+        rotation: { sponsorSlots: 4, rotationMs: 10000 }
+      },
+      'trivia': {
+        layout: { emphasis: 'hero', hasSidePane: false },
+        rotation: { sponsorSlots: 2, rotationMs: 12000 }
+      },
+      'fundraiser': {
+        layout: { emphasis: 'sponsors', hasSidePane: true },
+        rotation: { sponsorSlots: 6, rotationMs: 5000 }
+      }
+    }
   }
 });
 

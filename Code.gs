@@ -542,6 +542,17 @@ function handleRestApiGet_(e, action, brand) {
     return jsonResponse_(api_get({brandId, scope, id, ifNoneMatch: etag}));
   }
 
+  // Public bundle endpoints (no auth required)
+  if (action === 'getPublicBundle') {
+    if (!id) return jsonResponse_(Err(ERR.BAD_INPUT, 'Missing id parameter'));
+    return jsonResponse_(api_getPublicBundle({brandId, scope, id, ifNoneMatch: etag}));
+  }
+
+  if (action === 'getDisplayBundle') {
+    if (!id) return jsonResponse_(Err(ERR.BAD_INPUT, 'Missing id parameter'));
+    return jsonResponse_(api_getDisplayBundle({brandId, scope, id, ifNoneMatch: etag}));
+  }
+
   return jsonResponse_(Err(ERR.BAD_INPUT, `Unknown action: ${action}`));
 }
 
@@ -2486,6 +2497,108 @@ function getEventDiagnostics_(brandId, eventId) {
       lastPublishedAt: null
     };
   }
+}
+
+/**
+ * Display Bundle - Optimized bundle for Display.html (TV mode)
+ * Returns event + rotation/layout config computed from Config + Template + Brand
+ *
+ * DisplayBundle interface:
+ * - event: EventCore (full canonical event shape with hydrated sponsors)
+ * - rotation: { sponsorSlots, rotationMs } - sponsor display config
+ * - layout: { hasSidePane, emphasis } - layout emphasis ('scores'|'sponsors'|'hero')
+ *
+ * All values are computed from ZEB.DISPLAY_CONFIG with template-specific overrides.
+ * No extra DB fields needed.
+ *
+ * @param {object} payload - { brandId, scope, id, ifNoneMatch }
+ * @returns {object} { ok, value: DisplayBundle, etag }
+ * @tier mvp
+ */
+function api_getDisplayBundle(payload){
+  return runSafe('api_getDisplayBundle', () => {
+    const { brandId, scope, id } = payload||{};
+
+    // Validate ID format
+    const sanitizedId = sanitizeId_(id);
+    if (!sanitizedId) return Err(ERR.BAD_INPUT, 'Invalid ID format');
+
+    const brand = findBrand_(brandId);
+    if (!brand) return Err(ERR.NOT_FOUND, 'Unknown brand');
+
+    const a = assertScopeAllowed_(brand, scope);
+    if (!a.ok) return a;
+
+    // Get event data
+    const sh = getStoreSheet_(brand, scope);
+    const r = sh.getDataRange().getValues().slice(1).find(row => row[0]===sanitizedId && row[1]===brandId);
+    if (!r) return Err(ERR.NOT_FOUND, 'Event not found');
+
+    // Hydrate to canonical Event shape with full sponsor data
+    const baseUrl = ScriptApp.getService().getUrl();
+    const event = hydrateEvent_(r, { baseUrl, hydrateSponsors: true });
+
+    // Get display config computed from Config + Template
+    const displayConfig = getDisplayConfig_(event.templateId, brandId);
+
+    // Build bundled response matching DisplayBundle interface
+    const value = {
+      // Full canonical event shape
+      event: event,
+
+      // Rotation config (sponsor display settings)
+      rotation: {
+        sponsorSlots: displayConfig.rotation.sponsorSlots,
+        rotationMs: displayConfig.rotation.rotationMs
+      },
+
+      // Layout config (emphasis and pane settings)
+      layout: {
+        hasSidePane: displayConfig.layout.hasSidePane,
+        emphasis: displayConfig.layout.emphasis
+      }
+    };
+
+    const etag = Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(value)));
+    if (payload?.ifNoneMatch === etag) return { ok:true, notModified:true, etag };
+    return _ensureOk_('api_getDisplayBundle', SC_GET, { ok:true, etag, value });
+  });
+}
+
+/**
+ * Get display configuration for a template/brand
+ * Merges ZEB.DISPLAY_CONFIG defaults with template-specific overrides
+ *
+ * @param {string} templateId - Event template ID
+ * @param {string} brandId - Brand ID (for future brand-specific overrides)
+ * @returns {object} Display config { rotation, layout }
+ * @private
+ */
+function getDisplayConfig_(templateId, brandId) {
+  const defaults = ZEB.DISPLAY_CONFIG;
+
+  // Start with global defaults
+  const config = {
+    rotation: { ...defaults.rotation },
+    layout: { ...defaults.layout }
+  };
+
+  // Apply template-specific overrides
+  const templateOverrides = defaults.templateOverrides?.[templateId];
+  if (templateOverrides) {
+    if (templateOverrides.rotation) {
+      Object.assign(config.rotation, templateOverrides.rotation);
+    }
+    if (templateOverrides.layout) {
+      Object.assign(config.layout, templateOverrides.layout);
+    }
+  }
+
+  // Future: Apply brand-specific overrides here
+  // const brand = findBrand_(brandId);
+  // if (brand?.displayConfig) { ... }
+
+  return config;
 }
 
 /**
