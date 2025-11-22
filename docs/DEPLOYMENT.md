@@ -1,476 +1,424 @@
-# Zeventbook Production Deployment Guide
+# Deployment Guide
 
-**Build:** triangle-prod-v1.2
-**Contract:** 1.0.2
-**Status:** Production-Ready MVP
+**Last Updated:** 2025-11-22
+**Status:** MVP v1.0 - Focus Group Ready
 
 ---
 
 ## Table of Contents
 
 1. [Quick Start](#quick-start)
-2. [What's Included](#whats-included)
-3. [Apps Script Deployment](#apps-script-deployment)
-4. [Domain Setup (zeventbooks.io)](#domain-setup)
-5. [Testing & Verification](#testing--verification)
-6. [The Triangle Workflow](#the-triangle-workflow)
-7. [Production Checklist](#production-checklist)
-8. [Troubleshooting](#troubleshooting)
+2. [Project Configuration](#project-configuration)
+3. [Environment URLs](#environment-urls)
+4. [CI/CD Pipeline](#cicd-pipeline)
+5. [GitHub Secrets](#github-secrets)
+6. [Setup Requirements](#setup-requirements)
+7. [QA Environment Setup](#qa-environment-setup)
+8. [Local Development](#local-development)
+9. [Verification](#verification)
+10. [Troubleshooting](#troubleshooting)
 
 ---
 
 ## Quick Start
 
-### Prerequisites
+### Option 1: GitHub Actions (Recommended)
 
-- Google account with Apps Script access
-- Admin secrets configured (change default values in `Config.gs`)
-- Domain `zeventbooks.io` with redirect/DNS capabilities
-
-### 5-Minute Deploy
+Push to `main` branch - automatic deployment:
 
 ```bash
-# 1. Open Apps Script
-# Go to: https://script.google.com/home/projects/1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l
+git add .
+git commit -m "feat: your changes"
+git push origin main
+```
 
-# 2. Upload all files from this repository (keep exact filenames):
-# - Code.gs
-# - Config.gs
-# - Admin.html
-# - Display.html
-# - Public.html
-# - Poster.html
-# - Styles.html
-# - NUSDK.html (if using the SDK)
-# - Header.html (if present)
-# - DesignAdapter.html (if present)
-# - Test.html (if present)
-# - appsscript.json
+### Option 2: Clasp CLI
 
-# 3. Deploy as Web App
-# Deploy → New deployment → Web app
-# Execute as: "User accessing the web app"
-# Who has access: "Anyone"
-# Copy the deployment URL (ends with /exec)
+```bash
+npm run push    # Push code to Apps Script
+npm run deploy  # Create new deployment
+```
 
-# 4. Test immediately
-# Open: <DEPLOYMENT_URL>?page=admin
-# Run Diagnostics → Status (should show green)
-# Run Diagnostics → Self-Test (all checks should pass)
+### Option 3: Manual Deploy
+
+1. Open [Apps Script Editor](https://script.google.com/home/projects/1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l/edit)
+2. Copy/paste all `.gs` and `.html` files
+3. Deploy → New deployment → Web app
+4. Execute as: **Me** | Access: **Anyone**
+
+---
+
+## Project Configuration
+
+### Google Cloud Project
+
+| Setting | Value |
+|---------|-------|
+| **Project ID** | `zeventbooks` |
+| **Console** | https://console.cloud.google.com/home/dashboard?project=zeventbooks |
+| **Service Accounts** | https://console.cloud.google.com/iam-admin/serviceaccounts?project=zeventbooks |
+
+### Apps Script Project
+
+| Setting | Value |
+|---------|-------|
+| **Script ID** | `1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l` |
+| **Project URL** | https://script.google.com/home/projects/1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l/edit |
+| **Deployment URL** | https://script.google.com/macros/s/AKfycbxaTPh3FS4NHJblIcUrz4k01kWAdxsKzLNnYRf0TXe18lBditTm3hqbBoQ4ZxbGhhGuCA/exec |
+
+### Service Account
+
+| Setting | Value |
+|---------|-------|
+| **Email** | `apps-script-deployer@zeventbooks.iam.gserviceaccount.com` |
+| **Unique ID** | `103062520768864288562` |
+| **Purpose** | Automated CI/CD deployment |
+| **Required Scopes** | `script.projects`, `script.deployments`, `script.webapp.deploy` |
+
+---
+
+## Environment URLs
+
+| Environment | URL | Purpose | Status |
+|-------------|-----|---------|--------|
+| **QA** | `https://qa.zeventbooks.com` | Testing & validation | Active |
+| **Dev** | `https://dev.zeventbooks.com` | Development | Planned |
+| **Production** | `https://app.zeventbooks.com` | Live application | Planned |
+
+### Brand-Specific Access
+
+```
+# QA environment examples
+https://qa.zeventbooks.com?p=events&brand=root
+https://qa.zeventbooks.com?p=events&brand=abc
+https://qa.zeventbooks.com?p=events&brand=cbc
 ```
 
 ---
 
-## What's Included
+## CI/CD Pipeline
 
-### Server Files (Code.gs)
+### Pipeline Flow
 
-**Production Features:**
-- ✅ Runtime contract validation with schemas
-- ✅ Comprehensive diagnostics (status + self-test)
-- ✅ Analytics logging (impressions, clicks, dwell time)
-- ✅ Report generation (aggregated by surface, sponsor, token)
-- ✅ Shortlink redirect system (?p=r&t=<token>)
-- ✅ Multi-brand support (root, ABC, CBC, CBL)
-- ✅ Rate limiting (20 req/min per brand)
-- ✅ Idempotency for writes
-- ✅ DIAG logging with automatic rotation
+```
+Push to main
+    │
+    ▼
+┌─────────────────┐
+│   Lint + Test   │  Unit tests, ESLint
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ Contract Tests  │  API schema validation
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│     Deploy      │  Clasp push + deploy
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│  Verify Deploy  │  Health check
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│   E2E Tests     │  Smoke → Pages → Flows
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│  Quality Gate   │  All must pass
+└─────────────────┘
+```
 
-**API Endpoints:**
-- `api_status()` - Health check
-- `api_healthCheck()` - Ping test
-- `api_list()` - List events
-- `api_get()` - Get single event
-- `api_create()` - Create event (admin only)
-- `api_updateEventData()` - Update display/sponsors config
-- `api_logEvents()` - Batch analytics logging
-- `api_getReport()` - Generate report JSON
-- `api_exportReport()` - Export report to Sheet
-- `api_createShortlink()` - Generate shortlink
-- `api_runDiagnostics()` - End-to-end self-test
+### Quality Gate Requirements
 
-### Client Files
-
-**Admin.html**
-- Diagnostics (Status + Self-Test)
-- Create Event form
-- Display & Sponsors configuration UI
-- Links management (Public, Display, Poster)
-- One-click report export
-
-**Display.html (TV)**
-- Static mode (mirrors Public page)
-- Carousel mode (rotate URLs with timing)
-- Sponsor top banner + side panel
-- Blocked-embed fallback detection
-- Analytics logging (impressions, dwell, blocks)
-- Legible typography (10-12ft viewing distance)
-
-**Public.html (Mobile)**
-- Event list + detail views
-- Sponsor banner (mobile-optimized)
-- Analytics logging (impressions, clicks)
-- Responsive design
-
-**Poster.html (Print/QR)**
-- Verified-QR invariant (only shows QR if verified)
-- Sponsor strip (posterTop placement)
-- Collapses cleanly when no sponsors
-- Print-optimized CSS
-
-**Styles.html**
-- Minimal global tokens
-- A11y focus styles
-- Reduced-motion support
-- DRY button/toast/container primitives
-
-### Configuration (Config.gs)
-
-**Brands:**
-- `root` - Zeventbook (zeventbook.io)
-- `abc` - American Bocce Co.
-- `cbc` - Chicago Bocce Club
-- `cbl` - Chicago Bocce League
-
-**⚠️ IMPORTANT:** Change all `adminSecret` values before production!
+All of these must pass:
+- Lint
+- Unit Tests (>80% coverage)
+- Contract Tests
+- Deploy (main branch only)
+- E2E Smoke Tests
+- E2E Page Tests
+- E2E Flow Tests
 
 ---
 
-## Apps Script Deployment
+## GitHub Secrets
 
-### Step 1: Upload Files
+Configure at: https://github.com/zeventbooks/MVP-EVENT-TOOLKIT/settings/secrets/actions
 
-1. Go to [Apps Script Project](https://script.google.com/home/projects/1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l/edit)
-2. **Enable manifest:** Project Settings → Show "appsscript.json" manifest
-3. Add each file (exact names required):
-   - `Code.gs` (server backend)
-   - `Config.gs` (brand config)
-   - `Admin.html`, `Display.html`, `Public.html`, `Poster.html`
-   - `Styles.html`, `NUSDK.html`, `Header.html`, `DesignAdapter.html`, `Test.html`
-   - `appsscript.json`
+| Secret | Purpose |
+|--------|---------|
+| `APPS_SCRIPT_SERVICE_ACCOUNT_JSON` | Service account key (complete JSON file) |
+| `SCRIPT_ID` | `1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l` |
+| `ADMIN_KEY_ROOT` | Admin API key for testing |
 
-### Step 2: Configure Admin Secrets
+---
 
-Edit `Config.gs`:
+## Setup Requirements
 
-```javascript
-{
-  id: 'root',
-  adminSecret: 'YOUR_STRONG_SECRET_HERE',  // ⚠️ CHANGE THIS!
-  ...
-}
+### 1. Enable Apps Script API (GCP Console)
+
+1. Go to: https://console.cloud.google.com/apis/library?project=zeventbooks
+2. Search: "Apps Script API"
+3. Click **ENABLE**
+
+### 2. Enable Apps Script API (User Settings)
+
+**CRITICAL - Project owner must do this:**
+
+1. Go to: https://script.google.com/home/usersettings
+2. Find: "Google Apps Script API"
+3. Toggle **ON**
+
+This is required for service account deployments to work.
+
+### 3. Grant Service Account Access
+
+1. Open Apps Script project: https://script.google.com/home/projects/1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l/edit
+2. Click **Share** (top right)
+3. Add: `apps-script-deployer@zeventbooks.iam.gserviceaccount.com`
+4. Role: **Editor**
+5. Uncheck "Notify people"
+6. Click **Share**
+
+---
+
+## QA Environment Setup
+
+### Hostinger Redirect Setup (30 minutes)
+
+1. **Get Deployment URL**
+   - From GitHub Actions job summary, OR
+   - From Apps Script: Deploy → Manage deployments
+
+2. **Create Redirect in Hostinger**
+   - Log into https://hpanel.hostinger.com
+   - Go to **Domains** → **zeventbooks.com** → **Redirects**
+   - Click **Create Redirect**
+   - Configure:
+     - Type: 301 or 302
+     - Source: `qa.zeventbooks.com`
+     - Destination: `[YOUR_APPS_SCRIPT_URL]`
+     - Include path: Yes
+
+3. **Test It**
+   ```bash
+   curl -I https://qa.zeventbooks.com
+   # Should show redirect to Apps Script URL
+   ```
+
+4. **Run Stage 2**
+   - Go to GitHub Actions
+   - Run "Stage 2 - Testing & QA"
+   - Enter: `https://qa.zeventbooks.com`
+
+---
+
+## Local Development
+
+### First-Time Setup
+
+```bash
+# Install dependencies
+npm ci
+
+# Login to Clasp (one time)
+clasp login
+
+# Verify setup
+npm run deploy:diagnose
 ```
 
-Generate strong secrets (20+ characters, mix of alphanumeric + symbols).
+### Development Workflow
 
-### Step 3: Deploy
+```bash
+# Pull latest from Apps Script
+clasp pull
 
-1. **Deploy → New deployment**
-2. Type: **Web app**
-3. Execute as: **User accessing the web app**
-4. Who has access: **Anyone**
-5. Click **Deploy**
-6. **Copy the deployment URL** (ends with `/exec`)
+# Make changes locally...
 
-Example URL:
+# Run tests
+npm test
+
+# Push to Apps Script
+npm run push
+
+# Create deployment
+npm run deploy
 ```
-https://script.google.com/macros/s/AKfycbx.../exec
+
+### Testing Commands
+
+```bash
+# Unit tests only
+npm run test:unit
+
+# Contract tests only
+npm run test:contract
+
+# Quick validation
+npm run test:quick
+
+# All tests
+npm run test:all
+
+# E2E tests (requires deployed app)
+BASE_URL=<url> ADMIN_KEY=<key> npm run test:e2e
+
+# Triangle flow tests
+npm run test:triangle
+npm run test:triangle:parallel
 ```
 
 ---
 
-## Domain Setup (zeventbooks.io)
+## Verification
 
-### Option A: HTTP Redirects (Recommended for MVP)
+### Run Setup Diagnostics
 
-In Hostinger → Domains → Redirects:
-
-```
-https://zeventbooks.io/ → https://script.google.com/macros/s/<DEPLOYMENT_ID>/exec?p=events&brand=root
-https://www.zeventbooks.io/ → https://script.google.com/macros/s/<DEPLOYMENT_ID>/exec?p=events&brand=root
-https://zeventbooks.io/admin → https://script.google.com/macros/s/<DEPLOYMENT_ID>/exec?page=admin&brand=root
-https://zeventbooks.io/display → https://script.google.com/macros/s/<DEPLOYMENT_ID>/exec?page=display&brand=root
+```bash
+curl "YOUR_DEPLOYMENT_URL?p=setup&brand=root"
 ```
 
-**Force HTTPS:** Enable in Hostinger SSL settings.
+This checks:
+- Brand configuration
+- Spreadsheet access
+- Admin secrets
+- Deployment configuration
+- OAuth scopes
+- Database structure
 
-### Option B: iframe Wrapper (if domain must stay in browser)
+### Health Check
 
-Create a static page on zeventbooks.io:
-
-```html
-<!DOCTYPE html>
-<html>
-<head>
-  <title>Zeventbook</title>
-  <style>
-    body, html { margin:0; padding:0; height:100%; overflow:hidden; }
-    iframe { width:100%; height:100%; border:0; }
-  </style>
-</head>
-<body>
-  <iframe src="https://script.google.com/macros/s/<DEPLOYMENT_ID>/exec?p=events"></iframe>
-</body>
-</html>
+```bash
+curl "YOUR_DEPLOYMENT_URL?p=status&brand=root"
 ```
 
-Ensure Apps Script returns pages with:
-```javascript
-.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
-```
-(Already configured in `Code.gs`)
-
----
-
-## Testing & Verification
-
-### 1. Status Check
-
-Open: `<DEPLOYMENT_URL>?page=status`
-
-Expected response (JSON):
+Expected:
 ```json
-{
-  "ok": true,
-  "value": {
-    "build": "triangle-prod-v1.2",
-    "contract": "1.0.2",
-    "time": "2025-11-08T...",
-    "db": { "ok": true, "id": "..." }
-  }
-}
+{ "ok": true, "value": { "status": "healthy" } }
 ```
 
-### 2. Admin Diagnostics
+### Test All Surfaces
 
-Open: `<DEPLOYMENT_URL>?page=admin`
-
-Click **"Run Self-Test"**
-
-Expected result: All checks pass (✓ green)
-
-```json
-{
-  "ok": true,
-  "steps": [
-    { "name": "status", "ok": true },
-    { "name": "create_event", "ok": true },
-    { "name": "update_config", "ok": true },
-    { "name": "log_analytics", "ok": true },
-    { "name": "get_report", "ok": true },
-    { "name": "export_report", "ok": true },
-    { "name": "create_shortlink", "ok": true }
-  ],
-  "eventId": "...",
-  "sheetUrl": "..."
-}
-```
-
-### 3. Create Test Event
-
-In Admin:
-1. Enter event details (Name, Date, optional Signup URL)
-2. Click **"Create"**
-3. Verify links appear: Public, Display, Poster
-4. Click **"Configure Display & Sponsors"**
-5. Add a sponsor with placements
-6. Save config
-
-### 4. Test All Surfaces
-
-**Public (Mobile):**
-- Open Public link
-- Verify sponsor banner shows (if configured)
-- Check browser console: no errors
-
-**Display (TV):**
-- Open Display link on a large screen
-- Verify carousel rotates (if configured) or mirrors Public (static mode)
-- Verify sponsor top/side panels show
-- Check toast messages
-
-**Poster (Print/QR):**
-- Open Poster link
-- Verify QR code displays
-- Verify sponsor strip shows at top (if configured)
-- Print to PDF to verify layout
-
-### 5. Analytics & Reports
-
-1. Browse Public and Display pages for a few minutes
-2. In Admin → Click **"View Report"**
-3. Verify Sheet opens with:
-   - Totals (impressions, clicks, dwell time)
-   - By Surface breakdown
-   - By Sponsor breakdown
-   - By Token breakdown (if shortlinks used)
-
----
-
-## The Triangle Workflow
-
-### Phase 1: Pre-Event (Admin)
-
-1. **Create Event** (Admin page on mobile/desktop)
-2. **Configure Display** (Static or Carousel mode + URLs)
-3. **Add Sponsors** (Name, URL, Image, Placements)
-4. **Generate Links** (Public, Display, Poster)
-5. **Create Posters** (Print Poster page with QR codes)
-6. **Start Signups** (Share Public link or Signup URL)
-
-### Phase 2: During Event (Display)
-
-1. **TV Display** shows configured carousel/static content
-2. **Sponsor panels** visible on TV (top banner + side panel)
-3. **Mobile Public** page shows event details + sponsor banner
-4. **Analytics** log impressions, clicks, dwell time automatically
-
-### Phase 3: Post-Event (Reports)
-
-1. **Admin** clicks "View Report"
-2. **Event Organizers** get:
-   - Total engagement metrics
-   - Breakdown by surface (TV, mobile, poster)
-   - Signups count (if tracked)
-3. **Sponsors** get (same report):
-   - Impressions
-   - Clicks
-   - CTR (click-through rate)
-   - Dwell time
-4. **Consumers** get (future):
-   - Event highlights
-   - Link to next event
-
----
-
-## Production Checklist
-
-### Security
-
-- [ ] Changed all `adminSecret` values in Config.gs
-- [ ] Tested admin auth (wrong key should fail)
-- [ ] Rate limiting works (20 req/min per brand)
-- [ ] Input sanitization active (XSS protection)
-- [ ] HTTPS forced on all domains
-
-### Functionality
-
-- [ ] Status endpoint returns OK
-- [ ] Self-test passes all checks
-- [ ] Event create works
-- [ ] Display config saves correctly
-- [ ] Sponsors render on all surfaces
-- [ ] Analytics log correctly
-- [ ] Reports export with accurate data
-- [ ] Shortlinks redirect properly
-
-### Performance
-
-- [ ] Public page loads < 2s
-- [ ] Display page rotates smoothly
-- [ ] Admin diagnostics complete < 10s
-- [ ] Report export completes < 15s
-
-### UX
-
-- [ ] Admin UI is clear and intuitive
-- [ ] Public page is mobile-responsive
-- [ ] Display page is legible at 10-12ft
-- [ ] Poster prints cleanly
-- [ ] No sponsor gaps when unconfigured
-- [ ] Toast messages are helpful
-
-### Observability
-
-- [ ] DIAG sheet populates correctly
-- [ ] ANALYTICS sheet records events
-- [ ] SHORTLINKS sheet tracks tokens
-- [ ] Error messages are actionable
+| Surface | URL |
+|---------|-----|
+| Admin | `?p=admin&brand=root` |
+| Public | `?p=public&brand=root` |
+| Display | `?p=display&brand=root` |
+| Poster | `?p=poster&brand=root&eventId=EVT_xxx` |
+| Status | `?p=status&brand=root` |
 
 ---
 
 ## Troubleshooting
 
-### Issue: "Contract violation" errors
+### "User has not enabled the Apps Script API"
 
-**Cause:** Response schema mismatch
-**Fix:** Check DIAG sheet for details; ensure server returns expected shape
+**This causes 90% of deployment failures.**
 
-### Issue: Self-test fails at "create_event"
+**Fix:**
+1. Go to: https://script.google.com/home/usersettings
+2. Toggle ON: "Google Apps Script API"
+3. Wait 2-5 minutes
+4. Retry deployment
 
-**Cause:** Admin secret mismatch or rate limit hit
-**Fix:** Verify Config.gs `adminSecret` matches what's stored in sessionStorage
+### "Script not found"
 
-### Issue: TV Display shows "Content Unavailable" for all URLs
+**Fix:**
+1. Verify `SCRIPT_ID` is correct
+2. Check service account has Editor access
+3. Run: `clasp open` to verify access
 
-**Cause:** URLs block iframing (X-Frame-Options, CSP)
-**Fix:** Use embeddable sources (YouTube, Vimeo, your own pages); avoid Instagram/LeagueApps
+### "Token expired"
 
-### Issue: Sponsor banner doesn't show
+**Fix:**
+1. Re-login: `clasp login`
+2. Get new `.clasprc.json` contents
+3. Update `CLASPRC_JSON` GitHub secret
 
-**Cause:** No sponsors configured with correct placement
-**Fix:** In Admin → Configure Display & Sponsors → check placement boxes (Poster Top, TV Top, Mobile Banner)
+### "Permission denied"
 
-### Issue: QR code says "unavailable (not verified)"
+**Fix:**
+1. Share Apps Script project with service account
+2. Grant **Editor** access
+3. Retry deployment
 
-**Cause:** Event ID not found or links not generated
-**Fix:** Ensure event was created via api_create; check EVENTS sheet for record
+### CLASPRC_JSON validation fails
 
-### Issue: Analytics not logging
+**Fix:**
+1. Run: `./scripts/validate-clasp-setup.sh`
+2. Check JSON: `cat ~/.clasprc.json | jq .`
+3. Re-login: `clasp logout && clasp login`
+4. Update GitHub secret
 
-**Cause:** google.script.run calls failing
-**Fix:** Open browser console; check for errors; verify deployment is "User accessing" mode
+### QA environment not accessible
 
-### Issue: Domain redirect loop
-
-**Cause:** Circular redirect in Hostinger
-**Fix:** Ensure target URL is different from source; check HTTPS enforcement
-
----
-
-## Next Steps
-
-### Immediate (MVP Complete)
-
-- [x] Deploy to Apps Script
-- [x] Test all surfaces
-- [x] Configure domain redirects
-- [ ] Run pilot event
-
-### Short-term (Week 1-2)
-
-- [ ] Set up CI/CD pipeline (GitHub Actions)
-- [ ] Add E2E tests (Playwright or Cypress)
-- [ ] Monitor analytics for first event
-- [ ] Gather sponsor feedback
-
-### Mid-term (Month 1)
-
-- [ ] Implement ETag/SWR caching
-- [ ] Add golden dataset tests for reports
-- [ ] A11y audit (target: Lighthouse ≥90)
-- [ ] Distance legibility testing for TV
-
-### Long-term (Quarter 1)
-
-- [ ] Multi-event shortlink campaigns
-- [ ] Instagram scraping for TV carousel
-- [ ] Consumer highlights/recap feature
-- [ ] Leagues & tournaments (flip feature flag)
+**Fix:**
+1. Check Hostinger redirect is configured
+2. Verify redirect target URL is correct
+3. Test Apps Script URL directly
+4. Check DNS: https://dnschecker.org
 
 ---
 
-## Support
+## Security Notes
 
-**Documentation:** See [README.md](./README.md) and [CODE_REVIEW.md](./CODE_REVIEW.md)
-**Issues:** Check DIAG sheet first; review browser console
-**Contact:** Admin → Diagnostics → Copy status JSON for support requests
-
-**Production Scorecard:** 62/100 (Pre-Pilot)
-**Target:** 80/100 (Pilot-Ready) | 90/100 (Production-Hardened)
+- **Never commit** service account JSON to git
+- **Never expose** SCRIPT_ID or ADMIN_KEY in logs
+- Store credentials in GitHub Secrets (encrypted at rest)
+- Rotate service account keys every 90 days
+- Use principle of least privilege (Editor, not Owner)
 
 ---
 
-**Last Updated:** 2025-11-08
-**Build:** triangle-prod-v1.2
-**Maintainer:** Zeventbook Team
+## Files to Deploy
+
+### Backend (.gs)
+
+12 files form the runtime spine:
+
+| File | Purpose |
+|------|---------|
+| Code.gs | Router + API endpoints |
+| Config.gs | Brands, templates, feature flags |
+| TemplateService.gs | Event templates |
+| ApiSchemas.gs | API contracts |
+| EventService.gs | Event CRUD |
+| FormService.gs | Google Forms |
+| SponsorService.gs | Sponsor management |
+| SharedReporting.gs | Analytics views |
+| AnalyticsService.gs | Logging |
+| SecurityMiddleware.gs | Auth/security |
+| i18nService.gs | Multi-lang (deferred) |
+| WebhookService.gs | Integrations (deferred) |
+
+### Frontend (.html)
+
+6 MVP surfaces + supporting files:
+
+| File | Purpose |
+|------|---------|
+| Admin.html | Event management |
+| Public.html | Mobile event page |
+| Display.html | TV/kiosk display |
+| Poster.html | Print/QR |
+| Sponsor.html | Sponsor portal |
+| SharedReport.html | Analytics |
+
+---
+
+## Related Documentation
+
+- **[ARCHITECTURE.md](./ARCHITECTURE.md)** - MVP architecture overview
+- **[FRIENDLY_URLS.md](./FRIENDLY_URLS.md)** - URL aliasing system
+- **[SETUP_DIAGNOSTICS.md](./SETUP_DIAGNOSTICS.md)** - Setup verification endpoint
+
+---
+
+*Deployment Guide - MVP v1.0*

@@ -27,6 +27,14 @@ concurrency:
 
 jobs:
   # ============================================================================
+  # STAGE 2: E2E TESTING (API → SMOKE → FLOWS → PAGES)
+  # ============================================================================
+  # Local equivalent: BASE_URL='<url>' ADMIN_KEY='<key>' npm run test:ci:stage2
+  # Runs: test:api && test:fe (smoke + flows + pages)
+  # Stage 2 red → DEPLOYMENT BROKEN, fix before release
+  # ============================================================================
+
+  # ============================================================================
   # SETUP: Extract deployment URL from Stage 1
   # ============================================================================
 
@@ -266,6 +274,7 @@ jobs:
 
   # ============================================================================
   # STAGE 2C: EXPENSIVE TESTS (Only if Smoke tests passed)
+  # MVP Flow Tests: Template scenarios + Core propagation
   # ============================================================================
 
   expensive-tests:
@@ -277,8 +286,8 @@ jobs:
       fail-fast: false
       matrix:
         suite:
-          - flows
-          - pages
+          - flows    # Includes: template-scenarios.spec.js (Bar/Rec/School/Fundraiser)
+          - pages    # Includes: Admin, Public, Display, Poster, Sponsor page tests
     outputs:
       flows_result: ${{ steps.set-result.outputs.flows_result }}
       pages_result: ${{ steps.set-result.outputs.pages_result }}
@@ -306,6 +315,14 @@ jobs:
         run: |
           echo "💰 Running ${{ matrix.suite }} tests"
           echo "BASE_URL: $BASE_URL"
+          if [[ "${{ matrix.suite }}" == "flows" ]]; then
+            echo "📋 MVP Flow Coverage:"
+            echo "   - template-scenarios.spec.js (Bar/Rec League/School/Fundraiser)"
+            echo "   - admin-flows.spec.js (event CRUD)"
+            echo "   - sponsor-flows.spec.js (sponsor creation & display)"
+            echo "   - shared-reporting.spec.js (SharedReport smoke)"
+            echo "   - Data propagation: Admin → Public → Display → Poster"
+          fi
           npm run test:${{ matrix.suite }}
 
       - name: Set result output
