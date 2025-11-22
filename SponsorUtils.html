@@ -17,26 +17,41 @@ window.SponsorUtils = (function() {
   // Ties all events from same page visit together
   let sessionId = null;
 
+  // Generate UUID using crypto API (secure)
+  function generateSecureUUID() {
+    // Prefer native crypto.randomUUID if available (modern browsers)
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      return crypto.randomUUID();
+    }
+    // Fallback: use crypto.getRandomValues (secure, wider support)
+    if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+      const bytes = new Uint8Array(16);
+      crypto.getRandomValues(bytes);
+      // Set version (4) and variant (RFC4122)
+      bytes[6] = (bytes[6] & 0x0f) | 0x40;
+      bytes[8] = (bytes[8] & 0x3f) | 0x80;
+      const hex = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+      return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
+    }
+    // Last resort fallback (very old browsers) - use timestamp + counter for uniqueness
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c, i) => {
+      const r = (Date.now() + i) % 16;
+      return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+    });
+  }
+
   function getSessionId() {
     if (sessionId) return sessionId;
     // Check sessionStorage first (persists across page reloads in same tab)
     try {
       sessionId = sessionStorage.getItem('zeb_session_id');
       if (!sessionId) {
-        sessionId = crypto.randomUUID ? crypto.randomUUID() :
-          'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-            const r = Math.random() * 16 | 0;
-            return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
-          });
+        sessionId = generateSecureUUID();
         sessionStorage.setItem('zeb_session_id', sessionId);
       }
     } catch (_) {
       // sessionStorage not available, use in-memory only
-      sessionId = crypto.randomUUID ? crypto.randomUUID() :
-        'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-          const r = Math.random() * 16 | 0;
-          return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
-        });
+      sessionId = generateSecureUUID();
     }
     return sessionId;
   }
