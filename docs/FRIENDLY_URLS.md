@@ -42,39 +42,49 @@ The friendly URL system makes your app URLs easy to remember, share, and underst
 
 ---
 
-## Available Global Aliases
+## Quick Reference Table
 
-### Public-Facing (No Auth Required)
+### All Global Aliases
 
-| Alias | Page | Description |
-|-------|------|-------------|
-| `/events` | public | Main events listing |
-| `/schedule` | public | Event schedule (alias) |
-| `/calendar` | public | Event calendar (alias) |
-| `/display` | display | TV/kiosk display |
-| `/tv` | display | TV display (alias) |
-| `/kiosk` | display | Kiosk mode (alias) |
-| `/screen` | display | Screen display (alias) |
-| `/posters` | poster | Event posters |
-| `/poster` | poster | Event poster (alias) |
-| `/flyers` | poster | Marketing flyers (alias) |
-| `/status` | status | Health check/status |
-| `/health` | status | Health check (alias) |
-| `/docs` | api | API documentation |
-| `/api` | api | API docs (alias) |
+| URL | Page File | Purpose | Auth |
+|-----|-----------|---------|------|
+| `/events` | Public.html | View all events | No |
+| `/schedule` | Public.html | View all events (alias) | No |
+| `/calendar` | Public.html | View all events (alias) | No |
+| `/manage` | Admin.html | Full admin dashboard | Yes |
+| `/admin` | Admin.html | Full admin dashboard (alias) | Yes |
+| `/dashboard` | Admin.html | Admin dashboard | Yes |
+| `/create` | Admin.html | Create event (routes to Admin) | Yes |
+| `/display` | Display.html | TV/kiosk slideshow | No |
+| `/tv` | Display.html | TV display (alias) | No |
+| `/kiosk` | Display.html | Kiosk mode (alias) | No |
+| `/screen` | Display.html | Screen display (alias) | No |
+| `/posters` | Poster.html | Print marketing materials | No |
+| `/poster` | Poster.html | Event poster (alias) | No |
+| `/flyers` | Poster.html | Marketing flyers (alias) | No |
+| `/analytics` | SharedReport.html | View reports/stats | Yes |
+| `/reports` | SharedReport.html | Reports (alias) | Yes |
+| `/insights` | SharedReport.html | Insights (alias) | Yes |
+| `/stats` | SharedReport.html | Statistics (alias) | Yes |
+| `/status` | JSON response | Health check/status | No |
+| `/health` | JSON response | Health check (alias) | No |
+| `/docs` | ApiDocs.html | API documentation | No |
+| `/api` | ApiDocs.html | API docs (alias) | No |
 
-### Admin/Management (Auth Required)
+### Brand Custom Aliases
 
-| Alias | Page | Mode | Description |
-|-------|------|------|-------------|
-| `/manage` | admin | advanced | Full admin interface |
-| `/admin` | admin | advanced | Admin panel (alias) |
-| `/create` | wizard | - | Simple event creation |
-| `/dashboard` | admin | - | Admin dashboard |
-| `/analytics` | report | - | Analytics reports |
-| `/reports` | report | - | Reports (alias) |
-| `/insights` | report | - | Insights (alias) |
-| `/stats` | report | - | Statistics (alias) |
+| Brand | URL | Page File | Purpose | Auth |
+|-------|-----|-----------|---------|------|
+| abc | `/abc/tournaments` | Public.html | Tournament events | No |
+| abc | `/abc/leagues` | Public.html | League events | No |
+| abc | `/abc/bocce` | Public.html | Bocce events | No |
+| abc | `/abc/network` | SharedReport.html | Network analytics | Yes |
+| cbc | `/cbc/tournaments` | Public.html | CBC tournaments | No |
+| cbc | `/cbc/club-events` | Public.html | Club events | No |
+| cbc | `/cbc/register` | Admin.html | Register event | Yes |
+| cbl | `/cbl/seasons` | Public.html | Seasonal events | No |
+| cbl | `/cbl/league-events` | Public.html | League events | No |
+| cbl | `/cbl/schedule` | Public.html | Schedule | No |
 
 ---
 
@@ -101,14 +111,14 @@ customAliases: {
 customAliases: {
   'cbc': {
     'club-events': { page: 'public', label: 'Club Events' },
-    'register': { page: 'wizard', label: 'Register Event' }
+    'register': { page: 'wizard', label: 'Register Event' }  // Routes to Admin.html
   }
 }
 ```
 
 **URLs:**
 - `/cbc/club-events` → Public events for CBC
-- `/cbc/register` → Event creation wizard for CBC
+- `/cbc/register` → Admin page for CBC (auth required)
 
 ---
 
@@ -118,16 +128,16 @@ customAliases: {
 
 **Before (Technical):**
 ```
-https://zeventbooks.com?p=public&brand=abc
-https://zeventbooks.com?p=display&brand=cbc
-https://zeventbooks.com?p=admin&mode=advanced&brand=abc
+https://eventangle.com?p=public&brand=abc
+https://eventangle.com?p=display&brand=cbc
+https://eventangle.com?p=admin&mode=advanced&brand=abc
 ```
 
 **After (Friendly):**
 ```
-https://zeventbooks.com/abc/events
-https://zeventbooks.com/cbc/display
-https://zeventbooks.com/abc/manage
+https://eventangle.com/abc/events
+https://eventangle.com/cbc/display
+https://eventangle.com/abc/manage
 ```
 
 ### For Marketing Materials
@@ -135,16 +145,16 @@ https://zeventbooks.com/abc/manage
 **Print Flyers:**
 ```
 Visit our events page:
-zeventbooks.com/abc/events
+eventangle.com/abc/events
 
 Scan QR code or visit:
-zeventbooks.com/abc/tournaments
+eventangle.com/abc/tournaments
 ```
 
 **TV Display Setup:**
 ```
 Setup Instructions:
-1. Navigate to: zeventbooks.com/cbc/display
+1. Navigate to: eventangle.com/cbc/display
 2. Let it run in fullscreen
 3. Events will auto-rotate
 ```
@@ -152,10 +162,10 @@ Setup Instructions:
 **Email to Event Managers:**
 ```
 Manage your events at:
-zeventbooks.com/abc/manage
+eventangle.com/abc/manage
 
 Create a new event:
-zeventbooks.com/abc/create
+eventangle.com/abc/create
 ```
 
 ---
@@ -279,14 +289,14 @@ Both route to the same page.
 
 ### 1. Marketing & Promotions
 ```
-Print materials: zeventbooks.com/abc/events
-QR codes: zeventbooks.com/abc/tournaments
-Social media: zeventbooks.com/cbc/schedule
+Print materials: eventangle.com/abc/events
+QR codes: eventangle.com/abc/tournaments
+Social media: eventangle.com/cbc/schedule
 ```
 
 ### 2. TV/Kiosk Displays
 ```
-Simple setup URL: zeventbooks.com/cbc/display
+Simple setup URL: eventangle.com/cbc/display
 Easy to type, no query parameters needed
 ```
 
@@ -300,8 +310,8 @@ Clear, memorable instructions
 ### 4. Multi-brand Branding
 ```
 Each brand gets branded URLs:
-- americanbocceco.com → zeventbooks.com/abc/events
-- chicagoboccclub.org → zeventbooks.com/cbc/events
+- americanbocceco.com → eventangle.com/abc/events
+- chicagoboccclub.org → eventangle.com/cbc/events
 ```
 
 ---
@@ -312,19 +322,19 @@ Each brand gets branded URLs:
 
 ```bash
 # Public events
-curl https://zeventbooks.com/abc/events
+curl https://eventangle.com/abc/events
 
 # Admin interface
-curl https://zeventbooks.com/abc/manage
+curl https://eventangle.com/abc/manage
 
 # Display page
-curl https://zeventbooks.com/cbc/display
+curl https://eventangle.com/cbc/display
 
 # Custom brand alias
-curl https://zeventbooks.com/abc/tournaments
+curl https://eventangle.com/abc/tournaments
 
 # With demo mode
-curl https://zeventbooks.com/abc/events?demo=true
+curl https://eventangle.com/abc/events?demo=true
 ```
 
 ### Verify Alias Resolution
@@ -396,8 +406,8 @@ Subject: New Easier URLs!
 
 We've simplified our event URLs:
 
-OLD: zeventbooks.com?p=public&brand=abc
-NEW: zeventbooks.com/abc/events ✨
+OLD: eventangle.com?p=public&brand=abc
+NEW: eventangle.com/abc/events ✨
 
 Both URLs work - use whichever you prefer!
 
@@ -415,16 +425,16 @@ Bookmarks and old links still work!
 
 ### Subdomain Routing (Planned)
 ```
-abc.zeventbooks.com/events
-cbc.zeventbooks.com/display
+abc.eventangle.com/events
+cbc.eventangle.com/display
 ```
 
 Requires DNS configuration - set `enableSubdomainRouting: true` when ready.
 
 ### Short Link Integration
 ```
-zeventbooks.com/e/summer-tournament → Event detail page
-zeventbooks.com/s/abc123 → Shortlink redirect
+eventangle.com/e/summer-tournament → Event detail page
+eventangle.com/s/abc123 → Shortlink redirect
 ```
 
 Already supported via `/e/` and `/s/` patterns.
@@ -442,7 +452,7 @@ Already supported via `/e/` and `/s/` patterns.
 ✅ Configurable per brand
 
 **Next Steps:**
-1. Test your aliases: [https://zeventbooks.com/abc/events](https://zeventbooks.com/abc/events)
+1. Test your aliases: [https://eventangle.com/abc/events](https://eventangle.com/abc/events)
 2. Add custom aliases for your brands in `Config.gs`
 3. Update marketing materials with new URLs
 4. Enjoy cleaner, more professional URLs!
