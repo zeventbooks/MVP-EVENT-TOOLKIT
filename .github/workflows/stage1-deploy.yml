@@ -41,7 +41,7 @@ jobs:
           echo "✅ Linting passed! Code quality verified."
 
   unit-tests:
-    name: ✅ Unit Tests
+    name: ✅ Unit Tests (MVP Gate)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -57,7 +57,15 @@ jobs:
 
       - name: Run unit tests
         run: |
-          echo "ℹ️ Running Jest unit tests (no BASE_URL required - uses mock data)"
+          echo "ℹ️ Running Jest unit tests (MVP Gate)"
+          echo "📋 MVP Unit Test Coverage:"
+          echo "   - template-service.test.js (applyTemplateToEvent_, sections, CTAs)"
+          echo "   - validation.test.js (event data validation)"
+          echo "   - forms.test.js (form template management)"
+          echo "   - sponsor-utils.test.js (sponsor utilities)"
+          echo "   - shared-reporting.test.js (analytics)"
+          echo "   - security.test.js (auth, XSS, CSRF)"
+          echo "   - multi-brand.test.js (brand isolation)"
           npm run test:unit
 
       - name: Upload coverage reports
