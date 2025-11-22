@@ -50,11 +50,7 @@ interface Event {
   ctaLabels: CTALabel[];   // Customizable CTA button labels
 
   // === External Data Sources ===
-  externalData: {
-    scheduleUrl: string | null;  // External schedule (Google Sheet, etc.)
-    standingsUrl: string | null; // Standings/leaderboard URL
-    bracketUrl: string | null;   // Tournament bracket URL
-  };
+  externalData: ExternalLeagueData;
 
   // === Media URLs ===
   videoUrl: string | null;    // Primary video URL (YouTube, Vimeo, etc.)
@@ -84,6 +80,29 @@ interface Event {
 // === Supporting Types ===
 
 type EventStatus = 'draft' | 'published' | 'cancelled' | 'completed';
+
+/**
+ * External league data links and provider metadata.
+ * V1 Rules:
+ * - All fields can be null
+ * - URLs are stored as-is, no parsing/validation beyond URL format
+ * - providerName only seeded by TemplateService for special templates (e.g. "OBL/BBN")
+ */
+interface ExternalLeagueData {
+  // Core league links (generic)
+  scheduleUrl: string | null;     // League/game schedule
+  standingsUrl: string | null;    // Standings / ladder
+  bracketUrl: string | null;      // Playoff bracket
+
+  // Advanced / 3rd-party integrations (BocceLabs / BBN style)
+  statsUrl: string | null;        // Stats hub (e.g., BocceLabs league page)
+  scoreboardUrl: string | null;   // Live scoreboard / game center
+  streamUrl: string | null;       // Live or VOD stream (BBN / YouTube / Twitch)
+
+  // Source metadata (helps in V2)
+  providerName: string | null;    // e.g. 'BocceLabs', 'BBN', 'Custom', 'None'
+  providerLeagueId: string | null;// External league ID if known
+}
 
 interface SectionConfig {
   enabled: boolean;        // Whether section is visible
@@ -163,9 +182,17 @@ const EVENT_DEFAULTS = {
   },
   ctaLabels: [],
   externalData: {
+    // Core league links
     scheduleUrl: null,
     standingsUrl: null,
-    bracketUrl: null
+    bracketUrl: null,
+    // Advanced integrations
+    statsUrl: null,
+    scoreboardUrl: null,
+    streamUrl: null,
+    // Provider metadata
+    providerName: null,
+    providerLeagueId: null
   },
   videoUrl: null,
   mapEmbedUrl: null,
@@ -226,7 +253,15 @@ All URL fields must match pattern `^https?://.+` when provided:
 - `videoUrl`, `mapEmbedUrl`
 - `signupUrl`, `checkinUrl`, `feedbackUrl`
 - `externalData.scheduleUrl`, `externalData.standingsUrl`, `externalData.bracketUrl`
+- `externalData.statsUrl`, `externalData.scoreboardUrl`, `externalData.streamUrl`
 - `sponsors[].logoUrl`, `sponsors[].website`
+
+### ExternalLeagueData Fields (V1 Rules)
+- All fields are optional and nullable
+- URL fields are stored as-is; no parsing or validation beyond URL format
+- `providerName`: Free-form string (e.g., 'BocceLabs', 'BBN', 'Custom', 'None')
+- `providerLeagueId`: Opaque external identifier, not validated
+- TemplateService seeds `providerName` only for special templates (e.g., "OBL/BBN")
 
 ### String Sanitization
 All text fields are sanitized to prevent XSS:
@@ -260,11 +295,33 @@ Each display surface uses specific fields:
 
 | Surface | Fields Used |
 |---------|-------------|
-| **Public** | All except `notes` (admin-only) |
+| **Public** | All except `notes` (admin-only), includes `externalData.*` for League & Broadcast card |
 | **Poster** | `name`, `dateTime`, `location`, `venueName`, `summary`, `sponsors` |
-| **Display** | `name`, `dateTime`, `location`, `sponsors`, `sections.schedule` |
-| **Admin** | All fields |
-| **Report** | `id`, `name`, `dateTime`, `sponsors` + analytics |
+| **Display** | `name`, `dateTime`, `location`, `sponsors`, `sections.schedule`, `externalData.*` for bottom strip |
+| **Admin** | All fields (full ExternalLeagueData in League & Broadcast panel) |
+| **Report** | `id`, `name`, `dateTime`, `sponsors` + analytics (includes `external_click` metrics) |
+
+### League & Broadcast Card (Public.html)
+
+Shows when `hasLeagueLinks || hasBroadcastLinks`:
+```javascript
+const hasLeagueLinks = !!(ed.scheduleUrl || ed.standingsUrl || ed.bracketUrl);
+const hasBroadcastLinks = !!(ed.statsUrl || ed.scoreboardUrl || ed.streamUrl);
+```
+
+**Card title**: `"League & Broadcast (via {providerName})"` when provider set, else `"League & Broadcast"`
+
+**Links rendered** (only if URL is non-null):
+- League row: Schedule 📅, Standings 🏆, Bracket 🎯
+- Broadcast row: Stats 📈, Scoreboard 📺, Watch Stream 🎥
+
+### League & Broadcast Strip (Display.html / TV)
+
+Bottom strip for TV layout, same visibility rules as Public.html.
+
+**Layout**: `[ Title  |  League: Schedule | Standings | Bracket  •  Broadcast: Stats | Scoreboard | Watch ]`
+
+**Analytics**: All link clicks logged via `api_logExternalClick` with `linkType` (fire-and-forget).
 
 ---
 

@@ -775,6 +775,21 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       setTimeout(() => toast.classList.remove('show'), duration);
     }
 
+    // === League & Broadcast Link Analytics ===
+    // Logs external link clicks to api_logExternalClick (no storage change needed)
+    let currentEventId = null; // Set when event is loaded
+
+    function onLeagueLinkClick(e) {
+      const linkType = e.currentTarget.dataset.linkType;
+      if (!linkType || !currentEventId) return;
+
+      // Fire and forget - don't block the navigation
+      NU.rpc('api_logExternalClick', {
+        eventId: currentEventId,
+        linkType: linkType
+      }).catch(err => console.warn('Failed to log external click:', err));
+    }
+
     // === Google Sheets "Bring Your Own Data" ===
 
     // Detect if URL is a Google Sheets URL and extract sheet ID
@@ -1325,6 +1340,9 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
     async function renderDetail(evt) {
       const root = document.getElementById('list');
 
+      // Set currentEventId for analytics tracking (League & Broadcast link clicks)
+      currentEventId = evt.id;
+
       // EVENT_CONTRACT.md v1.0: Fields are now at top level, with backward compat for old data
       // Merge top-level fields with nested data for backward compatibility
       const legacyData = evt.data || {};
@@ -1656,54 +1674,105 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
         html += '</div>';
       }
 
-      // === LEAGUE INFO CARD (consolidated for rec_league template) ===
-      // Uses externalData: { scheduleUrl, standingsUrl, bracketUrl }
-      const hasLeagueData = data.externalData?.scheduleUrl || data.externalData?.standingsUrl ||
-                           data.externalData?.bracketUrl || data.standingsUrl || data.bracketUrl;
+      // === LEAGUE & BROADCAST CARD (ExternalLeagueData per EVENT_CONTRACT.md) ===
+      // Core links: scheduleUrl, standingsUrl, bracketUrl
+      // Broadcast links: statsUrl, scoreboardUrl, streamUrl
+      // Provider metadata: providerName, providerLeagueId
+      const ed = data.externalData || {};
+      const hasLeagueLinks = !!(ed.scheduleUrl || ed.standingsUrl || ed.bracketUrl ||
+                                data.scheduleUrl || data.standingsUrl || data.bracketUrl);
+      const hasBroadcastLinks = !!(ed.statsUrl || ed.scoreboardUrl || ed.streamUrl);
 
-      if (hasLeagueData && sectionEnabled('schedule')) {
+      if ((hasLeagueLinks || hasBroadcastLinks) && sectionEnabled('schedule')) {
         html += '<div class="event-section league-info-card">';
-        html += `<h2>${getSectionTitle('schedule', 'League Info')}</h2>`;
 
-        // League info links grid
-        html += '<div class="league-links">';
+        // Dynamic card title based on providerName
+        const providerName = ed.providerName;
+        const cardTitle = providerName && providerName !== 'None' && providerName !== 'Custom'
+          ? `League & Broadcast (via ${esc(providerName)})`
+          : getSectionTitle('schedule', 'League & Broadcast');
+        html += `<h2>${cardTitle}</h2>`;
 
-        // Schedule link
-        const scheduleUrl = data.externalData?.scheduleUrl || data.scheduleUrl;
-        if (scheduleUrl) {
-          html += `<a class="league-link-btn" href="${esc(scheduleUrl)}" target="_blank" rel="noopener">
-            <span class="league-link-icon">📅</span>
-            <span class="league-link-label">View Schedule</span>
-          </a>`;
+        // === League Links Row ===
+        if (hasLeagueLinks) {
+          html += '<div class="league-links">';
+
+          // Schedule link
+          const scheduleUrl = ed.scheduleUrl || data.scheduleUrl;
+          if (scheduleUrl) {
+            html += `<a class="league-link-btn" href="${esc(scheduleUrl)}" target="_blank" rel="noopener"
+                        data-link-type="schedule" onclick="onLeagueLinkClick(event)">
+              <span class="league-link-icon">📅</span>
+              <span class="league-link-label">View Schedule</span>
+            </a>`;
+          }
+
+          // Standings
+          const standingsUrl = ed.standingsUrl || data.standingsUrl;
+          if (standingsUrl) {
+            html += `<a class="league-link-btn" href="${esc(standingsUrl)}" target="_blank" rel="noopener"
+                        data-link-type="standings" onclick="onLeagueLinkClick(event)">
+              <span class="league-link-icon">🏆</span>
+              <span class="league-link-label">View Standings</span>
+            </a>`;
+          }
+
+          // Bracket
+          const bracketUrl = ed.bracketUrl || data.bracketUrl;
+          if (bracketUrl) {
+            html += `<a class="league-link-btn" href="${esc(bracketUrl)}" target="_blank" rel="noopener"
+                        data-link-type="bracket" onclick="onLeagueLinkClick(event)">
+              <span class="league-link-icon">🎯</span>
+              <span class="league-link-label">View Bracket</span>
+            </a>`;
+          }
+
+          html += '</div>'; // .league-links
         }
 
-        // Standings
-        const standingsUrl = data.externalData?.standingsUrl || data.standingsUrl;
-        if (standingsUrl) {
-          html += `<a class="league-link-btn" href="${esc(standingsUrl)}" target="_blank" rel="noopener">
-            <span class="league-link-icon">🏆</span>
-            <span class="league-link-label">View Standings</span>
-          </a>`;
-        }
+        // === Broadcast / Stats Row ===
+        if (hasBroadcastLinks) {
+          html += '<div class="league-links broadcast-links">';
 
-        // Bracket
-        const bracketUrl = data.externalData?.bracketUrl || data.bracketUrl;
-        if (bracketUrl) {
-          html += `<a class="league-link-btn" href="${esc(bracketUrl)}" target="_blank" rel="noopener">
-            <span class="league-link-icon">🎯</span>
-            <span class="league-link-label">View Bracket</span>
-          </a>`;
-        }
+          // Stats URL (e.g., BocceLabs league page)
+          if (ed.statsUrl) {
+            html += `<a class="league-link-btn" href="${esc(ed.statsUrl)}" target="_blank" rel="noopener"
+                        data-link-type="stats" onclick="onLeagueLinkClick(event)">
+              <span class="league-link-icon">📈</span>
+              <span class="league-link-label">View Stats</span>
+            </a>`;
+          }
 
-        html += '</div>'; // .league-links
+          // Live Scoreboard / Game Center
+          if (ed.scoreboardUrl) {
+            html += `<a class="league-link-btn" href="${esc(ed.scoreboardUrl)}" target="_blank" rel="noopener"
+                        data-link-type="scoreboard" onclick="onLeagueLinkClick(event)">
+              <span class="league-link-icon">📺</span>
+              <span class="league-link-label">Live Scoreboard</span>
+            </a>`;
+          }
+
+          // Stream URL (BBN / YouTube / Twitch)
+          if (ed.streamUrl) {
+            html += `<a class="league-link-btn stream-btn" href="${esc(ed.streamUrl)}" target="_blank" rel="noopener"
+                        data-link-type="stream" onclick="onLeagueLinkClick(event)">
+              <span class="league-link-icon">🎥</span>
+              <span class="league-link-label">Watch Stream</span>
+            </a>`;
+          }
+
+          html += '</div>'; // .broadcast-links
+        }
 
         // Try to render Google Sheets data inline if available
+        const standingsUrl = ed.standingsUrl || data.standingsUrl;
         if (standingsUrl) {
           html += `<div id="standings-container" data-url="${esc(standingsUrl)}" class="league-data-section">
             <div class="loading-placeholder">Loading standings...</div>
           </div>`;
         }
 
+        const bracketUrl = ed.bracketUrl || data.bracketUrl;
         if (bracketUrl) {
           html += `<div id="bracket-container" data-url="${esc(bracketUrl)}" class="league-data-section">
             <div class="loading-placeholder">Loading bracket...</div>

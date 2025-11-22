@@ -500,29 +500,76 @@ describe('API Contract Tests', () => {
       });
     });
 
-    describe('externalData Format', () => {
+    describe('externalData Format (ExternalLeagueData)', () => {
       it('should validate externalData shape for rec_league', () => {
         const mockExternalData = {
+          // Core league links
           scheduleUrl: 'https://docs.google.com/spreadsheets/d/xxx',
           standingsUrl: 'https://docs.google.com/spreadsheets/d/yyy',
-          bracketUrl: 'https://challonge.com/bracket123'
+          bracketUrl: 'https://challonge.com/bracket123',
+          // Advanced integrations
+          statsUrl: 'https://boccelabs.com/leagues/123',
+          scoreboardUrl: 'https://boccelabs.com/scoreboard/123',
+          streamUrl: 'https://youtube.com/live/abc',
+          // Provider metadata
+          providerName: 'BocceLabs',
+          providerLeagueId: 'league-123'
         };
 
+        // Core league links
         expect(mockExternalData).toHaveProperty('scheduleUrl');
         expect(mockExternalData).toHaveProperty('standingsUrl');
         expect(mockExternalData).toHaveProperty('bracketUrl');
+        // Advanced integrations
+        expect(mockExternalData).toHaveProperty('statsUrl');
+        expect(mockExternalData).toHaveProperty('scoreboardUrl');
+        expect(mockExternalData).toHaveProperty('streamUrl');
+        // Provider metadata
+        expect(mockExternalData).toHaveProperty('providerName');
+        expect(mockExternalData).toHaveProperty('providerLeagueId');
       });
 
-      it('should accept null for unused URLs', () => {
+      it('should accept null for all externalData fields (V1 rule)', () => {
         const mockExternalData = {
+          // Core league links
           scheduleUrl: null,
           standingsUrl: null,
-          bracketUrl: null
+          bracketUrl: null,
+          // Advanced integrations
+          statsUrl: null,
+          scoreboardUrl: null,
+          streamUrl: null,
+          // Provider metadata
+          providerName: null,
+          providerLeagueId: null
         };
 
+        // All fields can be null per V1 rules
         expect(mockExternalData.scheduleUrl).toBeNull();
         expect(mockExternalData.standingsUrl).toBeNull();
         expect(mockExternalData.bracketUrl).toBeNull();
+        expect(mockExternalData.statsUrl).toBeNull();
+        expect(mockExternalData.scoreboardUrl).toBeNull();
+        expect(mockExternalData.streamUrl).toBeNull();
+        expect(mockExternalData.providerName).toBeNull();
+        expect(mockExternalData.providerLeagueId).toBeNull();
+      });
+
+      it('should accept partial externalData (core links only)', () => {
+        // V1 rule: URLs are treated as-is, no parsing
+        const mockExternalData = {
+          scheduleUrl: 'https://docs.google.com/spreadsheets/d/xxx',
+          standingsUrl: null,
+          bracketUrl: null,
+          statsUrl: null,
+          scoreboardUrl: null,
+          streamUrl: null,
+          providerName: null,
+          providerLeagueId: null
+        };
+
+        expect(mockExternalData.scheduleUrl).toBe('https://docs.google.com/spreadsheets/d/xxx');
+        expect(mockExternalData.providerName).toBeNull();
       });
     });
 
@@ -582,11 +629,19 @@ describe('API Contract Tests', () => {
             { key: 'cta_1', label: 'Add to Calendar', url: null }
           ],
 
-          // External Data
+          // External Data (ExternalLeagueData)
           externalData: {
+            // Core league links
             scheduleUrl: null,
             standingsUrl: null,
-            bracketUrl: null
+            bracketUrl: null,
+            // Advanced integrations
+            statsUrl: null,
+            scoreboardUrl: null,
+            streamUrl: null,
+            // Provider metadata
+            providerName: null,
+            providerLeagueId: null
           },
 
           // Media URLs

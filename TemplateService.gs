@@ -68,7 +68,9 @@ var EVENT_TEMPLATES = {
       audience: 'Teams & Captains',
       notesLabel: 'League Notes',
       sponsorStripLabel: 'Season Sponsors'
-    }
+    },
+    // ExternalLeagueData: default provider for league templates
+    defaultExternalProvider: 'Custom'
   },
 
   school: {
@@ -338,7 +340,8 @@ var EVENT_TEMPLATES = {
       audience: 'Players & Teams',
       notesLabel: 'League Rules',
       sponsorStripLabel: 'League Sponsors'
-    }
+    },
+    defaultExternalProvider: 'Custom'
   },
 
   bags: {
@@ -360,7 +363,8 @@ var EVENT_TEMPLATES = {
       audience: 'Players & Teams',
       notesLabel: 'League Rules',
       sponsorStripLabel: 'League Sponsors'
-    }
+    },
+    defaultExternalProvider: 'Custom'
   },
 
   pinball: {
@@ -382,7 +386,8 @@ var EVENT_TEMPLATES = {
       audience: 'Players',
       notesLabel: 'League Rules',
       sponsorStripLabel: 'League Sponsors'
-    }
+    },
+    defaultExternalProvider: 'Custom'
   },
 
   // === Faith & Community Templates ===
@@ -541,6 +546,15 @@ function applyTemplateToEvent_(event, templateId) {
   // === Status: Default to 'draft' per EVENT_CONTRACT.md ===
   if (!event.status) {
     event.status = 'draft';
+  }
+
+  // === ExternalData: Seed providerName from template if not set ===
+  // Per EVENT_CONTRACT.md V1 rules: TemplateService seeds providerName for special templates
+  if (tpl.defaultExternalProvider) {
+    event.externalData = event.externalData || {};
+    if (!event.externalData.providerName) {
+      event.externalData.providerName = tpl.defaultExternalProvider;
+    }
   }
 
   return event;
