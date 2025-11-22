@@ -85,135 +85,242 @@ const SCHEMAS = {
   },
 
   // === Event Schemas =======================================================
-  // Canonical Event Contract v1.0 - See EVENT_CONTRACT.md for documentation
+  // Canonical Event Contract v2.0 (MVP + V2-Ready) - See EVENT_CONTRACT.md
 
   events: {
     // Shared schema definitions for reuse
-    _eventStatus: {
-      type: 'string',
-      enum: ['draft', 'published', 'cancelled', 'completed']
-    },
 
-    _sectionConfig: {
-      type: ['object', 'null'],
-      properties: {
-        enabled: { type: 'boolean' },
-        title: { type: ['string', 'null'] },
-        content: { type: ['string', 'null'] }
-      }
-    },
-
-    _ctaLabel: {
+    // Schedule row for event schedule
+    _scheduleRow: {
       type: 'object',
-      required: ['key', 'label'],
+      required: ['time', 'title'],
       properties: {
-        key: { type: 'string' },
-        label: { type: 'string' },
-        url: { type: ['string', 'null'] }
+        time: { type: 'string' },
+        title: { type: 'string' },
+        description: { type: ['string', 'null'] }
       }
     },
 
+    // Standing row for standings table
+    _standingRow: {
+      type: 'object',
+      required: ['rank', 'team', 'wins', 'losses'],
+      properties: {
+        rank: { type: 'number' },
+        team: { type: 'string' },
+        wins: { type: 'number' },
+        losses: { type: 'number' },
+        points: { type: ['number', 'null'] }
+      }
+    },
+
+    // Bracket match
+    _bracketMatch: {
+      type: 'object',
+      required: ['id'],
+      properties: {
+        id: { type: 'string' },
+        team1: { type: ['string', 'null'] },
+        team2: { type: ['string', 'null'] },
+        score1: { type: ['number', 'null'] },
+        score2: { type: ['number', 'null'] },
+        winner: { type: ['string', 'null'] }
+      }
+    },
+
+    // Bracket round
+    _bracketRound: {
+      type: 'object',
+      required: ['name', 'matches'],
+      properties: {
+        name: { type: 'string' },
+        matches: {
+          type: 'array',
+          items: { $ref: '#/schemas/events/_bracketMatch' }
+        }
+      }
+    },
+
+    // CTA object (primary/secondary)
+    _cta: {
+      type: 'object',
+      required: ['label', 'url'],
+      properties: {
+        label: { type: 'string', minLength: 1 },
+        url: { type: 'string' }
+      }
+    },
+
+    // Sponsor with placement (V2)
     _sponsor: {
       type: 'object',
-      required: ['id', 'name'],
+      required: ['id', 'name', 'logoUrl', 'placement'],
       properties: {
         id: { type: 'string' },
         name: { type: 'string' },
-        logoUrl: { type: ['string', 'null'] },
-        website: { type: ['string', 'null'] },
-        tier: { type: ['string', 'null'] }
+        logoUrl: { type: 'string' },
+        linkUrl: { type: ['string', 'null'] },
+        placement: {
+          type: 'string',
+          enum: ['poster', 'display', 'public', 'tv-banner']
+        }
       }
     },
 
-    // Full event shape per EVENT_CONTRACT.md
+    // Media object (V2)
+    _media: {
+      type: ['object', 'null'],
+      properties: {
+        videoUrl: { type: ['string', 'null'] },
+        mapUrl: { type: ['string', 'null'] },
+        gallery: {
+          type: ['array', 'null'],
+          items: { type: 'string' }
+        }
+      }
+    },
+
+    // External data (V2)
+    _externalData: {
+      type: ['object', 'null'],
+      properties: {
+        scheduleUrl: { type: ['string', 'null'] },
+        standingsUrl: { type: ['string', 'null'] },
+        bracketUrl: { type: ['string', 'null'] }
+      }
+    },
+
+    // Analytics (Reserved)
+    _analytics: {
+      type: ['object', 'null'],
+      properties: {
+        enabled: { type: 'boolean' },
+        eventViews: { type: ['number', 'null'] },
+        publicPageViews: { type: ['number', 'null'] },
+        displayViews: { type: ['number', 'null'] },
+        signupStarts: { type: ['number', 'null'] },
+        signupCompletes: { type: ['number', 'null'] },
+        qrScans: { type: ['number', 'null'] }
+      }
+    },
+
+    // Payments (Reserved)
+    _payments: {
+      type: ['object', 'null'],
+      properties: {
+        enabled: { type: 'boolean' },
+        provider: { type: 'string', enum: ['stripe'] },
+        price: { type: 'number' },
+        currency: { type: 'string' },
+        checkoutUrl: { type: ['string', 'null'] }
+      }
+    },
+
+    // Settings (MVP Required)
+    _settings: {
+      type: 'object',
+      required: ['showSchedule', 'showStandings', 'showBracket'],
+      properties: {
+        showSchedule: { type: 'boolean' },
+        showStandings: { type: 'boolean' },
+        showBracket: { type: 'boolean' },
+        showSponsors: { type: 'boolean' }
+      }
+    },
+
+    // Full event shape per EVENT_CONTRACT.md v2.0
     _eventShape: {
       type: 'object',
-      required: ['id', 'brandId', 'templateId', 'name', 'status', 'createdAt', 'slug', 'links'],
+      required: ['id', 'slug', 'name', 'startDateISO', 'venue', 'links', 'qr', 'ctas', 'settings', 'createdAtISO', 'updatedAtISO'],
       properties: {
-        // Envelope (system-managed)
+        // Identity (MVP Required)
         id: { $ref: '#/common/id' },
-        brandId: { $ref: '#/common/brandId' },
-        templateId: { type: 'string' },
-
-        // Core Identity
+        slug: { type: 'string', minLength: 1 },
         name: { type: 'string', minLength: 1, maxLength: 200 },
-        status: { $ref: '#/schemas/events/_eventStatus' },
-        dateTime: { type: ['string', 'null'] },
-        location: { type: ['string', 'null'] },
-        venueName: { type: ['string', 'null'] },
+        startDateISO: { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}$' },
+        venue: { type: 'string', minLength: 1, maxLength: 200 },
 
-        // Content
-        summary: { type: ['string', 'null'] },
-        notes: { type: ['string', 'null'] },
-        audience: { type: ['string', 'null'] },
-
-        // Sections
-        sections: {
+        // Links (MVP Required)
+        links: {
           type: 'object',
+          required: ['publicUrl', 'displayUrl', 'posterUrl', 'signupUrl'],
           properties: {
-            video: { $ref: '#/schemas/events/_sectionConfig' },
-            map: { $ref: '#/schemas/events/_sectionConfig' },
-            schedule: { $ref: '#/schemas/events/_sectionConfig' },
-            sponsors: { $ref: '#/schemas/events/_sectionConfig' },
-            notes: { $ref: '#/schemas/events/_sectionConfig' },
-            gallery: { $ref: '#/schemas/events/_sectionConfig' }
+            publicUrl: { type: 'string' },
+            displayUrl: { type: 'string' },
+            posterUrl: { type: 'string' },
+            signupUrl: { type: 'string' },
+            sharedReportUrl: { type: ['string', 'null'] }
           }
         },
 
-        // CTA Labels
-        ctaLabels: {
-          type: 'array',
-          items: { $ref: '#/schemas/events/_ctaLabel' }
-        },
-
-        // External Data (ExternalLeagueData per EVENT_CONTRACT.md)
-        externalData: {
+        // QR Codes (MVP Required)
+        qr: {
           type: 'object',
+          required: ['public', 'signup'],
           properties: {
-            // Core league links
-            scheduleUrl: { type: ['string', 'null'] },
-            standingsUrl: { type: ['string', 'null'] },
-            bracketUrl: { type: ['string', 'null'] },
-            // Advanced integrations
-            statsUrl: { type: ['string', 'null'] },
-            scoreboardUrl: { type: ['string', 'null'] },
-            streamUrl: { type: ['string', 'null'] },
-            // Provider metadata
-            providerName: { type: ['string', 'null'] },
-            providerLeagueId: { type: ['string', 'null'] }
+            public: { type: 'string' },
+            signup: { type: 'string' }
           }
         },
 
-        // Media URLs
-        videoUrl: { type: ['string', 'null'] },
-        mapEmbedUrl: { type: ['string', 'null'] },
+        // Schedule/Standings/Bracket (MVP Optional)
+        schedule: {
+          type: ['array', 'null'],
+          items: { $ref: '#/schemas/events/_scheduleRow' }
+        },
+        standings: {
+          type: ['array', 'null'],
+          items: { $ref: '#/schemas/events/_standingRow' }
+        },
+        bracket: {
+          type: ['object', 'null'],
+          properties: {
+            rounds: {
+              type: 'array',
+              items: { $ref: '#/schemas/events/_bracketRound' }
+            }
+          }
+        },
 
-        // Action URLs
-        signupUrl: { type: ['string', 'null'] },
-        checkinUrl: { type: ['string', 'null'] },
-        feedbackUrl: { type: ['string', 'null'] },
+        // CTAs (MVP Required)
+        ctas: {
+          type: 'object',
+          required: ['primary'],
+          properties: {
+            primary: { $ref: '#/schemas/events/_cta' },
+            secondary: {
+              oneOf: [
+                { $ref: '#/schemas/events/_cta' },
+                { type: 'null' }
+              ]
+            }
+          }
+        },
 
-        // Sponsors (hydrated)
+        // Sponsors (V2 Optional)
         sponsors: {
-          type: 'array',
+          type: ['array', 'null'],
           items: { $ref: '#/schemas/events/_sponsor' }
         },
 
-        // Metadata
-        createdAt: { $ref: '#/common/isoDate' },
-        slug: { type: 'string' },
+        // Media (V2 Optional)
+        media: { $ref: '#/schemas/events/_media' },
 
-        // Generated Links
-        links: {
-          type: 'object',
-          required: ['publicUrl', 'posterUrl', 'displayUrl', 'reportUrl'],
-          properties: {
-            publicUrl: { $ref: '#/common/url' },
-            posterUrl: { $ref: '#/common/url' },
-            displayUrl: { $ref: '#/common/url' },
-            reportUrl: { $ref: '#/common/url' }
-          }
-        }
+        // External Data (V2 Optional)
+        externalData: { $ref: '#/schemas/events/_externalData' },
+
+        // Analytics (Reserved)
+        analytics: { $ref: '#/schemas/events/_analytics' },
+
+        // Payments (Reserved)
+        payments: { $ref: '#/schemas/events/_payments' },
+
+        // Settings (MVP Required)
+        settings: { $ref: '#/schemas/events/_settings' },
+
+        // Metadata (MVP Required)
+        createdAtISO: { $ref: '#/common/isoDate' },
+        updatedAtISO: { $ref: '#/common/isoDate' }
       }
     },
 

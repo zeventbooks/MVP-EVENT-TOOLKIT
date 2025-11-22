@@ -1,6 +1,11 @@
 /**
  * Events CRUD API Tests - Playwright
  * Replaces Newman event API tests with comprehensive Playwright coverage
+ *
+ * EVENT_CONTRACT.md v2.0 Compliance:
+ * - Uses canonical field names: startDateISO, venue
+ * - Validates v2.0 event shape: links, qr, ctas, settings
+ * - MVP Required fields validated
  */
 
 import { test, expect } from '@playwright/test';
@@ -54,10 +59,12 @@ test.describe('Events CRUD APIs', () => {
       createdEventIds.push(data.value.id);
     });
 
-    test('creates event with minimal required fields', async () => {
+    test('creates event with MVP required fields (v2.0)', async () => {
+      // v2.0 MVP Required: name, startDateISO, venue
       const eventData = {
         name: 'Minimal Event',
-        dateISO: '2025-12-20'
+        startDateISO: '2025-12-20',  // v2.0 field name
+        venue: 'Test Venue'           // v2.0 field name
       };
 
       const response = await api.createEvent(brand, eventData, adminKey);
@@ -70,23 +77,24 @@ test.describe('Events CRUD APIs', () => {
       createdEventIds.push(data.value.id);
     });
 
-    test('creates event with all optional fields', async () => {
+    test('creates event with v2.0 optional fields', async () => {
       const eventData = new EventBuilder()
         .withName('Complete Event')
         .withDate('2025-12-25')
-        .withTime('19:00')
-        .withLocation('Complete Venue')
-        .withSummary('A comprehensive test event')
+        .withVenue('Complete Venue')
+        .withSignupUrl('https://example.com/signup')
+        .withSchedule([
+          { time: '10:00 AM', title: 'Registration', description: null }
+        ])
         .build();
 
-      // Add additional optional fields
+      // Add V2 optional fields
       Object.assign(eventData, {
-        summaryLink: 'https://example.com/summary',
-        imageUrl: 'https://example.com/image.jpg',
-        videoUrl: 'https://youtube.com/watch?v=test',
-        bio: 'Event biography',
-        signupUrl: 'https://example.com/signup',
-        registerUrl: 'https://example.com/register'
+        media: {
+          videoUrl: 'https://youtube.com/watch?v=test',
+          mapUrl: 'https://maps.google.com/...'
+        },
+        externalData: {}
       });
 
       const response = await api.createEvent(brand, eventData, adminKey);
@@ -152,15 +160,21 @@ test.describe('Events CRUD APIs', () => {
       createdEventIds.push(testEventId);
     });
 
-    test('retrieves event by ID', async () => {
+    test('retrieves event with v2.0 canonical shape', async () => {
       const response = await api.getEvent(brand, testEventId);
       const data = await response.json();
 
       expect(response.ok()).toBe(true);
       expect(data.ok).toBe(true);
+
+      // v2.0 MVP Required fields
       expect(data.value).toHaveProperty('id', testEventId);
       expect(data.value).toHaveProperty('name');
-      expect(data.value).toHaveProperty('dateISO');
+      expect(data.value).toHaveProperty('startDateISO');  // v2.0 field name
+      expect(data.value).toHaveProperty('venue');          // v2.0 field name
+      expect(data.value).toHaveProperty('links');
+      expect(data.value).toHaveProperty('ctas');
+      expect(data.value).toHaveProperty('settings');
     });
 
     test('returns 404 for non-existent event', async () => {
@@ -207,16 +221,18 @@ test.describe('Events CRUD APIs', () => {
       expect(data.value.length).toBeGreaterThanOrEqual(3);
     });
 
-    test('returns events with correct structure', async () => {
+    test('returns events with v2.0 structure', async () => {
       const response = await api.listEvents(brand);
       const data = await response.json();
 
       expect(data.value.length).toBeGreaterThan(0);
 
       const event = data.value[0];
+      // v2.0 MVP Required fields
       expect(event).toHaveProperty('id');
       expect(event).toHaveProperty('name');
-      expect(event).toHaveProperty('dateISO');
+      expect(event).toHaveProperty('startDateISO');  // v2.0 field name
+      expect(event).toHaveProperty('venue');          // v2.0 field name
     });
 
     test('does not require authentication for public read', async () => {
@@ -232,19 +248,19 @@ test.describe('Events CRUD APIs', () => {
     let testEventId;
 
     test.beforeEach(async () => {
-      // Create a test event
+      // Create a test event with v2.0 fields
       const { eventId } = await api.createTestEvent(brand, adminKey, {
         name: 'Original Name',
-        location: 'Original Location'
+        venue: 'Original Venue'  // v2.0 field name
       });
       testEventId = eventId;
       createdEventIds.push(testEventId);
     });
 
-    test('updates event fields', async () => {
+    test('updates event fields (v2.0)', async () => {
       const updateData = {
         name: 'Updated Name',
-        location: 'Updated Location'
+        venue: 'Updated Venue'  // v2.0 field name
       };
 
       const response = await api.updateEvent(brand, testEventId, updateData, adminKey);
@@ -258,11 +274,11 @@ test.describe('Events CRUD APIs', () => {
       const getData = await getResponse.json();
 
       expect(getData.value.name).toBe('Updated Name');
-      expect(getData.value.location).toBe('Updated Location');
+      expect(getData.value.venue).toBe('Updated Venue');  // v2.0 field name
     });
 
     test('updates partial fields', async () => {
-      // Only update name, leave location unchanged
+      // Only update name, leave venue unchanged
       const updateData = {
         name: 'Partially Updated'
       };
@@ -278,7 +294,7 @@ test.describe('Events CRUD APIs', () => {
       const getData = await getResponse.json();
 
       expect(getData.value.name).toBe('Partially Updated');
-      expect(getData.value.location).toBe('Original Location'); // Unchanged
+      expect(getData.value.venue).toBe('Original Venue');  // Unchanged, v2.0 field name
     });
 
     test('requires authentication', async () => {
@@ -420,7 +436,7 @@ test.describe('Events CRUD APIs', () => {
       expect(data.value).toHaveProperty('config');
     });
 
-    test('returns event with correct structure', async () => {
+    test('returns event with v2.0 canonical structure', async () => {
       const response = await api.post('?action=getPublicBundle', {
         brandId: brand,
         scope: 'events',
@@ -428,9 +444,14 @@ test.describe('Events CRUD APIs', () => {
       });
       const data = await response.json();
 
+      // v2.0: Event is canonical shape (flat, no nested data object)
       expect(data.value.event).toHaveProperty('id', testEventId);
-      expect(data.value.event).toHaveProperty('data');
-      expect(data.value.event.data).toHaveProperty('name', 'Bundle Test Event');
+      expect(data.value.event).toHaveProperty('name', 'Bundle Test Event');
+      expect(data.value.event).toHaveProperty('startDateISO');
+      expect(data.value.event).toHaveProperty('venue');
+      expect(data.value.event).toHaveProperty('links');
+      expect(data.value.event).toHaveProperty('ctas');
+      expect(data.value.event).toHaveProperty('settings');
     });
 
     test('returns sponsors at top level for convenience', async () => {
@@ -444,7 +465,7 @@ test.describe('Events CRUD APIs', () => {
       expect(Array.isArray(data.value.sponsors)).toBe(true);
     });
 
-    test('returns all link types', async () => {
+    test('returns all v2.0 link types', async () => {
       const response = await api.post('?action=getPublicBundle', {
         brandId: brand,
         scope: 'events',
@@ -452,10 +473,11 @@ test.describe('Events CRUD APIs', () => {
       });
       const data = await response.json();
 
-      expect(data.value.links).toHaveProperty('publicUrl');
-      expect(data.value.links).toHaveProperty('posterUrl');
-      expect(data.value.links).toHaveProperty('displayUrl');
-      expect(data.value.links).toHaveProperty('reportUrl');
+      // v2.0: Links include signupUrl
+      expect(data.value.event.links).toHaveProperty('publicUrl');
+      expect(data.value.event.links).toHaveProperty('posterUrl');
+      expect(data.value.event.links).toHaveProperty('displayUrl');
+      expect(data.value.event.links).toHaveProperty('signupUrl');  // v2.0 required
     });
 
     test('supports etag caching', async () => {
@@ -488,12 +510,12 @@ test.describe('Events CRUD APIs', () => {
   });
 
   test.describe('Event CRUD Flow', () => {
-    test('complete CRUD lifecycle', async () => {
-      // 1. CREATE
+    test('complete CRUD lifecycle (v2.0)', async () => {
+      // 1. CREATE with v2.0 fields
       const eventData = new EventBuilder()
         .withName('Lifecycle Test Event')
         .withDate('2025-12-25')
-        .withLocation('Lifecycle Venue')
+        .withVenue('Lifecycle Venue')  // v2.0 field name
         .build();
 
       const createResponse = await api.createEvent(brand, eventData, adminKey);
@@ -502,16 +524,18 @@ test.describe('Events CRUD APIs', () => {
       expect(createData.ok).toBe(true);
       const eventId = createData.value.id;
 
-      // 2. READ
+      // 2. READ - verify v2.0 fields
       const getResponse = await api.getEvent(brand, eventId);
       const getData = await getResponse.json();
 
       expect(getData.ok).toBe(true);
       expect(getData.value.name).toBe('Lifecycle Test Event');
+      expect(getData.value.startDateISO).toBe('2025-12-25');  // v2.0 field
+      expect(getData.value.venue).toBe('Lifecycle Venue');     // v2.0 field
 
-      // 3. UPDATE
+      // 3. UPDATE with v2.0 fields
       const updateResponse = await api.updateEvent(brand, eventId, {
-        location: 'Updated Venue'
+        venue: 'Updated Venue'  // v2.0 field name
       }, adminKey);
       const updateData = await updateResponse.json();
 
@@ -521,7 +545,7 @@ test.describe('Events CRUD APIs', () => {
       const getResponse2 = await api.getEvent(brand, eventId);
       const getData2 = await getResponse2.json();
 
-      expect(getData2.value.location).toBe('Updated Venue');
+      expect(getData2.value.venue).toBe('Updated Venue');  // v2.0 field name
 
       // 5. DELETE
       const deleteResponse = await api.deleteEvent(brand, eventId, adminKey);

@@ -499,6 +499,421 @@ describe('Slug Generation', () => {
   });
 });
 
+describe('EVENT_CONTRACT.md v2.0 Validation', () => {
+  // === MVP Required Field Defaults (per EVENT_CONTRACT.md v2.0) ===
+  const EVENT_DEFAULTS_ = {
+    // Schedule/Standings/Bracket (MVP optional)
+    schedule: null,
+    standings: null,
+    bracket: null,
+
+    // CTAs
+    ctas: {
+      primary: { label: 'Sign Up', url: '' },
+      secondary: null
+    },
+
+    // V2 Optional (with defaults)
+    sponsors: [],
+    media: {},
+    externalData: {},
+    analytics: { enabled: false },
+    payments: { enabled: false },
+
+    // Settings (MVP required)
+    settings: {
+      showSchedule: false,
+      showStandings: false,
+      showBracket: false,
+      showSponsors: false
+    }
+  };
+
+  describe('EVENT_DEFAULTS_ structure', () => {
+    it('should have MVP optional fields with null defaults', () => {
+      expect(EVENT_DEFAULTS_.schedule).toBeNull();
+      expect(EVENT_DEFAULTS_.standings).toBeNull();
+      expect(EVENT_DEFAULTS_.bracket).toBeNull();
+    });
+
+    it('should have ctas with primary object and secondary null', () => {
+      expect(EVENT_DEFAULTS_.ctas).toBeDefined();
+      expect(EVENT_DEFAULTS_.ctas.primary).toEqual({ label: 'Sign Up', url: '' });
+      expect(EVENT_DEFAULTS_.ctas.secondary).toBeNull();
+    });
+
+    it('should have V2 optional fields with appropriate defaults', () => {
+      expect(EVENT_DEFAULTS_.sponsors).toEqual([]);
+      expect(EVENT_DEFAULTS_.media).toEqual({});
+      expect(EVENT_DEFAULTS_.externalData).toEqual({});
+      expect(EVENT_DEFAULTS_.analytics).toEqual({ enabled: false });
+      expect(EVENT_DEFAULTS_.payments).toEqual({ enabled: false });
+    });
+
+    it('should have settings with all show flags false by default', () => {
+      expect(EVENT_DEFAULTS_.settings.showSchedule).toBe(false);
+      expect(EVENT_DEFAULTS_.settings.showStandings).toBe(false);
+      expect(EVENT_DEFAULTS_.settings.showBracket).toBe(false);
+      expect(EVENT_DEFAULTS_.settings.showSponsors).toBe(false);
+    });
+  });
+
+  describe('MVP Required Field Validation', () => {
+    const validateMVPRequired = (event) => {
+      const errors = [];
+      if (!event.name || typeof event.name !== 'string' || event.name.trim() === '') {
+        errors.push('name is required');
+      }
+      if (!event.startDateISO) {
+        errors.push('startDateISO is required');
+      } else if (!/^\d{4}-\d{2}-\d{2}$/.test(event.startDateISO)) {
+        errors.push('startDateISO must be YYYY-MM-DD format');
+      }
+      if (!event.venue || typeof event.venue !== 'string' || event.venue.trim() === '') {
+        errors.push('venue is required');
+      }
+      return errors;
+    };
+
+    it('should pass with all MVP required fields', () => {
+      const event = {
+        name: 'Thursday Trivia Night',
+        startDateISO: '2025-12-01',
+        venue: "O'Malley's Pub"
+      };
+      expect(validateMVPRequired(event)).toEqual([]);
+    });
+
+    it('should fail when name is missing', () => {
+      const event = { startDateISO: '2025-12-01', venue: 'Test Venue' };
+      const errors = validateMVPRequired(event);
+      expect(errors).toContain('name is required');
+    });
+
+    it('should fail when name is empty string', () => {
+      const event = { name: '', startDateISO: '2025-12-01', venue: 'Test Venue' };
+      const errors = validateMVPRequired(event);
+      expect(errors).toContain('name is required');
+    });
+
+    it('should fail when startDateISO is missing', () => {
+      const event = { name: 'Test Event', venue: 'Test Venue' };
+      const errors = validateMVPRequired(event);
+      expect(errors).toContain('startDateISO is required');
+    });
+
+    it('should fail when startDateISO has invalid format', () => {
+      const event = { name: 'Test Event', startDateISO: '12/01/2025', venue: 'Test Venue' };
+      const errors = validateMVPRequired(event);
+      expect(errors).toContain('startDateISO must be YYYY-MM-DD format');
+    });
+
+    it('should fail when venue is missing', () => {
+      const event = { name: 'Test Event', startDateISO: '2025-12-01' };
+      const errors = validateMVPRequired(event);
+      expect(errors).toContain('venue is required');
+    });
+
+    it('should fail when venue is empty string', () => {
+      const event = { name: 'Test Event', startDateISO: '2025-12-01', venue: '   ' };
+      const errors = validateMVPRequired(event);
+      expect(errors).toContain('venue is required');
+    });
+  });
+
+  describe('Date Format Validation', () => {
+    const isValidDateISO = (date) => {
+      if (!date || typeof date !== 'string') return false;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return false;
+      // Parse and verify the date round-trips correctly
+      const [year, month, day] = date.split('-').map(Number);
+      const parsed = new Date(Date.UTC(year, month - 1, day));
+      return parsed.getUTCFullYear() === year &&
+             parsed.getUTCMonth() === month - 1 &&
+             parsed.getUTCDate() === day;
+    };
+
+    it('should accept valid YYYY-MM-DD format', () => {
+      expect(isValidDateISO('2025-12-01')).toBe(true);
+      expect(isValidDateISO('2024-01-15')).toBe(true);
+      expect(isValidDateISO('2030-06-30')).toBe(true);
+    });
+
+    it('should reject MM/DD/YYYY format', () => {
+      expect(isValidDateISO('12/01/2025')).toBe(false);
+    });
+
+    it('should reject DD-MM-YYYY format', () => {
+      expect(isValidDateISO('01-12-2025')).toBe(false);
+    });
+
+    it('should reject invalid dates', () => {
+      expect(isValidDateISO('2025-13-01')).toBe(false); // Invalid month
+      expect(isValidDateISO('2025-02-30')).toBe(false); // Invalid day for Feb
+    });
+
+    it('should reject empty/null values', () => {
+      expect(isValidDateISO('')).toBe(false);
+      expect(isValidDateISO(null)).toBe(false);
+      expect(isValidDateISO(undefined)).toBe(false);
+    });
+  });
+
+  describe('CTA Structure Validation', () => {
+    const validateCtas = (ctas) => {
+      if (!ctas || typeof ctas !== 'object') return false;
+      if (!ctas.primary || typeof ctas.primary !== 'object') return false;
+      if (typeof ctas.primary.label !== 'string') return false;
+      if (typeof ctas.primary.url !== 'string') return false;
+      if (ctas.secondary !== null && typeof ctas.secondary !== 'object') return false;
+      return true;
+    };
+
+    it('should accept valid ctas with primary and null secondary', () => {
+      const ctas = {
+        primary: { label: 'Sign Up', url: 'https://forms.google.com/...' },
+        secondary: null
+      };
+      expect(validateCtas(ctas)).toBe(true);
+    });
+
+    it('should accept valid ctas with both primary and secondary', () => {
+      const ctas = {
+        primary: { label: 'Sign Up', url: 'https://forms.google.com/...' },
+        secondary: { label: 'Learn More', url: 'https://example.com/about' }
+      };
+      expect(validateCtas(ctas)).toBe(true);
+    });
+
+    it('should accept empty url string', () => {
+      const ctas = {
+        primary: { label: 'Sign Up', url: '' },
+        secondary: null
+      };
+      expect(validateCtas(ctas)).toBe(true);
+    });
+
+    it('should reject missing primary', () => {
+      const ctas = { secondary: null };
+      expect(validateCtas(ctas)).toBe(false);
+    });
+
+    it('should reject primary without label', () => {
+      const ctas = {
+        primary: { url: 'https://example.com' },
+        secondary: null
+      };
+      expect(validateCtas(ctas)).toBe(false);
+    });
+  });
+
+  describe('Settings Structure Validation', () => {
+    const validateSettings = (settings) => {
+      if (!settings || typeof settings !== 'object') return false;
+      if (typeof settings.showSchedule !== 'boolean') return false;
+      if (typeof settings.showStandings !== 'boolean') return false;
+      if (typeof settings.showBracket !== 'boolean') return false;
+      if (typeof settings.showSponsors !== 'boolean') return false;
+      return true;
+    };
+
+    it('should accept valid settings with all boolean flags', () => {
+      const settings = {
+        showSchedule: true,
+        showStandings: false,
+        showBracket: false,
+        showSponsors: false
+      };
+      expect(validateSettings(settings)).toBe(true);
+    });
+
+    it('should reject settings with missing flags', () => {
+      const settings = { showSchedule: true };
+      expect(validateSettings(settings)).toBe(false);
+    });
+
+    it('should reject settings with non-boolean values', () => {
+      const settings = {
+        showSchedule: 'true',
+        showStandings: false,
+        showBracket: false,
+        showSponsors: false
+      };
+      expect(validateSettings(settings)).toBe(false);
+    });
+  });
+
+  describe('QR Code Format Validation', () => {
+    const isValidQRDataUri = (qr) => {
+      if (typeof qr !== 'string') return false;
+      // Accept empty string for signup QR when no URL
+      if (qr === '') return true;
+      // Must be base64 PNG data URI
+      return qr.startsWith('data:image/png;base64,');
+    };
+
+    it('should accept valid base64 PNG data URI', () => {
+      expect(isValidQRDataUri('data:image/png;base64,iVBORw0KGgo...')).toBe(true);
+    });
+
+    it('should accept empty string for missing signup URL', () => {
+      expect(isValidQRDataUri('')).toBe(true);
+    });
+
+    it('should reject other image formats', () => {
+      expect(isValidQRDataUri('data:image/jpeg;base64,...')).toBe(false);
+    });
+
+    it('should reject regular URLs', () => {
+      expect(isValidQRDataUri('https://example.com/qr.png')).toBe(false);
+    });
+  });
+
+  describe('Links Structure Validation', () => {
+    const validateLinks = (links) => {
+      if (!links || typeof links !== 'object') return false;
+      const required = ['publicUrl', 'displayUrl', 'posterUrl', 'signupUrl'];
+      for (const field of required) {
+        if (typeof links[field] !== 'string') return false;
+      }
+      return true;
+    };
+
+    it('should accept valid links with all required URLs', () => {
+      const links = {
+        publicUrl: 'https://example.com/events/test',
+        displayUrl: 'https://example.com/display/test',
+        posterUrl: 'https://example.com/poster/test',
+        signupUrl: 'https://forms.google.com/...'
+      };
+      expect(validateLinks(links)).toBe(true);
+    });
+
+    it('should accept empty signupUrl string', () => {
+      const links = {
+        publicUrl: 'https://example.com/events/test',
+        displayUrl: 'https://example.com/display/test',
+        posterUrl: 'https://example.com/poster/test',
+        signupUrl: ''
+      };
+      expect(validateLinks(links)).toBe(true);
+    });
+
+    it('should reject missing publicUrl', () => {
+      const links = {
+        displayUrl: 'https://example.com/display/test',
+        posterUrl: 'https://example.com/poster/test',
+        signupUrl: ''
+      };
+      expect(validateLinks(links)).toBe(false);
+    });
+  });
+
+  describe('Sponsor Structure Validation (V2)', () => {
+    const validateSponsor = (sponsor) => {
+      if (!sponsor || typeof sponsor !== 'object') return false;
+      if (typeof sponsor.id !== 'string') return false;
+      if (typeof sponsor.name !== 'string') return false;
+      if (typeof sponsor.logoUrl !== 'string') return false;
+      const validPlacements = ['poster', 'display', 'public', 'tv-banner'];
+      if (!validPlacements.includes(sponsor.placement)) return false;
+      return true;
+    };
+
+    it('should accept valid sponsor with all fields', () => {
+      const sponsor = {
+        id: 'sp-123',
+        name: 'Acme Corp',
+        logoUrl: 'https://example.com/logo.png',
+        linkUrl: 'https://acme.com',
+        placement: 'poster'
+      };
+      expect(validateSponsor(sponsor)).toBe(true);
+    });
+
+    it('should accept valid sponsor without linkUrl', () => {
+      const sponsor = {
+        id: 'sp-456',
+        name: 'Local Sponsor',
+        logoUrl: 'https://example.com/local.png',
+        linkUrl: null,
+        placement: 'display'
+      };
+      expect(validateSponsor(sponsor)).toBe(true);
+    });
+
+    it('should accept all valid placement values', () => {
+      const placements = ['poster', 'display', 'public', 'tv-banner'];
+      placements.forEach(placement => {
+        const sponsor = {
+          id: 'sp-test',
+          name: 'Test',
+          logoUrl: 'https://ex.com/logo.png',
+          placement
+        };
+        expect(validateSponsor(sponsor)).toBe(true);
+      });
+    });
+
+    it('should reject invalid placement', () => {
+      const sponsor = {
+        id: 'sp-123',
+        name: 'Test',
+        logoUrl: 'https://ex.com/logo.png',
+        placement: 'invalid'
+      };
+      expect(validateSponsor(sponsor)).toBe(false);
+    });
+  });
+
+  describe('Full Event Hydration', () => {
+    const hydrateEvent = (rawData, defaults) => {
+      return {
+        ...defaults,
+        ...rawData,
+        settings: {
+          ...defaults.settings,
+          ...(rawData.settings || {})
+        },
+        ctas: {
+          ...defaults.ctas,
+          ...(rawData.ctas || {})
+        }
+      };
+    };
+
+    it('should merge with defaults preserving user values', () => {
+      const raw = {
+        name: 'Test Event',
+        startDateISO: '2025-12-01',
+        venue: 'Test Venue',
+        settings: { showSchedule: true }
+      };
+
+      const result = hydrateEvent(raw, EVENT_DEFAULTS_);
+
+      expect(result.name).toBe('Test Event');
+      expect(result.settings.showSchedule).toBe(true);
+      expect(result.settings.showStandings).toBe(false);
+      expect(result.sponsors).toEqual([]);
+      expect(result.analytics).toEqual({ enabled: false });
+    });
+
+    it('should not overwrite provided V2 fields', () => {
+      const raw = {
+        name: 'Test Event',
+        sponsors: [{ id: 'sp-1', name: 'Test Sponsor', logoUrl: 'https://ex.com/logo.png', placement: 'poster' }],
+        analytics: { enabled: true }
+      };
+
+      const result = hydrateEvent(raw, EVENT_DEFAULTS_);
+
+      expect(result.sponsors.length).toBe(1);
+      expect(result.analytics.enabled).toBe(true);
+    });
+  });
+});
+
 describe('Bug #50: Pagination Support in api_list', () => {
   test('should paginate results with default limit', () => {
     // Mock data - 150 items

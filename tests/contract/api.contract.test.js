@@ -3,12 +3,15 @@
  *
  * Ensures all API endpoints return responses matching the documented contract
  *
- * EVENT_CONTRACT.md v1.0 Compliance:
- * - Canonical event shape with flat fields (not nested in data)
- * - SectionConfig format: { enabled: bool, title: string|null, content: string|null }
- * - CTALabel format: [{ key: string, label: string, url: string|null }]
- * - Hydrated sponsors array (not comma-separated IDs)
- * - dateTime field (combined from dateISO + timeISO)
+ * EVENT_CONTRACT.md v2.0 Compliance (MVP + V2-Ready):
+ * - Canonical event shape with required MVP fields at top level
+ * - MVP Required: id, slug, name, startDateISO, venue, links, qr, ctas, settings
+ * - Links: publicUrl, displayUrl, posterUrl, signupUrl
+ * - QR Codes: { public: base64, signup: base64 }
+ * - CTA Format: { primary: { label, url }, secondary: null|{ label, url } }
+ * - Settings: { showSchedule, showStandings, showBracket, showSponsors }
+ * - V2 Optional: sponsors[], media{}, externalData{}, analytics{}, payments{}
+ * - Timestamps: createdAtISO, updatedAtISO
  *
  * REFACTORED: Now uses DRY helpers and fixtures
  */
@@ -42,27 +45,71 @@ describe('API Contract Tests', () => {
   });
 
   describe('api_list', () => {
-    it('should return valid list response with etag', () => {
+    it('should return valid list response with canonical events per v2.0', () => {
       const mockResponse = {
         ok: true,
         etag: 'abc123',
         value: {
           items: [
             {
+              // MVP Required - Identity
               id: 'event-1',
-              templateId: 'event',
-              data: { name: 'Test Event', dateISO: '2025-12-01' },
-              createdAt: '2025-11-10T12:00:00.000Z',
-              slug: 'test-event'
+              slug: 'test-event',
+              name: 'Test Event',
+              startDateISO: '2025-12-01',
+              venue: 'Test Venue',
+
+              // MVP Required - Links
+              links: {
+                publicUrl: 'https://script.google.com/.../exec?page=events&brand=root&id=event-1',
+                displayUrl: 'https://script.google.com/.../exec?page=display&brand=root&id=event-1&tv=1',
+                posterUrl: 'https://script.google.com/.../exec?page=poster&brand=root&id=event-1',
+                signupUrl: ''
+              },
+
+              // MVP Required - QR, CTAs, Settings
+              qr: { public: 'data:image/png;base64,...', signup: '' },
+              ctas: { primary: { label: 'Sign Up', url: '' }, secondary: null },
+              settings: { showSchedule: false, showStandings: false, showBracket: false, showSponsors: false },
+
+              // V2 Optional defaults
+              sponsors: [],
+              media: {},
+              externalData: {},
+              analytics: { enabled: false },
+              payments: { enabled: false },
+
+              // Timestamps
+              createdAtISO: '2025-11-10T12:00:00.000Z',
+              updatedAtISO: '2025-11-10T12:00:00.000Z'
             }
-          ]
+          ],
+          pagination: {
+            total: 1,
+            limit: 50,
+            offset: 0,
+            hasMore: false
+          }
         }
       };
 
       validateEnvelope(mockResponse);
       expect(mockResponse).toHaveProperty('etag');
       expect(mockResponse.value).toHaveProperty('items');
+      expect(mockResponse.value).toHaveProperty('pagination');
       expect(Array.isArray(mockResponse.value.items)).toBe(true);
+
+      // Validate canonical shape per v2.0
+      const event = mockResponse.value.items[0];
+      expect(event).toHaveProperty('id');
+      expect(event).toHaveProperty('slug');
+      expect(event).toHaveProperty('name');
+      expect(event).toHaveProperty('startDateISO');
+      expect(event).toHaveProperty('venue');
+      expect(event).toHaveProperty('links');
+      expect(event).toHaveProperty('qr');
+      expect(event).toHaveProperty('ctas');
+      expect(event).toHaveProperty('settings');
     });
 
     it('should support notModified response', () => {
@@ -76,71 +123,187 @@ describe('API Contract Tests', () => {
       expect(mockResponse.notModified).toBe(true);
       expect(mockResponse).toHaveProperty('etag');
     });
-  });
 
-  describe('api_get', () => {
-    it('should return valid event with links', () => {
+    it('should return pagination info per EVENT_CONTRACT.md v2.0', () => {
       const mockResponse = {
         ok: true,
-        etag: 'xyz789',
+        etag: 'abc123',
         value: {
-          id: 'event-1',
-          brandId: 'root',
-          templateId: 'event',
-          data: {
-            name: 'Test Event',
-            dateISO: '2025-12-01',
-            location: 'Test Venue'
-          },
-          createdAt: '2025-11-10T12:00:00.000Z',
-          slug: 'test-event',
-          links: {
-            publicUrl: 'https://script.google.com/macros/s/.../exec?p=events&id=event-1',
-            posterUrl: 'https://script.google.com/macros/s/.../exec?page=poster&id=event-1',
-            displayUrl: 'https://script.google.com/macros/s/.../exec?page=display&id=event-1'
+          items: [],
+          pagination: {
+            total: 100,
+            limit: 50,
+            offset: 50,
+            hasMore: true
           }
         }
       };
 
+      expect(mockResponse.value.pagination).toHaveProperty('total');
+      expect(mockResponse.value.pagination).toHaveProperty('limit');
+      expect(mockResponse.value.pagination).toHaveProperty('offset');
+      expect(mockResponse.value.pagination).toHaveProperty('hasMore');
+    });
+  });
+
+  describe('api_get', () => {
+    it('should return canonical event per EVENT_CONTRACT.md v2.0', () => {
+      const mockResponse = {
+        ok: true,
+        etag: 'xyz789',
+        value: {
+          // MVP Required - Identity
+          id: 'event-1',
+          slug: 'test-event',
+          name: 'Test Event',
+          startDateISO: '2025-12-01',
+          venue: 'Test Venue',
+
+          // MVP Required - Links
+          links: {
+            publicUrl: 'https://script.google.com/.../exec?page=events&brand=root&id=event-1',
+            displayUrl: 'https://script.google.com/.../exec?page=display&brand=root&id=event-1&tv=1',
+            posterUrl: 'https://script.google.com/.../exec?page=poster&brand=root&id=event-1',
+            signupUrl: 'https://forms.google.com/...'
+          },
+
+          // MVP Required - QR Codes
+          qr: {
+            public: 'data:image/png;base64,iVBORw0KGgo...',
+            signup: 'data:image/png;base64,iVBORw0KGgo...'
+          },
+
+          // MVP Required - CTAs
+          ctas: {
+            primary: { label: 'Sign Up', url: 'https://forms.google.com/...' },
+            secondary: null
+          },
+
+          // MVP Required - Settings
+          settings: {
+            showSchedule: true,
+            showStandings: false,
+            showBracket: false,
+            showSponsors: false
+          },
+
+          // MVP Optional
+          schedule: null,
+          standings: null,
+          bracket: null,
+
+          // V2 Optional (with defaults)
+          sponsors: [],
+          media: {},
+          externalData: {},
+          analytics: { enabled: false },
+          payments: { enabled: false },
+
+          // MVP Required - Timestamps
+          createdAtISO: '2025-11-10T12:00:00.000Z',
+          updatedAtISO: '2025-11-10T12:00:00.000Z'
+        }
+      };
+
       validateEnvelope(mockResponse);
+
+      // MVP Required - Identity
       expect(mockResponse.value).toHaveProperty('id');
-      expect(mockResponse.value).toHaveProperty('data');
+      expect(mockResponse.value).toHaveProperty('slug');
+      expect(mockResponse.value).toHaveProperty('name');
+      expect(mockResponse.value).toHaveProperty('startDateISO');
+      expect(mockResponse.value).toHaveProperty('venue');
+
+      // MVP Required - Links (all 4 URLs)
       expect(mockResponse.value).toHaveProperty('links');
       expect(mockResponse.value.links).toHaveProperty('publicUrl');
-      expect(mockResponse.value.links).toHaveProperty('posterUrl');
       expect(mockResponse.value.links).toHaveProperty('displayUrl');
+      expect(mockResponse.value.links).toHaveProperty('posterUrl');
+      expect(mockResponse.value.links).toHaveProperty('signupUrl');
+
+      // MVP Required - QR Codes
+      expect(mockResponse.value).toHaveProperty('qr');
+      expect(mockResponse.value.qr).toHaveProperty('public');
+      expect(mockResponse.value.qr).toHaveProperty('signup');
+
+      // MVP Required - CTAs
+      expect(mockResponse.value).toHaveProperty('ctas');
+      expect(mockResponse.value.ctas).toHaveProperty('primary');
+
+      // MVP Required - Settings
+      expect(mockResponse.value).toHaveProperty('settings');
+      expect(mockResponse.value.settings).toHaveProperty('showSchedule');
+
+      // Timestamps
+      expect(mockResponse.value).toHaveProperty('createdAtISO');
+      expect(mockResponse.value).toHaveProperty('updatedAtISO');
+    });
+
+    it('should return NOT_FOUND for invalid event ID', () => {
+      const mockResponse = {
+        ok: false,
+        code: 'NOT_FOUND',
+        message: 'Event not found: invalid-id'
+      };
+
+      validateEnvelope(mockResponse);
+      expect(mockResponse.code).toBe('NOT_FOUND');
     });
   });
 
   describe('api_getPublicBundle', () => {
-    it('should return bundled event data with sponsors and config', () => {
+    it('should return bundle with canonical event per EVENT_CONTRACT.md v2.0', () => {
       const mockResponse = {
         ok: true,
         etag: 'bundle123',
         value: {
+          // Event in canonical v2.0 shape
           event: {
             id: 'event-1',
-            brandId: 'root',
-            templateId: 'event',
-            data: {
-              name: 'Test Event',
-              dateISO: '2025-12-01',
-              sponsors: [{ id: 'sp-1', name: 'Sponsor 1', placements: { mobileBanner: true } }]
+            slug: 'test-event',
+            name: 'Test Event',
+            startDateISO: '2025-12-01',
+            venue: 'Test Venue',
+            links: {
+              publicUrl: 'https://script.google.com/.../exec?page=events&brand=root&id=event-1',
+              displayUrl: 'https://script.google.com/.../exec?page=display&brand=root&id=event-1&tv=1',
+              posterUrl: 'https://script.google.com/.../exec?page=poster&brand=root&id=event-1',
+              signupUrl: 'https://forms.google.com/...'
             },
-            createdAt: '2025-11-10T12:00:00.000Z',
-            slug: 'test-event'
+            qr: {
+              public: 'data:image/png;base64,...',
+              signup: 'data:image/png;base64,...'
+            },
+            ctas: {
+              primary: { label: 'Sign Up', url: 'https://forms.google.com/...' },
+              secondary: null
+            },
+            settings: {
+              showSchedule: true,
+              showStandings: false,
+              showBracket: false,
+              showSponsors: true
+            },
+            schedule: [
+              { time: '10:00 AM', title: 'Registration Opens', description: null }
+            ],
+            standings: null,
+            bracket: null,
+            sponsors: [
+              { id: 'sp-1', name: 'Sponsor 1', logoUrl: 'https://ex.com/logo.png', linkUrl: null, placement: 'public' }
+            ],
+            media: {},
+            externalData: {},
+            analytics: { enabled: false },
+            payments: { enabled: false },
+            createdAtISO: '2025-11-10T12:00:00.000Z',
+            updatedAtISO: '2025-11-10T12:00:00.000Z'
           },
-          sponsors: [{ id: 'sp-1', name: 'Sponsor 1', placements: { mobileBanner: true } }],
-          display: { mode: 'public' },
-          links: {
-            publicUrl: 'https://script.google.com/macros/s/.../exec?p=events&id=event-1',
-            posterUrl: 'https://script.google.com/macros/s/.../exec?page=poster&id=event-1',
-            displayUrl: 'https://script.google.com/macros/s/.../exec?page=display&id=event-1',
-            reportUrl: 'https://script.google.com/macros/s/.../exec?page=report&id=event-1'
-          },
+          // Bundle config per v2.0
           config: {
-            appTitle: 'Events',
-            brandId: 'root'
+            brandId: 'root',
+            brandName: 'Default Brand',
+            appTitle: 'Events'
           }
         }
       };
@@ -148,14 +311,24 @@ describe('API Contract Tests', () => {
       validateEnvelope(mockResponse);
       expect(mockResponse).toHaveProperty('etag');
       expect(mockResponse.value).toHaveProperty('event');
-      expect(mockResponse.value).toHaveProperty('sponsors');
-      expect(mockResponse.value).toHaveProperty('display');
-      expect(mockResponse.value).toHaveProperty('links');
       expect(mockResponse.value).toHaveProperty('config');
-      expect(mockResponse.value.event).toHaveProperty('id');
-      expect(mockResponse.value.event).toHaveProperty('data');
-      expect(Array.isArray(mockResponse.value.sponsors)).toBe(true);
-      expect(mockResponse.value.links).toHaveProperty('reportUrl');
+
+      // Event should be canonical v2.0 shape
+      const event = mockResponse.value.event;
+      expect(event).toHaveProperty('id');
+      expect(event).toHaveProperty('slug');
+      expect(event).toHaveProperty('name');
+      expect(event).toHaveProperty('startDateISO');
+      expect(event).toHaveProperty('venue');
+      expect(event).toHaveProperty('links');
+      expect(event).toHaveProperty('qr');
+      expect(event).toHaveProperty('ctas');
+      expect(event).toHaveProperty('settings');
+
+      // Config per v2.0
+      expect(mockResponse.value.config).toHaveProperty('brandId');
+      expect(mockResponse.value.config).toHaveProperty('brandName');
+      expect(mockResponse.value.config).toHaveProperty('appTitle');
     });
 
     it('should support notModified response', () => {
@@ -171,30 +344,240 @@ describe('API Contract Tests', () => {
     });
   });
 
-  describe('api_create', () => {
-    it('should return id and links on success', () => {
+  describe('api_getDisplayBundle', () => {
+    it('should return display bundle with canonical event per v2.0', () => {
       const mockResponse = {
         ok: true,
+        etag: 'display123',
         value: {
-          id: 'new-event-123',
-          links: {
-            publicUrl: 'https://...',
-            posterUrl: 'https://...',
-            displayUrl: 'https://...'
+          event: {
+            id: 'event-1',
+            slug: 'test-event',
+            name: 'Test Event',
+            startDateISO: '2025-12-01',
+            venue: 'Test Venue',
+            links: {
+              publicUrl: 'https://script.google.com/.../exec?page=events&brand=root&id=event-1',
+              displayUrl: 'https://script.google.com/.../exec?page=display&brand=root&id=event-1&tv=1',
+              posterUrl: 'https://script.google.com/.../exec?page=poster&brand=root&id=event-1',
+              signupUrl: ''
+            },
+            qr: { public: 'data:image/png;base64,...', signup: '' },
+            ctas: { primary: { label: 'Sign Up', url: '' }, secondary: null },
+            settings: { showSchedule: true, showStandings: false, showBracket: false, showSponsors: false },
+            schedule: [{ time: '10:00 AM', title: 'Opening', description: null }],
+            standings: null,
+            bracket: null,
+            sponsors: [],
+            media: {},
+            externalData: {},
+            analytics: { enabled: false },
+            payments: { enabled: false },
+            createdAtISO: '2025-11-10T12:00:00.000Z',
+            updatedAtISO: '2025-11-10T12:00:00.000Z'
+          },
+          config: {
+            brandId: 'root',
+            brandName: 'Default Brand',
+            appTitle: 'Events'
           }
         }
       };
 
       validateEnvelope(mockResponse);
+      expect(mockResponse.value).toHaveProperty('event');
+      expect(mockResponse.value).toHaveProperty('config');
+      expect(mockResponse.value.event).toHaveProperty('schedule');
+    });
+  });
+
+  describe('api_getPosterBundle', () => {
+    it('should return poster bundle with canonical event per v2.0', () => {
+      const mockResponse = {
+        ok: true,
+        etag: 'poster123',
+        value: {
+          event: {
+            id: 'event-1',
+            slug: 'test-event',
+            name: 'Test Event',
+            startDateISO: '2025-12-01',
+            venue: 'Test Venue',
+            links: {
+              publicUrl: 'https://script.google.com/.../exec?page=events&brand=root&id=event-1',
+              displayUrl: 'https://script.google.com/.../exec?page=display&brand=root&id=event-1&tv=1',
+              posterUrl: 'https://script.google.com/.../exec?page=poster&brand=root&id=event-1',
+              signupUrl: 'https://forms.google.com/...'
+            },
+            qr: {
+              public: 'data:image/png;base64,...',
+              signup: 'data:image/png;base64,...'
+            },
+            ctas: { primary: { label: 'Sign Up', url: 'https://forms.google.com/...' }, secondary: null },
+            settings: { showSchedule: false, showStandings: false, showBracket: false, showSponsors: true },
+            schedule: null,
+            standings: null,
+            bracket: null,
+            sponsors: [
+              { id: 'sp-1', name: 'Poster Sponsor', logoUrl: 'https://ex.com/logo.png', linkUrl: null, placement: 'poster' }
+            ],
+            media: {},
+            externalData: {},
+            analytics: { enabled: false },
+            payments: { enabled: false },
+            createdAtISO: '2025-11-10T12:00:00.000Z',
+            updatedAtISO: '2025-11-10T12:00:00.000Z'
+          },
+          config: {
+            brandId: 'root',
+            brandName: 'Default Brand',
+            appTitle: 'Events'
+          }
+        }
+      };
+
+      validateEnvelope(mockResponse);
+      expect(mockResponse.value).toHaveProperty('event');
+      expect(mockResponse.value).toHaveProperty('config');
+
+      // Poster must have QR codes
+      expect(mockResponse.value.event.qr).toHaveProperty('public');
+      expect(mockResponse.value.event.qr).toHaveProperty('signup');
+    });
+  });
+
+  describe('api_create', () => {
+    it('should return full canonical event per EVENT_CONTRACT.md v2.0', () => {
+      const mockResponse = {
+        ok: true,
+        value: {
+          // MVP Required - Identity
+          id: 'new-event-123',
+          slug: 'test-event',
+          name: 'Test Event',
+          startDateISO: '2025-12-01',
+          venue: 'Test Venue',
+
+          // MVP Required - Links
+          links: {
+            publicUrl: 'https://script.google.com/.../exec?page=events&brand=root&id=new-event-123',
+            displayUrl: 'https://script.google.com/.../exec?page=display&brand=root&id=new-event-123&tv=1',
+            posterUrl: 'https://script.google.com/.../exec?page=poster&brand=root&id=new-event-123',
+            signupUrl: ''
+          },
+
+          // MVP Required - QR Codes (base64 data URIs)
+          qr: {
+            public: 'data:image/png;base64,iVBORw0KGgo...',
+            signup: 'data:image/png;base64,iVBORw0KGgo...'
+          },
+
+          // MVP Required - CTAs
+          ctas: {
+            primary: { label: 'Sign Up', url: '' },
+            secondary: null
+          },
+
+          // MVP Required - Settings
+          settings: {
+            showSchedule: false,
+            showStandings: false,
+            showBracket: false,
+            showSponsors: false
+          },
+
+          // MVP Optional
+          schedule: null,
+          standings: null,
+          bracket: null,
+
+          // V2 Optional (with defaults)
+          sponsors: [],
+          media: {},
+          externalData: {},
+          analytics: { enabled: false },
+          payments: { enabled: false },
+
+          // MVP Required - Timestamps
+          createdAtISO: '2025-11-22T12:00:00.000Z',
+          updatedAtISO: '2025-11-22T12:00:00.000Z'
+        }
+      };
+
+      validateEnvelope(mockResponse);
+
+      // MVP Required fields
       expect(mockResponse.value).toHaveProperty('id');
+      expect(mockResponse.value).toHaveProperty('slug');
+      expect(mockResponse.value).toHaveProperty('name');
+      expect(mockResponse.value).toHaveProperty('startDateISO');
+      expect(mockResponse.value).toHaveProperty('venue');
       expect(mockResponse.value).toHaveProperty('links');
+      expect(mockResponse.value).toHaveProperty('qr');
+      expect(mockResponse.value).toHaveProperty('ctas');
+      expect(mockResponse.value).toHaveProperty('settings');
+      expect(mockResponse.value).toHaveProperty('createdAtISO');
+      expect(mockResponse.value).toHaveProperty('updatedAtISO');
+
+      // Links structure
+      expect(mockResponse.value.links).toHaveProperty('publicUrl');
+      expect(mockResponse.value.links).toHaveProperty('displayUrl');
+      expect(mockResponse.value.links).toHaveProperty('posterUrl');
+      expect(mockResponse.value.links).toHaveProperty('signupUrl');
+
+      // QR structure
+      expect(mockResponse.value.qr).toHaveProperty('public');
+      expect(mockResponse.value.qr).toHaveProperty('signup');
+
+      // CTA structure
+      expect(mockResponse.value.ctas).toHaveProperty('primary');
+      expect(mockResponse.value.ctas.primary).toHaveProperty('label');
+      expect(mockResponse.value.ctas.primary).toHaveProperty('url');
+
+      // Settings structure
+      expect(mockResponse.value.settings).toHaveProperty('showSchedule');
+      expect(mockResponse.value.settings).toHaveProperty('showStandings');
+      expect(mockResponse.value.settings).toHaveProperty('showBracket');
     });
 
-    it('should return error for missing required fields', () => {
+    it('should return error for missing required field: name', () => {
       const mockResponse = {
         ok: false,
         code: 'BAD_INPUT',
-        message: 'Missing field: name'
+        message: 'Missing required field: name'
+      };
+
+      validateEnvelope(mockResponse);
+      expect(mockResponse.code).toBe('BAD_INPUT');
+    });
+
+    it('should return error for missing required field: startDateISO', () => {
+      const mockResponse = {
+        ok: false,
+        code: 'BAD_INPUT',
+        message: 'Missing required field: startDateISO'
+      };
+
+      validateEnvelope(mockResponse);
+      expect(mockResponse.code).toBe('BAD_INPUT');
+    });
+
+    it('should return error for missing required field: venue', () => {
+      const mockResponse = {
+        ok: false,
+        code: 'BAD_INPUT',
+        message: 'Missing required field: venue'
+      };
+
+      validateEnvelope(mockResponse);
+      expect(mockResponse.code).toBe('BAD_INPUT');
+    });
+
+    it('should return error for invalid date format', () => {
+      const mockResponse = {
+        ok: false,
+        code: 'BAD_INPUT',
+        message: 'Invalid date format: startDateISO must be YYYY-MM-DD'
       };
 
       validateEnvelope(mockResponse);
@@ -306,406 +689,445 @@ describe('API Contract Tests', () => {
     });
   });
 
-  // === EVENT_CONTRACT.md v1.0 Compliance Tests ===
+  // === EVENT_CONTRACT.md v2.0 Compliance Tests ===
 
-  describe('EVENT_CONTRACT.md v1.0 Compliance', () => {
+  describe('EVENT_CONTRACT.md v2.0 Compliance', () => {
 
-    describe('Canonical Event Shape', () => {
-      it('should return event with required envelope fields', () => {
+    describe('Canonical Event Shape (MVP Required)', () => {
+      it('should return event with all MVP required fields', () => {
         const mockEvent = {
+          // Identity (MVP Required)
           id: 'EVT_123',
-          brandId: 'root',
-          templateId: 'bar_night',
-          name: 'Trivia Night',
-          status: 'draft',
-          createdAt: '2025-11-22T12:00:00.000Z',
           slug: 'trivia-night',
+          name: 'Trivia Night',
+          startDateISO: '2025-12-01',
+          venue: 'Test Venue',
+
+          // Links (MVP Required)
           links: {
             publicUrl: 'https://example.com/events/trivia-night',
-            posterUrl: 'https://example.com/poster/trivia-night',
             displayUrl: 'https://example.com/display/trivia-night',
-            reportUrl: 'https://example.com/report/trivia-night'
-          }
+            posterUrl: 'https://example.com/poster/trivia-night',
+            signupUrl: 'https://forms.google.com/...'
+          },
+
+          // QR Codes (MVP Required)
+          qr: {
+            public: 'data:image/png;base64,...',
+            signup: 'data:image/png;base64,...'
+          },
+
+          // CTAs (MVP Required)
+          ctas: {
+            primary: { label: 'Sign Up', url: 'https://forms.google.com/...' },
+            secondary: null
+          },
+
+          // Settings (MVP Required)
+          settings: {
+            showSchedule: true,
+            showStandings: false,
+            showBracket: false,
+            showSponsors: false
+          },
+
+          // Timestamps (MVP Required)
+          createdAtISO: '2025-11-22T12:00:00.000Z',
+          updatedAtISO: '2025-11-22T12:00:00.000Z'
         };
 
-        // Required fields per EVENT_CONTRACT.md
+        // MVP Required fields per EVENT_CONTRACT.md v2.0
         expect(mockEvent).toHaveProperty('id');
-        expect(mockEvent).toHaveProperty('brandId');
-        expect(mockEvent).toHaveProperty('templateId');
-        expect(mockEvent).toHaveProperty('name');
-        expect(mockEvent).toHaveProperty('status');
-        expect(mockEvent).toHaveProperty('createdAt');
         expect(mockEvent).toHaveProperty('slug');
+        expect(mockEvent).toHaveProperty('name');
+        expect(mockEvent).toHaveProperty('startDateISO');
+        expect(mockEvent).toHaveProperty('venue');
         expect(mockEvent).toHaveProperty('links');
+        expect(mockEvent).toHaveProperty('qr');
+        expect(mockEvent).toHaveProperty('ctas');
+        expect(mockEvent).toHaveProperty('settings');
+        expect(mockEvent).toHaveProperty('createdAtISO');
+        expect(mockEvent).toHaveProperty('updatedAtISO');
       });
 
-      it('should return links with all required URLs', () => {
+      it('should return links with all required URLs including signupUrl', () => {
         const mockLinks = {
           publicUrl: 'https://example.com/public',
-          posterUrl: 'https://example.com/poster',
           displayUrl: 'https://example.com/display',
-          reportUrl: 'https://example.com/report'
+          posterUrl: 'https://example.com/poster',
+          signupUrl: 'https://forms.google.com/...'
         };
 
         expect(mockLinks).toHaveProperty('publicUrl');
-        expect(mockLinks).toHaveProperty('posterUrl');
         expect(mockLinks).toHaveProperty('displayUrl');
-        expect(mockLinks).toHaveProperty('reportUrl');
-
-        // All should be valid URLs
-        Object.values(mockLinks).forEach(url => {
-          expect(url).toMatch(/^https?:\/\//);
-        });
+        expect(mockLinks).toHaveProperty('posterUrl');
+        expect(mockLinks).toHaveProperty('signupUrl');
       });
 
-      it('should support valid status values', () => {
-        const validStatuses = ['draft', 'published', 'cancelled', 'completed'];
-
-        validStatuses.forEach(status => {
-          expect(['draft', 'published', 'cancelled', 'completed']).toContain(status);
-        });
+      it('should validate startDateISO format (YYYY-MM-DD)', () => {
+        const validDate = '2025-12-01';
+        expect(validDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
       });
     });
 
-    describe('SectionConfig Format', () => {
-      it('should validate SectionConfig shape', () => {
-        const mockSectionConfig = {
-          enabled: true,
-          title: 'Custom Title',
-          content: null
+    describe('Settings Format (MVP Required)', () => {
+      it('should validate Settings shape', () => {
+        const mockSettings = {
+          showSchedule: true,
+          showStandings: false,
+          showBracket: false,
+          showSponsors: false
         };
 
-        expect(mockSectionConfig).toHaveProperty('enabled');
-        expect(mockSectionConfig).toHaveProperty('title');
-        expect(mockSectionConfig).toHaveProperty('content');
-        expect(typeof mockSectionConfig.enabled).toBe('boolean');
+        expect(mockSettings).toHaveProperty('showSchedule');
+        expect(mockSettings).toHaveProperty('showStandings');
+        expect(mockSettings).toHaveProperty('showBracket');
+        expect(mockSettings).toHaveProperty('showSponsors');
+        expect(typeof mockSettings.showSchedule).toBe('boolean');
+        expect(typeof mockSettings.showStandings).toBe('boolean');
+        expect(typeof mockSettings.showBracket).toBe('boolean');
+        expect(typeof mockSettings.showSponsors).toBe('boolean');
       });
 
-      it('should accept null values for title and content', () => {
-        const mockSectionConfig = {
-          enabled: false,
-          title: null,
-          content: null
+      it('should default all settings to false for MVP', () => {
+        const mockSettings = {
+          showSchedule: false,
+          showStandings: false,
+          showBracket: false,
+          showSponsors: false
         };
 
-        expect(mockSectionConfig.title).toBeNull();
-        expect(mockSectionConfig.content).toBeNull();
-      });
-
-      it('should support all section keys', () => {
-        const mockSections = {
-          video: { enabled: true, title: null, content: null },
-          map: { enabled: true, title: null, content: null },
-          schedule: { enabled: false, title: null, content: null },
-          sponsors: { enabled: true, title: 'Our Sponsors', content: null },
-          notes: { enabled: true, title: 'House Rules', content: null },
-          gallery: { enabled: false, title: null, content: null }
-        };
-
-        const requiredKeys = ['video', 'map', 'schedule', 'sponsors', 'notes', 'gallery'];
-        requiredKeys.forEach(key => {
-          expect(mockSections).toHaveProperty(key);
-          expect(mockSections[key]).toHaveProperty('enabled');
-          expect(mockSections[key]).toHaveProperty('title');
-          expect(mockSections[key]).toHaveProperty('content');
-        });
+        expect(mockSettings.showSchedule).toBe(false);
+        expect(mockSettings.showStandings).toBe(false);
+        expect(mockSettings.showBracket).toBe(false);
+        expect(mockSettings.showSponsors).toBe(false);
       });
     });
 
-    describe('CTALabel Format', () => {
-      it('should validate CTALabel shape', () => {
-        const mockCTALabel = {
-          key: 'cta_0',
-          label: 'Register Now',
-          url: 'https://example.com/register'
+    describe('QR Codes Format (MVP Required)', () => {
+      it('should validate QR codes shape', () => {
+        const mockQR = {
+          public: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA...',
+          signup: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA...'
         };
 
-        expect(mockCTALabel).toHaveProperty('key');
-        expect(mockCTALabel).toHaveProperty('label');
-        expect(mockCTALabel).toHaveProperty('url');
-        expect(typeof mockCTALabel.key).toBe('string');
-        expect(typeof mockCTALabel.label).toBe('string');
+        expect(mockQR).toHaveProperty('public');
+        expect(mockQR).toHaveProperty('signup');
       });
 
-      it('should accept null for url', () => {
-        const mockCTALabel = {
-          key: 'cta_1',
-          label: 'Add to Calendar',
-          url: null
+      it('should accept base64 data URI format', () => {
+        const qrDataUri = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA...';
+        expect(qrDataUri).toMatch(/^data:image\/png;base64,/);
+      });
+
+      it('should accept empty string when no signup URL', () => {
+        const mockQR = {
+          public: 'data:image/png;base64,...',
+          signup: ''
         };
 
-        expect(mockCTALabel.url).toBeNull();
-      });
-
-      it('should support array of CTALabels', () => {
-        const mockCtaLabels = [
-          { key: 'cta_0', label: 'RSVP', url: null },
-          { key: 'cta_1', label: 'Donate', url: 'https://example.com/donate' }
-        ];
-
-        expect(Array.isArray(mockCtaLabels)).toBe(true);
-        mockCtaLabels.forEach(cta => {
-          expect(cta).toHaveProperty('key');
-          expect(cta).toHaveProperty('label');
-          expect(cta).toHaveProperty('url');
-        });
+        expect(mockQR.signup).toBe('');
       });
     });
 
-    describe('Sponsor Format', () => {
-      it('should validate hydrated Sponsor shape', () => {
+    describe('CTA Format (MVP Required)', () => {
+      it('should validate CTA object shape with primary and secondary', () => {
+        const mockCtas = {
+          primary: {
+            label: 'Sign Up',
+            url: 'https://forms.google.com/...'
+          },
+          secondary: null
+        };
+
+        expect(mockCtas).toHaveProperty('primary');
+        expect(mockCtas).toHaveProperty('secondary');
+        expect(mockCtas.primary).toHaveProperty('label');
+        expect(mockCtas.primary).toHaveProperty('url');
+        expect(typeof mockCtas.primary.label).toBe('string');
+      });
+
+      it('should require primary CTA', () => {
+        const mockCtas = {
+          primary: { label: 'Register Now', url: 'https://example.com/register' },
+          secondary: null
+        };
+
+        expect(mockCtas.primary).toBeDefined();
+        expect(mockCtas.primary.label).toBeTruthy();
+      });
+
+      it('should accept null for secondary CTA', () => {
+        const mockCtas = {
+          primary: { label: 'Sign Up', url: '' },
+          secondary: null
+        };
+
+        expect(mockCtas.secondary).toBeNull();
+      });
+
+      it('should support secondary CTA with label and url (V2)', () => {
+        const mockCtas = {
+          primary: { label: 'Sign Up', url: 'https://forms.google.com/...' },
+          secondary: { label: 'Learn More', url: 'https://example.com/about' }
+        };
+
+        expect(mockCtas.secondary).not.toBeNull();
+        expect(mockCtas.secondary.label).toBe('Learn More');
+        expect(mockCtas.secondary.url).toBe('https://example.com/about');
+      });
+
+      it('should accept empty string for url when no signup configured', () => {
+        const mockCtas = {
+          primary: { label: 'Sign Up', url: '' },
+          secondary: null
+        };
+
+        expect(mockCtas.primary.url).toBe('');
+      });
+    });
+
+    describe('Sponsor Format (V2 Optional)', () => {
+      it('should validate Sponsor shape with placement', () => {
         const mockSponsor = {
           id: 'sp-123',
           name: 'Acme Corp',
           logoUrl: 'https://example.com/logo.png',
-          website: 'https://acme.com',
-          tier: 'gold'
+          linkUrl: 'https://acme.com',
+          placement: 'poster'
         };
 
         expect(mockSponsor).toHaveProperty('id');
         expect(mockSponsor).toHaveProperty('name');
         expect(mockSponsor).toHaveProperty('logoUrl');
-        expect(mockSponsor).toHaveProperty('website');
-        expect(mockSponsor).toHaveProperty('tier');
+        expect(mockSponsor).toHaveProperty('linkUrl');
+        expect(mockSponsor).toHaveProperty('placement');
       });
 
-      it('should accept null for optional sponsor fields', () => {
+      it('should accept null for optional linkUrl', () => {
         const mockSponsor = {
           id: 'sp-456',
           name: 'Local Business',
-          logoUrl: null,
-          website: null,
-          tier: null
+          logoUrl: 'https://example.com/logo.png',
+          linkUrl: null,
+          placement: 'display'
         };
 
-        expect(mockSponsor.logoUrl).toBeNull();
-        expect(mockSponsor.website).toBeNull();
-        expect(mockSponsor.tier).toBeNull();
+        expect(mockSponsor.linkUrl).toBeNull();
       });
 
-      it('should support sponsors array (hydrated, not IDs)', () => {
+      it('should validate placement enum values', () => {
+        const validPlacements = ['poster', 'display', 'public', 'tv-banner'];
+
+        validPlacements.forEach(placement => {
+          expect(validPlacements).toContain(placement);
+        });
+      });
+
+      it('should default sponsors to empty array for MVP', () => {
+        const mockEvent = {
+          sponsors: []
+        };
+
+        expect(Array.isArray(mockEvent.sponsors)).toBe(true);
+        expect(mockEvent.sponsors.length).toBe(0);
+      });
+
+      it('should support sponsors array with placement (V2)', () => {
         const mockSponsors = [
-          { id: 'sp-1', name: 'Gold Sponsor', logoUrl: 'https://ex.com/gold.png', website: null, tier: 'gold' },
-          { id: 'sp-2', name: 'Silver Sponsor', logoUrl: null, website: 'https://silver.com', tier: 'silver' }
+          { id: 'sp-1', name: 'Gold Sponsor', logoUrl: 'https://ex.com/gold.png', linkUrl: null, placement: 'poster' },
+          { id: 'sp-2', name: 'Silver Sponsor', logoUrl: 'https://ex.com/silver.png', linkUrl: 'https://silver.com', placement: 'display' }
         ];
 
         expect(Array.isArray(mockSponsors)).toBe(true);
         mockSponsors.forEach(sponsor => {
-          expect(typeof sponsor).toBe('object');
           expect(sponsor).toHaveProperty('id');
           expect(sponsor).toHaveProperty('name');
-          // Should NOT be a string of IDs
-          expect(typeof sponsor.name).toBe('string');
+          expect(sponsor).toHaveProperty('logoUrl');
+          expect(sponsor).toHaveProperty('placement');
         });
       });
     });
 
-    describe('externalData Format (ExternalLeagueData)', () => {
-      it('should validate externalData shape for rec_league', () => {
+    describe('externalData Format (V2 Optional)', () => {
+      it('should validate externalData shape', () => {
         const mockExternalData = {
-          // Core league links
           scheduleUrl: 'https://docs.google.com/spreadsheets/d/xxx',
           standingsUrl: 'https://docs.google.com/spreadsheets/d/yyy',
-          bracketUrl: 'https://challonge.com/bracket123',
-          // Advanced integrations
-          statsUrl: 'https://boccelabs.com/leagues/123',
-          scoreboardUrl: 'https://boccelabs.com/scoreboard/123',
-          streamUrl: 'https://youtube.com/live/abc',
-          // Provider metadata
-          providerName: 'BocceLabs',
-          providerLeagueId: 'league-123'
+          bracketUrl: 'https://challonge.com/bracket123'
         };
 
-        // Core league links
         expect(mockExternalData).toHaveProperty('scheduleUrl');
         expect(mockExternalData).toHaveProperty('standingsUrl');
         expect(mockExternalData).toHaveProperty('bracketUrl');
-        // Advanced integrations
-        expect(mockExternalData).toHaveProperty('statsUrl');
-        expect(mockExternalData).toHaveProperty('scoreboardUrl');
-        expect(mockExternalData).toHaveProperty('streamUrl');
-        // Provider metadata
-        expect(mockExternalData).toHaveProperty('providerName');
-        expect(mockExternalData).toHaveProperty('providerLeagueId');
       });
 
-      it('should accept null for all externalData fields (V1 rule)', () => {
+      it('should accept null for all externalData fields', () => {
         const mockExternalData = {
-          // Core league links
           scheduleUrl: null,
           standingsUrl: null,
-          bracketUrl: null,
-          // Advanced integrations
-          statsUrl: null,
-          scoreboardUrl: null,
-          streamUrl: null,
-          // Provider metadata
-          providerName: null,
-          providerLeagueId: null
+          bracketUrl: null
         };
 
-        // All fields can be null per V1 rules
         expect(mockExternalData.scheduleUrl).toBeNull();
         expect(mockExternalData.standingsUrl).toBeNull();
         expect(mockExternalData.bracketUrl).toBeNull();
-        expect(mockExternalData.statsUrl).toBeNull();
-        expect(mockExternalData.scoreboardUrl).toBeNull();
-        expect(mockExternalData.streamUrl).toBeNull();
-        expect(mockExternalData.providerName).toBeNull();
-        expect(mockExternalData.providerLeagueId).toBeNull();
       });
 
-      it('should accept partial externalData (core links only)', () => {
-        // V1 rule: URLs are treated as-is, no parsing
-        const mockExternalData = {
-          scheduleUrl: 'https://docs.google.com/spreadsheets/d/xxx',
-          standingsUrl: null,
-          bracketUrl: null,
-          statsUrl: null,
-          scoreboardUrl: null,
-          streamUrl: null,
-          providerName: null,
-          providerLeagueId: null
+      it('should default externalData to empty object for MVP', () => {
+        const mockEvent = {
+          externalData: {}
         };
 
-        expect(mockExternalData.scheduleUrl).toBe('https://docs.google.com/spreadsheets/d/xxx');
-        expect(mockExternalData.providerName).toBeNull();
+        expect(typeof mockEvent.externalData).toBe('object');
+        expect(Object.keys(mockEvent.externalData).length).toBe(0);
       });
     });
 
-    describe('dateTime Format', () => {
-      it('should accept ISO 8601 datetime string', () => {
-        const mockDateTime = '2025-12-01T18:00:00Z';
+    describe('V2 Optional Fields with Defaults', () => {
+      it('should validate analytics default shape', () => {
+        const mockAnalytics = { enabled: false };
 
-        expect(typeof mockDateTime).toBe('string');
-        // Should be parseable as date
-        const date = new Date(mockDateTime);
-        expect(date.getTime()).not.toBeNaN();
+        expect(mockAnalytics).toHaveProperty('enabled');
+        expect(mockAnalytics.enabled).toBe(false);
       });
 
-      it('should accept null for dateTime', () => {
+      it('should validate payments default shape', () => {
+        const mockPayments = { enabled: false };
+
+        expect(mockPayments).toHaveProperty('enabled');
+        expect(mockPayments.enabled).toBe(false);
+      });
+
+      it('should validate media default shape', () => {
+        const mockMedia = {};
+
+        expect(typeof mockMedia).toBe('object');
+      });
+
+      it('should validate all V2 defaults in event', () => {
         const mockEvent = {
-          name: 'TBD Event',
-          dateTime: null
+          sponsors: [],
+          media: {},
+          externalData: {},
+          analytics: { enabled: false },
+          payments: { enabled: false }
         };
 
-        expect(mockEvent.dateTime).toBeNull();
+        expect(Array.isArray(mockEvent.sponsors)).toBe(true);
+        expect(mockEvent.sponsors.length).toBe(0);
+        expect(typeof mockEvent.media).toBe('object');
+        expect(typeof mockEvent.externalData).toBe('object');
+        expect(mockEvent.analytics.enabled).toBe(false);
+        expect(mockEvent.payments.enabled).toBe(false);
       });
     });
 
     describe('Full Event Shape Validation', () => {
-      it('should validate complete EVENT_CONTRACT.md v1.0 event', () => {
+      it('should validate complete EVENT_CONTRACT.md v2.0 event', () => {
         const mockEvent = {
-          // Envelope (system-managed)
+          // Identity (MVP Required)
           id: 'EVT_abc123',
-          brandId: 'root',
-          templateId: 'bar_night',
-
-          // Core Identity
-          name: 'Thursday Trivia Night',
-          status: 'published',
-          dateTime: '2025-12-05T19:00:00Z',
-          location: '123 Main Street, Downtown',
-          venueName: "O'Malley's Pub",
-
-          // Content
-          summary: 'Weekly trivia with prizes!',
-          notes: 'Internal admin note',
-          audience: 'Adults 21+',
-
-          // Sections
-          sections: {
-            video: { enabled: true, title: null, content: null },
-            map: { enabled: true, title: null, content: null },
-            schedule: { enabled: false, title: null, content: null },
-            sponsors: { enabled: true, title: "Tonight's Sponsors", content: null },
-            notes: { enabled: true, title: 'House Rules', content: null },
-            gallery: { enabled: false, title: null, content: null }
-          },
-
-          // CTA Labels
-          ctaLabels: [
-            { key: 'cta_0', label: 'RSVP', url: null },
-            { key: 'cta_1', label: 'Add to Calendar', url: null }
-          ],
-
-          // External Data (ExternalLeagueData)
-          externalData: {
-            // Core league links
-            scheduleUrl: null,
-            standingsUrl: null,
-            bracketUrl: null,
-            // Advanced integrations
-            statsUrl: null,
-            scoreboardUrl: null,
-            streamUrl: null,
-            // Provider metadata
-            providerName: null,
-            providerLeagueId: null
-          },
-
-          // Media URLs
-          videoUrl: null,
-          mapEmbedUrl: 'https://maps.google.com/embed?...',
-
-          // Action URLs
-          signupUrl: 'https://forms.google.com/...',
-          checkinUrl: 'https://forms.google.com/.../checkin',
-          feedbackUrl: null,
-
-          // Sponsors (hydrated)
-          sponsors: [
-            { id: 'sp-1', name: 'Local Brewery', logoUrl: 'https://ex.com/logo.png', website: 'https://brewery.com', tier: 'gold' }
-          ],
-
-          // Metadata
-          createdAt: '2025-11-22T10:30:00.000Z',
           slug: 'thursday-trivia-night',
+          name: 'Thursday Trivia Night',
+          startDateISO: '2025-12-05',
+          venue: "O'Malley's Pub, 123 Main Street",
 
-          // Generated Links
+          // Links (MVP Required)
           links: {
-            publicUrl: 'https://script.google.com/.../exec?p=events&id=EVT_abc123',
-            posterUrl: 'https://script.google.com/.../exec?page=poster&id=EVT_abc123',
-            displayUrl: 'https://script.google.com/.../exec?page=display&id=EVT_abc123',
-            reportUrl: 'https://script.google.com/.../exec?page=report&id=EVT_abc123'
-          }
+            publicUrl: 'https://script.google.com/.../exec?page=events&brand=root&id=EVT_abc123',
+            displayUrl: 'https://script.google.com/.../exec?page=display&brand=root&id=EVT_abc123&tv=1',
+            posterUrl: 'https://script.google.com/.../exec?page=poster&brand=root&id=EVT_abc123',
+            signupUrl: 'https://forms.google.com/...'
+          },
+
+          // QR Codes (MVP Required)
+          qr: {
+            public: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA...',
+            signup: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA...'
+          },
+
+          // CTAs (MVP Required)
+          ctas: {
+            primary: { label: 'Sign Up', url: 'https://forms.google.com/...' },
+            secondary: null
+          },
+
+          // Settings (MVP Required)
+          settings: {
+            showSchedule: true,
+            showStandings: false,
+            showBracket: false,
+            showSponsors: false
+          },
+
+          // MVP Optional
+          schedule: null,
+          standings: null,
+          bracket: null,
+
+          // V2 Optional (with defaults)
+          sponsors: [],
+          media: {},
+          externalData: {},
+          analytics: { enabled: false },
+          payments: { enabled: false },
+
+          // Timestamps (MVP Required)
+          createdAtISO: '2025-11-22T10:30:00.000Z',
+          updatedAtISO: '2025-11-22T10:30:00.000Z'
         };
 
-        // Validate structure
+        // Validate MVP Required fields
         expect(mockEvent.id).toBeDefined();
-        expect(mockEvent.brandId).toBeDefined();
-        expect(mockEvent.templateId).toBeDefined();
-        expect(mockEvent.name).toBeDefined();
-        expect(mockEvent.status).toBeDefined();
-        expect(mockEvent.createdAt).toBeDefined();
         expect(mockEvent.slug).toBeDefined();
+        expect(mockEvent.name).toBeDefined();
+        expect(mockEvent.startDateISO).toBeDefined();
+        expect(mockEvent.venue).toBeDefined();
         expect(mockEvent.links).toBeDefined();
+        expect(mockEvent.qr).toBeDefined();
+        expect(mockEvent.ctas).toBeDefined();
+        expect(mockEvent.settings).toBeDefined();
+        expect(mockEvent.createdAtISO).toBeDefined();
+        expect(mockEvent.updatedAtISO).toBeDefined();
 
-        // Sections format
-        Object.values(mockEvent.sections).forEach(section => {
-          expect(section).toHaveProperty('enabled');
-          expect(section).toHaveProperty('title');
-          expect(section).toHaveProperty('content');
-        });
+        // Links format
+        expect(mockEvent.links.publicUrl).toBeDefined();
+        expect(mockEvent.links.displayUrl).toBeDefined();
+        expect(mockEvent.links.posterUrl).toBeDefined();
+        expect(mockEvent.links.signupUrl).toBeDefined();
+
+        // QR format
+        expect(mockEvent.qr.public).toBeDefined();
+        expect(mockEvent.qr.signup).toBeDefined();
 
         // CTA format
-        mockEvent.ctaLabels.forEach(cta => {
-          expect(cta).toHaveProperty('key');
-          expect(cta).toHaveProperty('label');
-          expect(cta).toHaveProperty('url');
-        });
+        expect(mockEvent.ctas.primary).toBeDefined();
+        expect(mockEvent.ctas.primary.label).toBeDefined();
+        expect(mockEvent.ctas.primary.url).toBeDefined();
 
-        // Sponsors hydrated
-        mockEvent.sponsors.forEach(sponsor => {
-          expect(sponsor).toHaveProperty('id');
-          expect(sponsor).toHaveProperty('name');
-        });
+        // Settings format
+        expect(typeof mockEvent.settings.showSchedule).toBe('boolean');
+        expect(typeof mockEvent.settings.showStandings).toBe('boolean');
+        expect(typeof mockEvent.settings.showBracket).toBe('boolean');
 
-        // Links present
-        expect(mockEvent.links.publicUrl).toBeDefined();
-        expect(mockEvent.links.posterUrl).toBeDefined();
-        expect(mockEvent.links.displayUrl).toBeDefined();
-        expect(mockEvent.links.reportUrl).toBeDefined();
+        // V2 defaults
+        expect(Array.isArray(mockEvent.sponsors)).toBe(true);
+        expect(typeof mockEvent.media).toBe('object');
+        expect(typeof mockEvent.externalData).toBe('object');
+        expect(mockEvent.analytics.enabled).toBe(false);
+        expect(mockEvent.payments.enabled).toBe(false);
+      });
+
+      it('should validate startDateISO format', () => {
+        const validDate = '2025-12-05';
+        expect(validDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      });
+
+      it('should validate timestamp format', () => {
+        const validTimestamp = '2025-11-22T10:30:00.000Z';
+        const date = new Date(validTimestamp);
+        expect(date.getTime()).not.toBeNaN();
       });
     });
   });

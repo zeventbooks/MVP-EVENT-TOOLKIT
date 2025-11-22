@@ -3,6 +3,12 @@
  *
  * Shared event data for all test types across Triangle phases
  *
+ * EVENT_CONTRACT.md v2.0 Compliance:
+ * - Uses canonical field names: startDateISO, venue
+ * - Flat event structure (no nested data object)
+ * - MVP Required: name, startDateISO, venue, links, qr, ctas, settings
+ * - V2 Optional: sponsors[], media{}, externalData{}, analytics{}, payments{}
+ *
  * NOTE: BASE_URL defaults to placeholder for unit/contract tests
  * These tests use mock data and don't require a real deployment URL
  */
@@ -26,15 +32,25 @@ const generateEventId = () => {
 };
 
 /**
- * Event Builder - Creates events with builder pattern to avoid timestamp collisions
+ * Event Builder - Creates events with builder pattern (v2.0 compliant)
  */
 class EventBuilder {
   constructor() {
+    // v2.0 canonical field names
     this.event = {
       name: generateEventName('Test Event'),
-      dateISO: '2025-12-15',
-      location: 'Test Venue',
-      description: 'This is a test event for automated testing.',
+      startDateISO: '2025-12-15',  // v2.0: was dateISO
+      venue: 'Test Venue',          // v2.0: was location
+      ctas: {
+        primary: { label: 'Sign Up', url: '' },
+        secondary: null
+      },
+      settings: {
+        showSchedule: false,
+        showStandings: false,
+        showBracket: false,
+        showSponsors: false
+      }
     };
   }
 
@@ -43,59 +59,64 @@ class EventBuilder {
     return this;
   }
 
-  withDate(dateISO) {
-    this.event.dateISO = dateISO;
+  withDate(startDateISO) {
+    this.event.startDateISO = startDateISO;  // v2.0 field name
     return this;
   }
 
+  withVenue(venue) {
+    this.event.venue = venue;  // v2.0 field name
+    return this;
+  }
+
+  // Legacy alias for backward compatibility
   withLocation(location) {
-    this.event.location = location;
+    this.event.venue = location;  // Maps to v2.0 venue field
     return this;
   }
 
-  withDescription(description) {
-    this.event.description = description;
+  withSignupUrl(url) {
+    this.event.ctas.primary.url = url;
     return this;
   }
 
-  withTime(timeStart, timeEnd) {
-    this.event.timeStart = timeStart;
-    this.event.timeEnd = timeEnd;
+  withCTALabel(label) {
+    this.event.ctas.primary.label = label;
     return this;
   }
 
-  withAddress(address) {
-    this.event.address = address;
+  withSchedule(schedule) {
+    this.event.schedule = schedule;
+    this.event.settings.showSchedule = true;
+    return this;
+  }
+
+  withStandings(standings) {
+    this.event.standings = standings;
+    this.event.settings.showStandings = true;
+    return this;
+  }
+
+  withSettings(settings) {
+    this.event.settings = { ...this.event.settings, ...settings };
     return this;
   }
 
   withSponsors(sponsors) {
     this.event.sponsors = sponsors;
+    if (sponsors && sponsors.length > 0) {
+      this.event.settings.showSponsors = true;
+    }
     return this;
   }
 
-  withForms(forms) {
-    this.event.registrationUrl = forms.registrationUrl;
-    this.event.checkinUrl = forms.checkinUrl;
-    this.event.walkinUrl = forms.walkinUrl;
-    this.event.surveyUrl = forms.surveyUrl;
+  withMedia(media) {
+    this.event.media = media;
     return this;
   }
 
-  withDisplay(mode, urls, interval = 15000) {
-    this.event.displayMode = mode;
-    this.event.displayUrls = urls;
-    this.event.displayInterval = interval;
-    return this;
-  }
-
-  withMap(mapUrl) {
-    this.event.mapUrl = mapUrl;
-    return this;
-  }
-
-  withStatus(status) {
-    this.event.status = status;
+  withExternalData(externalData) {
+    this.event.externalData = externalData;
     return this;
   }
 
@@ -105,112 +126,177 @@ class EventBuilder {
 }
 
 /**
- * Factory function for basic event (minimal required fields)
- * Returns a NEW instance each time to avoid timestamp collisions
+ * Factory function for basic event (MVP required fields only)
+ * Returns a NEW instance each time per v2.0 structure
  */
 const createBasicEvent = (overrides = {}) => ({
   name: generateEventName('Basic Event'),
-  dateISO: '2025-12-15',
-  location: 'Test Venue',
-  description: 'This is a test event for automated testing.',
+  startDateISO: '2025-12-15',  // v2.0 field name
+  venue: 'Test Venue',          // v2.0 field name
+  ctas: {
+    primary: { label: 'Sign Up', url: '' },
+    secondary: null
+  },
+  settings: {
+    showSchedule: false,
+    showStandings: false,
+    showBracket: false,
+    showSponsors: false
+  },
   ...overrides
 });
 
 /**
- * Factory function for complete event (all fields)
+ * Factory function for complete event (all v2.0 fields)
  * Returns a NEW instance each time
  */
 const createCompleteEvent = (overrides = {}) => ({
   name: generateEventName('Complete Event'),
-  dateISO: '2025-12-20',
-  timeStart: '18:00',
-  timeEnd: '22:00',
-  location: 'Complete Test Venue',
-  address: '123 Test Street, Test City, TC 12345',
-  description: 'This is a complete test event with all fields populated.',
+  startDateISO: '2025-12-20',  // v2.0 field name
+  venue: 'Complete Test Venue', // v2.0 field name
 
-  // Sponsor configuration
+  // v2.0 CTAs
+  ctas: {
+    primary: { label: 'Register Now', url: 'https://forms.google.com/...' },
+    secondary: { label: 'Learn More', url: 'https://example.com/about' }
+  },
+
+  // v2.0 Settings
+  settings: {
+    showSchedule: true,
+    showStandings: false,
+    showBracket: false,
+    showSponsors: true
+  },
+
+  // MVP Optional
+  schedule: [
+    { time: '18:00', title: 'Registration Opens', description: null },
+    { time: '19:00', title: 'Main Event Begins', description: 'Welcome and introductions' },
+    { time: '22:00', title: 'Event Ends', description: null }
+  ],
+  standings: null,
+  bracket: null,
+
+  // V2 Optional - Sponsors with placement
   sponsors: [
-    { name: 'Platinum Sponsor', tier: 'platinum', logo: 'https://via.placeholder.com/300x100/FFD700/000000?text=Platinum' },
-    { name: 'Gold Sponsor', tier: 'gold', logo: 'https://via.placeholder.com/300x100/C0C0C0/000000?text=Gold' }
+    { id: 'sp-1', name: 'Platinum Sponsor', logoUrl: 'https://via.placeholder.com/300x100/FFD700/000000?text=Platinum', linkUrl: 'https://platinum.example.com', placement: 'poster' },
+    { id: 'sp-2', name: 'Gold Sponsor', logoUrl: 'https://via.placeholder.com/300x100/C0C0C0/000000?text=Gold', linkUrl: 'https://gold.example.com', placement: 'display' }
   ],
 
-  // Form URLs
-  registrationUrl: 'https://docs.google.com/forms/d/e/REGISTRATION/viewform',
-  checkinUrl: 'https://docs.google.com/forms/d/e/CHECKIN/viewform',
-  walkinUrl: 'https://docs.google.com/forms/d/e/WALKIN/viewform',
-  surveyUrl: 'https://docs.google.com/forms/d/e/SURVEY/viewform',
+  // V2 Optional - Media
+  media: {
+    videoUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
+    mapUrl: 'https://www.google.com/maps/embed?pb=...'
+  },
 
-  // Display configuration
-  displayMode: 'dynamic',
-  displayUrls: [
-    'https://www.youtube.com/embed/dQw4w9WgXcQ',
-    'https://player.vimeo.com/video/148751763'
-  ],
+  // V2 Optional - External Data
+  externalData: {},
 
-  // Map configuration
-  mapUrl: 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3022.215121057468!2d-73.98656668459377!3d40.74844097932847!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zNDDCsDQ0JzU0LjQiTiA3M8KwNTknMTEuNiJX!5e0!3m2!1sen!2sus!4v1234567890123!5m2!1sen!2sus',
+  // V2 Optional defaults
+  analytics: { enabled: false },
+  payments: { enabled: false },
+
   ...overrides
 });
 
 /**
- * Factory function for event with sponsors (Before Event phase)
+ * Factory function for event with sponsors (Before Event phase) - v2.0
  */
 const createEventWithSponsors = (overrides = {}) => ({
   name: generateEventName('Sponsored Event'),
-  dateISO: '2025-12-25',
-  location: 'Sponsored Venue',
-  description: 'Event with multiple sponsor tiers',
+  startDateISO: '2025-12-25',
+  venue: 'Sponsored Venue',
+  ctas: {
+    primary: { label: 'Sign Up', url: 'https://forms.google.com/...' },
+    secondary: null
+  },
+  settings: {
+    showSchedule: false,
+    showStandings: false,
+    showBracket: false,
+    showSponsors: true
+  },
+  // v2.0 Sponsors with placement field
   sponsors: [
     {
+      id: 'sp-plat',
       name: 'Platinum Corp',
-      tier: 'platinum',
-      logo: 'https://via.placeholder.com/300x100/FFD700/000000?text=Platinum+Corp',
-      website: 'https://platinum-corp.example.com'
+      logoUrl: 'https://via.placeholder.com/300x100/FFD700/000000?text=Platinum+Corp',
+      linkUrl: 'https://platinum-corp.example.com',
+      placement: 'poster'
     },
     {
+      id: 'sp-gold',
       name: 'Gold Industries',
-      tier: 'gold',
-      logo: 'https://via.placeholder.com/300x100/C0C0C0/000000?text=Gold+Industries',
-      website: 'https://gold-industries.example.com'
+      logoUrl: 'https://via.placeholder.com/300x100/C0C0C0/000000?text=Gold+Industries',
+      linkUrl: 'https://gold-industries.example.com',
+      placement: 'display'
     },
     {
+      id: 'sp-silver',
       name: 'Silver Solutions',
-      tier: 'silver',
-      logo: 'https://via.placeholder.com/300x100/CD7F32/000000?text=Silver+Solutions',
-      website: 'https://silver-solutions.example.com'
+      logoUrl: 'https://via.placeholder.com/300x100/CD7F32/000000?text=Silver+Solutions',
+      linkUrl: 'https://silver-solutions.example.com',
+      placement: 'public'
     }
   ],
   ...overrides
 });
 
 /**
- * Factory function for event with display configuration (During Event phase)
+ * Factory function for event with schedule (During Event phase) - v2.0
  */
 const createEventWithDisplay = (overrides = {}) => ({
   name: generateEventName('Display Event'),
-  dateISO: '2025-12-30',
-  location: 'Display Venue',
-  description: 'Event with TV display configuration',
-  displayMode: 'dynamic',
-  displayUrls: [
-    'https://www.youtube.com/embed/dQw4w9WgXcQ',
-    'https://player.vimeo.com/video/148751763',
-    'https://example.com/custom-content'
+  startDateISO: '2025-12-30',
+  venue: 'Display Venue',
+  ctas: {
+    primary: { label: 'Sign Up', url: '' },
+    secondary: null
+  },
+  settings: {
+    showSchedule: true,
+    showStandings: false,
+    showBracket: false,
+    showSponsors: false
+  },
+  schedule: [
+    { time: '09:00 AM', title: 'Registration', description: 'Check-in opens' },
+    { time: '10:00 AM', title: 'Opening Ceremony', description: null },
+    { time: '12:00 PM', title: 'Lunch Break', description: 'Sponsored by Gold Corp' },
+    { time: '05:00 PM', title: 'Closing', description: null }
   ],
-  displayInterval: 15000, // 15 seconds
+  // v2.0 media for display
+  media: {
+    videoUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
+    mapUrl: 'https://maps.google.com/...'
+  },
   ...overrides
 });
 
 /**
- * Factory function for past event (After Event phase - for analytics)
+ * Factory function for past event (After Event phase - for analytics) - v2.0
  */
 const createPastEvent = (overrides = {}) => ({
   name: generateEventName('Past Event'),
-  dateISO: '2025-01-01',
-  location: 'Past Venue',
-  description: 'Event that has already occurred',
-  status: 'completed',
+  startDateISO: '2025-01-01',
+  venue: 'Past Venue',
+  ctas: {
+    primary: { label: 'View Results', url: 'https://example.com/results' },
+    secondary: null
+  },
+  settings: {
+    showSchedule: false,
+    showStandings: true,
+    showBracket: false,
+    showSponsors: false
+  },
+  standings: [
+    { rank: 1, team: 'Champions', wins: 10, losses: 0, points: 100 },
+    { rank: 2, team: 'Runners Up', wins: 8, losses: 2, points: 80 }
+  ],
+  analytics: { enabled: true },
   ...overrides
 });
 
@@ -223,69 +309,169 @@ const eventWithDisplay = createEventWithDisplay();
 const pastEvent = createPastEvent();
 
 /**
- * Event API response envelope
+ * Event API response envelope per EVENT_CONTRACT.md v2.0
+ * Returns canonical event shape (flat, no nested data object)
  */
-const createEventResponse = (eventData, id = null) => ({
-  ok: true,
-  value: {
-    id: id || generateEventId(),
-    brandId: BRAND_ID,
-    templateId: 'event',
-    data: eventData,
-    createdAt: new Date().toISOString(),
-    slug: eventData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-    links: {
-      publicUrl: `${BASE_URL}?p=events&id=${id || 'EVENT_ID'}`,
-      posterUrl: `${BASE_URL}?page=poster&id=${id || 'EVENT_ID'}`,
-      displayUrl: `${BASE_URL}?page=display&id=${id || 'EVENT_ID'}`,
-      reportUrl: `${BASE_URL}?page=report&id=${id || 'EVENT_ID'}`
+const createEventResponse = (eventData, id = null) => {
+  const eventId = id || generateEventId();
+  const slug = eventData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  const now = new Date().toISOString();
+
+  return {
+    ok: true,
+    value: {
+      // MVP Required - Identity
+      id: eventId,
+      slug: slug,
+      name: eventData.name,
+      startDateISO: eventData.startDateISO || eventData.dateISO || '2025-12-01',
+      venue: eventData.venue || eventData.location || 'Test Venue',
+
+      // MVP Required - Links
+      links: {
+        publicUrl: `${BASE_URL}?page=events&brand=${BRAND_ID}&id=${eventId}`,
+        displayUrl: `${BASE_URL}?page=display&brand=${BRAND_ID}&id=${eventId}&tv=1`,
+        posterUrl: `${BASE_URL}?page=poster&brand=${BRAND_ID}&id=${eventId}`,
+        signupUrl: eventData.ctas?.primary?.url || ''
+      },
+
+      // MVP Required - QR Codes
+      qr: {
+        public: 'data:image/png;base64,iVBORw0KGgo...',
+        signup: eventData.ctas?.primary?.url ? 'data:image/png;base64,iVBORw0KGgo...' : ''
+      },
+
+      // MVP Required - CTAs
+      ctas: eventData.ctas || {
+        primary: { label: 'Sign Up', url: '' },
+        secondary: null
+      },
+
+      // MVP Required - Settings
+      settings: eventData.settings || {
+        showSchedule: false,
+        showStandings: false,
+        showBracket: false,
+        showSponsors: false
+      },
+
+      // MVP Optional
+      schedule: eventData.schedule || null,
+      standings: eventData.standings || null,
+      bracket: eventData.bracket || null,
+
+      // V2 Optional
+      sponsors: eventData.sponsors || [],
+      media: eventData.media || {},
+      externalData: eventData.externalData || {},
+      analytics: eventData.analytics || { enabled: false },
+      payments: eventData.payments || { enabled: false },
+
+      // MVP Required - Timestamps
+      createdAtISO: now,
+      updatedAtISO: now
     }
-  }
-});
+  };
+};
 
 /**
- * Event list response
+ * Event list response per EVENT_CONTRACT.md v2.0
  */
 const createEventListResponse = (events = []) => ({
   ok: true,
   etag: `etag-${Date.now()}`,
   value: {
-    items: events.map((event, index) => ({
-      id: event.id || generateEventId(),
-      brandId: BRAND_ID,
-      templateId: 'event',
-      data: event,
-      createdAt: new Date(Date.now() - index * 86400000).toISOString(),
-      slug: event.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')
-    }))
+    items: events.map((event, index) => {
+      const eventId = event.id || generateEventId();
+      const createdAt = new Date(Date.now() - index * 86400000).toISOString();
+
+      return {
+        // MVP Required - Identity
+        id: eventId,
+        slug: event.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        name: event.name,
+        startDateISO: event.startDateISO || event.dateISO || '2025-12-01',
+        venue: event.venue || event.location || 'Test Venue',
+
+        // MVP Required - Links
+        links: {
+          publicUrl: `${BASE_URL}?page=events&brand=${BRAND_ID}&id=${eventId}`,
+          displayUrl: `${BASE_URL}?page=display&brand=${BRAND_ID}&id=${eventId}&tv=1`,
+          posterUrl: `${BASE_URL}?page=poster&brand=${BRAND_ID}&id=${eventId}`,
+          signupUrl: event.ctas?.primary?.url || ''
+        },
+
+        // MVP Required - QR Codes
+        qr: {
+          public: 'data:image/png;base64,iVBORw0KGgo...',
+          signup: ''
+        },
+
+        // MVP Required - CTAs
+        ctas: event.ctas || {
+          primary: { label: 'Sign Up', url: '' },
+          secondary: null
+        },
+
+        // MVP Required - Settings
+        settings: event.settings || {
+          showSchedule: false,
+          showStandings: false,
+          showBracket: false,
+          showSponsors: false
+        },
+
+        // V2 Optional
+        sponsors: event.sponsors || [],
+        media: event.media || {},
+        externalData: event.externalData || {},
+        analytics: event.analytics || { enabled: false },
+        payments: event.payments || { enabled: false },
+
+        // Timestamps
+        createdAtISO: createdAt,
+        updatedAtISO: createdAt
+      };
+    }),
+    pagination: {
+      total: events.length,
+      limit: 100,
+      offset: 0,
+      hasMore: false
+    }
   }
 });
 
 /**
- * Invalid event fixtures (for validation testing)
+ * Invalid event fixtures (for validation testing) - v2.0
  */
 const invalidEvents = {
   missingName: {
-    dateISO: '2025-12-15',
-    location: 'Test Venue'
+    startDateISO: '2025-12-15',
+    venue: 'Test Venue'
   },
-  missingDate: {
+  missingStartDateISO: {
     name: 'Event Without Date',
-    location: 'Test Venue'
+    venue: 'Test Venue'
   },
-  missingLocation: {
-    name: 'Event Without Location',
-    dateISO: '2025-12-15'
+  missingVenue: {
+    name: 'Event Without Venue',
+    startDateISO: '2025-12-15'
   },
-  invalidDate: {
+  invalidDateFormat: {
     name: 'Invalid Date Event',
-    dateISO: 'not-a-date',
-    location: 'Test Venue'
+    startDateISO: '12/15/2025',  // Wrong format (should be YYYY-MM-DD)
+    venue: 'Test Venue'
   },
   emptyName: {
     name: '',
-    dateISO: '2025-12-15',
-    location: 'Test Venue'
+    startDateISO: '2025-12-15',
+    venue: 'Test Venue'
+  },
+  emptyVenue: {
+    name: 'Event with Empty Venue',
+    startDateISO: '2025-12-15',
+    venue: ''
   }
 };
 
@@ -294,10 +480,10 @@ module.exports = {
   generateEventName,
   generateEventId,
 
-  // Builder Pattern (RECOMMENDED)
+  // Builder Pattern (RECOMMENDED - v2.0 compliant)
   EventBuilder,
 
-  // Factory Functions (RECOMMENDED - use these instead of deprecated constants)
+  // Factory Functions (RECOMMENDED - v2.0 compliant)
   createBasicEvent,
   createCompleteEvent,
   createEventWithSponsors,
@@ -311,11 +497,11 @@ module.exports = {
   eventWithDisplay,
   pastEvent,
 
-  // Response builders
+  // Response builders (v2.0 compliant)
   createEventResponse,
   createEventListResponse,
 
-  // Invalid data
+  // Invalid data (v2.0 field names)
   invalidEvents,
 
   // Constants

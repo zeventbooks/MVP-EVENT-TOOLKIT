@@ -2030,55 +2030,56 @@ function api_getConfig(arg){
 }
 
 // === Event Contract Hydration ================================================
-// Transforms raw storage data into canonical Event shape per EVENT_CONTRACT.md
+// Transforms raw storage data into canonical Event shape per EVENT_CONTRACT.md v2.0
 
 /**
- * Default values for event fields per EVENT_CONTRACT.md
+ * Default values for event fields per EVENT_CONTRACT.md v2.0 (MVP + V2-Ready)
  * @private
  */
 const EVENT_DEFAULTS_ = {
-  status: 'draft',
-  dateTime: null,
-  location: null,
-  venueName: null,
-  summary: null,
-  notes: null,
-  audience: null,
-  sections: {
-    video: null,
-    map: null,
-    schedule: null,
-    sponsors: null,
-    notes: null,
-    gallery: null
+  // Schedule/Standings/Bracket (MVP Optional)
+  schedule: null,
+  standings: null,
+  bracket: null,
+
+  // CTAs (MVP Required)
+  ctas: {
+    primary: {
+      label: 'Sign Up',
+      url: ''
+    },
+    secondary: null
   },
-  ctaLabels: [],
-  externalData: {
-    // Core league links
-    scheduleUrl: null,
-    standingsUrl: null,
-    bracketUrl: null,
-    // Advanced integrations
-    statsUrl: null,
-    scoreboardUrl: null,
-    streamUrl: null,
-    // Provider metadata
-    providerName: null,
-    providerLeagueId: null
-  },
-  videoUrl: null,
-  mapEmbedUrl: null,
-  signupUrl: null,
-  checkinUrl: null,
-  feedbackUrl: null,
-  sponsors: []
+
+  // Sponsors (V2 Optional)
+  sponsors: [],
+
+  // Media (V2 Optional)
+  media: {},
+
+  // External Data (V2 Optional)
+  externalData: {},
+
+  // Analytics (Reserved)
+  analytics: { enabled: false },
+
+  // Payments (Reserved)
+  payments: { enabled: false },
+
+  // Settings (MVP Required)
+  settings: {
+    showSchedule: false,
+    showStandings: false,
+    showBracket: false,
+    showSponsors: false
+  }
 };
 
 /**
  * Hydrate raw event row into canonical Event shape
  * @param {Array} row - Raw spreadsheet row [id, brandId, templateId, data, createdAt, slug]
- * @param {Object} options - { baseUrl, hydrateSponors: boolean }
- * @returns {Object} Canonical Event object per EVENT_CONTRACT.md
+ * @param {Object} options - { baseUrl, hydrateSponsors: boolean }
+ * @returns {Object} Canonical Event object per EVENT_CONTRACT.md v2.0
  * @private
  */
 function hydrateEvent_(row, options = {}) {
@@ -2086,86 +2087,186 @@ function hydrateEvent_(row, options = {}) {
   const data = safeJSONParse_(dataJson, {});
   const baseUrl = options.baseUrl || ScriptApp.getService().getUrl();
 
-  // Combine dateISO + timeISO into single dateTime
-  let dateTime = null;
-  if (data.dateISO) {
-    dateTime = data.timeISO
-      ? `${data.dateISO}T${data.timeISO}:00`
-      : data.dateISO;
+  // Extract startDateISO (backward compat: dateISO → startDateISO)
+  const startDateISO = data.startDateISO || data.dateISO || '';
+
+  // Extract venue (backward compat: location/venueName → venue)
+  const venue = data.venue || data.location || data.venueName || '';
+
+  // Extract signupUrl for links (from data or build default)
+  const signupUrl = data.signupUrl || data.ctas?.primary?.url || '';
+
+  // Build links object
+  const links = {
+    publicUrl: `${baseUrl}?page=events&brand=${brandId}&id=${id}`,
+    displayUrl: `${baseUrl}?page=display&brand=${brandId}&id=${id}&tv=1`,
+    posterUrl: `${baseUrl}?page=poster&brand=${brandId}&id=${id}`,
+    signupUrl: signupUrl,
+    sharedReportUrl: null  // V2 Optional
+  };
+
+  // Generate QR codes as base64 PNG data URIs
+  const qr = {
+    public: generateQRDataUri_(links.publicUrl),
+    signup: signupUrl ? generateQRDataUri_(signupUrl) : generateQRDataUri_(links.publicUrl)
+  };
+
+  // Build CTAs (backward compat: ctaLabels[0] → ctas.primary)
+  let ctas = EVENT_DEFAULTS_.ctas;
+  if (data.ctas?.primary) {
+    ctas = {
+      primary: {
+        label: data.ctas.primary.label || 'Sign Up',
+        url: data.ctas.primary.url || signupUrl
+      },
+      secondary: data.ctas.secondary || null
+    };
+  } else if (Array.isArray(data.ctaLabels) && data.ctaLabels.length > 0) {
+    // Backward compat: convert ctaLabels array to ctas object
+    const firstCta = data.ctaLabels[0];
+    ctas = {
+      primary: {
+        label: firstCta.label || 'Sign Up',
+        url: firstCta.url || signupUrl
+      },
+      secondary: data.ctaLabels[1] ? {
+        label: data.ctaLabels[1].label,
+        url: data.ctaLabels[1].url || ''
+      } : null
+    };
   }
 
-  // Hydrate sponsors from IDs if requested
+  // Build settings (backward compat: sections.*.enabled → settings.show*)
+  let settings = EVENT_DEFAULTS_.settings;
+  if (data.settings) {
+    settings = {
+      showSchedule: !!data.settings.showSchedule,
+      showStandings: !!data.settings.showStandings,
+      showBracket: !!data.settings.showBracket,
+      showSponsors: !!data.settings.showSponsors
+    };
+  } else if (data.sections) {
+    // Backward compat: sections object → settings flags
+    settings = {
+      showSchedule: !!data.sections.schedule?.enabled,
+      showStandings: !!data.sections.standings?.enabled,
+      showBracket: !!data.sections.bracket?.enabled,
+      showSponsors: !!data.sections.sponsors?.enabled
+    };
+  }
+
+  // Hydrate sponsors from IDs if requested (V2 Optional)
   let sponsors = [];
   if (options.hydrateSponsors && data.sponsorIds) {
-    sponsors = hydrateSponsorIds_(brandId, data.sponsorIds);
+    const hydratedSponsors = hydrateSponsorIds_(brandId, data.sponsorIds);
+    // Add default placement for V2 compat
+    sponsors = hydratedSponsors.map(s => ({
+      id: s.id,
+      name: s.name,
+      logoUrl: s.logoUrl || '',
+      linkUrl: s.website || null,
+      placement: 'public'  // Default placement
+    }));
   } else if (Array.isArray(data.sponsors)) {
     sponsors = data.sponsors;
   }
 
-  // Build canonical event shape
+  // Build media object (V2 Optional, backward compat from videoUrl/mapEmbedUrl)
+  let media = {};
+  if (data.media && typeof data.media === 'object') {
+    media = data.media;
+  } else if (data.videoUrl || data.mapEmbedUrl) {
+    media = {
+      videoUrl: data.videoUrl || null,
+      mapUrl: data.mapEmbedUrl || null,
+      gallery: null
+    };
+  }
+
+  // Build externalData (V2 Optional, simplified)
+  let externalData = {};
+  if (data.externalData && typeof data.externalData === 'object') {
+    externalData = {
+      scheduleUrl: data.externalData.scheduleUrl || null,
+      standingsUrl: data.externalData.standingsUrl || null,
+      bracketUrl: data.externalData.bracketUrl || null
+    };
+  }
+
+  // Timestamps
+  const now = new Date().toISOString();
+  const createdAtISO = createdAt || now;
+  const updatedAtISO = data.updatedAtISO || createdAtISO;
+
+  // Build canonical event shape per EVENT_CONTRACT.md v2.0
   return {
-    // Envelope
+    // Identity (MVP Required)
     id: id,
-    brandId: brandId,
-    templateId: templateId,
-
-    // Core Identity
+    slug: slug || id,
     name: data.name || '',
-    status: data.status || EVENT_DEFAULTS_.status,
-    dateTime: dateTime,
-    location: data.location || EVENT_DEFAULTS_.location,
-    venueName: data.venueName || EVENT_DEFAULTS_.venueName,
+    startDateISO: startDateISO,
+    venue: venue,
 
-    // Content
-    summary: data.summary || EVENT_DEFAULTS_.summary,
-    notes: data.notes || EVENT_DEFAULTS_.notes,
-    audience: data.audience || EVENT_DEFAULTS_.audience,
+    // Links (MVP Required)
+    links: links,
 
-    // Sections
-    sections: data.sections || EVENT_DEFAULTS_.sections,
+    // QR Codes (MVP Required)
+    qr: qr,
 
-    // CTA Labels
-    ctaLabels: Array.isArray(data.ctaLabels) ? data.ctaLabels : EVENT_DEFAULTS_.ctaLabels,
+    // Schedule/Standings/Bracket (MVP Optional)
+    schedule: Array.isArray(data.schedule) ? data.schedule : EVENT_DEFAULTS_.schedule,
+    standings: Array.isArray(data.standings) ? data.standings : EVENT_DEFAULTS_.standings,
+    bracket: data.bracket || EVENT_DEFAULTS_.bracket,
 
-    // External Data (ExternalLeagueData per EVENT_CONTRACT.md)
-    externalData: {
-      // Core league links
-      scheduleUrl: data.externalData?.scheduleUrl || data.scheduleUrl || EVENT_DEFAULTS_.externalData.scheduleUrl,
-      standingsUrl: data.externalData?.standingsUrl || data.standingsUrl || EVENT_DEFAULTS_.externalData.standingsUrl,
-      bracketUrl: data.externalData?.bracketUrl || data.bracketUrl || EVENT_DEFAULTS_.externalData.bracketUrl,
-      // Advanced integrations
-      statsUrl: data.externalData?.statsUrl || EVENT_DEFAULTS_.externalData.statsUrl,
-      scoreboardUrl: data.externalData?.scoreboardUrl || EVENT_DEFAULTS_.externalData.scoreboardUrl,
-      streamUrl: data.externalData?.streamUrl || EVENT_DEFAULTS_.externalData.streamUrl,
-      // Provider metadata
-      providerName: data.externalData?.providerName || EVENT_DEFAULTS_.externalData.providerName,
-      providerLeagueId: data.externalData?.providerLeagueId || EVENT_DEFAULTS_.externalData.providerLeagueId
-    },
+    // CTAs (MVP Required)
+    ctas: ctas,
 
-    // Media URLs
-    videoUrl: data.videoUrl || EVENT_DEFAULTS_.videoUrl,
-    mapEmbedUrl: data.mapEmbedUrl || EVENT_DEFAULTS_.mapEmbedUrl,
-
-    // Action URLs
-    signupUrl: data.signupUrl || EVENT_DEFAULTS_.signupUrl,
-    checkinUrl: data.checkinUrl || EVENT_DEFAULTS_.checkinUrl,
-    feedbackUrl: data.surveyUrl || data.feedbackUrl || EVENT_DEFAULTS_.feedbackUrl, // backward compat: surveyUrl → feedbackUrl
-
-    // Sponsors (hydrated)
+    // Sponsors (V2 Optional)
     sponsors: sponsors,
 
-    // Metadata
-    createdAt: createdAt,
-    slug: slug,
+    // Media (V2 Optional)
+    media: media,
 
-    // Generated Links
-    links: {
-      publicUrl: `${baseUrl}?page=events&brand=${brandId}&id=${id}`,
-      posterUrl: `${baseUrl}?page=poster&brand=${brandId}&id=${id}`,
-      displayUrl: `${baseUrl}?page=display&brand=${brandId}&id=${id}&tv=1`,
-      reportUrl: `${baseUrl}?page=report&brand=${brandId}&id=${id}`
-    }
+    // External Data (V2 Optional)
+    externalData: externalData,
+
+    // Analytics (Reserved)
+    analytics: data.analytics || EVENT_DEFAULTS_.analytics,
+
+    // Payments (Reserved)
+    payments: data.payments || EVENT_DEFAULTS_.payments,
+
+    // Settings (MVP Required)
+    settings: settings,
+
+    // Metadata (MVP Required)
+    createdAtISO: createdAtISO,
+    updatedAtISO: updatedAtISO
   };
+}
+
+/**
+ * Generate QR code as base64 PNG data URI
+ * Uses Google Charts API for QR code generation
+ * @param {string} url - URL to encode
+ * @returns {string} Base64 PNG data URI
+ * @private
+ */
+function generateQRDataUri_(url) {
+  if (!url) return '';
+  try {
+    // Use Google Charts API for QR generation
+    const qrApiUrl = `https://chart.googleapis.com/chart?cht=qr&chs=200x200&chl=${encodeURIComponent(url)}`;
+    const response = UrlFetchApp.fetch(qrApiUrl, { muteHttpExceptions: true });
+    if (response.getResponseCode() === 200) {
+      const blob = response.getBlob();
+      const base64 = Utilities.base64Encode(blob.getBytes());
+      return `data:image/png;base64,${base64}`;
+    }
+  } catch (e) {
+    diag_('warn', 'generateQRDataUri_', 'Failed to generate QR code', { url, error: e.message });
+  }
+  return '';
 }
 
 /**
@@ -3077,7 +3178,7 @@ function getEventMetricsForReport_(brand, eventId) {
 
 /**
  * Create new event
- * Applies template defaults per EVENT_CONTRACT.md
+ * Builds canonical event per EVENT_CONTRACT.md v2.0
  * @tier mvp
  */
 function api_create(payload){
@@ -3088,78 +3189,61 @@ function api_create(payload){
     const g=gate_(brandId, adminKey); if(!g.ok) return g;
     const a=assertScopeAllowed_(findBrand_(brandId), scope); if(!a.ok) return a;
 
-    // Validate template exists in EVENT_TEMPLATES (TemplateService)
-    if (!isValidTemplate_(templateId)) {
-      return Err(ERR.BAD_INPUT, `Unknown event template: ${templateId}`);
+    // === EVENT_CONTRACT.md v2.0: Validate MVP Required Fields ===
+    const name = sanitizeInput_(String(data?.name || '').trim());
+    const startDateISO = String(data?.startDateISO || data?.dateISO || '').trim();
+    const venue = sanitizeInput_(String(data?.venue || data?.location || '').trim());
+
+    if (!name) return Err(ERR.BAD_INPUT, 'Missing required field: name');
+    if (!startDateISO) return Err(ERR.BAD_INPUT, 'Missing required field: startDateISO');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(startDateISO)) return Err(ERR.BAD_INPUT, 'Invalid date format: startDateISO must be YYYY-MM-DD');
+    if (!venue) return Err(ERR.BAD_INPUT, 'Missing required field: venue');
+
+    // Validate id if provided by Admin, otherwise generate
+    let id = data?.id;
+    if (id) {
+      // Validate UUID format from Admin
+      if (!/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(id)) {
+        return Err(ERR.BAD_INPUT, 'Invalid id format: must be UUID v4');
+      }
+    } else {
+      id = Utilities.getUuid();
     }
 
-    // Also validate against Config.gs TEMPLATES for field schema
-    const tpl = findTemplate_('event'); // Use 'event' schema for field validation
-    if(!tpl) return Err(ERR.BAD_INPUT,'Event template schema not found');
-
-    // Validate required + simple types
-    for (const f of tpl.fields){
-      const v = data?.[f.id];
-      if (f.required && (v===undefined || v==='')) return Err(ERR.BAD_INPUT,`Missing field: ${f.id}`);
-      if (v!=null && f.type==='url' && !isUrl(v)) return Err(ERR.BAD_INPUT,`Invalid URL: ${f.id}`);
+    // Validate slug if provided by Admin
+    let slug = data?.slug;
+    if (slug) {
+      slug = String(slug).toLowerCase().replace(/[^a-z0-9-]/g, '').substring(0, 50);
+      if (!slug) return Err(ERR.BAD_INPUT, 'Invalid slug format');
     }
 
-    // Idempotency (10m) - Fixed: Bug #38 - Add LockService for race condition
+    // Idempotency check
     if (idemKey){
-      // Validate idemKey format
       if (!/^[a-zA-Z0-9-]{1,128}$/.test(idemKey)) {
         return Err(ERR.BAD_INPUT, 'Invalid idempotency key format');
       }
-
-      const lock = LockService.getScriptLock();
-      try {
-        lock.waitLock(5000); // Wait up to 5 seconds
-
-        const c=CacheService.getScriptCache(), k=`idem:${brandId}:${scope}:${idemKey}`;
-        if (c.get(k)) {
-          lock.releaseLock();
-          return Err(ERR.BAD_INPUT,'Duplicate create');
-        }
-        c.put(k, JSON.stringify({ timestamp: Date.now(), status: 'processing' }), 86400); // 24 hours
-
-      } finally {
-        lock.releaseLock();
-      }
+      const c=CacheService.getScriptCache(), k=`idem:${brandId}:${scope}:${idemKey}`;
+      if (c.get(k)) return Err(ERR.BAD_INPUT,'Duplicate create');
+      c.put(k, '1', 600);
     }
 
-    // Sanitize data inputs
-    const sanitizedData = {};
-    for (const f of tpl.fields) {
-      const val = data?.[f.id];
-      if (val !== undefined && val !== null) {
-        if (f.type === 'url') {
-          sanitizedData[f.id] = String(val);
-        } else if (f.type === 'json') {
-          // JSON fields (sections, ctaLabels, externalData) - pass through if object
-          sanitizedData[f.id] = typeof val === 'object' ? val : safeJSONParse_(val, null);
-        } else {
-          sanitizedData[f.id] = sanitizeInput_(String(val));
-        }
-      }
-    }
-
-    // === Apply template defaults per EVENT_CONTRACT.md ===
-    // This sets sections, ctaLabels, audience, status defaults
-    const eventWithDefaults = applyTemplateToEvent_(sanitizedData, templateId);
-
-    // Write row with collision-safe slug - Fixed: Bug #12 - Add LockService
-    const brand= findBrand_(brandId);
+    // Prepare storage
+    const brand = findBrand_(brandId);
     const sh = getStoreSheet_(brand, scope);
-    const id = Utilities.getUuid();
+    const now = new Date().toISOString();
+    const baseUrl = ScriptApp.getService().getUrl();
 
-    // Acquire lock for read-modify-write operation
+    // Build/validate slug with collision detection under lock
     const lock = LockService.getScriptLock();
     try {
-      lock.waitLock(10000); // Wait up to 10 seconds
+      lock.waitLock(10000);
 
-      let slug = String((eventWithDefaults?.name || id)).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+      // If no slug provided, generate from name
+      if (!slug) {
+        slug = name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'').substring(0, 50);
+      }
 
-      // Handle slug collisions - INSIDE lock
+      // Check for slug collisions and handle
       const existingSlugs = sh.getDataRange().getValues().slice(1).map(r => r[5]);
       let counter = 2;
       let originalSlug = slug;
@@ -3168,22 +3252,90 @@ function api_create(payload){
         counter++;
       }
 
-      // Store with templateId from the applied template
-      sh.appendRow([id, brandId, eventWithDefaults.templateId, JSON.stringify(eventWithDefaults), new Date().toISOString(), slug]);
+      // === Build canonical event per EVENT_CONTRACT.md v2.0 ===
+      const signupUrl = data?.links?.signupUrl || data?.signupUrl || '';
+
+      const links = {
+        publicUrl: `${baseUrl}?page=events&brand=${brandId}&id=${id}`,
+        displayUrl: `${baseUrl}?page=display&brand=${brandId}&id=${id}&tv=1`,
+        posterUrl: `${baseUrl}?page=poster&brand=${brandId}&id=${id}`,
+        signupUrl: signupUrl,
+        sharedReportUrl: null
+      };
+
+      // Generate QR codes
+      const qr = {
+        public: generateQRDataUri_(links.publicUrl),
+        signup: signupUrl ? generateQRDataUri_(signupUrl) : generateQRDataUri_(links.publicUrl)
+      };
+
+      // Build CTA (use provided or default)
+      const ctaLabel = sanitizeInput_(String(data?.ctas?.primary?.label || 'Sign Up').trim());
+      const ctas = {
+        primary: {
+          label: ctaLabel,
+          url: signupUrl || links.publicUrl
+        },
+        secondary: data?.ctas?.secondary || null
+      };
+
+      // Build settings (MVP Required)
+      const settings = {
+        showSchedule: !!data?.settings?.showSchedule,
+        showStandings: !!data?.settings?.showStandings,
+        showBracket: !!data?.settings?.showBracket,
+        showSponsors: !!data?.settings?.showSponsors
+      };
+
+      // Build complete canonical event object for storage
+      const canonicalEvent = {
+        name: name,
+        startDateISO: startDateISO,
+        venue: venue,
+        ctas: ctas,
+        settings: settings,
+        schedule: data?.schedule || null,
+        standings: data?.standings || null,
+        bracket: data?.bracket || null,
+        sponsors: data?.sponsors || [],
+        media: data?.media || {},
+        externalData: data?.externalData || {},
+        analytics: data?.analytics || { enabled: false },
+        payments: data?.payments || { enabled: false },
+        updatedAtISO: now
+      };
+
+      // Store event
+      sh.appendRow([id, brandId, templateId || 'custom', JSON.stringify(canonicalEvent), now, slug]);
+
+      diag_('info','api_create','created',{id,brandId,scope,templateId});
+
+      // Return full hydrated event per EVENT_CONTRACT.md v2.0
+      return Ok({
+        id: id,
+        slug: slug,
+        name: name,
+        startDateISO: startDateISO,
+        venue: venue,
+        links: links,
+        qr: qr,
+        ctas: ctas,
+        settings: settings,
+        schedule: canonicalEvent.schedule,
+        standings: canonicalEvent.standings,
+        bracket: canonicalEvent.bracket,
+        sponsors: canonicalEvent.sponsors,
+        media: canonicalEvent.media,
+        externalData: canonicalEvent.externalData,
+        analytics: canonicalEvent.analytics,
+        payments: canonicalEvent.payments,
+        createdAtISO: now,
+        updatedAtISO: now
+      });
 
     } finally {
       lock.releaseLock();
     }
-
-    const base = ScriptApp.getService().getUrl();
-    const links = {
-      publicUrl: `${base}?page=events&brand=${brandId}&id=${id}`,
-      posterUrl: `${base}?page=poster&brand=${brandId}&id=${id}`,
-      displayUrl: `${base}?page=display&brand=${brandId}&id=${id}&tv=1`,
-      reportUrl: `${base}?page=report&brand=${brandId}&id=${id}`
-    };
-    diag_('info','api_create','created',{id,brandId,scope,templateId});
-    return Ok({ id, links });
   });
 }
 
