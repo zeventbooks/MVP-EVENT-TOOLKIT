@@ -86,26 +86,20 @@ npm run deploy # Create new deployment
 
 ## Documentation
 
-### Getting Started
-- **[docs/FIRST_TIME_SETUP.md](./docs/FIRST_TIME_SETUP.md)** - Complete setup guide from scratch
-- **[docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md)** - Deployment guide
+### Core Documentation (MVP)
+- **[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)** - MVP architecture (12 backend services, 6 frontend surfaces, feature flags)
+- **[docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md)** - Deployment, CI/CD, environments, troubleshooting
+- **[docs/FRIENDLY_URLS.md](./docs/FRIENDLY_URLS.md)** - Customer-friendly URL aliasing system
+- **[docs/SETUP_DIAGNOSTICS.md](./docs/SETUP_DIAGNOSTICS.md)** - Setup verification endpoint
 
-### For Developers Building Custom Frontends
+### For Developers
 - **[Interactive API Docs](?page=docs)** - Test API endpoints in your browser
-- **[docs/AUTHENTICATION_GUIDE.md](./docs/AUTHENTICATION_GUIDE.md)** - 3 authentication methods
-- **[docs/CUSTOM_FRONTEND_GUIDE.md](./docs/CUSTOM_FRONTEND_GUIDE.md)** - Build React/Vue/mobile apps
-- **[docs/DESIGN_SYSTEM.md](./docs/DESIGN_SYSTEM.md)** - UI patterns, SharedUtils, APIClient
 - **[openapi.yaml](./openapi.yaml)** - OpenAPI 3.0 specification
+- **[tests/README.md](./tests/README.md)** - Test suite documentation
+- **[scripts/README.md](./scripts/README.md)** - Local CI commands
 
-### For Architecture & Testing
-- **[docs/TESTING.md](./docs/TESTING.md)** - Test infrastructure (260+ tests)
-- **[tests/README.md](./tests/README.md)** - Complete test suite documentation
-- **[docs/SECURITY.md](./docs/SECURITY.md)** - Security considerations
-- **[scripts/README.md](./scripts/README.md)** - Local CI parity commands (`npm run ci:local`)
-
-### For DevOps
-- **[docs/CLASP_SETUP.md](./docs/CLASP_SETUP.md)** - clasp CLI setup
-- **[docs/DEPLOYMENT_FLOW.md](./docs/DEPLOYMENT_FLOW.md)** - CI/CD pipeline
+### Archived Documentation
+Historical analysis reports and experimental features are in `docs/archived/`
 
 ## Notes
 - Poster shows a QR only when the server returns a verified `posterUrl`
