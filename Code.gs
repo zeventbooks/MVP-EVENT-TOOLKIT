@@ -2963,6 +2963,11 @@ function getEventMetricsForReport_(brand, eventId) {
       scheduleClicks: 0,
       standingsClicks: 0,
       bracketClicks: 0
+    },
+    broadcast: {
+      statsClicks: 0,
+      scoreboardClicks: 0,
+      streamClicks: 0
     }
   };
 
@@ -3022,13 +3027,32 @@ function getEventMetricsForReport_(brand, eventId) {
               metrics.checkinClicks++;
             } else if (tokenLower === 'feedback' || tokenLower.includes('feedback')) {
               metrics.feedbackClicks++;
-            } else if (tokenLower === 'schedule' || tokenLower.includes('schedule')) {
-              metrics.league.scheduleClicks++;
-            } else if (tokenLower === 'standings' || tokenLower.includes('standings')) {
-              metrics.league.standingsClicks++;
-            } else if (tokenLower === 'bracket' || tokenLower.includes('bracket')) {
-              metrics.league.bracketClicks++;
             }
+          }
+          break;
+
+        case 'external_click':
+          // BBN external link clicks (api_logExternalClick stores linkType in sponsorId column)
+          // Valid linkTypes: schedule, standings, bracket, stats, scoreboard, stream
+          switch (sponsorId) {
+            case 'schedule':
+              metrics.league.scheduleClicks++;
+              break;
+            case 'standings':
+              metrics.league.standingsClicks++;
+              break;
+            case 'bracket':
+              metrics.league.bracketClicks++;
+              break;
+            case 'stats':
+              metrics.broadcast.statsClicks++;
+              break;
+            case 'scoreboard':
+              metrics.broadcast.scoreboardClicks++;
+              break;
+            case 'stream':
+              metrics.broadcast.streamClicks++;
+              break;
           }
           break;
       }
