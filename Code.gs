@@ -1156,6 +1156,29 @@ function verifyJWT_(token, brand) {
   }
 }
 
+// =============================================================================
+// === MVP SURFACES (focus-group critical) =====================================
+// =============================================================================
+// Used by: Admin, Poster, Display, Public, Sponsor, SharedReport
+//
+// DO NOT change API contracts without updating:
+//   - NUSDK.html (API client)
+//   - tests/e2e/* (end-to-end tests)
+//   - tests/unit/* (unit tests)
+//
+// MVP-Critical APIs:
+//   - api_create()              → Create new event (Admin)
+//   - api_get()                 → Get single event (all surfaces)
+//   - api_updateEventData()     → Update event data (Admin)
+//   - api_getPublicBundle()     → Public event bundle (Public, Poster, Display)
+//   - api_generateFormShortlink() → Form shortlink generation (Admin)
+//   - api_getSharedAnalytics()  → Shared analytics (SharedReport) [SharedReporting.gs]
+//   - api_getSponsorAnalytics() → Sponsor analytics (Sponsor, SharedReport)
+//   - api_getSponsorROI()       → Sponsor ROI calculation (Sponsor, SharedReport)
+//
+// Everything else under api_* is v2+.
+// =============================================================================
+
 /**
  * Generate JWT token for a brand (for demo/testing)
  * @tier mvp
