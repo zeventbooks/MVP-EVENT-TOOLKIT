@@ -1,3 +1,17 @@
+// =============================================================================
+// === MVP SURFACES (focus-group critical) =====================================
+// =============================================================================
+// Used by: SharedReport.html
+//
+// MVP-Critical API in this file:
+//   - api_getSharedAnalytics() → Shared analytics dashboard
+//
+// DO NOT change API contracts without updating:
+//   - NUSDK.html (API client)
+//   - tests/e2e/* (end-to-end tests)
+//   - tests/unit/* (unit tests)
+// =============================================================================
+
 /**
  * Shared Reporting System for Event Managers & Sponsors
  *

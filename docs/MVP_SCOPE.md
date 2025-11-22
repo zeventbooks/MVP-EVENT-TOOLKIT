@@ -35,14 +35,35 @@ This document defines what's in scope for the MVP versus future releases.
 
 ## MVP Surfaces (Frontend)
 
+**Status: LOCKED for Focus Group Testing**
+
+All MVP surfaces are marked with header comments identifying them as focus-group critical:
+
+```html
+<!--
+================================================================================
+MVP SURFACE - Focus Group Critical
+================================================================================
+Page: [filename].html
+Purpose: [description]
+Status: LOCKED for MVP v1.0
+
+DO NOT modify this file's contracts without updating:
+  - NUSDK.html (API client)
+  - tests/e2e/* (end-to-end tests)
+  - tests/unit/* (unit tests)
+================================================================================
+-->
+```
+
 | File | Purpose | Status |
 |------|---------|--------|
-| `Admin.html` | Single control room for event management | MVP |
-| `Poster.html` | Printable/shareable pre-event asset | MVP |
-| `Display.html` | TV board with sponsor rotation | MVP |
-| `Public.html` | Mobile-first attendee view | MVP |
-| `Sponsor.html` | Sponsor management & package view | MVP |
-| `SharedReport.html` | Shared analytics for sponsors/admins | MVP |
+| `Admin.html` | Single control room for event management | MVP LOCKED |
+| `Poster.html` | Printable/shareable pre-event asset | MVP LOCKED |
+| `Display.html` | TV board with sponsor rotation | MVP LOCKED |
+| `Public.html` | Mobile-first attendee view | MVP LOCKED |
+| `Sponsor.html` | Sponsor management & package view | MVP LOCKED |
+| `SharedReport.html` | Shared analytics for sponsors/admins | MVP LOCKED |
 
 ---
 
@@ -74,6 +95,32 @@ This document defines what's in scope for the MVP versus future releases.
 ---
 
 ## API Tiers
+
+### MVP-Critical APIs (LOCKED)
+
+These APIs are tagged in `Code.gs` (line ~1159) with a comment block:
+
+```javascript
+// === MVP SURFACES (focus-group critical) =====================================
+// Used by: Admin, Poster, Display, Public, Sponsor, SharedReport
+//
+// DO NOT change API contracts without updating:
+//   - NUSDK.html (API client)
+//   - tests/e2e/* (end-to-end tests)
+//   - tests/unit/* (unit tests)
+//
+// MVP-Critical APIs:
+//   - api_create()              → Create new event (Admin)
+//   - api_get()                 → Get single event (all surfaces)
+//   - api_updateEventData()     → Update event data (Admin)
+//   - api_getPublicBundle()     → Public event bundle (Public, Poster, Display)
+//   - api_generateFormShortlink() → Form shortlink generation (Admin)
+//   - api_getSharedAnalytics()  → Shared analytics (SharedReport) [SharedReporting.gs]
+//   - api_getSponsorAnalytics() → Sponsor analytics (Sponsor, SharedReport)
+//   - api_getSponsorROI()       → Sponsor ROI calculation (Sponsor, SharedReport)
+//
+// Everything else under api_* is v2+.
+```
 
 ### @tier mvp - Must Work Today
 
@@ -137,10 +184,30 @@ Not Yet Built:
 
 ---
 
+## Experimental Pages (v2+)
+
+Pages marked with `EXPERIMENTAL - v2+ (Not MVP)` headers are not part of focus group testing:
+
+| File | Purpose | Status |
+|------|---------|--------|
+| `ApiDocs.html` | Interactive API documentation | EXPERIMENTAL |
+| `Diagnostics.html` | System diagnostics for admins | EXPERIMENTAL |
+| `DiagnosticsDashboard.html` | DevOps monitoring dashboard | EXPERIMENTAL |
+| `SponsorDashboard.html` | Advanced sponsor ROI dashboard | EXPERIMENTAL |
+| `Signup.html` | Sign-up forms management | EXPERIMENTAL |
+| `Test.html` | Triangle Framework testing | EXPERIMENTAL |
+| `PlannerCards.html` | Event planner card interface | EXPERIMENTAL |
+| `ConfigHtml.html` | System configuration | EXPERIMENTAL |
+| `PersonalizedCTA.html` | Dynamic CTA component | EXPERIMENTAL |
+| `SponsorPreview.html` | Sponsor preview component | EXPERIMENTAL |
+
+---
+
 ## What's Out of Scope
 
 Everything in `docs/archived/` is explicitly NOT part of the MVP:
-- Experimental dashboards
+- Experimental dashboards (`docs/archived/experimental-dashboards/`)
+- Experimental frontends (`docs/archived/experimental-frontends/`)
 - Hostinger deployment docs (outdated)
 - Alternative admin interfaces
 
@@ -166,4 +233,4 @@ Everything in `docs/archived/` is explicitly NOT part of the MVP:
 
 ---
 
-*Last updated: 2025-11-21*
+*Last updated: 2025-11-22*
