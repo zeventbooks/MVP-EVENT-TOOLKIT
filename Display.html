@@ -672,31 +672,30 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
         .withSuccessHandler(res => {
           const ev = res?.value || {};
 
-          // EVENT_CONTRACT.md v1.0: Read from top-level with legacy fallback
+          // EVENT_CONTRACT.md v2.0: Canonical shape with backward compat
           const legacyData = ev.data || {};
-          const templateId = ev.templateId || legacyData.templateId || '';
-          const sections = ev.sections || legacyData.sections || {};
-          const sponsors = ev.sponsors || [];
-          const externalData = ev.externalData || legacyData.externalData || {};
+          const settings = ev.settings || {};
+          const sponsors = ev.sponsors || null;
+          const externalData = ev.externalData || null;
           const displayConfig = legacyData.display || {};
 
-          // Render League & Broadcast strip (ExternalLeagueData per EVENT_CONTRACT.md)
-          renderLeagueBroadcast(templateId, externalData);
+          // Render League & Broadcast strip (V2 Optional: externalData)
+          if (externalData) {
+            renderLeagueBroadcast('', externalData);
+          }
 
-          // Only render sponsors if sections.sponsors is enabled
-          if (sectionEnabled(sections, 'sponsors')) {
-            // Try canonical sponsors[] first, then legacy format
-            if (sponsors.length > 0) {
-              renderSponsorTopFromArray(ev.id, sponsors);
-              // Side panel: show all sponsors if we have them
-              renderSponsorSideFromArray(ev.id, sponsors);
-            } else {
-              // Fallback to legacy placement-based rendering
-              renderSponsorTop(ev);
-              renderSponsorSide(ev);
+          // Only render sponsors if settings.showSponsors is true (V2 Optional)
+          if (settings.showSponsors && sponsors && sponsors.length > 0) {
+            // Filter sponsors by placement for display/tv-banner
+            const displaySponsors = sponsors.filter(s =>
+              s.placement === 'display' || s.placement === 'tv-banner' || !s.placement
+            );
+            if (displaySponsors.length > 0) {
+              renderSponsorTopFromArray(ev.id, displaySponsors);
+              renderSponsorSideFromArray(ev.id, displaySponsors);
             }
           }
-          // If no sponsors or sections.sponsors disabled: layout still looks clean (no ugly empty bar)
+          // If no sponsors or settings.showSponsors false: layout still looks clean
 
           // Check display mode: 'dynamic' uses carousel with configured URLs, 'public' mirrors event page
           if (String(displayConfig.mode || '').toLowerCase() === 'dynamic' && Array.isArray(displayConfig.urls) && displayConfig.urls.length) {

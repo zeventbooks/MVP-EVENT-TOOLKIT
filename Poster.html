@@ -405,70 +405,53 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
     }
 
     function renderEventDetails(evt) {
-      // EVENT_CONTRACT.md v1.0: Read from top-level with legacy fallback
+      // EVENT_CONTRACT.md v2.0: Canonical shape with backward compat
       const legacyData = evt?.data || {};
+
+      // MVP Required fields (v2.0)
       const name = evt.name || legacyData.name || 'Event Name';
-      const dateTime = evt.dateTime || null;
-      const location = evt.location || legacyData.location || null;
-      const venueName = evt.venueName || legacyData.venueName || null;
-      const summary = evt.summary || legacyData.summary || null;
-      const entity = legacyData.entity || null; // Legacy field for hosted by
-      const imageUrl = legacyData.imageUrl || null; // Legacy field
+      const startDateISO = evt.startDateISO || evt.dateTime?.split('T')[0] || legacyData.dateISO || null;
+      const venue = evt.venue || evt.location || evt.venueName || legacyData.location || legacyData.venueName || null;
+
+      // V2 Optional / Legacy fields
+      const summary = evt.media?.description || legacyData.summary || null;
+      const imageUrl = evt.media?.imageUrl || legacyData.imageUrl || null;
 
       // Event Name
       document.getElementById('eventName').textContent = name;
 
-      // Date & Time - parse from ISO dateTime or legacy fields
+      // Date - parse from startDateISO (v2.0: date only, no time)
       const dateEl = document.getElementById('eventDate');
       const timeEl = document.getElementById('eventTime');
 
-      if (dateTime) {
-        // Canonical: combined dateTime ISO string
-        const dt = new Date(dateTime);
-        if (!isNaN(dt.getTime())) {
-          dateEl.innerHTML = `<strong>Date:</strong> ${dt.toLocaleDateString('en-US', {
-            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-          })}`;
-          timeEl.innerHTML = `<strong>Time:</strong> ${dt.toLocaleTimeString('en-US', {
-            hour: 'numeric', minute: '2-digit', hour12: true
-          })}`;
-        }
-      } else {
-        // Legacy: separate dateISO/timeISO
-        if (legacyData.dateISO) {
-          const date = new Date(legacyData.dateISO + 'T00:00:00');
+      if (startDateISO) {
+        const date = new Date(startDateISO + 'T00:00:00');
+        if (!isNaN(date.getTime())) {
           dateEl.innerHTML = `<strong>Date:</strong> ${date.toLocaleDateString('en-US', {
             weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
           })}`;
         }
-        if (legacyData.timeISO) {
-          timeEl.innerHTML = `<strong>Time:</strong> ${legacyData.timeISO}`;
-        }
       }
+      // Hide time element in v2.0 (MVP doesn't have time)
+      timeEl.hidden = true;
 
-      // Location (show venueName if separate, or combined location)
+      // Venue (v2.0: single venue field)
       const locEl = document.getElementById('eventLocation');
-      if (venueName && location && venueName !== location) {
-        locEl.innerHTML = `<strong>Location:</strong> ${esc(venueName)} &middot; ${esc(location)}`;
-      } else if (location) {
-        locEl.innerHTML = `<strong>Location:</strong> ${esc(location)}`;
-      } else if (venueName) {
-        locEl.innerHTML = `<strong>Location:</strong> ${esc(venueName)}`;
+      if (venue) {
+        locEl.innerHTML = `<strong>Location:</strong> ${esc(venue)}`;
       }
 
-      // Entity (hosted by) - legacy field
+      // Entity (hosted by) - legacy field, hidden in v2.0
       const entityEl = document.getElementById('eventEntity');
-      if (entity) {
-        entityEl.innerHTML = `<strong>Hosted by:</strong> ${esc(entity)}`;
-      }
+      entityEl.hidden = true;
 
-      // Event Image (legacy)
+      // Event Image (from media object)
       if (imageUrl) {
         document.getElementById('eventImage').src = imageUrl;
         document.getElementById('eventImageContainer').hidden = false;
       }
 
-      // Summary
+      // Summary (legacy, not in MVP v2.0)
       if (summary) {
         document.getElementById('eventSummary').textContent = summary;
         document.getElementById('eventSummary').hidden = false;
@@ -479,67 +462,47 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
       const el = document.getElementById('qrGrid');
       el.innerHTML = '';
 
-      // EVENT_CONTRACT.md v1.0: Read from top-level with legacy fallback
-      const legacyData = evt?.data || {};
+      // EVENT_CONTRACT.md v2.0: Use pre-generated QR codes from qr object
+      const qr = evt?.qr || {};
       const links = evt?.links || {};
+      const ctas = evt?.ctas || {};
 
-      // QR Code 1: Sign Up (Register) - canonical or legacy
-      const signupUrl = evt.signupUrl || legacyData.registerUrl || legacyData.signupUrl;
-      if (signupUrl) {
+      // QR Code 1: Sign Up - use pre-generated qr.signup (MVP Required)
+      const signupQR = qr.signup;
+      const signupUrl = links.signupUrl || ctas.primary?.url || '';
+      const signupLabel = ctas.primary?.label || 'Sign Up';
+
+      if (signupQR || signupUrl) {
+        const qrSrc = signupQR || `https://quickchart.io/qr?text=${encodeURIComponent(signupUrl)}&size=200&margin=1`;
         el.innerHTML += `
           <div class="qr-code">
-            <h3>Sign Up</h3>
+            <h3>${esc(signupLabel)}</h3>
             <h4>Register Now</h4>
-            <img alt="Sign Up QR Code" src="https://quickchart.io/qr?text=${encodeURIComponent(signupUrl)}&size=200&margin=1">
+            <img alt="Sign Up QR Code" src="${qrSrc}">
             <p>${esc(signupUrl)}</p>
           </div>
         `;
       }
 
-      // QR Code 2: Public Event Page
+      // QR Code 2: Public Event Page - use pre-generated qr.public (MVP Required)
+      const publicQR = qr.public;
       const publicUrl = links.publicUrl;
-      if (publicUrl) {
+
+      if (publicQR || publicUrl) {
+        const qrSrc = publicQR || `https://quickchart.io/qr?text=${encodeURIComponent(publicUrl)}&size=200&margin=1`;
         el.innerHTML += `
           <div class="qr-code">
             <h3>Event Page</h3>
             <h4>View Details</h4>
-            <img alt="Public Page QR Code" src="https://quickchart.io/qr?text=${encodeURIComponent(publicUrl)}&size=200&margin=1">
+            <img alt="Public Page QR Code" src="${qrSrc}">
             <p>${esc(publicUrl)}</p>
           </div>
         `;
       }
 
-      // QR Code 3: Check-in URL (if available)
-      const checkinUrl = evt.checkinUrl || legacyData.checkinUrl;
-      if (checkinUrl) {
-        el.innerHTML += `
-          <div class="qr-code">
-            <h3>Check In</h3>
-            <h4>Day-of Check-in</h4>
-            <img alt="Check-in QR Code" src="https://quickchart.io/qr?text=${encodeURIComponent(checkinUrl)}&size=200&margin=1">
-            <p>${esc(checkinUrl)}</p>
-          </div>
-        `;
-      }
-
-      // Legacy: Promotion Link (could be summaryLink or custom promotion URL)
-      if (el.childElementCount < 3) {
-        const promoUrl = legacyData.summaryLink || legacyData.bioLink;
-        if (promoUrl) {
-          el.innerHTML += `
-            <div class="qr-code">
-              <h3>Learn More</h3>
-              <h4>Additional Info</h4>
-              <img alt="Promotion QR Code" src="https://quickchart.io/qr?text=${encodeURIComponent(promoUrl)}&size=200&margin=1">
-              <p>${esc(promoUrl)}</p>
-            </div>
-          `;
-        }
-      }
-
       // If no QR codes available
       if (el.innerHTML === '') {
-        el.innerHTML = '<p style="text-align:center; color:#94a3b8; grid-column: 1 / -1;">No QR codes available. Configure sign-up forms in Admin.</p>';
+        el.innerHTML = '<p style="text-align:center; color:#94a3b8; grid-column: 1 / -1;">No QR codes available. Configure sign-up URL in Admin.</p>';
       }
     }
 
@@ -559,17 +522,16 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
       // Log poster view
       logEvent({ eventId: evt.id, surface: 'poster', metric: 'view', value: 1 });
 
-      // EVENT_CONTRACT.md v1.0: Read from top-level with legacy fallback
-      const legacyData = evt?.data || {};
-      const sections = evt.sections || legacyData.sections || {};
-      const sponsors = evt.sponsors || [];
+      // EVENT_CONTRACT.md v2.0: Use settings.showSponsors flag
+      const settings = evt.settings || {};
+      const sponsors = evt.sponsors || null;
 
-      // Render sponsors if sections.sponsors is enabled
-      if (sectionEnabled(sections, 'sponsors')) {
-        if (sponsors.length > 0) {
-          renderSponsorStripFromArray(evt.id, sponsors);
-        } else {
-          renderSponsorStripLegacy(evt);
+      // Render sponsors if settings.showSponsors is true (V2 Optional)
+      if (settings.showSponsors && sponsors && sponsors.length > 0) {
+        // Filter sponsors with 'poster' placement
+        const posterSponsors = sponsors.filter(s => s.placement === 'poster' || !s.placement);
+        if (posterSponsors.length > 0) {
+          renderSponsorStripFromArray(evt.id, posterSponsors);
         }
       }
 

@@ -1351,92 +1351,100 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
     async function renderDetail(evt) {
       const root = document.getElementById('list');
 
-      // Set currentEventId for analytics tracking (League & Broadcast link clicks)
+      // Set currentEventId for analytics tracking
       currentEventId = evt.id;
 
-      // EVENT_CONTRACT.md v1.0: Fields are now at top level, with backward compat for old data
-      // Merge top-level fields with nested data for backward compatibility
+      // EVENT_CONTRACT.md v2.0: Canonical shape with backward compat
       const legacyData = evt.data || {};
+      const settings = evt.settings || {};
+
+      // MVP Required fields (v2.0)
+      const startDateISO = evt.startDateISO || evt.dateTime?.split('T')[0] || legacyData.dateISO || null;
+      const venue = evt.venue || evt.location || evt.venueName || legacyData.location || legacyData.venueName || null;
+      const ctas = evt.ctas || { primary: { label: 'Sign Up', url: '' } };
+      const links = evt.links || {};
+
+      // Build data object for rendering (with backward compat)
       const data = {
-        // Core Identity (from canonical shape)
+        // Core Identity (MVP Required)
         name: evt.name || legacyData.name || '',
-        status: evt.status || legacyData.status || 'draft',
-        dateTime: evt.dateTime,
-        location: evt.location || legacyData.location,
-        venueName: evt.venueName || legacyData.venueName,
+        startDateISO: startDateISO,
+        venue: venue,
 
-        // Content
-        summary: evt.summary || legacyData.summary,
-        notes: evt.notes || legacyData.notes,
-        audience: evt.audience || legacyData.audience,
+        // Parsed date for display
+        dateISO: startDateISO,
+        timeISO: null, // v2.0 doesn't have time
 
-        // Sections (canonical: { key: { enabled, title, content } })
-        sections: evt.sections || legacyData.sections || {},
+        // CTAs (MVP Required)
+        ctas: ctas,
+        signupUrl: links.signupUrl || ctas.primary?.url || legacyData.signupUrl || '',
 
-        // CTA Labels (canonical: [{ key, label, url }])
-        ctaLabels: evt.ctaLabels || legacyData.ctaLabels || [],
+        // Settings (MVP Required)
+        settings: settings,
 
-        // External Data
-        externalData: evt.externalData || legacyData.externalData || {},
+        // Schedule/Standings/Bracket (MVP Optional)
+        schedule: evt.schedule || null,
+        standings: evt.standings || null,
+        bracket: evt.bracket || null,
 
-        // Media URLs
-        videoUrl: evt.videoUrl || legacyData.videoUrl,
-        mapEmbedUrl: evt.mapEmbedUrl || legacyData.mapEmbedUrl,
+        // Sponsors (V2 Optional)
+        sponsors: evt.sponsors || null,
+
+        // Media (V2 Optional)
+        media: evt.media || null,
+        videoUrl: evt.media?.videoUrl || legacyData.videoUrl || null,
+        mapUrl: evt.media?.mapUrl || legacyData.mapEmbedUrl || null,
+        gallery: evt.media?.gallery || null,
+
+        // External Data (V2 Optional)
+        externalData: evt.externalData || null,
+
+        // Links
+        links: links,
+
+        // Legacy compat
         imageUrl: legacyData.imageUrl,
         galleryUrls: legacyData.galleryUrls,
-
-        // Action URLs
-        signupUrl: evt.signupUrl || legacyData.signupUrl,
-        checkinUrl: evt.checkinUrl || legacyData.checkinUrl,
-        feedbackUrl: evt.feedbackUrl || legacyData.surveyUrl || legacyData.feedbackUrl,
-
-        // Sponsors (canonical: hydrated array)
-        sponsors: evt.sponsors || [],
-
-        // Legacy fields for backward compat
-        dateISO: legacyData.dateISO,
-        timeISO: legacyData.timeISO,
-        entity: legacyData.entity,
+        summary: legacyData.summary,
         summaryLink: legacyData.summaryLink,
-        bio: legacyData.bio,
-        bioLink: legacyData.bioLink,
-        registerUrl: legacyData.registerUrl,
-
-        // Template info
-        templateId: evt.templateId
+        entity: legacyData.entity
       };
-
-      // Parse dateTime into dateISO/timeISO if needed
-      if (evt.dateTime && !data.dateISO) {
-        const dt = evt.dateTime.split('T');
-        data.dateISO = dt[0];
-        data.timeISO = dt[1] ? dt[1].substring(0, 5) : null;
-      }
 
       // Store for utility functions
       currentEventData = data;
 
-      // MVP: Section visibility helper (EVENT_CONTRACT.md: sections.key.enabled)
+      // MVP: Settings-based visibility (EVENT_CONTRACT.md v2.0)
       const sectionEnabled = (key) => {
-        if (!data.sections) return true; // Backwards compat: show all if no sections set
-        const section = data.sections[key];
-        if (section === null || section === undefined) return true;
-        if (typeof section === 'boolean') return section; // Legacy boolean format
-        return section.enabled !== false; // New SectionConfig format
-      };
+        // Map old section keys to new settings keys
+        const settingsMap = {
+          'schedule': 'showSchedule',
+          'standings': 'showStandings',
+          'bracket': 'showBracket',
+          'sponsors': 'showSponsors',
+          // Legacy keys - default to true for backward compat
+          'video': true,
+          'map': true,
+          'gallery': true,
+          'notes': true
+        };
 
-      // Get section title (from section config or default)
-      const getSectionTitle = (key, defaultTitle) => {
-        const section = data.sections?.[key];
-        if (section && typeof section === 'object' && section.title) {
-          return section.title;
+        const settingKey = settingsMap[key];
+        if (typeof settingKey === 'boolean') return settingKey;
+        if (settingKey && settings[settingKey] !== undefined) {
+          return settings[settingKey];
         }
-        return defaultTitle;
+        return true; // Default: show
       };
 
-      // Render sponsor banner first (respects sections.sponsors)
+      // Get section title (legacy support)
+      const getSectionTitle = (key, defaultTitle) => defaultTitle;
+
+      // Render sponsor banner (V2 Optional, respects settings.showSponsors)
       if (sectionEnabled('sponsors') && data.sponsors && data.sponsors.length > 0) {
-        renderSponsorBannerFromArray(evt.id, data.sponsors);
+        const publicSponsors = data.sponsors.filter(s => s.placement === 'public' || !s.placement);
+        if (publicSponsors.length > 0) {
+          renderSponsorBannerFromArray(evt.id, publicSponsors);
+        }
       }
 
       // Build event detail HTML
@@ -1470,7 +1478,7 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       html += `<div style="margin-bottom: 12px;">${statusBadge}</div>`;
       html += `<h1>${esc(data.name || '(untitled)')}</h1>`;
 
-      // Meta information
+      // Meta information (v2.0: venue, startDateISO)
       html += '<div class="event-meta">';
       if (data.dateISO) {
         const date = new Date(data.dateISO + 'T00:00:00');
@@ -1478,14 +1486,8 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
           weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
         })}</div>`;
       }
-      if (data.timeISO) {
-        html += `<div class="event-meta-item"><strong>🕒</strong> ${esc(data.timeISO)}</div>`;
-      }
-      if (data.venueName) {
-        html += `<div class="event-meta-item"><strong>🏟️</strong> ${esc(data.venueName)}</div>`;
-      }
-      if (data.location) {
-        html += `<div class="event-meta-item"><strong>📍</strong> ${esc(data.location)}</div>`;
+      if (data.venue) {
+        html += `<div class="event-meta-item"><strong>📍</strong> ${esc(data.venue)}</div>`;
       }
       if (data.entity) {
         html += `<div class="event-meta-item"><strong>🏢</strong> ${esc(data.entity)}</div>`;
@@ -1493,35 +1495,22 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       html += '</div>';
       html += '</div>';
 
-      // === ACTION ROW (top priority per requirements) ===
+      // === ACTION ROW (EVENT_CONTRACT.md v2.0: ctas.primary / ctas.secondary) ===
       html += '<div class="action-buttons">';
 
-      // 1. Primary CTA: Register / Sign Up
-      if (data.signupUrl) {
-        html += `<a class="btn-primary" href="${esc(data.signupUrl)}" target="_blank" rel="noopener">📝 Register / Sign Up</a>`;
-      } else if (data.registerUrl) {
-        html += `<a class="btn-primary" href="${esc(data.registerUrl)}" target="_blank" rel="noopener">📝 Register</a>`;
+      // Primary CTA (MVP Required)
+      const primaryCta = data.ctas?.primary;
+      if (primaryCta?.url) {
+        html += `<a class="btn-primary" href="${esc(primaryCta.url)}" target="_blank" rel="noopener">📝 ${esc(primaryCta.label || 'Sign Up')}</a>`;
+      } else if (data.signupUrl) {
+        // Backward compat
+        html += `<a class="btn-primary" href="${esc(data.signupUrl)}" target="_blank" rel="noopener">📝 Sign Up</a>`;
       }
 
-      // 2. Check In (if available)
-      if (data.checkinUrl) {
-        html += `<a class="btn-secondary" href="${esc(data.checkinUrl)}" target="_blank" rel="noopener">✅ Check In</a>`;
-      }
-
-      // Additional template-driven CTAs (EVENT_CONTRACT.md: [{ key, label, url }])
-      if (data.ctaLabels && data.ctaLabels.length > 0) {
-        data.ctaLabels.forEach((cta) => {
-          // Skip if we already rendered signup/checkin
-          const label = typeof cta === 'string' ? cta : cta.label;
-          const url = typeof cta === 'string' ? getCTAUrl(data, cta) : (cta.url || getCTAUrl(data, cta.label));
-          const labelLower = label.toLowerCase();
-
-          // Skip duplicates
-          if (labelLower.includes('sign up') || labelLower.includes('register') || labelLower.includes('check in')) return;
-          if (!url) return;
-
-          html += `<a class="btn-secondary" href="${esc(url)}" target="_blank" rel="noopener">${esc(label)}</a>`;
-        });
+      // Secondary CTA (V2 Optional)
+      const secondaryCta = data.ctas?.secondary;
+      if (secondaryCta?.url) {
+        html += `<a class="btn-secondary" href="${esc(secondaryCta.url)}" target="_blank" rel="noopener">${esc(secondaryCta.label)}</a>`;
       }
 
       html += `<a class="btn-secondary" href="${EXEC_URL}?p=events&brand=${BRAND}">← All Events</a>`;
@@ -1530,14 +1519,14 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       // === UTILITY BUTTONS: Maps, Calendar, Share ===
       html += '<div class="utility-buttons">';
 
-      // 3. Open in Maps (use mapEmbedUrl or location)
+      // Open in Maps (use media.mapUrl or venue)
       if (sectionEnabled('map')) {
-        if (data.mapEmbedUrl) {
-          // Direct map embed URL provided
-          html += `<a class="btn-utility" href="${esc(data.mapEmbedUrl)}" target="_blank" rel="noopener">📍 Open in Maps</a>`;
-        } else if (data.location) {
-          // Build Google Maps search URL from location text
-          const mapsUrl = buildMapsUrl(data.location);
+        if (data.mapUrl) {
+          // Direct map URL provided (V2: media.mapUrl)
+          html += `<a class="btn-utility" href="${esc(data.mapUrl)}" target="_blank" rel="noopener">📍 Open in Maps</a>`;
+        } else if (data.venue) {
+          // Build Google Maps search URL from venue
+          const mapsUrl = buildMapsUrl(data.venue);
           html += `<a class="btn-utility" href="${esc(mapsUrl)}" target="_blank" rel="noopener">📍 Open in Maps</a>`;
         }
       }
