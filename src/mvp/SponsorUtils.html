@@ -206,6 +206,236 @@ window.SponsorUtils = (function() {
     return `<span>${content}</span>`;
   }
 
+  // === Sponsor Normalization ===
+  /**
+   * Normalize sponsor object to common format
+   * Handles both legacy (img, url, placements) and new (logoUrl, website, placement) formats
+   * @param {Object} s - Sponsor object in either format
+   * @returns {Object} - Normalized sponsor with: id, name, logoUrl, website, tier, placements
+   */
+  function normalizeSponsor(s) {
+    if (!s) return null;
+    return {
+      id: s.id || '',
+      name: s.name || '',
+      // Image: new format uses logoUrl, legacy uses img
+      logoUrl: s.logoUrl || s.img || '',
+      // Link: new format uses website, legacy uses url
+      website: s.website || s.url || '',
+      // Tier badge (new format only)
+      tier: s.tier || '',
+      // Placements: convert string placement to object if needed
+      placements: s.placements || (s.placement ? { [s.placement]: true } : {})
+    };
+  }
+
+  // === Unified SponsorRenderer ===
+  /**
+   * Unified sponsor rendering component
+   * Replaces duplicate renderSponsor* functions across surfaces
+   */
+  const SponsorRenderer = {
+    /**
+     * Render sponsors as horizontal strip (top bar, banner)
+     * @param {Object} options
+     * @param {HTMLElement} options.container - Target element
+     * @param {Array} options.sponsors - Sponsor array (any format)
+     * @param {string} options.eventId - For analytics
+     * @param {string} options.surface - Surface name (display, public, poster)
+     * @param {boolean} options.showLinks - Wrap in anchor tags (default: true)
+     * @param {boolean} options.showTier - Show tier badge (default: false)
+     * @param {Function} options.onRender - Callback with rendered sponsor IDs
+     * @returns {Array} - Normalized sponsors that were rendered
+     */
+    renderStrip(options) {
+      const {
+        container,
+        sponsors = [],
+        eventId = '',
+        surface = 'unknown',
+        showLinks = true,
+        showTier = false,
+        onRender = null
+      } = options;
+
+      if (!container) return [];
+      const picks = sponsors.map(normalizeSponsor).filter(s => s && s.name);
+      if (!picks.length) return [];
+
+      container.innerHTML = picks.map(s => {
+        const tierBadge = showTier && s.tier ? `<span class="sponsor-tier" style="font-size:0.7em;color:#f59e0b;margin-left:8px;">${esc(s.tier)}</span>` : '';
+        const content = s.logoUrl
+          ? `<img src="${esc(s.logoUrl)}" alt="${esc(s.name)}">${tierBadge}`
+          : `<strong>${esc(s.name)}</strong>${tierBadge}`;
+
+        if (showLinks && s.website) {
+          return `<a href="${esc(s.website)}" target="_blank" rel="noopener sponsored" data-sponsor-id="${esc(s.id)}">${content}</a>`;
+        }
+        return `<span>${content}</span>`;
+      }).join('');
+
+      container.hidden = false;
+
+      // Log impressions
+      picks.forEach(s => logEvent({ eventId, surface, metric: 'impression', sponsorId: s.id }));
+
+      // Attach click handlers
+      if (showLinks) {
+        container.querySelectorAll('a[data-sponsor-id]').forEach(a => {
+          a.addEventListener('click', () => {
+            logEvent({ eventId, surface, metric: 'click', sponsorId: a.dataset.sponsorId });
+          });
+        });
+      }
+
+      // Callback with rendered IDs (for BBN attribution)
+      if (onRender) onRender(picks.map(s => s.id).filter(Boolean));
+
+      return picks;
+    },
+
+    /**
+     * Render sponsors as card grid (side panel, TV mode)
+     * @param {Object} options - Same as renderStrip plus:
+     * @param {HTMLElement} options.mainEl - Optional main element to add 'has-side' class
+     * @returns {Array} - Normalized sponsors that were rendered
+     */
+    renderGrid(options) {
+      const {
+        container,
+        sponsors = [],
+        eventId = '',
+        surface = 'unknown',
+        showLinks = true,
+        showTier = true,
+        mainEl = null,
+        onRender = null
+      } = options;
+
+      if (!container) return [];
+      const picks = sponsors.map(normalizeSponsor).filter(s => s && s.name);
+      if (!picks.length) return [];
+
+      container.innerHTML = picks.map(s => {
+        const tierBadge = showTier && s.tier ? `<span style="font-size:0.7em;color:#f59e0b;margin-left:8px;">${esc(s.tier)}</span>` : '';
+        const card = `
+          <div class="sp-card" data-id="${esc(s.id)}">
+            ${s.logoUrl ? `<img src="${esc(s.logoUrl)}" alt="${esc(s.name)}">` : ''}
+            <div class="sp-name">${esc(s.name)}${tierBadge}</div>
+          </div>
+        `;
+
+        if (showLinks && s.website) {
+          return `<a href="${esc(s.website)}" target="_blank" rel="noopener sponsored" data-sponsor-id="${esc(s.id)}" style="text-decoration:none;color:inherit;">${card}</a>`;
+        }
+        return card;
+      }).join('');
+
+      container.hidden = false;
+      if (mainEl) mainEl.classList.add('has-side');
+
+      // Log impressions
+      picks.forEach(s => logEvent({ eventId, surface, metric: 'impression', sponsorId: s.id }));
+
+      // Attach click handlers
+      if (showLinks) {
+        container.querySelectorAll('a[data-sponsor-id]').forEach(a => {
+          a.addEventListener('click', () => {
+            logEvent({ eventId, surface, metric: 'click', sponsorId: a.dataset.sponsorId });
+          });
+        });
+      }
+
+      // Callback with rendered IDs
+      if (onRender) onRender(picks.map(s => s.id).filter(Boolean));
+
+      return picks;
+    },
+
+    /**
+     * Render sponsors as rotating carousel (one at a time)
+     * @param {Object} options - Same as renderStrip plus:
+     * @param {number} options.rotationMs - Rotation interval (default: 5000)
+     * @returns {Object} - { sponsors: Array, stop: Function }
+     */
+    renderCarousel(options) {
+      const {
+        container,
+        sponsors = [],
+        eventId = '',
+        surface = 'unknown',
+        showLinks = true,
+        showTier = true,
+        rotationMs = 5000,
+        onRender = null
+      } = options;
+
+      if (!container) return { sponsors: [], stop: () => {} };
+      const picks = sponsors.map(normalizeSponsor).filter(s => s && s.name);
+      if (!picks.length) return { sponsors: [], stop: () => {} };
+
+      let currentIndex = 0;
+      let timer = null;
+
+      function showSponsor(index) {
+        const s = picks[index];
+        const tierBadge = showTier && s.tier ? `<span class="sponsor-tier">${esc(s.tier)}</span>` : '';
+        const indicator = picks.length > 1 ? `<span class="sponsor-indicator">${index + 1}/${picks.length}</span>` : '';
+
+        const content = `
+          ${s.logoUrl ? `<img src="${esc(s.logoUrl)}" alt="${esc(s.name)}">` : ''}
+          <strong>${esc(s.name)}</strong>
+          ${tierBadge}
+        `;
+
+        if (showLinks && s.website) {
+          container.innerHTML = `
+            <a href="${esc(s.website)}" target="_blank" rel="noopener sponsored" class="sponsor-link" data-sponsor-id="${esc(s.id)}">
+              ${content}
+            </a>
+            ${indicator}
+          `;
+        } else {
+          container.innerHTML = `<span>${content}</span>${indicator}`;
+        }
+
+        // Log impression
+        logEvent({ eventId, surface, metric: 'impression', sponsorId: s.id });
+
+        // Attach click handler
+        const linkEl = container.querySelector('.sponsor-link');
+        if (linkEl) {
+          linkEl.addEventListener('click', () => {
+            logEvent({ eventId, surface, metric: 'click', sponsorId: s.id });
+          });
+        }
+      }
+
+      // Show first sponsor
+      showSponsor(0);
+      container.hidden = false;
+
+      // Start rotation if multiple sponsors
+      if (picks.length > 1) {
+        timer = setInterval(() => {
+          currentIndex = (currentIndex + 1) % picks.length;
+          showSponsor(currentIndex);
+        }, rotationMs);
+      }
+
+      // Callback with rendered IDs
+      if (onRender) onRender(picks.map(s => s.id).filter(Boolean));
+
+      return {
+        sponsors: picks,
+        stop: () => { if (timer) clearInterval(timer); }
+      };
+    },
+
+    // Expose normalization for external use
+    normalizeSponsor
+  };
+
   // === Public API ===
   return {
     esc,
@@ -219,6 +449,9 @@ window.SponsorUtils = (function() {
     renderInline,
     renderCard,
     renderBanner,
+    // NEW: Unified renderer
+    SponsorRenderer,
+    normalizeSponsor,
     // Constants
     BATCH_SIZE,
     FLUSH_INTERVAL

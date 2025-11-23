@@ -476,117 +476,8 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
       overlay.hidden = false;
     }
 
-    // Render sponsor top bar from canonical sponsors[] array
-    function renderSponsorTopFromArray(eventId, sponsors) {
-      if (!sponsors || !sponsors.length) return;
-      const picks = sponsors.filter(s => s.name);
-      if (!picks.length) return;
-
-      // Track rendered sponsor IDs for BBN attribution
-      currentRenderedSponsorIds = [...new Set([...currentRenderedSponsorIds, ...picks.map(s => s.id).filter(Boolean)])];
-
-      topEl.innerHTML = picks.map(s => {
-        const content = s.logoUrl
-          ? `<img src="${esc(s.logoUrl)}" alt="${esc(s.name || '')}">`
-          : `<strong>${esc(s.name || '')}</strong>`;
-        return s.website
-          ? `<a href="${esc(s.website)}" target="_blank" rel="noopener sponsored" data-sponsor-id="${esc(s.id || '')}">${content}</a>`
-          : content;
-      }).join('');
-      topEl.hidden = false;
-      picks.forEach(s => logEvent({ eventId, surface: 'display', metric: 'impression', sponsorId: s.id || '' }));
-      topEl.querySelectorAll('a[data-sponsor-id]').forEach(a => {
-        a.addEventListener('click', () => {
-          logEvent({ eventId, surface: 'display', metric: 'click', sponsorId: a.dataset.sponsorId });
-        });
-      });
-    }
-
-    // Render sponsor side panel from canonical sponsors[] array
-    function renderSponsorSideFromArray(eventId, sponsors) {
-      if (!sponsors || !sponsors.length) return;
-      const picks = sponsors.filter(s => s.name);
-      if (!picks.length) return;
-
-      // Track rendered sponsor IDs for BBN attribution
-      currentRenderedSponsorIds = [...new Set([...currentRenderedSponsorIds, ...picks.map(s => s.id).filter(Boolean)])];
-
-      sideEl.innerHTML = picks.map(s => {
-        const tierBadge = s.tier ? `<span style="font-size:0.7em;color:#f59e0b;margin-left:8px;">${esc(s.tier)}</span>` : '';
-        const card = `
-          <div class="sp-card" data-id="${esc(s.id || '')}">
-            ${s.logoUrl ? `<img src="${esc(s.logoUrl)}" alt="${esc(s.name || '')}">` : ''}
-            <div class="sp-name">${esc(s.name || '')}${tierBadge}</div>
-          </div>
-        `;
-        return s.website
-          ? `<a href="${esc(s.website)}" target="_blank" rel="noopener sponsored" data-sponsor-id="${esc(s.id || '')}" style="text-decoration:none;color:inherit;">${card}</a>`
-          : card;
-      }).join('');
-      sideEl.hidden = false;
-      mainEl.classList.add('has-side');
-      picks.forEach(s => logEvent({ eventId, surface: 'display', metric: 'impression', sponsorId: s.id || '' }));
-      sideEl.querySelectorAll('a[data-sponsor-id]').forEach(a => {
-        a.addEventListener('click', () => {
-          logEvent({ eventId, surface: 'display', metric: 'click', sponsorId: a.dataset.sponsorId });
-        });
-      });
-    }
-
-    // Legacy sponsor rendering (for backward compat)
-    function renderSponsorTop(ev) {
-      const picks = (ev?.data?.sponsors || []).filter(s => s?.placements?.tvTop);
-      if (!picks.length) return;
-
-      // Track rendered sponsor IDs for BBN attribution
-      currentRenderedSponsorIds = [...new Set([...currentRenderedSponsorIds, ...picks.map(s => s.id).filter(Boolean)])];
-
-      topEl.innerHTML = picks.map(s => {
-        const content = s.img
-          ? `<img src="${esc(s.img)}" alt="${esc(s.name || '')}">`
-          : `<strong>${esc(s.name || '')}</strong>`;
-        return s.url
-          ? `<a href="${esc(s.url)}" target="_blank" rel="noopener sponsored" data-sponsor-id="${esc(s.id || '')}">${content}</a>`
-          : content;
-      }).join('');
-      topEl.hidden = false;
-      picks.forEach(s => logEvent({ eventId, surface: 'display', metric: 'impression', sponsorId: s.id || '' }));
-      // Track clicks on sponsor links
-      topEl.querySelectorAll('a[data-sponsor-id]').forEach(a => {
-        a.addEventListener('click', () => {
-          logEvent({ eventId, surface: 'display', metric: 'click', sponsorId: a.dataset.sponsorId });
-        });
-      });
-    }
-
-    function renderSponsorSide(ev) {
-      const picks = (ev?.data?.sponsors || []).filter(s => s?.placements?.tvSide);
-      if (!picks.length) return;
-
-      // Track rendered sponsor IDs for BBN attribution
-      currentRenderedSponsorIds = [...new Set([...currentRenderedSponsorIds, ...picks.map(s => s.id).filter(Boolean)])];
-
-      sideEl.innerHTML = picks.map(s => {
-        const card = `
-          <div class="sp-card" data-id="${esc(s.id || '')}">
-            ${s.img ? `<img src="${esc(s.img)}" alt="${esc(s.name || '')}">` : ''}
-            <div class="sp-name">${esc(s.name || '')}</div>
-          </div>
-        `;
-        return s.url
-          ? `<a href="${esc(s.url)}" target="_blank" rel="noopener sponsored" data-sponsor-id="${esc(s.id || '')}" style="text-decoration:none;color:inherit;">${card}</a>`
-          : card;
-      }).join('');
-      sideEl.hidden = false;
-      mainEl.classList.add('has-side');
-      picks.forEach(s => logEvent({ eventId, surface: 'display', metric: 'impression', sponsorId: s.id || '' }));
-      // Track clicks on sponsor links
-      sideEl.querySelectorAll('a[data-sponsor-id]').forEach(a => {
-        a.addEventListener('click', () => {
-          logEvent({ eventId, surface: 'display', metric: 'click', sponsorId: a.dataset.sponsorId });
-        });
-      });
-    }
+    // NOTE: Legacy renderSponsor* functions removed in E-003
+    // All sponsor rendering now uses SponsorUtils.SponsorRenderer
 
     function startPublicMode() {
       const base = location.origin + location.pathname;
@@ -718,10 +609,26 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
           s.placement === 'display' || s.placement === 'tv-banner' || !s.placement
         );
         if (displaySponsors.length > 0) {
-          renderSponsorTopFromArray(ev.id, displaySponsors);
+          // Use unified SponsorRenderer from SponsorUtils
+          const { SponsorRenderer } = window.SponsorUtils;
+          SponsorRenderer.renderStrip({
+            container: topEl,
+            sponsors: displaySponsors,
+            eventId: ev.id,
+            surface: 'display',
+            showTier: true,
+            onRender: ids => { currentRenderedSponsorIds = [...new Set([...currentRenderedSponsorIds, ...ids])]; }
+          });
           // Use layout.hasSidePane from DisplayBundle to show side panel
           if (layout.hasSidePane) {
-            renderSponsorSideFromArray(ev.id, displaySponsors);
+            SponsorRenderer.renderGrid({
+              container: sideEl,
+              sponsors: displaySponsors,
+              eventId: ev.id,
+              surface: 'display',
+              mainEl: mainEl,
+              onRender: ids => { currentRenderedSponsorIds = [...new Set([...currentRenderedSponsorIds, ...ids])]; }
+            });
           }
         }
       }

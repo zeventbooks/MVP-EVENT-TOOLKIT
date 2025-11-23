@@ -1175,115 +1175,8 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
     // Store current event data for utility functions
     let currentEventData = null;
 
-    // Sponsor carousel state
-    let sponsorCarouselTimer = null;
-    let currentSponsorIndex = 0;
-
-    // Render sponsor banner from legacy format (ev.data.sponsors with placements)
-    function renderSponsorBanner(ev) {
-      const picks = (ev?.data?.sponsors || []).filter(s => s?.placements?.mobileBanner);
-      if (!picks.length) return;
-
-      // Track rendered sponsor IDs for BBN attribution
-      currentRenderedSponsorIds = picks.map(s => s.id).filter(Boolean);
-
-      const banner = document.getElementById('sponsorBanner');
-      const eventId = ev.id;
-
-      // Render single sponsor
-      function showSponsor(index) {
-        const s = picks[index];
-        const link = s.url ? `<a href="${esc(s.url)}" target="_blank" rel="noopener sponsored" class="sponsor-link" data-sponsor-id="${esc(s.id || '')}">` : '';
-        const linkClose = s.url ? '</a>' : '';
-
-        banner.innerHTML = `
-          ${link}
-            ${s.img ? `<img src="${esc(s.img)}" alt="${esc(s.name || '')}">` : ''}
-            <strong>${esc(s.name || '')}</strong>
-          ${linkClose}
-          ${picks.length > 1 ? `<span class="sponsor-indicator">${index + 1}/${picks.length}</span>` : ''}
-        `;
-
-        // Log impression for this sponsor
-        logEvent({ eventId, surface: 'public', metric: 'impression', sponsorId: s.id || '' });
-
-        // Attach click handler
-        const linkEl = banner.querySelector('.sponsor-link');
-        if (linkEl) {
-          linkEl.addEventListener('click', () => {
-            logEvent({ eventId, surface: 'public', metric: 'click', sponsorId: s.id || '' });
-          });
-        }
-      }
-
-      // Show first sponsor
-      showSponsor(0);
-      banner.hidden = false;
-
-      // Start carousel if multiple sponsors (rotate every 5 seconds)
-      if (picks.length > 1) {
-        if (sponsorCarouselTimer) clearInterval(sponsorCarouselTimer);
-        sponsorCarouselTimer = setInterval(() => {
-          currentSponsorIndex = (currentSponsorIndex + 1) % picks.length;
-          showSponsor(currentSponsorIndex);
-        }, 5000);
-      }
-    }
-
-    // Render sponsor banner from EVENT_CONTRACT.md format (hydrated sponsors array)
-    function renderSponsorBannerFromArray(eventId, sponsors) {
-      if (!sponsors || !sponsors.length) return;
-
-      const banner = document.getElementById('sponsorBanner');
-      const picks = sponsors.filter(s => s.name); // Filter out invalid sponsors
-
-      if (!picks.length) return;
-
-      // Track rendered sponsor IDs for BBN attribution
-      currentRenderedSponsorIds = picks.map(s => s.id).filter(Boolean);
-
-      // Render single sponsor
-      function showSponsor(index) {
-        const s = picks[index];
-        const link = s.website ? `<a href="${esc(s.website)}" target="_blank" rel="noopener sponsored" class="sponsor-link" data-sponsor-id="${esc(s.id || '')}">` : '';
-        const linkClose = s.website ? '</a>' : '';
-        const tierBadge = s.tier ? `<span class="sponsor-tier">${esc(s.tier)}</span>` : '';
-
-        banner.innerHTML = `
-          ${link}
-            ${s.logoUrl ? `<img src="${esc(s.logoUrl)}" alt="${esc(s.name || '')}">` : ''}
-            <strong>${esc(s.name || '')}</strong>
-            ${tierBadge}
-          ${linkClose}
-          ${picks.length > 1 ? `<span class="sponsor-indicator">${index + 1}/${picks.length}</span>` : ''}
-        `;
-
-        // Log impression for this sponsor
-        logEvent({ eventId, surface: 'public', metric: 'impression', sponsorId: s.id || '' });
-
-        // Attach click handler
-        const linkEl = banner.querySelector('.sponsor-link');
-        if (linkEl) {
-          linkEl.addEventListener('click', () => {
-            logEvent({ eventId, surface: 'public', metric: 'click', sponsorId: s.id || '' });
-          });
-        }
-      }
-
-      // Show first sponsor
-      showSponsor(0);
-      banner.hidden = false;
-
-      // Start carousel if multiple sponsors (rotate every 5 seconds)
-      if (picks.length > 1) {
-        if (sponsorCarouselTimer) clearInterval(sponsorCarouselTimer);
-        currentSponsorIndex = 0;
-        sponsorCarouselTimer = setInterval(() => {
-          currentSponsorIndex = (currentSponsorIndex + 1) % picks.length;
-          showSponsor(currentSponsorIndex);
-        }, 5000);
-      }
-    }
+    // NOTE: Legacy renderSponsorBanner* functions removed in E-003
+    // All sponsor rendering now uses SponsorUtils.SponsorRenderer
 
     /**
      * Render event list view
@@ -1422,7 +1315,19 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
         // Filter for public placement sponsors
         const publicSponsors = sponsors.filter(s => s.placement === 'public' || !s.placement);
         if (publicSponsors.length > 0) {
-          renderSponsorBannerFromArray(eventId, publicSponsors);
+          // Use unified SponsorRenderer carousel from SponsorUtils
+          const { SponsorRenderer } = window.SponsorUtils;
+          const carousel = SponsorRenderer.renderCarousel({
+            container: sponsorBanner,
+            sponsors: publicSponsors,
+            eventId: eventId,
+            surface: 'public',
+            showTier: true,
+            rotationMs: 5000,
+            onRender: ids => { currentRenderedSponsorIds = ids; }
+          });
+          // Store stop function for cleanup if needed
+          window._sponsorCarouselStop = carousel.stop;
         } else {
           // Reserved: Show placeholder for future sponsors
           sponsorBanner.innerHTML = '';

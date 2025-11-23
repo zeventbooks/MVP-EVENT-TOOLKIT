@@ -369,44 +369,8 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
       }
     }
 
-    // Render sponsor strip from canonical sponsors[] array
-    function renderSponsorStripFromArray(eventId, sponsors) {
-      if (!sponsors || !sponsors.length) return;
-      const picks = sponsors.filter(s => s.name);
-      if (!picks.length) return;
-
-      const strip = document.getElementById('sponsorStrip');
-      strip.innerHTML = picks.map(s =>
-        s.logoUrl
-          ? `<img src="${esc(s.logoUrl)}" alt="${esc(s.name || '')}">`
-          : `<strong>${esc(s.name || '')}</strong>`
-      ).join('');
-      strip.hidden = false;
-
-      // Log sponsor impressions for poster surface
-      picks.forEach(s => {
-        logEvent({ eventId, surface: 'poster', metric: 'impression', sponsorId: s.id || '' });
-      });
-    }
-
-    // Legacy sponsor strip rendering (for backward compat)
-    function renderSponsorStripLegacy(evt) {
-      const picks = (evt?.data?.sponsors || []).filter(s => s?.placements?.posterTop);
-      if (!picks.length) return;
-
-      const strip = document.getElementById('sponsorStrip');
-      strip.innerHTML = picks.map(s =>
-        s.img
-          ? `<img src="${esc(s.img)}" alt="${esc(s.name || '')}">`
-          : `<strong>${esc(s.name || '')}</strong>`
-      ).join('');
-      strip.hidden = false;
-
-      // Log sponsor impressions for poster surface
-      picks.forEach(s => {
-        logEvent({ eventId: evt.id, surface: 'poster', metric: 'impression', sponsorId: s.id || '' });
-      });
-    }
+    // NOTE: Legacy renderSponsorStrip* functions removed in E-003
+    // All sponsor rendering now uses SponsorUtils.SponsorRenderer
 
     /**
      * Render event details section
@@ -566,7 +530,16 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
         // Filter sponsors with 'poster' placement
         const posterSponsors = sponsors.filter(s => s.placement === 'poster' || !s.placement);
         if (posterSponsors.length > 0) {
-          renderSponsorStripFromArray(event.id, posterSponsors);
+          // Use unified SponsorRenderer from SponsorUtils
+          const { SponsorRenderer } = window.SponsorUtils;
+          SponsorRenderer.renderStrip({
+            container: sponsorStrip,
+            sponsors: posterSponsors,
+            eventId: event.id,
+            surface: 'poster',
+            showLinks: false, // Poster is print-friendly, no clickable links
+            showTier: false
+          });
         } else {
           // Reserved: Sponsor strip exists but hidden when no poster sponsors
           sponsorStrip.innerHTML = '';
