@@ -51,32 +51,32 @@
   }
 
   .header-title h1 {
-    color: #2563eb;
-    font-size: 1.8rem;
-    margin-bottom: 4px;
+    color: var(--color-primary, #2563eb);
+    font-size: var(--font-size-3xl, 1.875rem); /* D-AUDIT: Aligned to type scale from 1.8rem */
+    margin-bottom: var(--space-1, 4px);
   }
 
   .build-info {
-    color: #64748b;
-    font-size: 0.85rem;
+    color: var(--color-gray-500, #64748b);
+    font-size: var(--font-size-sm, 0.875rem); /* D-AUDIT: Aligned to type scale from 0.85rem */
   }
 
   /* Cards */
   .card {
     background: white;
-    border-radius: 12px;
-    padding: 24px;
-    margin-bottom: 20px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    border-left: 4px solid #2563eb; /* Visual hierarchy accent */
+    border-radius: var(--radius-md, 12px);
+    padding: var(--space-6, 24px);
+    margin-bottom: var(--space-6, 24px); /* D-AUDIT: Standardized from 20px to 24px for consistent rhythm */
+    box-shadow: var(--shadow-base, 0 1px 3px rgba(0,0,0,0.1));
+    border-left: 4px solid var(--color-primary, #2563eb); /* Visual hierarchy accent */
   }
 
   .card h2 {
-    margin-bottom: 16px;
-    color: #1e293b;
-    font-size: 1.5rem;
-    border-bottom: 2px solid #e2e8f0;
-    padding-bottom: 8px;
+    margin-bottom: var(--space-4, 16px);
+    color: var(--color-gray-800, #1e293b);
+    font-size: var(--font-size-2xl, 1.5rem); /* D-AUDIT: Using design token */
+    border-bottom: 2px solid var(--color-gray-200, #e2e8f0);
+    padding-bottom: var(--space-2, 8px);
   }
 
   /* Section separators for better information density */
@@ -94,17 +94,17 @@
   }
 
   .card h3 {
-    margin-top: 20px;
-    margin-bottom: 12px;
-    color: #475569;
-    font-size: 1.2rem;
+    margin-top: var(--space-5, 20px);
+    margin-bottom: var(--space-3, 12px);
+    color: var(--color-gray-600, #475569);
+    font-size: var(--font-size-xl, 1.25rem); /* D-AUDIT: Aligned to type scale from 1.2rem */
   }
 
   .card h4 {
-    margin-top: 16px;
-    margin-bottom: 8px;
-    color: #64748b;
-    font-size: 1rem;
+    margin-top: var(--space-4, 16px);
+    margin-bottom: var(--space-2, 8px);
+    color: var(--color-gray-500, #64748b);
+    font-size: var(--font-size-base, 1rem); /* D-AUDIT: Using design token */
   }
 
   /* Forms */
@@ -516,11 +516,11 @@
   .stat-card {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
-    padding: 24px;
-    border-radius: 12px;
+    padding: var(--space-6, 24px); /* D-AUDIT: Using design token for consistent rhythm */
+    border-radius: var(--radius-md, 12px); /* D-AUDIT: Using design token for consistency */
     text-align: center;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    transition: transform 0.2s ease;
+    box-shadow: var(--shadow-md, 0 4px 12px rgba(0,0,0,0.1));
+    transition: transform var(--transition-base, 0.2s ease);
   }
 
   .stat-card:hover {
@@ -556,16 +556,16 @@
   }
 
   .stat-label {
-    font-size: 0.9rem;
+    font-size: var(--font-size-sm, 0.875rem); /* D-AUDIT: Aligned to type scale from 0.9rem */
     opacity: 0.95;
-    font-weight: 500;
+    font-weight: var(--font-weight-medium, 500);
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: var(--letter-spacing-wide, 0.025em);
   }
 
   .stat-trend {
-    margin-top: 8px;
-    font-size: 0.85rem;
+    margin-top: var(--space-2, 8px);
+    font-size: var(--font-size-sm, 0.875rem); /* D-AUDIT: Aligned to type scale from 0.85rem */
     opacity: 0.9;
   }
 
@@ -660,24 +660,24 @@
   }
 
   .metric-title {
-    font-size: 0.9rem;
-    color: #64748b;
-    font-weight: 500;
+    font-size: var(--font-size-sm, 0.875rem); /* D-AUDIT: Aligned to type scale from 0.9rem */
+    color: var(--color-gray-500, #64748b);
+    font-weight: var(--font-weight-medium, 500);
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: var(--letter-spacing-wide, 0.025em);
   }
 
   .metric-value {
-    font-size: 2rem;
-    font-weight: 700;
-    color: #1e293b;
-    line-height: 1;
+    font-size: var(--font-size-4xl, 2.25rem); /* D-AUDIT: Aligned to type scale from 2rem */
+    font-weight: var(--font-weight-bold, 700);
+    color: var(--color-gray-800, #1e293b);
+    line-height: var(--line-height-tight, 1.2);
   }
 
   .metric-subtitle {
-    margin-top: 8px;
-    font-size: 0.85rem;
-    color: #94a3b8;
+    margin-top: var(--space-2, 8px);
+    font-size: var(--font-size-sm, 0.875rem); /* D-AUDIT: Aligned to type scale from 0.85rem */
+    color: var(--color-gray-400, #94a3b8);
   }
 
   /* Status Badges */

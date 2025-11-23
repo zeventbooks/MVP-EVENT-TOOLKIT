@@ -182,7 +182,11 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
     /* Print Styles - Optimized for printing */
     @media print {
       body { background: #fff; }
-      .poster-container { padding: 20px; }
+      /* D-AUDIT: Increased container padding for print safety margins */
+      .poster-container {
+        padding: 0.5in 0.25in; /* Inner padding within page margins */
+        max-width: 100%; /* Allow full page width in print */
+      }
       .sponsor-strip {
         border: 0;
         padding-bottom: 12px;
@@ -206,7 +210,16 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
       .qr-section h2::before {
         content: "";
       }
-      @page { margin: 0.5in; }
+      /* D-AUDIT: Increased page margin from 0.5in to 0.75in for printer-safe area */
+      /* Most consumer printers need 0.5-1in margins for safe printing */
+      @page {
+        margin: 0.75in;
+        size: letter; /* 8.5in x 11in default */
+      }
+      /* Hide footer in print for more content space */
+      .site-footer {
+        display: none;
+      }
     }
 
     /* Responsive - Mobile and tablet */
