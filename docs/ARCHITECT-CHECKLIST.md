@@ -204,20 +204,17 @@ window.NU = {
 |---------|-------------|-----------|
 | Admin.html | `NU.rpc('api_*', {...})` | YES |
 | SharedReport.html | `NU.rpc('api_*', {...})` | YES |
-| Public.html | Local `rpc()` wrapper (equivalent) | YES* |
+| Public.html | `NU.rpc('api_*', {...})` | YES |
+| Display.html | `NU.rpc('api_*', {...})` | YES |
+| Poster.html | `NU.rpc('api_*', {...})` | YES |
 
 ### Acceptable Exceptions
 
 | Surface | Pattern | Reason |
 |---------|---------|--------|
-| Poster.html | Direct `google.script.run` boot | Boot sequence, not interactive RPC |
-| Display.html | Direct `google.script.run` boot | Boot sequence, not interactive RPC |
 | SponsorUtils.html | Fire-and-forget `api_logEvents` | Non-critical analytics, failure ignored |
 
-**Note:** Boot sequences in Poster.html and Display.html use direct `google.script.run` for initial data load. This is acceptable because:
-1. It's a one-time load, not interactive
-2. The pattern is consistent (withSuccessHandler/withFailureHandler)
-3. No user interaction depends on the result
+**Note:** All MVP surfaces now use `NU.rpc()` for data loading (E-002, 2025-11-23).
 
 ---
 
@@ -269,7 +266,7 @@ None - MVP is structurally safe.
 
 1. ~~**Remove Dead Code:** `EventService.gs` functions are not used.~~ **DONE** (E-001, 2025-11-23)
 
-2. **Standardize Boot Sequences:** Consider moving Poster.html and Display.html boot calls to use `NU.rpc()` for consistency. (Planned: E-002)
+2. ~~**Standardize Boot Sequences:** Poster.html and Display.html boot calls to use `NU.rpc()`.~~ **DONE** (E-002, 2025-11-23)
 
 3. **Document Thin Event DTOs:** Add explicit TypeScript/JSDoc interface for `thinEvent` shape used in SponsorBundle and SharedReportBundle.
 

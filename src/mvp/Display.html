@@ -21,6 +21,7 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
   <title><?= appTitle ?> · TV Display</title>
   <?!= include('Styles'); ?>
   <?!= include('SponsorUtils'); ?>
+  <?!= include('NUSDK'); ?>
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <meta name="referrer" content="no-referrer" />
   <style>
@@ -677,67 +678,63 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
      * - rotation: { sponsorSlots, rotationMs }
      * - layout: { hasSidePane, emphasis }
      */
-    function boot() {
-      if (!eventId || !google?.script?.run) return startPublicMode();
+    async function boot() {
+      if (!eventId) return startPublicMode();
 
-      google.script.run
-        .withSuccessHandler(res => {
-          if (!res?.ok || !res?.value) return startPublicMode();
+      const res = await NU.rpc('api_getDisplayBundle', { brandId, scope: 'events', id: eventId });
+      if (!res?.ok || !res?.value) return startPublicMode();
 
-          const bundle = res.value;
-          const ev = bundle.event || {};
-          const rotation = bundle.rotation || {};
-          const layout = bundle.layout || {};
+      const bundle = res.value;
+      const ev = bundle.event || {};
+      const rotation = bundle.rotation || {};
+      const layout = bundle.layout || {};
 
-          // === LOG DISPLAY VIEW METRIC ===
-          logEvent({ eventId: ev.id, surface: 'display', metric: 'view', value: 1 });
+      // === LOG DISPLAY VIEW METRIC ===
+      logEvent({ eventId: ev.id, surface: 'display', metric: 'view', value: 1 });
 
-          // === CONTRACT FIELDS (MVP REQUIRED) ===
-          const settings = ev.settings || { showSchedule: false, showStandings: false, showBracket: false, showSponsors: false };
+      // === CONTRACT FIELDS (MVP REQUIRED) ===
+      const settings = ev.settings || { showSchedule: false, showStandings: false, showBracket: false, showSponsors: false };
 
-          // === CONTRACT FIELDS (V2 OPTIONAL) ===
-          const sponsors = ev.sponsors || [];
-          const externalData = ev.externalData || {};
+      // === CONTRACT FIELDS (V2 OPTIONAL) ===
+      const sponsors = ev.sponsors || [];
+      const externalData = ev.externalData || {};
 
-          // === LEGACY DATA FOR DYNAMIC MODE ===
-          const legacyData = ev.data || {};
-          const displayConfig = legacyData.display || {};
+      // === LEGACY DATA FOR DYNAMIC MODE ===
+      const legacyData = ev.data || {};
+      const displayConfig = legacyData.display || {};
 
-          // === RENDER LEAGUE & BROADCAST STRIP ===
-          // Uses event.externalData (V2 Optional)
-          if (externalData.scheduleUrl || externalData.standingsUrl || externalData.bracketUrl ||
-              externalData.statsUrl || externalData.scoreboardUrl || externalData.streamUrl) {
-            renderLeagueBroadcast(ev.templateId || '', externalData);
+      // === RENDER LEAGUE & BROADCAST STRIP ===
+      // Uses event.externalData (V2 Optional)
+      if (externalData.scheduleUrl || externalData.standingsUrl || externalData.bracketUrl ||
+          externalData.statsUrl || externalData.scoreboardUrl || externalData.streamUrl) {
+        renderLeagueBroadcast(ev.templateId || '', externalData);
+      }
+
+      // === RESERVED SPONSOR STRIP ===
+      // Uses event.settings.showSponsors and event.sponsors
+      if (settings.showSponsors && sponsors.length > 0) {
+        // Filter sponsors by placement for display/tv-banner
+        const displaySponsors = sponsors.filter(s =>
+          s.placement === 'display' || s.placement === 'tv-banner' || !s.placement
+        );
+        if (displaySponsors.length > 0) {
+          renderSponsorTopFromArray(ev.id, displaySponsors);
+          // Use layout.hasSidePane from DisplayBundle to show side panel
+          if (layout.hasSidePane) {
+            renderSponsorSideFromArray(ev.id, displaySponsors);
           }
+        }
+      }
 
-          // === RESERVED SPONSOR STRIP ===
-          // Uses event.settings.showSponsors and event.sponsors
-          if (settings.showSponsors && sponsors.length > 0) {
-            // Filter sponsors by placement for display/tv-banner
-            const displaySponsors = sponsors.filter(s =>
-              s.placement === 'display' || s.placement === 'tv-banner' || !s.placement
-            );
-            if (displaySponsors.length > 0) {
-              renderSponsorTopFromArray(ev.id, displaySponsors);
-              // Use layout.hasSidePane from DisplayBundle to show side panel
-              if (layout.hasSidePane) {
-                renderSponsorSideFromArray(ev.id, displaySponsors);
-              }
-            }
-          }
-
-          // === START DISPLAY MODE ===
-          // Dynamic mode: rotate through configured URLs
-          // Public mode: mirror the event public page
-          if (String(displayConfig.mode || '').toLowerCase() === 'dynamic'
-              && Array.isArray(displayConfig.urls) && displayConfig.urls.length) {
-            startDynamicMode(displayConfig.urls);
-          } else {
-            startPublicMode();
-          }
-        })
-        .withFailureHandler(() => startPublicMode())
-        .api_getDisplayBundle({ brandId, scope: 'events', id: eventId });
+      // === START DISPLAY MODE ===
+      // Dynamic mode: rotate through configured URLs
+      // Public mode: mirror the event public page
+      if (String(displayConfig.mode || '').toLowerCase() === 'dynamic'
+          && Array.isArray(displayConfig.urls) && displayConfig.urls.length) {
+        startDynamicMode(displayConfig.urls);
+      } else {
+        startPublicMode();
+      }
     }
 
     /**

@@ -23,6 +23,7 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
   <?!= include('Styles'); ?>
   <?!= include('DesignAdapter'); ?>
   <?!= include('SponsorUtils'); ?>
+  <?!= include('NUSDK'); ?>
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <meta name="referrer" content="no-referrer"/>
   <style>
@@ -595,19 +596,17 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
      * - event: Full canonical Event shape
      * - qrCodes: { publicUrl, signupUrl } - QuickChart URLs for print
      */
-    google.script.run
-      .withSuccessHandler(res => {
-        if (res.ok && res.value && res.value.event) {
-          // getPosterBundle returns { event: Event, qrCodes: {...} }
-          renderPoster(res.value.event);
-        } else if (res.ok && res.value) {
-          // Backward compat: direct event object
-          renderPoster(res.value);
-        } else {
-          renderPoster(null);
-        }
-      })
-      .withFailureHandler(() => {
+    async function boot() {
+      const res = await NU.rpc('api_getPosterBundle', { brandId: BRAND, scope: SCOPE, id: ID });
+
+      if (res.ok && res.value && res.value.event) {
+        // getPosterBundle returns { event: Event, qrCodes: {...} }
+        renderPoster(res.value.event);
+      } else if (res.ok && res.value) {
+        // Backward compat: direct event object
+        renderPoster(res.value);
+      } else if (!res.ok) {
+        // API error - show error state
         document.querySelector('.poster-container').innerHTML = `
           <div class="error-state">
             <div class="error-state-icon">⚠️</div>
@@ -616,8 +615,13 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
             <button class="btn-retry" onclick="location.reload()">🔄 Try Again</button>
           </div>
         `;
-      })
-      .api_getPosterBundle({ brandId: BRAND, scope: SCOPE, id: ID });
+      } else {
+        renderPoster(null);
+      }
+    }
+
+    // Boot on load
+    boot();
   </script>
 </body>
 </html>

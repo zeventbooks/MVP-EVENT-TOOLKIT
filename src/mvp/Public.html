@@ -21,6 +21,7 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
   <title><?= appTitle ?> · Public</title>
   <?!= include('Styles'); ?>
   <?!= include('SponsorUtils'); ?>
+  <?!= include('NUSDK'); ?>
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <meta name="referrer" content="no-referrer"/>
   <style>
@@ -1174,15 +1175,6 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
     // Store current event data for utility functions
     let currentEventData = null;
 
-    async function rpc(method, payload) {
-      return new Promise((resolve) => {
-        google.script.run
-          .withSuccessHandler(res => resolve(res))
-          .withFailureHandler(err => resolve({ ok: false, code: 'INTERNAL', message: String(err) }))
-          [method](payload);
-      });
-    }
-
     // Sponsor carousel state
     let sponsorCarouselTimer = null;
     let currentSponsorIndex = 0;
@@ -1839,7 +1831,7 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
     // Load event data
     // EVENT_CONTRACT.md v2.0: Use getPublicBundle for single event (returns { event, config })
     if (ID) {
-      rpc('api_getPublicBundle', { brandId: BRAND, scope: SCOPE, id: ID }).then(res => {
+      NU.rpc('api_getPublicBundle', { brandId: BRAND, scope: SCOPE, id: ID }).then(res => {
         if (res.ok && res.value && res.value.event) {
           // getPublicBundle returns { event: Event, config: { brandId, brandName, appTitle } }
           const bundle = res.value;
@@ -1858,7 +1850,7 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       });
     } else {
       // List view uses api_list which returns canonical Event shapes
-      rpc('api_list', { brandId: BRAND, scope: SCOPE }).then(res => {
+      NU.rpc('api_list', { brandId: BRAND, scope: SCOPE }).then(res => {
         if (res.ok && res.value) renderList(res.value.items || []);
         else showError('load');
       });
