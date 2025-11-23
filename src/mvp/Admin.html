@@ -22,6 +22,7 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
   <?!= include('Styles'); ?>
   <?!= include('DesignAdapter'); ?>
   <?!= include('NUSDK'); ?>
+  <?!= include('SharedUtils'); ?>
   <?!= include('CollapsibleSections'); ?>
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <meta name="referrer" content="no-referrer"/>
@@ -993,15 +994,15 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
       const venue = document.getElementById('venue').value.trim();
 
       if (!name) {
-        alert('Event Name is required');
+        SharedUtils.showToast('Event Name is required', 'warning');
         return;
       }
       if (!startDateISO) {
-        alert('Event Date is required');
+        SharedUtils.showToast('Event Date is required', 'warning');
         return;
       }
       if (!venue) {
-        alert('Venue is required');
+        SharedUtils.showToast('Venue is required', 'warning');
         return;
       }
 
@@ -1029,7 +1030,7 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
       overlay(false);
 
       if (!res.ok) {
-        alert(`Error: ${res.message}`);
+        SharedUtils.showToast(`Error: ${res.message}`, 'error');
         return;
       }
 
@@ -1227,13 +1228,13 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
     async function copy(id) {
       const url = document.getElementById(id).textContent;
       await navigator.clipboard.writeText(url);
-      alert('Link copied!');
+      SharedUtils.showToast('Link copied!', 'success');
     }
 
     async function copyUrl(url) {
       try {
         await navigator.clipboard.writeText(url);
-        alert('Link copied!');
+        SharedUtils.showToast('Link copied!', 'success');
       } catch (e) {
         // Fallback for older browsers
         const ta = document.createElement('textarea');
@@ -1242,7 +1243,7 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
         ta.select();
         document.execCommand('copy');
         document.body.removeChild(ta);
-        alert('Link copied!');
+        SharedUtils.showToast('Link copied!', 'success');
       }
     }
 
@@ -1306,10 +1307,10 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
       overlay(false);
 
       if (res.ok) {
-        alert('Sign-up forms saved!');
+        SharedUtils.showToast('Sign-up forms saved!', 'success');
         closeSignupConfig();
       } else {
-        alert(`Error: ${res.message}`);
+        SharedUtils.showToast(`Error: ${res.message}`, 'error');
       }
     }
 
@@ -1328,7 +1329,7 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
 
     async function createFormTemplate(templateType) {
       if (!currentEventId) {
-        alert('Please select or create an event first.');
+        SharedUtils.showToast('Please select or create an event first.', 'warning');
         return;
       }
 
@@ -1574,9 +1575,9 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
       overlay(false);
 
       if (res.ok) {
-        alert('Display configuration saved!');
+        SharedUtils.showToast('Display configuration saved!', 'success');
       } else {
-        alert(`Error: ${res.message}`);
+        SharedUtils.showToast(`Error: ${res.message}`, 'error');
       }
     }
 
