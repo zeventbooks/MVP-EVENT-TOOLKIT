@@ -282,6 +282,146 @@ The Admin surface (`Admin.html`) communicates with backend APIs in `Code.gs` via
 
 ---
 
+## Flow: Public → Code.gs
+
+The Public surface (`Public.html`) reads event data and logs analytics via these APIs.
+
+### APIs Used
+
+| API | Purpose | Line |
+|-----|---------|------|
+| `api_list` | Paginated event listing | Code.gs:3026 |
+| `api_getPublicBundle` | Single event + brand config | Code.gs:3080 |
+| `api_logExternalClick` | Track external link clicks | Code.gs:4112 |
+
+---
+
+### api_list
+
+**Purpose:** Paginated list of events for the public list view.
+
+**Payload:**
+```javascript
+{
+  brandId: string,        // Required
+  scope: string,          // 'events' | 'leagues' | 'tournaments' (default: 'events')
+  limit: number,          // Max results, capped at 1000 (optional)
+  offset: number,         // Pagination offset (optional)
+  ifNoneMatch: string     // ETag for caching (optional)
+}
+```
+
+**Response:**
+```javascript
+{
+  ok: true,
+  etag: string,
+  value: {
+    items: [Event],       // Array of canonical Event objects
+    pagination: {
+      total: number,
+      limit: number,
+      offset: number,
+      hasMore: boolean
+    }
+  }
+}
+```
+
+**Helpers:** `getEventsByBrand_()`, `hydrateEvent_()`, `validateEventContract_()`
+
+---
+
+### api_getPublicBundle
+
+**Purpose:** Single event with brand config for detail view (Public, Display, Poster surfaces).
+
+**Payload:**
+```javascript
+{
+  brandId: string,        // Required
+  scope: string,          // 'events' | 'leagues' | 'tournaments' (default: 'events')
+  id: string,             // Event ID (required)
+  ifNoneMatch: string     // ETag for caching (optional)
+}
+```
+
+**Response:**
+```javascript
+{
+  ok: true,
+  etag: string,
+  value: {
+    event: Event,         // Full canonical Event object
+    config: {
+      appTitle: string,   // Brand's app title
+      brandId: string,
+      brandName: string
+    }
+  }
+}
+```
+
+**Helpers:** `getEventById_()`, `findBrand_()`, `validateEventContract_()`
+
+---
+
+### api_logExternalClick
+
+**Purpose:** Track clicks on external links (schedule, standings, bracket, stream URLs).
+
+**Payload:**
+```javascript
+{
+  eventId: string,              // Required
+  linkType: string,             // 'schedule' | 'standings' | 'bracket' | 'stats' | 'scoreboard' | 'stream'
+  surface: string,              // Surface name (default: 'public')
+  sessionId: string,            // Session ID for attribution (optional)
+  visibleSponsorIds: string[]   // Sponsor IDs visible on page (optional, max 20)
+}
+```
+
+**Response:**
+```javascript
+{
+  ok: true,
+  value: { logged: true }
+}
+```
+
+**Helpers:** `_ensureAnalyticsSheet_()`, `sanitizeSpreadsheetValue_()`
+
+---
+
+### Sponsor Impression Logging
+
+Client-side analytics for sponsor impressions and clicks use `SponsorUtils.logEvent()` (defined in `SponsorUtils.html:65`).
+
+**Usage:**
+```javascript
+// Log sponsor impression
+SponsorUtils.logEvent({
+  eventId: string,
+  surface: 'public' | 'display' | 'poster',
+  metric: 'impression',
+  sponsorId: string
+});
+
+// Log sponsor click
+SponsorUtils.logEvent({
+  eventId: string,
+  surface: 'public',
+  metric: 'click',
+  sponsorId: string
+});
+```
+
+**Batching:** Events batch (size: 5) and flush every 5 seconds or on page unload. Sends to `api_logEvents()` backend.
+
+**Auto-populated fields:** `sessionId`, `ua` (user agent), `ts` (timestamp).
+
+---
+
 ## Flow: Code.gs → Public/Display/Poster
 
 Output surfaces consume event data via `api_get` or `api_list`:
