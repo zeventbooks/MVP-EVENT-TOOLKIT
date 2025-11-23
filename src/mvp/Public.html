@@ -1842,7 +1842,16 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       rpc('api_getPublicBundle', { brandId: BRAND, scope: SCOPE, id: ID }).then(res => {
         if (res.ok && res.value && res.value.event) {
           // getPublicBundle returns { event: Event, config: { brandId, brandName, appTitle } }
-          renderDetail(res.value.event, res.value.config);
+          const bundle = res.value;
+
+          // === LOG PUBLIC VIEW METRIC ===
+          try {
+            logEvent({ eventId: bundle.event.id, surface: 'public', metric: 'view', value: 1 });
+          } catch (e) {
+            // ignore
+          }
+
+          renderDetail(bundle.event, bundle.config);
         } else {
           showError('notfound');
         }
