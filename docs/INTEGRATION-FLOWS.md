@@ -10,6 +10,36 @@
 
 This document captures the wiring diagram between Admin surfaces, backend APIs (Code.gs), and output surfaces (Public/Display/Poster/Analytics). Use this as a reference when tracing data flow or debugging integration issues.
 
+### Quick Reference Diagram
+
+```
+Admin
+  └── api_create/api_updateEventData ──► Code.gs (saveEvent_/hydrateEvent_)
+                                           ├── EVENTS sheet
+                                           └── Bundles → Public/Display/Poster
+
+Public
+  ├── api_list ──────────────────────► Code.gs (getEventsByBrand_)
+  ├── api_getPublicBundle ───────────► Code.gs (event + brand config)
+  └── api_logExternalClick ──────────► AnalyticsService (ANALYTICS sheet)
+      SponsorUtils.logEvent ─────────► api_logEvents (batched)
+
+Display
+  └── api_getDisplayBundle ──────────► Code.gs (event + rotation/layout)
+      SponsorUtils.logEvent ─────────► api_logEvents (view/impression/click)
+
+Poster
+  └── api_getPosterBundle ───────────► Code.gs (event + QR codes + print)
+      SponsorUtils.logEvent ─────────► api_logEvents (view/impression/print)
+
+Analytics
+  └── api_logEvents ─────────────────► AnalyticsService (aggregation)
+                                           ├── bySurface
+                                           ├── bySponsor
+                                           ├── byToken
+                                           └── timeline
+```
+
 ---
 
 ## Flow: Admin → Code.gs
