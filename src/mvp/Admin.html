@@ -61,12 +61,12 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
     }
     .template-card .template-name {
       font-weight: 600;
-      font-size: 0.9rem;
+      font-size: var(--font-size-sm, 0.875rem); /* D-AUDIT: Aligned to type scale from 0.9rem */
       color: #1e293b;
       margin-bottom: 4px;
     }
     .template-card .template-desc {
-      font-size: 0.75rem;
+      font-size: var(--font-size-xs, 0.75rem); /* D-AUDIT: Using design token */
       color: #64748b;
       line-height: 1.3;
     }
@@ -75,7 +75,7 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
       justify-content: center;
       gap: 4px;
       margin-top: 8px;
-      font-size: 0.7rem;
+      font-size: var(--font-size-xs, 0.75rem); /* D-AUDIT: Aligned to type scale from 0.7rem */
       opacity: 0.7;
     }
     .template-card .template-sections span {
@@ -93,7 +93,7 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
       right: -8px;
       background: #2563eb;
       color: white;
-      font-size: 0.6rem;
+      font-size: var(--font-size-xs, 0.75rem); /* D-AUDIT: Aligned to type scale from 0.6rem (min readable) */
       padding: 2px 6px;
       border-radius: 8px;
       font-weight: 600;
@@ -133,7 +133,7 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
       accent-color: #2563eb;
     }
     .section-toggle .section-label {
-      font-size: 0.875rem;
+      font-size: var(--font-size-sm, 0.875rem); /* D-AUDIT: Using design token */
       color: #475569;
     }
     .section-toggle:has(input:checked) {
@@ -152,7 +152,7 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
       background: #fef3c7;
       border: 1px solid #fcd34d;
       border-radius: 8px;
-      font-size: 0.8rem;
+      font-size: var(--font-size-sm, 0.875rem); /* D-AUDIT: Aligned to type scale from 0.8rem */
       color: #92400e;
     }
     .sections-modified-notice.visible {
