@@ -977,20 +977,45 @@
   }
 
   /* ===== Form Validation States ===== */
+  /* Full class names for specificity */
   .form-input-error,
   input.form-input-error,
   select.form-input-error,
-  textarea.form-input-error {
-    border-color: #ef4444 !important;
+  textarea.form-input-error,
+  /* Short aliases (I-004) */
+  .input-error,
+  input.input-error,
+  select.input-error,
+  textarea.input-error {
+    border-color: var(--color-danger, #ef4444) !important;
     box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important;
   }
 
   .form-input-success,
   input.form-input-success,
   select.form-input-success,
-  textarea.form-input-success {
-    border-color: #10b981 !important;
+  textarea.form-input-success,
+  /* Short aliases (I-004) */
+  .input-success,
+  input.input-success,
+  select.input-success,
+  textarea.input-success {
+    border-color: var(--color-success, #10b981) !important;
     box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1) !important;
+  }
+
+  /* Validation message styling */
+  .input-error-message,
+  .form-error-message {
+    color: var(--color-danger, #ef4444);
+    font-size: var(--font-size-sm, 0.875rem);
+    margin-top: 4px;
+  }
+
+  .input-success-message {
+    color: var(--color-success, #10b981);
+    font-size: var(--font-size-sm, 0.875rem);
+    margin-top: 4px;
   }
 
   .form-hint {
