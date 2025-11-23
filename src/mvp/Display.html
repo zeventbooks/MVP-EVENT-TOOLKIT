@@ -21,6 +21,8 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
   <title><?= appTitle ?> · TV Display</title>
   <?!= include('Styles'); ?>
   <?!= include('SponsorUtils'); ?>
+  <?!= include('SharedUtils'); ?>
+  <?!= include('FooterComponent'); ?>
   <?!= include('NUSDK'); ?>
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <meta name="referrer" content="no-referrer" />
@@ -89,9 +91,9 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
       transition: all 0.3s ease;
     }
     .sp-card:hover {
-      background: #252525;
+      background: var(--color-tv-bg-elevated, #252525);
       transform: translateX(-4px);
-      border-color: #3a3a3a;
+      border-color: var(--color-tv-border-hover, #3a3a3a);
     }
     .sp-card img {
       max-height:64px; max-width:160px; object-fit:contain;
@@ -108,24 +110,8 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
       backdrop-filter: blur(8px);
     }
 
-    /* === MVP Essential: Trust Footer (TV-optimized) === */
-    .site-footer {
-      position: fixed;
-      bottom: 8px;
-      left: 50%;
-      transform: translateX(-50%);
-      color: rgba(255,255,255,0.3);
-      font-size: 0.6rem;
-      z-index: 100;
-      text-align: center;
-    }
-    .site-footer a {
-      color: rgba(255,255,255,0.4);
-      text-decoration: none;
-    }
-    .site-footer a:hover {
-      color: rgba(255,255,255,0.6);
-    }
+    /* .site-footer - Now centralized in FooterComponent.html (D-005) */
+    /* TV mode styling handled by body[data-tv="1"] .site-footer selector */
 
     /* === League & Broadcast Strip (TV-optimized, bottom strip) === */
     .league-broadcast-strip {
@@ -352,9 +338,8 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
     let currentRenderedSponsorIds = [];
 
     // === EVENT_CONTRACT.md v2.0 Support ===
-    // Helper to check if section is enabled using event.settings.*
-    // Trust the contract - never invent flags
-    function sectionEnabled(settings, key) {
+    // Use centralized sectionEnabled from SharedUtils (D-008)
+    const sectionEnabled = window.SharedUtils?.sectionEnabled || function(settings, key) {
       if (!settings) return false;
       switch (key) {
         case 'schedule': return settings.showSchedule === true;
@@ -363,7 +348,7 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
         case 'sponsors': return settings.showSponsors === true;
         default: return false;
       }
-    }
+    };
 
     // League templates that show the League & Broadcast strip
     const LEAGUE_TEMPLATES = ['rec_league', 'darts', 'bags', 'pinball', 'trivia', 'custom'];

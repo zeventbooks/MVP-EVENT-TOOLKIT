@@ -23,6 +23,8 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
   <?!= include('Styles'); ?>
   <?!= include('DesignAdapter'); ?>
   <?!= include('SponsorUtils'); ?>
+  <?!= include('SharedUtils'); ?>
+  <?!= include('FooterComponent'); ?>
   <?!= include('NUSDK'); ?>
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <meta name="referrer" content="no-referrer"/>
@@ -268,46 +270,8 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
     }
     .error-state h3 { color: #dc2626; }
     .error-state p { color: #b91c1c; }
-    .btn-retry {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 10px 20px;
-      background: #2563eb;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      font-size: 0.875rem;
-      font-weight: 500;
-      cursor: pointer;
-      text-decoration: none;
-    }
-    .btn-retry:hover { background: #1d4ed8; }
-
-    /* === MVP Essential: Trust Footer === */
-    .site-footer {
-      text-align: center;
-      padding: 24px 16px;
-      margin-top: 40px;
-      border-top: 1px solid #e2e8f0;
-      color: #94a3b8;
-      font-size: 0.7rem;
-    }
-    .site-footer a {
-      color: #64748b;
-      text-decoration: none;
-    }
-    .site-footer a:hover {
-      color: #2563eb;
-      text-decoration: underline;
-    }
-    @media print {
-      .site-footer {
-        border-top: none;
-        padding: 12px;
-        font-size: 8pt;
-      }
-    }
+    /* .btn-retry - Now centralized in Styles.html (C-001) */
+    /* .site-footer - Now centralized in FooterComponent.html (D-005) */
   </style>
 </head>
 <body>
@@ -356,9 +320,8 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
     initLogging();
 
     // === EVENT_CONTRACT.md v2.0 Support ===
-    // Helper to check if section is enabled using event.settings.*
-    // Trust the contract - never invent flags
-    function sectionEnabled(settings, key) {
+    // Use centralized sectionEnabled from SharedUtils (D-008)
+    const sectionEnabled = window.SharedUtils?.sectionEnabled || function(settings, key) {
       if (!settings) return false;
       switch (key) {
         case 'schedule': return settings.showSchedule === true;
@@ -367,7 +330,7 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
         case 'sponsors': return settings.showSponsors === true;
         default: return false;
       }
-    }
+    };
 
     // NOTE: Legacy renderSponsorStrip* functions removed in E-003
     // All sponsor rendering now uses SponsorUtils.SponsorRenderer

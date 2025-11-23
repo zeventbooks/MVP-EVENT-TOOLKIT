@@ -89,6 +89,18 @@ Related MVP Surfaces: Admin, Poster, Display, Public, SharedReport
       margin: 0 0 1rem 0;
       color: #1f2937;
     }
+    /* Focus-visible for keyboard accessibility (C-003) */
+    #auth-prompt .btn:focus-visible,
+    #auth-prompt button:focus-visible {
+      outline: 3px solid var(--color-primary, #2563eb);
+      outline-offset: 2px;
+      box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.2);
+    }
+    #auth-prompt input:focus-visible {
+      outline: none;
+      border-color: var(--color-primary, #2563eb);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+    }
   </style>
 </head>
 <body>
@@ -98,12 +110,12 @@ Related MVP Surfaces: Admin, Poster, Display, Public, SharedReport
       <h2>🔐 Admin Authentication Required</h2>
       <p>Enter your admin key to manage sponsors:</p>
       <div class="form-group">
-        <input type="password" id="admin-key-input" placeholder="Enter admin key" />
+        <input type="password" id="admin-key-input" placeholder="Enter admin key" autocomplete="off" aria-describedby="admin-key-help" />
       </div>
-      <button class="btn btn-primary" onclick="authenticateAdmin()" style="width: 100%;">
+      <button class="btn btn-primary btn-full" onclick="authenticateAdmin()">
         Unlock Sponsor Management
       </button>
-      <p style="margin-top: 1rem; font-size: 0.875rem; color: #6b7280;">
+      <p id="admin-key-help" style="margin-top: 1rem; font-size: 0.875rem; color: #6b7280;">
         Don't have an admin key? Contact your system administrator.
       </p>
     </div>
