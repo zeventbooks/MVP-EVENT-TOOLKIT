@@ -12,9 +12,9 @@ This document defines the critical test flows for MVP validation. These flows re
 
 ---
 
-## Flow 1: Event Lifecycle (Create → View Across Surfaces)
+## Flow 1: Event Lifecycle (Create → Admin → Sign Up → Poster → Public → Display)
 
-**Goal:** Verify an event created in Admin is viewable on all surfaces with correct data.
+**Goal:** Verify an event created in Admin flows through the realistic user journey: create, configure signup, print poster for promotion, view public page, then display at venue.
 
 ### Preconditions
 
@@ -22,6 +22,7 @@ This document defines the critical test flows for MVP validation. These flows re
 - [ ] At least one template exists (e.g., `bar_night`, `rec_league`, `custom`)
 - [ ] Admin has valid `adminKey` for the brand
 - [ ] Web app is deployed and accessible
+- [ ] Google Forms API permissions granted (for signup form)
 
 ### Steps
 
@@ -38,39 +39,49 @@ This document defines the critical test flows for MVP validation. These flows re
    - Click "Create Event"
    - Verify: Event card appears with generated links
 
-3. **Copy Public URL**
-   - Locate "Public Page" link in event card
-   - Verify: URL contains `?page=events&brand={brandId}&id={eventId}`
+3. **Generate Sign Up Form**
+   - In Admin, scroll to "Registration" section
+   - Click "Generate Registration Form"
+   - Verify: Shortlink is generated
+   - Verify: "Edit Form" and "View Responses" links appear
+   - Copy the shortlink for later testing
 
-4. **Open Public.html**
-   - Click/paste the Public URL in a new tab
+4. **Open Poster.html** (for printing/promotion)
+   - From Admin, click "Poster" link
+   - Verify: URL contains `?page=poster&brand={brandId}&id={eventId}`
+   - Verify:
+     - Event name, date, venue display
+     - QR codes render (public page QR, signup QR if configured)
+     - Print button is functional
+   - Print or save as PDF for distribution
+
+5. **Open Public.html** (user-facing event page)
+   - Scan the QR code from poster OR click "Public Page" link
+   - Verify: URL contains `?page=events&brand={brandId}&id={eventId}`
    - Verify:
      - Event name displays: "Test Event QA-001"
      - Date/time displays correctly (formatted)
      - Venue displays: "Test Venue"
+     - Signup CTA is visible (links to form shortlink)
      - No error states shown
 
-5. **Open Display.html**
+6. **Open Display.html** (at venue on TV)
    - From Admin, click "TV Display" link
    - Verify: URL contains `?page=display&brand={brandId}&id={eventId}&tv=1`
    - Verify:
      - Event info displays in TV-optimized layout
      - Public page is embedded in iframe
+     - Sponsor strip displays (if sponsors configured)
      - No error states shown
-
-6. **Open Poster.html**
-   - From Admin, click "Poster" link
-   - Verify: URL contains `?page=poster&brand={brandId}&id={eventId}`
-   - Verify:
-     - Event name, date, venue display
-     - QR codes render (public page, signup if configured)
-     - Print button is functional
 
 ### Expected Result
 
-- Event created once in Admin appears consistently across all 4 surfaces
+- Event created once in Admin appears consistently across all surfaces
+- Sign Up form is generated with trackable shortlink
+- Poster is print-ready with scannable QR codes
+- Public page shows event details and signup CTA
+- Display shows TV-optimized view with sponsor rotation
 - All surfaces use `event.links.*` from canonical Event (no hardcoded URLs)
-- Event data matches across all surfaces (name, date, venue)
 
 ### Code References
 
@@ -78,9 +89,11 @@ This document defines the critical test flows for MVP validation. These flows re
 |------|------|------|
 | Create Event RPC | `Admin.html` | 1020 |
 | Show Event Card | `Admin.html` | 1044 |
+| Generate Form RPC | `Admin.html` | 1361 |
+| Generate Shortlink | `Admin.html` | 1378 |
+| Poster render | `Poster.html` | 602 |
 | Public render | `Public.html` | 1854 |
 | Display boot | `Display.html` | 680 |
-| Poster render | `Poster.html` | 602 |
 
 ---
 
@@ -297,17 +310,18 @@ This document defines the critical test flows for MVP validation. These flows re
 
 Use this for rapid smoke testing:
 
-### Event Lifecycle
+### Event Lifecycle (in order)
 - [ ] Admin: Create event with name, date, venue
 - [ ] Admin: Event card shows with 3 links (Public, Display, Poster)
-- [ ] Public: Event displays correctly
-- [ ] Display: TV mode loads with event
-- [ ] Poster: Print view renders with QR codes
+- [ ] Admin: Generate registration form → shortlink created
+- [ ] Poster: Print view renders with QR codes (public + signup)
+- [ ] Public: Event displays correctly, signup CTA visible
+- [ ] Display: TV mode loads with event + sponsor strip
 
 ### Forms
-- [ ] Admin: Generate registration form succeeds
-- [ ] Admin: Shortlink is created
-- [ ] Form: Opens and accepts submission
+- [ ] Form: Opens from shortlink
+- [ ] Form: Accepts test submission
+- [ ] Responses: Submission appears in response sheet
 
 ### Sponsors
 - [ ] Public: Sponsor banner/logo displays
