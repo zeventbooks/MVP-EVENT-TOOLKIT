@@ -152,6 +152,18 @@
     font-size: 14px;
     font-family: inherit;
     transition: border-color 0.2s, box-shadow 0.2s;
+    min-height: 44px; /* WCAG 2.5.5 touch target minimum */
+  }
+
+  /* Disabled input states - accessibility enhancement */
+  input:disabled,
+  select:disabled,
+  textarea:disabled {
+    background-color: #f8fafc;
+    color: #94a3b8;
+    cursor: not-allowed;
+    opacity: 0.65;
+    border-color: #cbd5e1;
   }
 
   input:focus,
@@ -250,6 +262,29 @@
 
   .btn-danger:hover {
     background: #dc2626;
+  }
+
+  /* Disabled button states - accessibility enhancement */
+  .btn-primary:disabled,
+  .btn-secondary:disabled,
+  .btn-success:disabled,
+  .btn-danger:disabled,
+  button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .btn-primary:disabled {
+    background-color: #cbd5e1;
+  }
+
+  .btn-secondary:disabled {
+    background-color: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #94a3b8;
   }
 
   .button-group {
