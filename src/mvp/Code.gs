@@ -2515,6 +2515,131 @@ function getEventsByBrand_(brandId, options = {}) {
 }
 
 /**
+ * Normalize API create payload into canonical Event structure (ZEVENT-003)
+ * Transforms { brandId, scope, templateId, data } into a clean Event object
+ * that can be passed to saveEvent_().
+ *
+ * @param {Object} payload - API payload { brandId, scope, templateId, data }
+ * @returns {Object} { event, brandId, scope, templateId } normalized for saveEvent_
+ * @private
+ */
+function normalizeCreatePayloadToEvent_(payload) {
+  const { brandId, scope = 'events', templateId = 'custom', data = {} } = payload || {};
+
+  // Build canonical event structure from data
+  const event = {
+    // Identity - id/slug handled by saveEvent_ if not provided
+    id: data.id || null,
+    slug: data.slug || null,
+    name: data.name || '',
+    startDateISO: data.startDateISO || data.dateISO || '',
+    venue: data.venue || data.location || '',
+
+    // signupUrl for links generation
+    signupUrl: data.signupUrl || data.links?.signupUrl || '',
+
+    // CTAs
+    ctas: data.ctas || null,
+
+    // Settings
+    settings: data.settings || null,
+
+    // MVP Optional
+    schedule: data.schedule !== undefined ? data.schedule : null,
+    standings: data.standings !== undefined ? data.standings : null,
+    bracket: data.bracket !== undefined ? data.bracket : null,
+
+    // V2 Optional
+    sponsors: data.sponsors !== undefined ? data.sponsors : [],
+    media: data.media !== undefined ? data.media : {},
+    externalData: data.externalData !== undefined ? data.externalData : {},
+
+    // Reserved
+    analytics: data.analytics || { enabled: false },
+    payments: data.payments || { enabled: false }
+  };
+
+  return { event, brandId, scope, templateId };
+}
+
+/**
+ * Merge update data into existing hydrated Event (ZEVENT-003)
+ * Overlays incoming partial data onto a full Event object.
+ * Preserves existing values for fields not in the update.
+ *
+ * @param {Object} existingEvent - Full hydrated Event from getEventById_
+ * @param {Object} updateData - Partial update data from API
+ * @returns {Object} Merged Event object ready for saveEvent_
+ * @private
+ */
+function mergeEventUpdate_(existingEvent, updateData) {
+  if (!updateData || typeof updateData !== 'object') {
+    return existingEvent;
+  }
+
+  // Start with existing event
+  const merged = { ...existingEvent };
+
+  // Identity fields (name, venue can be updated; id/slug are immutable)
+  if (updateData.name !== undefined) {
+    merged.name = updateData.name;
+  }
+  if (updateData.startDateISO !== undefined || updateData.dateISO !== undefined) {
+    merged.startDateISO = updateData.startDateISO || updateData.dateISO;
+  }
+  if (updateData.venue !== undefined || updateData.location !== undefined) {
+    merged.venue = updateData.venue || updateData.location;
+  }
+
+  // signupUrl
+  if (updateData.signupUrl !== undefined || updateData.links?.signupUrl !== undefined) {
+    merged.signupUrl = updateData.signupUrl || updateData.links?.signupUrl || '';
+  }
+
+  // CTAs - full replacement if provided
+  if (updateData.ctas !== undefined) {
+    merged.ctas = updateData.ctas;
+  }
+
+  // Settings - full replacement if provided
+  if (updateData.settings !== undefined) {
+    merged.settings = updateData.settings;
+  }
+
+  // MVP Optional
+  if (updateData.schedule !== undefined) {
+    merged.schedule = updateData.schedule;
+  }
+  if (updateData.standings !== undefined) {
+    merged.standings = updateData.standings;
+  }
+  if (updateData.bracket !== undefined) {
+    merged.bracket = updateData.bracket;
+  }
+
+  // V2 Optional
+  if (updateData.sponsors !== undefined) {
+    merged.sponsors = updateData.sponsors;
+  }
+  if (updateData.media !== undefined) {
+    merged.media = updateData.media;
+  }
+  if (updateData.externalData !== undefined) {
+    merged.externalData = updateData.externalData;
+  }
+
+  // Reserved
+  if (updateData.analytics !== undefined) {
+    merged.analytics = updateData.analytics;
+  }
+  if (updateData.payments !== undefined) {
+    merged.payments = updateData.payments;
+  }
+
+  return merged;
+}
+
+/**
  * Contract-first save path for events (ZEVENT-003)
  * Canonical function for both creating and updating events.
  * Validates required fields, ensures id/slug, regenerates links & QR,
@@ -3685,13 +3810,13 @@ function getEventMetricsForReport_(brand, eventId) {
 
 /**
  * Create new event (ZEVENT-003: Adapter using saveEvent_)
- * Delegates to saveEvent_() for contract-first creation per EVENT_CONTRACT.md v2.0
+ * Normalizes payload to Event, delegates to saveEvent_() for contract-first creation
  * @tier mvp
  */
 function api_create(payload){
   return runSafe('api_create', () => {
     if(!payload||typeof payload!=='object') return Err(ERR.BAD_INPUT,'Missing payload');
-    const { brandId, scope, templateId, data, adminKey, idemKey } = payload;
+    const { brandId, adminKey, idemKey } = payload;
 
     // Auth gate
     const g = gate_(brandId, adminKey);
@@ -3703,16 +3828,19 @@ function api_create(payload){
         return Err(ERR.BAD_INPUT, 'Invalid idempotency key format');
       }
       const c = CacheService.getScriptCache();
-      const k = `idem:${brandId}:${scope}:${idemKey}`;
+      const k = `idem:${brandId}:${payload.scope || 'events'}:${idemKey}`;
       if (c.get(k)) return Err(ERR.BAD_INPUT, 'Duplicate create');
       c.put(k, '1', 600);
     }
 
+    // Normalize payload to canonical Event structure
+    const normalized = normalizeCreatePayloadToEvent_(payload);
+
     // Delegate to canonical saveEvent_ with mode: 'create'
-    const result = saveEvent_(brandId, data?.id || null, data, {
-      scope: scope || 'events',
+    const result = saveEvent_(normalized.brandId, normalized.event.id, normalized.event, {
+      scope: normalized.scope,
       mode: 'create',
-      templateId: templateId || 'custom'
+      templateId: normalized.templateId
     });
 
     if (!result.ok) return result;
@@ -3723,11 +3851,10 @@ function api_create(payload){
       Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(event))
     );
 
-    diag_('info', 'api_create', 'created via saveEvent_', {
+    diag_('info', 'api_create', 'created via normalized saveEvent_', {
       id: event.id,
-      brandId,
-      scope,
-      templateId
+      brandId: normalized.brandId,
+      scope: normalized.scope
     });
 
     return _ensureOk_('api_create', SC_GET, { ok: true, etag, value: event });
@@ -3735,8 +3862,8 @@ function api_create(payload){
 }
 
 /**
- * Update event data (merge with existing)
- * Uses saveEvent_() for contract enforcement per EVENT_CONTRACT.md v2.0
+ * Update event data (ZEVENT-003: Load-Merge-Save pattern)
+ * Loads existing event via hydrateEvent_, merges update data, saves via saveEvent_
  * @tier mvp
  */
 function api_updateEventData(req){
@@ -3748,17 +3875,37 @@ function api_updateEventData(req){
     const g = gate_(brandId, adminKey);
     if (!g.ok) return g;
 
-    // Use saveEvent_() for contract-enforced update
-    // This handles validation, locking, and canonical shape
-    const result = saveEvent_(brandId, id, data, {
-      scope: scope || 'events'
+    // Step 1: Load existing event via getEventById_ (uses hydrateEvent_)
+    const existingResult = getEventById_(brandId, id, {
+      scope: scope || 'events',
+      hydrateSponsors: true,
+      skipValidation: true  // We'll validate after merge
+    });
+
+    if (!existingResult.ok) return existingResult;
+
+    // Step 2: Merge incoming data into the existing hydrated event
+    const mergedEvent = mergeEventUpdate_(existingResult.value, data);
+
+    // Step 3: Save the merged event via canonical saveEvent_
+    const result = saveEvent_(brandId, id, mergedEvent, {
+      scope: scope || 'events',
+      mode: 'update'
     });
 
     if (!result.ok) return result;
 
     // saveEvent_ returns the full hydrated event
     const event = result.value;
-    const etag = Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(event)));
+    const etag = Utilities.base64Encode(
+      Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(event))
+    );
+
+    diag_('info', 'api_updateEventData', 'updated via load-merge-save', {
+      id: event.id,
+      brandId,
+      scope: scope || 'events'
+    });
 
     return _ensureOk_('api_updateEventData', SC_GET, { ok: true, etag, value: event });
   });
