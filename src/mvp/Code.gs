@@ -2515,24 +2515,23 @@ function getEventsByBrand_(brandId, options = {}) {
 }
 
 /**
- * Save/Update event with contract enforcement
- * Validates required fields, regenerates URLs/QRs, writes canonical shape
+ * Contract-first save path for events (ZEVENT-003)
+ * Canonical function for both creating and updating events.
+ * Validates required fields, ensures id/slug, regenerates links & QR,
+ * writes row, and returns hydrated event via hydrateEvent_().
  *
  * @param {string} brandId - Brand ID
- * @param {string} id - Event ID (existing event to update)
- * @param {Object} data - Event data to save (partial or full)
- * @param {Object} options - { scope, createIfMissing }
+ * @param {string|null} id - Event ID (null for create, required for update)
+ * @param {Object} data - Event data to save (full for create, partial for update)
+ * @param {Object} options - { scope, mode, templateId }
+ *   - mode: 'create' | 'update' (default: 'update' for backward compat)
+ *   - templateId: Template ID for create mode (default: 'custom')
  * @returns {Object} { ok: true, value: Event } or { ok: false, ... }
  * @private
  */
 function saveEvent_(brandId, id, data, options = {}) {
-  const { scope = 'events' } = options;
-
-  // Validate ID format
-  const sanitizedId = sanitizeId_(id);
-  if (!sanitizedId) {
-    return Err(ERR.BAD_INPUT, 'Invalid ID format');
-  }
+  const { scope = 'events', mode = 'update', templateId = 'custom' } = options;
+  const isCreate = mode === 'create';
 
   // Get brand
   const brand = findBrand_(brandId);
@@ -2544,34 +2543,118 @@ function saveEvent_(brandId, id, data, options = {}) {
   const scopeCheck = assertScopeAllowed_(brand, scope);
   if (!scopeCheck.ok) return scopeCheck;
 
+  // === Validate/Generate ID ===
+  let sanitizedId;
+  if (isCreate) {
+    // For create: use provided ID or generate new one
+    if (id) {
+      // Validate UUID format if provided
+      if (!/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(id)) {
+        return Err(ERR.BAD_INPUT, 'Invalid id format: must be UUID v4');
+      }
+      sanitizedId = id;
+    } else {
+      sanitizedId = Utilities.getUuid();
+    }
+  } else {
+    // For update: ID is required
+    sanitizedId = sanitizeId_(id);
+    if (!sanitizedId) {
+      return Err(ERR.BAD_INPUT, 'Invalid ID format');
+    }
+  }
+
+  // === Validate MVP REQUIRED fields for create ===
+  if (isCreate) {
+    const name = sanitizeInput_(String(data?.name || '').trim());
+    const startDateISO = String(data?.startDateISO || data?.dateISO || '').trim();
+    const venue = sanitizeInput_(String(data?.venue || data?.location || '').trim());
+
+    if (!name) {
+      return Err(ERR.BAD_INPUT, 'Missing required field: name');
+    }
+    if (name.length > 200) {
+      return Err(ERR.BAD_INPUT, 'name exceeds max length of 200 characters');
+    }
+    if (!startDateISO) {
+      return Err(ERR.BAD_INPUT, 'Missing required field: startDateISO');
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(startDateISO)) {
+      return Err(ERR.BAD_INPUT, 'Invalid date format: startDateISO must be YYYY-MM-DD');
+    }
+    if (!venue) {
+      return Err(ERR.BAD_INPUT, 'Missing required field: venue');
+    }
+    if (venue.length > 200) {
+      return Err(ERR.BAD_INPUT, 'venue exceeds max length of 200 characters');
+    }
+  }
+
   const sh = getStoreSheet_(brand, scope);
   const baseUrl = ScriptApp.getService().getUrl();
   const now = new Date().toISOString();
 
-  // Use lock for read-modify-write
+  // Use lock for atomic operations
   const lock = LockService.getScriptLock();
   try {
     lock.waitLock(10000);
 
-    // Find existing event
     const rows = sh.getDataRange().getValues();
-    const rowIdx = rows.findIndex((r, i) => i > 0 && r[0] === sanitizedId && r[1] === brandId);
+    let existingData = {};
+    let rowIdx = -1;
+    let createdAt = now;
+    let slug = '';
 
-    if (rowIdx === -1) {
-      lock.releaseLock();
-      return Err(ERR.NOT_FOUND, 'Event not found');
+    if (isCreate) {
+      // === CREATE MODE ===
+
+      // Generate or validate slug
+      slug = data?.slug;
+      if (slug) {
+        slug = String(slug).toLowerCase().replace(/[^a-z0-9-]/g, '').substring(0, 50);
+        if (!slug) {
+          lock.releaseLock();
+          return Err(ERR.BAD_INPUT, 'Invalid slug format');
+        }
+      } else {
+        // Generate from name
+        const name = sanitizeInput_(String(data?.name || '').trim());
+        slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '').substring(0, 50);
+      }
+
+      // Check for slug collisions
+      const existingSlugs = rows.slice(1).map(r => r[5]);
+      let counter = 2;
+      const originalSlug = slug;
+      while (existingSlugs.includes(slug)) {
+        slug = `${originalSlug}-${counter}`;
+        counter++;
+      }
+
+      // Check for ID collisions
+      const existingIds = rows.slice(1).map(r => r[0]);
+      if (existingIds.includes(sanitizedId)) {
+        lock.releaseLock();
+        return Err(ERR.BAD_INPUT, 'Event with this ID already exists');
+      }
+
+    } else {
+      // === UPDATE MODE ===
+
+      rowIdx = rows.findIndex((r, i) => i > 0 && r[0] === sanitizedId && r[1] === brandId);
+      if (rowIdx === -1) {
+        lock.releaseLock();
+        return Err(ERR.NOT_FOUND, 'Event not found');
+      }
+
+      const existingRow = rows[rowIdx];
+      existingData = safeJSONParse_(existingRow[3], {});
+      createdAt = existingRow[4];
+      slug = existingRow[5];
     }
 
-    const existingRow = rows[rowIdx];
-    const existingData = safeJSONParse_(existingRow[3], {});
-    const templateId = existingRow[2];
-    const createdAt = existingRow[4];
-    const existingSlug = existingRow[5];
-
-    // Merge with existing data
+    // === Build merged data with validation ===
     const mergedData = { ...existingData };
-
-    // === Apply updates with validation ===
 
     // Name (MVP REQUIRED)
     if (data.name !== undefined) {
@@ -2588,27 +2671,36 @@ function saveEvent_(brandId, id, data, options = {}) {
     }
 
     // startDateISO (MVP REQUIRED)
-    if (data.startDateISO !== undefined) {
-      const startDateISO = String(data.startDateISO).trim();
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(startDateISO)) {
+    if (data.startDateISO !== undefined || data.dateISO !== undefined) {
+      const startDateISO = String(data.startDateISO || data.dateISO || '').trim();
+      if (startDateISO && !/^\d{4}-\d{2}-\d{2}$/.test(startDateISO)) {
         lock.releaseLock();
         return Err(ERR.BAD_INPUT, 'startDateISO must be YYYY-MM-DD format');
       }
-      mergedData.startDateISO = startDateISO;
+      if (startDateISO) {
+        mergedData.startDateISO = startDateISO;
+      }
     }
 
-    // venue (MVP REQUIRED)
-    if (data.venue !== undefined) {
-      const venue = sanitizeInput_(String(data.venue).trim());
-      if (!venue) {
+    // venue (MVP REQUIRED) - with backward compat for location
+    if (data.venue !== undefined || data.location !== undefined) {
+      const venue = sanitizeInput_(String(data.venue || data.location || '').trim());
+      if (data.venue !== undefined && !venue) {
         lock.releaseLock();
         return Err(ERR.BAD_INPUT, 'venue cannot be empty');
       }
-      if (venue.length > 200) {
+      if (venue && venue.length > 200) {
         lock.releaseLock();
         return Err(ERR.BAD_INPUT, 'venue exceeds max length of 200 characters');
       }
-      mergedData.venue = venue;
+      if (venue) {
+        mergedData.venue = venue;
+      }
+    }
+
+    // signupUrl (stored for links generation)
+    if (data.signupUrl !== undefined || data.links?.signupUrl !== undefined) {
+      mergedData.signupUrl = data.signupUrl || data.links?.signupUrl || '';
     }
 
     // CTAs (MVP REQUIRED)
@@ -2627,6 +2719,16 @@ function saveEvent_(brandId, id, data, options = {}) {
           url: data.ctas.secondary.url || ''
         } : null
       };
+    } else if (isCreate && !mergedData.ctas) {
+      // Default CTAs for create
+      const signupUrl = data.signupUrl || data.links?.signupUrl || '';
+      mergedData.ctas = {
+        primary: {
+          label: 'Sign Up',
+          url: signupUrl
+        },
+        secondary: null
+      };
     }
 
     // Settings (MVP REQUIRED)
@@ -2636,6 +2738,14 @@ function saveEvent_(brandId, id, data, options = {}) {
         showStandings: !!data.settings.showStandings,
         showBracket: !!data.settings.showBracket,
         showSponsors: !!data.settings.showSponsors
+      };
+    } else if (isCreate && !mergedData.settings) {
+      // Default settings for create
+      mergedData.settings = {
+        showSchedule: false,
+        showStandings: false,
+        showBracket: false,
+        showSponsors: false
       };
     }
 
@@ -2682,17 +2792,22 @@ function saveEvent_(brandId, id, data, options = {}) {
     // Update timestamp
     mergedData.updatedAtISO = now;
 
-    // Regenerate signupUrl in links if ctas.primary.url changed
-    const signupUrl = mergedData.ctas?.primary?.url || '';
-
-    // Write updated data
-    sh.getRange(rowIdx + 1, 4).setValue(JSON.stringify(mergedData));
+    // === Write data ===
+    if (isCreate) {
+      // Append new row: [id, brandId, templateId, dataJSON, createdAt, slug]
+      sh.appendRow([sanitizedId, brandId, templateId, JSON.stringify(mergedData), now, slug]);
+      diag_('info', 'saveEvent_', 'Event created', { id: sanitizedId, brandId, mode: 'create' });
+    } else {
+      // Update existing row
+      sh.getRange(rowIdx + 1, 4).setValue(JSON.stringify(mergedData));
+      diag_('info', 'saveEvent_', 'Event updated', { id: sanitizedId, brandId, mode: 'update' });
+    }
 
     lock.releaseLock();
 
-    // Return hydrated event
-    const updatedRow = [sanitizedId, brandId, templateId, JSON.stringify(mergedData), createdAt, existingSlug];
-    const event = hydrateEvent_(updatedRow, { baseUrl, hydrateSponsors: true });
+    // === Return hydrated event ===
+    const savedRow = [sanitizedId, brandId, templateId, JSON.stringify(mergedData), createdAt, slug];
+    const event = hydrateEvent_(savedRow, { baseUrl, hydrateSponsors: true });
 
     // Validate the result
     const validation = validateEventContract_(event);
@@ -2700,16 +2815,16 @@ function saveEvent_(brandId, id, data, options = {}) {
       diag_('warn', 'saveEvent_', 'Saved event has contract warnings', {
         id: sanitizedId,
         brandId,
+        mode,
         errors: validation.errors
       });
     }
 
-    diag_('info', 'saveEvent_', 'Event saved', { id: sanitizedId, brandId });
     return Ok(event);
 
   } catch (e) {
-    lock.releaseLock();
-    diag_('error', 'saveEvent_', 'Failed to save event', { id: sanitizedId, error: e.message });
+    try { lock.releaseLock(); } catch (_) { /* ignore */ }
+    diag_('error', 'saveEvent_', 'Failed to save event', { id: sanitizedId, mode, error: e.message });
     return Err(ERR.INTERNAL, 'Failed to save event: ' + e.message);
   }
 }
@@ -3569,8 +3684,8 @@ function getEventMetricsForReport_(brand, eventId) {
 }
 
 /**
- * Create new event
- * Builds canonical event per EVENT_CONTRACT.md v2.0
+ * Create new event (ZEVENT-003: Adapter using saveEvent_)
+ * Delegates to saveEvent_() for contract-first creation per EVENT_CONTRACT.md v2.0
  * @tier mvp
  */
 function api_create(payload){
@@ -3578,156 +3693,44 @@ function api_create(payload){
     if(!payload||typeof payload!=='object') return Err(ERR.BAD_INPUT,'Missing payload');
     const { brandId, scope, templateId, data, adminKey, idemKey } = payload;
 
-    const g=gate_(brandId, adminKey); if(!g.ok) return g;
-    const a=assertScopeAllowed_(findBrand_(brandId), scope); if(!a.ok) return a;
+    // Auth gate
+    const g = gate_(brandId, adminKey);
+    if (!g.ok) return g;
 
-    // === EVENT_CONTRACT.md v2.0: Validate MVP Required Fields ===
-    const name = sanitizeInput_(String(data?.name || '').trim());
-    const startDateISO = String(data?.startDateISO || data?.dateISO || '').trim();
-    const venue = sanitizeInput_(String(data?.venue || data?.location || '').trim());
-
-    if (!name) return Err(ERR.BAD_INPUT, 'Missing required field: name');
-    if (!startDateISO) return Err(ERR.BAD_INPUT, 'Missing required field: startDateISO');
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(startDateISO)) return Err(ERR.BAD_INPUT, 'Invalid date format: startDateISO must be YYYY-MM-DD');
-    if (!venue) return Err(ERR.BAD_INPUT, 'Missing required field: venue');
-
-    // Validate id if provided by Admin, otherwise generate
-    let id = data?.id;
-    if (id) {
-      // Validate UUID format from Admin
-      if (!/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(id)) {
-        return Err(ERR.BAD_INPUT, 'Invalid id format: must be UUID v4');
-      }
-    } else {
-      id = Utilities.getUuid();
-    }
-
-    // Validate slug if provided by Admin
-    let slug = data?.slug;
-    if (slug) {
-      slug = String(slug).toLowerCase().replace(/[^a-z0-9-]/g, '').substring(0, 50);
-      if (!slug) return Err(ERR.BAD_INPUT, 'Invalid slug format');
-    }
-
-    // Idempotency check
-    if (idemKey){
+    // Idempotency check (request-level logic, stays in adapter)
+    if (idemKey) {
       if (!/^[a-zA-Z0-9-]{1,128}$/.test(idemKey)) {
         return Err(ERR.BAD_INPUT, 'Invalid idempotency key format');
       }
-      const c=CacheService.getScriptCache(), k=`idem:${brandId}:${scope}:${idemKey}`;
-      if (c.get(k)) return Err(ERR.BAD_INPUT,'Duplicate create');
+      const c = CacheService.getScriptCache();
+      const k = `idem:${brandId}:${scope}:${idemKey}`;
+      if (c.get(k)) return Err(ERR.BAD_INPUT, 'Duplicate create');
       c.put(k, '1', 600);
     }
 
-    // Prepare storage
-    const brand = findBrand_(brandId);
-    const sh = getStoreSheet_(brand, scope);
-    const now = new Date().toISOString();
-    const baseUrl = ScriptApp.getService().getUrl();
+    // Delegate to canonical saveEvent_ with mode: 'create'
+    const result = saveEvent_(brandId, data?.id || null, data, {
+      scope: scope || 'events',
+      mode: 'create',
+      templateId: templateId || 'custom'
+    });
 
-    // Build/validate slug with collision detection under lock
-    const lock = LockService.getScriptLock();
-    try {
-      lock.waitLock(10000);
+    if (!result.ok) return result;
 
-      // If no slug provided, generate from name
-      if (!slug) {
-        slug = name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'').substring(0, 50);
-      }
+    // Generate etag and return with envelope
+    const event = result.value;
+    const etag = Utilities.base64Encode(
+      Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(event))
+    );
 
-      // Check for slug collisions and handle
-      const existingSlugs = sh.getDataRange().getValues().slice(1).map(r => r[5]);
-      let counter = 2;
-      let originalSlug = slug;
-      while (existingSlugs.includes(slug)) {
-        slug = `${originalSlug}-${counter}`;
-        counter++;
-      }
+    diag_('info', 'api_create', 'created via saveEvent_', {
+      id: event.id,
+      brandId,
+      scope,
+      templateId
+    });
 
-      // === Build canonical event per EVENT_CONTRACT.md v2.0 ===
-      const signupUrl = data?.links?.signupUrl || data?.signupUrl || '';
-
-      const links = {
-        publicUrl: `${baseUrl}?page=events&brand=${brandId}&id=${id}`,
-        displayUrl: `${baseUrl}?page=display&brand=${brandId}&id=${id}&tv=1`,
-        posterUrl: `${baseUrl}?page=poster&brand=${brandId}&id=${id}`,
-        signupUrl: signupUrl,
-        sharedReportUrl: null
-      };
-
-      // Generate QR codes
-      const qr = {
-        public: generateQRDataUri_(links.publicUrl),
-        signup: signupUrl ? generateQRDataUri_(signupUrl) : generateQRDataUri_(links.publicUrl)
-      };
-
-      // Build CTA (use provided or default)
-      const ctaLabel = sanitizeInput_(String(data?.ctas?.primary?.label || 'Sign Up').trim());
-      const ctas = {
-        primary: {
-          label: ctaLabel,
-          url: signupUrl || links.publicUrl
-        },
-        secondary: data?.ctas?.secondary || null
-      };
-
-      // Build settings (MVP Required)
-      const settings = {
-        showSchedule: !!data?.settings?.showSchedule,
-        showStandings: !!data?.settings?.showStandings,
-        showBracket: !!data?.settings?.showBracket,
-        showSponsors: !!data?.settings?.showSponsors
-      };
-
-      // Build complete canonical event object for storage
-      const canonicalEvent = {
-        name: name,
-        startDateISO: startDateISO,
-        venue: venue,
-        ctas: ctas,
-        settings: settings,
-        schedule: data?.schedule || null,
-        standings: data?.standings || null,
-        bracket: data?.bracket || null,
-        sponsors: data?.sponsors || [],
-        media: data?.media || {},
-        externalData: data?.externalData || {},
-        analytics: data?.analytics || { enabled: false },
-        payments: data?.payments || { enabled: false },
-        updatedAtISO: now
-      };
-
-      // Store event
-      sh.appendRow([id, brandId, templateId || 'custom', JSON.stringify(canonicalEvent), now, slug]);
-
-      diag_('info','api_create','created',{id,brandId,scope,templateId});
-
-      // Return full hydrated event per EVENT_CONTRACT.md v2.0
-      return Ok({
-        id: id,
-        slug: slug,
-        name: name,
-        startDateISO: startDateISO,
-        venue: venue,
-        links: links,
-        qr: qr,
-        ctas: ctas,
-        settings: settings,
-        schedule: canonicalEvent.schedule,
-        standings: canonicalEvent.standings,
-        bracket: canonicalEvent.bracket,
-        sponsors: canonicalEvent.sponsors,
-        media: canonicalEvent.media,
-        externalData: canonicalEvent.externalData,
-        analytics: canonicalEvent.analytics,
-        payments: canonicalEvent.payments,
-        createdAtISO: now,
-        updatedAtISO: now
-      });
-
-    } finally {
-      lock.releaseLock();
-    }
+    return _ensureOk_('api_create', SC_GET, { ok: true, etag, value: event });
   });
 }
 
