@@ -193,7 +193,7 @@ class TestRunner {
     const parts = path.split('.');
     let current = obj;
     for (const part of parts) {
-      if (current === null || current === undefined || !current.hasOwnProperty(part)) {
+      if (current === null || current === undefined || !Object.prototype.hasOwnProperty.call(current, part)) {
         return false;
       }
       current = current[part];
