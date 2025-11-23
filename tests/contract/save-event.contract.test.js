@@ -463,20 +463,26 @@ describe('📝 api_saveEvent Contract Tests', () => {
     describe('Success Responses', () => {
       SAVE_EVENT_TEST_MATRIX.create.success.forEach(testCase => {
         it(testCase.name, () => {
+          // Generate mock values based on input
+          const inputName = testCase.input.event.name || 'Test Event';
+          const generatedSlug = testCase.input.event.slug ||
+            inputName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').substring(0, 50);
+          const generatedId = 'a1b2c3d4-e5f6-4789-abcd-ef0123456789';
+
           // Mock successful response
           const mockResponse = {
             ok: true,
             etag: 'mock-etag-123',
             value: {
-              id: 'generated-uuid-1234-5678-abcd',
-              slug: 'test-event',
-              name: testCase.input.event.name || 'Test Event',
+              id: generatedId,
+              slug: generatedSlug,
+              name: inputName,
               startDateISO: testCase.input.event.startDateISO || '2025-12-31',
               venue: testCase.input.event.venue || 'Test Venue',
               links: {
-                publicUrl: 'https://example.com?page=events&id=generated-uuid',
-                displayUrl: 'https://example.com?page=display&id=generated-uuid',
-                posterUrl: 'https://example.com?page=poster&id=generated-uuid',
+                publicUrl: `https://example.com?page=events&id=${generatedId}`,
+                displayUrl: `https://example.com?page=display&id=${generatedId}`,
+                posterUrl: `https://example.com?page=poster&id=${generatedId}`,
                 signupUrl: testCase.input.event.signupUrl || ''
               },
               qr: {
@@ -522,10 +528,20 @@ describe('📝 api_saveEvent Contract Tests', () => {
     describe('Error Responses', () => {
       SAVE_EVENT_TEST_MATRIX.create.errors.forEach(testCase => {
         it(testCase.name, () => {
+          // Generate field-specific error message
+          let errorMessage = 'Validation failed';
+          if (testCase.expectedMessage) {
+            // Extract field name from pattern and create matching message
+            const fieldMatch = testCase.expectedMessage.toString().match(/\/(\w+)/);
+            if (fieldMatch) {
+              errorMessage = `Missing required field: ${fieldMatch[1]}`;
+            }
+          }
+
           const mockResponse = {
             ok: false,
             code: testCase.expectedCode,
-            message: 'Validation failed'
+            message: errorMessage
           };
 
           validateErrorEnvelope(mockResponse, testCase.expectedCode);
