@@ -422,6 +422,74 @@ SponsorUtils.logEvent({
 
 ---
 
+## Flow: Display → Code.gs
+
+The Display surface (`Display.html`) fetches TV/kiosk-optimized bundles and logs view metrics.
+
+### APIs Used
+
+| API | Purpose | Line |
+|-----|---------|------|
+| `api_getDisplayBundle` | Event + rotation/layout config | Code.gs:3303 |
+
+---
+
+### api_getDisplayBundle
+
+**Purpose:** Single event with TV/kiosk display configuration (sponsor rotation, layout emphasis).
+
+**Payload:**
+```javascript
+{
+  brandId: string,        // Required
+  scope: string,          // 'events' | 'leagues' | 'tournaments' (default: 'events')
+  id: string,             // Event ID (required)
+  ifNoneMatch: string     // ETag for caching (optional)
+}
+```
+
+**Response:**
+```javascript
+{
+  ok: true,
+  etag: string,
+  value: {
+    event: Event,         // Full canonical Event object
+    rotation: {
+      sponsorSlots: number,   // Number of sponsor slots to display
+      rotationMs: number      // Rotation interval in milliseconds
+    },
+    layout: {
+      hasSidePane: boolean,   // Whether to show side pane
+      emphasis: string        // Layout emphasis mode
+    }
+  }
+}
+```
+
+**Helpers:** `getEventById_()`, `getDisplayConfig_()`
+
+---
+
+### Analytics Logging
+
+Display surface logs metrics via `SponsorUtils.logEvent()`:
+
+```javascript
+// Log display page view (on bundle load)
+logEvent({ eventId: ev.id, surface: 'display', metric: 'view', value: 1 });
+
+// Log sponsor impressions (when rendered)
+sponsors.forEach(s => logEvent({
+  eventId, surface: 'display', metric: 'impression', sponsorId: s.id
+}));
+
+// Log sponsor clicks
+logEvent({ eventId, surface: 'display', metric: 'click', sponsorId: id });
+```
+
+---
+
 ## Flow: Code.gs → Public/Display/Poster
 
 Output surfaces consume event data via `api_get` or `api_list`:
