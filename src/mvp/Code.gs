@@ -3912,6 +3912,68 @@ function api_updateEventData(req){
 }
 
 /**
+ * Save full Event object (ZEVENT-003: V2 Contract-First API)
+ * Accepts a complete Event from the frontend and persists via saveEvent_().
+ *
+ * This is the V2 "contract-first" endpoint where the frontend posts a full
+ * Event object that conforms to EVENT_CONTRACT.md. The backend validates
+ * and saves without needing to understand field-by-field updates.
+ *
+ * @param {Object} req - Request payload
+ * @param {string} req.brandId - Brand ID (required)
+ * @param {string} req.adminKey - Admin authentication key (required)
+ * @param {Object} req.event - Full Event object per EVENT_CONTRACT.md (required)
+ * @param {string} [req.scope] - Scope (default: 'events')
+ * @param {string} [req.templateId] - Template ID for create (default: 'custom')
+ * @returns {Object} { ok: true, etag, value: Event } or error
+ * @tier v2
+ * @undocumented - Reserved for V2 Admin, not yet exposed in API docs
+ */
+function api_saveEvent(req) {
+  return runSafe('api_saveEvent', () => {
+    if (!req || typeof req !== 'object') return Err(ERR.BAD_INPUT, 'Missing payload');
+    const { brandId, adminKey, event, scope = 'events', templateId = 'custom' } = req;
+
+    // Validate required fields
+    if (!event || typeof event !== 'object') {
+      return Err(ERR.BAD_INPUT, 'Missing required field: event');
+    }
+
+    // Auth gate
+    const g = gate_(brandId, adminKey);
+    if (!g.ok) return g;
+
+    // Determine mode: create if no ID, update if ID exists
+    const isCreate = !event.id;
+    const mode = isCreate ? 'create' : 'update';
+
+    // Delegate to canonical saveEvent_
+    const result = saveEvent_(brandId, event.id || null, event, {
+      scope,
+      mode,
+      templateId
+    });
+
+    if (!result.ok) return result;
+
+    // Generate etag and return
+    const savedEvent = result.value;
+    const etag = Utilities.base64Encode(
+      Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(savedEvent))
+    );
+
+    diag_('info', 'api_saveEvent', `${mode}d via contract-first save`, {
+      id: savedEvent.id,
+      brandId,
+      scope,
+      mode
+    });
+
+    return _ensureOk_('api_saveEvent', SC_GET, { ok: true, etag, value: savedEvent });
+  });
+}
+
+/**
  * Log analytics events (impressions, clicks, dwell time)
  * Core tracking endpoint for the analytics loop
  * Fire-and-forget - no auth required for public tracking
