@@ -3,164 +3,203 @@
 **Story Card:** ZEVENT-001 - Label & Separate MVP vs V2 vs Archive
 **Last Updated:** 2025-11-23
 
-This document classifies every `.gs` and `.html` file in the Apps Script project into clear tiers to eliminate guesswork about what belongs in the MVP.
+This document classifies every `.gs` and `.html` file in the Apps Script project into clear tiers. Files are now physically organized by tier.
+
+---
+
+## Directory Structure
+
+```
+MVP-EVENT-TOOLKIT/
+├── src/
+│   ├── mvp/           # Deployed to Apps Script (clasp push)
+│   │   ├── *.gs       # Backend services
+│   │   └── *.html     # Frontend surfaces + infrastructure
+│   └── v2/            # Future features (not deployed)
+│       ├── *.gs       # Deferred backend services
+│       ├── *.html     # Experimental surfaces
+│       └── components/ # Advanced UI components
+├── archive/           # Historical/deprecated (reference only)
+└── docs/              # Documentation
+```
 
 ---
 
 ## Tier Definitions
 
-| Tier | Description |
-|------|-------------|
-| **MVP_CORE** | Essential runtime files required for MVP focus group testing. These are production-critical. |
-| **MVP_INFRA** | Supporting infrastructure files (shared utilities, styles, components) that MVP_CORE surfaces depend on. |
-| **V2_PLUS** | Experimental or deferred features. Feature-flagged OFF or not included in MVP focus group. |
-| **ARCHIVE** | Historical/deprecated files moved to `docs/archived/`. Not deployed. |
+| Tier | Directory | Description |
+|------|-----------|-------------|
+| **MVP_CORE** | `src/mvp/` | Essential runtime files deployed to Apps Script |
+| **MVP_INFRA** | `src/mvp/` | Supporting infrastructure (styles, utilities) |
+| **V2_PLUS** | `src/v2/` | Experimental/deferred features (not deployed) |
+| **ARCHIVE** | `archive/` | Historical/deprecated files (reference only) |
 
 ---
 
-## Backend Services (.gs files)
+## src/mvp/ - Deployed Files
 
-| File | Tier | Purpose |
-|------|------|---------|
-| `Code.gs` | MVP_CORE | Router + API endpoints (doGet/doPost), request handling, response envelopes |
-| `Config.gs` | MVP_CORE | Brands, environment config, templates, feature flags |
-| `EventService.gs` | MVP_CORE | Event CRUD operations with LockService for concurrency |
-| `TemplateService.gs` | MVP_CORE | Event templates (bar, rec, school, fundraiser, custom) |
-| `SponsorService.gs` | MVP_CORE | Sponsor management, tier config, ROI tracking |
-| `FormService.gs` | MVP_CORE | Google Forms creation for event signups |
-| `SharedReporting.gs` | MVP_CORE | Analytics views and data aggregation |
-| `AnalyticsService.gs` | MVP_CORE | Logging, metrics, diagnostics (DIAG sheet) |
-| `SecurityMiddleware.gs` | MVP_CORE | Auth, JWT, rate limiting, CSRF protection, input sanitization |
-| `ApiSchemas.gs` | MVP_CORE | JSON Schema validation for API contracts |
-| `i18nService.gs` | V2_PLUS | Multi-language support (feature-flagged OFF via `ZEB.FEATURES.I18N`) |
-| `WebhookService.gs` | V2_PLUS | External integrations - Zapier, Slack, etc. (feature-flagged OFF via `ZEB.FEATURES.WEBHOOKS`) |
+### Backend Services (.gs)
 
----
+| File | Purpose |
+|------|---------|
+| `Code.gs` | Router + API endpoints (doGet/doPost), request handling, response envelopes |
+| `Config.gs` | Brands, environment config, templates, feature flags |
+| `EventService.gs` | Event CRUD operations with LockService for concurrency |
+| `TemplateService.gs` | Event templates (bar, rec, school, fundraiser, custom) |
+| `SponsorService.gs` | Sponsor management, tier config, ROI tracking |
+| `FormService.gs` | Google Forms creation for event signups |
+| `SharedReporting.gs` | Analytics views and data aggregation |
+| `AnalyticsService.gs` | Logging, metrics, diagnostics (DIAG sheet) |
+| `SecurityMiddleware.gs` | Auth, JWT, rate limiting, CSRF protection, input sanitization |
+| `ApiSchemas.gs` | JSON Schema validation for API contracts |
 
-## Frontend Surfaces (.html files)
+### Frontend Surfaces (.html)
 
-### MVP Core Surfaces (6 total)
+| File | Purpose |
+|------|---------|
+| `Admin.html` | Event management dashboard - template picker, section toggles, event lifecycle |
+| `Public.html` | Mobile-first public event page - map, calendar, share, YouTube/Vimeo embeds |
+| `Display.html` | TV/kiosk display layout - auto-rotate, iframe stage, fallback handling |
+| `Poster.html` | Print/share with QR - QR grid, sponsor strip, print CSS |
+| `SharedReport.html` | Analytics dashboard - 5-metric grid, data tables |
 
-These are the **LOCKED** surfaces for focus group testing. See `docs/MVP_SURFACES.md`.
+### Infrastructure (.html)
 
-| File | Tier | Purpose |
-|------|------|---------|
-| `Admin.html` | MVP_CORE | Event management dashboard - template picker, section toggles, event lifecycle |
-| `Public.html` | MVP_CORE | Mobile-first public event page - map, calendar, share, YouTube/Vimeo embeds |
-| `Display.html` | MVP_CORE | TV/kiosk display layout - auto-rotate, iframe stage, fallback handling |
-| `Poster.html` | MVP_CORE | Print/share with QR - QR grid, sponsor strip, print CSS |
-| `Sponsor.html` | MVP_CORE | Sponsor management portal - tier management, placement config |
-| `SharedReport.html` | MVP_CORE | Analytics dashboard - 5-metric grid, data tables |
-
-### MVP Infrastructure (Supporting HTML)
-
-These files are `<?!= include() ?>` dependencies of MVP_CORE surfaces.
-
-| File | Tier | Purpose | Used By |
-|------|------|---------|---------|
-| `Styles.html` | MVP_INFRA | CSS design system, base styles | All 6 MVP surfaces |
-| `NUSDK.html` | MVP_INFRA | RPC client for API calls | Admin, Sponsor, SharedReport |
-| `Header.html` | MVP_INFRA | Page header component with navigation | Admin, Sponsor, SharedReport |
-| `HeaderInit.html` | MVP_INFRA | Header initialization scripts | Admin, Sponsor, SharedReport |
-| `DemoMode.html` | MVP_INFRA | Demo/sandbox mode support (`?demo=true`) | Admin, Public, Display, Poster |
-| `SponsorUtils.html` | MVP_INFRA | Shared sponsor rendering utilities | Public, Display, Poster |
-| `DesignTokens.html` | MVP_INFRA | CSS variables (colors, spacing, typography) | Poster, Sponsor, SharedReport |
-| `DesignAdapter.html` | MVP_INFRA | Brand theming adapter | Admin, Poster |
-| `CollapsibleSections.html` | MVP_INFRA | Accordion UI component | Admin |
-| `SharedUtils.html` | MVP_INFRA | Utility functions (formatting, validation) | Sponsor |
-| `APIClient.html` | MVP_INFRA | API wrapper functions | Sponsor |
-
-### V2+ Experimental Surfaces
-
-These pages are **NOT included** in MVP focus group testing. Each has a header comment marking it as experimental.
-
-| File | Tier | Purpose |
-|------|------|---------|
-| `Test.html` | V2_PLUS | Triangle Framework testing dashboard for developers |
-| `ApiDocs.html` | V2_PLUS | Interactive API documentation for developers |
-| `Diagnostics.html` | V2_PLUS | System diagnostics and health checks for administrators |
-| `DiagnosticsDashboard.html` | V2_PLUS | DevOps dashboard for system monitoring |
-| `Signup.html` | V2_PLUS | Sign-up forms management interface |
-| `ConfigHtml.html` | V2_PLUS | System configuration interface for administrators |
-| `PlannerCards.html` | V2_PLUS | Event planner card-based interface (experimental UI) |
-| `PersonalizedCTA.html` | V2_PLUS | Dynamic CTA component based on event status |
-
-### V2+ UI Components
-
-Components not currently used by MVP_CORE surfaces.
-
-| File | Tier | Purpose |
-|------|------|---------|
-| `EmptyStates.html` | V2_PLUS | Empty state placeholders with CTAs |
-| `AccessibilityUtils.html` | V2_PLUS | WCAG 2.1 AA accessibility utilities |
-| `ImageOptimization.html` | V2_PLUS | Lazy loading, responsive images |
-| `Tooltips.html` | V2_PLUS | Inline help and feature explanations |
-| `components/QRRegenerator.html` | V2_PLUS | QR code regeneration component |
-| `components/StateManager.html` | V2_PLUS | Client-side state management with auto-save |
-| `components/CardComponent.html` | V2_PLUS | Base card component template |
-| `components/DashboardCard.html` | V2_PLUS | Event dashboard analytics card |
+| File | Purpose | Used By |
+|------|---------|---------|
+| `Styles.html` | CSS design system, base styles | All surfaces |
+| `NUSDK.html` | RPC client for API calls | Admin, SharedReport |
+| `Header.html` | Page header component with navigation | Admin, SharedReport |
+| `HeaderInit.html` | Header initialization scripts | Admin, SharedReport |
+| `SponsorUtils.html` | Shared sponsor rendering utilities | Public, Display, Poster |
+| `DesignTokens.html` | CSS variables (colors, spacing, typography) | Poster, SharedReport |
+| `DesignAdapter.html` | Brand theming adapter | Admin, Poster |
+| `CollapsibleSections.html` | Accordion UI component | Admin |
+| `SharedUtils.html` | Utility functions (formatting, validation) | (available) |
+| `APIClient.html` | API wrapper functions | (available) |
 
 ---
 
-## Archived Files
+## src/v2/ - Future Features (Not Deployed)
 
-Files in `docs/archived/` are historical/deprecated and **NOT deployed**.
+### Deferred Backend Services (.gs)
 
-### Archived Experimental Frontends
+| File | Purpose | Notes |
+|------|---------|-------|
+| `i18nService.gs` | Multi-language support | Feature-flagged OFF |
+| `WebhookService.gs` | External integrations (Zapier, Slack) | Feature-flagged OFF |
 
-| File | Tier | Purpose |
-|------|------|---------|
-| `docs/archived/experimental-frontends/AdminEnhanced.html` | ARCHIVE | Enhanced admin UI experiment |
-| `docs/archived/experimental-frontends/AdminWizard.html` | ARCHIVE | Wizard-style admin flow experiment |
-| `docs/archived/experimental-frontends/SponsorDashboard.html` | ARCHIVE | Sponsor dashboard experiment |
-| `docs/archived/experimental-frontends/SponsorPreview.html` | ARCHIVE | Sponsor preview experiment |
+### Experimental Surfaces (.html)
 
-### Archived Experimental Dashboards
+| File | Purpose |
+|------|---------|
+| `Sponsor.html` | Sponsor management portal - tier management, placement config |
+| `DemoMode.html` | Demo/sandbox mode support (`?demo=true`) |
+| `Test.html` | Triangle Framework testing dashboard for developers |
+| `ApiDocs.html` | Interactive API documentation for developers |
+| `Diagnostics.html` | System diagnostics and health checks |
+| `DiagnosticsDashboard.html` | DevOps dashboard for system monitoring |
+| `Signup.html` | Sign-up forms management interface |
+| `ConfigHtml.html` | System configuration interface |
+| `PlannerCards.html` | Event planner card-based interface |
 
-| File | Tier | Purpose |
-|------|------|---------|
-| `docs/archived/experimental-dashboards/test-dashboard.html` | ARCHIVE | Test dashboard experiment |
-| `docs/archived/experimental-dashboards/dashboard/public/index.html` | ARCHIVE | Public dashboard experiment |
+### UI Components (.html)
 
-### Test Fixtures
-
-| File | Tier | Purpose |
-|------|------|---------|
-| `tests/e2e/scenarios/dashboard.html` | ARCHIVE | E2E test scenario fixture (not deployed) |
+| File | Purpose |
+|------|---------|
+| `PersonalizedCTA.html` | Dynamic CTA component based on event status |
+| `EmptyStates.html` | Empty state placeholders with CTAs |
+| `AccessibilityUtils.html` | WCAG 2.1 AA accessibility utilities |
+| `ImageOptimization.html` | Lazy loading, responsive images |
+| `Tooltips.html` | Inline help and feature explanations |
+| `components/QRRegenerator.html` | QR code regeneration component |
+| `components/StateManager.html` | Client-side state management with auto-save |
+| `components/CardComponent.html` | Base card component template |
+| `components/DashboardCard.html` | Event dashboard analytics card |
 
 ---
 
-## Summary by Tier
+## archive/ - Historical/Deprecated
 
-| Tier | .gs Files | .html Files | Total |
-|------|-----------|-------------|-------|
-| **MVP_CORE** | 10 | 6 | 16 |
-| **MVP_INFRA** | 0 | 11 | 11 |
-| **V2_PLUS** | 2 | 12 | 14 |
-| **ARCHIVE** | 0 | 7 | 7 |
-| **Total** | 12 | 36 | 48 |
+Files moved from `docs/archived/` for reference only. Not deployed.
+
+### Experimental Frontends
+
+| File | Purpose |
+|------|---------|
+| `experimental-frontends/AdminEnhanced.html` | Enhanced admin UI experiment |
+| `experimental-frontends/AdminWizard.html` | Wizard-style admin flow experiment |
+| `experimental-frontends/SponsorDashboard.html` | Sponsor dashboard experiment |
+| `experimental-frontends/SponsorPreview.html` | Sponsor preview experiment |
+
+### Experimental Dashboards
+
+| File | Purpose |
+|------|---------|
+| `experimental-dashboards/test-dashboard.html` | Test dashboard experiment |
+| `experimental-dashboards/dashboard/` | Public dashboard experiment |
+
+### Analysis Reports & Documentation
+
+Historical analysis reports, deployment guides, and planning documents.
+
+---
+
+## Deployment Configuration
+
+### .clasp.json
+
+```json
+{
+  "scriptId": "1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l",
+  "rootDir": "./src/mvp"
+}
+```
+
+### What Gets Deployed
+
+Only files in `src/mvp/` are pushed to Apps Script:
+
+```
+src/mvp/
+├── appsscript.json     # Apps Script manifest
+├── *.gs                # 10 backend services
+└── *.html              # 5 surfaces + 10 infrastructure = 15 files
+```
+
+**Total deployed: 26 files** (1 manifest + 10 .gs + 15 .html)
+
+---
+
+## Summary by Location
+
+| Location | .gs Files | .html Files | Total |
+|----------|-----------|-------------|-------|
+| `src/mvp/` | 10 | 15 | 25 (+1 manifest) |
+| `src/v2/` | 2 | 14 | 16 |
+| `archive/` | 0 | 7+ | 7+ |
 
 ---
 
 ## Quick Reference
 
-### What gets deployed to production?
+### Deploy to Apps Script
 
-```
-MVP_CORE + MVP_INFRA = 27 files
+```bash
+npm run push   # Pushes only src/mvp/ to Apps Script
 ```
 
-### What's feature-flagged OFF?
+### V2+ Features (Feature-Flagged)
 
 ```javascript
-// In Config.gs
+// In src/mvp/Config.gs
 ZEB.FEATURES = {
-  WEBHOOKS: false,  // WebhookService.gs
-  I18N: false       // i18nService.gs
+  WEBHOOKS: false,  // src/v2/WebhookService.gs
+  I18N: false       // src/v2/i18nService.gs
 };
 ```
 
-### How to identify V2+ pages?
+### How to Identify V2+ Files
 
 All V2+ HTML files have this header comment:
 
