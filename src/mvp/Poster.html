@@ -53,7 +53,7 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
       box-shadow: var(--shadow-sm, 0 2px 8px rgba(0,0,0,0.05));
     }
     .sponsor-strip img {
-      max-height: 70px;
+      max-height: var(--poster-sponsor-logo-height, 70px);
       object-fit: contain;
     }
     .sponsor-strip strong {
@@ -479,7 +479,7 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
 
       if (signupQR || signupUrl) {
         // Use pre-generated QR from contract, fallback to quickchart.io
-        const qrSrc = signupQR || `https://quickchart.io/qr?text=${encodeURIComponent(signupUrl)}&size=200&margin=1`;
+        const qrSrc = signupQR || `https://quickchart.io/qr?text=${encodeURIComponent(signupUrl)}&size=200&margin=4`;
         el.innerHTML += `
           <div class="qr-code">
             <h3>${esc(signupLabel)}</h3>
@@ -496,7 +496,7 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
 
       if (publicQR || publicUrl) {
         // Use pre-generated QR from contract, fallback to quickchart.io
-        const qrSrc = publicQR || `https://quickchart.io/qr?text=${encodeURIComponent(publicUrl)}&size=200&margin=1`;
+        const qrSrc = publicQR || `https://quickchart.io/qr?text=${encodeURIComponent(publicUrl)}&size=200&margin=4`;
         el.innerHTML += `
           <div class="qr-code">
             <h3>Event Page</h3>
