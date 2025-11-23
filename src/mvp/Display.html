@@ -107,7 +107,8 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
       max-height: var(--display-sponsor-logo-height-side, 64px); max-width:160px; object-fit:contain;
       filter: brightness(1.15);
     }
-    .sp-name { font-weight:600; font-size:1em; color: var(--color-tv-text, #f0f0f0); }
+    /* TV-005: Sponsor name legibility for TV distance */
+    .sp-name { font-weight:600; font-size: clamp(1.125rem, 2vw, 1.5rem); color: var(--color-tv-text, #f0f0f0); }
     .toast {
       position:fixed; right:20px; bottom:20px;
       background: linear-gradient(135deg, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.95) 100%);
@@ -154,44 +155,46 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
       gap: 20px;
       max-width: 90vw;
     }
+    /* TV-optimized strip text sizes (10-12ft viewing distance) */
+    /* Fixed: TV-001, TV-002, TV-003 - text was illegible at TV distance */
     .league-broadcast-strip .strip-title {
-      color: #f59e0b;
-      font-size: 0.85rem;
+      color: var(--color-warning, #f59e0b);
+      font-size: clamp(1rem, 1.8vw, 1.5rem);  /* 16-24px for TV legibility */
       text-transform: uppercase;
       letter-spacing: 1px;
       white-space: nowrap;
       font-weight: 600;
     }
     .league-broadcast-strip .strip-divider {
-      width: 1px;
-      height: 24px;
-      background: rgba(255, 255, 255, 0.2);
+      width: 2px;
+      height: 28px;
+      background: rgba(255, 255, 255, 0.25);
     }
     .league-broadcast-strip .strip-section {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 16px;
     }
     .league-broadcast-strip .strip-label {
       color: #9ca3af;
-      font-size: 0.75rem;
+      font-size: clamp(0.875rem, 1.5vw, 1.25rem);  /* 14-20px minimum */
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
     .league-broadcast-strip .strip-links {
       display: flex;
-      gap: 8px;
+      gap: 12px;
     }
     .league-broadcast-strip .strip-link {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
       color: #fff;
       text-decoration: none;
-      padding: 6px 12px;
+      padding: 10px 16px;  /* Larger touch/remote targets */
       background: rgba(255, 255, 255, 0.08);
-      border-radius: 6px;
-      font-size: 0.9rem;
+      border-radius: 8px;
+      font-size: clamp(1rem, 2vw, 1.5rem);  /* 16-24px for TV */
       transition: all 0.2s ease;
       white-space: nowrap;
     }

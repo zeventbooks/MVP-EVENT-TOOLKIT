@@ -180,33 +180,91 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
     }
 
     /* Print Styles - Optimized for printing */
+    /* PR-001, PR-002: Enhanced print safety margins and areas */
     @media print {
-      body { background: #fff; }
-      .poster-container { padding: 20px; }
+      @page {
+        margin: 0.5in;
+        size: letter portrait;  /* Explicit paper size */
+      }
+
+      body {
+        background: #fff;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      .poster-container {
+        padding: 0;  /* @page margin handles outer spacing */
+        max-width: 100%;
+      }
+
+      /* PR-002: Safe area for sponsor strip */
       .sponsor-strip {
         border: 0;
-        padding-bottom: 12px;
+        padding: 12px 0.25in;  /* Inset from edge for print safety */
         box-shadow: none;
         background: #fff;
+        margin: 0 -0.25in;
+        width: calc(100% + 0.5in);
       }
+
       .event-details {
         background: #fff;
+        padding: 16px 0;
       }
+
+      /* PR-003: Prevent title overflow on print */
+      .event-details h1 {
+        font-size: clamp(1.5rem, 6vw, 2.5rem);
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        hyphens: auto;
+      }
+
       .qr-grid {
         gap: 16px;
         page-break-inside: avoid;
       }
+
       .qr-code {
         box-shadow: none;
         page-break-inside: avoid;
+        border-width: 2px;
       }
+
       .qr-code:hover {
         transform: none;
       }
+
+      .qr-section {
+        page-break-inside: avoid;
+      }
+
       .qr-section h2::before {
         content: "";
       }
-      @page { margin: 0.5in; }
+
+      /* Hide interactive elements in print */
+      .btn-retry,
+      .site-footer a {
+        text-decoration: none;
+        color: inherit;
+      }
+    }
+
+    /* Narrow print media (e.g., A5, receipt printers) */
+    @media print and (max-width: 6in) {
+      .qr-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .event-details h1 {
+        font-size: 1.5rem;
+      }
+
+      .sponsor-strip img {
+        max-height: 48px;
+      }
     }
 
     /* Responsive - Mobile and tablet */

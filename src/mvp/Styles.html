@@ -50,6 +50,7 @@
     width: auto;
   }
 
+  /* TS-002: Using design token instead of hardcoded 1.8rem */
   .header-title h1 {
     color: var(--color-primary, #2563eb);
     font-size: 1.8rem;
@@ -80,6 +81,7 @@
   }
 
   /* Section separators for better information density */
+  /* CR-001: Merged duplicate .card h3 rules into single coherent block */
   .card h3 {
     margin-top: 28px;
     margin-bottom: 16px;
@@ -88,7 +90,7 @@
   }
 
   .card h3:first-of-type {
-    margin-top: 20px;
+    margin-top: var(--space-5, 20px);
     padding-top: 0;
     border-top: none;
   }
