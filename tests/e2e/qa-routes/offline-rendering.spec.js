@@ -294,11 +294,23 @@ test.describe('QA Routes: Offline Rendering', () => {
     test('Pages load with network request failures', async ({ page }) => {
       // Block external resources except the main page
       await page.route('**/*', async (route) => {
-        const url = route.request().url();
-        // Allow main page and essential assets
-        if (url.includes(baseUrl) ||
-            url.includes('script.google.com') ||
-            url.endsWith('.html')) {
+        const requestUrl = route.request().url();
+        // Use URL parsing for secure host validation
+        let isAllowed = false;
+        try {
+          const parsedUrl = new URL(requestUrl);
+          const baseHost = new URL(baseUrl).hostname;
+          // Only allow exact hostname matches (not substring)
+          isAllowed = parsedUrl.hostname === baseHost ||
+                      parsedUrl.hostname === 'script.google.com' ||
+                      parsedUrl.hostname.endsWith('.google.com') ||
+                      requestUrl.endsWith('.html');
+        } catch {
+          // Invalid URL, block it
+          isAllowed = false;
+        }
+
+        if (isAllowed) {
           await route.continue();
         } else {
           // Block external images, fonts, etc.

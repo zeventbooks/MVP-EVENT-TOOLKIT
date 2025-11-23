@@ -28,6 +28,24 @@ const {
   validateEventContractV2
 } = require('../shared/helpers/test-runner.js');
 
+/**
+ * Robust HTML sanitization helper for testing.
+ * Uses iterative removal to handle nested/malformed tags that
+ * single-pass regex cannot catch (CodeQL: Incomplete multi-character sanitization).
+ * @param {string} input - String potentially containing HTML
+ * @returns {string} - String with all HTML tags removed
+ */
+function sanitizeHtmlForTest(input) {
+  let result = input;
+  let previous;
+  // Keep sanitizing until no more changes (handles nested/malformed tags)
+  do {
+    previous = result;
+    result = result.replace(/<[^>]*>/g, '');
+  } while (result !== previous);
+  return result;
+}
+
 // ============================================================================
 // TEST MATRIX: api_saveEvent
 // ============================================================================
@@ -769,14 +787,18 @@ describe('📝 api_saveEvent Contract Tests', () => {
 
     it('sanitizes HTML in name field', () => {
       const maliciousName = '<script>alert("xss")</script>';
-      const sanitized = maliciousName.replace(/<[^>]*>/g, '');
+      const sanitized = sanitizeHtmlForTest(maliciousName);
       expect(sanitized).not.toContain('<script>');
+      expect(sanitized).not.toContain('<');
+      expect(sanitized).toBe('alert("xss")');
     });
 
     it('sanitizes HTML in venue field', () => {
       const maliciousVenue = '<img onerror="alert(1)" src="x">';
-      const sanitized = maliciousVenue.replace(/<[^>]*>/g, '');
+      const sanitized = sanitizeHtmlForTest(maliciousVenue);
       expect(sanitized).not.toContain('<img');
+      expect(sanitized).not.toContain('<');
+      expect(sanitized).toBe('');
     });
 
     it('validates URL format for signupUrl', () => {
