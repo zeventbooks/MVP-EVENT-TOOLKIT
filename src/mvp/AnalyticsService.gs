@@ -13,9 +13,132 @@
  * - Returns raw metrics for flexible rendering
  * - Provides filtering and date range support
  * - Sanitizes all inputs to prevent injection
+ * - DRY: Shared utilities used by SponsorService and SharedReporting
  *
  * @module AnalyticsService
  */
+
+// === Shared Metrics Utilities (DRY) ==========================================
+// These utilities are the single source of truth for metrics calculations
+// Used by: AnalyticsService, SponsorService, SharedReporting
+
+/**
+ * Calculate CTR (Click-Through Rate) percentage
+ * Single source of truth for CTR calculation across all services
+ *
+ * @param {number} clicks - Number of clicks
+ * @param {number} impressions - Number of impressions
+ * @returns {number} CTR as percentage with 2 decimal places, or 0 if no impressions
+ */
+function MetricsUtils_calculateCTR(clicks, impressions) {
+  if (!impressions || impressions <= 0) return 0;
+  return +((clicks / impressions) * 100).toFixed(2);
+}
+
+/**
+ * Apply CTR calculation to a metrics bucket object
+ * Mutates the bucket in place
+ *
+ * @param {object} bucket - Object with impressions and clicks properties
+ * @returns {object} Same bucket with ctr property added
+ */
+function MetricsUtils_applyCTR(bucket) {
+  bucket.ctr = MetricsUtils_calculateCTR(bucket.clicks, bucket.impressions);
+  return bucket;
+}
+
+/**
+ * Create a new empty metrics bucket
+ * Standard shape used across all aggregations
+ *
+ * @param {boolean} [includeDwell=true] - Include dwellSec field
+ * @returns {object} Fresh metrics bucket
+ */
+function MetricsUtils_createBucket(includeDwell = true) {
+  const bucket = { impressions: 0, clicks: 0, ctr: 0 };
+  if (includeDwell) bucket.dwellSec = 0;
+  return bucket;
+}
+
+/**
+ * Increment metrics in a bucket based on metric type
+ *
+ * @param {object} bucket - Metrics bucket to update
+ * @param {string} metric - Metric type ('impression', 'click', 'dwellSec')
+ * @param {number} [value=1] - Value to add (used for dwellSec)
+ */
+function MetricsUtils_incrementBucket(bucket, metric, value = 1) {
+  if (metric === 'impression') bucket.impressions++;
+  else if (metric === 'click') bucket.clicks++;
+  else if (metric === 'dwellSec' && bucket.dwellSec !== undefined) {
+    bucket.dwellSec += Number(value) || 0;
+  }
+}
+
+/**
+ * Parse a raw analytics row into a structured object
+ * Standard row format: [timestamp, eventId, surface, metric, sponsorId, value, token, userAgent]
+ *
+ * @param {array} row - Raw spreadsheet row
+ * @returns {object} Parsed analytics entry
+ */
+function MetricsUtils_parseRow(row) {
+  return {
+    timestamp: row[0],
+    eventId: row[1],
+    surface: row[2] || 'unknown',
+    metric: row[3],
+    sponsorId: (row[4] !== null && row[4] !== undefined && row[4] !== '') ? row[4] : null,
+    value: Number((row[5] !== null && row[5] !== undefined) ? row[5] : 0),
+    token: (row[6] !== null && row[6] !== undefined && row[6] !== '') ? row[6] : null,
+    userAgent: row[7] || ''
+  };
+}
+
+/**
+ * Add a data point to daily timeline, creating day entry if needed
+ *
+ * @param {array} timeline - Array of {date, impressions, clicks, dwellSec, ctr} objects
+ * @param {Date|string} timestamp - Timestamp of the event
+ * @param {string} metric - Metric type
+ * @param {number} [value=1] - Value for dwellSec
+ * @returns {object} The day data object that was updated
+ */
+function MetricsUtils_addToTimeline(timeline, timestamp, metric, value = 1) {
+  const date = new Date(timestamp).toISOString().split('T')[0];
+  let dayData = timeline.find(d => d.date === date);
+  if (!dayData) {
+    dayData = { date, impressions: 0, clicks: 0, dwellSec: 0, ctr: 0 };
+    timeline.push(dayData);
+  }
+  MetricsUtils_incrementBucket(dayData, metric, value);
+  return dayData;
+}
+
+/**
+ * Finalize timeline by calculating CTR and sorting by date
+ *
+ * @param {array} timeline - Array of day data objects
+ * @returns {array} Same array, sorted and with CTR calculated
+ */
+function MetricsUtils_finalizeTimeline(timeline) {
+  timeline.forEach(day => MetricsUtils_applyCTR(day));
+  timeline.sort((a, b) => a.date.localeCompare(b.date));
+  return timeline;
+}
+
+/**
+ * Finalize all buckets in a grouped object by calculating CTR
+ *
+ * @param {object} grouped - Object with bucket values
+ * @returns {object} Same object with CTR applied to all buckets
+ */
+function MetricsUtils_finalizeGrouped(grouped) {
+  for (const key in grouped) {
+    MetricsUtils_applyCTR(grouped[key]);
+  }
+  return grouped;
+}
 
 // === Event Logging ========================================================
 
@@ -97,13 +220,14 @@ function AnalyticsService_getEventReport(params) {
 
 /**
  * Aggregate event analytics data
+ * Uses shared MetricsUtils_ for DRY compliance
  *
  * @param {array} data - Raw analytics rows
  * @returns {object} Aggregated metrics
  */
 function AnalyticsService_aggregateEventData(data) {
   const agg = {
-    totals: { impressions: 0, clicks: 0, dwellSec: 0, ctr: 0 },
+    totals: MetricsUtils_createBucket(true),
     bySurface: {},
     bySponsor: {},
     byToken: {},
@@ -111,87 +235,32 @@ function AnalyticsService_aggregateEventData(data) {
   };
 
   for (const r of data) {
-    const timestamp = r[0];
-    const surface = r[2];
-    const metric = r[3];
-    const sponsorId = (r[4] !== null && r[4] !== undefined && r[4] !== '') ? r[4] : '-';
-    const value = Number((r[5] !== null && r[5] !== undefined) ? r[5] : 0);
-    const token = (r[6] !== null && r[6] !== undefined && r[6] !== '') ? r[6] : '-';
+    const parsed = MetricsUtils_parseRow(r);
+    const { timestamp, surface, metric, value } = parsed;
+    const sponsorId = parsed.sponsorId || '-';
+    const token = parsed.token || '-';
 
-    // Initialize aggregation objects
-    if (!agg.bySurface[surface]) {
-      agg.bySurface[surface] = { impressions: 0, clicks: 0, dwellSec: 0, ctr: 0 };
-    }
-    if (!agg.bySponsor[sponsorId]) {
-      agg.bySponsor[sponsorId] = { impressions: 0, clicks: 0, dwellSec: 0, ctr: 0 };
-    }
-    if (!agg.byToken[token]) {
-      agg.byToken[token] = { impressions: 0, clicks: 0, dwellSec: 0, ctr: 0 };
-    }
+    // Initialize aggregation buckets using shared utility
+    if (!agg.bySurface[surface]) agg.bySurface[surface] = MetricsUtils_createBucket(true);
+    if (!agg.bySponsor[sponsorId]) agg.bySponsor[sponsorId] = MetricsUtils_createBucket(true);
+    if (!agg.byToken[token]) agg.byToken[token] = MetricsUtils_createBucket(true);
 
-    const surf = agg.bySurface[surface];
-    const spons = agg.bySponsor[sponsorId];
-    const tok = agg.byToken[token];
+    // Increment all buckets using shared utility
+    MetricsUtils_incrementBucket(agg.totals, metric, value);
+    MetricsUtils_incrementBucket(agg.bySurface[surface], metric, value);
+    MetricsUtils_incrementBucket(agg.bySponsor[sponsorId], metric, value);
+    MetricsUtils_incrementBucket(agg.byToken[token], metric, value);
 
-    // Aggregate metrics
-    if (metric === 'impression') {
-      agg.totals.impressions++;
-      surf.impressions++;
-      spons.impressions++;
-      tok.impressions++;
-    }
-    if (metric === 'click') {
-      agg.totals.clicks++;
-      surf.clicks++;
-      spons.clicks++;
-      tok.clicks++;
-    }
-    if (metric === 'dwellSec') {
-      agg.totals.dwellSec += value;
-      surf.dwellSec += value;
-      spons.dwellSec += value;
-      tok.dwellSec += value;
-    }
-
-    // Track daily timeline
-    const date = new Date(timestamp).toISOString().split('T')[0];
-    let dayData = agg.timeline.find(d => d.date === date);
-    if (!dayData) {
-      dayData = { date, impressions: 0, clicks: 0, dwellSec: 0, ctr: 0 };
-      agg.timeline.push(dayData);
-    }
-
-    if (metric === 'impression') dayData.impressions++;
-    if (metric === 'click') dayData.clicks++;
-    if (metric === 'dwellSec') dayData.dwellSec += value;
+    // Track daily timeline using shared utility
+    MetricsUtils_addToTimeline(agg.timeline, timestamp, metric, value);
   }
 
-  // Calculate CTR for all aggregations
-  agg.totals.ctr = agg.totals.impressions > 0
-    ? +(agg.totals.clicks / agg.totals.impressions * 100).toFixed(2)
-    : 0;
-
-  for (const k in agg.bySurface) {
-    const s = agg.bySurface[k];
-    s.ctr = s.impressions > 0 ? +(s.clicks / s.impressions * 100).toFixed(2) : 0;
-  }
-
-  for (const k in agg.bySponsor) {
-    const s = agg.bySponsor[k];
-    s.ctr = s.impressions > 0 ? +(s.clicks / s.impressions * 100).toFixed(2) : 0;
-  }
-
-  for (const k in agg.byToken) {
-    const t = agg.byToken[k];
-    t.ctr = t.impressions > 0 ? +(t.clicks / t.impressions * 100).toFixed(2) : 0;
-  }
-
-  for (const day of agg.timeline) {
-    day.ctr = day.impressions > 0 ? +(day.clicks / day.impressions * 100).toFixed(2) : 0;
-  }
-
-  // Sort timeline by date
-  agg.timeline.sort((a, b) => a.date.localeCompare(b.date));
+  // Calculate CTR for all aggregations using shared utilities
+  MetricsUtils_applyCTR(agg.totals);
+  MetricsUtils_finalizeGrouped(agg.bySurface);
+  MetricsUtils_finalizeGrouped(agg.bySponsor);
+  MetricsUtils_finalizeGrouped(agg.byToken);
+  MetricsUtils_finalizeTimeline(agg.timeline);
 
   return agg;
 }
@@ -321,6 +390,7 @@ function AnalyticsService_verifyEventOwnership(eventId, brandId) {
 
 /**
  * Calculate engagement rate from analytics data
+ * Uses shared MetricsUtils_calculateCTR for DRY compliance
  *
  * @param {array} analytics - Analytics data
  * @returns {number} Engagement rate (%)
@@ -328,12 +398,12 @@ function AnalyticsService_verifyEventOwnership(eventId, brandId) {
 function AnalyticsService_calculateEngagementRate(analytics) {
   const impressions = analytics.filter(a => a.metric === 'impression').length;
   const clicks = analytics.filter(a => a.metric === 'click').length;
-
-  return impressions > 0 ? +(clicks / impressions * 100).toFixed(2) : 0;
+  return MetricsUtils_calculateCTR(clicks, impressions);
 }
 
 /**
  * Group analytics by surface
+ * Uses shared MetricsUtils_ for DRY compliance
  *
  * @param {array} analytics - Analytics data
  * @returns {object} Metrics grouped by surface
@@ -342,25 +412,16 @@ function AnalyticsService_groupBySurface(analytics) {
   const grouped = {};
 
   for (const a of analytics) {
-    if (!grouped[a.surface]) {
-      grouped[a.surface] = { impressions: 0, clicks: 0, ctr: 0 };
-    }
-
-    if (a.metric === 'impression') grouped[a.surface].impressions++;
-    if (a.metric === 'click') grouped[a.surface].clicks++;
+    if (!grouped[a.surface]) grouped[a.surface] = MetricsUtils_createBucket(false);
+    MetricsUtils_incrementBucket(grouped[a.surface], a.metric);
   }
 
-  // Calculate CTR
-  for (const surface in grouped) {
-    const s = grouped[surface];
-    s.ctr = s.impressions > 0 ? +(s.clicks / s.impressions * 100).toFixed(2) : 0;
-  }
-
-  return grouped;
+  return MetricsUtils_finalizeGrouped(grouped);
 }
 
 /**
  * Group analytics by event
+ * Uses shared MetricsUtils_ for DRY compliance
  *
  * @param {array} analytics - Analytics data
  * @returns {object} Metrics grouped by event
@@ -369,25 +430,16 @@ function AnalyticsService_groupByEvent(analytics) {
   const grouped = {};
 
   for (const a of analytics) {
-    if (!grouped[a.eventId]) {
-      grouped[a.eventId] = { impressions: 0, clicks: 0, ctr: 0 };
-    }
-
-    if (a.metric === 'impression') grouped[a.eventId].impressions++;
-    if (a.metric === 'click') grouped[a.eventId].clicks++;
+    if (!grouped[a.eventId]) grouped[a.eventId] = MetricsUtils_createBucket(false);
+    MetricsUtils_incrementBucket(grouped[a.eventId], a.metric);
   }
 
-  // Calculate CTR
-  for (const eventId in grouped) {
-    const e = grouped[eventId];
-    e.ctr = e.impressions > 0 ? +(e.clicks / e.impressions * 100).toFixed(2) : 0;
-  }
-
-  return grouped;
+  return MetricsUtils_finalizeGrouped(grouped);
 }
 
 /**
  * Group analytics by sponsor
+ * Uses shared MetricsUtils_ for DRY compliance
  *
  * @param {array} analytics - Analytics data
  * @returns {object} Metrics grouped by sponsor
@@ -397,51 +449,26 @@ function AnalyticsService_groupBySponsor(analytics) {
 
   for (const a of analytics) {
     const sponsorId = a.sponsorId || '-';
-    if (!grouped[sponsorId]) {
-      grouped[sponsorId] = { impressions: 0, clicks: 0, ctr: 0 };
-    }
-
-    if (a.metric === 'impression') grouped[sponsorId].impressions++;
-    if (a.metric === 'click') grouped[sponsorId].clicks++;
+    if (!grouped[sponsorId]) grouped[sponsorId] = MetricsUtils_createBucket(false);
+    MetricsUtils_incrementBucket(grouped[sponsorId], a.metric);
   }
 
-  // Calculate CTR
-  for (const sponsorId in grouped) {
-    const s = grouped[sponsorId];
-    s.ctr = s.impressions > 0 ? +(s.clicks / s.impressions * 100).toFixed(2) : 0;
-  }
-
-  return grouped;
+  return MetricsUtils_finalizeGrouped(grouped);
 }
 
 /**
  * Calculate daily trends
+ * Uses shared MetricsUtils_ for DRY compliance
  *
  * @param {array} analytics - Analytics data
  * @returns {array} Daily trend data
  */
 function AnalyticsService_calculateDailyTrends(analytics) {
-  const daily = {};
+  const timeline = [];
 
   for (const a of analytics) {
-    const date = new Date(a.timestamp).toISOString().split('T')[0];
-
-    if (!daily[date]) {
-      daily[date] = { date, impressions: 0, clicks: 0, ctr: 0 };
-    }
-
-    if (a.metric === 'impression') daily[date].impressions++;
-    if (a.metric === 'click') daily[date].clicks++;
+    MetricsUtils_addToTimeline(timeline, a.timestamp, a.metric);
   }
 
-  // Calculate CTR and convert to array
-  const trends = Object.values(daily).map(d => ({
-    ...d,
-    ctr: d.impressions > 0 ? +(d.clicks / d.impressions * 100).toFixed(2) : 0
-  }));
-
-  // Sort by date
-  trends.sort((a, b) => a.date.localeCompare(b.date));
-
-  return trends;
+  return MetricsUtils_finalizeTimeline(timeline);
 }

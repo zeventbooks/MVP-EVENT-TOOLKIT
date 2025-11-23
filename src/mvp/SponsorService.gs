@@ -76,6 +76,7 @@ function SponsorService_getAnalytics(params) {
 
 /**
  * Aggregate sponsor metrics from raw analytics data
+ * Uses shared MetricsUtils_ from AnalyticsService for DRY compliance
  *
  * @param {array} data - Raw analytics rows
  * @param {string} sponsorId - Sponsor ID
@@ -84,84 +85,35 @@ function SponsorService_getAnalytics(params) {
 function SponsorService_aggregateMetrics(data, sponsorId) {
   const agg = {
     sponsorId: sponsorId,
-    totals: { impressions: 0, clicks: 0, dwellSec: 0, ctr: 0 },
-    bySurface: {}, // poster, display, public, etc.
+    totals: MetricsUtils_createBucket(true),
+    bySurface: {},
     byEvent: {},
-    timeline: [] // Daily breakdown
+    timeline: []
   };
 
-  // Process each analytics row
+  // Process each analytics row using shared utilities
   for (const r of data) {
-    const timestamp = r[0];
-    const evtId = r[1];
-    const surface = r[2];
-    const metric = r[3];
-    const value = Number((r[5] !== null && r[5] !== undefined) ? r[5] : 0);
+    const parsed = MetricsUtils_parseRow(r);
+    const { timestamp, eventId, surface, metric, value } = parsed;
 
-    // Initialize surface if not exists
-    if (!agg.bySurface[surface]) {
-      agg.bySurface[surface] = { impressions: 0, clicks: 0, dwellSec: 0, ctr: 0 };
-    }
+    // Initialize buckets using shared utility
+    if (!agg.bySurface[surface]) agg.bySurface[surface] = MetricsUtils_createBucket(true);
+    if (!agg.byEvent[eventId]) agg.byEvent[eventId] = MetricsUtils_createBucket(true);
 
-    // Initialize event if not exists
-    if (!agg.byEvent[evtId]) {
-      agg.byEvent[evtId] = { impressions: 0, clicks: 0, dwellSec: 0, ctr: 0 };
-    }
+    // Increment all buckets using shared utility
+    MetricsUtils_incrementBucket(agg.totals, metric, value);
+    MetricsUtils_incrementBucket(agg.bySurface[surface], metric, value);
+    MetricsUtils_incrementBucket(agg.byEvent[eventId], metric, value);
 
-    const surf = agg.bySurface[surface];
-    const evt = agg.byEvent[evtId];
-
-    // Aggregate metrics
-    if (metric === 'impression') {
-      agg.totals.impressions++;
-      surf.impressions++;
-      evt.impressions++;
-    }
-    if (metric === 'click') {
-      agg.totals.clicks++;
-      surf.clicks++;
-      evt.clicks++;
-    }
-    if (metric === 'dwellSec') {
-      agg.totals.dwellSec += value;
-      surf.dwellSec += value;
-      evt.dwellSec += value;
-    }
-
-    // Track daily timeline
-    const date = new Date(timestamp).toISOString().split('T')[0];
-    let dayData = agg.timeline.find(d => d.date === date);
-    if (!dayData) {
-      dayData = { date, impressions: 0, clicks: 0, dwellSec: 0 };
-      agg.timeline.push(dayData);
-    }
-
-    if (metric === 'impression') dayData.impressions++;
-    if (metric === 'click') dayData.clicks++;
-    if (metric === 'dwellSec') dayData.dwellSec += value;
+    // Track daily timeline using shared utility
+    MetricsUtils_addToTimeline(agg.timeline, timestamp, metric, value);
   }
 
-  // Calculate CTR (Click-Through Rate) for all aggregations
-  agg.totals.ctr = agg.totals.impressions > 0
-    ? +(agg.totals.clicks / agg.totals.impressions * 100).toFixed(2)
-    : 0;
-
-  for (const surface in agg.bySurface) {
-    const s = agg.bySurface[surface];
-    s.ctr = s.impressions > 0 ? +(s.clicks / s.impressions * 100).toFixed(2) : 0;
-  }
-
-  for (const evtId in agg.byEvent) {
-    const e = agg.byEvent[evtId];
-    e.ctr = e.impressions > 0 ? +(e.clicks / e.impressions * 100).toFixed(2) : 0;
-  }
-
-  for (const day of agg.timeline) {
-    day.ctr = day.impressions > 0 ? +(day.clicks / day.impressions * 100).toFixed(2) : 0;
-  }
-
-  // Sort timeline by date
-  agg.timeline.sort((a, b) => a.date.localeCompare(b.date));
+  // Calculate CTR for all aggregations using shared utilities
+  MetricsUtils_applyCTR(agg.totals);
+  MetricsUtils_finalizeGrouped(agg.bySurface);
+  MetricsUtils_finalizeGrouped(agg.byEvent);
+  MetricsUtils_finalizeTimeline(agg.timeline);
 
   // Add engagement score
   agg.totals.engagementScore = SponsorService_calculateEngagementScore(
