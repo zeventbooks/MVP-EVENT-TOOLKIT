@@ -560,6 +560,80 @@ window.addEventListener('beforeprint', () => {
 
 ---
 
+## Flow: Analytics
+
+All surfaces log metrics to `AnalyticsService.gs` for aggregation and reporting.
+
+### APIs Used
+
+| API | Purpose | Line |
+|-----|---------|------|
+| `api_logEvents` | Batch write analytics events | Code.gs:3987 |
+| `api_logExternalClick` | Track external link clicks | Code.gs:4112 |
+
+---
+
+### api_logEvents
+
+**Purpose:** Batch write analytics events to ANALYTICS sheet.
+
+**Payload:**
+```javascript
+{
+  items: [{
+    eventId: string,        // Event ID
+    surface: string,        // 'public' | 'display' | 'poster' | 'sponsor'
+    metric: string,         // 'view' | 'impression' | 'click' | 'print' | 'dwellSec'
+    sponsorId: string,      // Sponsor ID (for sponsor metrics)
+    value: number,          // Metric value (default: 0)
+    ts: number,             // Timestamp (default: now)
+    ua: string,             // User agent (truncated to 200 chars)
+    sessionId: string,      // Session ID for attribution
+    token: string           // Tracking token (optional)
+  }]
+}
+```
+
+**Response:**
+```javascript
+{
+  ok: true,
+  value: { count: number }  // Number of events logged
+}
+```
+
+**Storage format (10 columns):**
+```
+timestamp | eventId | surface | metric | sponsorId | value | token | ua | sessionId | visibleSponsorIds
+```
+
+---
+
+### Aggregation (AnalyticsService.gs)
+
+`AnalyticsService_aggregateEventData()` groups metrics by:
+
+| Dimension | Description |
+|-----------|-------------|
+| `bySurface` | Metrics per surface (public, display, poster) |
+| `bySponsor` | Metrics per sponsor ID |
+| `byToken` | Metrics per tracking token |
+| `timeline` | Daily breakdown (date → metrics) |
+
+**Aggregated metrics per dimension:**
+```javascript
+{
+  impressions: number,
+  clicks: number,
+  dwellSec: number,
+  ctr: number              // Click-through rate (clicks/impressions * 100)
+}
+```
+
+**Report API:** `AnalyticsService_getEventReport({ eventId, brandId, dateFrom, dateTo })`
+
+---
+
 ## Flow: Code.gs → Public/Display/Poster
 
 Output surfaces consume event data via `api_get` or `api_list`:
