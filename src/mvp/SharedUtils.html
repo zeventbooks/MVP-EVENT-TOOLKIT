@@ -320,10 +320,122 @@ window.SharedUtils = (function() {
     };
   }
 
+  // === Toast Notifications (non-blocking) ===
+
+  /**
+   * Shows a brief toast notification (non-blocking alternative to alert())
+   * @param {string} message - Toast message
+   * @param {string} type - 'success', 'error', 'info', 'warning'
+   * @param {number} duration - Auto-dismiss duration in ms (default: 3000)
+   */
+  function showToast(message, type = 'info', duration = 3000) {
+    // Remove existing toast
+    const existing = document.querySelector('.shared-toast');
+    if (existing) existing.remove();
+
+    const toast = document.createElement('div');
+    toast.className = `shared-toast shared-toast-${type}`;
+    toast.setAttribute('role', 'status');
+    toast.textContent = message;
+
+    // Inject minimal styles if not present
+    if (!document.getElementById('shared-toast-styles')) {
+      const style = document.createElement('style');
+      style.id = 'shared-toast-styles';
+      style.textContent = `
+        .shared-toast {
+          position: fixed; bottom: 20px; right: 20px;
+          padding: 12px 20px; border-radius: 8px;
+          font-size: 14px; font-weight: 500; z-index: 9999;
+          animation: toast-slide-in 0.3s ease;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .shared-toast-success { background: #10b981; color: white; }
+        .shared-toast-error { background: #ef4444; color: white; }
+        .shared-toast-info { background: #3b82f6; color: white; }
+        .shared-toast-warning { background: #f59e0b; color: white; }
+        @keyframes toast-slide-in { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+      `;
+      document.head.appendChild(style);
+    }
+
+    document.body.appendChild(toast);
+
+    // Auto-dismiss
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateY(20px)';
+      toast.style.transition = 'all 0.3s ease';
+      setTimeout(() => toast.remove(), 300);
+    }, duration);
+  }
+
+  // === StateRenderer (unified error/empty/loading states) ===
+
+  const StateRenderer = {
+    /**
+     * Render error state into a container
+     * @param {HTMLElement} container - Target container
+     * @param {Object} options - { title, message, onRetry }
+     */
+    showError(container, options = {}) {
+      const { title = 'Something went wrong', message = 'Please try again.', onRetry = null } = options;
+      container.innerHTML = `
+        <div class="error-state">
+          <div class="error-state-icon">⚠️</div>
+          <h3>${esc(title)}</h3>
+          <p>${esc(message)}</p>
+          ${onRetry ? '<button class="btn-retry">🔄 Try Again</button>' : ''}
+        </div>
+      `;
+      if (onRetry) {
+        container.querySelector('.btn-retry')?.addEventListener('click', onRetry);
+      }
+    },
+
+    /**
+     * Render empty state into a container
+     * @param {HTMLElement} container - Target container
+     * @param {Object} options - { icon, title, message, backUrl }
+     */
+    showEmpty(container, options = {}) {
+      const { icon = '📭', title = 'Nothing here', message = '', backUrl = null } = options;
+      container.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icon">${icon}</div>
+          <h3>${esc(title)}</h3>
+          ${message ? `<p>${esc(message)}</p>` : ''}
+          ${backUrl ? `<a href="${esc(backUrl)}" class="btn-secondary">← Go Back</a>` : ''}
+        </div>
+      `;
+    },
+
+    /**
+     * Render loading state into a container
+     * @param {HTMLElement} container - Target container
+     * @param {Object} options - { message }
+     */
+    showLoading(container, options = {}) {
+      const { message = 'Loading...' } = options;
+      container.innerHTML = `
+        <div class="loading-state">
+          <div class="loading-spinner"></div>
+          <p>${esc(message)}</p>
+        </div>
+      `;
+    }
+  };
+
   // === Public API ===
   return {
     // Alerts
     showAlert,
+
+    // Toast (non-blocking)
+    showToast,
+
+    // State rendering
+    StateRenderer,
 
     // Date formatting
     formatDate,
