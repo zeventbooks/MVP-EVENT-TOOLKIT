@@ -127,23 +127,24 @@ function api_getSharedAnalytics(params) {
 
 /**
  * Calculate engagement rate (clicks / impressions)
+ * Uses shared MetricsUtils_calculateCTR for DRY compliance
  */
 function calculateEngagementRate_(analytics) {
   const impressions = analytics.filter(a => a.metric === 'impression').length;
   const clicks = analytics.filter(a => a.metric === 'click').length;
-
-  if (impressions === 0) return 0;
+  const rawRate = MetricsUtils_calculateCTR(clicks, impressions);
 
   return {
-    rate: (clicks / impressions * 100).toFixed(2) + '%',
+    rate: rawRate.toFixed(2) + '%',
     clicks,
     impressions,
-    rawRate: clicks / impressions
+    rawRate: rawRate / 100  // Convert percentage back to ratio for backward compat
   };
 }
 
 /**
  * Group analytics by surface (public, display, poster)
+ * Uses shared MetricsUtils_calculateCTR for DRY compliance
  */
 function groupBySurface_(analytics) {
   const surfaces = {};
@@ -166,13 +167,12 @@ function groupBySurface_(analytics) {
     if (a.sponsorId) surfaces[surface].uniqueSponsors.add(a.sponsorId);
   });
 
-  // Convert sets to counts
+  // Convert sets to counts and calculate engagement rate using shared utility
   Object.keys(surfaces).forEach(s => {
     surfaces[s].uniqueEvents = surfaces[s].uniqueEvents.size;
     surfaces[s].uniqueSponsors = surfaces[s].uniqueSponsors.size;
-    surfaces[s].engagementRate = surfaces[s].impressions > 0
-      ? (surfaces[s].clicks / surfaces[s].impressions * 100).toFixed(2) + '%'
-      : '0%';
+    const ctr = MetricsUtils_calculateCTR(surfaces[s].clicks, surfaces[s].impressions);
+    surfaces[s].engagementRate = ctr.toFixed(2) + '%';
   });
 
   return surfaces;
@@ -180,6 +180,7 @@ function groupBySurface_(analytics) {
 
 /**
  * Group analytics by event
+ * Uses shared MetricsUtils_calculateCTR for DRY compliance
  */
 function groupByEvent_(analytics) {
   const events = {};
@@ -203,13 +204,12 @@ function groupByEvent_(analytics) {
     if (a.surface) events[eventId].surfaces.add(a.surface);
   });
 
-  // Convert sets and calculate rates
+  // Convert sets and calculate rates using shared utility
   Object.keys(events).forEach(e => {
     events[e].uniqueSponsors = events[e].uniqueSponsors.size;
     events[e].surfaces = Array.from(events[e].surfaces);
-    events[e].engagementRate = events[e].impressions > 0
-      ? (events[e].clicks / events[e].impressions * 100).toFixed(2) + '%'
-      : '0%';
+    const ctr = MetricsUtils_calculateCTR(events[e].clicks, events[e].impressions);
+    events[e].engagementRate = ctr.toFixed(2) + '%';
   });
 
   // Sort by impressions descending
@@ -218,6 +218,7 @@ function groupByEvent_(analytics) {
 
 /**
  * Group analytics by sponsor
+ * Uses shared MetricsUtils_calculateCTR for DRY compliance
  */
 function groupBySponsor_(analytics) {
   const sponsors = {};
@@ -242,13 +243,12 @@ function groupBySponsor_(analytics) {
     if (a.surface) sponsors[sponsorId].surfaces.add(a.surface);
   });
 
-  // Convert sets and calculate rates
+  // Convert sets and calculate rates using shared utility
   Object.keys(sponsors).forEach(s => {
     sponsors[s].uniqueEvents = sponsors[s].uniqueEvents.size;
     sponsors[s].surfaces = Array.from(sponsors[s].surfaces);
-    sponsors[s].engagementRate = sponsors[s].impressions > 0
-      ? (sponsors[s].clicks / sponsors[s].impressions * 100).toFixed(2) + '%'
-      : '0%';
+    const ctr = MetricsUtils_calculateCTR(sponsors[s].clicks, sponsors[s].impressions);
+    sponsors[s].engagementRate = ctr.toFixed(2) + '%';
   });
 
   // Sort by impressions descending
@@ -257,6 +257,7 @@ function groupBySponsor_(analytics) {
 
 /**
  * Calculate daily trends
+ * Uses shared MetricsUtils_calculateCTR for DRY compliance
  */
 function calculateDailyTrends_(analytics) {
   const dailyData = {};
@@ -281,11 +282,10 @@ function calculateDailyTrends_(analytics) {
     new Date(a.date) - new Date(b.date)
   );
 
-  // Add engagement rate
+  // Add engagement rate using shared utility
   trends.forEach(day => {
-    day.engagementRate = day.impressions > 0
-      ? (day.clicks / day.impressions * 100).toFixed(2) + '%'
-      : '0%';
+    const ctr = MetricsUtils_calculateCTR(day.clicks, day.impressions);
+    day.engagementRate = ctr.toFixed(2) + '%';
   });
 
   return trends;
@@ -293,6 +293,7 @@ function calculateDailyTrends_(analytics) {
 
 /**
  * Get top event-sponsor pairs (most engaged combinations)
+ * Uses shared MetricsUtils_calculateCTR for DRY compliance
  */
 function getTopEventSponsorPairs_(analytics, limit = 10) {
   const pairs = {};
@@ -315,15 +316,16 @@ function getTopEventSponsorPairs_(analytics, limit = 10) {
     if (a.metric === 'click') pairs[key].clicks++;
   });
 
-  // Calculate engagement rate and sort
+  // Calculate engagement rate using shared utility and sort
   const sorted = Object.values(pairs)
-    .map(p => ({
-      ...p,
-      engagementRate: p.impressions > 0 ? p.clicks / p.impressions : 0,
-      engagementRateFormatted: p.impressions > 0
-        ? (p.clicks / p.impressions * 100).toFixed(2) + '%'
-        : '0%'
-    }))
+    .map(p => {
+      const ctr = MetricsUtils_calculateCTR(p.clicks, p.impressions);
+      return {
+        ...p,
+        engagementRate: ctr / 100,  // As ratio for sorting
+        engagementRateFormatted: ctr.toFixed(2) + '%'
+      };
+    })
     .sort((a, b) => b.engagementRate - a.engagementRate)
     .slice(0, limit);
 
