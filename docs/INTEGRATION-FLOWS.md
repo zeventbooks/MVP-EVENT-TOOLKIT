@@ -490,6 +490,76 @@ logEvent({ eventId, surface: 'display', metric: 'click', sponsorId: id });
 
 ---
 
+## Flow: Poster → Code.gs
+
+The Poster surface (`Poster.html`) fetches print-optimized bundles with QR codes.
+
+### APIs Used
+
+| API | Purpose | Line |
+|-----|---------|------|
+| `api_getPosterBundle` | Event + QR codes + print strings | Code.gs:3396 |
+
+---
+
+### api_getPosterBundle
+
+**Purpose:** Single event with print-optimized QR codes and formatted strings.
+
+**Payload:**
+```javascript
+{
+  brandId: string,        // Required
+  scope: string,          // 'events' | 'leagues' | 'tournaments' (default: 'events')
+  id: string,             // Event ID (required)
+  ifNoneMatch: string     // ETag for caching (optional)
+}
+```
+
+**Response:**
+```javascript
+{
+  ok: true,
+  etag: string,
+  value: {
+    event: Event,         // Full canonical Event object
+    qrCodes: {
+      public: string,     // QR code URL for public page (quickchart.io)
+      signup: string      // QR code URL for signup page
+    },
+    print: {
+      dateFormatted: string,   // Human-readable date
+      venueFormatted: string   // Formatted venue string
+    }
+  }
+}
+```
+
+**Helpers:** `getEventById_()`, `generateQRCodes_()`, `generatePrintStrings_()`
+
+---
+
+### Analytics Logging
+
+Poster surface logs metrics via `SponsorUtils.logEvent()`:
+
+```javascript
+// Log poster page view (on bundle load)
+logEvent({ eventId: event.id, surface: 'poster', metric: 'view', value: 1 });
+
+// Log sponsor impressions (when rendered)
+sponsors.forEach(s => logEvent({
+  eventId, surface: 'poster', metric: 'impression', sponsorId: s.id
+}));
+
+// Log print action (via beforeprint event)
+window.addEventListener('beforeprint', () => {
+  logEvent({ eventId: event.id, surface: 'poster', metric: 'print', value: 1 });
+});
+```
+
+---
+
 ## Flow: Code.gs → Public/Display/Poster
 
 Output surfaces consume event data via `api_get` or `api_list`:
