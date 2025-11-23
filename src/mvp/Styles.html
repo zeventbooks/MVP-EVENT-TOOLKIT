@@ -1146,6 +1146,32 @@
     width: 100%;
   }
 
+  /* ===== Retry Button (D-005: Centralized from 4 pages) ===== */
+  .btn-retry {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 20px;
+    background: var(--color-primary, #2563eb);
+    color: white;
+    border: none;
+    border-radius: var(--radius-base, 8px);
+    font-size: var(--font-size-sm, 0.875rem);
+    font-weight: var(--font-weight-medium, 500);
+    cursor: pointer;
+    text-decoration: none;
+    transition: background var(--transition-fast, 0.15s ease);
+  }
+
+  .btn-retry:hover {
+    background: var(--color-primary-dark, #1d4ed8);
+  }
+
+  .btn-retry:focus-visible {
+    outline: var(--focus-ring-width, 3px) solid var(--focus-ring-color, var(--color-primary));
+    outline-offset: var(--focus-ring-offset, 2px);
+  }
+
   /* ===== Empty State ===== */
   .empty-state {
     text-align: center;

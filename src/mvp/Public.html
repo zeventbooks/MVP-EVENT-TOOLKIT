@@ -21,6 +21,7 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
   <title><?= appTitle ?> · Public</title>
   <?!= include('Styles'); ?>
   <?!= include('SponsorUtils'); ?>
+  <?!= include('FooterComponent'); ?>
   <?!= include('NUSDK'); ?>
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <meta name="referrer" content="no-referrer"/>
@@ -530,23 +531,7 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       opacity: 1;
     }
 
-    /* Trust Footer */
-    .site-footer {
-      text-align: center;
-      padding: 32px 16px;
-      margin-top: 48px;
-      border-top: 1px solid #e2e8f0;
-      color: #94a3b8;
-      font-size: 0.75rem;
-    }
-    .site-footer a {
-      color: #64748b;
-      text-decoration: none;
-    }
-    .site-footer a:hover {
-      color: #2563eb;
-      text-decoration: underline;
-    }
+    /* .site-footer - Now centralized in FooterComponent.html (D-005) */
 
     /* Better Empty States */
     .empty-state {
@@ -589,21 +574,12 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       color: #b91c1c;
       margin-bottom: 16px;
     }
-    .btn-retry {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 10px 20px;
-      background: #dc2626;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      font-size: 0.875rem;
-      font-weight: 500;
-      cursor: pointer;
+    /* .btn-retry - Base in Styles.html, danger override for error context */
+    .error-state .btn-retry {
+      background: var(--color-danger, #dc2626);
     }
-    .btn-retry:hover {
-      background: #b91c1c;
+    .error-state .btn-retry:hover {
+      background: var(--color-danger-dark, #b91c1c);
     }
 
     /* Mobile adjustments for utility buttons */

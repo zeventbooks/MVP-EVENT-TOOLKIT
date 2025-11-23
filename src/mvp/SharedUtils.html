@@ -426,6 +426,28 @@ window.SharedUtils = (function() {
     }
   };
 
+  // === EVENT_CONTRACT.md v2.0 Support ===
+
+  /**
+   * Checks if an event section is enabled via settings
+   * Extracted from Display.html and Poster.html (D-008)
+   * Trust the contract - never invent flags
+   *
+   * @param {Object} settings - Event settings object
+   * @param {string} key - Section key: 'schedule', 'standings', 'bracket', 'sponsors'
+   * @returns {boolean} True if section is enabled
+   */
+  function sectionEnabled(settings, key) {
+    if (!settings) return false;
+    switch (key) {
+      case 'schedule': return settings.showSchedule === true;
+      case 'standings': return settings.showStandings === true;
+      case 'bracket': return settings.showBracket === true;
+      case 'sponsors': return settings.showSponsors === true;
+      default: return false;
+    }
+  }
+
   // === Public API ===
   return {
     // Alerts
@@ -459,7 +481,10 @@ window.SharedUtils = (function() {
 
     // Utility functions
     debounce,
-    throttle
+    throttle,
+
+    // EVENT_CONTRACT helpers
+    sectionEnabled
   };
 })();
 </script>
