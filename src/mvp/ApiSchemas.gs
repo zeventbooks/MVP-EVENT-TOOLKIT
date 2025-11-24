@@ -1,10 +1,14 @@
 /**
  * API Schemas and Contracts
  *
- * Defines formal JSON Schema contracts for all API endpoints:
- * - Request schemas (input validation)
- * - Response schemas (output validation)
- * - Error schemas (error handling)
+ * GAS runtime validation that MIRRORS the JSON Schema source of truth:
+ *   - /schemas/event.schema.json   (Event entity)
+ *   - /schemas/sponsor.schema.json (Sponsor entity)
+ *
+ * IMPORTANT: If a field isn't in the JSON schema, it doesn't exist.
+ *            If it's in the schema, it must be wired here.
+ *
+ * See EVENT_CONTRACT.md for human-readable documentation.
  *
  * Benefits:
  * - Type-safe client generation
@@ -13,6 +17,10 @@
  * - Runtime validation
  *
  * @module ApiSchemas
+ * @version 2.1.0
+ * @see /schemas/event.schema.json
+ * @see /schemas/sponsor.schema.json
+ * @see EVENT_CONTRACT.md
  */
 
 // === Common Schemas =======================================================
@@ -85,7 +93,8 @@ const SCHEMAS = {
   },
 
   // === Event Schemas =======================================================
-  // Canonical Event Contract v2.0 (MVP + V2-Ready) - See EVENT_CONTRACT.md
+  // MIRRORS: /schemas/event.schema.json (v2.1.0)
+  // See EVENT_CONTRACT.md for human-readable documentation
 
   events: {
     // Shared schema definitions for reuse
@@ -151,7 +160,7 @@ const SCHEMAS = {
       }
     },
 
-    // Sponsor with placement (V2)
+    // Sponsor with placement (V2) - MIRRORS: /schemas/sponsor.schema.json
     _sponsor: {
       type: 'object',
       required: ['id', 'name', 'logoUrl', 'placement'],
@@ -228,7 +237,7 @@ const SCHEMAS = {
       }
     },
 
-    // Full event shape per EVENT_CONTRACT.md v2.0
+    // Full event shape - MIRRORS: /schemas/event.schema.json (v2.1.0)
     _eventShape: {
       type: 'object',
       required: ['id', 'slug', 'name', 'startDateISO', 'venue', 'links', 'qr', 'ctas', 'settings', 'createdAtISO', 'updatedAtISO'],
