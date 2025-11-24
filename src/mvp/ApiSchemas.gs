@@ -248,6 +248,7 @@ const SCHEMAS = {
         name: { type: 'string', minLength: 1, maxLength: 200 },
         startDateISO: { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}$' },
         venue: { type: 'string', minLength: 1, maxLength: 200 },
+        templateId: { type: ['string', 'null'], maxLength: 64 },  // MVP Optional
 
         // Links (MVP Required)
         links: {

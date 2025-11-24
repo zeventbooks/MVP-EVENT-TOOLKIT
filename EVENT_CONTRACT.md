@@ -41,6 +41,7 @@ These fields **MUST** be present in every event object:
 | `name` | `string` | Event display name (max 200 chars) |
 | `startDateISO` | `string` | Date in YYYY-MM-DD format |
 | `venue` | `string` | Venue name/location (max 200 chars) |
+| `templateId` | `string\|null` | Template ID used to create event (optional) |
 
 ### Links (Generated - never rebuild manually)
 | Field | Type | Description |

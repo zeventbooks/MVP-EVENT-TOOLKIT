@@ -50,6 +50,12 @@
       "maxLength": 200,
       "description": "MVP REQUIRED - Venue name/location"
     },
+    "templateId": {
+      "type": ["string", "null"],
+      "maxLength": 64,
+      "pattern": "^[a-z_]+$",
+      "description": "MVP OPTIONAL - Template ID used to create this event"
+    },
     "links": {
       "$ref": "#/$defs/Links"
     },

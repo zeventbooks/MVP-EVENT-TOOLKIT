@@ -479,20 +479,23 @@ function getEventTemplate_(templateId) {
 /**
  * Apply template defaults to an event object (MVP)
  * Only sets values where user hasn't already provided data
- * Conforms to EVENT_CONTRACT.md v2.0
+ *
+ * IMPORTANT: This function MUST only set fields that exist in /schemas/event.schema.json
+ * If a field isn't in the schema, it doesn't get set here.
  *
  * @param {Object} event - Event object (can be partial data from form)
  * @param {string} templateId - Template ID to apply
  * @returns {Object} Modified event object with template defaults applied
+ * @see /schemas/event.schema.json
  */
 function applyTemplateToEvent_(event, templateId) {
   var tpl = getEventTemplate_(templateId);
 
-  // Set template reference
+  // === templateId: IN SCHEMA (MVP OPTIONAL) ===
   event.templateId = tpl.id;
 
-  // === Settings: Apply contract-aligned visibility flags ===
-  // EVENT_CONTRACT.md v2.0 shape: { showSchedule, showStandings, showBracket, showSponsors }
+  // === Settings: IN SCHEMA (MVP REQUIRED) ===
+  // /schemas/event.schema.json: Settings { showSchedule, showStandings, showBracket, showSponsors }
   event.settings = event.settings || {};
 
   // Map template sections to contract settings
@@ -516,32 +519,35 @@ function applyTemplateToEvent_(event, templateId) {
     event.settings.showBracket = bracketTemplates.includes(tpl.id);
   }
 
-  // === Legacy sections support (for backward compatibility) ===
-  // Keep sections for Admin UI form rendering, but settings is the source of truth for frontends
-  event.sections = event.sections || {};
+  // ═══════════════════════════════════════════════════════════════════════════
+  // V2 LEGACY FIELDS - NOT IN /schemas/event.schema.json
+  // These are kept for Admin UI backward compatibility during migration.
+  // They are NOT part of the canonical event shape returned by _buildEventContract_().
+  // TODO: Remove after Admin.html migrates to settings-based UI
+  // ═══════════════════════════════════════════════════════════════════════════
 
+  // sections: V2 legacy - Admin UI still reads this for form rendering
+  // Contract uses: settings.showSchedule, settings.showStandings, etc.
+  event.sections = event.sections || {};
   var sectionKeys = ['video', 'map', 'schedule', 'sponsors', 'notes', 'gallery'];
   sectionKeys.forEach(function(key) {
-    // Don't overwrite if user already set a section config
     if (event.sections[key] == null) {
       var enabled = tpl.sections[key] || false;
       event.sections[key] = {
         enabled: enabled,
-        title: null,  // Use default title from UI
+        title: null,
         content: null
       };
     } else if (typeof event.sections[key] === 'boolean') {
-      // Convert legacy boolean to SectionConfig
       event.sections[key] = {
         enabled: event.sections[key],
         title: null,
         content: null
       };
     }
-    // If it's already a SectionConfig object, leave it alone
   });
 
-  // Apply custom titles from template defaults
+  // notesLabel, sponsorStripLabel: V2 legacy - custom section titles
   if (tpl.defaults) {
     if (tpl.defaults.notesLabel && event.sections.notes && !event.sections.notes.title) {
       event.sections.notes.title = tpl.defaults.notesLabel;
@@ -551,36 +557,21 @@ function applyTemplateToEvent_(event, templateId) {
     }
   }
 
-  // === CTA Labels: Convert template strings to CTALabel objects ===
-  // EVENT_CONTRACT.md shape: [{ key: string, label: string, url: string|null }]
+  // ctaLabels: DEPRECATED - Contract uses ctas.primary/ctas.secondary
+  // Kept for backward compat with old Admin.html forms
   if (!event.ctaLabels || !event.ctaLabels.length) {
     event.ctaLabels = (tpl.defaultCtas || []).map(function(label, idx) {
       return {
         key: 'cta_' + idx,
         label: label,
-        url: null  // Will be filled by specific URL fields (signupUrl, etc.)
+        url: null
       };
     });
   }
 
-  // === Audience: Apply default if not set ===
-  if (!event.audience && tpl.defaults && tpl.defaults.audience) {
-    event.audience = tpl.defaults.audience;
-  }
-
-  // === Status: Default to 'draft' per EVENT_CONTRACT.md ===
-  if (!event.status) {
-    event.status = 'draft';
-  }
-
-  // === ExternalData: Seed providerName from template if not set ===
-  // Per EVENT_CONTRACT.md V1 rules: TemplateService seeds providerName for special templates
-  if (tpl.defaultExternalProvider) {
-    event.externalData = event.externalData || {};
-    if (!event.externalData.providerName) {
-      event.externalData.providerName = tpl.defaultExternalProvider;
-    }
-  }
+  // audience: V2 concept - not in MVP schema
+  // status: V2 concept - not in MVP schema (draft|published|cancelled|completed)
+  // These are stored in data blob but NOT returned by _buildEventContract_()
 
   return event;
 }
