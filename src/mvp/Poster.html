@@ -410,9 +410,13 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
       const startDateISO = event.startDateISO || '';
       const venue = event.venue || '';
 
-      // === CONTRACT FIELDS (V2 OPTIONAL) ===
-      const media = event.media || {};
-      const imageUrl = media.imageUrl || '';
+      // ═══════════════════════════════════════════════════════════════
+      // V2 COMMENTED OUT - media.imageUrl NOT IN /schemas/event.schema.json
+      // Media only has: videoUrl, mapUrl, gallery
+      // TODO: Add media.heroImageUrl to schema when poster image feature is ready
+      // ═══════════════════════════════════════════════════════════════
+      // const media = event.media || {};
+      // const imageUrl = media.imageUrl || '';
 
       // Event Name (MVP Required)
       document.getElementById('eventName').textContent = name;
@@ -442,11 +446,16 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
       const entityEl = document.getElementById('eventEntity');
       entityEl.hidden = true;
 
-      // Event Image (V2 Optional) - event.media.imageUrl
-      if (imageUrl) {
-        document.getElementById('eventImage').src = imageUrl;
-        document.getElementById('eventImageContainer').hidden = false;
-      }
+      // ═══════════════════════════════════════════════════════════════
+      // V2 COMMENTED OUT - Event Image not in schema
+      // TODO: Enable when media.heroImageUrl is added to schema
+      // ═══════════════════════════════════════════════════════════════
+      // if (imageUrl) {
+      //   document.getElementById('eventImage').src = imageUrl;
+      //   document.getElementById('eventImageContainer').hidden = false;
+      // }
+      // Always hide image container for now
+      document.getElementById('eventImageContainer').hidden = true;
 
       // Summary - not in MVP contract, hidden
       document.getElementById('eventSummary').hidden = true;

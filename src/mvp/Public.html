@@ -967,28 +967,32 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       return html;
     }
 
-    // Map CTA label to URL from event data
-    function getCTAUrl(data, label) {
-      const labelLower = label.toLowerCase();
-      // Map common CTA labels to data fields
-      if (labelLower.includes('register') || labelLower.includes('rsvp')) return data.registerUrl || data.signupUrl;
-      if (labelLower.includes('sign up')) return data.signupUrl || data.registerUrl;
-      if (labelLower.includes('donate')) return data.donationUrl;
-      if (labelLower.includes('ticket')) return data.ticketUrl || data.registerUrl;
-      if (labelLower.includes('registry')) return data.registryUrl;
-      if (labelLower.includes('schedule') || labelLower.includes('itinerary')) return data.scheduleUrl;
-      if (labelLower.includes('standing')) return data.standingsUrl;
-      if (labelLower.includes('bracket')) return data.bracketUrl;
-      if (labelLower.includes('photo') || labelLower.includes('album')) return data.albumUrl;
-      if (labelLower.includes('download')) return data.downloadUrl;
-      if (labelLower.includes('vendor')) return data.vendorListUrl;
-      if (labelLower.includes('calendar')) return buildGoogleCalendarUrl(data);
-      if (labelLower.includes('direction') || labelLower.includes('map')) return buildMapsUrl(data.location);
-      if (labelLower.includes('rule')) return data.rulesUrl;
-      if (labelLower.includes('roster') || labelLower.includes('team')) return data.rosterUrl;
-      // Fallback to generic URLs
-      return data.registerUrl || data.signupUrl || data.summaryLink;
-    }
+    // ═══════════════════════════════════════════════════════════════
+    // V2 COMMENTED OUT - getCTAUrl references many non-schema fields
+    // MVP relies on event.ctas.primary.url / event.ctas.secondary.url
+    // TODO: Remove this legacy function after Admin CTA refactor
+    // ═══════════════════════════════════════════════════════════════
+    // function getCTAUrl(data, label) {
+    //   const labelLower = label.toLowerCase();
+    //   // Map common CTA labels to data fields
+    //   if (labelLower.includes('register') || labelLower.includes('rsvp')) return data.registerUrl || data.signupUrl;
+    //   if (labelLower.includes('sign up')) return data.signupUrl || data.registerUrl;
+    //   if (labelLower.includes('donate')) return data.donationUrl;
+    //   if (labelLower.includes('ticket')) return data.ticketUrl || data.registerUrl;
+    //   if (labelLower.includes('registry')) return data.registryUrl;
+    //   if (labelLower.includes('schedule') || labelLower.includes('itinerary')) return data.scheduleUrl;
+    //   if (labelLower.includes('standing')) return data.standingsUrl;
+    //   if (labelLower.includes('bracket')) return data.bracketUrl;
+    //   if (labelLower.includes('photo') || labelLower.includes('album')) return data.albumUrl;
+    //   if (labelLower.includes('download')) return data.downloadUrl;
+    //   if (labelLower.includes('vendor')) return data.vendorListUrl;
+    //   if (labelLower.includes('calendar')) return buildGoogleCalendarUrl(data);
+    //   if (labelLower.includes('direction') || labelLower.includes('map')) return buildMapsUrl(data.location);
+    //   if (labelLower.includes('rule')) return data.rulesUrl;
+    //   if (labelLower.includes('roster') || labelLower.includes('team')) return data.rosterUrl;
+    //   // Fallback to generic URLs
+    //   return data.registerUrl || data.signupUrl || data.summaryLink;
+    // }
 
     // Build Google Maps URL from location string
     function buildMapsUrl(location) {
@@ -1273,14 +1277,15 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       currentEventData = data;
 
       // === SETTINGS-BASED VISIBILITY ===
-      // EVENT_CONTRACT.md v2.0: Trust event.settings.* - never invent flags
+      // /schemas/event.schema.json Settings: showSchedule, showStandings, showBracket, showSponsors
+      // Only these four flags exist in schema - no video/gallery/notes flags
       const sectionEnabled = (key) => {
         switch (key) {
           case 'schedule': return settings.showSchedule === true;
           case 'standings': return settings.showStandings === true;
           case 'bracket': return settings.showBracket === true;
           case 'sponsors': return settings.showSponsors === true;
-          default: return true; // Media sections default to visible if data exists
+          default: return false; // Unknown keys are not schema-valid
         }
       };
 
@@ -1417,31 +1422,37 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
 
       html += '</div>';
 
-      // Event Image
-      if (data.imageUrl) {
-        html += `<img src="${esc(data.imageUrl)}" alt="${esc(data.name || 'Event')}" class="event-image">`;
-      }
+      // ═══════════════════════════════════════════════════════════════
+      // V2 COMMENTED OUT - imageUrl NOT IN /schemas/event.schema.json
+      // TODO: Add event.media.heroImageUrl to schema when ready
+      // ═══════════════════════════════════════════════════════════════
+      // if (data.imageUrl) {
+      //   html += `<img src="${esc(data.imageUrl)}" alt="${esc(data.name || 'Event')}" class="event-image">`;
+      // }
 
-      // Summary Section
-      if (data.summary || data.summaryLink) {
-        html += '<div class="event-section">';
-        html += '<h2>About This Event</h2>';
-        if (data.summary) {
-          html += `<p>${esc(data.summary)}</p>`;
-        }
-        if (data.summaryLink) {
-          html += `<p><a href="${esc(data.summaryLink)}" target="_blank" rel="noopener">Learn more →</a></p>`;
-        }
-        html += '</div>';
-      }
+      // ═══════════════════════════════════════════════════════════════
+      // V2 COMMENTED OUT - summary/summaryLink NOT IN /schemas/event.schema.json
+      // TODO: Add event.description field to schema when ready
+      // ═══════════════════════════════════════════════════════════════
+      // if (data.summary || data.summaryLink) {
+      //   html += '<div class="event-section">';
+      //   html += '<h2>About This Event</h2>';
+      //   if (data.summary) {
+      //     html += `<p>${esc(data.summary)}</p>`;
+      //   }
+      //   if (data.summaryLink) {
+      //     html += `<p><a href="${esc(data.summaryLink)}" target="_blank" rel="noopener">Learn more →</a></p>`;
+      //   }
+      //   html += '</div>';
+      // }
 
-      // Video Section - Fixed: Bug #3 - XSS via video URL injection (respects sections.video)
-      if (data.videoUrl && sectionEnabled('video')) {
+      // Video Section - uses event.media.videoUrl (V2 OPTIONAL per /schemas/event.schema.json)
+      if (media.videoUrl) {
         html += '<div class="event-section">';
         html += '<h2>Video</h2>';
 
         // Validate and sanitize video URL with strict regex
-        const videoUrl = String(data.videoUrl);
+        const videoUrl = String(media.videoUrl);
         let embedUrl = null;
         let isValidVideo = false;
 
@@ -1480,19 +1491,17 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
         html += '</div>';
       }
 
-      // Gallery Section (respects sections.gallery)
-      if (data.galleryUrls && sectionEnabled('gallery')) {
-        const urls = data.galleryUrls.split(',').map(u => u.trim()).filter(u => u);
-        if (urls.length > 0) {
-          html += '<div class="event-section">';
-          html += '<h2>Gallery</h2>';
-          html += '<div class="gallery">';
-          urls.forEach(url => {
-            html += `<img src="${esc(url)}" alt="Event photo" loading="lazy">`;
-          });
-          html += '</div>';
-          html += '</div>';
-        }
+      // Gallery Section - uses event.media.gallery (V2 OPTIONAL per /schemas/event.schema.json)
+      // media.gallery is an array of URLs, not comma-separated string
+      if (media.gallery && Array.isArray(media.gallery) && media.gallery.length > 0) {
+        html += '<div class="event-section">';
+        html += '<h2>Gallery</h2>';
+        html += '<div class="gallery">';
+        media.gallery.forEach(url => {
+          html += `<img src="${esc(url)}" alt="Event photo" loading="lazy">`;
+        });
+        html += '</div>';
+        html += '</div>';
       }
 
       // Schedule Section - uses event.schedule (MVP Optional) + event.settings.showSchedule
@@ -1519,25 +1528,33 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
         html += '</div>';
       }
 
+      // ═══════════════════════════════════════════════════════════════
+      // V2 COMMENTED OUT - albumUrl/downloadUrl NOT IN /schemas/event.schema.json
+      // TODO: Add to media schema when template-specific features are ready
+      // ═══════════════════════════════════════════════════════════════
       // Template-specific sections
       // Photo Album (photo_gallery, wedding, shower templates)
-      if (data.albumUrl && sectionEnabled('gallery')) {
-        html += '<div class="event-section">';
-        html += '<h2>Photo Album</h2>';
-        html += `<p><a class="btn-primary" href="${esc(data.albumUrl)}" target="_blank" rel="noopener">📸 View Photo Album</a></p>`;
-        if (data.downloadUrl) {
-          html += `<p><a class="btn-secondary" href="${esc(data.downloadUrl)}" target="_blank" rel="noopener">⬇️ Download All Photos</a></p>`;
-        }
-        html += '</div>';
-      }
+      // if (data.albumUrl) {
+      //   html += '<div class="event-section">';
+      //   html += '<h2>Photo Album</h2>';
+      //   html += `<p><a class="btn-primary" href="${esc(data.albumUrl)}" target="_blank" rel="noopener">📸 View Photo Album</a></p>`;
+      //   if (data.downloadUrl) {
+      //     html += `<p><a class="btn-secondary" href="${esc(data.downloadUrl)}" target="_blank" rel="noopener">⬇️ Download All Photos</a></p>`;
+      //   }
+      //   html += '</div>';
+      // }
 
+      // ═══════════════════════════════════════════════════════════════
+      // V2 COMMENTED OUT - registryUrl NOT IN /schemas/event.schema.json
+      // TODO: Add to event schema when gift registry feature is ready
+      // ═══════════════════════════════════════════════════════════════
       // Registry (wedding, shower templates)
-      if (data.registryUrl) {
-        html += '<div class="event-section">';
-        html += '<h2>Gift Registry</h2>';
-        html += `<p><a class="btn-primary" href="${esc(data.registryUrl)}" target="_blank" rel="noopener">🎁 View Registry</a></p>`;
-        html += '</div>';
-      }
+      // if (data.registryUrl) {
+      //   html += '<div class="event-section">';
+      //   html += '<h2>Gift Registry</h2>';
+      //   html += `<p><a class="btn-primary" href="${esc(data.registryUrl)}" target="_blank" rel="noopener">🎁 View Registry</a></p>`;
+      //   html += '</div>';
+      // }
 
       // === STANDINGS SECTION - uses event.standings (MVP Optional) + event.settings.showStandings ===
       if (sectionEnabled('standings') && (standings.length > 0 || externalData.standingsUrl)) {
@@ -1602,54 +1619,70 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
         html += '</div>';
       }
 
+      // ═══════════════════════════════════════════════════════════════
+      // V2 COMMENTED OUT - vendorListUrl NOT IN /schemas/event.schema.json
+      // TODO: Add externalData.vendorsUrl to schema when vendor feature is ready
+      // ═══════════════════════════════════════════════════════════════
       // Vendor List (farmers_market template) - supports Google Sheets BYOD
-      if (data.vendorListUrl) {
-        html += '<div class="event-section">';
-        html += '<h2>Vendors</h2>';
-        html += `<div id="vendors-container" data-url="${esc(data.vendorListUrl)}">
-          <div class="loading-placeholder">Loading vendors...</div>
-        </div>`;
-        html += '</div>';
-      }
+      // if (data.vendorListUrl) {
+      //   html += '<div class="event-section">';
+      //   html += '<h2>Vendors</h2>';
+      //   html += `<div id="vendors-container" data-url="${esc(data.vendorListUrl)}">
+      //     <div class="loading-placeholder">Loading vendors...</div>
+      //   </div>`;
+      //   html += '</div>';
+      // }
 
+      // ═══════════════════════════════════════════════════════════════
+      // V2 COMMENTED OUT - goalAmount/raisedAmount/donationUrl NOT IN /schemas/event.schema.json
+      // TODO: Add fundraising object to schema when donation feature is ready
+      // ═══════════════════════════════════════════════════════════════
       // Donation Progress (fundraiser template)
-      if (data.goalAmount && data.raisedAmount !== undefined) {
-        const progress = Math.min(100, Math.round((data.raisedAmount / data.goalAmount) * 100));
-        html += '<div class="event-section">';
-        html += '<h2>Fundraising Progress</h2>';
-        html += `<div class="fundraising-progress">`;
-        html += `<div class="progress-bar"><div class="progress-fill" style="width: ${progress}%"></div></div>`;
-        html += `<p class="progress-text">$${data.raisedAmount.toLocaleString()} raised of $${data.goalAmount.toLocaleString()} goal (${progress}%)</p>`;
-        html += `</div>`;
-        if (data.donationUrl) {
-          html += `<p><a class="btn-primary" href="${esc(data.donationUrl)}" target="_blank" rel="noopener">💝 Donate Now</a></p>`;
-        }
-        html += '</div>';
-      }
+      // if (data.goalAmount && data.raisedAmount !== undefined) {
+      //   const progress = Math.min(100, Math.round((data.raisedAmount / data.goalAmount) * 100));
+      //   html += '<div class="event-section">';
+      //   html += '<h2>Fundraising Progress</h2>';
+      //   html += `<div class="fundraising-progress">`;
+      //   html += `<div class="progress-bar"><div class="progress-fill" style="width: ${progress}%"></div></div>`;
+      //   html += `<p class="progress-text">$${data.raisedAmount.toLocaleString()} raised of $${data.goalAmount.toLocaleString()} goal (${progress}%)</p>`;
+      //   html += `</div>`;
+      //   if (data.donationUrl) {
+      //     html += `<p><a class="btn-primary" href="${esc(data.donationUrl)}" target="_blank" rel="noopener">💝 Donate Now</a></p>`;
+      //   }
+      //   html += '</div>';
+      // }
 
+      // ═══════════════════════════════════════════════════════════════
+      // V2 COMMENTED OUT - bio/bioLink/notes NOT IN /schemas/event.schema.json
+      // TODO: Add description field to schema when rich text support is ready
+      // ═══════════════════════════════════════════════════════════════
       // Bio/Notes Section (respects sections.notes) - uses custom label from template
-      if ((data.bio || data.bioLink || data.notes) && sectionEnabled('notes')) {
-        html += '<div class="event-section">';
-        html += `<h2>${esc(getSectionTitle('notes', 'More Information'))}</h2>`;
-        if (data.notes) {
-          html += `<p>${esc(data.notes)}</p>`;
-        }
-        if (data.bio) {
-          html += `<p>${esc(data.bio)}</p>`;
-        }
-        if (data.bioLink) {
-          html += `<p><a href="${esc(data.bioLink)}" target="_blank" rel="noopener">Read more →</a></p>`;
-        }
-        html += '</div>';
-      }
+      // if (data.bio || data.bioLink || data.notes) {
+      //   html += '<div class="event-section">';
+      //   html += `<h2>More Information</h2>`;
+      //   if (data.notes) {
+      //     html += `<p>${esc(data.notes)}</p>`;
+      //   }
+      //   if (data.bio) {
+      //     html += `<p>${esc(data.bio)}</p>`;
+      //   }
+      //   if (data.bioLink) {
+      //     html += `<p><a href="${esc(data.bioLink)}" target="_blank" rel="noopener">Read more →</a></p>`;
+      //   }
+      //   html += '</div>';
+      // }
 
-      // Feedback Survey (uses feedbackUrl per EVENT_CONTRACT.md)
-      if (data.feedbackUrl) {
-        html += '<div class="event-section">';
-        html += '<h2>Feedback</h2>';
-        html += `<p><a class="btn-primary" href="${esc(data.feedbackUrl)}" target="_blank" rel="noopener">📋 Share Your Feedback</a></p>`;
-        html += '</div>';
-      }
+      // ═══════════════════════════════════════════════════════════════
+      // V2 COMMENTED OUT - feedbackUrl NOT IN /schemas/event.schema.json
+      // TODO: Add links.feedbackUrl to schema when feedback feature is ready
+      // ═══════════════════════════════════════════════════════════════
+      // Feedback Survey
+      // if (data.feedbackUrl) {
+      //   html += '<div class="event-section">';
+      //   html += '<h2>Feedback</h2>';
+      //   html += `<p><a class="btn-primary" href="${esc(data.feedbackUrl)}" target="_blank" rel="noopener">📋 Share Your Feedback</a></p>`;
+      //   html += '</div>';
+      // }
 
       html += '</div>';
 

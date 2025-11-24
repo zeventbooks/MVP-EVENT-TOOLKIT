@@ -278,10 +278,15 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
           </div>
         </div>
 
-        <!-- Section Toggles (MVP) -->
-        <div class="subsection">
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- V2 LEGACY UI - Section Toggles NOT IN /schemas/event.schema.json -->
+        <!-- Schema settings only has: showSchedule, showStandings, showBracket, showSponsors -->
+        <!-- These toggles are template UI that map to legacy sections object -->
+        <!-- TODO: Remove this subsection once Display Settings covers all needs -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <div class="subsection" id="v2SectionsTogglePanel" style="display:none;">
           <div class="collapsible-header" onclick="toggleSection(this)">
-            <h3>Sections</h3>
+            <h3>Sections (Legacy)</h3>
             <span class="collapsible-icon">▼</span>
           </div>
           <div class="collapsible-content">
@@ -463,15 +468,17 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
                 <input id="bracketUrl" type="url" placeholder="https://...">
                 <small class="muted">Tournament bracket or playoff tree</small>
               </div>
-              <div class="form-group">
+              <!-- V2 NOT IN SCHEMA - statsUrl not in externalData -->
+              <div class="form-group" style="display:none;">
                 <label>📈 Stats URL</label>
                 <input id="statsUrl" type="url" placeholder="https://...">
                 <small class="muted">Stats hub (e.g., BocceLabs league page)</small>
               </div>
             </div>
 
-            <!-- Broadcast Links -->
-            <div class="form-row">
+            <!-- V2 Broadcast Links - NOT IN /schemas/event.schema.json -->
+            <!-- ExternalData only has: scheduleUrl, standingsUrl, bracketUrl -->
+            <div class="form-row" style="display:none;">
               <div class="form-group">
                 <label>📺 Scoreboard URL</label>
                 <input id="scoreboardUrl" type="url" placeholder="https://...">
@@ -484,8 +491,8 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
               </div>
             </div>
 
-            <!-- Provider Integration -->
-            <div class="form-row">
+            <!-- V2 Provider Integration - NOT IN /schemas/event.schema.json -->
+            <div class="form-row" style="display:none;">
               <div class="form-group">
                 <label>Provider</label>
                 <select id="providerName">
@@ -506,10 +513,14 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
           </div>
         </div>
 
-        <!-- Template-Specific Fields (MVP) -->
-        <div class="subsection">
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- V2 HIDDEN - Template-Specific Fields NOT IN /schemas/event.schema.json -->
+        <!-- ticketUrl, donationUrl, albumUrl, registryUrl, vendorListUrl, goalAmount, raisedAmount -->
+        <!-- TODO: Add these fields to schema when template-specific features are ready -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <div class="subsection" style="display:none;">
           <div class="collapsible-header collapsed" onclick="toggleSection(this)">
-            <h3>Additional Links</h3>
+            <h3>Additional Links (V2)</h3>
             <span class="collapsible-icon">▼</span>
           </div>
           <div class="collapsible-content" style="display: none;">

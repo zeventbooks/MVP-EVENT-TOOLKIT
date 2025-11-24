@@ -390,11 +390,15 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
       if (ext.standingsUrl) leagueLinks.push({ icon: '🏆', label: 'Standings', url: ext.standingsUrl, type: 'standings' });
       if (ext.bracketUrl) leagueLinks.push({ icon: '🎯', label: 'Bracket', url: ext.bracketUrl, type: 'bracket' });
 
-      // Check for broadcast links
+      // ═══════════════════════════════════════════════════════════════
+      // V2 COMMENTED OUT - statsUrl/scoreboardUrl/streamUrl NOT IN /schemas/event.schema.json
+      // ExternalData only has: scheduleUrl, standingsUrl, bracketUrl
+      // TODO: Add broadcast URLs to schema when streaming feature is ready
+      // ═══════════════════════════════════════════════════════════════
       const broadcastLinks = [];
-      if (ext.statsUrl) broadcastLinks.push({ icon: '📈', label: 'Stats', url: ext.statsUrl, type: 'stats' });
-      if (ext.scoreboardUrl) broadcastLinks.push({ icon: '📺', label: 'Scoreboard', url: ext.scoreboardUrl, type: 'scoreboard' });
-      if (ext.streamUrl) broadcastLinks.push({ icon: '🎥', label: 'Watch', url: ext.streamUrl, type: 'stream', isStream: true });
+      // if (ext.statsUrl) broadcastLinks.push({ icon: '📈', label: 'Stats', url: ext.statsUrl, type: 'stats' });
+      // if (ext.scoreboardUrl) broadcastLinks.push({ icon: '📺', label: 'Scoreboard', url: ext.scoreboardUrl, type: 'scoreboard' });
+      // if (ext.streamUrl) broadcastLinks.push({ icon: '🎥', label: 'Watch', url: ext.streamUrl, type: 'stream', isStream: true });
 
       const hasLeagueLinks = leagueLinks.length > 0;
       const hasBroadcastLinks = broadcastLinks.length > 0;
@@ -605,14 +609,18 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
       const sponsors = ev.sponsors || [];
       const externalData = ev.externalData || {};
 
-      // === LEGACY DATA FOR DYNAMIC MODE ===
+      // ═══════════════════════════════════════════════════════════════
+      // V2 LEGACY - ev.data.display NOT IN /schemas/event.schema.json
+      // Dynamic mode config was stored in legacy flat data object
+      // TODO: Add media.displayRotation to schema when TV rotation feature is ready
+      // ═══════════════════════════════════════════════════════════════
       const legacyData = ev.data || {};
       const displayConfig = legacyData.display || {};
 
       // === RENDER LEAGUE & BROADCAST STRIP ===
-      // Uses event.externalData (V2 Optional)
-      if (externalData.scheduleUrl || externalData.standingsUrl || externalData.bracketUrl ||
-          externalData.statsUrl || externalData.scoreboardUrl || externalData.streamUrl) {
+      // Uses event.externalData (V2 Optional per /schemas/event.schema.json)
+      // Schema only has: scheduleUrl, standingsUrl, bracketUrl
+      if (externalData.scheduleUrl || externalData.standingsUrl || externalData.bracketUrl) {
         renderLeagueBroadcast(ev.templateId || '', externalData);
       }
 
