@@ -10,7 +10,7 @@
 
 | # | Invariant | Status | Notes |
 |---|-----------|--------|-------|
-| 1 | All event reads go through `hydrateEvent_()` | PASS | All endpoints use `getEventById_()` |
+| 1 | All event reads go through `_buildEventContract_()` | PASS | All endpoints use `getEventById_()` |
 | 2 | All event writes go through `saveEvent_()` / adapters | PASS | api_create, api_updateEventData, api_saveEvent |
 | 3 | No endpoint returns a non-canonical Event shape | PASS | All bundles wrap canonical Event |
 | 4 | All bundles wrap the canonical Event | PASS | 6 bundles verified |
@@ -19,11 +19,13 @@
 
 ---
 
-## 1. All Event Reads Go Through `hydrateEvent_()`
+## 1. All Event Reads Go Through `_buildEventContract_()`
 
-**Definition:** `Code.gs:2091`
+**Definition:** `Code.gs:2098` - **Single source of truth for event shape**
 
-**Invariant:** Every time an Event is loaded from storage, it MUST pass through `hydrateEvent_()` to ensure canonical shape with:
+**Schema:** `/schemas/event.schema.json`
+
+**Invariant:** Every time an Event is loaded from storage, it MUST pass through `_buildEventContract_()` to ensure canonical shape matching `/schemas/event.schema.json`:
 - Normalized fields (name, startDateISO, venue)
 - Generated links (publicUrl, displayUrl, posterUrl, signupUrl)
 - QR codes as base64 data URIs
@@ -31,7 +33,7 @@
 
 ### Verification
 
-All bundle endpoints use `getEventById_()` which calls `hydrateEvent_()`:
+All bundle endpoints use `getEventById_()` which calls `_buildEventContract_()`:
 
 | Endpoint | Location | Calls getEventById_() |
 |----------|----------|----------------------|
@@ -44,7 +46,7 @@ All bundle endpoints use `getEventById_()` which calls `hydrateEvent_()`:
 
 ### Dead Code Cleanup (Completed)
 
-~~`EventService.gs` contained alternative CRUD functions that did not use `hydrateEvent_()`.~~ **RESOLVED:** File deleted in story E-001 (2025-11-23). All event CRUD now goes through canonical `api_*` functions in `Code.gs`.
+~~`EventService.gs` contained alternative CRUD functions that did not use `_buildEventContract_()`.~~ **RESOLVED:** File deleted in story E-001 (2025-11-23). All event CRUD now goes through canonical `api_*` functions in `Code.gs`.
 
 ---
 
@@ -57,7 +59,7 @@ All bundle endpoints use `getEventById_()` which calls `hydrateEvent_()`:
 - Generates/validates UUID format
 - Handles slug generation with collision detection
 - Uses atomic sheet write with LockService
-- Returns hydrated event via `hydrateEvent_()`
+- Returns hydrated event via `_buildEventContract_()`
 
 ### Verification
 
@@ -150,7 +152,7 @@ SharedReportBundle {
 
 ### URL Sources
 
-URLs are generated server-side in `hydrateEvent_()` at `Code.gs:2106-2112`:
+URLs are generated server-side in `_buildEventContract_()` at `Code.gs:2112-2119`:
 
 ```javascript
 const links = {
@@ -242,7 +244,7 @@ window.NU = {
 
 ```bash
 # Event reads
-grep -n "getEventById_\|hydrateEvent_" *.gs
+grep -n "getEventById_\|_buildEventContract_" *.gs
 
 # Event writes
 grep -n "saveEvent_\|appendRow\|setValue" *.gs

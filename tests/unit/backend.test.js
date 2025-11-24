@@ -866,8 +866,9 @@ describe('EVENT_CONTRACT.md v2.0 Validation', () => {
     });
   });
 
-  describe('Full Event Hydration', () => {
-    const hydrateEvent = (rawData, defaults) => {
+  describe('Full Event Contract Building', () => {
+    // Test helper simulating _buildEventContract_() behavior
+    const buildEventContract = (rawData, defaults) => {
       return {
         ...defaults,
         ...rawData,
@@ -890,7 +891,7 @@ describe('EVENT_CONTRACT.md v2.0 Validation', () => {
         settings: { showSchedule: true }
       };
 
-      const result = hydrateEvent(raw, EVENT_DEFAULTS_);
+      const result = buildEventContract(raw, EVENT_DEFAULTS_);
 
       expect(result.name).toBe('Test Event');
       expect(result.settings.showSchedule).toBe(true);
@@ -906,7 +907,7 @@ describe('EVENT_CONTRACT.md v2.0 Validation', () => {
         analytics: { enabled: true }
       };
 
-      const result = hydrateEvent(raw, EVENT_DEFAULTS_);
+      const result = buildEventContract(raw, EVENT_DEFAULTS_);
 
       expect(result.sponsors.length).toBe(1);
       expect(result.analytics.enabled).toBe(true);

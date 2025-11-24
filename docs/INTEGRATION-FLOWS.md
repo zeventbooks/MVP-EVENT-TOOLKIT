@@ -14,7 +14,7 @@ This document captures the wiring diagram between Admin surfaces, backend APIs (
 
 ```
 Admin
-  └── api_create/api_updateEventData ──► Code.gs (saveEvent_/hydrateEvent_)
+  └── api_create/api_updateEventData ──► Code.gs (saveEvent_/_buildEventContract_)
                                            ├── EVENTS sheet
                                            └── Bundles → Public/Display/Poster
 
@@ -189,7 +189,7 @@ The Admin surface (`Admin.html`) communicates with backend APIs in `Code.gs` via
 }
 ```
 
-**Helpers:** `getEventById_()`, `hydrateEvent_()`, `validateEventContract_()`
+**Helpers:** `getEventById_()`, `_buildEventContract_()`, `validateEventContract_()`
 
 ---
 
@@ -358,7 +358,7 @@ The Public surface (`Public.html`) reads event data and logs analytics via these
 }
 ```
 
-**Helpers:** `getEventsByBrand_()`, `hydrateEvent_()`, `validateEventContract_()`
+**Helpers:** `getEventsByBrand_()`, `_buildEventContract_()`, `validateEventContract_()`
 
 ---
 
@@ -681,7 +681,7 @@ Output surfaces consume event data via `api_get` or `api_list`:
 │  Code.gs                                                         │
 │  ┌─────────────┐   ┌─────────────┐   ┌─────────────────────────┐│
 │  │ saveEvent_  │ → │ EVENTS      │ ← │ getEventById_ /         ││
-│  │             │   │ Sheet       │   │ hydrateEvent_           ││
+│  │             │   │ Sheet       │   │ _buildEventContract_    ││
 │  └─────────────┘   └─────────────┘   └─────────────────────────┘│
 └─────────────────────────────┬───────────────────────────────────┘
                               │

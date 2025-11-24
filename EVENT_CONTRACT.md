@@ -306,7 +306,7 @@ const EVENT_DEFAULTS = {
 - [x] `EVENT_CONTRACT.md` - Human docs (this file)
 - [x] `ApiSchemas.gs` - GAS runtime validation
 - [ ] `Code.gs:EVENT_DEFAULTS_` - Defaults per contract
-- [ ] `Code.gs:hydrateEvent_()` - Returns canonical shape
+- [ ] `Code.gs:_buildEventContract_()` - Returns canonical shape
 - [ ] `Code.gs:api_get()` - Returns full shape with null defaults
 - [ ] `Code.gs:api_list()` - Returns full shape for each item
 - [ ] `Code.gs:api_getPublicBundle()` - Returns event + config

@@ -2082,13 +2082,20 @@ const EVENT_DEFAULTS_ = {
 };
 
 /**
- * Hydrate raw event row into canonical Event shape
+ * Build canonical Event object matching /schemas/event.schema.json
+ *
+ * THIS IS THE SINGLE SOURCE OF TRUTH FOR EVENT SHAPE.
+ * If a field isn't in event.schema.json, it doesn't exist.
+ * If it's in the schema, it must be returned here.
+ *
  * @param {Array} row - Raw spreadsheet row [id, brandId, templateId, data, createdAt, slug]
  * @param {Object} options - { baseUrl, hydrateSponsors: boolean }
- * @returns {Object} Canonical Event object per EVENT_CONTRACT.md v2.0
+ * @returns {Object} Canonical Event object per /schemas/event.schema.json
+ * @see /schemas/event.schema.json
+ * @see EVENT_CONTRACT.md
  * @private
  */
-function hydrateEvent_(row, options = {}) {
+function _buildEventContract_(row, options = {}) {
   const [id, brandId, templateId, dataJson, createdAt, slug] = row;
   const data = safeJSONParse_(dataJson, {});
   const baseUrl = options.baseUrl || ScriptApp.getService().getUrl();
@@ -2204,7 +2211,9 @@ function hydrateEvent_(row, options = {}) {
   const createdAtISO = createdAt || now;
   const updatedAtISO = data.updatedAtISO || createdAtISO;
 
-  // Build canonical event shape per EVENT_CONTRACT.md v2.0
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CANONICAL EVENT SHAPE - MUST MATCH /schemas/event.schema.json
+  // ═══════════════════════════════════════════════════════════════════════════
   return {
     // Identity (MVP Required)
     id: id,
@@ -2426,7 +2435,7 @@ function getEventById_(brandId, id, options = {}) {
 
   // Hydrate to canonical shape
   const baseUrl = ScriptApp.getService().getUrl();
-  const event = hydrateEvent_(row, { baseUrl, hydrateSponsors });
+  const event = _buildEventContract_(row, { baseUrl, hydrateSponsors });
 
   // Validate contract (unless explicitly skipped for performance)
   if (!skipValidation) {
@@ -2490,7 +2499,7 @@ function getEventsByBrand_(brandId, options = {}) {
   const items = allRows
     .slice(pageOffset, pageOffset + pageLimit)
     .map(row => {
-      const event = hydrateEvent_(row, { baseUrl, hydrateSponsors });
+      const event = _buildEventContract_(row, { baseUrl, hydrateSponsors });
       // Validate but don't block - log warnings for broken events
       const validation = validateEventContract_(event);
       if (!validation.ok) {
@@ -2643,7 +2652,7 @@ function mergeEventUpdate_(existingEvent, updateData) {
  * Contract-first save path for events (ZEVENT-003)
  * Canonical function for both creating and updating events.
  * Validates required fields, ensures id/slug, regenerates links & QR,
- * writes row, and returns hydrated event via hydrateEvent_().
+ * writes row, and returns hydrated event via _buildEventContract_().
  *
  * @param {string} brandId - Brand ID
  * @param {string|null} id - Event ID (null for create, required for update)
@@ -2932,7 +2941,7 @@ function saveEvent_(brandId, id, data, options = {}) {
 
     // === Return hydrated event ===
     const savedRow = [sanitizedId, brandId, templateId, JSON.stringify(mergedData), createdAt, slug];
-    const event = hydrateEvent_(savedRow, { baseUrl, hydrateSponsors: true });
+    const event = _buildEventContract_(savedRow, { baseUrl, hydrateSponsors: true });
 
     // Validate the result
     const validation = validateEventContract_(event);
@@ -3863,7 +3872,7 @@ function api_create(payload){
 
 /**
  * Update event data (ZEVENT-003: Load-Merge-Save pattern)
- * Loads existing event via hydrateEvent_, merges update data, saves via saveEvent_
+ * Loads existing event via _buildEventContract_, merges update data, saves via saveEvent_
  * @tier mvp
  */
 function api_updateEventData(req){
@@ -3875,7 +3884,7 @@ function api_updateEventData(req){
     const g = gate_(brandId, adminKey);
     if (!g.ok) return g;
 
-    // Step 1: Load existing event via getEventById_ (uses hydrateEvent_)
+    // Step 1: Load existing event via getEventById_ (uses _buildEventContract_)
     const existingResult = getEventById_(brandId, id, {
       scope: scope || 'events',
       hydrateSponsors: true,
