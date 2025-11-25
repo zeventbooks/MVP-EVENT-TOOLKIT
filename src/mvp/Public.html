@@ -7,65 +7,50 @@ Purpose: Public-facing event listing and registration page
 Status: HARDENED for MVP v1.0
 
 SCHEMA CONTRACT: /schemas/event.schema.json
-This surface uses ONLY these schema fields:
 
-  IDENTITY (MVP Required):
-    - event.name           → Event title
-    - event.startDateISO   → Event date
-    - event.venue          → Location display + Maps link
+═══════════════════════════════════════════════════════════════════════════════
+READS FROM EVENT SCHEMA:
+═══════════════════════════════════════════════════════════════════════════════
+  Identity (MVP Required):
+    - event.id, event.name, event.startDateISO, event.venue
 
   CTAs (MVP Required):
-    - event.ctas.primary   → Main action button (Sign Up)
-    - event.ctas.secondary → Optional secondary button
+    - event.ctas.primary.label, event.ctas.primary.url
+    - event.ctas.secondary.label, event.ctas.secondary.url
 
-  SETTINGS (MVP Required):
-    - event.settings.showSchedule  → Toggle schedule section
-    - event.settings.showStandings → Toggle standings section
-    - event.settings.showBracket   → Toggle bracket section
-    - event.settings.showSponsors  → Toggle sponsor banner
+  Settings (MVP Required - section visibility):
+    - event.settings.showSchedule, showStandings, showBracket, showSponsors
 
-  DATA SECTIONS (MVP Optional):
-    - event.schedule[]   → Schedule list (time, title, description)
-    - event.standings[]  → Standings table (rank, team, wins, losses, points)
-    - event.bracket      → Tournament bracket (rounds[].matches[])
+  Data Sections (MVP Optional):
+    - event.schedule[].time, title, description
+    - event.standings[].rank, team, wins, losses, points
+    - event.bracket.rounds[].name, matches[]
 
-  SPONSORS (V2 Optional):
-    - event.sponsors[]   → #sponsorBanner (filtered by placement === 'public')
+  Sponsors (V2 Optional):
+    - event.sponsors[].id, name, logoUrl, linkUrl, placement
 
-  MEDIA (V2 Optional):
-    - event.media.videoUrl  → Embedded video (YouTube/Vimeo)
-    - event.media.gallery   → Photo gallery (array of URLs)
-    - event.media.mapUrl    → Direct map link
+  Media (V2 Optional):
+    - event.media.videoUrl, mapUrl, gallery[]
 
-  EXTERNAL DATA (V2 Optional):
-    - event.externalData.scheduleUrl  → Google Sheets BYOD
-    - event.externalData.standingsUrl → Google Sheets BYOD
-    - event.externalData.bracketUrl   → Google Sheets BYOD
+  External Data (V2 Optional):
+    - event.externalData.scheduleUrl, standingsUrl, bracketUrl
 
-  PAYMENTS (Reserved):
+  Payments (Reserved):
     - event.payments.enabled, checkoutUrl, price, currency
 
-This surface READS these schema fields:
-    - event.* identity fields    → Page header
-    - event.ctas.*               → Action buttons
-    - event.settings.*           → Section visibility toggles
-    - event.schedule[]           → Schedule section (gated by settings.showSchedule)
-    - event.standings[]          → Standings section (gated by settings.showStandings)
-    - event.bracket              → Bracket section (gated by settings.showBracket)
-    - event.sponsors[]           → Sponsor banner (gated by settings.showSponsors)
-    - event.media.videoUrl       → Video embed (gated by media.videoUrl presence)
-    - event.media.mapUrl         → Map link (gated by media.mapUrl presence)
-    - event.media.gallery[]      → Photo gallery (gated by media.gallery presence)
-    - event.externalData.*       → BYOD data sources (gated by each URL presence)
+═══════════════════════════════════════════════════════════════════════════════
+SECTION GATES (each optional section requires explicit schema field check):
+═══════════════════════════════════════════════════════════════════════════════
+  Video:     if (media?.videoUrl) → render video embed
+  Map:       if (media?.mapUrl) OR venue → render map link
+  Gallery:   if (media?.gallery?.length) → render photo gallery
+  Schedule:  if (settings.showSchedule && (schedule?.length || externalData.scheduleUrl))
+  Standings: if (settings.showStandings && (standings?.length || externalData.standingsUrl))
+  Bracket:   if (settings.showBracket && (bracket?.rounds?.length || externalData.bracketUrl))
+  Sponsors:  if (settings.showSponsors && sponsors?.some(s => s.placement === 'public'))
+  Payments:  if (payments?.enabled && payments.checkoutUrl) → show checkout CTA
 
-OPTIONAL BLOCK GATES (every optional section requires explicit field check):
-    Video:    if (event.media?.videoUrl) { ... }
-    Map:      if (event.media?.mapUrl) { ... }
-    Gallery:  if (event.media?.gallery?.length) { ... }
-    Schedule: if (event.settings?.showSchedule && event.schedule?.length) { ... }
-    Standings: if (event.settings?.showStandings && event.standings?.length) { ... }
-    Bracket:  if (event.settings?.showBracket && event.bracket?.rounds?.length) { ... }
-    Sponsors: if (event.settings?.showSponsors && event.sponsors?.length) { ... }
+  NO freelancing: sections only render when their schema field exists AND is enabled.
 
 DO NOT add fields without updating:
   - /schemas/event.schema.json (source of truth)

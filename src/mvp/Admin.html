@@ -7,40 +7,62 @@ Purpose: Event management dashboard for organizers
 Status: HARDENED for MVP v1.0
 
 SCHEMA CONTRACT: /schemas/event.schema.json
-This surface WRITES these schema fields:
 
+═══════════════════════════════════════════════════════════════════════════════
+READS FROM EVENT SCHEMA (for display after event creation):
+═══════════════════════════════════════════════════════════════════════════════
+  - event.id                → Event ID display
+  - event.slug              → Slug display
+  - event.name              → Event info card
+  - event.startDateISO      → Date display + phase calculation
+  - event.venue             → Location display
+  - event.links.publicUrl   → Link card + copy button
+  - event.links.displayUrl  → Link card + copy button
+  - event.links.posterUrl   → Link card + copy button
+  - event.links.signupUrl   → Link card + copy button
+  - event.qr.public         → QR code preview
+  - event.qr.signup         → QR code preview
+  - event.ctas.primary.label → CTA display
+  - event.settings.*        → Enabled sections summary
+  - event.createdAtISO      → Edit mode preservation
+
+═══════════════════════════════════════════════════════════════════════════════
+WRITES TO EVENT SCHEMA (via buildEventFromForm()):
+═══════════════════════════════════════════════════════════════════════════════
   IDENTITY (MVP Required):
-    - event.name           ← #name input
-    - event.startDateISO   ← #startDateISO input
-    - event.venue          ← #venue input
+    - event.name             ← #name input
+    - event.startDateISO     ← #startDateISO input
+    - event.venue            ← #venue input
 
   CTAs (MVP Required):
     - event.ctas.primary.label ← #ctaLabel input
 
   SETTINGS (MVP Required - must match /schemas/event.schema.json Settings):
-    MVP Required - Section Visibility:
-    - event.settings.showSchedule     ← #showSchedule checkbox     → Public/Display/Poster
-    - event.settings.showStandings    ← #showStandings checkbox    → Public/Display/Poster
-    - event.settings.showBracket      ← #showBracket checkbox      → Public/Display/Poster
+    Section Visibility (MVP Required):
+    - event.settings.showSchedule     ← #showSchedule checkbox
+    - event.settings.showStandings    ← #showStandings checkbox
+    - event.settings.showBracket      ← #showBracket checkbox
 
-    MVP Optional - Master Toggle:
-    - event.settings.showSponsors     ← hardcoded false (V2)       → All sponsor sections
+    Master Toggle (MVP Optional):
+    - event.settings.showSponsors     ← hardcoded false (V2)
 
-    MVP Optional - Surface-Specific (default: true):
-    - event.settings.showSponsorBanner ← #showSponsorBanner checkbox → Public page sponsor banner
-    - event.settings.showSponsorStrip  ← #showSponsorStrip checkbox  → Display (TV) sponsor strip
-    - event.settings.showLeagueStrip   ← #showLeagueStrip checkbox   → Display (TV) league/broadcast strip
-    - event.settings.showQRSection     ← #showQRSection checkbox     → Public page QR section
+    Surface-Specific (MVP Optional, default: true):
+    - event.settings.showSponsorBanner ← #showSponsorBanner checkbox
+    - event.settings.showSponsorStrip  ← #showSponsorStrip checkbox
+    - event.settings.showLeagueStrip   ← #showLeagueStrip checkbox
+    - event.settings.showQRSection     ← #showQRSection checkbox
 
   EXTERNAL DATA (V2 Optional - League panel):
     - event.externalData.scheduleUrl  ← #scheduleUrl input
     - event.externalData.standingsUrl ← #standingsUrl input
     - event.externalData.bracketUrl   ← #bracketUrl input
 
-This surface READS these schema fields:
-    - event.links.publicUrl, displayUrl, posterUrl, signupUrl → Link cards
-    - event.qr.public, qr.signup → QR code display
-    - event.settings.* → Enabled sections display
+  SERVER-GENERATED (read-only, preserved in edit mode):
+    - event.id              → STATE.id (preserved)
+    - event.slug            → STATE.slug (preserved)
+    - event.createdAtISO    → STATE.createdAtISO (preserved)
+    - event.links.*         → Server fills on create
+    - event.qr.*            → Server generates on create
 
 V2 HIDDEN SECTIONS (not in schema):
     - Legacy Sections panel (video, map, notes, gallery)

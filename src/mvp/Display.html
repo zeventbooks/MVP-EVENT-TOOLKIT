@@ -9,41 +9,49 @@ Status: HARDENED for MVP v1.0
 SCHEMA CONTRACT: /schemas/event.schema.json
 
 ═══════════════════════════════════════════════════════════════════════════════
-Display v1 EXPECTS FROM SERVER (api_getDisplayBundle):
+READS FROM EVENT SCHEMA (via api_getDisplayBundle):
 ═══════════════════════════════════════════════════════════════════════════════
+  Identity (MVP Required):
+    - event.id                → Event identifier for analytics
+    - event.name              → Event title (fallback display)
+    - event.startDateISO      → Event date (fallback display)
+    - event.venue             → Venue name (fallback display)
+    - event.templateId        → Template type for league strip logic
+    - event.links.publicUrl   → Iframe source for main content
 
-  MVP Required (event identity):
-    - event.id             → Event identifier
-    - event.name           → Event title
-    - event.startDateISO   → Event date
-    - event.venue          → Venue name
-    - event.links.publicUrl → Iframe source for main content
+  Settings (MVP Required):
+    - event.settings.showSchedule     → Section toggle (passed to iframe)
+    - event.settings.showStandings    → Section toggle (passed to iframe)
+    - event.settings.showBracket      → Section toggle (passed to iframe)
+    - event.settings.showSponsors     → Master sponsor strip toggle
+    - event.settings.showSponsorStrip → TV sponsor strip visibility
+    - event.settings.showLeagueStrip  → TV league/broadcast strip visibility
 
-  MVP Required (settings):
-    - event.settings.showSchedule    → Section toggle
-    - event.settings.showStandings   → Section toggle
-    - event.settings.showBracket     → Section toggle
-    - event.settings.showSponsors    → Master sponsor toggle
-    - event.settings.showSponsorStrip → TV sponsor strip toggle
-    - event.settings.showLeagueStrip  → TV league/broadcast strip toggle
+  Sponsors (V2 Optional):
+    - event.sponsors[].id, name, logoUrl, linkUrl, placement
+    - Filter: placement === 'display' OR 'tv-banner'
 
-  V2 Optional (sponsors):
-    - event.sponsors[]     → Sponsor logos (filtered: placement='display'|'tv-banner')
-
-  V2 Optional (league data):
+  External Data (V2 Optional - league strip):
     - event.externalData.scheduleUrl  → League strip link
     - event.externalData.standingsUrl → League strip link
     - event.externalData.bracketUrl   → League strip link
 
 ═══════════════════════════════════════════════════════════════════════════════
+SECTION GATES (schema-backed visibility):
+═══════════════════════════════════════════════════════════════════════════════
+  Sponsor Strip: if (settings.showSponsors && settings.showSponsorStrip !== false)
+                 && sponsors.some(s => s.placement === 'display' || s.placement === 'tv-banner')
+  League Strip:  if (settings.showLeagueStrip !== false)
+                 && (externalData.scheduleUrl || standingsUrl || bracketUrl)
+  Main Content:  Always shows Public.html iframe via links.publicUrl
+
+═══════════════════════════════════════════════════════════════════════════════
 V1 SIMPLICITY DECLARATION
 ═══════════════════════════════════════════════════════════════════════════════
-
   Display v1 is intentionally simple:
   - Shows Public.html in iframe (mirrors event page)
   - Adds sponsor strip (top) and league strip (bottom) overlays
   - NO rotation/dashboard features until v2 spec is committed
-  - NO multi-pane layouts until v2 spec is committed
 
   [V2+] DEFERRED FEATURES (do not implement without spec):
     - rotation.sponsorSlots, rotation.rotationMs
