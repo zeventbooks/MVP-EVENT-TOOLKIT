@@ -4,12 +4,45 @@ MVP SURFACE - Focus Group Critical
 ================================================================================
 Page: Admin.html
 Purpose: Event management dashboard for organizers
-Status: LOCKED for MVP v1.0
+Status: HARDENED for MVP v1.0
 
-DO NOT modify this file's contracts without updating:
-  - NUSDK.html (API client)
-  - tests/e2e/* (end-to-end tests)
-  - tests/unit/* (unit tests)
+SCHEMA CONTRACT: /schemas/event.schema.json
+This surface WRITES these schema fields:
+
+  IDENTITY (MVP Required):
+    - event.name           ← #name input
+    - event.startDateISO   ← #startDateISO input
+    - event.venue          ← #venue input
+
+  CTAs (MVP Required):
+    - event.ctas.primary.label ← #ctaLabel input
+
+  SETTINGS (MVP Required):
+    - event.settings.showSchedule  ← #showSchedule checkbox
+    - event.settings.showStandings ← #showStandings checkbox
+    - event.settings.showBracket   ← #showBracket checkbox
+
+  EXTERNAL DATA (V2 Optional - League panel):
+    - event.externalData.scheduleUrl  ← #scheduleUrl input
+    - event.externalData.standingsUrl ← #standingsUrl input
+    - event.externalData.bracketUrl   ← #bracketUrl input
+
+This surface READS these schema fields:
+    - event.links.publicUrl, displayUrl, posterUrl, signupUrl → Link cards
+    - event.qr.public, qr.signup → QR code display
+    - event.settings.* → Enabled sections display
+
+V2 HIDDEN SECTIONS (not in schema):
+    - Legacy Sections panel (video, map, notes, gallery)
+    - Summary, Media, Bio panels
+    - Additional Links panel
+    - Broadcast links (statsUrl, scoreboardUrl, streamUrl)
+    - Provider integration
+    - Sponsors configuration
+
+DO NOT add fields without updating:
+  - /schemas/event.schema.json (source of truth)
+  - src/mvp/Code.gs (_buildEventContract_)
 
 Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
 ================================================================================
@@ -927,8 +960,8 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
     document.addEventListener('DOMContentLoaded', loadTemplates);
 
     /**
-     * Build canonical Event object from form per EVENT_CONTRACT.md v2.0
-     * This ensures Admin always produces a valid Event Contract structure.
+     * Build canonical Event object from form
+     * SCHEMA: /schemas/event.schema.json
      * Uses STATE for edit mode (preserves id, slug, createdAtISO from existing event).
      */
     function buildEventFromForm() {
@@ -939,10 +972,9 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
 
       const now = new Date().toISOString();
 
-      // Build canonical event structure per EVENT_CONTRACT.md v2.0
+      // Build canonical event structure per /schemas/event.schema.json
       return {
-        // Identity (MVP Required)
-        // Use STATE values for edit mode, generate new for create mode
+        // Identity (MVP Required) - use STATE for edit mode
         id: STATE.id ?? generateId(),
         slug: STATE.slug ?? slugify(name),
         name: name,
@@ -982,7 +1014,7 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
           showSponsors: false
         },
 
-        // V2 Optional fields - reserved with proper defaults per EVENT_CONTRACT.md
+        // V2 Optional fields - reserved with proper defaults per schema
         sponsors: [],
         media: {},
         externalData: {},
@@ -1025,10 +1057,10 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
       // Get the selected event template (bar_night, rec_league, etc.)
       const selectedTemplateId = document.getElementById('templateId').value || 'custom';
 
-      // TODO (V2): Replace api_create with api_saveEvent for contract-first saves
+      // TODO (V2): Replace api_create with api_saveEvent for schema-first saves
       // V2 Admin will post full Event object directly:
       //   await NU.rpc('api_saveEvent', { brandId, adminKey, event: fullEventObject });
-      // This enables the frontend to own the Event shape per EVENT_CONTRACT.md
+      // This enables the frontend to own the Event shape per schema
       const res = await NU.rpc('api_create', {
         brandId: BRAND,
         scope: SCOPE,
@@ -1050,8 +1082,8 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
     });
 
     /**
-     * Show event card with canonical event data per EVENT_CONTRACT.md v2.0
-     * Also updates STATE for edit mode support.
+     * Show event card with canonical event data
+     * SCHEMA: /schemas/event.schema.json
      */
     function showEventCard(event) {
       // Update STATE for edit mode - preserve id, slug, createdAtISO
@@ -1062,7 +1094,7 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
       // Also sync legacy currentEventId
       currentEventId = event.id || null;
 
-      // EVENT_CONTRACT.md v2.0: Links at top level
+      // Schema: event.links at top level
       const links = event.links || {};
       const qr = event.qr || {};
       const ctas = event.ctas || {};
@@ -1130,7 +1162,7 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
         });
       }
 
-      // Event info - using canonical v2.0 fields
+      // Event info - using schema fields
       let info = `
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px;">
           <div>
@@ -1307,7 +1339,7 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
       };
 
       overlay(true);
-      // TODO (V2): Replace with api_saveEvent({ brandId, adminKey, event: mergedEvent })
+      // TODO (V2): Replace with api_saveEvent for schema-first saves
       const res = await NU.rpc('api_updateEventData', {
         brandId: BRAND,
         scope: SCOPE,
@@ -1575,7 +1607,7 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
       });
 
       overlay(true);
-      // TODO (V2): Replace with api_saveEvent({ brandId, adminKey, event: mergedEvent })
+      // TODO (V2): Replace with api_saveEvent for schema-first saves
       const res = await NU.rpc('api_updateEventData', {
         brandId: BRAND,
         scope: SCOPE,
