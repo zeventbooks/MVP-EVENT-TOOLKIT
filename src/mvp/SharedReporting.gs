@@ -3,17 +3,24 @@
 // =============================================================================
 // Used by: SharedReport.html
 //
-// MVP-Critical API in this file:
-//   - api_getSharedAnalytics() → Shared analytics dashboard
+// SCHEMA CONTRACT: /schemas/analytics.schema.json (MVP-frozen v1.1)
+// All responses MUST match the SharedAnalytics shape defined in the schema.
+//
+// MVP-Critical APIs in this file:
+//   - api_getSharedAnalytics() → Organizer view (all sponsors/events)
+//   - api_getSponsorAnalytics() → Sponsor view (scoped to sponsorId)
 //
 // DO NOT change API contracts without updating:
+//   - /schemas/analytics.schema.json (source of truth)
+//   - ApiSchemas.gs (runtime validation)
+//   - SharedReport.html (consumer)
 //   - NUSDK.html (API client)
-//   - tests/e2e/* (end-to-end tests)
-//   - tests/unit/* (unit tests)
 // =============================================================================
 
 /**
  * Shared Reporting System for Event Managers & Sponsors
+ *
+ * SCHEMA: /schemas/analytics.schema.json (MVP-frozen v1.1)
  *
  * Single Source of Truth for:
  * - Event Performance Metrics
@@ -24,9 +31,9 @@
  */
 
 /**
- * Get Shared Event-Sponsor Analytics
+ * Get Shared Event-Sponsor Analytics (Organizer View)
  *
- * SCHEMA CONTRACT: /schemas/analytics.schema.json
+ * SCHEMA CONTRACT: /schemas/analytics.schema.json (MVP-frozen v1.1)
  * Returns the SharedAnalytics shape expected by SharedReport.html
  *
  * @param {Object} params - Query parameters
@@ -81,10 +88,53 @@ function api_getSharedAnalytics(params) {
 }
 
 /**
- * Build SharedAnalytics response matching /schemas/analytics.schema.json
+ * Get Sponsor-Scoped Analytics (Sponsor View)
+ *
+ * SCHEMA CONTRACT: /schemas/analytics.schema.json (MVP-frozen v1.1)
+ * Returns the SharedAnalytics shape scoped to a specific sponsor.
+ *
+ * Used by SharedReport.html when ?sponsor=true&sponsorId=XXX is in URL.
+ *
+ * @param {Object} params - Query parameters
+ * @param {string} params.brandId - Brand ID
+ * @param {string} params.sponsorId - Sponsor ID (required for sponsor view)
+ * @param {string} [params.eventId] - Optional event filter
+ * @returns {Object} SharedAnalytics shape per schema contract (sponsor-scoped)
+ */
+function api_getSponsorAnalytics(params) {
+  try {
+    const { brandId, sponsorId, eventId } = params;
+
+    if (!brandId) {
+      return Err(ERR.BAD_INPUT, 'brandId required');
+    }
+    if (!sponsorId) {
+      return Err(ERR.BAD_INPUT, 'sponsorId required for sponsor analytics');
+    }
+
+    // Delegate to getSharedAnalytics with isSponsorView=true
+    return api_getSharedAnalytics({
+      brandId,
+      sponsorId,
+      eventId,
+      isSponsorView: true
+    });
+
+  } catch (e) {
+    diag_('error', 'api_getSponsorAnalytics', e.toString());
+    return Err(ERR.INTERNAL, 'Failed to get sponsor analytics');
+  }
+}
+
+/**
+ * Build SharedAnalytics response matching /schemas/analytics.schema.json (MVP-frozen v1.1)
+ *
+ * SCHEMA SHAPE:
+ *   { lastUpdatedISO, summary, surfaces, sponsors?, events? }
+ *
  * @param {Array} analytics - Filtered analytics rows
  * @param {boolean} isSponsorView - Whether this is sponsor-scoped view
- * @returns {Object} SharedAnalytics shape
+ * @returns {Object} SharedAnalytics shape per schema
  */
 function buildSharedAnalyticsResponse_(analytics, isSponsorView) {
   // Count metrics
