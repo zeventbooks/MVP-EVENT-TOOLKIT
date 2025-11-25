@@ -235,6 +235,7 @@ window.SponsorUtils = (function() {
    * - logoUrl: string (required)
    * - linkUrl: string (optional)
    * - placement: "poster"|"display"|"public"|"tv-banner" (required)
+   * - isPrimary: boolean (optional) - Primary sponsor gets bigger rendering
    *
    * LEGACY FIELD MAPPING (deprecated - will be removed in V3):
    * - s.img → logoUrl
@@ -243,7 +244,7 @@ window.SponsorUtils = (function() {
    * - s.placements → placement (first key with true value)
    *
    * @param {Object} s - Sponsor object (schema or legacy format)
-   * @returns {Object} - Schema-compliant sponsor: { id, name, logoUrl, linkUrl, placement }
+   * @returns {Object} - Schema-compliant sponsor: { id, name, logoUrl, linkUrl, placement, isPrimary }
    */
   function normalizeSponsor(s) {
     if (!s) return null;
@@ -261,7 +262,8 @@ window.SponsorUtils = (function() {
       name: s.name || '',
       logoUrl: s.logoUrl || s.img || '',      // Legacy fallback: img
       linkUrl: s.linkUrl || s.website || s.url || '',  // Legacy fallback: website, url
-      placement: placement
+      placement: placement,
+      isPrimary: !!s.isPrimary  // Feature 3: Primary sponsor flag
     };
   }
 
@@ -294,22 +296,27 @@ window.SponsorUtils = (function() {
         eventId = '',
         surface = 'unknown',
         showLinks = true,
+        showTier = false,
         onRender = null
       } = options;
 
       if (!container) return [];
-      const picks = sponsors.map(normalizeSponsor).filter(s => s && s.name);
+      // Sort primary sponsors first
+      const picks = sponsors.map(normalizeSponsor).filter(s => s && s.name)
+        .sort((a, b) => (b.isPrimary ? 1 : 0) - (a.isPrimary ? 1 : 0));
       if (!picks.length) return [];
 
       container.innerHTML = picks.map(s => {
+        const primaryClass = s.isPrimary ? ' sponsor-primary' : '';
+        const tierBadge = showTier && s.isPrimary ? '<span class="sponsor-tier-badge">PRIMARY</span>' : '';
         const content = s.logoUrl
-          ? `<img src="${esc(s.logoUrl)}" alt="${esc(s.name)}">`
-          : `<strong>${esc(s.name)}</strong>`;
+          ? `<img src="${esc(s.logoUrl)}" alt="${esc(s.name)}" class="sponsor-logo${primaryClass}">${tierBadge}`
+          : `<strong class="${primaryClass}">${esc(s.name)}</strong>${tierBadge}`;
 
         if (showLinks && s.linkUrl) {
-          return `<a href="${esc(s.linkUrl)}" target="_blank" rel="noopener sponsored" data-sponsor-id="${esc(s.id)}">${content}</a>`;
+          return `<a href="${esc(s.linkUrl)}" target="_blank" rel="noopener sponsored" data-sponsor-id="${esc(s.id)}" class="sponsor-item${primaryClass}">${content}</a>`;
         }
-        return `<span>${content}</span>`;
+        return `<span class="sponsor-item${primaryClass}">${content}</span>`;
       }).join('');
 
       container.hidden = false;

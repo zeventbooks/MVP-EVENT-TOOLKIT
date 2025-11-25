@@ -336,6 +336,43 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
     .error-state p { color: #b91c1c; }
     /* .btn-retry - Now centralized in Styles.html (C-001) */
     /* .site-footer - Now centralized in FooterComponent.html (D-005) */
+
+    /* Feature 6: Poster Auto-Branding Watermark */
+    .poster-watermark {
+      text-align: center;
+      margin-top: 32px;
+      padding: 16px 0;
+      border-top: 2px solid #e2e8f0;
+    }
+    .watermark-text {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #94a3b8;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .watermark-text::before {
+      content: "📐";
+      font-size: 1.1rem;
+    }
+    /* Print-friendly watermark */
+    @media print {
+      .poster-watermark {
+        margin-top: 24px;
+        padding: 12px 0;
+        border-top-width: 1px;
+      }
+      .watermark-text {
+        font-size: 0.75rem;
+        color: #64748b;
+      }
+      .watermark-text::before {
+        content: "";
+      }
+    }
   </style>
 </head>
 <body>
@@ -358,6 +395,11 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
       <h2>Scan to Connect</h2>
       <div id="qrGrid" class="qr-grid"></div>
     </section>
+
+    <!-- Feature 6: Auto-Branding Watermark -->
+    <div class="poster-watermark">
+      <span class="watermark-text">Powered by EventAngle</span>
+    </div>
   </div>
 
   <!-- Trust Footer -->
