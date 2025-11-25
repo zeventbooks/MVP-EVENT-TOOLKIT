@@ -130,15 +130,15 @@ npm run test:watch -- collapsible-sections.test.js
 Tests use environment-specific configuration from `tests/config/environments.js`.
 
 ### Available Environments:
-- **Local/Dev:** Uses environment variables or defaults
-- **Hostinger:** `BASE_URL=https://zeventbooks.com`
-- **Google Apps Script:** Uses script deployment URL
+- **Production:** `BASE_URL=https://eventangle.com` (Cloudflare Workers)
+- **QA:** `BASE_URL=https://zeventbooks.com` (Cloudflare Workers)
+- **Google Apps Script:** Uses script deployment URL directly
 
 ### Running Against Specific Environments
 
 ```bash
-# Run against Hostinger
-npm run test:hostinger:pages
+# Run against QA environment
+BASE_URL=https://zeventbooks.com npm run test:pages
 
 # Run against custom URL
 BASE_URL=https://your-domain.com npm run test:pages
