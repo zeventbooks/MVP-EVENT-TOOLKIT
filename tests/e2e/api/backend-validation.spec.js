@@ -225,16 +225,13 @@ const SAVE_EVENT_MATRIX = {
 // ============================================================================
 
 test.describe('🔬 Backend Validation: TestRunner', () => {
-  let runner;
-
-  test.beforeAll(async ({ request }) => {
-    runner = new TestRunner({
-      baseUrl: BASE_URL,
-      adminKey: ADMIN_KEY,
-      brandId: BRAND_ID,
-      verbose: false,
-      requestFn: request
-    });
+  // Helper to create a runner with the test's request fixture
+  const createRunner = (request) => new TestRunner({
+    baseUrl: BASE_URL,
+    adminKey: ADMIN_KEY,
+    brandId: BRAND_ID,
+    verbose: false,
+    requestFn: request
   });
 
   test.describe('Bundle API Contracts', () => {
@@ -242,6 +239,7 @@ test.describe('🔬 Backend Validation: TestRunner', () => {
       test.describe(matrix.endpoint, () => {
         matrix.cases.forEach(testCase => {
           test(testCase.name, async ({ request }) => {
+            const runner = createRunner(request);
             const result = await runner.runTestCase(matrix.endpoint, testCase);
 
             if (!result.passed) {
@@ -259,6 +257,7 @@ test.describe('🔬 Backend Validation: TestRunner', () => {
   test.describe('api_saveEvent Contract', () => {
     SAVE_EVENT_MATRIX.cases.forEach(testCase => {
       test(testCase.name, async ({ request }) => {
+        const runner = createRunner(request);
         const result = await runner.runTestCase(SAVE_EVENT_MATRIX.endpoint, testCase);
 
         if (!result.passed && runner.verbose) {
