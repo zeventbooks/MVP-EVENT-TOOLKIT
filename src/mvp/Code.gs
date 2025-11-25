@@ -416,8 +416,8 @@ function doGet(e){
     return HtmlService.createHtmlOutput(`<meta http-equiv="refresh" content="0;url=?p=${first}&brand=${brand.id}">`);
   }
 
-  // Page routing - MVP surfaces are: admin, public (default), display, poster, sponsor, report/analytics
-  // Non-MVP routes (v2+): test, diagnostics, signup, config, planner, sponsor-roi
+  // Page routing - MVP surfaces are: admin, public (default), display, poster, report/analytics
+  // Non-MVP routes (v2+): sponsor, sponsor-roi, signup, test, diagnostics, config, planner
   let page = (pageParam==='admin' || pageParam==='wizard' || pageParam==='planner' || pageParam==='poster' || pageParam==='test' || pageParam==='display' || pageParam==='report' || pageParam==='analytics' || pageParam==='diagnostics' || pageParam==='sponsor' || pageParam==='sponsor-roi' || pageParam==='signup' || pageParam==='config') ? pageParam : 'public';
 
   // Route using helper function
@@ -943,20 +943,21 @@ function jsonResponse_(data) {
  * @returns {string} HTML template filename (without .html extension)
  */
 function pageFile_(page){
-  // === MVP SURFACES ===
+  // === MVP SURFACES (5 total) ===
   if (page==='admin') return 'Admin';
   if (page==='poster') return 'Poster';
   if (page==='display') return 'Display';
   if (page==='report' || page==='analytics') return 'SharedReport';
+  // === V2+ Surfaces (archived, not in MVP) ===
   if (page==='sponsor') return 'Sponsor';
-  // === Supporting Pages ===
-  if (page==='test') return 'Test';
-  if (page==='diagnostics') return 'Diagnostics';
   if (page==='sponsor-roi') return 'SponsorDashboard';
   if (page==='signup') return 'Signup';
-  if (page==='config') return 'ConfigHtml';
   if (page==='planner') return 'PlannerCards';
-  // === v2+ (archived) - redirect to Admin ===
+  // === Internal/Dev Pages ===
+  if (page==='test') return 'Test';
+  if (page==='diagnostics') return 'Diagnostics';
+  if (page==='config') return 'ConfigHtml';
+  // === Admin variants (mode parameter handling) ===
   if (page==='wizard' || page==='admin-enhanced') return 'Admin';
   return 'Public';
 }
