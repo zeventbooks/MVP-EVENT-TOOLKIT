@@ -9,22 +9,24 @@ const ZEB = Object.freeze({
   // === Feature Flags ===
   // Controls which features are active in the current deployment
   // Set to false to defer non-MVP features without removing code
+  //
+  // Tags: [MVP] = v1 production, [V2+] = deferred, [Internal] = tooling only
   FEATURE_FLAGS: {
-    // MVP Features (always enabled)
-    EVENTS: true,           // Event CRUD operations
-    SPONSORS: true,         // Sponsor management
-    ANALYTICS: true,        // Basic analytics and reporting
-    FORMS: true,            // Google Forms integration
-    SHORTLINKS: true,       // URL shortening
+    // [MVP] Core Features (always enabled for v1 production)
+    EVENTS: true,           // [MVP] Event CRUD operations
+    SPONSORS: true,         // [MVP] Sponsor management (basic)
+    ANALYTICS: true,        // [MVP] Basic analytics and reporting
+    FORMS: true,            // [MVP] Google Forms integration
+    SHORTLINKS: true,       // [MVP] URL shortening
 
-    // Deferred Features (disabled for MVP)
-    WEBHOOKS: false,        // External integrations (Zapier, Slack, etc.)
-    I18N: false,            // Multi-language support (EN, ES, FR, DE, etc.)
-    ADVANCED_ANALYTICS: false, // Advanced sponsor ROI calculations
+    // [V2+] Deferred Features (disabled for MVP)
+    WEBHOOKS: false,        // [V2+] External integrations (Zapier, Slack, etc.)
+    I18N: false,            // [V2+] Multi-language support (EN, ES, FR, DE, etc.)
+    ADVANCED_ANALYTICS: false, // [V2+] Advanced sponsor ROI calculations
 
-    // Experimental Features (disabled)
-    PORTFOLIO_ANALYTICS: true,  // Parent org portfolio reporting
-    SPONSOR_SELF_SERVICE: true  // Sponsor dashboard access
+    // [V2+] Experimental Features (enabled but limited scope)
+    PORTFOLIO_ANALYTICS: true,  // [V2+] Parent org portfolio reporting
+    SPONSOR_SELF_SERVICE: true  // [V2+] Sponsor dashboard access
   },
 
   // Customer-Friendly URL Routing

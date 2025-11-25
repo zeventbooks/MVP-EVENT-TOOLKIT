@@ -6,6 +6,12 @@
 // SCHEMA CONTRACT: /schemas/analytics.schema.json (MVP-frozen v1.1)
 // All responses MUST match the SharedAnalytics shape defined in the schema.
 //
+// [MVP] LOCKED METRICS (must match AnalyticsService.gs):
+//   Summary: totalImpressions, totalClicks, totalQrScans, totalSignups,
+//            uniqueEvents, uniqueSponsors
+//   Per-surface: impressions, clicks, qrScans, engagementRate
+//   Per-sponsor: impressions, clicks, ctr
+//
 // MVP-Critical APIs in this file:
 //   - api_getSharedAnalytics() → Organizer view (all sponsors/events)
 //   - api_getSponsorAnalytics() → Sponsor view (scoped to sponsorId)
@@ -15,6 +21,7 @@
 //   - ApiSchemas.gs (runtime validation)
 //   - SharedReport.html (consumer)
 //   - NUSDK.html (API client)
+//   - AnalyticsService.gs (locked metrics list)
 // =============================================================================
 
 /**

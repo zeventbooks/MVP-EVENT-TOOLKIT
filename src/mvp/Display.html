@@ -7,26 +7,49 @@ Purpose: TV/kiosk display for live event streaming with sponsor visibility
 Status: HARDENED for MVP v1.0
 
 SCHEMA CONTRACT: /schemas/event.schema.json
-This surface uses ONLY these schema fields:
 
-  IDENTITY (MVP Required - for event info display):
+═══════════════════════════════════════════════════════════════════════════════
+Display v1 EXPECTS FROM SERVER (api_getDisplayBundle):
+═══════════════════════════════════════════════════════════════════════════════
+
+  MVP Required (event identity):
+    - event.id             → Event identifier
     - event.name           → Event title
     - event.startDateISO   → Event date
     - event.venue          → Venue name
+    - event.links.publicUrl → Iframe source for main content
 
-  SPONSORS (V2 Optional):
-    - event.sponsors[]            → #sponsorTop, #sponsorSide
-    - event.settings.showSponsors → Toggle visibility
-    - Placement filter: 'display' OR 'tv-banner'
+  MVP Required (settings):
+    - event.settings.showSchedule    → Section toggle
+    - event.settings.showStandings   → Section toggle
+    - event.settings.showBracket     → Section toggle
+    - event.settings.showSponsors    → Master sponsor toggle
+    - event.settings.showSponsorStrip → TV sponsor strip toggle
+    - event.settings.showLeagueStrip  → TV league/broadcast strip toggle
 
-  EXTERNAL DATA (V2 Optional - League links):
+  V2 Optional (sponsors):
+    - event.sponsors[]     → Sponsor logos (filtered: placement='display'|'tv-banner')
+
+  V2 Optional (league data):
     - event.externalData.scheduleUrl  → League strip link
     - event.externalData.standingsUrl → League strip link
     - event.externalData.bracketUrl   → League strip link
 
-  BUNDLE EXTRAS (from api_getDisplayBundle):
+═══════════════════════════════════════════════════════════════════════════════
+V1 SIMPLICITY DECLARATION
+═══════════════════════════════════════════════════════════════════════════════
+
+  Display v1 is intentionally simple:
+  - Shows Public.html in iframe (mirrors event page)
+  - Adds sponsor strip (top) and league strip (bottom) overlays
+  - NO rotation/dashboard features until v2 spec is committed
+  - NO multi-pane layouts until v2 spec is committed
+
+  [V2+] DEFERRED FEATURES (do not implement without spec):
     - rotation.sponsorSlots, rotation.rotationMs
     - layout.hasSidePane, layout.emphasis
+    - Multi-content pane rotation
+    - Dashboard mode with metrics
 
 DO NOT add fields without updating:
   - /schemas/event.schema.json (source of truth)

@@ -22,6 +22,11 @@ This surface uses ONLY these schema fields:
     - event.qr.public   → Public page QR (base64 PNG)
     - event.qr.signup   → Sign-up QR (base64 PNG)
 
+    INVARIANT: "NO QR UNLESS VERIFIED URL"
+    Backend (_buildEventContract_ in Code.gs) enforces that QR codes are ONLY
+    generated for validated URLs. Poster trusts event.qr.* as pre-verified.
+    DO NOT generate QR codes client-side from raw URL strings.
+
   SPONSORS (V2 Optional):
     - event.sponsors[]            → #sponsorStrip (filtered by placement)
     - event.settings.showSponsors → Toggle visibility

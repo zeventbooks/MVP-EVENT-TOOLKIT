@@ -7,6 +7,19 @@
  * - Generate shortlinks for forms
  * - Form template management
  *
+ * SCHEMA CONTRACT: FormConfig shape (ApiSchemas.forms.formConfig)
+ * {
+ *   formId: string,          // Google Form ID
+ *   signupUrl: string,       // Published form URL
+ *   shortLink: string|null,  // Short URL (if generated)
+ *   qrB64: string|null,      // QR code base64 PNG (if generated)
+ *   totalResponses: number   // Response count from linked sheet
+ * }
+ *
+ * Used by:
+ * - Admin.html signup tile
+ * - SharedReport.html signup metrics
+ *
  * Design principles:
  * - Encapsulates Google Forms API interactions
  * - Provides template-based form creation

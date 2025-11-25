@@ -1034,8 +1034,29 @@ const SCHEMAS = {
   },
 
   // === Form Schemas ========================================================
+  // FormConfig shape used by Admin signup tile and Report UI:
+  // {
+  //   formId: string,          // Google Form ID
+  //   signupUrl: string,       // Published form URL
+  //   shortLink: string|null,  // Short URL (if generated)
+  //   qrB64: string|null,      // QR code base64 PNG (if generated)
+  //   totalResponses: number   // Response count from linked sheet
+  // }
 
   forms: {
+    // FormConfig shape - used by Admin signup tile, Report UI
+    formConfig: {
+      type: 'object',
+      required: ['formId', 'signupUrl', 'totalResponses'],
+      properties: {
+        formId: { type: 'string', description: 'Google Form ID' },
+        signupUrl: { $ref: '#/common/url', description: 'Published form URL' },
+        shortLink: { type: ['string', 'null'], description: 'Short URL (if generated)' },
+        qrB64: { type: ['string', 'null'], description: 'QR code base64 PNG (if generated)' },
+        totalResponses: { type: 'integer', minimum: 0, description: 'Response count' }
+      }
+    },
+
     listTemplates: {
       request: {
         type: 'object',
