@@ -14,7 +14,7 @@ DO NOT modify this file's contracts without updating:
 Related MVP Surfaces: Admin, Poster, Display, Public
 ================================================================================
 
-SCHEMA CONTRACT: /schemas/analytics.schema.json (MVP v1.0)
+SCHEMA CONTRACT: /schemas/analytics.schema.json (MVP-frozen v1.1)
 This surface READS analytics data aggregated from tracked events.
 
 RESPONSE ENVELOPE (same as NUSDK):
@@ -380,8 +380,8 @@ API ENDPOINTS:
   <div class="container">
     <!-- Header -->
     <div class="report-header">
-      <h1>📊 Shared Event-Sponsor Analytics</h1>
-      <p class="subtitle">Single source of truth for Event Managers & Sponsors</p>
+      <h1 id="reportTitle">📊 Shared Event-Sponsor Analytics</h1>
+      <p class="subtitle" id="reportSubtitle">Single source of truth for Event Managers & Sponsors</p>
       <p class="subtitle" id="lastUpdated">Loading...</p>
     </div>
 
@@ -457,6 +457,38 @@ API ENDPOINTS:
     const IS_SPONSOR_VIEW = urlParams.get('sponsor') === 'true';
     const SPONSOR_ID = urlParams.get('sponsorId') || '';
     const EVENT_ID = urlParams.get('eventId') || '';
+
+    // Update header for sponsor view
+    function updateHeaderForSponsorView(sponsorName) {
+      if (!IS_SPONSOR_VIEW) return;
+
+      const titleEl = document.getElementById('reportTitle');
+      const subtitleEl = document.getElementById('reportSubtitle');
+
+      if (titleEl) {
+        titleEl.textContent = '📊 Sponsor Report';
+      }
+      if (subtitleEl) {
+        // Clear existing content safely
+        subtitleEl.textContent = '';
+        if (sponsorName) {
+          // Build DOM safely to avoid XSS - don't use innerHTML with user data
+          subtitleEl.appendChild(document.createTextNode('Performance metrics for '));
+          const strong = document.createElement('strong');
+          strong.textContent = sponsorName;
+          subtitleEl.appendChild(strong);
+        } else if (SPONSOR_ID) {
+          subtitleEl.textContent = 'Performance metrics for ' + SPONSOR_ID;
+        } else {
+          subtitleEl.textContent = 'Your sponsor performance metrics';
+        }
+      }
+    }
+
+    // Initialize header on page load if sponsor view
+    if (IS_SPONSOR_VIEW) {
+      updateHeaderForSponsorView(null);
+    }
 
     /**
      * Expected API contract (envelope omitted):
@@ -573,6 +605,12 @@ API ENDPOINTS:
       const surfaces = Array.isArray(data.surfaces) ? data.surfaces : [];
       const sponsors = Array.isArray(data.sponsors) ? data.sponsors : [];
       const events = Array.isArray(data.events) ? data.events : [];
+
+      // Update header with sponsor name if in sponsor view
+      if (IS_SPONSOR_VIEW && sponsors.length > 0) {
+        const sponsorName = sponsors[0].name || SPONSOR_ID;
+        updateHeaderForSponsorView(sponsorName);
+      }
 
       renderSummaryMetrics(summary);
       renderSurfacePerformance(surfaces);

@@ -67,9 +67,10 @@
  * ═══════════════════════════════════════════════════════════════════════════
  *
  * @module ApiSchemas
- * @version 2.2.0
- * @see /schemas/event.schema.json
+ * @version 2.3.0
+ * @see /schemas/event.schema.json (MVP-frozen v2.2)
  * @see /schemas/sponsor.schema.json
+ * @see /schemas/analytics.schema.json (MVP-frozen v1.1)
  * @see EVENT_CONTRACT.md
  */
 
@@ -275,19 +276,26 @@ const SCHEMAS = {
       }
     },
 
-    // Settings (MVP Required)
+    // Settings - MIRRORS: /schemas/event.schema.json Settings (MVP-frozen v2.2)
     _settings: {
       type: 'object',
       required: ['showSchedule', 'showStandings', 'showBracket'],
       properties: {
+        // MVP Required
         showSchedule: { type: 'boolean' },
         showStandings: { type: 'boolean' },
         showBracket: { type: 'boolean' },
-        showSponsors: { type: 'boolean' }
+        // MVP Optional (V2 content but MVP toggles)
+        showSponsors: { type: 'boolean' },
+        // MVP Optional - surface-specific toggles (default true)
+        showSponsorBanner: { type: 'boolean' },
+        showSponsorStrip: { type: 'boolean' },
+        showLeagueStrip: { type: 'boolean' },
+        showQRSection: { type: 'boolean' }
       }
     },
 
-    // Full event shape - MIRRORS: /schemas/event.schema.json (v2.1.0)
+    // Full event shape - MIRRORS: /schemas/event.schema.json (MVP-frozen v2.2)
     _eventShape: {
       type: 'object',
       required: ['id', 'slug', 'name', 'startDateISO', 'venue', 'links', 'qr', 'ctas', 'settings', 'createdAtISO', 'updatedAtISO'],
@@ -714,15 +722,82 @@ const SCHEMAS = {
       }
     },
 
-    // api_getSharedAnalytics - SharedReport.html
+    // ═══════════════════════════════════════════════════════════════════════════
+    // SharedAnalytics - MIRRORS: /schemas/analytics.schema.json (MVP-frozen v1.1)
+    // Used by: api_getSharedAnalytics, api_getSponsorAnalytics
+    // ═══════════════════════════════════════════════════════════════════════════
+    _sharedAnalytics: {
+      type: 'object',
+      required: ['lastUpdatedISO', 'summary', 'surfaces'],
+      properties: {
+        lastUpdatedISO: { type: 'string' },
+        summary: {
+          type: 'object',
+          required: ['totalImpressions', 'totalClicks', 'totalQrScans', 'totalSignups', 'uniqueEvents', 'uniqueSponsors'],
+          properties: {
+            totalImpressions: { type: 'integer', minimum: 0 },
+            totalClicks: { type: 'integer', minimum: 0 },
+            totalQrScans: { type: 'integer', minimum: 0 },
+            totalSignups: { type: 'integer', minimum: 0 },
+            uniqueEvents: { type: 'integer', minimum: 0 },
+            uniqueSponsors: { type: 'integer', minimum: 0 }
+          }
+        },
+        surfaces: {
+          type: 'array',
+          items: {
+            type: 'object',
+            required: ['id', 'label', 'impressions', 'clicks', 'qrScans'],
+            properties: {
+              id: { type: 'string', enum: ['poster', 'display', 'public', 'signup'] },
+              label: { type: 'string' },
+              impressions: { type: 'integer', minimum: 0 },
+              clicks: { type: 'integer', minimum: 0 },
+              qrScans: { type: 'integer', minimum: 0 },
+              engagementRate: { type: ['number', 'null'] }
+            }
+          }
+        },
+        sponsors: {
+          type: ['array', 'null'],
+          items: {
+            type: 'object',
+            required: ['id', 'name', 'impressions', 'clicks', 'ctr'],
+            properties: {
+              id: { type: 'string' },
+              name: { type: 'string' },
+              impressions: { type: 'integer', minimum: 0 },
+              clicks: { type: 'integer', minimum: 0 },
+              ctr: { type: 'number', minimum: 0 }
+            }
+          }
+        },
+        events: {
+          type: ['array', 'null'],
+          items: {
+            type: 'object',
+            required: ['id', 'name', 'impressions', 'clicks', 'ctr'],
+            properties: {
+              id: { type: 'string' },
+              name: { type: 'string' },
+              impressions: { type: 'integer', minimum: 0 },
+              clicks: { type: 'integer', minimum: 0 },
+              ctr: { type: 'number', minimum: 0 }
+            }
+          }
+        }
+      }
+    },
+
+    // api_getSharedAnalytics - SharedReport.html (organizer view)
     getSharedReport: {
       request: {
         type: 'object',
-        required: ['brandId', 'id'],
+        required: ['brandId'],
         properties: {
           brandId: { $ref: '#/common/brandId' },
-          id: { $ref: '#/common/id' },
-          scope: { $ref: '#/common/scope' }
+          eventId: { type: ['string', 'null'] },  // Optional: filter by event
+          isSponsorView: { type: 'boolean' }      // Optional: sponsor-scoped mode
         }
       },
       response: {
@@ -731,35 +806,29 @@ const SCHEMAS = {
         properties: {
           ok: { type: 'boolean' },
           etag: { type: 'string' },
-          value: {
-            type: 'object',
-            required: ['event', 'metrics'],
-            properties: {
-              event: {
-                type: 'object',
-                properties: {
-                  id: { type: 'string' },
-                  name: { type: 'string' },
-                  startDateISO: { type: 'string' },
-                  venue: { type: 'string' },
-                  templateId: { type: 'string' }
-                }
-              },
-              metrics: {
-                type: 'object',
-                properties: {
-                  views: { type: 'number' },
-                  uniqueViews: { type: 'number' },
-                  signupClicks: { type: 'number' },
-                  checkinClicks: { type: 'number' },
-                  feedbackClicks: { type: 'number' },
-                  sponsor: { type: 'object' },
-                  league: { type: 'object' },
-                  broadcast: { type: 'object' }
-                }
-              }
-            }
-          }
+          value: { $ref: '#/analytics/_sharedAnalytics' }
+        }
+      }
+    },
+
+    // api_getSponsorAnalytics - SharedReport.html (sponsor view)
+    getSponsorAnalytics: {
+      request: {
+        type: 'object',
+        required: ['brandId', 'sponsorId'],
+        properties: {
+          brandId: { $ref: '#/common/brandId' },
+          sponsorId: { type: 'string', minLength: 1 },
+          eventId: { type: ['string', 'null'] }   // Optional: filter by event
+        }
+      },
+      response: {
+        type: 'object',
+        required: ['ok', 'value'],
+        properties: {
+          ok: { type: 'boolean' },
+          etag: { type: 'string' },
+          value: { $ref: '#/analytics/_sharedAnalytics' }
         }
       }
     },

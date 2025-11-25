@@ -674,12 +674,10 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
       }
 
       // ═══════════════════════════════════════════════════════════════
-      // V2 LEGACY: Dynamic rotation mode - NOT IN /schemas/event.schema.json
-      // This reads from legacy ev.data.display which is not in schema
-      // MVP default: Always use public mode (mirror event page)
-      // TODO: Add media.displayRotation to schema when TV rotation feature ships
+      // [V2+] Dynamic rotation mode - REMOVED FROM MVP (not in schema)
+      // MVP: Always use public mode (mirror event page via iframe)
+      // TODO: Add media.displayRotation to schema when TV rotation ships
       // ═══════════════════════════════════════════════════════════════
-      const legacyDisplayConfig = (ev.data || {}).display || {};
 
       // === SPONSOR STRIP (V2 Optional) ===
       // Schema: event.sponsors[].placement MUST be 'display' or 'tv-banner' - no fallback
@@ -715,14 +713,9 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
       }
 
       // === START DISPLAY MODE ===
-      // V2 LEGACY: Dynamic mode uses legacyDisplayConfig (not in schema)
-      // MVP default: Public mode (mirror event page)
-      if (String(legacyDisplayConfig.mode || '').toLowerCase() === 'dynamic'
-          && Array.isArray(legacyDisplayConfig.urls) && legacyDisplayConfig.urls.length) {
-        startDynamicMode(legacyDisplayConfig.urls);
-      } else {
-        startPublicMode();
-      }
+      // MVP-frozen: Always use public mode (embed Public.html via iframe)
+      // [V2+] Dynamic rotation removed - see TODO above for future feature
+      startPublicMode();
     }
 
     // V2 STUBS REMOVED: renderEventInfo, renderSchedulePanel, renderStandingsPanel, renderBracketPanel

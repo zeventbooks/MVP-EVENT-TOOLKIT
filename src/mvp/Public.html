@@ -1107,9 +1107,9 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       const startDate = data.dateISO.replace(/-/g, '');
       params.set('dates', `${startDate}/${startDate}`);
 
-      // Use venue (canonical) with fallback to location (legacy)
-      if (data.venue || data.location) {
-        params.set('location', data.venue || data.location);
+      // MVP-frozen: Use only canonical venue field (no legacy fallback)
+      if (data.venue) {
+        params.set('location', data.venue);
       }
 
       return `https://calendar.google.com/calendar/render?${params.toString()}`;
@@ -1129,8 +1129,8 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       const start = data.dateISO.replace(/-/g, '');
       const end = start;
 
-      // Use venue (canonical) with fallback to location (legacy)
-      const venueStr = data.venue || data.location || '';
+      // MVP-frozen: Use only canonical venue field (no legacy fallback)
+      const venueStr = data.venue || '';
 
       const ics = [
         'BEGIN:VCALENDAR',
