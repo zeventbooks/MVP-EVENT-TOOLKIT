@@ -2,11 +2,21 @@
  * Cloudflare Worker - Google Apps Script Proxy
  *
  * This worker proxies requests to Google Apps Script, providing:
- * - Custom domain support (e.g., api.yourdomain.com)
+ * - Custom domain support (e.g., eventangle.com/events)
  * - CORS headers for cross-origin requests
- * - Request/response logging
- * - Edge caching for GET requests
+ * - Path stripping (/events → Apps Script exec URL)
+ * - Query string preservation (?page=admin passes through)
  * - Error handling and retry logic
+ *
+ * Deployment modes (see wrangler.toml):
+ * - env.events: Only /events* paths (recommended for mixed sites)
+ * - env.production: Full site (eventangle.com/*)
+ * - env.api-only: API subdomain only
+ *
+ * Example flows:
+ * - eventangle.com/events?page=admin → exec?page=admin → Admin.html
+ * - eventangle.com/events?page=public → exec?page=public → Public.html
+ * - eventangle.com/events → exec → Default page
  *
  * Deployment ID is injected via environment variable or wrangler.toml
  */
@@ -21,6 +31,9 @@ export default {
     const appsScriptBase = `https://script.google.com/macros/s/${deploymentId}/exec`;
 
     const url = new URL(request.url);
+
+    // Log incoming request for debugging (visible in Cloudflare dashboard)
+    console.log(`[EventAngle] ${request.method} ${url.pathname}${url.search}`);
 
     // Redirect Google's static assets to script.google.com
     // These cannot be proxied - must redirect to Google's CDN
@@ -67,10 +80,26 @@ export default {
 
 /**
  * Proxy request to Google Apps Script
+ *
+ * IMPORTANT: This function strips the incoming path (/events, /events/, etc.)
+ * and only forwards the query string to Apps Script.
+ *
+ * Example:
+ *   Request: https://eventangle.com/events?page=admin&brand=root
+ *   Forwards: https://script.google.com/macros/s/.../exec?page=admin&brand=root
+ *
+ * Apps Script routing is entirely query-param based:
+ *   - ?page=admin → Admin.html
+ *   - ?page=public → Public.html
+ *   - ?page=display → Display.html
+ *   - ?p=status → API status endpoint
  */
 async function proxyToAppsScript(request, appsScriptBase) {
   const url = new URL(request.url);
+  // Strip path, keep only query string (Apps Script doesn't use URL paths)
   const targetUrl = appsScriptBase + url.search;
+
+  console.log(`[EventAngle] Proxying to: ${targetUrl}`);
 
   // Build fetch options
   const fetchOptions = {
@@ -87,7 +116,8 @@ async function proxyToAppsScript(request, appsScriptBase) {
   // Make request to Apps Script
   const response = await fetch(targetUrl, fetchOptions);
 
-  // Clone response to allow reading body
+  console.log(`[EventAngle] Response: ${response.status} ${response.statusText}`);
+
   return response;
 }
 
