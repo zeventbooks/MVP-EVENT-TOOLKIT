@@ -1,0 +1,147 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zeventbook.com/schemas/analytics.schema.json",
+  "title": "SharedAnalytics",
+  "description": "MVP Analytics Response Contract v1.0 - Single Source of Truth for SharedReport.html",
+  "type": "object",
+  "required": ["totals"],
+  "additionalProperties": false,
+  "properties": {
+    "totals": {
+      "$ref": "#/$defs/Totals"
+    },
+    "bySurface": {
+      "type": ["array", "null"],
+      "items": { "$ref": "#/$defs/SurfaceMetrics" },
+      "description": "MVP OPTIONAL - Breakdown by surface (poster, display, public, admin)"
+    },
+    "bySponsor": {
+      "type": ["array", "null"],
+      "items": { "$ref": "#/$defs/SponsorMetrics" },
+      "description": "MVP OPTIONAL - Breakdown by sponsor"
+    },
+    "byEvent": {
+      "type": ["array", "null"],
+      "items": { "$ref": "#/$defs/EventMetrics" },
+      "description": "MVP OPTIONAL - Breakdown by event"
+    }
+  },
+  "$defs": {
+    "Totals": {
+      "type": "object",
+      "description": "MVP REQUIRED - Aggregate metrics across all dimensions",
+      "required": ["impressions", "clicks", "ctr"],
+      "additionalProperties": false,
+      "properties": {
+        "impressions": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "MVP REQUIRED - Total page views across all surfaces"
+        },
+        "clicks": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "MVP REQUIRED - Total sponsor link/CTA clicks"
+        },
+        "qrScans": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "MVP OPTIONAL - Total QR code scans (public + signup)"
+        },
+        "signups": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "MVP OPTIONAL - Total form submissions / registrations"
+        },
+        "ctr": {
+          "type": "string",
+          "pattern": "^\\d+(\\.\\d{1,2})?%$",
+          "description": "MVP REQUIRED - Click-through rate as formatted string (e.g., '2.5%')"
+        }
+      }
+    },
+    "SurfaceMetrics": {
+      "type": "object",
+      "description": "MVP OPTIONAL - Metrics for a single surface",
+      "required": ["name", "impressions", "clicks", "ctr"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "enum": ["poster", "display", "public", "admin"],
+          "description": "Surface identifier"
+        },
+        "impressions": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "clicks": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "ctr": {
+          "type": "string",
+          "pattern": "^\\d+(\\.\\d{1,2})?%$"
+        }
+      }
+    },
+    "SponsorMetrics": {
+      "type": "object",
+      "description": "MVP OPTIONAL - Metrics for a single sponsor",
+      "required": ["sponsorId", "impressions", "clicks", "ctr"],
+      "additionalProperties": false,
+      "properties": {
+        "sponsorId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Sponsor identifier (matches sponsor.schema.json)"
+        },
+        "sponsorName": {
+          "type": ["string", "null"],
+          "description": "Human-readable sponsor name"
+        },
+        "impressions": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "clicks": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "ctr": {
+          "type": "string",
+          "pattern": "^\\d+(\\.\\d{1,2})?%$"
+        }
+      }
+    },
+    "EventMetrics": {
+      "type": "object",
+      "description": "MVP OPTIONAL - Metrics for a single event",
+      "required": ["eventId", "impressions", "clicks", "ctr"],
+      "additionalProperties": false,
+      "properties": {
+        "eventId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Event identifier (matches event.schema.json)"
+        },
+        "eventName": {
+          "type": ["string", "null"],
+          "description": "Human-readable event name"
+        },
+        "impressions": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "clicks": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "ctr": {
+          "type": "string",
+          "pattern": "^\\d+(\\.\\d{1,2})?%$"
+        }
+      }
+    }
+  }
+}

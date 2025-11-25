@@ -11,7 +11,46 @@ DO NOT modify this file's contracts without updating:
   - tests/e2e/* (end-to-end tests)
   - tests/unit/* (unit tests)
 
-Related MVP Surfaces: Admin, Poster, Display, Public, Sponsor
+Related MVP Surfaces: Admin, Poster, Display, Public
+================================================================================
+
+SCHEMA CONTRACT: /schemas/analytics.schema.json (MVP v1.0)
+This surface READS analytics data aggregated from tracked events.
+
+MVP METRICS (Required):
+  - totals.impressions    → Total page views across all surfaces
+  - totals.clicks         → Total sponsor link/CTA clicks
+  - totals.qrScans        → Total QR code scans (public + signup)
+  - totals.signups        → Total form submissions / registrations
+  - totals.ctr            → Click-through rate (clicks / impressions * 100)
+
+BREAKDOWNS (Optional):
+  - bySurface[].name         → Surface identifier (poster, display, public, admin)
+  - bySurface[].impressions  → Impressions for this surface
+  - bySurface[].clicks       → Clicks for this surface
+  - bySurface[].ctr          → CTR for this surface
+
+  - bySponsor[].sponsorId    → Sponsor identifier (from /schemas/sponsor.schema.json)
+  - bySponsor[].impressions  → Impressions for this sponsor
+  - bySponsor[].clicks       → Clicks for this sponsor
+  - bySponsor[].ctr          → CTR for this sponsor
+
+  - byEvent[].eventId        → Event identifier (from /schemas/event.schema.json)
+  - byEvent[].impressions    → Impressions for this event
+  - byEvent[].clicks         → Clicks for this event
+  - byEvent[].ctr            → CTR for this event
+
+V2 HIDDEN (Not in MVP):
+  - ROI calculations (no cost data in v1)
+  - Cost per Click (no cost data in v1)
+  - Engagement Score (overcooked metric)
+  - Daily Trends chart (requires time-series backend)
+  - Dwell time / dwellSec (requires advanced tracking)
+  - Auto-generated recommendations (premature optimization)
+
+API ENDPOINTS:
+  - api_getSharedAnalytics({ brandId })     → Event manager view
+  - api_getSponsorAnalytics({ sponsorId })  → Sponsor-specific view (V2)
 ================================================================================
 -->
 <!DOCTYPE html>
@@ -345,11 +384,11 @@ Related MVP Surfaces: Admin, Poster, Display, Public, Sponsor
         <div id="eventPerformance"></div>
       </div>
 
-      <!-- Trends -->
-      <div class="section-card">
+      <!-- V2 HIDDEN: Daily Trends requires time-series backend -->
+      <div class="section-card" style="display:none;">
         <h2>📈 Daily Trends</h2>
         <div class="chart-container">
-          Chart: Daily Impressions & Clicks Over Time
+          V2: Chart requires time-series analytics backend
         </div>
       </div>
 
@@ -385,6 +424,11 @@ Related MVP Surfaces: Admin, Poster, Display, Public, Sponsor
     const SPONSOR_ID = urlParams.get('sponsorId') || '';
     const EVENT_ID = urlParams.get('eventId') || '';
 
+    /**
+     * Loads analytics data from the backend.
+     * API contract: See schema header for api_getSharedAnalytics response shape.
+     * Response must match /schemas/analytics.schema.json
+     */
     async function loadReport() {
       try {
         document.getElementById('loading').style.display = 'block';
@@ -392,7 +436,8 @@ Related MVP Surfaces: Admin, Poster, Display, Public, Sponsor
 
         let result;
 
-        // Use different API endpoint for sponsor view
+        // MVP: Use api_getSharedAnalytics for event manager view
+        // V2: api_getSponsorAnalytics for sponsor-specific view (requires auth)
         if (IS_SPONSOR_VIEW && SPONSOR_ID) {
           result = await NU.rpc('api_getSponsorAnalytics', {
             sponsorId: SPONSOR_ID,
@@ -462,35 +507,37 @@ Related MVP Surfaces: Admin, Poster, Display, Public, Sponsor
       }
     }
 
+    /**
+     * Renders MVP key metrics grid.
+     * Schema contract: /schemas/analytics.schema.json
+     * MVP metrics only: Impressions, Clicks, QR Scans, Signups, CTR
+     */
     function renderMetrics(metrics) {
       const grid = document.getElementById('metricsGrid');
       grid.innerHTML = '';
 
+      // MVP metrics only - matches analytics.schema.json#/$defs/Totals
+      const totals = metrics.totals || metrics; // Support both envelope styles
       const metricCards = [
         {
-          label: 'Total Impressions',
-          value: metrics.totalImpressions.toLocaleString(),
-          trend: null
+          label: 'Impressions',
+          value: (totals.impressions ?? metrics.totalImpressions ?? 0).toLocaleString()
         },
         {
-          label: 'Total Clicks',
-          value: metrics.totalClicks.toLocaleString(),
-          trend: null
+          label: 'Clicks',
+          value: (totals.clicks ?? metrics.totalClicks ?? 0).toLocaleString()
         },
         {
-          label: 'Engagement Rate',
-          value: metrics.engagementRate.rate,
-          trend: null
+          label: 'QR Scans',
+          value: (totals.qrScans ?? 0).toLocaleString()
         },
         {
-          label: 'Active Events',
-          value: metrics.uniqueEvents,
-          trend: null
+          label: 'Signups',
+          value: (totals.signups ?? 0).toLocaleString()
         },
         {
-          label: 'Active Sponsors',
-          value: metrics.uniqueSponsors,
-          trend: null
+          label: 'CTR',
+          value: totals.ctr ?? calculateCTR(totals.clicks ?? metrics.totalClicks, totals.impressions ?? metrics.totalImpressions)
         }
       ];
 
@@ -500,16 +547,38 @@ Related MVP Surfaces: Admin, Poster, Display, Public, Sponsor
         card.innerHTML = `
           <div class="label">${metric.label}</div>
           <div class="value">${metric.value}</div>
-          ${metric.trend ? `<div class="trend ${metric.trend < 0 ? 'negative' : ''}">
-            ${metric.trend > 0 ? '↑' : '↓'} ${Math.abs(metric.trend)}%
-          </div>` : ''}
         `;
         grid.appendChild(card);
       });
     }
 
+    /**
+     * Calculate CTR as formatted string.
+     * @param {number} clicks
+     * @param {number} impressions
+     * @returns {string} e.g., "2.5%"
+     */
+    function calculateCTR(clicks, impressions) {
+      if (!impressions || impressions === 0) return '0%';
+      return ((clicks / impressions) * 100).toFixed(1) + '%';
+    }
+
+    /**
+     * Renders surface performance table.
+     * Schema contract: /schemas/analytics.schema.json#/$defs/SurfaceMetrics
+     */
     function renderSurfacePerformance(surfaces) {
       const container = document.getElementById('surfacePerformance');
+
+      if (!surfaces || (Array.isArray(surfaces) && surfaces.length === 0) || Object.keys(surfaces).length === 0) {
+        container.innerHTML = '<p style="color: #64748b;">No surface data available.</p>';
+        return;
+      }
+
+      // Normalize: support both array (schema) and object (legacy) formats
+      const surfaceList = Array.isArray(surfaces)
+        ? surfaces
+        : Object.entries(surfaces).map(([name, data]) => ({ name, ...data }));
 
       const html = `
         <table class="data-table">
@@ -518,25 +587,18 @@ Related MVP Surfaces: Admin, Poster, Display, Public, Sponsor
               <th>Surface</th>
               <th>Impressions</th>
               <th>Clicks</th>
-              <th>Engagement Rate</th>
-              <th>Performance</th>
+              <th>CTR</th>
             </tr>
           </thead>
           <tbody>
-            ${Object.keys(surfaces).map(surface => {
-              const data = surfaces[surface];
-              const rate = parseFloat(data.engagementRate);
+            ${surfaceList.map(surface => {
+              const ctr = surface.ctr || calculateCTR(surface.clicks, surface.impressions);
               return `
                 <tr>
-                  <td data-label="Surface"><strong>${surface}</strong></td>
-                  <td data-label="Impressions">${data.impressions.toLocaleString()}</td>
-                  <td data-label="Clicks">${data.clicks.toLocaleString()}</td>
-                  <td data-label="Engagement Rate">${data.engagementRate}</td>
-                  <td data-label="Performance">
-                    <div class="progress-bar">
-                      <div class="fill" style="width: ${Math.min(rate * 10, 100)}%"></div>
-                    </div>
-                  </td>
+                  <td data-label="Surface"><strong>${surface.name}</strong></td>
+                  <td data-label="Impressions">${(surface.impressions || 0).toLocaleString()}</td>
+                  <td data-label="Clicks">${(surface.clicks || 0).toLocaleString()}</td>
+                  <td data-label="CTR"><span class="badge info">${ctr}</span></td>
                 </tr>
               `;
             }).join('')}
@@ -547,6 +609,10 @@ Related MVP Surfaces: Admin, Poster, Display, Public, Sponsor
       container.innerHTML = html;
     }
 
+    /**
+     * Renders sponsor performance table.
+     * Schema contract: /schemas/analytics.schema.json#/$defs/SponsorMetrics
+     */
     function renderSponsorPerformance(sponsors) {
       const container = document.getElementById('sponsorPerformance');
 
@@ -562,22 +628,22 @@ Related MVP Surfaces: Admin, Poster, Display, Public, Sponsor
               <th>Sponsor</th>
               <th>Impressions</th>
               <th>Clicks</th>
-              <th>Events</th>
-              <th>Engagement Rate</th>
+              <th>CTR</th>
             </tr>
           </thead>
           <tbody>
-            ${sponsors.slice(0, 10).map(sponsor => `
+            ${sponsors.slice(0, 10).map(sponsor => {
+              const ctr = sponsor.ctr || calculateCTR(sponsor.clicks, sponsor.impressions);
+              return `
               <tr>
-                <td data-label="Sponsor"><strong>${sponsor.sponsorId}</strong></td>
-                <td data-label="Impressions">${sponsor.impressions.toLocaleString()}</td>
-                <td data-label="Clicks">${sponsor.clicks.toLocaleString()}</td>
-                <td data-label="Events">${sponsor.uniqueEvents}</td>
-                <td data-label="Engagement Rate">
-                  <span class="badge success">${sponsor.engagementRate}</span>
+                <td data-label="Sponsor"><strong>${sponsor.sponsorName || sponsor.sponsorId}</strong></td>
+                <td data-label="Impressions">${(sponsor.impressions || 0).toLocaleString()}</td>
+                <td data-label="Clicks">${(sponsor.clicks || 0).toLocaleString()}</td>
+                <td data-label="CTR">
+                  <span class="badge success">${ctr}</span>
                 </td>
               </tr>
-            `).join('')}
+            `}).join('')}
           </tbody>
         </table>
       `;
@@ -585,6 +651,10 @@ Related MVP Surfaces: Admin, Poster, Display, Public, Sponsor
       container.innerHTML = html;
     }
 
+    /**
+     * Renders event performance table.
+     * Schema contract: /schemas/analytics.schema.json#/$defs/EventMetrics
+     */
     function renderEventPerformance(events) {
       const container = document.getElementById('eventPerformance');
 
@@ -600,22 +670,22 @@ Related MVP Surfaces: Admin, Poster, Display, Public, Sponsor
               <th>Event</th>
               <th>Impressions</th>
               <th>Clicks</th>
-              <th>Sponsors</th>
-              <th>Engagement Rate</th>
+              <th>CTR</th>
             </tr>
           </thead>
           <tbody>
-            ${events.slice(0, 10).map(event => `
+            ${events.slice(0, 10).map(event => {
+              const ctr = event.ctr || calculateCTR(event.clicks, event.impressions);
+              return `
               <tr>
-                <td data-label="Event"><strong>${event.eventId}</strong></td>
-                <td data-label="Impressions">${event.impressions.toLocaleString()}</td>
-                <td data-label="Clicks">${event.clicks.toLocaleString()}</td>
-                <td data-label="Sponsors">${event.uniqueSponsors}</td>
-                <td data-label="Engagement Rate">
-                  <span class="badge info">${event.engagementRate}</span>
+                <td data-label="Event"><strong>${event.eventName || event.eventId}</strong></td>
+                <td data-label="Impressions">${(event.impressions || 0).toLocaleString()}</td>
+                <td data-label="Clicks">${(event.clicks || 0).toLocaleString()}</td>
+                <td data-label="CTR">
+                  <span class="badge info">${ctr}</span>
                 </td>
               </tr>
-            `).join('')}
+            `}).join('')}
           </tbody>
         </table>
       `;
@@ -623,169 +693,44 @@ Related MVP Surfaces: Admin, Poster, Display, Public, Sponsor
       container.innerHTML = html;
     }
 
+    /**
+     * V2 HIDDEN: Auto-generated recommendations require more data.
+     * For MVP, show a simple placeholder.
+     */
     function renderRecommendations(metrics) {
       const container = document.getElementById('recommendations');
-
-      // Generate recommendations
-      const recommendations = [];
-
-      const overallRate = parseFloat(metrics.engagementRate.rate);
-      if (overallRate < 2) {
-        recommendations.push({
-          type: 'engagement',
-          priority: 'high',
-          message: `Low engagement rate (${metrics.engagementRate.rate}). Consider testing different sponsor placements or creative.`
-        });
-      } else if (overallRate > 10) {
-        recommendations.push({
-          type: 'engagement',
-          priority: 'success',
-          message: `Excellent engagement rate (${metrics.engagementRate.rate})! Current strategy is working well.`
-        });
-      }
-
-      // Add surface-specific recommendations
-      Object.keys(metrics.bySurface).forEach(surface => {
-        const rate = parseFloat(metrics.bySurface[surface].engagementRate);
-        if (rate > overallRate * 1.5) {
-          recommendations.push({
-            type: 'surface',
-            priority: 'info',
-            message: `"${surface}" surface is performing ${rate.toFixed(1)}% above average. Consider increasing sponsor presence here.`
-          });
-        }
-      });
-
-      if (recommendations.length === 0) {
-        container.innerHTML = '<p style="color: #64748b;">No recommendations at this time. Keep monitoring your metrics!</p>';
-        return;
-      }
-
-      const html = recommendations.map(rec => `
-        <div class="recommendation ${rec.priority}">
-          <div class="recommendation-icon">
-            ${rec.priority === 'high' ? '⚠️' : rec.priority === 'success' ? '✅' : '💡'}
-          </div>
-          <div class="recommendation-content">
-            <div class="title">${rec.priority}</div>
-            <div>${rec.message}</div>
-          </div>
-        </div>
-      `).join('');
-
-      container.innerHTML = html;
+      // V2: Auto-generated recommendations based on CTR thresholds
+      container.innerHTML = '<p style="color: #64748b;">Recommendations will be available in a future update. Review the tables above to identify high-performing surfaces and sponsors.</p>';
     }
 
-    // Sponsor-specific rendering functions
+    /**
+     * V2 HIDDEN: ROI calculations require cost data not available in MVP.
+     * Sponsor-specific view shows simplified surface breakdown.
+     */
     function renderSponsorROI(metrics) {
       const container = document.getElementById('sponsorROI');
-
-      if (!metrics || !metrics.bySurface) {
-        container.innerHTML = '<p style="color: #64748b;">No ROI data available.</p>';
-        return;
-      }
-
-      // Calculate ROI estimates (placeholder for actual cost data)
-      const totalImpressions = metrics.totals.impressions || 0;
-      const totalClicks = metrics.totals.clicks || 0;
-      const ctr = metrics.totals.ctr || 0;
-      const engagementScore = metrics.totals.engagementScore || 0;
-
-      // Surface breakdown with performance metrics
-      const surfaces = Object.entries(metrics.bySurface).map(([name, data]) => ({
-        name,
-        ...data,
-        percentage: totalImpressions > 0 ? ((data.impressions / totalImpressions) * 100).toFixed(1) : 0
-      })).sort((a, b) => b.ctr - a.ctr);
-
-      const html = `
-        <div style="margin-bottom: 2rem;">
-          <h3 style="margin-bottom: 1rem; color: #1e293b;">Performance Summary</h3>
-          <div class="metrics-grid" style="margin-bottom: 1.5rem;">
-            <div class="metric-card">
-              <div class="label">Overall CTR</div>
-              <div class="value">${ctr}%</div>
-              <div class="trend positive">${ctr >= 2 ? '↑ Good' : '→ Average'}</div>
-            </div>
-            <div class="metric-card">
-              <div class="label">Engagement Score</div>
-              <div class="value">${engagementScore}</div>
-              <div class="trend positive">${engagementScore >= 50 ? '↑ High' : '→ Moderate'}</div>
-            </div>
-            <div class="metric-card">
-              <div class="label">Cost per Click</div>
-              <div class="value">$${totalClicks > 0 ? (100 / totalClicks).toFixed(2) : '0.00'}</div>
-              <div class="trend neutral">Estimated</div>
-            </div>
-          </div>
-
-          <h3 style="margin-bottom: 1rem; color: #1e293b;">Performance by Surface</h3>
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Surface</th>
-                <th>Impressions</th>
-                <th>Share</th>
-                <th>Clicks</th>
-                <th>CTR</th>
-                <th>Avg Dwell</th>
-                <th>Recommendation</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${surfaces.map(surface => {
-                const avgDwell = surface.impressions > 0 ? (surface.dwellSec / surface.impressions).toFixed(1) : 0;
-                const recommendation = surface.ctr >= ctr ? '✅ Maintain' : surface.ctr >= ctr * 0.5 ? '🔄 Optimize' : '⚠️ Review';
-
-                return `
-                  <tr>
-                    <td data-label="Surface"><strong>${surface.name}</strong></td>
-                    <td data-label="Impressions">${surface.impressions.toLocaleString()}</td>
-                    <td data-label="Share">
-                      <div class="progress-bar">
-                        <div class="progress-fill" style="width: ${surface.percentage}%; background: #2563eb;"></div>
-                      </div>
-                      ${surface.percentage}%
-                    </td>
-                    <td data-label="Clicks">${surface.clicks.toLocaleString()}</td>
-                    <td data-label="CTR">
-                      <span class="badge ${surface.ctr >= ctr ? 'success' : 'warning'}">${surface.ctr}%</span>
-                    </td>
-                    <td data-label="Avg Dwell">${avgDwell}s</td>
-                    <td data-label="Recommendation">${recommendation}</td>
-                  </tr>
-                `;
-              }).join('')}
-            </tbody>
-          </table>
-
-          <div style="margin-top: 1.5rem; padding: 1rem; background: #f0f9ff; border-left: 4px solid #2563eb; border-radius: 8px;">
-            <h4 style="margin: 0 0 0.5rem 0; color: #1e40af;">💡 ROI Insight</h4>
-            <p style="margin: 0; color: #1e293b;">
-              ${surfaces.length > 0 && surfaces[0].ctr > 0 ?
-                `Your best performing surface is <strong>${surfaces[0].name}</strong> with a ${surfaces[0].ctr}% CTR.
-                 ${surfaces[0].ctr > ctr * 1.5 ? 'Consider increasing your investment here for maximum ROI.' : 'This channel is performing well.'}` :
-                'Continue monitoring your performance metrics to optimize ROI.'}
-            </p>
-          </div>
-        </div>
-      `;
-
-      container.innerHTML = html;
+      // V2: ROI calculations require cost data integration
+      container.innerHTML = '<p style="color: #64748b;">ROI analytics will be available in a future update when cost tracking is enabled.</p>';
     }
 
+    /**
+     * Renders sponsor event breakdown table.
+     * Schema contract: /schemas/analytics.schema.json#/$defs/EventMetrics
+     */
     function renderSponsorEventBreakdown(byEvent) {
       const container = document.getElementById('sponsorEvents');
 
-      if (!byEvent || Object.keys(byEvent).length === 0) {
+      if (!byEvent || (Array.isArray(byEvent) && byEvent.length === 0) || Object.keys(byEvent).length === 0) {
         container.innerHTML = '<p style="color: #64748b;">No event data available.</p>';
         return;
       }
 
-      const events = Object.entries(byEvent).map(([eventId, data]) => ({
-        eventId,
-        ...data
-      })).sort((a, b) => b.impressions - a.impressions);
+      // Normalize: support both array (schema) and object (legacy) formats
+      const events = Array.isArray(byEvent)
+        ? byEvent
+        : Object.entries(byEvent).map(([eventId, data]) => ({ eventId, ...data }));
+
+      events.sort((a, b) => (b.impressions || 0) - (a.impressions || 0));
 
       const html = `
         <table class="data-table">
@@ -795,77 +740,37 @@ Related MVP Surfaces: Admin, Poster, Display, Public, Sponsor
               <th>Impressions</th>
               <th>Clicks</th>
               <th>CTR</th>
-              <th>Performance</th>
             </tr>
           </thead>
           <tbody>
-            ${events.map((event, index) => {
-              const rank = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`;
-
+            ${events.slice(0, 10).map(event => {
+              const ctr = event.ctr || calculateCTR(event.clicks, event.impressions);
               return `
                 <tr>
-                  <td data-label="Event">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                      <span style="font-size: 1.25rem;">${rank}</span>
-                      <strong>${event.eventId}</strong>
-                    </div>
-                  </td>
-                  <td data-label="Impressions">${event.impressions.toLocaleString()}</td>
-                  <td data-label="Clicks">${event.clicks.toLocaleString()}</td>
+                  <td data-label="Event"><strong>${event.eventName || event.eventId}</strong></td>
+                  <td data-label="Impressions">${(event.impressions || 0).toLocaleString()}</td>
+                  <td data-label="Clicks">${(event.clicks || 0).toLocaleString()}</td>
                   <td data-label="CTR">
-                    <span class="badge ${event.ctr >= 2 ? 'success' : event.ctr >= 1 ? 'info' : 'warning'}">
-                      ${event.ctr}%
-                    </span>
-                  </td>
-                  <td data-label="Performance">
-                    ${event.ctr >= 2 ? '🔥 Excellent' : event.ctr >= 1 ? '✅ Good' : '📊 Average'}
+                    <span class="badge info">${ctr}</span>
                   </td>
                 </tr>
               `;
             }).join('')}
           </tbody>
         </table>
-
-        <div style="margin-top: 1.5rem; padding: 1rem; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 8px;">
-          <h4 style="margin: 0 0 0.5rem 0; color: #92400e;">📊 Event Performance Insight</h4>
-          <p style="margin: 0; color: #1e293b;">
-            You are active in <strong>${events.length}</strong> event${events.length !== 1 ? 's' : ''}.
-            ${events.length > 0 ? `Your top event is <strong>${events[0].eventId}</strong> with ${events[0].impressions.toLocaleString()} impressions.` : ''}
-          </p>
-        </div>
       `;
 
       container.innerHTML = html;
     }
 
+    /**
+     * V2 HIDDEN: Sponsor insights require ML-based analysis.
+     * For MVP, show a simple placeholder.
+     */
     function renderSponsorInsights(insights) {
       const container = document.getElementById('recommendations');
-
-      if (!insights || insights.length === 0) {
-        container.innerHTML = '<p style="color: #64748b;">No insights available at this time. Keep monitoring your metrics!</p>';
-        return;
-      }
-
-      const iconMap = {
-        'success': '✅',
-        'warning': '⚠️',
-        'info': '💡',
-        'high': '🔴'
-      };
-
-      const html = insights.map(insight => `
-        <div class="recommendation ${insight.type}">
-          <div class="recommendation-icon">
-            ${iconMap[insight.type] || '💡'}
-          </div>
-          <div class="recommendation-content">
-            <div class="title">${insight.title}</div>
-            <div>${insight.message}</div>
-          </div>
-        </div>
-      `).join('');
-
-      container.innerHTML = html;
+      // V2: ML-based sponsor insights
+      container.innerHTML = '<p style="color: #64748b;">Sponsor insights will be available in a future update.</p>';
     }
 
     async function exportReport() {
