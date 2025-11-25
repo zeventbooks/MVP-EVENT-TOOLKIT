@@ -8,6 +8,18 @@
  * - Portfolio reports (cross-brand)
  * - Engagement scoring
  *
+ * SCHEMA CONTRACT: Sponsor shape (/schemas/event.schema.json $defs/Sponsor)
+ * {
+ *   id: string,              // [MVP] Sponsor identifier
+ *   name: string,            // [MVP] Display name
+ *   logoUrl: string,         // [MVP] Logo URL (https)
+ *   linkUrl: string|null,    // [MVP] Click-through URL (optional)
+ *   placement: enum          // [MVP] 'poster'|'display'|'public'|'tv-banner'
+ * }
+ *
+ * SponsorService MUST only emit the above fields. Any additional fields
+ * are reserved for V2+ and should not be added without schema update.
+ *
  * Design principles:
  * - Encapsulates sponsor business logic
  * - Provides data aggregation and analysis

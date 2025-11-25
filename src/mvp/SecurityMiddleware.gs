@@ -9,6 +9,32 @@
  * - Input sanitization
  * - Brand isolation
  *
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * [MVP] SECURITY ASSUMPTIONS - EXPLICIT
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * MVP runs as ANYONE_ANONYMOUS (Google Apps Script web app setting).
+ * Security is environment + secret link, NOT identity-based:
+ *
+ *   1. Admin access:  brandId + adminKey (shared secret in URL)
+ *   2. Public access: No auth required (read-only views)
+ *   3. Report access: Secret link with brandId (obscured, not authenticated)
+ *
+ * This file validates adminKey for mutating operations but does NOT:
+ *   - Verify user identity
+ *   - Check OAuth tokens
+ *   - Enforce per-user permissions
+ *
+ * V2+ will add proper identity (Google Sign-In, JWT refresh tokens).
+ *
+ * EVERY MUTATING API must call SecurityMiddleware functions:
+ *   - api_create       → SecurityMiddleware_validateAuth
+ *   - api_update*      → SecurityMiddleware_validateAuth
+ *   - api_delete       → SecurityMiddleware_validateAuth
+ *   - api_createForm*  → SecurityMiddleware_validateAuth
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
  * Design principles:
  * - Single responsibility for security concerns
  * - Fail-secure by default

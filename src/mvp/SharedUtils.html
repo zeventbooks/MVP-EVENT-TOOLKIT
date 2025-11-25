@@ -10,10 +10,20 @@
  * WINDOW ADDITION: window.SharedUtils
  *
  * Dependencies: NUSDK.html (for NU.esc)
- * Used by: Sponsor.html, Signup.html, PlannerCards.html, Admin.html
+ * Used by: Admin.html (MVP only; V2+: Sponsor.html, Signup.html)
  *
- * @version 1.1.0
  * ═══════════════════════════════════════════════════════════════════════════════
+ * HELPER INDEX (keep updated when adding/removing functions):
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *   showAlert(message, type, options)  → Alert notifications (Admin.html)
+ *   formatDate(dateInput, options)     → Date formatting (Admin.html)
+ *   formatTime(timeStr)                → Time formatting (Admin.html)
+ *   debounce(fn, delay)                → Event debouncing (Admin.html)
+ *   copyToClipboard(text)              → Clipboard utility (Admin.html)
+ *   validateUrl(url)                   → URL validation (Admin.html)
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * @version 1.2.0
  */
 window.SharedUtils = (function() {
   'use strict';

@@ -3,22 +3,37 @@
  *
  * Event Template System
  *
- * MVP (Triangle Live Demo):
- *   - Simple event archetypes: bar_night, rec_league, school, fundraiser, custom
- *   - Templates define sections ON/OFF, default CTAs, labels
- *   - Config.gs handles brand-level wiring
+ * SCHEMA COMPLIANCE: Templates MUST only produce fields defined in
+ * /schemas/event.schema.json. Do NOT add custom fields to templates.
  *
- * v2+ (Below, marked as EXPERIMENTAL):
- *   - Template versioning with migration paths
- *   - Template inheritance and composition
- *   - Multi-language template support
+ * Template fields that map to schema:
+ *   - sections.schedule  → event.settings.showSchedule
+ *   - sections.sponsors  → event.settings.showSponsors
+ *   - defaultCtas[]      → event.ctas.primary.label
+ *   - sections.video     → event.media.videoUrl (V2 - not in MVP settings)
+ *   - sections.map       → event.media.mapUrl (V2 - not in MVP settings)
+ *   - sections.gallery   → event.media.gallery (V2 - not in MVP settings)
+ *   - sections.notes     → NOT IN SCHEMA (legacy, ignored in MVP)
  *
- * @version 1.1.0
+ * [MVP] Templates (focus-group ready):
+ *   - rec_league  → Sports leagues, standings, schedule-heavy
+ *   - bar_night   → Bar events, trivia, casual
+ *   - custom      → Blank slate, all options available
+ *
+ * [V2+] Templates (require V2 media/gallery features):
+ *   - All other templates rely on video/gallery/notes sections
+ *
+ * @version 1.2.0
  * @since 2025-11-18
  */
 
 // ============================================================================
 // [MVP] EVENT TEMPLATE CATALOG - Triangle Live Demo
+// ============================================================================
+//
+// [MVP] rec_league, bar_night, custom - Core templates for focus group
+// [V2+] All other templates - Require media.* or gallery features
+//
 // ============================================================================
 
 /**
@@ -27,6 +42,7 @@
  * Config = brand-level wiring (which templates each brand sees)
  */
 var EVENT_TEMPLATES = {
+  // [MVP] Bar/tavern template - focus group ready
   bar_night: {
     id: 'bar_night',
     label: 'Bar / Tavern Event',
@@ -49,6 +65,7 @@ var EVENT_TEMPLATES = {
     }
   },
 
+  // [MVP] Rec league template - focus group ready (schedule/standings heavy)
   rec_league: {
     id: 'rec_league',
     label: 'Rec League / Season',
@@ -73,6 +90,7 @@ var EVENT_TEMPLATES = {
     defaultExternalProvider: 'Custom'
   },
 
+  // [V2+] School template - requires gallery features
   school: {
     id: 'school',
     label: 'School / Youth Event',
@@ -436,6 +454,7 @@ var EVENT_TEMPLATES = {
     }
   },
 
+  // [MVP] Custom template - blank slate, all options available
   custom: {
     id: 'custom',
     label: 'Custom Event',

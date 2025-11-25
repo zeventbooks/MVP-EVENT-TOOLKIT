@@ -8,6 +8,31 @@
  * - Shared analytics (event managers & sponsors)
  * - Timeline and trend analysis
  *
+ * ═══════════════════════════════════════════════════════════════════════════
+ * [MVP] LOCKED METRICS LIST (SharedReport renders only these)
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * Summary metrics:
+ *   - totalImpressions    // Page views across all surfaces
+ *   - totalClicks         // CTA button clicks
+ *   - totalQrScans        // QR code scans (poster/public)
+ *   - totalSignups        // Form submission completions
+ *   - uniqueEvents        // Distinct events in scope
+ *   - uniqueSponsors      // Distinct sponsors in scope
+ *
+ * Per-surface metrics:
+ *   - impressions, clicks, qrScans, engagementRate
+ *
+ * Per-sponsor metrics:
+ *   - impressions, clicks, ctr
+ *
+ * DO NOT add metrics to SharedAnalytics without updating:
+ *   - /schemas/analytics.schema.json
+ *   - SharedReport.html (consumer)
+ *   - SharedReporting.gs (producer)
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
  * Design principles:
  * - Separates data aggregation from presentation
  * - Returns raw metrics for flexible rendering

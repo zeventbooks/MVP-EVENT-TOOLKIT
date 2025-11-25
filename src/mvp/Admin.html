@@ -17,10 +17,20 @@ This surface WRITES these schema fields:
   CTAs (MVP Required):
     - event.ctas.primary.label ← #ctaLabel input
 
-  SETTINGS (MVP Required):
-    - event.settings.showSchedule  ← #showSchedule checkbox
-    - event.settings.showStandings ← #showStandings checkbox
-    - event.settings.showBracket   ← #showBracket checkbox
+  SETTINGS (MVP Required - must match /schemas/event.schema.json Settings):
+    MVP Required - Section Visibility:
+    - event.settings.showSchedule     ← #showSchedule checkbox     → Public/Display/Poster
+    - event.settings.showStandings    ← #showStandings checkbox    → Public/Display/Poster
+    - event.settings.showBracket      ← #showBracket checkbox      → Public/Display/Poster
+
+    MVP Optional - Master Toggle:
+    - event.settings.showSponsors     ← hardcoded false (V2)       → All sponsor sections
+
+    MVP Optional - Surface-Specific (default: true):
+    - event.settings.showSponsorBanner ← #showSponsorBanner checkbox → Public page sponsor banner
+    - event.settings.showSponsorStrip  ← #showSponsorStrip checkbox  → Display (TV) sponsor strip
+    - event.settings.showLeagueStrip   ← #showLeagueStrip checkbox   → Display (TV) league/broadcast strip
+    - event.settings.showQRSection     ← #showQRSection checkbox     → Public page QR section
 
   EXTERNAL DATA (V2 Optional - League panel):
     - event.externalData.scheduleUrl  ← #scheduleUrl input
@@ -313,8 +323,10 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
 
         <!-- ═══════════════════════════════════════════════════════════════ -->
         <!-- V2 LEGACY UI - Section Toggles NOT IN /schemas/event.schema.json -->
-        <!-- Schema settings only has: showSchedule, showStandings, showBracket, showSponsors -->
-        <!-- These toggles are template UI that map to legacy sections object -->
+        <!-- Schema settings has 8 fields (see header comment for full list):    -->
+        <!--   showSchedule, showStandings, showBracket, showSponsors,           -->
+        <!--   showSponsorBanner, showSponsorStrip, showLeagueStrip, showQRSection -->
+        <!-- These legacy toggles map to the old sections object (not schema)    -->
         <!-- TODO: Remove this subsection once Display Settings covers all needs -->
         <!-- ═══════════════════════════════════════════════════════════════ -->
         <div class="subsection" id="v2SectionsTogglePanel" style="display:none;">

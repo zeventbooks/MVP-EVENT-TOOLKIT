@@ -4,18 +4,39 @@
 // =============================================================================
 // MVP SCOPE LOCK - Focus Group Critical
 // =============================================================================
-// MVP Surfaces (6 total - see docs/MVP_SURFACES.md):
+// MVP Surfaces (5 total):
 //   ✅ Admin.html        ?page=admin
 //   ✅ Public.html       ?page=public (default)
 //   ✅ Display.html      ?page=display
 //   ✅ Poster.html       ?page=poster
-//   ✅ Sponsor.html      ?page=sponsor
 //   ✅ SharedReport.html ?page=report
 //
-// Non-MVP (v2+ experimental):
+// V2+ Surfaces (not in MVP):
+//   ❌ Sponsor.html      ?page=sponsor (V2 sponsor self-service)
 //   ❌ ApiDocs, Diagnostics, Test, Signup, PlannerCards, ConfigHtml
 //
-// DO NOT add new surfaces without updating docs/MVP_SURFACES.md
+// DO NOT add new surfaces without schema review
+// =============================================================================
+//
+// =============================================================================
+// PUBLIC API INVENTORY → ApiSchemas.gs
+// =============================================================================
+// Each api_* function below MUST have a corresponding schema in ApiSchemas.gs.
+// See ApiSchemas.gs "RPC ENDPOINT INVENTORY" for the full mapping.
+//
+// MVP APIs (used by 5 surfaces):
+//   api_getEventTemplates   → ApiSchemas.templates.list
+//   api_create              → ApiSchemas.events.create
+//   api_get                 → ApiSchemas.events.get
+//   api_updateEventData     → ApiSchemas.events.update
+//   api_list                → ApiSchemas.events.list
+//   api_getPublicBundle     → ApiSchemas.bundles.public
+//   api_getDisplayBundle    → ApiSchemas.bundles.display
+//   api_getPosterBundle     → ApiSchemas.bundles.poster
+//   api_getSharedAnalytics  → ApiSchemas.analytics.sharedReport
+//   api_createFormFromTemplate → ApiSchemas.forms.createFromTemplate
+//   api_generateFormShortlink  → ApiSchemas.forms.generateShortlink
+//
 // =============================================================================
 
 // === Constants / Envelopes / Errors =======================================

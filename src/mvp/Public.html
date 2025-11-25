@@ -45,6 +45,28 @@ This surface uses ONLY these schema fields:
   PAYMENTS (Reserved):
     - event.payments.enabled, checkoutUrl, price, currency
 
+This surface READS these schema fields:
+    - event.* identity fields    → Page header
+    - event.ctas.*               → Action buttons
+    - event.settings.*           → Section visibility toggles
+    - event.schedule[]           → Schedule section (gated by settings.showSchedule)
+    - event.standings[]          → Standings section (gated by settings.showStandings)
+    - event.bracket              → Bracket section (gated by settings.showBracket)
+    - event.sponsors[]           → Sponsor banner (gated by settings.showSponsors)
+    - event.media.videoUrl       → Video embed (gated by media.videoUrl presence)
+    - event.media.mapUrl         → Map link (gated by media.mapUrl presence)
+    - event.media.gallery[]      → Photo gallery (gated by media.gallery presence)
+    - event.externalData.*       → BYOD data sources (gated by each URL presence)
+
+OPTIONAL BLOCK GATES (every optional section requires explicit field check):
+    Video:    if (event.media?.videoUrl) { ... }
+    Map:      if (event.media?.mapUrl) { ... }
+    Gallery:  if (event.media?.gallery?.length) { ... }
+    Schedule: if (event.settings?.showSchedule && event.schedule?.length) { ... }
+    Standings: if (event.settings?.showStandings && event.standings?.length) { ... }
+    Bracket:  if (event.settings?.showBracket && event.bracket?.rounds?.length) { ... }
+    Sponsors: if (event.settings?.showSponsors && event.sponsors?.length) { ... }
+
 DO NOT add fields without updating:
   - /schemas/event.schema.json (source of truth)
   - src/mvp/Code.gs (_buildEventContract_)
