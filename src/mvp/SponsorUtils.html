@@ -7,14 +7,23 @@
  * RESPONSIBILITY: This file handles sponsor rendering and analytics ONLY.
  * It does NOT create/modify sponsors - that's Code.gs territory.
  *
- * SPONSOR SCHEMA (/schemas/sponsor.schema.json):
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * [MVP] SPONSOR CONTRACT - /schemas/sponsor.schema.json
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * CANONICAL SPONSOR SHAPE (all fields per schema):
  * {
- *   id: string,        // Required - unique sponsor ID
- *   name: string,      // Required - display name
- *   logoUrl: string,   // Required - URL to logo image
- *   linkUrl?: string,  // Optional - click-through URL
- *   placement: "poster" | "display" | "public" | "tv-banner"  // Required
+ *   id: string,              // MVP REQUIRED - Unique sponsor identifier
+ *   name: string,            // MVP REQUIRED - Display name (1-200 chars)
+ *   logoUrl: string,         // MVP REQUIRED - URL to logo image (https://...)
+ *   linkUrl?: string|null,   // MVP OPTIONAL - Click-through URL
+ *   placement: string        // MVP REQUIRED - "poster"|"display"|"public"|"tv-banner"
  * }
+ *
+ * This utility normalizes legacy formats (img, url, placements) to the canonical shape.
+ * All surfaces MUST use normalizeSponsor() before rendering.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════
  *
  * WINDOW ADDITION: window.SponsorUtils
  *

@@ -1,9 +1,15 @@
 /**
  * API Schemas and Contracts
  *
- * GAS runtime validation that MIRRORS the JSON Schema source of truth:
- *   - /schemas/event.schema.json   (Event entity)
- *   - /schemas/sponsor.schema.json (Sponsor entity)
+ * GAS runtime validation that MIRRORS the JSON Schema source of truth.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
+ * [MVP] CANONICAL SCHEMA FILES (4 total)
+ * ═══════════════════════════════════════════════════════════════════════════
+ *   - /schemas/event.schema.json           [MVP] Event entity (v2.2 frozen)
+ *   - /schemas/sponsor.schema.json         [MVP] Sponsor entity (V2 feature)
+ *   - /schemas/shared-analytics.schema.json [MVP] SharedAnalytics (v1.1 frozen)
+ *   - /schemas/form-config.schema.json     [MVP] FormConfig (v1.0 frozen)
  *
  * IMPORTANT: If a field isn't in the JSON schema, it doesn't exist.
  *            If it's in the schema, it must be wired here.
@@ -67,10 +73,11 @@
  * ═══════════════════════════════════════════════════════════════════════════
  *
  * @module ApiSchemas
- * @version 2.3.0
- * @see /schemas/event.schema.json (MVP-frozen v2.2)
- * @see /schemas/sponsor.schema.json
- * @see /schemas/analytics.schema.json (MVP-frozen v1.1)
+ * @version 2.4.0
+ * @see /schemas/event.schema.json           [MVP] Event entity (v2.2 frozen)
+ * @see /schemas/sponsor.schema.json         [MVP] Sponsor entity (V2)
+ * @see /schemas/shared-analytics.schema.json [MVP] SharedAnalytics (v1.1 frozen)
+ * @see /schemas/form-config.schema.json     [MVP] FormConfig (v1.0 frozen)
  * @see EVENT_CONTRACT.md
  */
 
@@ -143,8 +150,9 @@ const SCHEMAS = {
     }
   },
 
-  // === Event Schemas =======================================================
-  // MIRRORS: /schemas/event.schema.json (v2.1.0)
+  // ═══════════════════════════════════════════════════════════════════════════
+  // [MVP] EVENT SCHEMA - MIRRORS: /schemas/event.schema.json (v2.2.0 frozen)
+  // ═══════════════════════════════════════════════════════════════════════════
   // See EVENT_CONTRACT.md for human-readable documentation
 
   events: {
@@ -211,7 +219,8 @@ const SCHEMAS = {
       }
     },
 
-    // Sponsor with placement (V2) - MIRRORS: /schemas/sponsor.schema.json
+    // [MVP] SPONSOR SCHEMA - MIRRORS: /schemas/sponsor.schema.json
+    // V2 feature but shape is MVP-frozen
     _sponsor: {
       type: 'object',
       required: ['id', 'name', 'logoUrl', 'placement'],
@@ -295,7 +304,8 @@ const SCHEMAS = {
       }
     },
 
-    // Full event shape - MIRRORS: /schemas/event.schema.json (MVP-frozen v2.2)
+    // [MVP] FULL EVENT SHAPE - MIRRORS: /schemas/event.schema.json (v2.2 frozen)
+    // This is THE canonical Event object shape for all MVP surfaces
     _eventShape: {
       type: 'object',
       required: ['id', 'slug', 'name', 'startDateISO', 'venue', 'links', 'qr', 'ctas', 'settings', 'createdAtISO', 'updatedAtISO'],
@@ -723,8 +733,9 @@ const SCHEMAS = {
     },
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // SharedAnalytics - MIRRORS: /schemas/analytics.schema.json (MVP-frozen v1.1)
+    // [MVP] SHAREDANALYTICS SCHEMA - MIRRORS: /schemas/shared-analytics.schema.json (v1.1 frozen)
     // Used by: api_getSharedAnalytics, api_getSponsorAnalytics
+    // This is THE canonical SharedAnalytics object shape for SharedReport.html
     // ═══════════════════════════════════════════════════════════════════════════
     _sharedAnalytics: {
       type: 'object',
@@ -944,7 +955,9 @@ const SCHEMAS = {
     }
   },
 
-  // === Sponsor Schemas =====================================================
+  // ═══════════════════════════════════════════════════════════════════════════
+  // [MVP] SPONSOR SCHEMAS - MIRRORS: /schemas/sponsor.schema.json
+  // ═══════════════════════════════════════════════════════════════════════════
 
   sponsors: {
     getAnalytics: {
@@ -1033,7 +1046,9 @@ const SCHEMAS = {
     }
   },
 
-  // === Form Schemas ========================================================
+  // ═══════════════════════════════════════════════════════════════════════════
+  // [MVP] FORMCONFIG SCHEMA - MIRRORS: /schemas/form-config.schema.json (v1.0 frozen)
+  // ═══════════════════════════════════════════════════════════════════════════
   // FormConfig shape used by Admin signup tile and Report UI:
   // {
   //   formId: string,          // Google Form ID
@@ -1044,7 +1059,7 @@ const SCHEMAS = {
   // }
 
   forms: {
-    // FormConfig shape - used by Admin signup tile, Report UI
+    // [MVP] FormConfig shape - used by Admin signup tile, Report UI
     formConfig: {
       type: 'object',
       required: ['formId', 'signupUrl', 'totalResponses'],

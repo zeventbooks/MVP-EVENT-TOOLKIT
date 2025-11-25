@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://zeventbook.com/schemas/analytics.schema.json",
+  "$id": "https://zeventbook.com/schemas/shared-analytics.schema.json",
   "title": "SharedAnalytics",
   "description": "MVP Analytics Response Contract v1.1 (MVP-frozen) - Single Source of Truth for SharedReport.html",
   "type": "object",
