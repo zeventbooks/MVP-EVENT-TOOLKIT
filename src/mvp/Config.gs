@@ -197,32 +197,64 @@ const ZEB = Object.freeze({
 });
 
 // ============================================================================
-// Spreadsheet ID Configuration
+// Spreadsheet ID Configuration (Per-Brand Support)
 // ============================================================================
-// SPREADSHEET_ID can be set via Script Properties for per-deployment configuration
-// This allows different deployments (eventangle.com, zeventbooks.com) to use different spreadsheets
+// Spreadsheet IDs can be configured via Script Properties:
 //
-// Set via Apps Script UI: File > Project Properties > Script Properties
-// Or via code: PropertiesService.getScriptProperties().setProperty('SPREADSHEET_ID', 'your-id')
+// Option 1: Shared spreadsheet for all brands
+//   SPREADSHEET_ID = "1abc..."
 //
-// Default fallback (used if Script Property not set):
+// Option 2: Dedicated spreadsheet per brand (overrides shared)
+//   SPREADSHEET_ID_ROOT = "1abc..."
+//   SPREADSHEET_ID_ABC  = "1def..."
+//   SPREADSHEET_ID_CBC  = "1ghi..."
+//   SPREADSHEET_ID_CBL  = "1jkl..."
+//
+// Priority: Brand-specific > Shared > Default
+//
+// Setup functions (run in Apps Script editor):
+//   setupSpreadsheetId('1abc...')           // Set shared for all brands
+//   setupBrandSpreadsheetId('abc', '1def...') // Set dedicated for ABC brand
+//   showScriptConfig()                        // View current configuration
+//
+// Default fallback (used if no Script Properties set):
 const DEFAULT_SPREADSHEET_ID = '1SV1oZMq4GbZBaRc0YmTeV02Tl5KXWD8R6FZXC7TwVCQ';
 
 /**
- * Get the spreadsheet ID from Script Properties or use default
+ * Get the spreadsheet ID for a brand from Script Properties
+ *
+ * Priority:
+ *   1. SPREADSHEET_ID_{BRAND} (e.g., SPREADSHEET_ID_ABC) - per-brand spreadsheet
+ *   2. SPREADSHEET_ID - shared spreadsheet for all brands
+ *   3. DEFAULT_SPREADSHEET_ID - hardcoded fallback
+ *
+ * @param {string} brandId - Optional brand ID (root, abc, cbc, cbl)
  * @returns {string} Spreadsheet ID
  */
-function getSpreadsheetId_() {
+function getSpreadsheetId_(brandId) {
   try {
     const props = PropertiesService.getScriptProperties();
-    const customId = props.getProperty('SPREADSHEET_ID');
-    if (customId && customId.trim()) {
-      return customId.trim();
+
+    // 1. Check for brand-specific spreadsheet ID
+    if (brandId) {
+      const brandKey = `SPREADSHEET_ID_${brandId.toUpperCase()}`;
+      const brandSpreadsheetId = props.getProperty(brandKey);
+      if (brandSpreadsheetId && brandSpreadsheetId.trim()) {
+        return brandSpreadsheetId.trim();
+      }
+    }
+
+    // 2. Check for shared spreadsheet ID
+    const sharedId = props.getProperty('SPREADSHEET_ID');
+    if (sharedId && sharedId.trim()) {
+      return sharedId.trim();
     }
   } catch (e) {
     // Script Properties not available (e.g., during testing)
     console.warn('Could not read Script Properties, using default spreadsheet ID');
   }
+
+  // 3. Fallback to default
   return DEFAULT_SPREADSHEET_ID;
 }
 
@@ -461,10 +493,9 @@ const FORM_TEMPLATES = [
 
 // Accessors - inject dynamic spreadsheet ID from Script Properties
 function loadBrands_() {
-  const spreadsheetId = getSpreadsheetId_();
   return BRANDS.map(brand => ({
     ...brand,
-    store: { ...brand.store, spreadsheetId }
+    store: { ...brand.store, spreadsheetId: getSpreadsheetId_(brand.id) }
   }));
 }
 
@@ -472,11 +503,10 @@ function findBrand_(id) {
   const brand = BRANDS.find(b => b.id === id);
   if (!brand) return null;
 
-  // Inject dynamic spreadsheet ID
-  const spreadsheetId = getSpreadsheetId_();
+  // Inject dynamic spreadsheet ID (per-brand or shared)
   return {
     ...brand,
-    store: { ...brand.store, spreadsheetId }
+    store: { ...brand.store, spreadsheetId: getSpreadsheetId_(brand.id) }
   };
 }
 
@@ -561,8 +591,8 @@ function setupAdminSecrets_(secrets) {
 }
 
 /**
- * Setup script - Set the spreadsheet ID for this deployment
- * Run this once per deployment to configure the database
+ * Setup script - Set the shared spreadsheet ID for all brands
+ * Run this once per deployment to configure the shared database
  *
  * Usage in Apps Script editor:
  *   1. Open script editor
@@ -580,11 +610,45 @@ function setupSpreadsheetId(spreadsheetId) {
   const props = PropertiesService.getScriptProperties();
   props.setProperty('SPREADSHEET_ID', spreadsheetId.trim());
 
-  console.log('✅ Spreadsheet ID configured: ' + spreadsheetId);
+  console.log('✅ Shared spreadsheet ID configured: ' + spreadsheetId);
+  console.log('   This will be used by all brands without a dedicated spreadsheet.');
   console.log('');
   console.log('Next steps:');
   console.log('1. Verify: Run showScriptConfig() to confirm');
   console.log('2. Test: Visit ?p=status to check database connection');
+  console.log('3. Redeploy: Create new deployment version');
+}
+
+/**
+ * Setup script - Set a brand-specific spreadsheet ID
+ * Use this to give a brand its own dedicated spreadsheet
+ *
+ * Usage in Apps Script editor:
+ *   setupBrandSpreadsheetId('abc', '1xyz...')
+ *
+ * @param {string} brandId - Brand ID (root, abc, cbc, cbl)
+ * @param {string} spreadsheetId - Google Sheets spreadsheet ID
+ */
+function setupBrandSpreadsheetId(brandId, spreadsheetId) {
+  if (!brandId || typeof brandId !== 'string') {
+    console.error('❌ Invalid brand ID. Usage: setupBrandSpreadsheetId("abc", "1xyz...")');
+    return;
+  }
+  if (!spreadsheetId || typeof spreadsheetId !== 'string') {
+    console.error('❌ Invalid spreadsheet ID. Usage: setupBrandSpreadsheetId("abc", "1xyz...")');
+    return;
+  }
+
+  const props = PropertiesService.getScriptProperties();
+  const key = `SPREADSHEET_ID_${brandId.toUpperCase()}`;
+  props.setProperty(key, spreadsheetId.trim());
+
+  console.log(`✅ Brand spreadsheet configured for ${brandId.toUpperCase()}`);
+  console.log(`   ${key}: ${spreadsheetId}`);
+  console.log('');
+  console.log('Next steps:');
+  console.log('1. Verify: Run showScriptConfig() to confirm');
+  console.log(`2. Test: Visit ?p=status&brand=${brandId} to check database connection`);
   console.log('3. Redeploy: Create new deployment version');
 }
 
@@ -599,11 +663,24 @@ function showScriptConfig() {
   console.log('=== Script Properties Configuration ===');
   console.log('');
 
-  // Spreadsheet ID
-  const spreadsheetId = allProps['SPREADSHEET_ID'] || '(not set - using default)';
-  console.log('SPREADSHEET_ID: ' + spreadsheetId);
-  console.log('  Default: ' + DEFAULT_SPREADSHEET_ID);
-  console.log('  Active:  ' + getSpreadsheetId_());
+  // Shared Spreadsheet ID
+  const sharedId = allProps['SPREADSHEET_ID'] || '(not set)';
+  console.log('SPREADSHEET_ID (shared): ' + sharedId);
+  console.log('  Default fallback: ' + DEFAULT_SPREADSHEET_ID);
+  console.log('');
+
+  // Per-brand Spreadsheet IDs
+  console.log('Per-Brand Spreadsheets:');
+  ['ROOT', 'ABC', 'CBC', 'CBL'].forEach(brand => {
+    const key = `SPREADSHEET_ID_${brand}`;
+    const brandId = allProps[key];
+    const activeId = getSpreadsheetId_(brand.toLowerCase());
+    if (brandId) {
+      console.log(`  ${key}: ${brandId} ✅ dedicated`);
+    } else {
+      console.log(`  ${key}: (not set) → using ${activeId === DEFAULT_SPREADSHEET_ID ? 'default' : 'shared'}`);
+    }
+  });
   console.log('');
 
   // Admin secrets (show only existence, not values)
