@@ -4,12 +4,50 @@ MVP SURFACE - Focus Group Critical
 ================================================================================
 Page: Public.html
 Purpose: Public-facing event listing and registration page
-Status: LOCKED for MVP v1.0
+Status: HARDENED for MVP v1.0
 
-DO NOT modify this file's contracts without updating:
-  - NUSDK.html (API client)
-  - tests/e2e/* (end-to-end tests)
-  - tests/unit/* (unit tests)
+SCHEMA CONTRACT: /schemas/event.schema.json
+This surface uses ONLY these schema fields:
+
+  IDENTITY (MVP Required):
+    - event.name           → Event title
+    - event.startDateISO   → Event date
+    - event.venue          → Location display + Maps link
+
+  CTAs (MVP Required):
+    - event.ctas.primary   → Main action button (Sign Up)
+    - event.ctas.secondary → Optional secondary button
+
+  SETTINGS (MVP Required):
+    - event.settings.showSchedule  → Toggle schedule section
+    - event.settings.showStandings → Toggle standings section
+    - event.settings.showBracket   → Toggle bracket section
+    - event.settings.showSponsors  → Toggle sponsor banner
+
+  DATA SECTIONS (MVP Optional):
+    - event.schedule[]   → Schedule list (time, title, description)
+    - event.standings[]  → Standings table (rank, team, wins, losses, points)
+    - event.bracket      → Tournament bracket (rounds[].matches[])
+
+  SPONSORS (V2 Optional):
+    - event.sponsors[]   → #sponsorBanner (filtered by placement === 'public')
+
+  MEDIA (V2 Optional):
+    - event.media.videoUrl  → Embedded video (YouTube/Vimeo)
+    - event.media.gallery   → Photo gallery (array of URLs)
+    - event.media.mapUrl    → Direct map link
+
+  EXTERNAL DATA (V2 Optional):
+    - event.externalData.scheduleUrl  → Google Sheets BYOD
+    - event.externalData.standingsUrl → Google Sheets BYOD
+    - event.externalData.bracketUrl   → Google Sheets BYOD
+
+  PAYMENTS (Reserved):
+    - event.payments.enabled, checkoutUrl, price, currency
+
+DO NOT add fields without updating:
+  - /schemas/event.schema.json (source of truth)
+  - src/mvp/Code.gs (_buildEventContract_)
 
 Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
 ================================================================================
@@ -1160,7 +1198,7 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
 
     /**
      * Render event list view
-     * EVENT_CONTRACT.md v2.0: Consumes canonical Event shapes from api_list
+     * SCHEMA: /schemas/event.schema.json
      * Uses: event.name, event.startDateISO, event.venue
      */
     async function renderList(items) {
@@ -1177,7 +1215,7 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
         return;
       }
       for (const event of items) {
-        // EVENT_CONTRACT.md v2.0: Use canonical fields directly
+        // Schema fields: name, startDateISO, venue
         const name = event.name || '(untitled)';
         const startDateISO = event.startDateISO || '';
         const venue = event.venue || '';
@@ -1219,28 +1257,15 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
 
     /**
      * Render event detail view
-     * EVENT_CONTRACT.md v2.0: Consumes canonical Event shape from getPublicBundle
+     * API: api_getPublicBundle → { event, config }
+     * SCHEMA: /schemas/event.schema.json
      *
-     * Contract fields used:
-     * - event.name (MVP Required)
-     * - event.startDateISO (MVP Required)
-     * - event.venue (MVP Required)
-     * - event.ctas.primary / event.ctas.secondary (MVP Required)
-     * - event.settings.showSchedule / showStandings / showBracket / showSponsors (MVP Required)
-     * - event.links.* (MVP Required - never hardcode URLs)
-     * - event.schedule / event.standings / event.bracket (MVP Optional)
-     * - event.sponsors (V2 Optional)
-     * - event.media (V2 Optional)
-     * - event.externalData (V2 Optional)
-     *
-     * @param {Object} event - Canonical Event object per EVENT_CONTRACT.md
-     * @param {Object} config - Brand config from getPublicBundle
+     * See file header for complete field mapping.
      */
     async function renderDetail(event, config = {}) {
       const root = document.getElementById('list');
 
-      // === CONTRACT FIELDS (MVP REQUIRED) ===
-      // Trust the contract - no fallback chains
+      // === SCHEMA FIELDS (MVP REQUIRED) ===
       const eventId = event.id;
       const eventName = event.name;
       const startDateISO = event.startDateISO;
@@ -1249,12 +1274,12 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       const settings = event.settings || { showSchedule: false, showStandings: false, showBracket: false, showSponsors: false };
       const links = event.links || {};
 
-      // === CONTRACT FIELDS (MVP OPTIONAL) ===
+      // === SCHEMA FIELDS (MVP OPTIONAL) ===
       const schedule = event.schedule || [];
       const standings = event.standings || [];
       const bracket = event.bracket || null;
 
-      // === CONTRACT FIELDS (V2 OPTIONAL) ===
+      // === SCHEMA FIELDS (V2 OPTIONAL) ===
       const sponsors = event.sponsors || [];
       const media = event.media || {};
       const externalData = event.externalData || {};
@@ -1289,12 +1314,12 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
         }
       };
 
-      // === RESERVED SPONSOR BAR ===
-      // Always render sponsor bar container (even if empty for future use)
+      // === SPONSOR BANNER (V2 Optional) ===
+      // Schema: event.sponsors[].placement MUST be 'public' - no fallback
       const sponsorBanner = document.getElementById('sponsorBanner');
       if (sectionEnabled('sponsors') && sponsors.length > 0) {
-        // Filter for public placement sponsors
-        const publicSponsors = sponsors.filter(s => s.placement === 'public' || !s.placement);
+        // STRICT: Only sponsors with placement === 'public' (schema-required field)
+        const publicSponsors = sponsors.filter(s => s.placement === 'public');
         if (publicSponsors.length > 0) {
           // Use unified SponsorRenderer carousel from SponsorUtils
           const { SponsorRenderer } = window.SponsorUtils;
@@ -1363,7 +1388,7 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       html += '</div>';
       html += '</div>';
 
-      // === ACTION ROW (EVENT_CONTRACT.md v2.0: ctas.primary / ctas.secondary) ===
+      // === ACTION ROW (event.ctas.primary / event.ctas.secondary) ===
       html += '<div class="action-buttons">';
 
       // Primary CTA (MVP Required) - trust event.ctas.primary
@@ -1509,7 +1534,7 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
         html += '<div class="event-section">';
         html += '<h2>Schedule</h2>';
         if (schedule.length > 0) {
-          // Render from event.schedule array per EVENT_CONTRACT.md
+          // Render from event.schedule[] per schema
           html += '<div class="schedule-list">';
           schedule.forEach(item => {
             html += `<div class="schedule-item">`;
@@ -1561,7 +1586,7 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
         html += '<div class="event-section">';
         html += '<h2>Standings</h2>';
         if (standings.length > 0) {
-          // Render from event.standings array per EVENT_CONTRACT.md
+          // Render from event.standings[] per schema
           html += '<table class="data-table standings-table">';
           html += '<thead><tr><th>Team</th><th>W</th><th>L</th><th>Pts</th></tr></thead>';
           html += '<tbody>';
@@ -1588,7 +1613,7 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
         html += '<div class="event-section">';
         html += '<h2>Bracket</h2>';
         if (bracket && bracket.rounds && bracket.rounds.length > 0) {
-          // Render from event.bracket per EVENT_CONTRACT.md
+          // Render from event.bracket per schema
           html += '<div class="bracket-container"><div class="bracket-rounds">';
           bracket.rounds.forEach(round => {
             html += `<div class="bracket-round">`;
@@ -1743,7 +1768,7 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
     }
 
     // Load event data
-    // EVENT_CONTRACT.md v2.0: Use getPublicBundle for single event (returns { event, config })
+    // SCHEMA: /schemas/event.schema.json via api_getPublicBundle
     if (ID) {
       NU.rpc('api_getPublicBundle', { brandId: BRAND, scope: SCOPE, id: ID }).then(res => {
         if (res.ok && res.value && res.value.event) {
