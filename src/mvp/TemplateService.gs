@@ -84,7 +84,7 @@ var EVENT_TEMPLATES = {
       schedule: false,
       sponsors: true,
       notes: true,
-      gallery: false
+      gallery: true
     },
     defaultCtas: ['RSVP', 'Add to Calendar'],
     defaults: {
@@ -107,7 +107,7 @@ var EVENT_TEMPLATES = {
       schedule: true,
       sponsors: true,
       notes: true,
-      gallery: false
+      gallery: true
     },
     defaultCtas: ['Register Team', 'View Schedule'],
     defaults: {
