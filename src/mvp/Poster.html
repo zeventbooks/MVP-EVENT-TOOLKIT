@@ -3,13 +3,35 @@
 MVP SURFACE - Focus Group Critical
 ================================================================================
 Page: Poster.html
-Purpose: Printable event poster with QR code and sponsor branding
-Status: LOCKED for MVP v1.0
+Purpose: Printable event poster with QR codes and sponsor branding
+Status: HARDENED for MVP v1.0
 
-DO NOT modify this file's contracts without updating:
-  - NUSDK.html (API client)
-  - tests/e2e/* (end-to-end tests)
-  - tests/unit/* (unit tests)
+SCHEMA CONTRACT: /schemas/event.schema.json
+This surface uses ONLY these schema fields:
+
+  IDENTITY (MVP Required):
+    - event.name           → #eventName
+    - event.startDateISO   → #eventDate
+    - event.venue          → #eventLocation
+
+  LINKS (MVP Required):
+    - event.links.publicUrl  → QR code label
+    - event.links.signupUrl  → QR code label
+
+  QR CODES (MVP Required):
+    - event.qr.public   → Public page QR (base64 PNG)
+    - event.qr.signup   → Sign-up QR (base64 PNG)
+
+  SPONSORS (V2 Optional):
+    - event.sponsors[]            → #sponsorStrip (filtered by placement)
+    - event.settings.showSponsors → Toggle visibility
+
+  CTA (MVP Required - for button label):
+    - event.ctas.primary.label → Sign-up button text
+
+DO NOT add fields without updating:
+  - /schemas/event.schema.json (source of truth)
+  - src/mvp/Code.gs (_buildEventContract_)
 
 Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
 ================================================================================
@@ -89,23 +111,7 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
       color: var(--color-gray-800, #1e293b);
       font-weight: 700;
     }
-    .event-image {
-      max-width: 100%;
-      height: auto;
-      border-radius: 12px;
-      margin: 24px 0;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    }
-    .event-summary {
-      font-size: 1.1rem;
-      line-height: 1.6;
-      color: #475569;
-      margin: 20px 0;
-      padding: 20px;
-      background: #f8fafc;
-      border-radius: 8px;
-      border-left: 4px solid #2563eb;
-    }
+    /* V2 REMOVED: .event-image and .event-summary CSS deleted - not in schema */
 
     /* Enhanced QR Codes */
     .qr-section {
@@ -337,24 +343,15 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
     <!-- Sponsor Strip (Top) -->
     <div id="sponsorStrip" class="sponsor-strip" hidden></div>
 
-    <!-- Event Details -->
+    <!-- Event Details - Schema fields: name, startDateISO, venue -->
     <div class="event-details">
       <h1 id="eventName">Event Name</h1>
       <div class="event-meta">
         <div id="eventDate"></div>
-        <div id="eventTime"></div>
         <div id="eventLocation"></div>
-        <div id="eventEntity"></div>
       </div>
     </div>
-
-    <!-- Event Image -->
-    <div id="eventImageContainer" hidden>
-      <img id="eventImage" class="event-image" alt="Event Image">
-    </div>
-
-    <!-- Event Summary -->
-    <div id="eventSummary" class="event-summary" hidden></div>
+    <!-- V2 REMOVED: eventTime, eventEntity, eventImage, eventSummary - not in schema -->
 
     <!-- QR Codes Section -->
     <section class="qr-section">
@@ -395,36 +392,24 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
 
     /**
      * Render event details section
-     * EVENT_CONTRACT.md v2.0: Uses canonical fields directly, no fallback chains
+     * SCHEMA: /schemas/event.schema.json
      *
-     * Contract fields used:
+     * Fields used (ALL from schema):
      * - event.name (MVP Required)
      * - event.startDateISO (MVP Required)
      * - event.venue (MVP Required)
-     * - event.media.imageUrl (V2 Optional)
      */
     function renderEventDetails(event) {
-      // === CONTRACT FIELDS (MVP REQUIRED) ===
-      // Trust the contract - no fallback chains
+      // === SCHEMA FIELDS ONLY ===
       const name = event.name || 'Event Name';
       const startDateISO = event.startDateISO || '';
       const venue = event.venue || '';
 
-      // ═══════════════════════════════════════════════════════════════
-      // V2 COMMENTED OUT - media.imageUrl NOT IN /schemas/event.schema.json
-      // Media only has: videoUrl, mapUrl, gallery
-      // TODO: Add media.heroImageUrl to schema when poster image feature is ready
-      // ═══════════════════════════════════════════════════════════════
-      // const media = event.media || {};
-      // const imageUrl = media.imageUrl || '';
-
-      // Event Name (MVP Required)
+      // Event Name → #eventName
       document.getElementById('eventName').textContent = name;
 
-      // Date - parse from event.startDateISO (MVP Required)
+      // Date → #eventDate (parsed from startDateISO)
       const dateEl = document.getElementById('eventDate');
-      const timeEl = document.getElementById('eventTime');
-
       if (startDateISO) {
         const date = new Date(startDateISO + 'T00:00:00');
         if (!isNaN(date.getTime())) {
@@ -433,53 +418,32 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
           })}`;
         }
       }
-      // Hide time element - MVP v2.0 doesn't have time
-      timeEl.hidden = true;
 
-      // Venue (MVP Required) - event.venue
+      // Venue → #eventLocation
       const locEl = document.getElementById('eventLocation');
       if (venue) {
         locEl.innerHTML = `<strong>Location:</strong> ${esc(venue)}`;
       }
-
-      // Entity (hosted by) - not in contract, hidden
-      const entityEl = document.getElementById('eventEntity');
-      entityEl.hidden = true;
-
-      // ═══════════════════════════════════════════════════════════════
-      // V2 COMMENTED OUT - Event Image not in schema
-      // TODO: Enable when media.heroImageUrl is added to schema
-      // ═══════════════════════════════════════════════════════════════
-      // if (imageUrl) {
-      //   document.getElementById('eventImage').src = imageUrl;
-      //   document.getElementById('eventImageContainer').hidden = false;
-      // }
-      // Always hide image container for now
-      document.getElementById('eventImageContainer').hidden = true;
-
-      // Summary - not in MVP contract, hidden
-      document.getElementById('eventSummary').hidden = true;
     }
 
     /**
      * Render QR codes section
-     * EVENT_CONTRACT.md v2.0: Uses canonical QR and links fields
+     * SCHEMA: /schemas/event.schema.json
      *
-     * Contract fields used:
+     * Fields used (ALL from schema):
      * - event.qr.public (MVP Required) - Base64 PNG data URI
      * - event.qr.signup (MVP Required) - Base64 PNG data URI
-     * - event.links.publicUrl (MVP Required) - shown as text
-     * - event.links.signupUrl (MVP Required) - shown as text
-     * - event.ctas.primary.label (MVP Required) - button label
+     * - event.links.publicUrl (MVP Required) - URL text below QR
+     * - event.links.signupUrl (MVP Required) - URL text below QR
+     * - event.ctas.primary.label (MVP Required) - Sign-up button label
      *
-     * IMPORTANT: QR codes MUST come from event.qr.* - no manual generation allowed.
-     * This ensures URLs are verified by the server before being encoded.
+     * QR codes MUST come from event.qr.* - no manual generation.
      */
     function renderQRCodes(event) {
       const el = document.getElementById('qrGrid');
       el.innerHTML = '';
 
-      // === CONTRACT FIELDS (MVP REQUIRED) ===
+      // === SCHEMA FIELDS ===
       const qr = event.qr || {};
       const links = event.links || {};
       const ctas = event.ctas || { primary: { label: 'Sign Up', url: '' } };
@@ -525,14 +489,14 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
 
     /**
      * Render poster from event data
-     * EVENT_CONTRACT.md v2.0: Uses getPosterBundle for poster-specific data
+     * SCHEMA: /schemas/event.schema.json
      *
-     * Contract fields used:
+     * Fields used (ALL from schema):
      * - event.name, event.startDateISO, event.venue (MVP Required)
      * - event.qr.public, event.qr.signup (MVP Required)
      * - event.links.publicUrl, event.links.signupUrl (MVP Required)
-     * - event.settings.showSponsors (MVP Required)
-     * - event.sponsors with placement === 'poster' (V2 Optional)
+     * - event.settings.showSponsors (V2 Optional)
+     * - event.sponsors[] with placement === 'poster' (V2 Optional)
      */
     function renderPoster(event) {
       if (!event) {
@@ -550,18 +514,17 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
       // Log poster view
       logEvent({ eventId: event.id, surface: 'poster', metric: 'view', value: 1 });
 
-      // === CONTRACT FIELDS ===
+      // === SCHEMA FIELDS ===
       const settings = event.settings || { showSponsors: false };
       const sponsors = event.sponsors || [];
 
-      // === RESERVED POSTER SPONSOR BAND ===
-      // Uses event.settings.showSponsors and event.sponsors with placement === 'poster'
+      // === SPONSOR STRIP (V2 Optional) ===
+      // Schema: event.sponsors[].placement MUST be 'poster' - no fallback
       const sponsorStrip = document.getElementById('sponsorStrip');
       if (settings.showSponsors && sponsors.length > 0) {
-        // Filter sponsors with 'poster' placement
-        const posterSponsors = sponsors.filter(s => s.placement === 'poster' || !s.placement);
+        // STRICT: Only sponsors with placement === 'poster' (schema-required field)
+        const posterSponsors = sponsors.filter(s => s.placement === 'poster');
         if (posterSponsors.length > 0) {
-          // Use unified SponsorRenderer from SponsorUtils
           const { SponsorRenderer } = window.SponsorUtils;
           SponsorRenderer.renderStrip({
             container: sponsorStrip,
@@ -572,12 +535,10 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
             showTier: false
           });
         } else {
-          // Reserved: Sponsor strip exists but hidden when no poster sponsors
           sponsorStrip.innerHTML = '';
           sponsorStrip.hidden = true;
         }
       } else {
-        // Reserved: Sponsor strip container exists but hidden by default
         sponsorStrip.innerHTML = '';
         sponsorStrip.hidden = true;
       }
@@ -594,11 +555,8 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
 
     /**
      * Boot Poster.html
-     * EVENT_CONTRACT.md v2.0: Uses api_getPosterBundle for poster-specific data
-     *
-     * PosterBundle returns:
-     * - event: Full canonical Event shape
-     * - qrCodes: { publicUrl, signupUrl } - QuickChart URLs for print
+     * API: api_getPosterBundle → { event, qrCodes, print }
+     * SCHEMA: /schemas/event.schema.json
      */
     async function boot() {
       const res = await NU.rpc('api_getPosterBundle', { brandId: BRAND, scope: SCOPE, id: ID });

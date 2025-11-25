@@ -3462,8 +3462,8 @@ function generateQRCodes_(event) {
     // Public event page QR - uses event.links.publicUrl (can be shortlink for tracking)
     public: qrUrl(event.links?.publicUrl),
 
-    // Signup form QR - uses signupUrl (can be shortlink for tracking)
-    signup: qrUrl(event.signupUrl)
+    // Signup form QR - uses event.links.signupUrl (schema-compliant)
+    signup: qrUrl(event.links?.signupUrl)
   };
 }
 
