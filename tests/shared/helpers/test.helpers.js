@@ -319,6 +319,54 @@ const brandHelpers = {
   differentBrand: (currentBrand) => {
     const others = brandHelpers.BRANDS.filter(t => t !== currentBrand);
     return others[Math.floor(Math.random() * others.length)];
+  },
+
+  /**
+   * Get brand configuration (spreadsheetId, adminKey, etc.)
+   * Delegates to brand-config.js for full per-brand support
+   */
+  getBrandConfig: (brandId) => {
+    try {
+      const { getBrandConfig } = require('../config/brand-config');
+      return getBrandConfig(brandId);
+    } catch {
+      // Fallback if brand-config not available
+      return {
+        brandId: brandId || 'root',
+        spreadsheetId: process.env.SPREADSHEET_ID || '1SV1oZMq4GbZBaRc0YmTeV02Tl5KXWD8R6FZXC7TwVCQ',
+        adminKey: process.env.ADMIN_KEY || null,
+        baseUrl: process.env.BASE_URL || 'https://eventangle.com',
+        hasAdminKey: !!process.env.ADMIN_KEY,
+        hasDedicatedSpreadsheet: false,
+        isConfigured: !!process.env.ADMIN_KEY
+      };
+    }
+  },
+
+  /**
+   * Get configured brands (those with admin keys)
+   */
+  getConfiguredBrands: () => {
+    try {
+      const { getConfiguredBrands } = require('../config/brand-config');
+      return getConfiguredBrands();
+    } catch {
+      return process.env.ADMIN_KEY ? ['root'] : [];
+    }
+  },
+
+  /**
+   * Create test matrix for parameterized brand tests
+   * Usage: describe.each(brandHelpers.createTestMatrix())('Brand: %s', (brandId, config) => { ... })
+   */
+  createTestMatrix: (options = {}) => {
+    try {
+      const { createBrandTestMatrix } = require('../config/brand-config');
+      return createBrandTestMatrix(options);
+    } catch {
+      // Fallback: just root brand
+      return [['root', brandHelpers.getBrandConfig('root')]];
+    }
   }
 };
 
