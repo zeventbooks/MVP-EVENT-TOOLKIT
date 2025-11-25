@@ -319,6 +319,44 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
     .error-state-tv .btn-retry:hover {
       background: #1d4ed8;
     }
+
+    /* Feature 3: Primary Sponsor - Bigger Rendering for TV */
+    .sponsor-primary img,
+    .sponsor-logo.sponsor-primary {
+      max-height: calc(var(--display-sponsor-logo-height-top, 72px) * 1.6) !important;
+      filter: brightness(1.3) drop-shadow(0 4px 12px rgba(245, 158, 11, 0.4));
+    }
+    .sponsor-primary strong {
+      font-size: 1.5em;
+      color: #fcd34d;
+    }
+    .sponsor-item.sponsor-primary {
+      order: -1;
+      padding: 12px 24px;
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(234, 179, 8, 0.15) 100%);
+      border-radius: 12px;
+      border: 2px solid rgba(245, 158, 11, 0.4);
+    }
+    .sponsor-tier-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      background: #f59e0b;
+      color: #000;
+      font-size: 0.7rem;
+      font-weight: 700;
+      border-radius: 10px;
+      text-transform: uppercase;
+      margin-left: 8px;
+      vertical-align: middle;
+      letter-spacing: 0.5px;
+    }
+    .sp-card.sponsor-primary {
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, var(--color-tv-bg-card, #1f1f1f) 100%);
+      border-color: rgba(245, 158, 11, 0.5);
+    }
+    .sp-card.sponsor-primary img {
+      max-height: calc(var(--display-sponsor-logo-height-side, 64px) * 1.4);
+    }
   </style>
 </head>
 <body data-tv="1">
@@ -629,7 +667,9 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
       // === RENDER LEAGUE & BROADCAST STRIP ===
       // Uses event.externalData (V2 Optional per /schemas/event.schema.json)
       // Schema fields: scheduleUrl, standingsUrl, bracketUrl
-      if (externalData.scheduleUrl || externalData.standingsUrl || externalData.bracketUrl) {
+      // Feature 4: Respect showLeagueStrip toggle
+      if ((settings.showLeagueStrip !== false) &&
+          (externalData.scheduleUrl || externalData.standingsUrl || externalData.bracketUrl)) {
         renderLeagueBroadcast(ev.templateId || '', externalData);
       }
 
@@ -643,7 +683,8 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
 
       // === SPONSOR STRIP (V2 Optional) ===
       // Schema: event.sponsors[].placement MUST be 'display' or 'tv-banner' - no fallback
-      if (settings.showSponsors && sponsors.length > 0) {
+      // Feature 4: Respect showSponsorStrip toggle
+      if (settings.showSponsors && (settings.showSponsorStrip !== false) && sponsors.length > 0) {
         // STRICT: Only sponsors with placement === 'display' or 'tv-banner' (schema-required field)
         const displaySponsors = sponsors.filter(s =>
           s.placement === 'display' || s.placement === 'tv-banner'

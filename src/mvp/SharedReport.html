@@ -325,6 +325,55 @@ API ENDPOINTS:
     .error-state p { color: #b91c1c; }
     /* .btn-retry - Now centralized in Styles.html (C-001) */
     /* .site-footer - Now centralized in FooterComponent.html (D-005) */
+
+    /* Feature 5: Top Event / Top Sponsor Callout Cards */
+    .top-callout {
+      background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+      border: 2px solid #f59e0b;
+      border-radius: var(--radius-md, 12px);
+      padding: 20px;
+      text-align: center;
+      box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2);
+    }
+    .top-callout.event {
+      background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+      border-color: #3b82f6;
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+    }
+    .top-callout .callout-icon {
+      font-size: 2rem;
+      margin-bottom: 8px;
+    }
+    .top-callout .callout-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #92400e;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .top-callout.event .callout-label {
+      color: #1e40af;
+    }
+    .top-callout .callout-name {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 8px;
+    }
+    .top-callout .callout-stats {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      font-size: 0.875rem;
+      color: #64748b;
+    }
+    .top-callout .callout-stats strong {
+      color: #1e293b;
+    }
+    @media (max-width: 640px) {
+      #topCallouts { grid-template-columns: 1fr !important; }
+    }
   </style>
 </head>
 <body>
@@ -358,6 +407,9 @@ API ENDPOINTS:
     <!-- Key Metrics -->
     <div id="metrics" style="display:none;">
       <div class="metrics-grid" id="metricsGrid"></div>
+
+      <!-- Feature 5: Top Event / Top Sponsor Callouts -->
+      <div id="topCallouts" class="metrics-grid" style="grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 24px;"></div>
 
       <!-- Surface Performance -->
       <div class="section-card">
@@ -474,6 +526,47 @@ API ENDPOINTS:
       document.getElementById('errorState').style.display = 'block';
     }
 
+    // Feature 5: Render Top Event / Top Sponsor Callouts
+    function renderTopCallouts(events, sponsors) {
+      const container = document.getElementById('topCallouts');
+      let html = '';
+
+      // Top Event (by impressions)
+      if (events.length > 0) {
+        const topEvent = events.reduce((a, b) => (b.impressions || 0) > (a.impressions || 0) ? b : a);
+        html += `
+          <div class="top-callout event">
+            <div class="callout-icon">🏆</div>
+            <div class="callout-label">Top Event</div>
+            <div class="callout-name">${topEvent.name || topEvent.id || 'Event'}</div>
+            <div class="callout-stats">
+              <span><strong>${(topEvent.impressions || 0).toLocaleString()}</strong> impressions</span>
+              <span><strong>${(topEvent.ctr || 0).toFixed(1)}%</strong> CTR</span>
+            </div>
+          </div>
+        `;
+      }
+
+      // Top Sponsor (by impressions)
+      if (sponsors.length > 0) {
+        const topSponsor = sponsors.reduce((a, b) => (b.impressions || 0) > (a.impressions || 0) ? b : a);
+        html += `
+          <div class="top-callout">
+            <div class="callout-icon">⭐</div>
+            <div class="callout-label">Top Sponsor</div>
+            <div class="callout-name">${topSponsor.name || topSponsor.id || 'Sponsor'}</div>
+            <div class="callout-stats">
+              <span><strong>${(topSponsor.impressions || 0).toLocaleString()}</strong> impressions</span>
+              <span><strong>${(topSponsor.ctr || 0).toFixed(2)}%</strong> CTR</span>
+            </div>
+          </div>
+        `;
+      }
+
+      container.innerHTML = html;
+      container.style.display = html ? '' : 'none';
+    }
+
     function renderReport(data) {
       // Defensive defaults
       const summary = data.summary || {};
@@ -483,6 +576,9 @@ API ENDPOINTS:
 
       renderSummaryMetrics(summary);
       renderSurfacePerformance(surfaces);
+
+      // Feature 5: Render top callouts
+      renderTopCallouts(events, sponsors);
 
       if (IS_SPONSOR_VIEW) {
         // In sponsor mode, focus on sponsor + event breakdown
