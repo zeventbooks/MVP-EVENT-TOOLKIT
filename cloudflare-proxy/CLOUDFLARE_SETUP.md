@@ -22,28 +22,43 @@ Replace Hostinger with Cloudflare Workers as your proxy layer to Google Apps Scr
 │                     DEPLOYMENT OPTIONS                               │
 └─────────────────────────────────────────────────────────────────────┘
 
-Option A: FULL SITE via Cloudflare (Recommended)
-─────────────────────────────────────────────────
-User → zeventbooks.com ────→ Cloudflare Worker ────→ Google Apps Script
+Option A: FULL SITE via Cloudflare
+──────────────────────────────────
+User → eventangle.com ────→ Cloudflare Worker ────→ Google Apps Script
        (custom domain)       (edge: <50ms)           (backend)
 
        Serves: HTML pages + API + All brands
        URLs:
-         zeventbooks.com?page=admin&brand=root     (Admin page)
-         zeventbooks.com?page=display&brand=abc    (Display page)
-         zeventbooks.com?p=status&brand=cbc        (Status API)
+         eventangle.com?page=admin&brand=root     (Admin page)
+         eventangle.com?page=display&brand=abc    (Display page)
+         eventangle.com?p=status&brand=cbc        (Status API)
 
 
 Option B: API Subdomain Only
 ────────────────────────────
-User → api.zeventbooks.com ──→ Cloudflare Worker ──→ Google Apps Script
+User → api.eventangle.com ──→ Cloudflare Worker ──→ Google Apps Script
        (API subdomain)         (edge: <50ms)         (backend)
 
        Serves: API responses only
        Main site: Still on Hostinger or elsewhere
 
 
-Option C: Direct Apps Script (No Proxy)
+Option C: Events Path Only (Mixed Site)
+───────────────────────────────────────
+User → eventangle.com/events?page=admin ──→ Cloudflare Worker ──→ Apps Script
+       (only /events* intercepted)           (edge: <50ms)         (backend)
+
+       Serves: ONLY /events* paths
+       Rest of site: Passes through to origin (Squarespace, etc.)
+       URLs:
+         eventangle.com/events?page=admin     → Admin.html
+         eventangle.com/events?page=public    → Public.html
+         eventangle.com/events?page=display   → Display.html
+         eventangle.com/events                → Default page
+         eventangle.com/about                 → Passes to origin (not intercepted)
+
+
+Option D: Direct Apps Script (No Proxy)
 ───────────────────────────────────────
 User → script.google.com/macros/s/.../exec ──→ Google Apps Script
        (Google's URL)                           (backend)
@@ -56,9 +71,24 @@ User → script.google.com/macros/s/.../exec ──→ Google Apps Script
 | Environment | Command | Routes |
 |-------------|---------|--------|
 | Development | `wrangler deploy` | `*.workers.dev` |
-| Production (Full Site) | `wrangler deploy --env production` | `zeventbooks.com/*` |
-| Staging | `wrangler deploy --env staging` | `staging.zeventbooks.com/*` |
-| API Only | `wrangler deploy --env api-only` | `api.zeventbooks.com/*` |
+| Production (Full Site) | `wrangler deploy --env production` | `eventangle.com/*` |
+| **Events Only** | `wrangler deploy --env events` | `eventangle.com/events*` |
+| Staging | `wrangler deploy --env staging` | `staging.eventangle.com/*` |
+| API Only | `wrangler deploy --env api-only` | `api.eventangle.com/*` |
+
+### Recommended for eventangle.com
+
+Use `--env events` to run tests against `eventangle.com/events` like it's the app:
+
+```bash
+# Deploy events-only route (recommended for mixed sites)
+wrangler deploy --env events
+```
+
+This intercepts only `/events*` paths, allowing:
+- `eventangle.com/events?page=admin` → Admin dashboard
+- `eventangle.com/events?page=public` → Public event listing
+- `eventangle.com/about` → Passes through to origin (not intercepted)
 
 ## Prerequisites
 
@@ -91,17 +121,38 @@ wrangler deploy
 
 Your worker is now live at:
 ```
-https://zeventbooks-api.YOUR_SUBDOMAIN.workers.dev
+https://eventangle.YOUR_SUBDOMAIN.workers.dev
 ```
 
 ### Step 4: Test the Proxy
 
 ```bash
 # Test status endpoint
-curl "https://zeventbooks-api.YOUR_SUBDOMAIN.workers.dev?p=status&brand=root"
+curl "https://eventangle.YOUR_SUBDOMAIN.workers.dev?p=status&brand=root"
 
 # Should return:
-# {"ok":true,"value":{"build":"triangle-extended-v1.3","brand":"root"}}
+# {"ok":true,"value":{"build":"triangle-extended-v1.5","brand":"root"}}
+```
+
+### Step 5: Deploy Events-Only Route (Recommended)
+
+For `eventangle.com` with Squarespace or other origin:
+
+```bash
+# Deploy to intercept only /events* paths
+wrangler deploy --env events
+```
+
+Test:
+```bash
+# Admin dashboard
+curl "https://www.eventangle.com/events?page=admin"
+
+# Public page
+curl "https://www.eventangle.com/events?page=public"
+
+# API status
+curl "https://www.eventangle.com/events?p=status&brand=root"
 ```
 
 ## Custom Domain Setup
@@ -116,7 +167,7 @@ curl "https://zeventbooks-api.YOUR_SUBDOMAIN.workers.dev?p=status&brand=root"
    ```toml
    [env.production]
    routes = [
-     { pattern = "api.zeventbooks.com/*", zone_name = "zeventbooks.com" }
+     { pattern = "api.eventangle.com/*", zone_name = "eventangle.com" }
    ]
    ```
 
@@ -129,7 +180,7 @@ curl "https://zeventbooks-api.YOUR_SUBDOMAIN.workers.dev?p=status&brand=root"
 
 Use the default workers.dev URL - no configuration needed:
 ```
-https://zeventbooks-api.YOUR_SUBDOMAIN.workers.dev
+https://eventangle-api.YOUR_SUBDOMAIN.workers.dev
 ```
 
 ## CI/CD Integration
@@ -182,21 +233,21 @@ Add to your `.github/workflows/stage1-deploy.yml`:
 
 ```bash
 wrangler deploy
-# → https://zeventbooks-api.YOUR_SUBDOMAIN.workers.dev
+# → https://eventangle-api.YOUR_SUBDOMAIN.workers.dev
 ```
 
 ### Production
 
 ```bash
 wrangler deploy --env production
-# → https://api.zeventbooks.com (custom domain)
+# → https://api.eventangle.com (custom domain)
 ```
 
 ### Staging
 
 ```bash
 wrangler deploy --env staging
-# → https://api-staging.zeventbooks.com
+# → https://api-staging.eventangle.com
 ```
 
 ## Testing with Cloudflare URL
@@ -205,7 +256,7 @@ Update your test environment to use Cloudflare:
 
 ```bash
 # Run tests against Cloudflare proxy
-export BASE_URL=https://zeventbooks-api.YOUR_SUBDOMAIN.workers.dev
+export BASE_URL=https://eventangle-api.YOUR_SUBDOMAIN.workers.dev
 npm run test:api
 npm run test:smoke
 ```
@@ -215,7 +266,7 @@ Or update `tests/config/environments.js`:
 ```javascript
 cloudflare: {
   name: 'Cloudflare Workers',
-  baseUrl: process.env.CLOUDFLARE_URL || 'https://api.zeventbooks.com',
+  baseUrl: process.env.CLOUDFLARE_URL || 'https://api.eventangle.com',
   description: 'Cloudflare Workers proxy to Apps Script',
   brands: { root: 'root', abc: 'abc', cbc: 'cbc', cbl: 'cbl' }
 }
@@ -261,7 +312,7 @@ The worker forwards:
 
 View real-time metrics at:
 ```
-https://dash.cloudflare.com → Workers → zeventbooks-api → Analytics
+https://dash.cloudflare.com → Workers → eventangle-api → Analytics
 ```
 
 Available metrics:
