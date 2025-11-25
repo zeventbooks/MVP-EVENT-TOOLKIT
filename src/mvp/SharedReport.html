@@ -371,37 +371,14 @@ API ENDPOINTS:
         <div id="sponsorPerformance"></div>
       </div>
 
-      <!-- ROI & Surface Breakdown (Sponsors Only) -->
-      <div class="section-card" id="sponsorROICard" style="display:none;">
-        <h2>💰 ROI & Performance Breakdown</h2>
-        <div id="sponsorROI"></div>
-      </div>
-
-      <!-- Event Breakdown (Sponsors Only) -->
-      <div class="section-card" id="sponsorEventsCard" style="display:none;">
-        <h2>🎯 Performance by Event</h2>
-        <div id="sponsorEvents"></div>
-      </div>
-
-      <!-- Event Performance (Event Managers Only) -->
+      <!-- Event Performance -->
       <div class="section-card" id="eventPerformanceCard" style="display:none;">
         <h2>🎉 Event Performance</h2>
         <div id="eventPerformance"></div>
       </div>
 
-      <!-- V2 HIDDEN: Daily Trends requires time-series backend -->
-      <div class="section-card" style="display:none;">
-        <h2>📈 Daily Trends</h2>
-        <div class="chart-container">
-          V2: Chart requires time-series analytics backend
-        </div>
-      </div>
-
-      <!-- Recommendations -->
-      <div class="section-card">
-        <h2>💡 Recommendations</h2>
-        <div id="recommendations"></div>
-      </div>
+      <!-- V2 HIDDEN: ROI, Daily Trends, Recommendations require backend work -->
+      <!-- Sections removed to keep MVP honest -->
     </div>
 
     <!-- Error State (hidden by default) -->
@@ -423,138 +400,148 @@ API ENDPOINTS:
   <script>
     const BRAND_ID = '<?= brandId ?>';
 
-    // Detect sponsor view from URL params
+    // URL parameters control whether this is a sponsor-scoped view
     const urlParams = new URLSearchParams(window.location.search);
     const IS_SPONSOR_VIEW = urlParams.get('sponsor') === 'true';
     const SPONSOR_ID = urlParams.get('sponsorId') || '';
     const EVENT_ID = urlParams.get('eventId') || '';
 
     /**
-     * Loads analytics data from the backend.
-     * API contract: See schema header for api_getSharedAnalytics response shape.
-     * Response must match /schemas/analytics.schema.json
+     * Expected API contract (envelope omitted):
+     *
+     * Shared report (organizer):
+     * {
+     *   lastUpdatedISO: string,
+     *   summary: {
+     *     totalImpressions: number,
+     *     totalClicks: number,
+     *     totalQrScans: number,
+     *     totalSignups: number,
+     *     uniqueEvents: number,
+     *     uniqueSponsors: number
+     *   },
+     *   surfaces: [
+     *     { id, label, impressions, clicks, qrScans, engagementRate }
+     *   ],
+     *   sponsors?: [
+     *     { id, name, impressions, clicks, ctr }
+     *   ],
+     *   events?: [
+     *     { id, name, impressions, clicks, ctr }
+     *   ]
+     * }
+     *
+     * Sponsor view:
+     * - Same shape, but summary/surfaces are scoped to that sponsor.
      */
     async function loadReport() {
       try {
-        document.getElementById('loading').style.display = 'block';
-        document.getElementById('metrics').style.display = 'none';
+        toggleLoading(true);
 
-        let result;
+        const rpcName = IS_SPONSOR_VIEW && SPONSOR_ID
+          ? 'api_getSponsorAnalytics'
+          : 'api_getSharedAnalytics';
 
-        // MVP: Use api_getSharedAnalytics for event manager view
-        // V2: api_getSponsorAnalytics for sponsor-specific view (requires auth)
-        if (IS_SPONSOR_VIEW && SPONSOR_ID) {
-          result = await NU.rpc('api_getSponsorAnalytics', {
-            sponsorId: SPONSOR_ID,
-            eventId: EVENT_ID || null,
-            brandId: BRAND_ID
-          });
-        } else {
-          result = await NU.rpc('api_getSharedAnalytics', {
-            brandId: BRAND_ID,
-            isSponsorView: IS_SPONSOR_VIEW
-          });
+        const payload = IS_SPONSOR_VIEW && SPONSOR_ID
+          ? { brandId: BRAND_ID, sponsorId: SPONSOR_ID, eventId: EVENT_ID || null }
+          : { brandId: BRAND_ID };
+
+        const result = await NU.rpc(rpcName, payload);
+
+        if (!result || !result.ok) {
+          throw new Error(result && result.message || 'Failed to load analytics');
         }
 
-        if (!result.ok) {
-          throw new Error(result.message || 'Failed to load analytics');
-        }
-
-        renderReport(result.value);
-
-        document.getElementById('loading').style.display = 'none';
-        document.getElementById('metrics').style.display = 'block';
-
-        // Use lastUpdatedISO from response, fallback to now
-        const lastUpdated = result.value.lastUpdatedISO
-          ? new Date(result.value.lastUpdatedISO).toLocaleString()
-          : new Date().toLocaleString();
-        document.getElementById('lastUpdated').textContent = `Last updated: ${lastUpdated}`;
-
-      } catch (e) {
-        console.error(e);
-        document.getElementById('loading').style.display = 'none';
-        document.getElementById('metrics').style.display = 'none';
-        document.getElementById('errorMessage').textContent = e.message || 'We couldn\'t load the report data. Please try again.';
-        document.getElementById('errorState').style.display = 'block';
+        renderReport(result.value || {});
+        toggleLoading(false);
+      } catch (err) {
+        console.error('SharedReport load error', err);
+        showError(err && err.message);
       }
     }
 
-    /**
-     * Renders the full report from SharedAnalytics data.
-     * Schema contract: /schemas/analytics.schema.json
-     */
+    function toggleLoading(isLoading) {
+      document.getElementById('loading').style.display = isLoading ? 'block' : 'none';
+      document.getElementById('metrics').style.display = isLoading ? 'none' : 'block';
+      document.getElementById('errorState').style.display = 'none';
+    }
+
+    function showError(message) {
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('metrics').style.display = 'none';
+      document.getElementById('errorMessage').textContent =
+        message || 'We couldn\'t load the report data. Please try again.';
+      document.getElementById('errorState').style.display = 'block';
+    }
+
     function renderReport(data) {
-      // Render key metrics from summary
-      renderMetrics(data);
+      // Defensive defaults
+      const summary = data.summary || {};
+      const surfaces = Array.isArray(data.surfaces) ? data.surfaces : [];
+      const sponsors = Array.isArray(data.sponsors) ? data.sponsors : [];
+      const events = Array.isArray(data.events) ? data.events : [];
 
-      // Render surface performance (required field)
-      renderSurfacePerformance(data.surfaces);
+      renderSummaryMetrics(summary);
+      renderSurfacePerformance(surfaces);
 
-      // Handle sponsor-specific view (V2)
-      if (IS_SPONSOR_VIEW && SPONSOR_ID) {
-        // Show sponsor-specific sections
-        document.getElementById('sponsorROICard').style.display = 'block';
-        document.getElementById('sponsorEventsCard').style.display = 'block';
-
-        // V2: ROI and surface breakdown
-        renderSponsorROI(data);
-
-        // Render event breakdown for sponsor
-        renderSponsorEventBreakdown(data.events);
-
-        // V2: Sponsor-specific insights
-        renderSponsorInsights(data.insights || []);
-      } else {
-        // Organizer view
-        // Render sponsor performance (optional)
-        renderSponsorPerformance(data.sponsors);
-
-        // Render event performance (optional)
-        if (data.events && data.events.length > 0) {
-          document.getElementById('eventPerformanceCard').style.display = 'block';
-          renderEventPerformance(data.events);
+      if (IS_SPONSOR_VIEW) {
+        // In sponsor mode, focus on sponsor + event breakdown
+        if (sponsors.length) {
+          renderSponsorPerformance(sponsors);
         }
+        if (events.length) {
+          document.getElementById('eventPerformanceCard').style.display = 'block';
+          renderEventPerformance(events);
+        }
+      } else {
+        // Organizer view: show sponsors + events if present
+        if (sponsors.length) {
+          renderSponsorPerformance(sponsors);
+        }
+        if (events.length) {
+          document.getElementById('eventPerformanceCard').style.display = 'block';
+          renderEventPerformance(events);
+        }
+      }
 
-        // V2: Recommendations placeholder
-        renderRecommendations(data);
+      // Last updated label
+      const lastUpdated = data.lastUpdatedISO || data.lastUpdated || null;
+      if (lastUpdated) {
+        document.getElementById('lastUpdated').textContent =
+          'Last updated: ' + new Date(lastUpdated).toLocaleString();
+      } else {
+        document.getElementById('lastUpdated').textContent = 'Last updated: not available';
       }
     }
 
-    /**
-     * Renders MVP key metrics grid.
-     * Schema contract: /schemas/analytics.schema.json#/$defs/Summary
-     */
-    function renderMetrics(data) {
+    function renderSummaryMetrics(summary) {
       const grid = document.getElementById('metricsGrid');
       grid.innerHTML = '';
 
-      // Use summary object from new contract
-      const summary = data.summary || {};
       const metricCards = [
         {
-          label: 'Impressions',
-          value: (summary.totalImpressions ?? 0).toLocaleString()
+          label: 'Total Impressions',
+          value: (summary.totalImpressions || 0).toLocaleString()
         },
         {
-          label: 'Clicks',
-          value: (summary.totalClicks ?? 0).toLocaleString()
+          label: 'Total Clicks',
+          value: (summary.totalClicks || 0).toLocaleString()
         },
         {
           label: 'QR Scans',
-          value: (summary.totalQrScans ?? 0).toLocaleString()
+          value: (summary.totalQrScans || 0).toLocaleString()
         },
         {
           label: 'Signups',
-          value: (summary.totalSignups ?? 0).toLocaleString()
+          value: (summary.totalSignups || 0).toLocaleString()
         },
         {
-          label: 'Events',
-          value: (summary.uniqueEvents ?? 0).toLocaleString()
+          label: 'Active Events',
+          value: summary.uniqueEvents || 0
         },
         {
-          label: 'Sponsors',
-          value: (summary.uniqueSponsors ?? 0).toLocaleString()
+          label: 'Active Sponsors',
+          value: summary.uniqueSponsors || 0
         }
       ];
 
@@ -569,30 +556,41 @@ API ENDPOINTS:
       });
     }
 
-    /**
-     * Calculate CTR as formatted string.
-     * @param {number} clicks
-     * @param {number} impressions
-     * @returns {string} e.g., "2.5%"
-     */
-    function calculateCTR(clicks, impressions) {
-      if (!impressions || impressions === 0) return '0%';
-      return ((clicks / impressions) * 100).toFixed(1) + '%';
-    }
-
-    /**
-     * Renders surface performance table.
-     * Schema contract: /schemas/analytics.schema.json#/$defs/SurfaceMetrics
-     */
     function renderSurfacePerformance(surfaces) {
       const container = document.getElementById('surfacePerformance');
 
-      if (!surfaces || surfaces.length === 0) {
-        container.innerHTML = '<p style="color: #64748b;">No surface data available.</p>';
+      if (!surfaces.length) {
+        container.innerHTML = '<p class="muted">No surface data available yet.</p>';
         return;
       }
 
-      const html = `
+      const rows = surfaces.map(surface => {
+        const impressions = surface.impressions || 0;
+        const clicks = surface.clicks || 0;
+        const qrScans = surface.qrScans || 0;
+        const rate = typeof surface.engagementRate === 'number'
+          ? surface.engagementRate
+          : (impressions > 0 ? (clicks + qrScans) * 100 / impressions : 0);
+        const label = surface.label || surface.id || 'Unknown';
+
+        const badgeClass =
+          rate >= 5 ? 'success' :
+          rate >= 2 ? 'info' : 'warning';
+
+        return `
+          <tr>
+            <td data-label="Surface"><strong>${label}</strong></td>
+            <td data-label="Impressions">${impressions.toLocaleString()}</td>
+            <td data-label="Clicks">${clicks.toLocaleString()}</td>
+            <td data-label="QR Scans">${qrScans.toLocaleString()}</td>
+            <td data-label="Engagement">
+              <span class="badge ${badgeClass}">${rate.toFixed(1)}%</span>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      container.innerHTML = `
         <table class="data-table">
           <thead>
             <tr>
@@ -600,44 +598,45 @@ API ENDPOINTS:
               <th>Impressions</th>
               <th>Clicks</th>
               <th>QR Scans</th>
-              <th>CTR</th>
+              <th>Engagement Rate</th>
             </tr>
           </thead>
           <tbody>
-            ${surfaces.map(surface => {
-              const ctr = surface.engagementRate != null
-                ? surface.engagementRate.toFixed(1) + '%'
-                : calculateCTR(surface.clicks, surface.impressions);
-              return `
-                <tr>
-                  <td data-label="Surface"><strong>${surface.label || surface.id}</strong></td>
-                  <td data-label="Impressions">${(surface.impressions || 0).toLocaleString()}</td>
-                  <td data-label="Clicks">${(surface.clicks || 0).toLocaleString()}</td>
-                  <td data-label="QR Scans">${(surface.qrScans || 0).toLocaleString()}</td>
-                  <td data-label="CTR"><span class="badge info">${ctr}</span></td>
-                </tr>
-              `;
-            }).join('')}
+            ${rows}
           </tbody>
         </table>
       `;
-
-      container.innerHTML = html;
     }
 
-    /**
-     * Renders sponsor performance table.
-     * Schema contract: /schemas/analytics.schema.json#/$defs/SponsorMetrics
-     */
     function renderSponsorPerformance(sponsors) {
       const container = document.getElementById('sponsorPerformance');
 
-      if (!sponsors || sponsors.length === 0) {
-        container.innerHTML = '<p style="color: #64748b;">No sponsor data available.</p>';
+      if (!sponsors.length) {
+        container.innerHTML = '<p class="muted">No sponsor activity recorded yet.</p>';
         return;
       }
 
-      const html = `
+      const rows = sponsors.map((sponsor, index) => {
+        const ctr = sponsor.ctr || 0;
+        const badgeClass =
+          ctr >= 2 ? 'success' :
+          ctr >= 1 ? 'info' : 'warning';
+
+        return `
+          <tr>
+            <td data-label="Sponsor">
+              <strong>${sponsor.name || sponsor.id || ('Sponsor #' + (index + 1))}</strong>
+            </td>
+            <td data-label="Impressions">${(sponsor.impressions || 0).toLocaleString()}</td>
+            <td data-label="Clicks">${(sponsor.clicks || 0).toLocaleString()}</td>
+            <td data-label="CTR">
+              <span class="badge ${badgeClass}">${ctr.toFixed(2)}%</span>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      container.innerHTML = `
         <table class="data-table">
           <thead>
             <tr>
@@ -648,41 +647,49 @@ API ENDPOINTS:
             </tr>
           </thead>
           <tbody>
-            ${sponsors.slice(0, 10).map(sponsor => {
-              // ctr is a number (e.g., 2.5), format it
-              const ctr = sponsor.ctr != null
-                ? sponsor.ctr.toFixed(1) + '%'
-                : calculateCTR(sponsor.clicks, sponsor.impressions);
-              return `
-              <tr>
-                <td data-label="Sponsor"><strong>${sponsor.name || sponsor.id}</strong></td>
-                <td data-label="Impressions">${(sponsor.impressions || 0).toLocaleString()}</td>
-                <td data-label="Clicks">${(sponsor.clicks || 0).toLocaleString()}</td>
-                <td data-label="CTR">
-                  <span class="badge success">${ctr}</span>
-                </td>
-              </tr>
-            `}).join('')}
+            ${rows}
           </tbody>
         </table>
       `;
-
-      container.innerHTML = html;
     }
 
-    /**
-     * Renders event performance table.
-     * Schema contract: /schemas/analytics.schema.json#/$defs/EventMetrics
-     */
     function renderEventPerformance(events) {
       const container = document.getElementById('eventPerformance');
 
-      if (!events || events.length === 0) {
-        container.innerHTML = '<p style="color: #64748b;">No event data available.</p>';
+      if (!events.length) {
+        container.innerHTML = '<p class="muted">No event-level analytics yet.</p>';
         return;
       }
 
-      const html = `
+      const rows = events.map((ev, index) => {
+        const ctr = ev.ctr || 0;
+        const badgeClass =
+          ctr >= 2 ? 'success' :
+          ctr >= 1 ? 'info' : 'warning';
+
+        const rank =
+          index === 0 ? '🥇' :
+          index === 1 ? '🥈' :
+          index === 2 ? '🥉' : '#' + (index + 1);
+
+        return `
+          <tr>
+            <td data-label="Event">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span style="font-size:1.1rem;">${rank}</span>
+                <strong>${ev.name || ev.id}</strong>
+              </div>
+            </td>
+            <td data-label="Impressions">${(ev.impressions || 0).toLocaleString()}</td>
+            <td data-label="Clicks">${(ev.clicks || 0).toLocaleString()}</td>
+            <td data-label="CTR">
+              <span class="badge ${badgeClass}">${ctr.toFixed(2)}%</span>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      container.innerHTML = `
         <table class="data-table">
           <thead>
             <tr>
@@ -693,158 +700,32 @@ API ENDPOINTS:
             </tr>
           </thead>
           <tbody>
-            ${events.slice(0, 10).map(event => {
-              // ctr is a number (e.g., 2.5), format it
-              const ctr = event.ctr != null
-                ? event.ctr.toFixed(1) + '%'
-                : calculateCTR(event.clicks, event.impressions);
-              return `
-              <tr>
-                <td data-label="Event"><strong>${event.name || event.id}</strong></td>
-                <td data-label="Impressions">${(event.impressions || 0).toLocaleString()}</td>
-                <td data-label="Clicks">${(event.clicks || 0).toLocaleString()}</td>
-                <td data-label="CTR">
-                  <span class="badge info">${ctr}</span>
-                </td>
-              </tr>
-            `}).join('')}
+            ${rows}
           </tbody>
         </table>
       `;
-
-      container.innerHTML = html;
     }
 
-    /**
-     * V2 HIDDEN: Auto-generated recommendations require more data.
-     * For MVP, show a simple placeholder.
-     */
-    function renderRecommendations(metrics) {
-      const container = document.getElementById('recommendations');
-      // V2: Auto-generated recommendations based on CTR thresholds
-      container.innerHTML = '<p style="color: #64748b;">Recommendations will be available in a future update. Review the tables above to identify high-performing surfaces and sponsors.</p>';
-    }
-
-    /**
-     * V2 HIDDEN: ROI calculations require cost data not available in MVP.
-     * Sponsor-specific view shows simplified surface breakdown.
-     */
-    function renderSponsorROI(metrics) {
-      const container = document.getElementById('sponsorROI');
-      // V2: ROI calculations require cost data integration
-      container.innerHTML = '<p style="color: #64748b;">ROI analytics will be available in a future update when cost tracking is enabled.</p>';
-    }
-
-    /**
-     * Renders sponsor event breakdown table.
-     * Schema contract: /schemas/analytics.schema.json#/$defs/EventMetrics
-     */
-    function renderSponsorEventBreakdown(events) {
-      const container = document.getElementById('sponsorEvents');
-
-      if (!events || events.length === 0) {
-        container.innerHTML = '<p style="color: #64748b;">No event data available.</p>';
-        return;
-      }
-
-      // Sort by impressions descending
-      const sorted = [...events].sort((a, b) => (b.impressions || 0) - (a.impressions || 0));
-
-      const html = `
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Event</th>
-              <th>Impressions</th>
-              <th>Clicks</th>
-              <th>CTR</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${sorted.slice(0, 10).map(event => {
-              // ctr is a number (e.g., 2.5), format it
-              const ctr = event.ctr != null
-                ? event.ctr.toFixed(1) + '%'
-                : calculateCTR(event.clicks, event.impressions);
-              return `
-                <tr>
-                  <td data-label="Event"><strong>${event.name || event.id}</strong></td>
-                  <td data-label="Impressions">${(event.impressions || 0).toLocaleString()}</td>
-                  <td data-label="Clicks">${(event.clicks || 0).toLocaleString()}</td>
-                  <td data-label="CTR">
-                    <span class="badge info">${ctr}</span>
-                  </td>
-                </tr>
-              `;
-            }).join('')}
-          </tbody>
-        </table>
-      `;
-
-      container.innerHTML = html;
-    }
-
-    /**
-     * V2 HIDDEN: Sponsor insights require ML-based analysis.
-     * For MVP, show a simple placeholder.
-     */
-    function renderSponsorInsights(insights) {
-      const container = document.getElementById('recommendations');
-      // V2: ML-based sponsor insights
-      container.innerHTML = '<p style="color: #64748b;">Sponsor insights will be available in a future update.</p>';
-    }
-
-    async function exportReport() {
-      const btn = document.getElementById('exportBtn');
-      const btnText = btn.querySelector('.btn-text');
-      const originalText = btnText.textContent;
-
-      try {
-        if (!confirm('Export report to Google Sheets?')) return;
-
-        // Show loading state (C-006)
-        btn.disabled = true;
-        btn.classList.add('btn-loading');
-        btnText.textContent = '⏳ Exporting...';
-
-        const result = await NU.rpc('api_exportSharedReport', BRAND_ID, {});
-
-        if (!result.ok) {
-          throw new Error(result.message || 'Failed to export');
-        }
-
-        btnText.textContent = '✅ Exported!';
-        setTimeout(() => {
-          btnText.textContent = originalText;
-          btn.classList.remove('btn-loading');
-          btn.disabled = false;
-        }, 2000);
-
-        window.open(result.value.url, '_blank');
-
-      } catch (e) {
-        btnText.textContent = '❌ Failed';
-        setTimeout(() => {
-          btnText.textContent = originalText;
-          btn.classList.remove('btn-loading');
-          btn.disabled = false;
-        }, 2000);
-        console.error('Export error:', e);
-      }
+    // Stubbed v2 features – keep buttons wired but don't fake data
+    function exportReport() {
+      showComingSoon(document.getElementById('exportBtn'));
     }
 
     function showFilters() {
-      const btn = document.getElementById('filterBtn');
-      // Show brief feedback for coming soon feature
-      const btnText = btn.querySelector('.btn-text');
-      const originalText = btnText.textContent;
-      btnText.textContent = '🚧 Coming Soon';
+      showComingSoon(document.getElementById('filterBtn'));
+    }
+
+    function showComingSoon(btn) {
+      if (!btn) return;
+      const label = btn.querySelector('.btn-text');
+      if (!label) return;
+      const original = label.textContent;
+      label.textContent = '🚧 Coming Soon';
       setTimeout(() => {
-        btnText.textContent = originalText;
+        label.textContent = original;
       }, 1500);
     }
 
-    // Auto-load on page load
     window.addEventListener('load', loadReport);
   </script>
 </body>
