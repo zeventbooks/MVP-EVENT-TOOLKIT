@@ -196,6 +196,36 @@ const ZEB = Object.freeze({
   }
 });
 
+// ============================================================================
+// Spreadsheet ID Configuration
+// ============================================================================
+// SPREADSHEET_ID can be set via Script Properties for per-deployment configuration
+// This allows different deployments (eventangle.com, zeventbooks.com) to use different spreadsheets
+//
+// Set via Apps Script UI: File > Project Properties > Script Properties
+// Or via code: PropertiesService.getScriptProperties().setProperty('SPREADSHEET_ID', 'your-id')
+//
+// Default fallback (used if Script Property not set):
+const DEFAULT_SPREADSHEET_ID = '1SV1oZMq4GbZBaRc0YmTeV02Tl5KXWD8R6FZXC7TwVCQ';
+
+/**
+ * Get the spreadsheet ID from Script Properties or use default
+ * @returns {string} Spreadsheet ID
+ */
+function getSpreadsheetId_() {
+  try {
+    const props = PropertiesService.getScriptProperties();
+    const customId = props.getProperty('SPREADSHEET_ID');
+    if (customId && customId.trim()) {
+      return customId.trim();
+    }
+  } catch (e) {
+    // Script Properties not available (e.g., during testing)
+    console.warn('Could not read Script Properties, using default spreadsheet ID');
+  }
+  return DEFAULT_SPREADSHEET_ID;
+}
+
 // Brands (multi-brand architecture, single DB for MVP)
 // SECURITY: Admin secrets moved to Script Properties for security
 // Set via: File > Project Properties > Script Properties in Apps Script UI
@@ -429,9 +459,26 @@ const FORM_TEMPLATES = [
   }
 ];
 
-// Accessors
-function loadBrands_() { return BRANDS; }
-function findBrand_(id) { return BRANDS.find(b => b.id === id) || null; }
+// Accessors - inject dynamic spreadsheet ID from Script Properties
+function loadBrands_() {
+  const spreadsheetId = getSpreadsheetId_();
+  return BRANDS.map(brand => ({
+    ...brand,
+    store: { ...brand.store, spreadsheetId }
+  }));
+}
+
+function findBrand_(id) {
+  const brand = BRANDS.find(b => b.id === id);
+  if (!brand) return null;
+
+  // Inject dynamic spreadsheet ID
+  const spreadsheetId = getSpreadsheetId_();
+  return {
+    ...brand,
+    store: { ...brand.store, spreadsheetId }
+  };
+}
 
 /**
  * Check if a feature is enabled
@@ -511,6 +558,64 @@ function setupAdminSecrets_(secrets) {
 
   console.log('✅ Admin secrets migration complete!');
   console.log('⚠️  Remove hardcoded secrets from Config.gs if not already done');
+}
+
+/**
+ * Setup script - Set the spreadsheet ID for this deployment
+ * Run this once per deployment to configure the database
+ *
+ * Usage in Apps Script editor:
+ *   1. Open script editor
+ *   2. Run: setupSpreadsheetId('YOUR_SPREADSHEET_ID')
+ *   3. Redeploy
+ *
+ * @param {string} spreadsheetId - Google Sheets spreadsheet ID
+ */
+function setupSpreadsheetId(spreadsheetId) {
+  if (!spreadsheetId || typeof spreadsheetId !== 'string') {
+    console.error('❌ Invalid spreadsheet ID. Usage: setupSpreadsheetId("1abc...")');
+    return;
+  }
+
+  const props = PropertiesService.getScriptProperties();
+  props.setProperty('SPREADSHEET_ID', spreadsheetId.trim());
+
+  console.log('✅ Spreadsheet ID configured: ' + spreadsheetId);
+  console.log('');
+  console.log('Next steps:');
+  console.log('1. Verify: Run showScriptConfig() to confirm');
+  console.log('2. Test: Visit ?p=status to check database connection');
+  console.log('3. Redeploy: Create new deployment version');
+}
+
+/**
+ * Show current Script Properties configuration
+ * Useful for debugging deployment issues
+ */
+function showScriptConfig() {
+  const props = PropertiesService.getScriptProperties();
+  const allProps = props.getProperties();
+
+  console.log('=== Script Properties Configuration ===');
+  console.log('');
+
+  // Spreadsheet ID
+  const spreadsheetId = allProps['SPREADSHEET_ID'] || '(not set - using default)';
+  console.log('SPREADSHEET_ID: ' + spreadsheetId);
+  console.log('  Default: ' + DEFAULT_SPREADSHEET_ID);
+  console.log('  Active:  ' + getSpreadsheetId_());
+  console.log('');
+
+  // Admin secrets (show only existence, not values)
+  console.log('Admin Secrets:');
+  ['ROOT', 'ABC', 'CBC', 'CBL'].forEach(brand => {
+    const key = `ADMIN_SECRET_${brand}`;
+    const hasSecret = !!allProps[key];
+    console.log(`  ${key}: ${hasSecret ? '✅ configured' : '❌ not set'}`);
+  });
+
+  console.log('');
+  console.log('=== End Configuration ===');
 }
 
 /**
