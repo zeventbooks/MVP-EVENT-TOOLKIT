@@ -176,13 +176,22 @@ function getCurrentEnvironment() {
 }
 
 /**
- * Get brand-specific URLs for testing
+ * Get brand-specific URLs for testing using friendly URL patterns
  * @param {string} brand - Brand ID
- * @param {string} page - Page name (admin, status, display, etc.)
+ * @param {string} page - Page name (status, manage, events, display, etc.)
  */
 function getBrandUrl(brand = 'root', page = 'status') {
   const env = getCurrentEnvironment();
-  return `${env.baseUrl}?page=${page}&brand=${brand}`;
+  // Map page names to friendly URL aliases
+  const pageAliasMap = {
+    'admin': 'manage',
+    'public': 'events',
+    // Other pages use their name directly
+  };
+  const alias = pageAliasMap[page] || page;
+  // Friendly URL pattern: /{alias} for root, /{brand}/{alias} for others
+  const path = brand === 'root' ? `/${alias}` : `/${brand}/${alias}`;
+  return `${env.baseUrl}${path}`;
 }
 
 /**
