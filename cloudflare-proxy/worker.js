@@ -4,7 +4,7 @@
  * This worker proxies requests to Google Apps Script, providing:
  * - Custom domain support (e.g., eventangle.com/events)
  * - CORS headers for cross-origin requests
- * - Path stripping (/events → Apps Script exec URL)
+ * - Friendly URL routing (/events/abc/manage → exec/abc/manage)
  * - Query string preservation (?page=admin passes through)
  * - Error handling and retry logic
  *
@@ -13,10 +13,18 @@
  * - env.production: Full site (eventangle.com/*)
  * - env.api-only: API subdomain only
  *
- * Example flows:
+ * Example flows (env.events - /events* route):
+ * - eventangle.com/events → exec → Public.html (default)
+ * - eventangle.com/events/manage → exec/manage → Admin.html
+ * - eventangle.com/events/abc/events → exec/abc/events → ABC Public.html
  * - eventangle.com/events?page=admin → exec?page=admin → Admin.html
- * - eventangle.com/events?page=public → exec?page=public → Public.html
- * - eventangle.com/events → exec → Default page
+ *
+ * Example flows (env.production - /* route):
+ * - eventangle.com/manage → exec/manage → Admin.html
+ * - eventangle.com/abc/events → exec/abc/events → ABC Public.html
+ *
+ * Apps Script receives paths via e.pathInfo array.
+ * See docs/FRIENDLY_URLS.md for complete URL mapping.
  *
  * Deployment ID is injected via environment variable or wrangler.toml
  */
@@ -81,23 +89,43 @@ export default {
 /**
  * Proxy request to Google Apps Script
  *
- * IMPORTANT: This function strips the incoming path (/events, /events/, etc.)
- * and only forwards the query string to Apps Script.
+ * This function forwards the request to Apps Script, supporting both:
+ * 1. Path-based routing (friendly URLs): /events/manage → exec/manage
+ * 2. Query-param routing: ?page=admin → exec?page=admin
  *
- * Example:
- *   Request: https://eventangle.com/events?page=admin&brand=root
- *   Forwards: https://script.google.com/macros/s/.../exec?page=admin&brand=root
+ * Path handling:
+ * - Strips '/events' prefix if present (for env.events deployment)
+ * - Preserves remaining path for Apps Script's e.pathInfo
+ * - Preserves query string
  *
- * Apps Script routing is entirely query-param based:
- *   - ?page=admin → Admin.html
- *   - ?page=public → Public.html
- *   - ?page=display → Display.html
- *   - ?p=status → API status endpoint
+ * Examples (env.events - /events* route):
+ *   /events → exec (pathInfo: [])
+ *   /events/manage → exec/manage (pathInfo: ['manage'])
+ *   /events/abc/events → exec/abc/events (pathInfo: ['abc', 'events'])
+ *   /events?page=admin → exec?page=admin (pathInfo: [], params: {page:'admin'})
+ *
+ * Examples (env.production - /* route):
+ *   /manage → exec/manage (pathInfo: ['manage'])
+ *   /abc/events → exec/abc/events (pathInfo: ['abc', 'events'])
  */
 async function proxyToAppsScript(request, appsScriptBase) {
   const url = new URL(request.url);
-  // Strip path, keep only query string (Apps Script doesn't use URL paths)
-  const targetUrl = appsScriptBase + url.search;
+
+  // Get path and strip '/events' prefix if present (for env.events route)
+  let path = url.pathname;
+  if (path.startsWith('/events')) {
+    path = path.slice('/events'.length); // Remove '/events' prefix
+  }
+  // Ensure path doesn't start with double slash
+  if (path.startsWith('/')) {
+    path = path.slice(1);
+  }
+
+  // Build target URL: base + path + query
+  // Apps Script receives path via e.pathInfo array
+  const targetUrl = path
+    ? `${appsScriptBase}/${path}${url.search}`
+    : `${appsScriptBase}${url.search}`;
 
   console.log(`[EventAngle] Proxying to: ${targetUrl}`);
 
