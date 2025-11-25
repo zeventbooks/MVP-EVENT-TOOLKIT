@@ -2082,13 +2082,20 @@ const EVENT_DEFAULTS_ = {
 };
 
 /**
- * Hydrate raw event row into canonical Event shape
+ * Build canonical Event object matching /schemas/event.schema.json
+ *
+ * THIS IS THE SINGLE SOURCE OF TRUTH FOR EVENT SHAPE.
+ * If a field isn't in event.schema.json, it doesn't exist.
+ * If it's in the schema, it must be returned here.
+ *
  * @param {Array} row - Raw spreadsheet row [id, brandId, templateId, data, createdAt, slug]
  * @param {Object} options - { baseUrl, hydrateSponsors: boolean }
- * @returns {Object} Canonical Event object per EVENT_CONTRACT.md v2.0
+ * @returns {Object} Canonical Event object per /schemas/event.schema.json
+ * @see /schemas/event.schema.json
+ * @see EVENT_CONTRACT.md
  * @private
  */
-function hydrateEvent_(row, options = {}) {
+function _buildEventContract_(row, options = {}) {
   const [id, brandId, templateId, dataJson, createdAt, slug] = row;
   const data = safeJSONParse_(dataJson, {});
   const baseUrl = options.baseUrl || ScriptApp.getService().getUrl();
@@ -2204,7 +2211,9 @@ function hydrateEvent_(row, options = {}) {
   const createdAtISO = createdAt || now;
   const updatedAtISO = data.updatedAtISO || createdAtISO;
 
-  // Build canonical event shape per EVENT_CONTRACT.md v2.0
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CANONICAL EVENT SHAPE - MUST MATCH /schemas/event.schema.json
+  // ═══════════════════════════════════════════════════════════════════════════
   return {
     // Identity (MVP Required)
     id: id,
@@ -2426,7 +2435,7 @@ function getEventById_(brandId, id, options = {}) {
 
   // Hydrate to canonical shape
   const baseUrl = ScriptApp.getService().getUrl();
-  const event = hydrateEvent_(row, { baseUrl, hydrateSponsors });
+  const event = _buildEventContract_(row, { baseUrl, hydrateSponsors });
 
   // Validate contract (unless explicitly skipped for performance)
   if (!skipValidation) {
@@ -2490,7 +2499,7 @@ function getEventsByBrand_(brandId, options = {}) {
   const items = allRows
     .slice(pageOffset, pageOffset + pageLimit)
     .map(row => {
-      const event = hydrateEvent_(row, { baseUrl, hydrateSponsors });
+      const event = _buildEventContract_(row, { baseUrl, hydrateSponsors });
       // Validate but don't block - log warnings for broken events
       const validation = validateEventContract_(event);
       if (!validation.ok) {
@@ -2643,7 +2652,7 @@ function mergeEventUpdate_(existingEvent, updateData) {
  * Contract-first save path for events (ZEVENT-003)
  * Canonical function for both creating and updating events.
  * Validates required fields, ensures id/slug, regenerates links & QR,
- * writes row, and returns hydrated event via hydrateEvent_().
+ * writes row, and returns hydrated event via _buildEventContract_().
  *
  * @param {string} brandId - Brand ID
  * @param {string|null} id - Event ID (null for create, required for update)
@@ -2932,7 +2941,7 @@ function saveEvent_(brandId, id, data, options = {}) {
 
     // === Return hydrated event ===
     const savedRow = [sanitizedId, brandId, templateId, JSON.stringify(mergedData), createdAt, slug];
-    const event = hydrateEvent_(savedRow, { baseUrl, hydrateSponsors: true });
+    const event = _buildEventContract_(savedRow, { baseUrl, hydrateSponsors: true });
 
     // Validate the result
     const validation = validateEventContract_(event);
@@ -3453,8 +3462,8 @@ function generateQRCodes_(event) {
     // Public event page QR - uses event.links.publicUrl (can be shortlink for tracking)
     public: qrUrl(event.links?.publicUrl),
 
-    // Signup form QR - uses signupUrl (can be shortlink for tracking)
-    signup: qrUrl(event.signupUrl)
+    // Signup form QR - uses event.links.signupUrl (schema-compliant)
+    signup: qrUrl(event.links?.signupUrl)
   };
 }
 
@@ -3863,7 +3872,7 @@ function api_create(payload){
 
 /**
  * Update event data (ZEVENT-003: Load-Merge-Save pattern)
- * Loads existing event via hydrateEvent_, merges update data, saves via saveEvent_
+ * Loads existing event via _buildEventContract_, merges update data, saves via saveEvent_
  * @tier mvp
  */
 function api_updateEventData(req){
@@ -3875,7 +3884,7 @@ function api_updateEventData(req){
     const g = gate_(brandId, adminKey);
     if (!g.ok) return g;
 
-    // Step 1: Load existing event via getEventById_ (uses hydrateEvent_)
+    // Step 1: Load existing event via getEventById_ (uses _buildEventContract_)
     const existingResult = getEventById_(brandId, id, {
       scope: scope || 'events',
       hydrateSponsors: true,
@@ -4294,148 +4303,34 @@ function api_exportReport(req){
 
 /**
  * Get sponsor-specific analytics data
- * Allows sponsors to view their performance metrics across events
- * @param {object} req - Request object with sponsorId, eventId (optional), dateFrom/dateTo (optional)
- * @returns {object} Sponsor analytics including impressions, clicks, CTR, ROI by surface
+ *
+ * SCHEMA CONTRACT: /schemas/analytics.schema.json
+ * Returns the same SharedAnalytics shape as api_getSharedAnalytics,
+ * but scoped to a specific sponsor.
+ *
+ * @param {object} req - Request object
+ * @param {string} req.sponsorId - Sponsor ID (required)
+ * @param {string} [req.eventId] - Filter by specific event
+ * @param {string} [req.brandId] - Brand ID
+ * @returns {object} SharedAnalytics shape scoped to sponsor
  * @tier mvp - Core analytics for sponsor value proposition
  */
 function api_getSponsorAnalytics(req) {
   return runSafe('api_getSponsorAnalytics', () => {
     if (!req || typeof req !== 'object') return Err(ERR.BAD_INPUT, 'Missing payload');
 
-    const { sponsorId, eventId, dateFrom, dateTo, brandId, adminKey } = req;
+    const { sponsorId, eventId, brandId } = req;
 
     if (!sponsorId) return Err(ERR.BAD_INPUT, 'Missing sponsorId');
 
-    // Optional authentication - sponsors can view their own data
-    // Admin key allows viewing any sponsor's data
-    if (adminKey) {
-      const g = gate_(brandId || 'root', adminKey);
-      if (!g.ok) return g;
-    }
-
-    // Get analytics data
-    const sh = _ensureAnalyticsSheet_();
-    let data = sh.getDataRange().getValues().slice(1);
-
-    // Filter by sponsor ID
-    data = data.filter(r => r[4] === sponsorId);
-
-    // Filter by event ID if provided
-    if (eventId) {
-      data = data.filter(r => r[1] === eventId);
-    }
-
-    // Filter by date range if provided
-    if (dateFrom || dateTo) {
-      const fromDate = dateFrom ? new Date(dateFrom) : new Date(0);
-      const toDate = dateTo ? new Date(dateTo) : new Date();
-
-      data = data.filter(r => {
-        const rowDate = new Date(r[0]); // timestamp column
-        return rowDate >= fromDate && rowDate <= toDate;
-      });
-    }
-
-    // Aggregate metrics
-    const agg = {
+    // Delegate to api_getSharedAnalytics with sponsor filter
+    // This ensures both endpoints return the exact same shape
+    return api_getSharedAnalytics({
+      brandId: brandId,
       sponsorId: sponsorId,
-      totals: { impressions: 0, clicks: 0, dwellSec: 0, ctr: 0 },
-      bySurface: {}, // poster, display, public, etc.
-      byEvent: {},
-      timeline: [] // Daily breakdown
-    };
-
-    // Process each analytics row
-    for (const r of data) {
-      const timestamp = r[0];
-      const evtId = r[1];
-      const surface = r[2];
-      const metric = r[3];
-      const value = Number((r[5] !== null && r[5] !== undefined) ? r[5] : 0);
-
-      // Initialize surface if not exists
-      if (!agg.bySurface[surface]) {
-        agg.bySurface[surface] = { impressions: 0, clicks: 0, dwellSec: 0, ctr: 0 };
-      }
-
-      // Initialize event if not exists
-      if (!agg.byEvent[evtId]) {
-        agg.byEvent[evtId] = { impressions: 0, clicks: 0, dwellSec: 0, ctr: 0 };
-      }
-
-      const surf = agg.bySurface[surface];
-      const evt = agg.byEvent[evtId];
-
-      // Aggregate metrics
-      if (metric === 'impression') {
-        agg.totals.impressions++;
-        surf.impressions++;
-        evt.impressions++;
-      }
-      if (metric === 'click') {
-        agg.totals.clicks++;
-        surf.clicks++;
-        evt.clicks++;
-      }
-      if (metric === 'dwellSec') {
-        agg.totals.dwellSec += value;
-        surf.dwellSec += value;
-        evt.dwellSec += value;
-      }
-
-      // Track daily timeline
-      const date = new Date(timestamp).toISOString().split('T')[0];
-      let dayData = agg.timeline.find(d => d.date === date);
-      if (!dayData) {
-        dayData = { date, impressions: 0, clicks: 0, dwellSec: 0 };
-        agg.timeline.push(dayData);
-      }
-
-      if (metric === 'impression') dayData.impressions++;
-      if (metric === 'click') dayData.clicks++;
-      if (metric === 'dwellSec') dayData.dwellSec += value;
-    }
-
-    // Calculate CTR (Click-Through Rate) for all aggregations
-    agg.totals.ctr = agg.totals.impressions > 0
-      ? +(agg.totals.clicks / agg.totals.impressions * 100).toFixed(2)
-      : 0;
-
-    for (const surface in agg.bySurface) {
-      const s = agg.bySurface[surface];
-      s.ctr = s.impressions > 0 ? +(s.clicks / s.impressions * 100).toFixed(2) : 0;
-    }
-
-    for (const evtId in agg.byEvent) {
-      const e = agg.byEvent[evtId];
-      e.ctr = e.impressions > 0 ? +(e.clicks / e.impressions * 100).toFixed(2) : 0;
-    }
-
-    for (const day of agg.timeline) {
-      day.ctr = day.impressions > 0 ? +(day.clicks / day.impressions * 100).toFixed(2) : 0;
-    }
-
-    // Sort timeline by date
-    agg.timeline.sort((a, b) => a.date.localeCompare(b.date));
-
-    // Add engagement score (weighted average of CTR and dwell time)
-    agg.totals.engagementScore = calculateEngagementScore_(
-      agg.totals.ctr,
-      agg.totals.dwellSec,
-      agg.totals.impressions
-    );
-
-    // Add performance insights
-    agg.insights = generateSponsorInsights_(agg);
-
-    diag_('info', 'api_getSponsorAnalytics', 'Analytics retrieved', {
-      sponsorId,
-      eventId: eventId || 'all',
-      totalImpressions: agg.totals.impressions
+      eventId: eventId,
+      isSponsorView: true
     });
-
-    return Ok(agg);
   });
 }
 

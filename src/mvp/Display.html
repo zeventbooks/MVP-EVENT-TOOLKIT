@@ -4,12 +4,33 @@ MVP SURFACE - Focus Group Critical
 ================================================================================
 Page: Display.html
 Purpose: TV/kiosk display for live event streaming with sponsor visibility
-Status: LOCKED for MVP v1.0
+Status: HARDENED for MVP v1.0
 
-DO NOT modify this file's contracts without updating:
-  - NUSDK.html (API client)
-  - tests/e2e/* (end-to-end tests)
-  - tests/unit/* (unit tests)
+SCHEMA CONTRACT: /schemas/event.schema.json
+This surface uses ONLY these schema fields:
+
+  IDENTITY (MVP Required - for event info display):
+    - event.name           → Event title
+    - event.startDateISO   → Event date
+    - event.venue          → Venue name
+
+  SPONSORS (V2 Optional):
+    - event.sponsors[]            → #sponsorTop, #sponsorSide
+    - event.settings.showSponsors → Toggle visibility
+    - Placement filter: 'display' OR 'tv-banner'
+
+  EXTERNAL DATA (V2 Optional - League links):
+    - event.externalData.scheduleUrl  → League strip link
+    - event.externalData.standingsUrl → League strip link
+    - event.externalData.bracketUrl   → League strip link
+
+  BUNDLE EXTRAS (from api_getDisplayBundle):
+    - rotation.sponsorSlots, rotation.rotationMs
+    - layout.hasSidePane, layout.emphasis
+
+DO NOT add fields without updating:
+  - /schemas/event.schema.json (source of truth)
+  - src/mvp/Code.gs (_buildEventContract_)
 
 Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
 ================================================================================
@@ -364,8 +385,8 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
     // Track rendered sponsor IDs for BBN attribution
     let currentRenderedSponsorIds = [];
 
-    // === EVENT_CONTRACT.md v2.0 Support ===
-    // Use centralized sectionEnabled from SharedUtils (D-008)
+    // === SCHEMA SUPPORT: /schemas/event.schema.json ===
+    // Use centralized sectionEnabled from SharedUtils
     const sectionEnabled = window.SharedUtils?.sectionEnabled || function(settings, key) {
       if (!settings) return false;
       switch (key) {
@@ -390,11 +411,15 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
       if (ext.standingsUrl) leagueLinks.push({ icon: '🏆', label: 'Standings', url: ext.standingsUrl, type: 'standings' });
       if (ext.bracketUrl) leagueLinks.push({ icon: '🎯', label: 'Bracket', url: ext.bracketUrl, type: 'bracket' });
 
-      // Check for broadcast links
+      // ═══════════════════════════════════════════════════════════════
+      // V2 COMMENTED OUT - statsUrl/scoreboardUrl/streamUrl NOT IN /schemas/event.schema.json
+      // ExternalData only has: scheduleUrl, standingsUrl, bracketUrl
+      // TODO: Add broadcast URLs to schema when streaming feature is ready
+      // ═══════════════════════════════════════════════════════════════
       const broadcastLinks = [];
-      if (ext.statsUrl) broadcastLinks.push({ icon: '📈', label: 'Stats', url: ext.statsUrl, type: 'stats' });
-      if (ext.scoreboardUrl) broadcastLinks.push({ icon: '📺', label: 'Scoreboard', url: ext.scoreboardUrl, type: 'scoreboard' });
-      if (ext.streamUrl) broadcastLinks.push({ icon: '🎥', label: 'Watch', url: ext.streamUrl, type: 'stream', isStream: true });
+      // if (ext.statsUrl) broadcastLinks.push({ icon: '📈', label: 'Stats', url: ext.statsUrl, type: 'stats' });
+      // if (ext.scoreboardUrl) broadcastLinks.push({ icon: '📺', label: 'Scoreboard', url: ext.scoreboardUrl, type: 'scoreboard' });
+      // if (ext.streamUrl) broadcastLinks.push({ icon: '🎥', label: 'Watch', url: ext.streamUrl, type: 'stream', isStream: true });
 
       const hasLeagueLinks = leagueLinks.length > 0;
       const hasBroadcastLinks = broadcastLinks.length > 0;
@@ -577,12 +602,8 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
 
     /**
      * Boot Display.html
-     * EVENT_CONTRACT.md v2.0: Uses api_getDisplayBundle for TV-optimized data
-     *
-     * DisplayBundle returns:
-     * - event: Full canonical Event shape
-     * - rotation: { sponsorSlots, rotationMs }
-     * - layout: { hasSidePane, emphasis }
+     * API: api_getDisplayBundle → { event, rotation, layout }
+     * SCHEMA: /schemas/event.schema.json
      */
     async function boot() {
       if (!eventId) return startPublicMode();
@@ -605,23 +626,27 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
       const sponsors = ev.sponsors || [];
       const externalData = ev.externalData || {};
 
-      // === LEGACY DATA FOR DYNAMIC MODE ===
-      const legacyData = ev.data || {};
-      const displayConfig = legacyData.display || {};
-
       // === RENDER LEAGUE & BROADCAST STRIP ===
-      // Uses event.externalData (V2 Optional)
-      if (externalData.scheduleUrl || externalData.standingsUrl || externalData.bracketUrl ||
-          externalData.statsUrl || externalData.scoreboardUrl || externalData.streamUrl) {
+      // Uses event.externalData (V2 Optional per /schemas/event.schema.json)
+      // Schema fields: scheduleUrl, standingsUrl, bracketUrl
+      if (externalData.scheduleUrl || externalData.standingsUrl || externalData.bracketUrl) {
         renderLeagueBroadcast(ev.templateId || '', externalData);
       }
 
-      // === RESERVED SPONSOR STRIP ===
-      // Uses event.settings.showSponsors and event.sponsors
+      // ═══════════════════════════════════════════════════════════════
+      // V2 LEGACY: Dynamic rotation mode - NOT IN /schemas/event.schema.json
+      // This reads from legacy ev.data.display which is not in schema
+      // MVP default: Always use public mode (mirror event page)
+      // TODO: Add media.displayRotation to schema when TV rotation feature ships
+      // ═══════════════════════════════════════════════════════════════
+      const legacyDisplayConfig = (ev.data || {}).display || {};
+
+      // === SPONSOR STRIP (V2 Optional) ===
+      // Schema: event.sponsors[].placement MUST be 'display' or 'tv-banner' - no fallback
       if (settings.showSponsors && sponsors.length > 0) {
-        // Filter sponsors by placement for display/tv-banner
+        // STRICT: Only sponsors with placement === 'display' or 'tv-banner' (schema-required field)
         const displaySponsors = sponsors.filter(s =>
-          s.placement === 'display' || s.placement === 'tv-banner' || !s.placement
+          s.placement === 'display' || s.placement === 'tv-banner'
         );
         if (displaySponsors.length > 0) {
           // Use unified SponsorRenderer from SponsorUtils
@@ -649,55 +674,19 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
       }
 
       // === START DISPLAY MODE ===
-      // Dynamic mode: rotate through configured URLs
-      // Public mode: mirror the event public page
-      if (String(displayConfig.mode || '').toLowerCase() === 'dynamic'
-          && Array.isArray(displayConfig.urls) && displayConfig.urls.length) {
-        startDynamicMode(displayConfig.urls);
+      // V2 LEGACY: Dynamic mode uses legacyDisplayConfig (not in schema)
+      // MVP default: Public mode (mirror event page)
+      if (String(legacyDisplayConfig.mode || '').toLowerCase() === 'dynamic'
+          && Array.isArray(legacyDisplayConfig.urls) && legacyDisplayConfig.urls.length) {
+        startDynamicMode(legacyDisplayConfig.urls);
       } else {
         startPublicMode();
       }
     }
 
-    /**
-     * Render event info header for TV
-     * Uses: event.name, event.startDateISO, event.venue
-     */
-    function renderEventInfo(name, startDateISO, venue) {
-      // Event info is shown in the sponsor top bar area if no sponsors
-      // For now we'll just log it - the public mode iframe shows this
-      console.log('Display: Event info', { name, startDateISO, venue });
-    }
-
-    /**
-     * Render schedule panel for TV (MVP Optional)
-     * Uses: event.schedule per EVENT_CONTRACT.md
-     */
-    function renderSchedulePanel(schedule) {
-      // For MVP, schedule is shown in the embedded public page
-      // Future: Dedicated TV schedule overlay
-      console.log('Display: Schedule panel', schedule.length, 'items');
-    }
-
-    /**
-     * Render standings panel for TV (MVP Optional)
-     * Uses: event.standings per EVENT_CONTRACT.md
-     */
-    function renderStandingsPanel(standings) {
-      // For MVP, standings is shown in the embedded public page
-      // Future: Dedicated TV standings overlay
-      console.log('Display: Standings panel', standings.length, 'rows');
-    }
-
-    /**
-     * Render bracket panel for TV (MVP Optional)
-     * Uses: event.bracket per EVENT_CONTRACT.md
-     */
-    function renderBracketPanel(bracket) {
-      // For MVP, bracket is shown in the embedded public page
-      // Future: Dedicated TV bracket overlay
-      console.log('Display: Bracket panel', bracket?.rounds?.length || 0, 'rounds');
-    }
+    // V2 STUBS REMOVED: renderEventInfo, renderSchedulePanel, renderStandingsPanel, renderBracketPanel
+    // MVP uses embedded Public.html iframe for all content display
+    // TODO: Add dedicated TV overlays when TV-native content feature ships
 
     boot();
   </script>

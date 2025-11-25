@@ -1,29 +1,82 @@
+<!--
+═══════════════════════════════════════════════════════════════════════════════
+NUSDK - Zeventbook Client SDK for Google Apps Script
+═══════════════════════════════════════════════════════════════════════════════
+
+RESPONSIBILITY: This file provides the RPC client for frontend→backend calls ONLY.
+It does NOT implement business logic - that belongs in Code.gs.
+
+WINDOW ADDITION: window.NU
+
+RESPONSE ENVELOPE CONTRACT (all API endpoints follow this pattern):
+
+SUCCESS:
+{
+  ok: true,
+  etag?: string,           // Optional cache tag for SWR
+  notModified?: boolean,   // True if content unchanged (304 equivalent)
+  value: { ... }           // Endpoint-specific payload per ApiSchemas.gs
+}
+
+ERROR:
+{
+  ok: false,
+  code: "BAD_INPUT" | "NOT_FOUND" | "RATE_LIMITED" | "INTERNAL" | "UNAUTHORIZED",
+  message: "Human-readable error description"
+}
+
+USAGE:
+  const res = await NU.rpc('api_getPublicBundle', { brandId, scope, id });
+  if (!res.ok) {
+    console.error(res.code, res.message);
+    return;
+  }
+  const { event, config } = res.value;
+
+See ApiSchemas.gs for full endpoint inventory and schemas.
+═══════════════════════════════════════════════════════════════════════════════
+-->
 <script>
 window.NU = {
+  /**
+   * Make an RPC call to the Google Apps Script backend
+   * @param {string} method - API method name (e.g., 'api_getPublicBundle')
+   * @param {object} payload - Request parameters
+   * @returns {Promise<{ok: boolean, value?: any, code?: string, message?: string}>}
+   */
   rpc(method, payload) {
     return new Promise((resolve) => {
       google.script.run
         .withSuccessHandler(res => resolve(res))
-        .withFailureHandler(err => resolve({ ok:false, code:'INTERNAL', message:String(err) }))
+        .withFailureHandler(err => resolve({ ok: false, code: 'INTERNAL', message: String(err) }))
         [method](payload);
     });
   },
-  swr(method, payload, { staleMs=120000, onUpdate } = {}) {
-    const key = `swr:${method}:${JSON.stringify(payload||{})}`;
+
+  /**
+   * Stale-while-revalidate pattern for cached data
+   * Returns cached data immediately, then fetches fresh data
+   * @param {string} method - API method name
+   * @param {object} payload - Request parameters
+   * @param {object} options - { staleMs, onUpdate }
+   */
+  swr(method, payload, { staleMs = 120000, onUpdate } = {}) {
+    const key = `swr:${method}:${JSON.stringify(payload || {})}`;
     const cached = JSON.parse(localStorage.getItem(key) || '{}');
     if (cached.data) setTimeout(() => onUpdate && onUpdate(cached.data), 0);
-    NU.rpc(method, { ...(payload||{}), ifNoneMatch: cached.etag }).then(res => {
+    NU.rpc(method, { ...(payload || {}), ifNoneMatch: cached.etag }).then(res => {
       if (res && res.notModified) return;
-      if (res && res.ok && res.value){
+      if (res && res.ok && res.value) {
         localStorage.setItem(key, JSON.stringify({ etag: res.etag, data: res.value, t: Date.now() }));
         onUpdate && onUpdate(res.value);
       }
     });
   },
+
   /**
    * Escapes HTML special characters to prevent XSS
    * @param {string} s - String to escape
-   * @return {string} HTML-safe string
+   * @returns {string} HTML-safe string
    */
   esc(s) {
     return String(s).replace(/[&<>"']/g, m => ({

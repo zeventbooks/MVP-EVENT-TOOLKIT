@@ -1,7 +1,25 @@
 <script>
 /**
+ * ═══════════════════════════════════════════════════════════════════════════════
  * SponsorUtils - Shared utilities for sponsor rendering across surfaces
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * RESPONSIBILITY: This file handles sponsor rendering and analytics ONLY.
+ * It does NOT create/modify sponsors - that's Code.gs territory.
+ *
+ * SPONSOR SCHEMA (/schemas/sponsor.schema.json):
+ * {
+ *   id: string,        // Required - unique sponsor ID
+ *   name: string,      // Required - display name
+ *   logoUrl: string,   // Required - URL to logo image
+ *   linkUrl?: string,  // Optional - click-through URL
+ *   placement: "poster" | "display" | "public" | "tv-banner"  // Required
+ * }
+ *
+ * WINDOW ADDITION: window.SponsorUtils
+ *
  * Used by: Display.html, Public.html, Poster.html
+ * ═══════════════════════════════════════════════════════════════════════════════
  */
 window.SponsorUtils = (function() {
   'use strict';
@@ -208,24 +226,42 @@ window.SponsorUtils = (function() {
 
   // === Sponsor Normalization ===
   /**
-   * Normalize sponsor object to common format
-   * Handles both legacy (img, url, placements) and new (logoUrl, website, placement) formats
-   * @param {Object} s - Sponsor object in either format
-   * @returns {Object} - Normalized sponsor with: id, name, logoUrl, website, tier, placements
+   * Normalize sponsor object to schema-compliant format
+   * Schema: /schemas/sponsor.schema.json
+   *
+   * CANONICAL FIELDS (per schema):
+   * - id: string (required)
+   * - name: string (required)
+   * - logoUrl: string (required)
+   * - linkUrl: string (optional)
+   * - placement: "poster"|"display"|"public"|"tv-banner" (required)
+   *
+   * LEGACY FIELD MAPPING (deprecated - will be removed in V3):
+   * - s.img → logoUrl
+   * - s.url → linkUrl
+   * - s.website → linkUrl
+   * - s.placements → placement (first key with true value)
+   *
+   * @param {Object} s - Sponsor object (schema or legacy format)
+   * @returns {Object} - Schema-compliant sponsor: { id, name, logoUrl, linkUrl, placement }
    */
   function normalizeSponsor(s) {
     if (!s) return null;
+
+    // Determine placement from schema field or legacy placements object
+    let placement = s.placement || '';
+    if (!placement && s.placements && typeof s.placements === 'object') {
+      // Legacy: find first true placement key
+      placement = Object.keys(s.placements).find(k => s.placements[k]) || '';
+    }
+
     return {
+      // Schema fields
       id: s.id || '',
       name: s.name || '',
-      // Image: new format uses logoUrl, legacy uses img
-      logoUrl: s.logoUrl || s.img || '',
-      // Link: new format uses website, legacy uses url
-      website: s.website || s.url || '',
-      // Tier badge (new format only)
-      tier: s.tier || '',
-      // Placements: convert string placement to object if needed
-      placements: s.placements || (s.placement ? { [s.placement]: true } : {})
+      logoUrl: s.logoUrl || s.img || '',      // Legacy fallback: img
+      linkUrl: s.linkUrl || s.website || s.url || '',  // Legacy fallback: website, url
+      placement: placement
     };
   }
 
@@ -233,17 +269,21 @@ window.SponsorUtils = (function() {
   /**
    * Unified sponsor rendering component
    * Replaces duplicate renderSponsor* functions across surfaces
+   *
+   * All methods expect sponsors in schema format (/schemas/sponsor.schema.json):
+   * { id, name, logoUrl, linkUrl?, placement }
+   *
+   * Legacy formats (img, url, placements) are auto-converted via normalizeSponsor().
    */
   const SponsorRenderer = {
     /**
      * Render sponsors as horizontal strip (top bar, banner)
      * @param {Object} options
      * @param {HTMLElement} options.container - Target element
-     * @param {Array} options.sponsors - Sponsor array (any format)
+     * @param {Array} options.sponsors - Sponsor array (schema or legacy format)
      * @param {string} options.eventId - For analytics
      * @param {string} options.surface - Surface name (display, public, poster)
      * @param {boolean} options.showLinks - Wrap in anchor tags (default: true)
-     * @param {boolean} options.showTier - Show tier badge (default: false)
      * @param {Function} options.onRender - Callback with rendered sponsor IDs
      * @returns {Array} - Normalized sponsors that were rendered
      */
@@ -254,7 +294,6 @@ window.SponsorUtils = (function() {
         eventId = '',
         surface = 'unknown',
         showLinks = true,
-        showTier = false,
         onRender = null
       } = options;
 
@@ -263,13 +302,12 @@ window.SponsorUtils = (function() {
       if (!picks.length) return [];
 
       container.innerHTML = picks.map(s => {
-        const tierBadge = showTier && s.tier ? `<span class="sponsor-tier tier-badge tier-${esc(s.tier.toLowerCase())}">${esc(s.tier)}</span>` : '';
         const content = s.logoUrl
-          ? `<img src="${esc(s.logoUrl)}" alt="${esc(s.name)}">${tierBadge}`
-          : `<strong>${esc(s.name)}</strong>${tierBadge}`;
+          ? `<img src="${esc(s.logoUrl)}" alt="${esc(s.name)}">`
+          : `<strong>${esc(s.name)}</strong>`;
 
-        if (showLinks && s.website) {
-          return `<a href="${esc(s.website)}" target="_blank" rel="noopener sponsored" data-sponsor-id="${esc(s.id)}">${content}</a>`;
+        if (showLinks && s.linkUrl) {
+          return `<a href="${esc(s.linkUrl)}" target="_blank" rel="noopener sponsored" data-sponsor-id="${esc(s.id)}">${content}</a>`;
         }
         return `<span>${content}</span>`;
       }).join('');
@@ -307,7 +345,6 @@ window.SponsorUtils = (function() {
         eventId = '',
         surface = 'unknown',
         showLinks = true,
-        showTier = true,
         mainEl = null,
         onRender = null
       } = options;
@@ -317,16 +354,15 @@ window.SponsorUtils = (function() {
       if (!picks.length) return [];
 
       container.innerHTML = picks.map(s => {
-        const tierBadge = showTier && s.tier ? `<span class="sponsor-tier tier-badge tier-${esc(s.tier.toLowerCase())}">${esc(s.tier)}</span>` : '';
         const card = `
           <div class="sp-card" data-id="${esc(s.id)}">
             ${s.logoUrl ? `<img src="${esc(s.logoUrl)}" alt="${esc(s.name)}">` : ''}
-            <div class="sp-name">${esc(s.name)}${tierBadge}</div>
+            <div class="sp-name">${esc(s.name)}</div>
           </div>
         `;
 
-        if (showLinks && s.website) {
-          return `<a href="${esc(s.website)}" target="_blank" rel="noopener sponsored" data-sponsor-id="${esc(s.id)}" style="text-decoration:none;color:inherit;">${card}</a>`;
+        if (showLinks && s.linkUrl) {
+          return `<a href="${esc(s.linkUrl)}" target="_blank" rel="noopener sponsored" data-sponsor-id="${esc(s.id)}" style="text-decoration:none;color:inherit;">${card}</a>`;
         }
         return card;
       }).join('');
@@ -365,7 +401,6 @@ window.SponsorUtils = (function() {
         eventId = '',
         surface = 'unknown',
         showLinks = true,
-        showTier = true,
         rotationMs = 5000,
         onRender = null
       } = options;
@@ -379,18 +414,16 @@ window.SponsorUtils = (function() {
 
       function showSponsor(index) {
         const s = picks[index];
-        const tierBadge = showTier && s.tier ? `<span class="sponsor-tier">${esc(s.tier)}</span>` : '';
         const indicator = picks.length > 1 ? `<span class="sponsor-indicator">${index + 1}/${picks.length}</span>` : '';
 
         const content = `
           ${s.logoUrl ? `<img src="${esc(s.logoUrl)}" alt="${esc(s.name)}">` : ''}
           <strong>${esc(s.name)}</strong>
-          ${tierBadge}
         `;
 
-        if (showLinks && s.website) {
+        if (showLinks && s.linkUrl) {
           container.innerHTML = `
-            <a href="${esc(s.website)}" target="_blank" rel="noopener sponsored" class="sponsor-link" data-sponsor-id="${esc(s.id)}">
+            <a href="${esc(s.linkUrl)}" target="_blank" rel="noopener sponsored" class="sponsor-link" data-sponsor-id="${esc(s.id)}">
               ${content}
             </a>
             ${indicator}

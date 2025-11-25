@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zeventbook.com/schemas/sponsor.schema.json",
+  "title": "Sponsor",
+  "description": "Sponsor entity for event sponsorship display (V2 Feature)",
+  "type": "object",
+  "required": ["id", "name", "logoUrl", "placement"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[a-zA-Z0-9_-]+$",
+      "description": "Unique sponsor identifier"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "description": "Sponsor display name"
+    },
+    "logoUrl": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https?://.+",
+      "description": "URL to sponsor logo image"
+    },
+    "linkUrl": {
+      "type": ["string", "null"],
+      "format": "uri",
+      "pattern": "^https?://.+",
+      "description": "Optional click-through URL for sponsor"
+    },
+    "placement": {
+      "type": "string",
+      "enum": ["poster", "display", "public", "tv-banner"],
+      "description": "Where the sponsor logo appears"
+    }
+  }
+}
