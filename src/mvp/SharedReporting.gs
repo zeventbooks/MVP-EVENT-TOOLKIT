@@ -3,25 +3,41 @@
 // =============================================================================
 // Used by: SharedReport.html
 //
-// SCHEMA CONTRACT: /schemas/analytics.schema.json (MVP-frozen v1.1)
-// All responses MUST match the SharedAnalytics shape defined in the schema.
+// ═══════════════════════════════════════════════════════════════════════════════
+// SharedAnalytics SHAPE - FROZEN (MVP v1.1)
+// ═══════════════════════════════════════════════════════════════════════════════
 //
-// [MVP] LOCKED METRICS (must match AnalyticsService.gs):
-//   Summary: totalImpressions, totalClicks, totalQrScans, totalSignups,
-//            uniqueEvents, uniqueSponsors
-//   Per-surface: impressions, clicks, qrScans, engagementRate
-//   Per-sponsor: impressions, clicks, ctr
+// THIS FILE IS THE ONLY PLACE that builds the SharedAnalytics response shape.
+// buildSharedAnalyticsResponse_() is the single source of truth.
+//
+// FROZEN SHAPE:
+// {
+//   lastUpdatedISO: string,
+//   summary: {
+//     totalImpressions: number,
+//     totalClicks: number,
+//     totalQrScans: number,
+//     totalSignups: number,
+//     uniqueEvents: number,
+//     uniqueSponsors: number
+//   },
+//   surfaces: Array<{ id, label, impressions, clicks, qrScans, engagementRate }>,
+//   sponsors: Array<{ id, name, impressions, clicks, ctr }> | null,
+//   events: Array<{ id, name, impressions, clicks, ctr }> | null
+// }
+//
+// DO NOT add new fields without updating:
+//   - /schemas/analytics.schema.json (source of truth)
+//   - ApiSchemas.gs (runtime validation)
+//   - SharedReport.html (consumer)
+//   - AnalyticsService.gs (locked metrics list)
+//
+// ═══════════════════════════════════════════════════════════════════════════════
 //
 // MVP-Critical APIs in this file:
 //   - api_getSharedAnalytics() → Organizer view (all sponsors/events)
 //   - api_getSponsorAnalytics() → Sponsor view (scoped to sponsorId)
 //
-// DO NOT change API contracts without updating:
-//   - /schemas/analytics.schema.json (source of truth)
-//   - ApiSchemas.gs (runtime validation)
-//   - SharedReport.html (consumer)
-//   - NUSDK.html (API client)
-//   - AnalyticsService.gs (locked metrics list)
 // =============================================================================
 
 /**
