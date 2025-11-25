@@ -4303,148 +4303,34 @@ function api_exportReport(req){
 
 /**
  * Get sponsor-specific analytics data
- * Allows sponsors to view their performance metrics across events
- * @param {object} req - Request object with sponsorId, eventId (optional), dateFrom/dateTo (optional)
- * @returns {object} Sponsor analytics including impressions, clicks, CTR, ROI by surface
+ *
+ * SCHEMA CONTRACT: /schemas/analytics.schema.json
+ * Returns the same SharedAnalytics shape as api_getSharedAnalytics,
+ * but scoped to a specific sponsor.
+ *
+ * @param {object} req - Request object
+ * @param {string} req.sponsorId - Sponsor ID (required)
+ * @param {string} [req.eventId] - Filter by specific event
+ * @param {string} [req.brandId] - Brand ID
+ * @returns {object} SharedAnalytics shape scoped to sponsor
  * @tier mvp - Core analytics for sponsor value proposition
  */
 function api_getSponsorAnalytics(req) {
   return runSafe('api_getSponsorAnalytics', () => {
     if (!req || typeof req !== 'object') return Err(ERR.BAD_INPUT, 'Missing payload');
 
-    const { sponsorId, eventId, dateFrom, dateTo, brandId, adminKey } = req;
+    const { sponsorId, eventId, brandId } = req;
 
     if (!sponsorId) return Err(ERR.BAD_INPUT, 'Missing sponsorId');
 
-    // Optional authentication - sponsors can view their own data
-    // Admin key allows viewing any sponsor's data
-    if (adminKey) {
-      const g = gate_(brandId || 'root', adminKey);
-      if (!g.ok) return g;
-    }
-
-    // Get analytics data
-    const sh = _ensureAnalyticsSheet_();
-    let data = sh.getDataRange().getValues().slice(1);
-
-    // Filter by sponsor ID
-    data = data.filter(r => r[4] === sponsorId);
-
-    // Filter by event ID if provided
-    if (eventId) {
-      data = data.filter(r => r[1] === eventId);
-    }
-
-    // Filter by date range if provided
-    if (dateFrom || dateTo) {
-      const fromDate = dateFrom ? new Date(dateFrom) : new Date(0);
-      const toDate = dateTo ? new Date(dateTo) : new Date();
-
-      data = data.filter(r => {
-        const rowDate = new Date(r[0]); // timestamp column
-        return rowDate >= fromDate && rowDate <= toDate;
-      });
-    }
-
-    // Aggregate metrics
-    const agg = {
+    // Delegate to api_getSharedAnalytics with sponsor filter
+    // This ensures both endpoints return the exact same shape
+    return api_getSharedAnalytics({
+      brandId: brandId,
       sponsorId: sponsorId,
-      totals: { impressions: 0, clicks: 0, dwellSec: 0, ctr: 0 },
-      bySurface: {}, // poster, display, public, etc.
-      byEvent: {},
-      timeline: [] // Daily breakdown
-    };
-
-    // Process each analytics row
-    for (const r of data) {
-      const timestamp = r[0];
-      const evtId = r[1];
-      const surface = r[2];
-      const metric = r[3];
-      const value = Number((r[5] !== null && r[5] !== undefined) ? r[5] : 0);
-
-      // Initialize surface if not exists
-      if (!agg.bySurface[surface]) {
-        agg.bySurface[surface] = { impressions: 0, clicks: 0, dwellSec: 0, ctr: 0 };
-      }
-
-      // Initialize event if not exists
-      if (!agg.byEvent[evtId]) {
-        agg.byEvent[evtId] = { impressions: 0, clicks: 0, dwellSec: 0, ctr: 0 };
-      }
-
-      const surf = agg.bySurface[surface];
-      const evt = agg.byEvent[evtId];
-
-      // Aggregate metrics
-      if (metric === 'impression') {
-        agg.totals.impressions++;
-        surf.impressions++;
-        evt.impressions++;
-      }
-      if (metric === 'click') {
-        agg.totals.clicks++;
-        surf.clicks++;
-        evt.clicks++;
-      }
-      if (metric === 'dwellSec') {
-        agg.totals.dwellSec += value;
-        surf.dwellSec += value;
-        evt.dwellSec += value;
-      }
-
-      // Track daily timeline
-      const date = new Date(timestamp).toISOString().split('T')[0];
-      let dayData = agg.timeline.find(d => d.date === date);
-      if (!dayData) {
-        dayData = { date, impressions: 0, clicks: 0, dwellSec: 0 };
-        agg.timeline.push(dayData);
-      }
-
-      if (metric === 'impression') dayData.impressions++;
-      if (metric === 'click') dayData.clicks++;
-      if (metric === 'dwellSec') dayData.dwellSec += value;
-    }
-
-    // Calculate CTR (Click-Through Rate) for all aggregations
-    agg.totals.ctr = agg.totals.impressions > 0
-      ? +(agg.totals.clicks / agg.totals.impressions * 100).toFixed(2)
-      : 0;
-
-    for (const surface in agg.bySurface) {
-      const s = agg.bySurface[surface];
-      s.ctr = s.impressions > 0 ? +(s.clicks / s.impressions * 100).toFixed(2) : 0;
-    }
-
-    for (const evtId in agg.byEvent) {
-      const e = agg.byEvent[evtId];
-      e.ctr = e.impressions > 0 ? +(e.clicks / e.impressions * 100).toFixed(2) : 0;
-    }
-
-    for (const day of agg.timeline) {
-      day.ctr = day.impressions > 0 ? +(day.clicks / day.impressions * 100).toFixed(2) : 0;
-    }
-
-    // Sort timeline by date
-    agg.timeline.sort((a, b) => a.date.localeCompare(b.date));
-
-    // Add engagement score (weighted average of CTR and dwell time)
-    agg.totals.engagementScore = calculateEngagementScore_(
-      agg.totals.ctr,
-      agg.totals.dwellSec,
-      agg.totals.impressions
-    );
-
-    // Add performance insights
-    agg.insights = generateSponsorInsights_(agg);
-
-    diag_('info', 'api_getSponsorAnalytics', 'Analytics retrieved', {
-      sponsorId,
-      eventId: eventId || 'all',
-      totalImpressions: agg.totals.impressions
+      eventId: eventId,
+      isSponsorView: true
     });
-
-    return Ok(agg);
   });
 }
 
