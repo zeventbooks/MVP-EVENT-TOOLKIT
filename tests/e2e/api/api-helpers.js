@@ -50,11 +50,13 @@ export class ApiHelpers {
   // ============================================================================
 
   /**
-   * Check system status
+   * Check system status using friendly URLs
    * @param {string} brand - Brand ID
    */
   async getStatus(brand = 'root') {
-    return await this.get(`?p=status&brand=${brand}`);
+    // Use friendly URL pattern: /status for root, /{brand}/status for others
+    const path = brand === 'root' ? '/status' : `/${brand}/status`;
+    return await this.get(path);
   }
 
   /**
