@@ -1,12 +1,19 @@
 <script>
 /**
+ * ═══════════════════════════════════════════════════════════════════════════════
  * SharedUtils - Common utilities for all front-end pages
- * Consolidates duplicated functions: showAlert, formatDate, form validation
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * RESPONSIBILITY: This file provides UI utilities (alerts, dates, forms) ONLY.
+ * It does NOT handle data entities or business logic - that belongs in Code.gs.
+ *
+ * WINDOW ADDITION: window.SharedUtils
  *
  * Dependencies: NUSDK.html (for NU.esc)
  * Used by: Sponsor.html, Signup.html, PlannerCards.html, Admin.html
  *
- * @version 1.0.0
+ * @version 1.1.0
+ * ═══════════════════════════════════════════════════════════════════════════════
  */
 window.SharedUtils = (function() {
   'use strict';
