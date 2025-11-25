@@ -1751,7 +1751,7 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
                 '</td>' +
                 '<td style="padding:0.75rem 1rem;text-align:center;white-space:nowrap;">' +
                   '<a href="' + escapedUrl + '" target="_blank" class="btn-secondary" style="display:inline-block;padding:6px 10px;font-size:0.75rem;margin-right:6px;text-decoration:none;">Open Report</a>' +
-                  '<button class="btn-secondary" style="padding:6px 10px;font-size:0.75rem;" onclick="copySponsorLink(\'' + escapedUrl.replace(/'/g, "\\'") + '\')">Copy Link</button>' +
+                  '<button class="btn-secondary" style="padding:6px 10px;font-size:0.75rem;" onclick="copySponsorLink(\'' + escapedUrl.replace(/\\/g, '\\\\').replace(/'/g, "\\'") + '\')">Copy Link</button>' +
                 '</td>' +
               '</tr>';
             }).join('')}

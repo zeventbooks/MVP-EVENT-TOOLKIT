@@ -469,8 +469,14 @@ API ENDPOINTS:
         titleEl.textContent = '📊 Sponsor Report';
       }
       if (subtitleEl) {
+        // Clear existing content safely
+        subtitleEl.textContent = '';
         if (sponsorName) {
-          subtitleEl.innerHTML = 'Performance metrics for <strong>' + sponsorName + '</strong>';
+          // Build DOM safely to avoid XSS - don't use innerHTML with user data
+          subtitleEl.appendChild(document.createTextNode('Performance metrics for '));
+          const strong = document.createElement('strong');
+          strong.textContent = sponsorName;
+          subtitleEl.appendChild(strong);
         } else if (SPONSOR_ID) {
           subtitleEl.textContent = 'Performance metrics for ' + SPONSOR_ID;
         } else {
