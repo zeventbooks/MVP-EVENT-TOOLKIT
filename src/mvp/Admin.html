@@ -25,6 +25,7 @@ READS FROM EVENT SCHEMA (for display after event creation):
   - event.ctas.primary.label → CTA display
   - event.settings.*        → Enabled sections summary
   - event.createdAtISO      → Edit mode preservation
+  - event.sponsors[]        → Sponsor Performance Links section
 
 ═══════════════════════════════════════════════════════════════════════════════
 WRITES TO EVENT SCHEMA (via buildEventFromForm()):
@@ -709,20 +710,20 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
         </div>
       </div>
 
-      <!-- Sponsor Trust Links Section -->
-      <section id="sponsorTrustCard" class="subsection" style="display:none; margin-top:20px;">
+      <!-- Sponsor Performance Links Section -->
+      <section id="sponsorPerformanceCard" class="subsection" style="display:none; margin-top:20px;">
         <div class="collapsible-header" onclick="toggleSection(this)">
-          <h3>🤝 Sponsor Trust Links (Monetizable)</h3>
+          <h3>🤝 Sponsor Performance Links</h3>
           <span class="collapsible-icon">▼</span>
         </div>
-        <div class="collapsible-content">
+        <div class="collapsible-content" id="sponsorPerformanceContent">
           <p class="muted" style="margin-bottom:12px;">Generate personalized analytics links for sponsors. Each link shows only their performance data.</p>
-          <div id="sponsorTrustList" class="events-grid"></div>
+          <div id="sponsorReportsList" class="events-grid"></div>
           <div class="form-group" style="margin-top:16px;">
             <label>Add Custom Sponsor Link</label>
             <div class="form-row">
               <input type="text" id="customSponsorId" placeholder="Sponsor ID" style="flex:1;">
-              <button class="btn-secondary" onclick="generateSponsorTrustLink()">Generate Link</button>
+              <button class="btn-secondary" onclick="generateSponsorReportLink()">Generate Link</button>
             </div>
           </div>
           <div id="customSponsorLinkOutput" style="margin-top:12px;display:none;">
@@ -1360,8 +1361,8 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
       // Feature 2: Render SharedReport QR Code
       renderSharedReportQR(event);
 
-      // Feature 1: Render Sponsor Trust Links
-      renderSponsorTrustLinks(event);
+      // Feature 1: Render Sponsor Performance Links
+      renderSponsorReports(event);
     }
 
     function setLink(id, url) {
@@ -1744,14 +1745,30 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
       return k || '';
     }
 
-    // === SPONSOR TRUST LINKS (Feature 1) ===
-    // Generate sponsor-specific SharedReport URLs with ?sponsor=true&sponsorId=xxxx
+    // === SPONSOR PERFORMANCE LINKS (Feature 1) ===
+    // Generate sponsor-specific report URLs with ?page=report&sponsor=true&sponsorId=xxxx
     let currentSharedReportUrl = '';
 
-    function renderSponsorTrustLinks(event) {
-      const sponsors = event.sponsors || [];
-      const container = document.getElementById('sponsorTrustList');
-      const section = document.getElementById('sponsorTrustCard');
+    /**
+     * Build sponsor report URL using window origin + path
+     * URL format: ?page=report&sponsor=true&sponsorId=<SPONSOR_ID>
+     * @param {string} sponsorId - The sponsor ID to include in the URL
+     * @returns {string} - Complete sponsor report URL
+     */
+    function buildSponsorReportUrl(sponsorId) {
+      const base = window.location.origin + window.location.pathname;
+      return `${base}?page=report&sponsor=true&sponsorId=${encodeURIComponent(sponsorId)}`;
+    }
+
+    /**
+     * Render sponsor performance links in Admin
+     * Shows Open/Copy controls for each sponsor tied to the event
+     * @param {Object} eventObj - Event object with sponsors[] array
+     */
+    function renderSponsorReports(eventObj) {
+      const sponsors = eventObj.sponsors || [];
+      const container = document.getElementById('sponsorReportsList');
+      const section = document.getElementById('sponsorPerformanceCard');
 
       // Always show section (for custom sponsor ID entry)
       section.style.display = '';
@@ -1761,12 +1778,9 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
         return;
       }
 
-      // Build base URL for SharedReport
-      const baseUrl = currentSharedReportUrl || buildSharedReportUrl(event);
-
-      // Render sponsor trust table with Open Report + Copy Link
+      // Render sponsor performance table with Open Report + Copy Link
       container.innerHTML = `
-        <table class="sponsor-trust-table" style="width:100%;border-collapse:collapse;font-size:0.875rem;">
+        <table class="sponsor-report-table" style="width:100%;border-collapse:collapse;font-size:0.875rem;">
           <thead style="background:var(--color-gray-100,#f1f5f9);">
             <tr>
               <th style="text-align:left;padding:0.75rem 1rem;font-weight:600;color:var(--color-gray-600,#475569);font-size:0.75rem;text-transform:uppercase;">Sponsor</th>
@@ -1775,54 +1789,104 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
           </thead>
           <tbody>
             ${sponsors.map(sp => {
-              const sponsorUrl = baseUrl + (baseUrl.includes('?') ? '&' : '?') + 'sponsor=true&sponsorId=' + encodeURIComponent(sp.id);
+              const sponsorUrl = buildSponsorReportUrl(sp.id);
               const escapedUrl = NU.esc(sponsorUrl);
               const primaryBadge = sp.isPrimary ? '<span style="background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:8px;font-size:0.65rem;margin-left:6px;">PRIMARY</span>' : '';
-              return '<tr style="border-bottom:1px solid var(--color-gray-100,#f1f5f9);">' +
+              return '<tr style="border-bottom:1px solid var(--color-gray-100,#f1f5f9);" data-sponsor-id="' + NU.esc(sp.id) + '">' +
                 '<td style="padding:0.75rem 1rem;">' +
                   '<strong>' + NU.esc(sp.name || sp.id) + '</strong>' + primaryBadge +
-                  '<div style="font-size:0.7rem;color:#94a3b8;margin-top:4px;word-break:break-all;">' + escapedUrl.slice(0,50) + '...</div>' +
+                  '<div style="font-size:0.7rem;color:#94a3b8;margin-top:4px;word-break:break-all;">' + escapedUrl.slice(0,60) + '...</div>' +
                 '</td>' +
                 '<td style="padding:0.75rem 1rem;text-align:center;white-space:nowrap;">' +
-                  '<a href="' + escapedUrl + '" target="_blank" class="btn-secondary" style="display:inline-block;padding:6px 10px;font-size:0.75rem;margin-right:6px;text-decoration:none;">Open Report</a>' +
-                  '<button class="btn-secondary" style="padding:6px 10px;font-size:0.75rem;" onclick="copySponsorLink(\'' + escapedUrl.replace(/\\/g, '\\\\').replace(/'/g, "\\'") + '\')">Copy Link</button>' +
+                  '<a href="' + escapedUrl + '" target="_blank" rel="noopener" class="btn-secondary sponsor-open-btn" data-sponsor-url="' + escapedUrl + '" style="display:inline-block;padding:6px 10px;font-size:0.75rem;margin-right:6px;text-decoration:none;">Open Sponsor Report</a>' +
+                  '<button class="btn-secondary sponsor-copy-btn" data-sponsor-url="' + escapedUrl + '" style="padding:6px 10px;font-size:0.75rem;">Copy Sponsor Report Link</button>' +
                 '</td>' +
               '</tr>';
             }).join('')}
           </tbody>
         </table>
       `;
+
+      // Wire up button event handlers
+      wireSponsorReportButtons(container);
     }
 
-    function buildSharedReportUrl(event) {
-      const base = location.origin + location.pathname;
-      return `${base}?p=sharedreport&brand=${encodeURIComponent(BRAND)}`;
-    }
+    /**
+     * Wire click handlers for sponsor report buttons within a container
+     * Attaches copy functionality to all .sponsor-copy-btn elements
+     * @param {HTMLElement} root - Container element to search for buttons
+     */
+    function wireSponsorReportButtons(root) {
+      if (!root) return;
 
-    function copySponsorLink(url) {
-      navigator.clipboard.writeText(url).then(() => {
-        SharedUtils.showToast('Sponsor link copied!', 'success');
+      // Wire Copy buttons
+      root.querySelectorAll('.sponsor-copy-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const url = this.dataset.sponsorUrl;
+          if (!url) return;
+          navigator.clipboard.writeText(url).then(() => {
+            SharedUtils.showToast('Sponsor report link copied!', 'success');
+          }).catch(() => {
+            // Fallback for older browsers
+            const ta = document.createElement('textarea');
+            ta.value = url;
+            ta.style.position = 'fixed';
+            ta.style.left = '-9999px';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+            SharedUtils.showToast('Sponsor report link copied!', 'success');
+          });
+        });
       });
+
+      // Open buttons are already <a> tags with target="_blank", no extra wiring needed
     }
 
-    function generateSponsorTrustLink() {
+    /**
+     * Build base SharedReport URL for QR code
+     * @param {Object} event - Event object (unused, kept for API compat)
+     * @returns {string} - Base SharedReport URL
+     */
+    function buildSharedReportUrl(event) {
+      const base = window.location.origin + window.location.pathname;
+      return `${base}?page=report`;
+    }
+
+    /**
+     * Generate custom sponsor report link from manual ID input
+     */
+    function generateSponsorReportLink() {
       const sponsorId = document.getElementById('customSponsorId').value.trim();
       if (!sponsorId) {
         SharedUtils.showToast('Please enter a Sponsor ID', 'warning');
         return;
       }
 
-      const baseUrl = currentSharedReportUrl || buildSharedReportUrl({});
-      const sponsorUrl = `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}sponsor=true&sponsorId=${encodeURIComponent(sponsorId)}`;
-
+      const sponsorUrl = buildSponsorReportUrl(sponsorId);
       document.getElementById('customSponsorLinkField').value = sponsorUrl;
       document.getElementById('customSponsorLinkOutput').style.display = '';
     }
 
+    /**
+     * Copy custom sponsor link to clipboard
+     */
     function copyCustomSponsorLink() {
       const url = document.getElementById('customSponsorLinkField').value;
       navigator.clipboard.writeText(url).then(() => {
-        SharedUtils.showToast('Custom sponsor link copied!', 'success');
+        SharedUtils.showToast('Sponsor report link copied!', 'success');
+      }).catch(() => {
+        // Fallback
+        const ta = document.createElement('textarea');
+        ta.value = url;
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        SharedUtils.showToast('Sponsor report link copied!', 'success');
       });
     }
 
