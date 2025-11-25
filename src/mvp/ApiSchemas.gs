@@ -275,19 +275,26 @@ const SCHEMAS = {
       }
     },
 
-    // Settings (MVP Required)
+    // Settings - MIRRORS: /schemas/event.schema.json Settings (MVP-frozen v2.2)
     _settings: {
       type: 'object',
       required: ['showSchedule', 'showStandings', 'showBracket'],
       properties: {
+        // MVP Required
         showSchedule: { type: 'boolean' },
         showStandings: { type: 'boolean' },
         showBracket: { type: 'boolean' },
-        showSponsors: { type: 'boolean' }
+        // MVP Optional (V2 content but MVP toggles)
+        showSponsors: { type: 'boolean' },
+        // MVP Optional - surface-specific toggles (default true)
+        showSponsorBanner: { type: 'boolean' },
+        showSponsorStrip: { type: 'boolean' },
+        showLeagueStrip: { type: 'boolean' },
+        showQRSection: { type: 'boolean' }
       }
     },
 
-    // Full event shape - MIRRORS: /schemas/event.schema.json (v2.1.0)
+    // Full event shape - MIRRORS: /schemas/event.schema.json (MVP-frozen v2.2)
     _eventShape: {
       type: 'object',
       required: ['id', 'slug', 'name', 'startDateISO', 'venue', 'links', 'qr', 'ctas', 'settings', 'createdAtISO', 'updatedAtISO'],

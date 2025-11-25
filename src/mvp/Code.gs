@@ -2051,33 +2051,34 @@ const EVENT_DEFAULTS_ = {
     secondary: null
   },
 
-  // Sponsors (V2 Optional)
-  sponsors: [],
+  // Sponsors (V2 Optional - null per schema)
+  sponsors: null,
 
-  // Media (V2 Optional)
-  media: {},
+  // Media (V2 Optional - null per schema)
+  media: null,
 
-  // External Data (V2 Optional)
-  externalData: {},
+  // External Data (V2 Optional - null per schema)
+  externalData: null,
 
-  // Analytics (Reserved)
-  analytics: { enabled: false },
+  // Analytics (Reserved - null per schema)
+  analytics: null,
 
-  // Payments (Reserved - Stripe seam)
-  payments: {
-    enabled: false,
-    provider: 'stripe',
-    price: null,        // e.g., 1500 for $15.00
-    currency: 'USD',
-    checkoutUrl: null   // Stripe checkout session URL when enabled
-  },
+  // Payments (Reserved - null per schema)
+  payments: null,
 
-  // Settings (MVP Required)
+  // Settings (MVP Required) - must match /schemas/event.schema.json Settings
   settings: {
+    // MVP Required
     showSchedule: false,
     showStandings: false,
     showBracket: false,
-    showSponsors: false
+    // MVP Optional (V2 content but MVP toggles)
+    showSponsors: false,
+    // MVP Optional - surface-specific toggles (default true)
+    showSponsorBanner: true,
+    showSponsorStrip: true,
+    showLeagueStrip: true,
+    showQRSection: true
   }
 };
 
@@ -2150,13 +2151,21 @@ function _buildEventContract_(row, options = {}) {
   }
 
   // Build settings (backward compat: sections.*.enabled → settings.show*)
+  // Must match /schemas/event.schema.json Settings definition (MVP-frozen)
   let settings = EVENT_DEFAULTS_.settings;
   if (data.settings) {
     settings = {
+      // MVP Required
       showSchedule: !!data.settings.showSchedule,
       showStandings: !!data.settings.showStandings,
       showBracket: !!data.settings.showBracket,
-      showSponsors: !!data.settings.showSponsors
+      // MVP Optional (V2 content but MVP toggles)
+      showSponsors: !!data.settings.showSponsors,
+      // MVP Optional - surface-specific toggles (default true if undefined)
+      showSponsorBanner: data.settings.showSponsorBanner !== false,
+      showSponsorStrip: data.settings.showSponsorStrip !== false,
+      showLeagueStrip: data.settings.showLeagueStrip !== false,
+      showQRSection: data.settings.showQRSection !== false
     };
   } else if (data.sections) {
     // Backward compat: sections object → settings flags
@@ -2164,7 +2173,12 @@ function _buildEventContract_(row, options = {}) {
       showSchedule: !!data.sections.schedule?.enabled,
       showStandings: !!data.sections.standings?.enabled,
       showBracket: !!data.sections.bracket?.enabled,
-      showSponsors: !!data.sections.sponsors?.enabled
+      showSponsors: !!data.sections.sponsors?.enabled,
+      // Surface toggles default to true for legacy data
+      showSponsorBanner: true,
+      showSponsorStrip: true,
+      showLeagueStrip: true,
+      showQRSection: true
     };
   }
 

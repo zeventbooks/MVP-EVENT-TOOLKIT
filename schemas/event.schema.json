@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://zeventbook.com/schemas/event.schema.json",
   "title": "Event",
-  "description": "Canonical Event Contract v2.0 - Single Source of Truth for all event data in Zeventbook",
+  "description": "Canonical Event Contract v2.2 - Single Source of Truth for all event data in Zeventbook (MVP-frozen)",
   "type": "object",
   "required": [
     "id",
@@ -440,7 +440,7 @@
     },
     "Settings": {
       "type": "object",
-      "description": "MVP REQUIRED - Admin visibility flags",
+      "description": "MVP REQUIRED - Admin visibility flags for all surfaces",
       "required": ["showSchedule", "showStandings", "showBracket"],
       "additionalProperties": false,
       "properties": {
@@ -458,7 +458,23 @@
         },
         "showSponsors": {
           "type": "boolean",
-          "description": "V2 OPTIONAL - Show sponsors section"
+          "description": "MVP OPTIONAL - Show sponsors section (V2 content)"
+        },
+        "showSponsorBanner": {
+          "type": "boolean",
+          "description": "MVP OPTIONAL - Show sponsor banner on public page (default: true)"
+        },
+        "showSponsorStrip": {
+          "type": "boolean",
+          "description": "MVP OPTIONAL - Show sponsor strip on display surface (default: true)"
+        },
+        "showLeagueStrip": {
+          "type": "boolean",
+          "description": "MVP OPTIONAL - Show league/broadcast strip on display (default: true)"
+        },
+        "showQRSection": {
+          "type": "boolean",
+          "description": "MVP OPTIONAL - Show QR code section on public page (default: true)"
         }
       }
     }

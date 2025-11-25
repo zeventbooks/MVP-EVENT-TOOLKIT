@@ -1010,8 +1010,9 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
     document.addEventListener('DOMContentLoaded', loadTemplates);
 
     /**
-     * Build canonical Event object from form
-     * SCHEMA: /schemas/event.schema.json
+     * Build canonical event object from form inputs.
+     * MUST match /schemas/event.schema.json (MVP-frozen v2.2)
+     * See EVENT_CONTRACT.md for field documentation.
      * Uses STATE for edit mode (preserves id, slug, createdAtISO from existing event).
      */
     function buildEventFromForm() {
@@ -1022,7 +1023,9 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
 
       const now = new Date().toISOString();
 
-      // Build canonical event structure per /schemas/event.schema.json
+      // ═══════════════════════════════════════════════════════════════════════════
+      // CANONICAL EVENT SHAPE - MUST match /schemas/event.schema.json (MVP subset)
+      // ═══════════════════════════════════════════════════════════════════════════
       return {
         // Identity (MVP Required) - use STATE for edit mode
         id: STATE.id ?? generateId(),
@@ -1031,7 +1034,7 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
         startDateISO: startDateISO,
         venue: venue,
 
-        // Links - server will fill these
+        // Links (MVP Required) - server will fill these
         links: {
           publicUrl: '',
           displayUrl: '',
@@ -1039,7 +1042,7 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
           signupUrl: ''
         },
 
-        // QR Codes - server will generate
+        // QR Codes (MVP Required) - server will generate
         qr: {},
 
         // CTAs (MVP Required)
@@ -1056,27 +1059,31 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
         standings: null,
         bracket: null,
 
-        // Settings (MVP Required)
+        // Settings (MVP Required) - must match schema Settings definition
         settings: {
+          // MVP Required
           showSchedule: document.getElementById('showSchedule').checked,
           showStandings: document.getElementById('showStandings').checked,
           showBracket: document.getElementById('showBracket').checked,
+          // MVP Optional (V2 content but MVP toggles)
           showSponsors: false,
-          // Feature 4: Template-Aware Section Toggles
+          // MVP Optional - surface-specific toggles (per schema)
           showSponsorBanner: document.getElementById('showSponsorBanner')?.checked ?? true,
           showSponsorStrip: document.getElementById('showSponsorStrip')?.checked ?? true,
           showLeagueStrip: document.getElementById('showLeagueStrip')?.checked ?? true,
           showQRSection: document.getElementById('showQRSection')?.checked ?? true
         },
 
-        // V2 Optional fields - reserved with proper defaults per schema
-        sponsors: [],
-        media: {},
-        externalData: {},
-        analytics: { enabled: false },
-        payments: { enabled: false },
+        // V2 Optional fields - null per schema (server hydrates when needed)
+        sponsors: null,
+        media: null,
+        externalData: null,
 
-        // Timestamps
+        // Reserved fields - null per schema (not yet implemented)
+        analytics: null,
+        payments: null,
+
+        // Timestamps (MVP Required)
         createdAtISO: STATE.createdAtISO ?? now,
         updatedAtISO: now
       };

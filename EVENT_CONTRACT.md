@@ -11,9 +11,9 @@
 
 | Field | Value |
 |-------|-------|
-| Version | `2.1.0` |
-| Last Updated | 2025-11-24 |
-| Status | **ACTIVE** |
+| Version | `2.2.0` |
+| Last Updated | 2025-11-25 |
+| Status | **MVP-FROZEN** |
 | Schema | `/schemas/event.schema.json` |
 
 ---
@@ -63,12 +63,17 @@ These fields **MUST** be present in every event object:
 | `ctas.primary.label` | `string` | Primary button label |
 | `ctas.primary.url` | `string` | Primary button destination |
 
-### Settings
+### Settings (MVP-frozen)
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `settings.showSchedule` | `boolean` | `false` | Show schedule section |
-| `settings.showStandings` | `boolean` | `false` | Show standings section |
-| `settings.showBracket` | `boolean` | `false` | Show bracket section |
+| `settings.showSchedule` | `boolean` | `false` | MVP Required - Show schedule section |
+| `settings.showStandings` | `boolean` | `false` | MVP Required - Show standings section |
+| `settings.showBracket` | `boolean` | `false` | MVP Optional - Show bracket section |
+| `settings.showSponsors` | `boolean` | `false` | MVP Optional - Show sponsors section (V2 content) |
+| `settings.showSponsorBanner` | `boolean` | `true` | MVP Optional - Show sponsor banner on public page |
+| `settings.showSponsorStrip` | `boolean` | `true` | MVP Optional - Show sponsor strip on display |
+| `settings.showLeagueStrip` | `boolean` | `true` | MVP Optional - Show league/broadcast strip on display |
+| `settings.showQRSection` | `boolean` | `true` | MVP Optional - Show QR code section on public page |
 
 ### Metadata
 | Field | Type | Description |
@@ -250,24 +255,36 @@ These fields **MUST** be present in every event object:
 When a field has no stored value:
 
 ```javascript
+// Must match /schemas/event.schema.json (MVP-frozen v2.2)
 const EVENT_DEFAULTS = {
+  // MVP Optional
   schedule: null,
   standings: null,
   bracket: null,
+  // MVP Required
   ctas: {
     primary: { label: 'Sign Up', url: '' },
     secondary: null
   },
+  // V2 Optional (null per schema)
   sponsors: null,
   media: null,
   externalData: null,
+  // Reserved (null per schema)
   analytics: null,
   payments: null,
+  // MVP Required - Settings (MVP-frozen)
   settings: {
+    // Section visibility
     showSchedule: false,
     showStandings: false,
     showBracket: false,
-    showSponsors: false
+    showSponsors: false,
+    // Surface toggles (default true)
+    showSponsorBanner: true,
+    showSponsorStrip: true,
+    showLeagueStrip: true,
+    showQRSection: true
   }
 };
 ```
@@ -300,22 +317,23 @@ const EVENT_DEFAULTS = {
 
 ---
 
-## Implementation Checklist
+## Implementation Checklist (MVP-frozen v2.2)
 
-- [x] `/schemas/event.schema.json` - Source of truth
+- [x] `/schemas/event.schema.json` - Source of truth (MVP-frozen v2.2)
 - [x] `/schemas/sponsor.schema.json` - Sponsor schema
 - [x] `EVENT_CONTRACT.md` - Human docs (this file)
-- [x] `ApiSchemas.gs` - GAS runtime validation
-- [ ] `Code.gs:EVENT_DEFAULTS_` - Defaults per contract
-- [ ] `Code.gs:_buildEventContract_()` - Returns canonical shape
-- [ ] `Code.gs:api_get()` - Returns full shape with null defaults
-- [ ] `Code.gs:api_list()` - Returns full shape for each item
-- [ ] `Code.gs:api_getPublicBundle()` - Returns event + config
-- [ ] `Code.gs:api_getDisplayBundle()` - Returns event + config
-- [ ] `Code.gs:api_getPosterBundle()` - Returns event + config
-- [ ] `Admin.html` - Uses canonical shape
-- [ ] `Public.html` - Uses canonical shape
-- [ ] `Display.html` - Uses canonical shape
-- [ ] `Poster.html` - Uses canonical shape
+- [x] `ApiSchemas.gs` - GAS runtime validation (mirrors schema)
+- [x] `Code.gs:EVENT_DEFAULTS_` - Defaults per contract
+- [x] `Code.gs:_buildEventContract_()` - Returns canonical shape
+- [x] `Code.gs:api_get()` - Returns full shape with null defaults
+- [x] `Code.gs:api_list()` - Returns full shape for each item
+- [x] `Code.gs:api_getPublicBundle()` - Returns event + config
+- [x] `Code.gs:api_getDisplayBundle()` - Returns event + config
+- [x] `Code.gs:api_getPosterBundle()` - Returns event + config
+- [x] `Admin.html:buildEventFromForm()` - Matches schema (no extras)
+- [x] `Public.html` - Uses canonical shape (no legacy fallbacks)
+- [x] `Display.html` - Uses canonical shape (V2 dynamic mode removed)
+- [x] `Poster.html` - Uses canonical shape
+- [x] `TemplateService.gs` - Only sets schema fields (V2 legacy removed)
 
-**Gate**: Do not modify surfaces until backend files agree with this contract.
+**Status**: MVP contract frozen. All surfaces aligned to schema v2.2.

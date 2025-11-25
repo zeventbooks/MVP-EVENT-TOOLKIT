@@ -477,16 +477,21 @@ function getEventTemplate_(templateId) {
 }
 
 /**
- * Apply template defaults to an event object (MVP)
- * Only sets values where user hasn't already provided data
+ * Apply template defaults to an event object (MVP-frozen)
+ * Only sets values where user hasn't already provided data.
  *
- * IMPORTANT: This function MUST only set fields that exist in /schemas/event.schema.json
+ * IMPORTANT: This function MUST only set fields that exist in /schemas/event.schema.json (v2.2)
  * If a field isn't in the schema, it doesn't get set here.
+ *
+ * Settings fields set by this function:
+ *   - showSchedule, showStandings, showBracket, showSponsors (section visibility)
+ *   - showSponsorBanner, showSponsorStrip, showLeagueStrip, showQRSection (surface toggles)
  *
  * @param {Object} event - Event object (can be partial data from form)
  * @param {string} templateId - Template ID to apply
  * @returns {Object} Modified event object with template defaults applied
- * @see /schemas/event.schema.json
+ * @see /schemas/event.schema.json Settings definition
+ * @see EVENT_CONTRACT.md
  */
 function applyTemplateToEvent_(event, templateId) {
   var tpl = getEventTemplate_(templateId);
@@ -494,8 +499,9 @@ function applyTemplateToEvent_(event, templateId) {
   // === templateId: IN SCHEMA (MVP OPTIONAL) ===
   event.templateId = tpl.id;
 
-  // === Settings: IN SCHEMA (MVP REQUIRED) ===
-  // /schemas/event.schema.json: Settings { showSchedule, showStandings, showBracket, showSponsors }
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Settings: MUST match /schemas/event.schema.json Settings (MVP-frozen v2.2)
+  // ═══════════════════════════════════════════════════════════════════════════
   event.settings = event.settings || {};
 
   // Map template sections to contract settings
@@ -519,59 +525,35 @@ function applyTemplateToEvent_(event, templateId) {
     event.settings.showBracket = bracketTemplates.includes(tpl.id);
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // V2 LEGACY FIELDS - NOT IN /schemas/event.schema.json
-  // These are kept for Admin UI backward compatibility during migration.
-  // They are NOT part of the canonical event shape returned by _buildEventContract_().
-  // TODO: Remove after Admin.html migrates to settings-based UI
-  // ═══════════════════════════════════════════════════════════════════════════
-
-  // sections: V2 legacy - Admin UI still reads this for form rendering
-  // Contract uses: settings.showSchedule, settings.showStandings, etc.
-  event.sections = event.sections || {};
-  var sectionKeys = ['video', 'map', 'schedule', 'sponsors', 'notes', 'gallery'];
-  sectionKeys.forEach(function(key) {
-    if (event.sections[key] == null) {
-      var enabled = tpl.sections[key] || false;
-      event.sections[key] = {
-        enabled: enabled,
-        title: null,
-        content: null
-      };
-    } else if (typeof event.sections[key] === 'boolean') {
-      event.sections[key] = {
-        enabled: event.sections[key],
-        title: null,
-        content: null
-      };
-    }
-  });
-
-  // notesLabel, sponsorStripLabel: V2 legacy - custom section titles
-  if (tpl.defaults) {
-    if (tpl.defaults.notesLabel && event.sections.notes && !event.sections.notes.title) {
-      event.sections.notes.title = tpl.defaults.notesLabel;
-    }
-    if (tpl.defaults.sponsorStripLabel && event.sections.sponsors && !event.sections.sponsors.title) {
-      event.sections.sponsors.title = tpl.defaults.sponsorStripLabel;
-    }
+  // Surface-specific toggles (MVP Optional per schema, default true)
+  if (event.settings.showSponsorBanner == null) {
+    event.settings.showSponsorBanner = true;
+  }
+  if (event.settings.showSponsorStrip == null) {
+    event.settings.showSponsorStrip = true;
+  }
+  if (event.settings.showLeagueStrip == null) {
+    event.settings.showLeagueStrip = true;
+  }
+  if (event.settings.showQRSection == null) {
+    event.settings.showQRSection = true;
   }
 
-  // ctaLabels: DEPRECATED - Contract uses ctas.primary/ctas.secondary
-  // Kept for backward compat with old Admin.html forms
-  if (!event.ctaLabels || !event.ctaLabels.length) {
-    event.ctaLabels = (tpl.defaultCtas || []).map(function(label, idx) {
-      return {
-        key: 'cta_' + idx,
-        label: label,
-        url: null
-      };
-    });
-  }
-
-  // audience: V2 concept - not in MVP schema
-  // status: V2 concept - not in MVP schema (draft|published|cancelled|completed)
-  // These are stored in data blob but NOT returned by _buildEventContract_()
+  // ═══════════════════════════════════════════════════════════════════════════
+  // [V2+] LEGACY FIELDS - REMOVED FROM MVP (not in /schemas/event.schema.json)
+  // ═══════════════════════════════════════════════════════════════════════════
+  //
+  // The following fields were deprecated and removed from the MVP contract:
+  //   - sections.*         → Use settings.showSchedule, settings.showSponsors, etc.
+  //   - ctaLabels[]        → Use ctas.primary, ctas.secondary
+  //   - notesLabel         → [V2+] Custom section labels
+  //   - sponsorStripLabel  → [V2+] Custom section labels
+  //   - audience           → [V2+] Event audience targeting
+  //   - status             → [V2+] Event lifecycle (draft|published|cancelled)
+  //
+  // These fields are NO LONGER written by applyTemplateToEvent_().
+  // Old data with these fields will be migrated by _buildEventContract_() in Code.gs.
+  // ═══════════════════════════════════════════════════════════════════════════
 
   return event;
 }
