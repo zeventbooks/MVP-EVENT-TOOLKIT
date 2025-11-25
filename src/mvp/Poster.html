@@ -7,32 +7,44 @@ Purpose: Printable event poster with QR codes and sponsor branding
 Status: HARDENED for MVP v1.0
 
 SCHEMA CONTRACT: /schemas/event.schema.json
-This surface uses ONLY these schema fields:
 
-  IDENTITY (MVP Required):
-    - event.name           → #eventName
-    - event.startDateISO   → #eventDate
-    - event.venue          → #eventLocation
+═══════════════════════════════════════════════════════════════════════════════
+READS FROM EVENT SCHEMA (via api_getPosterBundle):
+═══════════════════════════════════════════════════════════════════════════════
+  Identity (MVP Required):
+    - event.id              → Analytics tracking
+    - event.name            → #eventName heading
+    - event.startDateISO    → #eventDate (formatted)
+    - event.venue           → #eventLocation
 
-  LINKS (MVP Required):
-    - event.links.publicUrl  → QR code label
-    - event.links.signupUrl  → QR code label
+  Links (MVP Required):
+    - event.links.publicUrl → QR code label text
+    - event.links.signupUrl → QR code label text
 
-  QR CODES (MVP Required):
-    - event.qr.public   → Public page QR (base64 PNG)
-    - event.qr.signup   → Sign-up QR (base64 PNG)
+  QR Codes (MVP Required):
+    - event.qr.public       → Public page QR (base64 PNG)
+    - event.qr.signup       → Sign-up QR (base64 PNG)
 
-    INVARIANT: "NO QR UNLESS VERIFIED URL"
-    Backend (_buildEventContract_ in Code.gs) enforces that QR codes are ONLY
-    generated for validated URLs. Poster trusts event.qr.* as pre-verified.
-    DO NOT generate QR codes client-side from raw URL strings.
+  CTAs (MVP Required):
+    - event.ctas.primary.label → Sign-up QR title text
 
-  SPONSORS (V2 Optional):
-    - event.sponsors[]            → #sponsorStrip (filtered by placement)
-    - event.settings.showSponsors → Toggle visibility
+  Settings (V2 Optional):
+    - event.settings.showSponsors → Master sponsor toggle
 
-  CTA (MVP Required - for button label):
-    - event.ctas.primary.label → Sign-up button text
+  Sponsors (V2 Optional):
+    - event.sponsors[].id, name, logoUrl, linkUrl, placement
+    - Filter: placement === 'poster'
+
+═══════════════════════════════════════════════════════════════════════════════
+SECTION GATES (schema-backed visibility):
+═══════════════════════════════════════════════════════════════════════════════
+  Sponsor Strip: if (settings.showSponsors && sponsors.some(s => s.placement === 'poster'))
+  QR Codes:      if (qr.public) → Public QR; if (qr.signup) → Signup QR
+
+  INVARIANT: "NO QR UNLESS VERIFIED URL"
+  Backend (_buildEventContract_ in Code.gs) enforces QR codes are ONLY
+  generated for validated URLs. Poster trusts event.qr.* as pre-verified.
+  DO NOT generate QR codes client-side from raw URL strings.
 
 DO NOT add fields without updating:
   - /schemas/event.schema.json (source of truth)
