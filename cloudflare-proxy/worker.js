@@ -2,11 +2,29 @@
  * Cloudflare Worker - Google Apps Script Proxy
  *
  * This worker proxies requests to Google Apps Script, providing:
- * - Custom domain support (e.g., api.yourdomain.com)
+ * - Custom domain support (e.g., eventangle.com/events)
  * - CORS headers for cross-origin requests
- * - Request/response logging
- * - Edge caching for GET requests
+ * - Friendly URL routing (/events/abc/manage → exec/abc/manage)
+ * - Query string preservation (?page=admin passes through)
  * - Error handling and retry logic
+ *
+ * Deployment modes (see wrangler.toml):
+ * - env.events: Only /events* paths (recommended for mixed sites)
+ * - env.production: Full site (eventangle.com/*)
+ * - env.api-only: API subdomain only
+ *
+ * Example flows (env.events - /events* route):
+ * - eventangle.com/events → exec → Public.html (default)
+ * - eventangle.com/events/manage → exec/manage → Admin.html
+ * - eventangle.com/events/abc/events → exec/abc/events → ABC Public.html
+ * - eventangle.com/events?page=admin → exec?page=admin → Admin.html
+ *
+ * Example flows (env.production - /* route):
+ * - eventangle.com/manage → exec/manage → Admin.html
+ * - eventangle.com/abc/events → exec/abc/events → ABC Public.html
+ *
+ * Apps Script receives paths via e.pathInfo array.
+ * See docs/FRIENDLY_URLS.md for complete URL mapping.
  *
  * Deployment ID is injected via environment variable or wrangler.toml
  */
@@ -21,6 +39,9 @@ export default {
     const appsScriptBase = `https://script.google.com/macros/s/${deploymentId}/exec`;
 
     const url = new URL(request.url);
+
+    // Log incoming request for debugging (visible in Cloudflare dashboard)
+    console.log(`[EventAngle] ${request.method} ${url.pathname}${url.search}`);
 
     // Redirect Google's static assets to script.google.com
     // These cannot be proxied - must redirect to Google's CDN
@@ -67,10 +88,46 @@ export default {
 
 /**
  * Proxy request to Google Apps Script
+ *
+ * This function forwards the request to Apps Script, supporting both:
+ * 1. Path-based routing (friendly URLs): /events/manage → exec/manage
+ * 2. Query-param routing: ?page=admin → exec?page=admin
+ *
+ * Path handling:
+ * - Strips '/events' prefix if present (for env.events deployment)
+ * - Preserves remaining path for Apps Script's e.pathInfo
+ * - Preserves query string
+ *
+ * Examples (env.events - /events* route):
+ *   /events → exec (pathInfo: [])
+ *   /events/manage → exec/manage (pathInfo: ['manage'])
+ *   /events/abc/events → exec/abc/events (pathInfo: ['abc', 'events'])
+ *   /events?page=admin → exec?page=admin (pathInfo: [], params: {page:'admin'})
+ *
+ * Examples (env.production - /* route):
+ *   /manage → exec/manage (pathInfo: ['manage'])
+ *   /abc/events → exec/abc/events (pathInfo: ['abc', 'events'])
  */
 async function proxyToAppsScript(request, appsScriptBase) {
   const url = new URL(request.url);
-  const targetUrl = appsScriptBase + url.search;
+
+  // Get path and strip '/events' prefix if present (for env.events route)
+  let path = url.pathname;
+  if (path.startsWith('/events')) {
+    path = path.slice('/events'.length); // Remove '/events' prefix
+  }
+  // Ensure path doesn't start with double slash
+  if (path.startsWith('/')) {
+    path = path.slice(1);
+  }
+
+  // Build target URL: base + path + query
+  // Apps Script receives path via e.pathInfo array
+  const targetUrl = path
+    ? `${appsScriptBase}/${path}${url.search}`
+    : `${appsScriptBase}${url.search}`;
+
+  console.log(`[EventAngle] Proxying to: ${targetUrl}`);
 
   // Build fetch options
   const fetchOptions = {
@@ -87,7 +144,8 @@ async function proxyToAppsScript(request, appsScriptBase) {
   // Make request to Apps Script
   const response = await fetch(targetUrl, fetchOptions);
 
-  // Clone response to allow reading body
+  console.log(`[EventAngle] Response: ${response.status} ${response.statusText}`);
+
   return response;
 }
 

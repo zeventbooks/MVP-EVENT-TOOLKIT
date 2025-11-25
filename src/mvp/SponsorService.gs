@@ -8,6 +8,50 @@
  * - Portfolio reports (cross-brand)
  * - Engagement scoring
  *
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * [MVP] SERVICE CONTRACT
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * READS:
+ *   ← Analytics sheet (impressions, clicks by sponsorId)
+ *   ← Brand config (sponsor list per brand)
+ *
+ * WRITES: None (analytics-only service, does not mutate sponsor data)
+ *
+ * OUTPUT SHAPES (aligns with schemas):
+ *   → Sponsor entity: /schemas/sponsor.schema.json
+ *   → SponsorMetrics: /schemas/shared-analytics.schema.json $defs/SponsorMetrics
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * SCHEMA CONTRACT: Sponsor shape (/schemas/sponsor.schema.json)
+ * {
+ *   id: string,              // [MVP] Sponsor identifier
+ *   name: string,            // [MVP] Display name
+ *   logoUrl: string,         // [MVP] Logo URL (https)
+ *   linkUrl: string|null,    // [MVP] Click-through URL (optional)
+ *   placement: enum          // [MVP] 'poster'|'display'|'public'|'tv-banner'
+ * }
+ *
+ * SponsorMetrics shape (/schemas/shared-analytics.schema.json):
+ * {
+ *   id: string,              // [MVP] Sponsor identifier
+ *   name: string,            // [MVP] Display name
+ *   impressions: integer,    // [MVP] Total impressions
+ *   clicks: integer,         // [MVP] Total clicks
+ *   ctr: number              // [MVP] Click-through rate percentage
+ * }
+ *
+ * SponsorService MUST only emit the above fields. Any additional fields
+ * are reserved for V2+ and should not be added without schema update.
+ *
+ * [V2+] FEATURES (not in MVP scope):
+ *   - SponsorService_calculateROI() → ROI/financial calculations
+ *   - SponsorService_generateInsights() → AI-driven insights
+ *   - SponsorService_getSettings() → Placement configuration
+ *   - SponsorService_validatePlacements() → Placement validation
+ *   - SponsorService_getPortfolioSponsors() → Cross-brand portfolio
+ *
  * Design principles:
  * - Encapsulates sponsor business logic
  * - Provides data aggregation and analysis
@@ -128,7 +172,7 @@ function SponsorService_aggregateMetrics(data, sponsorId) {
   return agg;
 }
 
-// === ROI Calculations =====================================================
+// === [V2+] ROI Calculations ===============================================
 
 /**
  * Calculate ROI metrics for a sponsor
@@ -219,7 +263,7 @@ function SponsorService_calculateROI(params) {
   });
 }
 
-// === Engagement & Insights ================================================
+// === [V2+] Engagement & Insights ==========================================
 
 /**
  * Calculate engagement score from CTR and dwell time
@@ -382,7 +426,7 @@ function SponsorService_generateROIInsights(metrics) {
   return insights;
 }
 
-// === Configuration Operations =============================================
+// === [V2+] Configuration Operations =======================================
 
 /**
  * Get sponsor placement settings and configurations
@@ -599,7 +643,7 @@ function SponsorService_validatePlacements(params) {
   });
 }
 
-// === Portfolio Operations =================================================
+// === [V2+] Portfolio Operations ===========================================
 
 /**
  * Get portfolio sponsor list (all sponsors across child brands)

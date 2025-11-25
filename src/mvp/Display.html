@@ -4,12 +4,67 @@ MVP SURFACE - Focus Group Critical
 ================================================================================
 Page: Display.html
 Purpose: TV/kiosk display for live event streaming with sponsor visibility
-Status: LOCKED for MVP v1.0
+Status: HARDENED for MVP v1.0
 
-DO NOT modify this file's contracts without updating:
-  - NUSDK.html (API client)
-  - tests/e2e/* (end-to-end tests)
-  - tests/unit/* (unit tests)
+SCHEMA CONTRACT: /schemas/event.schema.json
+
+═══════════════════════════════════════════════════════════════════════════════
+READS FROM EVENT SCHEMA (via api_getDisplayBundle):
+═══════════════════════════════════════════════════════════════════════════════
+  Identity (MVP Required):
+    - event.id                → Event identifier for analytics
+    - event.name              → Event title (fallback display)
+    - event.startDateISO      → Event date (fallback display)
+    - event.venue             → Venue name (fallback display)
+    - event.templateId        → Template type for league strip logic
+    - event.links.publicUrl   → Iframe source for main content
+
+  Settings (MVP Required):
+    - event.settings.showSchedule     → Section toggle (passed to iframe)
+    - event.settings.showStandings    → Section toggle (passed to iframe)
+    - event.settings.showBracket      → Section toggle (passed to iframe)
+    - event.settings.showSponsors     → Master sponsor strip toggle
+    - event.settings.showVideo        → Video toggle (Feature 4 - passed to iframe)
+    - event.settings.showMap          → Map toggle (Feature 4 - passed to iframe)
+    - event.settings.showGallery      → Gallery toggle (Feature 4 - passed to iframe)
+    - event.settings.showSponsorStrip → TV sponsor strip visibility
+    - event.settings.showLeagueStrip  → TV league/broadcast strip visibility
+
+  Sponsors (V2 Optional):
+    - event.sponsors[].id, name, logoUrl, linkUrl, placement
+    - Filter: placement === 'display' OR 'tv-banner'
+
+  External Data (V2 Optional - league strip):
+    - event.externalData.scheduleUrl  → League strip link
+    - event.externalData.standingsUrl → League strip link
+    - event.externalData.bracketUrl   → League strip link
+
+═══════════════════════════════════════════════════════════════════════════════
+SECTION GATES (schema-backed visibility):
+═══════════════════════════════════════════════════════════════════════════════
+  Sponsor Strip: if (settings.showSponsors && settings.showSponsorStrip !== false)
+                 && sponsors.some(s => s.placement === 'display' || s.placement === 'tv-banner')
+  League Strip:  if (settings.showLeagueStrip !== false)
+                 && (externalData.scheduleUrl || standingsUrl || bracketUrl)
+  Main Content:  Always shows Public.html iframe via links.publicUrl
+
+═══════════════════════════════════════════════════════════════════════════════
+V1 SIMPLICITY DECLARATION
+═══════════════════════════════════════════════════════════════════════════════
+  Display v1 is intentionally simple:
+  - Shows Public.html in iframe (mirrors event page)
+  - Adds sponsor strip (top) and league strip (bottom) overlays
+  - NO rotation/dashboard features until v2 spec is committed
+
+  [V2+] DEFERRED FEATURES (do not implement without spec):
+    - rotation.sponsorSlots, rotation.rotationMs
+    - layout.hasSidePane, layout.emphasis
+    - Multi-content pane rotation
+    - Dashboard mode with metrics
+
+DO NOT add fields without updating:
+  - /schemas/event.schema.json (source of truth)
+  - src/mvp/Code.gs (_buildEventContract_)
 
 Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
 ================================================================================
@@ -27,12 +82,20 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <meta name="referrer" content="no-referrer" />
   <style>
-    :root { --tv-pad: 12px; --side-w: 320px; }
+    :root {
+      --tv-pad: 12px;
+      --side-w: 320px;
+      /* TV overscan safe area - 5% margins for older TVs */
+      --tv-safe-area: 5%;
+    }
     body[data-tv="1"] {
       background: var(--color-tv-bg, #111);
       color: var(--color-tv-text, #eee);
       font-size: clamp(20px, 2.8vw, 32px); /* Legible at 10-12ft */
       line-height:1.5;
+      /* Apply safe area padding for TV overscan */
+      padding: var(--tv-safe-area);
+      box-sizing: border-box;
     }
     [hidden] { display:none !important; }
     main#tv {
@@ -54,9 +117,9 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
       min-height: 80px;
     }
     .sponsor-top img {
-      max-height:72px; vertical-align:middle; margin:0 1rem;
+      max-height: var(--display-sponsor-logo-height-top, 72px); vertical-align:middle; margin:0 1rem;
       filter: brightness(1.1);
-      transition: transform 0.3s ease;
+      transition: transform var(--transition-slow, 0.3s ease);
     }
     .sponsor-top img:hover {
       transform: scale(1.05);
@@ -96,10 +159,11 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
       border-color: var(--color-tv-border-hover, #3a3a3a);
     }
     .sp-card img {
-      max-height:64px; max-width:160px; object-fit:contain;
+      max-height: var(--display-sponsor-logo-height-side, 64px); max-width:160px; object-fit:contain;
       filter: brightness(1.15);
     }
-    .sp-name { font-weight:600; font-size:1em; color: var(--color-tv-text, #f0f0f0); }
+    /* TV-005: Sponsor name legibility for TV distance */
+    .sp-name { font-weight:600; font-size: clamp(1.125rem, 2vw, 1.5rem); color: var(--color-tv-text, #f0f0f0); }
     .toast {
       position:fixed; right:20px; bottom:20px;
       background: linear-gradient(135deg, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.95) 100%);
@@ -109,6 +173,22 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
       border: 1px solid rgba(255,255,255,0.1);
       box-shadow: 0 4px 12px rgba(0,0,0,0.5);
       backdrop-filter: blur(8px);
+    }
+
+    /* TV Mode Focus Indicators - for D-pad/remote navigation */
+    body[data-tv="1"] a:focus-visible,
+    body[data-tv="1"] button:focus-visible,
+    body[data-tv="1"] [tabindex]:focus-visible {
+      outline: 4px solid #ffb84d;
+      outline-offset: 4px;
+      border-radius: 8px;
+      box-shadow: 0 0 12px rgba(255, 184, 77, 0.5);
+    }
+
+    /* Sponsor logo sizing for TV legibility */
+    body[data-tv="1"] .sponsor-top img {
+      max-height: clamp(var(--display-sponsor-logo-height-top, 72px), 10vw, var(--sponsor-logo-height-tv, 120px));
+      filter: brightness(1.3) contrast(1.1);
     }
 
     /* .site-footer - Now centralized in FooterComponent.html (D-005) */
@@ -131,44 +211,46 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
       gap: 20px;
       max-width: 90vw;
     }
+    /* TV-optimized strip text sizes (10-12ft viewing distance) */
+    /* Fixed: TV-001, TV-002, TV-003 - text was illegible at TV distance */
     .league-broadcast-strip .strip-title {
-      color: #f59e0b;
-      font-size: max(1rem, 0.85rem); /* D-AUDIT: Min 1rem for TV legibility */
+      color: var(--color-warning, #f59e0b);
+      font-size: clamp(1rem, 1.8vw, 1.5rem);  /* 16-24px for TV legibility */
       text-transform: uppercase;
       letter-spacing: 1px;
       white-space: nowrap;
       font-weight: 600;
     }
     .league-broadcast-strip .strip-divider {
-      width: 1px;
-      height: 24px;
-      background: rgba(255, 255, 255, 0.2);
+      width: 2px;
+      height: 28px;
+      background: rgba(255, 255, 255, 0.25);
     }
     .league-broadcast-strip .strip-section {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 16px;
     }
     .league-broadcast-strip .strip-label {
       color: #9ca3af;
-      font-size: max(0.875rem, 0.75rem); /* D-AUDIT: Min 14px for TV legibility from 12px */
+      font-size: clamp(0.875rem, 1.5vw, 1.25rem);  /* 14-20px minimum */
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
     .league-broadcast-strip .strip-links {
       display: flex;
-      gap: 8px;
+      gap: 12px;
     }
     .league-broadcast-strip .strip-link {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
       color: #fff;
       text-decoration: none;
-      padding: 8px 14px; /* D-AUDIT: Increased padding for touch targets */
+      padding: 10px 16px;  /* Larger touch/remote targets */
       background: rgba(255, 255, 255, 0.08);
-      border-radius: 6px;
-      font-size: max(1rem, 0.9rem); /* D-AUDIT: Min 1rem for TV legibility */
+      border-radius: 8px;
+      font-size: clamp(1rem, 2vw, 1.5rem);  /* 16-24px for TV */
       transition: all 0.2s ease;
       white-space: nowrap;
     }
@@ -272,6 +354,44 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
     .error-state-tv .btn-retry:hover {
       background: #1d4ed8;
     }
+
+    /* Feature 3: Primary Sponsor - Bigger Rendering for TV */
+    .sponsor-primary img,
+    .sponsor-logo.sponsor-primary {
+      max-height: calc(var(--display-sponsor-logo-height-top, 72px) * 1.6) !important;
+      filter: brightness(1.3) drop-shadow(0 4px 12px rgba(245, 158, 11, 0.4));
+    }
+    .sponsor-primary strong {
+      font-size: 1.5em;
+      color: #fcd34d;
+    }
+    .sponsor-item.sponsor-primary {
+      order: -1;
+      padding: 12px 24px;
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(234, 179, 8, 0.15) 100%);
+      border-radius: 12px;
+      border: 2px solid rgba(245, 158, 11, 0.4);
+    }
+    .sponsor-tier-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      background: #f59e0b;
+      color: #000;
+      font-size: 0.7rem;
+      font-weight: 700;
+      border-radius: 10px;
+      text-transform: uppercase;
+      margin-left: 8px;
+      vertical-align: middle;
+      letter-spacing: 0.5px;
+    }
+    .sp-card.sponsor-primary {
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, var(--color-tv-bg-card, #1f1f1f) 100%);
+      border-color: rgba(245, 158, 11, 0.5);
+    }
+    .sp-card.sponsor-primary img {
+      max-height: calc(var(--display-sponsor-logo-height-side, 64px) * 1.4);
+    }
   </style>
 </head>
 <body data-tv="1">
@@ -338,8 +458,9 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
     // Track rendered sponsor IDs for BBN attribution
     let currentRenderedSponsorIds = [];
 
-    // === EVENT_CONTRACT.md v2.0 Support ===
-    // Use centralized sectionEnabled from SharedUtils (D-008)
+    // === SCHEMA SUPPORT: /schemas/event.schema.json ===
+    // Use centralized sectionEnabled from SharedUtils
+    // Feature 4: Template-Aware Section Toggles - added showVideo, showMap, showGallery
     const sectionEnabled = window.SharedUtils?.sectionEnabled || function(settings, key) {
       if (!settings) return false;
       switch (key) {
@@ -347,6 +468,10 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
         case 'standings': return settings.showStandings === true;
         case 'bracket': return settings.showBracket === true;
         case 'sponsors': return settings.showSponsors === true;
+        // Feature 4: Template-Aware Content Sections
+        case 'video': return settings.showVideo !== false; // Default true for backwards compat
+        case 'map': return settings.showMap !== false;     // Default true for backwards compat
+        case 'gallery': return settings.showGallery !== false; // Default true for backwards compat
         default: return false;
       }
     };
@@ -364,11 +489,15 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
       if (ext.standingsUrl) leagueLinks.push({ icon: '🏆', label: 'Standings', url: ext.standingsUrl, type: 'standings' });
       if (ext.bracketUrl) leagueLinks.push({ icon: '🎯', label: 'Bracket', url: ext.bracketUrl, type: 'bracket' });
 
-      // Check for broadcast links
+      // ═══════════════════════════════════════════════════════════════
+      // V2 COMMENTED OUT - statsUrl/scoreboardUrl/streamUrl NOT IN /schemas/event.schema.json
+      // ExternalData only has: scheduleUrl, standingsUrl, bracketUrl
+      // TODO: Add broadcast URLs to schema when streaming feature is ready
+      // ═══════════════════════════════════════════════════════════════
       const broadcastLinks = [];
-      if (ext.statsUrl) broadcastLinks.push({ icon: '📈', label: 'Stats', url: ext.statsUrl, type: 'stats' });
-      if (ext.scoreboardUrl) broadcastLinks.push({ icon: '📺', label: 'Scoreboard', url: ext.scoreboardUrl, type: 'scoreboard' });
-      if (ext.streamUrl) broadcastLinks.push({ icon: '🎥', label: 'Watch', url: ext.streamUrl, type: 'stream', isStream: true });
+      // if (ext.statsUrl) broadcastLinks.push({ icon: '📈', label: 'Stats', url: ext.statsUrl, type: 'stats' });
+      // if (ext.scoreboardUrl) broadcastLinks.push({ icon: '📺', label: 'Scoreboard', url: ext.scoreboardUrl, type: 'scoreboard' });
+      // if (ext.streamUrl) broadcastLinks.push({ icon: '🎥', label: 'Watch', url: ext.streamUrl, type: 'stream', isStream: true });
 
       const hasLeagueLinks = leagueLinks.length > 0;
       const hasBroadcastLinks = broadcastLinks.length > 0;
@@ -551,12 +680,8 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
 
     /**
      * Boot Display.html
-     * EVENT_CONTRACT.md v2.0: Uses api_getDisplayBundle for TV-optimized data
-     *
-     * DisplayBundle returns:
-     * - event: Full canonical Event shape
-     * - rotation: { sponsorSlots, rotationMs }
-     * - layout: { hasSidePane, emphasis }
+     * API: api_getDisplayBundle → { event, rotation, layout }
+     * SCHEMA: /schemas/event.schema.json
      */
     async function boot() {
       if (!eventId) return startPublicMode();
@@ -579,23 +704,28 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
       const sponsors = ev.sponsors || [];
       const externalData = ev.externalData || {};
 
-      // === LEGACY DATA FOR DYNAMIC MODE ===
-      const legacyData = ev.data || {};
-      const displayConfig = legacyData.display || {};
-
       // === RENDER LEAGUE & BROADCAST STRIP ===
-      // Uses event.externalData (V2 Optional)
-      if (externalData.scheduleUrl || externalData.standingsUrl || externalData.bracketUrl ||
-          externalData.statsUrl || externalData.scoreboardUrl || externalData.streamUrl) {
+      // Uses event.externalData (V2 Optional per /schemas/event.schema.json)
+      // Schema fields: scheduleUrl, standingsUrl, bracketUrl
+      // Feature 4: Respect showLeagueStrip toggle
+      if ((settings.showLeagueStrip !== false) &&
+          (externalData.scheduleUrl || externalData.standingsUrl || externalData.bracketUrl)) {
         renderLeagueBroadcast(ev.templateId || '', externalData);
       }
 
-      // === RESERVED SPONSOR STRIP ===
-      // Uses event.settings.showSponsors and event.sponsors
-      if (settings.showSponsors && sponsors.length > 0) {
-        // Filter sponsors by placement for display/tv-banner
+      // ═══════════════════════════════════════════════════════════════
+      // [V2+] Dynamic rotation mode - REMOVED FROM MVP (not in schema)
+      // MVP: Always use public mode (mirror event page via iframe)
+      // TODO: Add media.displayRotation to schema when TV rotation ships
+      // ═══════════════════════════════════════════════════════════════
+
+      // === SPONSOR STRIP (V2 Optional) ===
+      // Schema: event.sponsors[].placement MUST be 'display' or 'tv-banner' - no fallback
+      // Feature 4: Respect showSponsorStrip toggle
+      if (settings.showSponsors && (settings.showSponsorStrip !== false) && sponsors.length > 0) {
+        // STRICT: Only sponsors with placement === 'display' or 'tv-banner' (schema-required field)
         const displaySponsors = sponsors.filter(s =>
-          s.placement === 'display' || s.placement === 'tv-banner' || !s.placement
+          s.placement === 'display' || s.placement === 'tv-banner'
         );
         if (displaySponsors.length > 0) {
           // Use unified SponsorRenderer from SponsorUtils
@@ -623,55 +753,14 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
       }
 
       // === START DISPLAY MODE ===
-      // Dynamic mode: rotate through configured URLs
-      // Public mode: mirror the event public page
-      if (String(displayConfig.mode || '').toLowerCase() === 'dynamic'
-          && Array.isArray(displayConfig.urls) && displayConfig.urls.length) {
-        startDynamicMode(displayConfig.urls);
-      } else {
-        startPublicMode();
-      }
+      // MVP-frozen: Always use public mode (embed Public.html via iframe)
+      // [V2+] Dynamic rotation removed - see TODO above for future feature
+      startPublicMode();
     }
 
-    /**
-     * Render event info header for TV
-     * Uses: event.name, event.startDateISO, event.venue
-     */
-    function renderEventInfo(name, startDateISO, venue) {
-      // Event info is shown in the sponsor top bar area if no sponsors
-      // For now we'll just log it - the public mode iframe shows this
-      console.log('Display: Event info', { name, startDateISO, venue });
-    }
-
-    /**
-     * Render schedule panel for TV (MVP Optional)
-     * Uses: event.schedule per EVENT_CONTRACT.md
-     */
-    function renderSchedulePanel(schedule) {
-      // For MVP, schedule is shown in the embedded public page
-      // Future: Dedicated TV schedule overlay
-      console.log('Display: Schedule panel', schedule.length, 'items');
-    }
-
-    /**
-     * Render standings panel for TV (MVP Optional)
-     * Uses: event.standings per EVENT_CONTRACT.md
-     */
-    function renderStandingsPanel(standings) {
-      // For MVP, standings is shown in the embedded public page
-      // Future: Dedicated TV standings overlay
-      console.log('Display: Standings panel', standings.length, 'rows');
-    }
-
-    /**
-     * Render bracket panel for TV (MVP Optional)
-     * Uses: event.bracket per EVENT_CONTRACT.md
-     */
-    function renderBracketPanel(bracket) {
-      // For MVP, bracket is shown in the embedded public page
-      // Future: Dedicated TV bracket overlay
-      console.log('Display: Bracket panel', bracket?.rounds?.length || 0, 'rounds');
-    }
+    // V2 STUBS REMOVED: renderEventInfo, renderSchedulePanel, renderStandingsPanel, renderBracketPanel
+    // MVP uses embedded Public.html iframe for all content display
+    // TODO: Add dedicated TV overlays when TV-native content feature ships
 
     boot();
   </script>

@@ -9,22 +9,24 @@ const ZEB = Object.freeze({
   // === Feature Flags ===
   // Controls which features are active in the current deployment
   // Set to false to defer non-MVP features without removing code
+  //
+  // Tags: [MVP] = v1 production, [V2+] = deferred, [Internal] = tooling only
   FEATURE_FLAGS: {
-    // MVP Features (always enabled)
-    EVENTS: true,           // Event CRUD operations
-    SPONSORS: true,         // Sponsor management
-    ANALYTICS: true,        // Basic analytics and reporting
-    FORMS: true,            // Google Forms integration
-    SHORTLINKS: true,       // URL shortening
+    // [MVP] Core Features (always enabled for v1 production)
+    EVENTS: true,           // [MVP] Event CRUD operations
+    SPONSORS: true,         // [MVP] Sponsor management (basic)
+    ANALYTICS: true,        // [MVP] Basic analytics and reporting
+    FORMS: true,            // [MVP] Google Forms integration
+    SHORTLINKS: true,       // [MVP] URL shortening
 
-    // Deferred Features (disabled for MVP)
-    WEBHOOKS: false,        // External integrations (Zapier, Slack, etc.)
-    I18N: false,            // Multi-language support (EN, ES, FR, DE, etc.)
-    ADVANCED_ANALYTICS: false, // Advanced sponsor ROI calculations
+    // [V2+] Deferred Features (disabled for MVP)
+    WEBHOOKS: false,        // [V2+] External integrations (Zapier, Slack, etc.)
+    I18N: false,            // [V2+] Multi-language support (EN, ES, FR, DE, etc.)
+    ADVANCED_ANALYTICS: false, // [V2+] Advanced sponsor ROI calculations
 
-    // Experimental Features (disabled)
-    PORTFOLIO_ANALYTICS: true,  // Parent org portfolio reporting
-    SPONSOR_SELF_SERVICE: true  // Sponsor dashboard access
+    // [V2+] Experimental Features (enabled but limited scope)
+    PORTFOLIO_ANALYTICS: true,  // [V2+] Parent org portfolio reporting
+    SPONSOR_SELF_SERVICE: true  // [V2+] Sponsor dashboard access
   },
 
   // Customer-Friendly URL Routing
@@ -309,73 +311,64 @@ function getTemplatesForBrand_(brandId) {
   });
 }
 
-// Templates - Extended event model
-// See EVENT_CONTRACT.md for canonical field documentation
+// ═══════════════════════════════════════════════════════════════════════════
+// TEMPLATES - Admin Form Field Definitions
+//
+// IMPORTANT: These define what Admin.html forms collect, NOT the canonical schema.
+// The canonical schema is /schemas/event.schema.json
+//
+// Fields marked "IN SCHEMA" are part of the contract.
+// Fields marked "LEGACY/V2" are stored but NOT returned by _buildEventContract_().
+// ═══════════════════════════════════════════════════════════════════════════
 const TEMPLATES = [
   {
     id: 'event',
     label: 'Event',
     fields: [
-      // === Core Identity (per EVENT_CONTRACT.md) ===
-      { id: 'name',        type: 'text', required: true, maxLength: 200 },
-      { id: 'status',      type: 'text', required: false }, // draft|published|cancelled|completed
-      { id: 'dateISO',     type: 'date', required: false }, // Combined with timeISO → dateTime
-      { id: 'timeISO',     type: 'time', required: false },
-      { id: 'location',    type: 'text', required: false },
-      { id: 'venueName',   type: 'text', required: false }, // NEW: Separate venue name
+      // ─── IN SCHEMA: /schemas/event.schema.json ───────────────────────────
+      { id: 'name',        type: 'text', required: true, maxLength: 200 },  // IN SCHEMA
+      { id: 'startDateISO', type: 'date', required: false },                // IN SCHEMA (was: dateISO)
+      { id: 'venue',       type: 'text', required: false },                 // IN SCHEMA (was: location/venueName)
+      { id: 'signupUrl',   type: 'url',  required: false },                 // IN SCHEMA → links.signupUrl
+      { id: 'externalData', type: 'json', required: false },                // IN SCHEMA (scheduleUrl, standingsUrl, bracketUrl only)
+      { id: 'sponsorIds',  type: 'text', required: false },                 // Internal → hydrated to sponsors[]
 
-      // === Content ===
-      { id: 'summary',     type: 'text', required: false },
-      { id: 'notes',       type: 'text', required: false }, // NEW: Admin-only notes
-      { id: 'audience',    type: 'text', required: false }, // NEW: Target audience
+      // ─── LEGACY: Backward compat mappings (Admin forms still use these) ──
+      { id: 'dateISO',     type: 'date', required: false },  // LEGACY → maps to startDateISO
+      { id: 'location',    type: 'text', required: false },  // LEGACY → maps to venue
+      { id: 'venueName',   type: 'text', required: false },  // LEGACY → maps to venue
+      { id: 'videoUrl',    type: 'url',  required: false },  // LEGACY → maps to media.videoUrl
+      { id: 'mapEmbedUrl', type: 'url',  required: false },  // LEGACY → maps to media.mapUrl
+      { id: 'galleryUrls', type: 'text', required: false },  // LEGACY → maps to media.gallery
 
-      // === Sections (JSON object) ===
-      // Each section: { enabled: bool, title: string|null, content: string|null }
-      { id: 'sections',    type: 'json', required: false },
+      // ─── V2 CONCEPTS: Not in MVP schema, stored but not returned ─────────
+      // { id: 'status',    type: 'text' },   // V2: draft|published|cancelled|completed
+      // { id: 'timeISO',   type: 'time' },   // V2: MVP is date-only
+      // { id: 'summary',   type: 'text' },   // V2: Event description
+      // { id: 'notes',     type: 'text' },   // V2: Admin-only notes
+      // { id: 'audience',  type: 'text' },   // V2: Target audience
+      // { id: 'imageUrl',  type: 'url'  },   // V2: Hero image
 
-      // === CTA Labels (JSON array) ===
-      // Each: { key: string, label: string, url: string|null }
-      { id: 'ctaLabels',   type: 'json', required: false },
-
-      // === External Data (JSON object) ===
-      { id: 'externalData', type: 'json', required: false },
-
-      // === Media URLs ===
-      { id: 'imageUrl',    type: 'url',  required: false },
-      { id: 'videoUrl',    type: 'url',  required: false },
-      { id: 'mapEmbedUrl', type: 'url',  required: false }, // NEW: Google Maps embed
-      { id: 'galleryUrls', type: 'text', required: false }, // Comma-separated URLs
-
-      // === Action URLs ===
-      { id: 'signupUrl',   type: 'url',  required: false },
-      { id: 'checkinUrl',  type: 'url',  required: false },
-      { id: 'feedbackUrl', type: 'url',  required: false }, // NEW: Replaces surveyUrl
-      { id: 'surveyUrl',   type: 'url',  required: false }, // DEPRECATED: Use feedbackUrl
-
-      // === Legacy fields (kept for backward compatibility) ===
-      { id: 'entity',      type: 'text', required: false },
-      { id: 'summaryLink', type: 'url',  required: false },
-      { id: 'bio',         type: 'text', required: false },
-      { id: 'bioLink',     type: 'url',  required: false },
-      { id: 'registerUrl', type: 'url',  required: false },
-      { id: 'walkinUrl',   type: 'url',  required: false },
-
-      // === Sponsors ===
-      { id: 'sponsorIds',  type: 'text', required: false } // Comma-separated IDs, hydrated to sponsors[]
+      // ─── DEPRECATED: Remove after migration ──────────────────────────────
+      { id: 'sections',    type: 'json', required: false },  // DEPRECATED → use settings.show*
+      { id: 'ctaLabels',   type: 'json', required: false }   // DEPRECATED → use ctas.primary/secondary
+      // REMOVED: checkinUrl, feedbackUrl, surveyUrl, entity, summaryLink, bio, bioLink, registerUrl, walkinUrl
     ]
   },
   {
     id: 'sponsor',
     label: 'Sponsor',
+    // Schema: /schemas/sponsor.schema.json
     fields: [
-      { id: 'name',        type: 'text', required: true },
-      { id: 'logoUrl',     type: 'url',  required: false },
-      { id: 'website',     type: 'url',  required: false },
-      { id: 'tier',        type: 'text', required: false },
-      { id: 'entity',      type: 'text', required: false },
-      { id: 'startDate',   type: 'date', required: false },
-      { id: 'endDate',     type: 'date', required: false },
-      { id: 'displayOrder', type: 'text', required: false }
+      // ─── IN SCHEMA ───────────────────────────────────────────────────────
+      { id: 'name',        type: 'text', required: true },   // IN SCHEMA
+      { id: 'logoUrl',     type: 'url',  required: false },  // IN SCHEMA
+      { id: 'linkUrl',     type: 'url',  required: false },  // IN SCHEMA (was: website)
+      { id: 'placement',   type: 'text', required: false },  // IN SCHEMA: poster|display|public|tv-banner
+
+      // ─── LEGACY: Backward compat ─────────────────────────────────────────
+      { id: 'website',     type: 'url',  required: false }   // LEGACY → maps to linkUrl
+      // REMOVED: tier, entity, startDate, endDate, displayOrder (V2 concepts)
     ]
   }
 ];

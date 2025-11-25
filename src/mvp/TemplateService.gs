@@ -3,22 +3,66 @@
  *
  * Event Template System
  *
- * MVP (Triangle Live Demo):
- *   - Simple event archetypes: bar_night, rec_league, school, fundraiser, custom
- *   - Templates define sections ON/OFF, default CTAs, labels
- *   - Config.gs handles brand-level wiring
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * [MVP] SERVICE CONTRACT
+ * ═══════════════════════════════════════════════════════════════════════════════
  *
- * v2+ (Below, marked as EXPERIMENTAL):
- *   - Template versioning with migration paths
- *   - Template inheritance and composition
- *   - Multi-language template support
+ * READS: None (templates are static configuration)
  *
- * @version 1.1.0
+ * WRITES (to Event via applyTemplateToEvent_):
+ *   → event.templateId                    [MVP OPTIONAL - event.schema.json]
+ *   → event.settings.showSchedule         [MVP REQUIRED - event.schema.json]
+ *   → event.settings.showStandings        [MVP REQUIRED - event.schema.json]
+ *   → event.settings.showBracket          [MVP REQUIRED - event.schema.json]
+ *   → event.settings.showSponsors         [MVP OPTIONAL - event.schema.json]
+ *   → event.settings.showVideo            [MVP OPTIONAL - event.schema.json]
+ *   → event.settings.showMap              [MVP OPTIONAL - event.schema.json]
+ *   → event.settings.showGallery          [MVP OPTIONAL - event.schema.json]
+ *   → event.settings.showSponsorBanner    [MVP OPTIONAL - event.schema.json]
+ *   → event.settings.showSponsorStrip     [MVP OPTIONAL - event.schema.json]
+ *   → event.settings.showLeagueStrip      [MVP OPTIONAL - event.schema.json]
+ *   → event.settings.showQRSection        [MVP OPTIONAL - event.schema.json]
+ *
+ * DOES NOT WRITE (internal template fields only):
+ *   - sections.notes → Legacy, not in schema
+ *   - defaultCtas[] → Used for UI suggestions only, not written to event
+ *   - defaults.* → Used for UI pre-fill only, not written to event
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * SCHEMA COMPLIANCE: Templates MUST only produce fields defined in
+ * /schemas/event.schema.json. Do NOT add custom fields to templates.
+ *
+ * Template fields that map to schema:
+ *   - sections.schedule  → event.settings.showSchedule
+ *   - sections.sponsors  → event.settings.showSponsors
+ *   - sections.video     → event.settings.showVideo
+ *   - sections.map       → event.settings.showMap
+ *   - sections.gallery   → event.settings.showGallery
+ *   - defaultCtas[]      → event.ctas.primary.label (UI suggestion only)
+ *   - sections.notes     → NOT IN SCHEMA (legacy, ignored in MVP)
+ *
+ * [MVP] Templates (focus-group ready):
+ *   - rec_league  → Sports leagues, standings, schedule-heavy
+ *   - bar_night   → Bar events, trivia, casual
+ *   - custom      → Blank slate, all options available
+ *
+ * [V2+] Templates (require V2 media/gallery features):
+ *   - school, fundraiser, corporate, wedding, photo_gallery, shower,
+ *     bachelor_party, farmers_market, art_show, carnival, trivia,
+ *     darts, bags, pinball, church, church_club
+ *
+ * @version 1.3.0
  * @since 2025-11-18
  */
 
 // ============================================================================
 // [MVP] EVENT TEMPLATE CATALOG - Triangle Live Demo
+// ============================================================================
+//
+// [MVP] rec_league, bar_night, custom - Core templates for focus group
+// [V2+] All other templates - Require media.* or gallery features
+//
 // ============================================================================
 
 /**
@@ -27,6 +71,7 @@
  * Config = brand-level wiring (which templates each brand sees)
  */
 var EVENT_TEMPLATES = {
+  // [MVP] Bar/tavern template - focus group ready
   bar_night: {
     id: 'bar_night',
     label: 'Bar / Tavern Event',
@@ -39,7 +84,7 @@ var EVENT_TEMPLATES = {
       schedule: false,
       sponsors: true,
       notes: true,
-      gallery: false
+      gallery: true
     },
     defaultCtas: ['RSVP', 'Add to Calendar'],
     defaults: {
@@ -49,6 +94,7 @@ var EVENT_TEMPLATES = {
     }
   },
 
+  // [MVP] Rec league template - focus group ready (schedule/standings heavy)
   rec_league: {
     id: 'rec_league',
     label: 'Rec League / Season',
@@ -61,7 +107,7 @@ var EVENT_TEMPLATES = {
       schedule: true,
       sponsors: true,
       notes: true,
-      gallery: false
+      gallery: true
     },
     defaultCtas: ['Register Team', 'View Schedule'],
     defaults: {
@@ -73,7 +119,8 @@ var EVENT_TEMPLATES = {
     defaultExternalProvider: 'Custom'
   },
 
-  school: {
+  // [V2+] School template - requires gallery features (sections.gallery = true)
+  school: {  // [V2+]
     id: 'school',
     label: 'School / Youth Event',
     description: 'School fundraisers, band boosters, sports events',
@@ -95,7 +142,7 @@ var EVENT_TEMPLATES = {
     }
   },
 
-  fundraiser: {
+  fundraiser: {  // [V2+] - requires video/gallery features
     id: 'fundraiser',
     label: 'Fundraiser / Charity',
     description: 'Charity events, donation drives, benefit nights',
@@ -117,7 +164,7 @@ var EVENT_TEMPLATES = {
     }
   },
 
-  corporate: {
+  corporate: {  // [V2+] - requires video features
     id: 'corporate',
     label: 'Corporate / Professional',
     description: 'Conferences, networking, company events',
@@ -139,9 +186,9 @@ var EVENT_TEMPLATES = {
     }
   },
 
-  // === Social & Celebration Templates ===
+  // === Social & Celebration Templates === [V2+]
 
-  wedding: {
+  wedding: {  // [V2+] - requires video/gallery features
     id: 'wedding',
     label: 'Wedding',
     description: 'Wedding celebrations, ceremonies, receptions',
@@ -163,7 +210,7 @@ var EVENT_TEMPLATES = {
     }
   },
 
-  photo_gallery: {
+  photo_gallery: {  // [V2+] - requires video/gallery features
     id: 'photo_gallery',
     label: 'Photo Gallery / Sharing',
     description: 'Weddings, birthdays, anniversaries - share photos',
@@ -185,7 +232,7 @@ var EVENT_TEMPLATES = {
     }
   },
 
-  shower: {
+  shower: {  // [V2+] - requires gallery features
     id: 'shower',
     label: 'Shower (Baby/Bridal)',
     description: 'Baby showers, bridal showers, gift registries',
@@ -207,7 +254,7 @@ var EVENT_TEMPLATES = {
     }
   },
 
-  bachelor_party: {
+  bachelor_party: {  // [V2+] - requires gallery features
     id: 'bachelor_party',
     label: 'Bachelor / Bachelorette',
     description: 'Bachelor parties, bachelorette weekends, stag nights',
@@ -229,9 +276,9 @@ var EVENT_TEMPLATES = {
     }
   },
 
-  // === Market & Arts Templates ===
+  // === Market & Arts Templates === [V2+]
 
-  farmers_market: {
+  farmers_market: {  // [V2+] - requires gallery features
     id: 'farmers_market',
     label: 'Farmers Market',
     description: 'Local markets, vendor fairs, craft shows',
@@ -253,7 +300,7 @@ var EVENT_TEMPLATES = {
     }
   },
 
-  art_show: {
+  art_show: {  // [V2+] - requires video/gallery features
     id: 'art_show',
     label: 'Art Show / Exhibition',
     description: 'Art exhibits, gallery shows, artist showcases',
@@ -275,7 +322,7 @@ var EVENT_TEMPLATES = {
     }
   },
 
-  carnival: {
+  carnival: {  // [V2+] - requires video/gallery features
     id: 'carnival',
     label: 'Carnival / Fair',
     description: 'Carnivals, county fairs, community festivals',
@@ -297,9 +344,9 @@ var EVENT_TEMPLATES = {
     }
   },
 
-  // === Bar Games & League Templates ===
+  // === Bar Games & League Templates === [V2+]
 
-  trivia: {
+  trivia: {  // [V2+] - bar_night covers MVP trivia use case
     id: 'trivia',
     label: 'Trivia Night',
     description: 'Pub trivia, quiz nights, team competitions',
@@ -321,7 +368,7 @@ var EVENT_TEMPLATES = {
     }
   },
 
-  darts: {
+  darts: {  // [V2+] - rec_league covers MVP league use case
     id: 'darts',
     label: 'Darts League',
     description: 'Dart leagues, tournaments, competitions',
@@ -344,7 +391,7 @@ var EVENT_TEMPLATES = {
     defaultExternalProvider: 'Custom'
   },
 
-  bags: {
+  bags: {  // [V2+] - rec_league covers MVP league use case
     id: 'bags',
     label: 'Bags / Cornhole',
     description: 'Cornhole leagues, bags tournaments',
@@ -367,7 +414,7 @@ var EVENT_TEMPLATES = {
     defaultExternalProvider: 'Custom'
   },
 
-  pinball: {
+  pinball: {  // [V2+] - rec_league covers MVP league use case
     id: 'pinball',
     label: 'Pinball League',
     description: 'Pinball leagues, arcade tournaments',
@@ -390,9 +437,9 @@ var EVENT_TEMPLATES = {
     defaultExternalProvider: 'Custom'
   },
 
-  // === Faith & Community Templates ===
+  // === Faith & Community Templates === [V2+]
 
-  church: {
+  church: {  // [V2+] - requires video/gallery features
     id: 'church',
     label: 'Church Event',
     description: 'Services, potlucks, community gatherings',
@@ -414,7 +461,7 @@ var EVENT_TEMPLATES = {
     }
   },
 
-  church_club: {
+  church_club: {  // [V2+] - requires gallery features
     id: 'church_club',
     label: "Church Group / Club",
     description: "Men's, women's, youth groups and ministries",
@@ -436,6 +483,7 @@ var EVENT_TEMPLATES = {
     }
   },
 
+  // [MVP] Custom template - blank slate, all options available
   custom: {
     id: 'custom',
     label: 'Custom Event',
@@ -477,22 +525,31 @@ function getEventTemplate_(templateId) {
 }
 
 /**
- * Apply template defaults to an event object (MVP)
- * Only sets values where user hasn't already provided data
- * Conforms to EVENT_CONTRACT.md v2.0
+ * Apply template defaults to an event object (MVP-frozen)
+ * Only sets values where user hasn't already provided data.
+ *
+ * IMPORTANT: This function MUST only set fields that exist in /schemas/event.schema.json (v2.2)
+ * If a field isn't in the schema, it doesn't get set here.
+ *
+ * Settings fields set by this function:
+ *   - showSchedule, showStandings, showBracket, showSponsors (section visibility)
+ *   - showSponsorBanner, showSponsorStrip, showLeagueStrip, showQRSection (surface toggles)
  *
  * @param {Object} event - Event object (can be partial data from form)
  * @param {string} templateId - Template ID to apply
  * @returns {Object} Modified event object with template defaults applied
+ * @see /schemas/event.schema.json Settings definition
+ * @see EVENT_CONTRACT.md
  */
 function applyTemplateToEvent_(event, templateId) {
   var tpl = getEventTemplate_(templateId);
 
-  // Set template reference
+  // === templateId: IN SCHEMA (MVP OPTIONAL) ===
   event.templateId = tpl.id;
 
-  // === Settings: Apply contract-aligned visibility flags ===
-  // EVENT_CONTRACT.md v2.0 shape: { showSchedule, showStandings, showBracket, showSponsors }
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Settings: MUST match /schemas/event.schema.json Settings (MVP-frozen v2.2)
+  // ═══════════════════════════════════════════════════════════════════════════
   event.settings = event.settings || {};
 
   // Map template sections to contract settings
@@ -503,6 +560,18 @@ function applyTemplateToEvent_(event, templateId) {
   // Template sections.sponsors → settings.showSponsors
   if (event.settings.showSponsors == null) {
     event.settings.showSponsors = !!(tpl.sections && tpl.sections.sponsors);
+  }
+  // Template sections.video → settings.showVideo
+  if (event.settings.showVideo == null) {
+    event.settings.showVideo = !!(tpl.sections && tpl.sections.video);
+  }
+  // Template sections.map → settings.showMap
+  if (event.settings.showMap == null) {
+    event.settings.showMap = !!(tpl.sections && tpl.sections.map);
+  }
+  // Template sections.gallery → settings.showGallery
+  if (event.settings.showGallery == null) {
+    event.settings.showGallery = !!(tpl.sections && tpl.sections.gallery);
   }
   // showStandings and showBracket - default false unless template has specific support
   if (event.settings.showStandings == null) {
@@ -516,71 +585,35 @@ function applyTemplateToEvent_(event, templateId) {
     event.settings.showBracket = bracketTemplates.includes(tpl.id);
   }
 
-  // === Legacy sections support (for backward compatibility) ===
-  // Keep sections for Admin UI form rendering, but settings is the source of truth for frontends
-  event.sections = event.sections || {};
-
-  var sectionKeys = ['video', 'map', 'schedule', 'sponsors', 'notes', 'gallery'];
-  sectionKeys.forEach(function(key) {
-    // Don't overwrite if user already set a section config
-    if (event.sections[key] == null) {
-      var enabled = tpl.sections[key] || false;
-      event.sections[key] = {
-        enabled: enabled,
-        title: null,  // Use default title from UI
-        content: null
-      };
-    } else if (typeof event.sections[key] === 'boolean') {
-      // Convert legacy boolean to SectionConfig
-      event.sections[key] = {
-        enabled: event.sections[key],
-        title: null,
-        content: null
-      };
-    }
-    // If it's already a SectionConfig object, leave it alone
-  });
-
-  // Apply custom titles from template defaults
-  if (tpl.defaults) {
-    if (tpl.defaults.notesLabel && event.sections.notes && !event.sections.notes.title) {
-      event.sections.notes.title = tpl.defaults.notesLabel;
-    }
-    if (tpl.defaults.sponsorStripLabel && event.sections.sponsors && !event.sections.sponsors.title) {
-      event.sections.sponsors.title = tpl.defaults.sponsorStripLabel;
-    }
+  // Surface-specific toggles (MVP Optional per schema, default true)
+  if (event.settings.showSponsorBanner == null) {
+    event.settings.showSponsorBanner = true;
+  }
+  if (event.settings.showSponsorStrip == null) {
+    event.settings.showSponsorStrip = true;
+  }
+  if (event.settings.showLeagueStrip == null) {
+    event.settings.showLeagueStrip = true;
+  }
+  if (event.settings.showQRSection == null) {
+    event.settings.showQRSection = true;
   }
 
-  // === CTA Labels: Convert template strings to CTALabel objects ===
-  // EVENT_CONTRACT.md shape: [{ key: string, label: string, url: string|null }]
-  if (!event.ctaLabels || !event.ctaLabels.length) {
-    event.ctaLabels = (tpl.defaultCtas || []).map(function(label, idx) {
-      return {
-        key: 'cta_' + idx,
-        label: label,
-        url: null  // Will be filled by specific URL fields (signupUrl, etc.)
-      };
-    });
-  }
-
-  // === Audience: Apply default if not set ===
-  if (!event.audience && tpl.defaults && tpl.defaults.audience) {
-    event.audience = tpl.defaults.audience;
-  }
-
-  // === Status: Default to 'draft' per EVENT_CONTRACT.md ===
-  if (!event.status) {
-    event.status = 'draft';
-  }
-
-  // === ExternalData: Seed providerName from template if not set ===
-  // Per EVENT_CONTRACT.md V1 rules: TemplateService seeds providerName for special templates
-  if (tpl.defaultExternalProvider) {
-    event.externalData = event.externalData || {};
-    if (!event.externalData.providerName) {
-      event.externalData.providerName = tpl.defaultExternalProvider;
-    }
-  }
+  // ═══════════════════════════════════════════════════════════════════════════
+  // [V2+] LEGACY FIELDS - REMOVED FROM MVP (not in /schemas/event.schema.json)
+  // ═══════════════════════════════════════════════════════════════════════════
+  //
+  // The following fields were deprecated and removed from the MVP contract:
+  //   - sections.*         → Use settings.showSchedule, settings.showSponsors, etc.
+  //   - ctaLabels[]        → Use ctas.primary, ctas.secondary
+  //   - notesLabel         → [V2+] Custom section labels
+  //   - sponsorStripLabel  → [V2+] Custom section labels
+  //   - audience           → [V2+] Event audience targeting
+  //   - status             → [V2+] Event lifecycle (draft|published|cancelled)
+  //
+  // These fields are NO LONGER written by applyTemplateToEvent_().
+  // Old data with these fields will be migrated by _buildEventContract_() in Code.gs.
+  // ═══════════════════════════════════════════════════════════════════════════
 
   return event;
 }

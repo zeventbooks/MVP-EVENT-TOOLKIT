@@ -3,13 +3,52 @@
 MVP SURFACE - Focus Group Critical
 ================================================================================
 Page: Poster.html
-Purpose: Printable event poster with QR code and sponsor branding
-Status: LOCKED for MVP v1.0
+Purpose: Printable event poster with QR codes and sponsor branding
+Status: HARDENED for MVP v1.0
 
-DO NOT modify this file's contracts without updating:
-  - NUSDK.html (API client)
-  - tests/e2e/* (end-to-end tests)
-  - tests/unit/* (unit tests)
+SCHEMA CONTRACT: /schemas/event.schema.json
+
+═══════════════════════════════════════════════════════════════════════════════
+READS FROM EVENT SCHEMA (via api_getPosterBundle):
+═══════════════════════════════════════════════════════════════════════════════
+  Identity (MVP Required):
+    - event.id              → Analytics tracking
+    - event.name            → #eventName heading
+    - event.startDateISO    → #eventDate (formatted)
+    - event.venue           → #eventLocation
+
+  Links (MVP Required):
+    - event.links.publicUrl → QR code label text
+    - event.links.signupUrl → QR code label text
+
+  QR Codes (MVP Required):
+    - event.qr.public       → Public page QR (base64 PNG)
+    - event.qr.signup       → Sign-up QR (base64 PNG)
+
+  CTAs (MVP Required):
+    - event.ctas.primary.label → Sign-up QR title text
+
+  Settings (V2 Optional):
+    - event.settings.showSponsors → Master sponsor toggle
+
+  Sponsors (V2 Optional):
+    - event.sponsors[].id, name, logoUrl, linkUrl, placement
+    - Filter: placement === 'poster'
+
+═══════════════════════════════════════════════════════════════════════════════
+SECTION GATES (schema-backed visibility):
+═══════════════════════════════════════════════════════════════════════════════
+  Sponsor Strip: if (settings.showSponsors && sponsors.some(s => s.placement === 'poster'))
+  QR Codes:      if (qr.public) → Public QR; if (qr.signup) → Signup QR
+
+  INVARIANT: "NO QR UNLESS VERIFIED URL"
+  Backend (_buildEventContract_ in Code.gs) enforces QR codes are ONLY
+  generated for validated URLs. Poster trusts event.qr.* as pre-verified.
+  DO NOT generate QR codes client-side from raw URL strings.
+
+DO NOT add fields without updating:
+  - /schemas/event.schema.json (source of truth)
+  - src/mvp/Code.gs (_buildEventContract_)
 
 Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
 ================================================================================
@@ -53,7 +92,7 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
       box-shadow: var(--shadow-sm, 0 2px 8px rgba(0,0,0,0.05));
     }
     .sponsor-strip img {
-      max-height: 70px;
+      max-height: var(--poster-sponsor-logo-height, 70px);
       object-fit: contain;
     }
     .sponsor-strip strong {
@@ -89,23 +128,7 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
       color: var(--color-gray-800, #1e293b);
       font-weight: 700;
     }
-    .event-image {
-      max-width: 100%;
-      height: auto;
-      border-radius: 12px;
-      margin: 24px 0;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    }
-    .event-summary {
-      font-size: 1.1rem;
-      line-height: 1.6;
-      color: #475569;
-      margin: 20px 0;
-      padding: 20px;
-      background: #f8fafc;
-      border-radius: 8px;
-      border-left: 4px solid #2563eb;
-    }
+    /* V2 REMOVED: .event-image and .event-summary CSS deleted - not in schema */
 
     /* Enhanced QR Codes */
     .qr-section {
@@ -180,45 +203,90 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
     }
 
     /* Print Styles - Optimized for printing */
+    /* PR-001, PR-002: Enhanced print safety margins and areas */
     @media print {
-      body { background: #fff; }
-      /* D-AUDIT: Increased container padding for print safety margins */
-      .poster-container {
-        padding: 0.5in 0.25in; /* Inner padding within page margins */
-        max-width: 100%; /* Allow full page width in print */
+      @page {
+        margin: 0.5in;
+        size: letter portrait;  /* Explicit paper size */
       }
+
+      body {
+        background: #fff;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      .poster-container {
+        padding: 0;  /* @page margin handles outer spacing */
+        max-width: 100%;
+      }
+
+      /* PR-002: Safe area for sponsor strip */
       .sponsor-strip {
         border: 0;
-        padding-bottom: 12px;
+        padding: 12px 0.25in;  /* Inset from edge for print safety */
         box-shadow: none;
         background: #fff;
+        margin: 0 -0.25in;
+        width: calc(100% + 0.5in);
       }
+
       .event-details {
         background: #fff;
+        padding: 16px 0;
       }
+
+      /* PR-003: Prevent title overflow on print */
+      .event-details h1 {
+        font-size: clamp(1.5rem, 6vw, 2.5rem);
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        hyphens: auto;
+      }
+
       .qr-grid {
         gap: 16px;
         page-break-inside: avoid;
       }
+
       .qr-code {
         box-shadow: none;
         page-break-inside: avoid;
+        border-width: 2px;
       }
+
       .qr-code:hover {
         transform: none;
       }
+
+      .qr-section {
+        page-break-inside: avoid;
+      }
+
       .qr-section h2::before {
         content: "";
       }
-      /* D-AUDIT: Increased page margin from 0.5in to 0.75in for printer-safe area */
-      /* Most consumer printers need 0.5-1in margins for safe printing */
-      @page {
-        margin: 0.75in;
-        size: letter; /* 8.5in x 11in default */
+
+      /* Hide interactive elements in print */
+      .btn-retry,
+      .site-footer a {
+        text-decoration: none;
+        color: inherit;
       }
-      /* Hide footer in print for more content space */
-      .site-footer {
-        display: none;
+    }
+
+    /* Narrow print media (e.g., A5, receipt printers) */
+    @media print and (max-width: 6in) {
+      .qr-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .event-details h1 {
+        font-size: 1.5rem;
+      }
+
+      .sponsor-strip img {
+        max-height: 48px;
       }
     }
 
@@ -285,6 +353,43 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
     .error-state p { color: #b91c1c; }
     /* .btn-retry - Now centralized in Styles.html (C-001) */
     /* .site-footer - Now centralized in FooterComponent.html (D-005) */
+
+    /* Feature 6: Poster Auto-Branding Watermark */
+    .poster-watermark {
+      text-align: center;
+      margin-top: 32px;
+      padding: 16px 0;
+      border-top: 2px solid #e2e8f0;
+    }
+    .watermark-text {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #94a3b8;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .watermark-text::before {
+      content: "📐";
+      font-size: 1.1rem;
+    }
+    /* Print-friendly watermark */
+    @media print {
+      .poster-watermark {
+        margin-top: 24px;
+        padding: 12px 0;
+        border-top-width: 1px;
+      }
+      .watermark-text {
+        font-size: 0.75rem;
+        color: #64748b;
+      }
+      .watermark-text::before {
+        content: "";
+      }
+    }
   </style>
 </head>
 <body>
@@ -292,30 +397,26 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
     <!-- Sponsor Strip (Top) -->
     <div id="sponsorStrip" class="sponsor-strip" hidden></div>
 
-    <!-- Event Details -->
+    <!-- Event Details - Schema fields: name, startDateISO, venue -->
     <div class="event-details">
       <h1 id="eventName">Event Name</h1>
       <div class="event-meta">
         <div id="eventDate"></div>
-        <div id="eventTime"></div>
         <div id="eventLocation"></div>
-        <div id="eventEntity"></div>
       </div>
     </div>
-
-    <!-- Event Image -->
-    <div id="eventImageContainer" hidden>
-      <img id="eventImage" class="event-image" alt="Event Image">
-    </div>
-
-    <!-- Event Summary -->
-    <div id="eventSummary" class="event-summary" hidden></div>
+    <!-- V2 REMOVED: eventTime, eventEntity, eventImage, eventSummary - not in schema -->
 
     <!-- QR Codes Section -->
     <section class="qr-section">
       <h2>Scan to Connect</h2>
       <div id="qrGrid" class="qr-grid"></div>
     </section>
+
+    <!-- Feature 6: Auto-Branding Watermark -->
+    <div class="poster-watermark">
+      <span class="watermark-text">Powered by EventAngle</span>
+    </div>
   </div>
 
   <!-- Trust Footer -->
@@ -350,32 +451,24 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
 
     /**
      * Render event details section
-     * EVENT_CONTRACT.md v2.0: Uses canonical fields directly, no fallback chains
+     * SCHEMA: /schemas/event.schema.json
      *
-     * Contract fields used:
+     * Fields used (ALL from schema):
      * - event.name (MVP Required)
      * - event.startDateISO (MVP Required)
      * - event.venue (MVP Required)
-     * - event.media.imageUrl (V2 Optional)
      */
     function renderEventDetails(event) {
-      // === CONTRACT FIELDS (MVP REQUIRED) ===
-      // Trust the contract - no fallback chains
+      // === SCHEMA FIELDS ONLY ===
       const name = event.name || 'Event Name';
       const startDateISO = event.startDateISO || '';
       const venue = event.venue || '';
 
-      // === CONTRACT FIELDS (V2 OPTIONAL) ===
-      const media = event.media || {};
-      const imageUrl = media.imageUrl || '';
-
-      // Event Name (MVP Required)
+      // Event Name → #eventName
       document.getElementById('eventName').textContent = name;
 
-      // Date - parse from event.startDateISO (MVP Required)
+      // Date → #eventDate (parsed from startDateISO)
       const dateEl = document.getElementById('eventDate');
-      const timeEl = document.getElementById('eventTime');
-
       if (startDateISO) {
         const date = new Date(startDateISO + 'T00:00:00');
         if (!isNaN(date.getTime())) {
@@ -384,79 +477,64 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
           })}`;
         }
       }
-      // Hide time element - MVP v2.0 doesn't have time
-      timeEl.hidden = true;
 
-      // Venue (MVP Required) - event.venue
+      // Venue → #eventLocation
       const locEl = document.getElementById('eventLocation');
       if (venue) {
         locEl.innerHTML = `<strong>Location:</strong> ${esc(venue)}`;
       }
-
-      // Entity (hosted by) - not in contract, hidden
-      const entityEl = document.getElementById('eventEntity');
-      entityEl.hidden = true;
-
-      // Event Image (V2 Optional) - event.media.imageUrl
-      if (imageUrl) {
-        document.getElementById('eventImage').src = imageUrl;
-        document.getElementById('eventImageContainer').hidden = false;
-      }
-
-      // Summary - not in MVP contract, hidden
-      document.getElementById('eventSummary').hidden = true;
     }
 
     /**
      * Render QR codes section
-     * EVENT_CONTRACT.md v2.0: Uses canonical QR and links fields
+     * SCHEMA: /schemas/event.schema.json
      *
-     * Contract fields used:
+     * Fields used (ALL from schema):
      * - event.qr.public (MVP Required) - Base64 PNG data URI
      * - event.qr.signup (MVP Required) - Base64 PNG data URI
-     * - event.links.publicUrl (MVP Required) - shown as text
-     * - event.links.signupUrl (MVP Required) - shown as text
-     * - event.ctas.primary.label (MVP Required) - button label
+     * - event.links.publicUrl (MVP Required) - URL text below QR
+     * - event.links.signupUrl (MVP Required) - URL text below QR
+     * - event.ctas.primary.label (MVP Required) - Sign-up button label
+     *
+     * QR codes MUST come from event.qr.* - no manual generation.
      */
     function renderQRCodes(event) {
       const el = document.getElementById('qrGrid');
       el.innerHTML = '';
 
-      // === CONTRACT FIELDS (MVP REQUIRED) ===
+      // === SCHEMA FIELDS ===
       const qr = event.qr || {};
       const links = event.links || {};
       const ctas = event.ctas || { primary: { label: 'Sign Up', url: '' } };
 
-      // QR Code 1: Sign Up - event.qr.signup + event.links.signupUrl
+      // QR Code 1: Sign Up - MUST use event.qr.signup (no manual generation)
       const signupQR = qr.signup;
       const signupUrl = links.signupUrl || '';
       const signupLabel = ctas.primary?.label || 'Sign Up';
 
-      if (signupQR || signupUrl) {
-        // Use pre-generated QR from contract, fallback to quickchart.io
-        const qrSrc = signupQR || `https://quickchart.io/qr?text=${encodeURIComponent(signupUrl)}&size=200&margin=1`;
+      if (signupQR) {
+        // Only render if server-generated QR is present
         el.innerHTML += `
           <div class="qr-code">
             <h3>${esc(signupLabel)}</h3>
             <h4>Register Now</h4>
-            <img alt="Sign Up QR Code" src="${qrSrc}">
+            <img alt="Sign Up QR Code" src="${signupQR}">
             <p>${esc(signupUrl)}</p>
           </div>
         `;
       }
 
-      // QR Code 2: Public Event Page - event.qr.public + event.links.publicUrl
+      // QR Code 2: Public Event Page - MUST use event.qr.public (no manual generation)
       const publicQR = qr.public;
       const publicUrl = links.publicUrl || '';
 
-      if (publicQR || publicUrl) {
-        // Use pre-generated QR from contract, fallback to quickchart.io
-        const qrSrc = publicQR || `https://quickchart.io/qr?text=${encodeURIComponent(publicUrl)}&size=200&margin=1`;
+      if (publicQR) {
+        // Only render if server-generated QR is present
         el.innerHTML += `
           <div class="qr-code">
             <h3>Event Page</h3>
             <h4>View Details</h4>
-            <img alt="Public Page QR Code" src="${qrSrc}">
+            <img alt="Public Page QR Code" src="${publicQR}">
             <p>${esc(publicUrl)}</p>
           </div>
         `;
@@ -470,14 +548,14 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
 
     /**
      * Render poster from event data
-     * EVENT_CONTRACT.md v2.0: Uses getPosterBundle for poster-specific data
+     * SCHEMA: /schemas/event.schema.json
      *
-     * Contract fields used:
+     * Fields used (ALL from schema):
      * - event.name, event.startDateISO, event.venue (MVP Required)
      * - event.qr.public, event.qr.signup (MVP Required)
      * - event.links.publicUrl, event.links.signupUrl (MVP Required)
-     * - event.settings.showSponsors (MVP Required)
-     * - event.sponsors with placement === 'poster' (V2 Optional)
+     * - event.settings.showSponsors (V2 Optional)
+     * - event.sponsors[] with placement === 'poster' (V2 Optional)
      */
     function renderPoster(event) {
       if (!event) {
@@ -495,18 +573,17 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
       // Log poster view
       logEvent({ eventId: event.id, surface: 'poster', metric: 'view', value: 1 });
 
-      // === CONTRACT FIELDS ===
+      // === SCHEMA FIELDS ===
       const settings = event.settings || { showSponsors: false };
       const sponsors = event.sponsors || [];
 
-      // === RESERVED POSTER SPONSOR BAND ===
-      // Uses event.settings.showSponsors and event.sponsors with placement === 'poster'
+      // === SPONSOR STRIP (V2 Optional) ===
+      // Schema: event.sponsors[].placement MUST be 'poster' - no fallback
       const sponsorStrip = document.getElementById('sponsorStrip');
       if (settings.showSponsors && sponsors.length > 0) {
-        // Filter sponsors with 'poster' placement
-        const posterSponsors = sponsors.filter(s => s.placement === 'poster' || !s.placement);
+        // STRICT: Only sponsors with placement === 'poster' (schema-required field)
+        const posterSponsors = sponsors.filter(s => s.placement === 'poster');
         if (posterSponsors.length > 0) {
-          // Use unified SponsorRenderer from SponsorUtils
           const { SponsorRenderer } = window.SponsorUtils;
           SponsorRenderer.renderStrip({
             container: sponsorStrip,
@@ -517,12 +594,10 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
             showTier: false
           });
         } else {
-          // Reserved: Sponsor strip exists but hidden when no poster sponsors
           sponsorStrip.innerHTML = '';
           sponsorStrip.hidden = true;
         }
       } else {
-        // Reserved: Sponsor strip container exists but hidden by default
         sponsorStrip.innerHTML = '';
         sponsorStrip.hidden = true;
       }
@@ -539,11 +614,8 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
 
     /**
      * Boot Poster.html
-     * EVENT_CONTRACT.md v2.0: Uses api_getPosterBundle for poster-specific data
-     *
-     * PosterBundle returns:
-     * - event: Full canonical Event shape
-     * - qrCodes: { publicUrl, signupUrl } - QuickChart URLs for print
+     * API: api_getPosterBundle → { event, qrCodes, print }
+     * SCHEMA: /schemas/event.schema.json
      */
     async function boot() {
       const res = await NU.rpc('api_getPosterBundle', { brandId: BRAND, scope: SCOPE, id: ID });

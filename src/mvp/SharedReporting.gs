@@ -3,17 +3,92 @@
 // =============================================================================
 // Used by: SharedReport.html
 //
-// MVP-Critical API in this file:
-//   - api_getSharedAnalytics() → Shared analytics dashboard
+// ═══════════════════════════════════════════════════════════════════════════════
+// [MVP] SERVICE CONTRACT
+// ═══════════════════════════════════════════════════════════════════════════════
 //
-// DO NOT change API contracts without updating:
-//   - NUSDK.html (API client)
-//   - tests/e2e/* (end-to-end tests)
-//   - tests/unit/* (unit tests)
+// READS:
+//   ← Analytics sheet (via _ensureAnalyticsSheet_())
+//
+// WRITES: None (read-only reporting service)
+//
+// OUTPUT SHAPES:
+//   → SharedAnalytics: /schemas/shared-analytics.schema.json (MVP-frozen v1.1)
+//
+// ═══════════════════════════════════════════════════════════════════════════════
+// SharedAnalytics SHAPE - FROZEN (MVP v1.1)
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// THIS FILE IS THE ONLY PLACE that builds the SharedAnalytics response shape.
+// buildSharedAnalyticsResponse_() is the single source of truth.
+//
+// FROZEN SHAPE:
+// {
+//   lastUpdatedISO: string,
+//   summary: {
+//     totalImpressions: number,
+//     totalClicks: number,
+//     totalQrScans: number,
+//     totalSignups: number,
+//     uniqueEvents: number,
+//     uniqueSponsors: number
+//   },
+//   surfaces: Array<{ id, label, impressions, clicks, qrScans, engagementRate }>,
+//   sponsors: Array<{ id, name, impressions, clicks, ctr }> | null,
+//   events: Array<{ id, name, impressions, clicks, ctr }> | null
+// }
+//
+// ═══════════════════════════════════════════════════════════════════════════════
+// FIELD → SOURCE MAPPING
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// SharedAnalytics.lastUpdatedISO
+//   → new Date().toISOString() (generated at response time)
+//
+// SharedAnalytics.summary
+//   → buildSharedAnalyticsResponse_() counts metrics from filtered analytics
+//   → totalImpressions:  filter(metric === 'impression').length
+//   → totalClicks:       filter(metric === 'click').length
+//   → totalQrScans:      filter(metric === 'qr_scan').length
+//   → totalSignups:      filter(metric === 'signup').length
+//   → uniqueEvents:      Set(eventId).size
+//   → uniqueSponsors:    Set(sponsorId).size
+//
+// SharedAnalytics.surfaces
+//   → buildSurfacesArray_(analytics)
+//   → Groups by surface id, counts impressions/clicks/qrScans per surface
+//   → Calculates engagementRate = (clicks + qrScans) / impressions * 100
+//
+// SharedAnalytics.sponsors
+//   → buildSponsorsArray_(analytics) [organizer view only]
+//   → Groups by sponsorId, counts impressions/clicks per sponsor
+//   → Calculates ctr = clicks / impressions * 100
+//
+// SharedAnalytics.events
+//   → buildEventsArray_(analytics)
+//   → Groups by eventId, counts impressions/clicks per event
+//   → Calculates ctr = clicks / impressions * 100
+//
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// DO NOT add new fields without updating:
+//   - /schemas/shared-analytics.schema.json (source of truth)
+//   - ApiSchemas.gs (runtime validation)
+//   - SharedReport.html (consumer)
+//   - AnalyticsService.gs (locked metrics list)
+//
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// MVP-Critical APIs in this file:
+//   - api_getSharedAnalytics() → Organizer view (all sponsors/events)
+//   - api_getSponsorAnalytics() → Sponsor view (scoped to sponsorId)
+//
 // =============================================================================
 
 /**
  * Shared Reporting System for Event Managers & Sponsors
+ *
+ * SCHEMA: /schemas/analytics.schema.json (MVP-frozen v1.1)
  *
  * Single Source of Truth for:
  * - Event Performance Metrics
@@ -24,27 +99,21 @@
  */
 
 /**
- * Get Shared Event-Sponsor Analytics
+ * Get Shared Event-Sponsor Analytics (Organizer View)
  *
- * Returns metrics useful for BOTH event managers and sponsors:
- * - Event impressions (views)
- * - Sponsor impressions per event
- * - Sponsor click-through rates
- * - Event engagement by surface (public, display, poster)
- * - Time-based trends
+ * SCHEMA CONTRACT: /schemas/analytics.schema.json (MVP-frozen v1.1)
+ * Returns the SharedAnalytics shape expected by SharedReport.html
  *
  * @param {Object} params - Query parameters
  * @param {string} params.brandId - Brand ID
  * @param {string} [params.eventId] - Filter by specific event
  * @param {string} [params.sponsorId] - Filter by specific sponsor (for sponsor view)
- * @param {string} [params.startDate] - ISO date string
- * @param {string} [params.endDate] - ISO date string
- * @param {boolean} [params.isSponsorView=false] - True if sponsor is requesting (filters to their data only)
- * @returns {Object} Shared analytics
+ * @param {boolean} [params.isSponsorView=false] - True if sponsor is requesting
+ * @returns {Object} SharedAnalytics shape per schema contract
  */
 function api_getSharedAnalytics(params) {
   try {
-    const { brandId, eventId, sponsorId, startDate, endDate, isSponsorView = false } = params;
+    const { brandId, eventId, sponsorId, isSponsorView = false } = params;
 
     if (!brandId) {
       return Err(ERR.BAD_INPUT, 'brandId required');
@@ -53,7 +122,6 @@ function api_getSharedAnalytics(params) {
     // Get analytics sheet
     const analyticsSheet = _ensureAnalyticsSheet_();
     const rows = analyticsSheet.getDataRange().getValues();
-    const headers = rows[0];
 
     // Parse analytics data
     const analytics = rows.slice(1).map(row => ({
@@ -62,67 +130,219 @@ function api_getSharedAnalytics(params) {
       surface: row[2],
       metric: row[3],
       sponsorId: row[4],
-      value: row[5],
-      token: row[6],
-      userAgent: row[7]
+      value: row[5]
     }));
 
     // Filter by parameters
-    let filtered = analytics.filter(a => a.eventId); // Has event ID
+    let filtered = analytics.filter(a => a.eventId);
 
     if (eventId) {
       filtered = filtered.filter(a => a.eventId === eventId);
     }
 
     if (sponsorId || isSponsorView) {
-      // Sponsor view: only show their own data
       filtered = filtered.filter(a => a.sponsorId === (sponsorId || params.sponsorId));
     }
 
-    if (startDate) {
-      const start = new Date(startDate);
-      filtered = filtered.filter(a => new Date(a.timestamp) >= start);
-    }
+    // Build SharedAnalytics response per schema contract
+    const response = buildSharedAnalyticsResponse_(filtered, isSponsorView);
 
-    if (endDate) {
-      const end = new Date(endDate);
-      filtered = filtered.filter(a => new Date(a.timestamp) <= end);
-    }
-
-    // Calculate shared metrics
-    const metrics = {
-      // Overview metrics (shared by both)
-      totalImpressions: filtered.filter(a => a.metric === 'impression').length,
-      totalClicks: filtered.filter(a => a.metric === 'click').length,
-      // Fixed: Bug #41 - Limit data size to prevent memory issues
-      uniqueEvents: Math.min(new Set(filtered.slice(0, 10000).map(a => a.eventId)).size, filtered.length),
-      uniqueSponsors: Math.min(new Set(filtered.slice(0, 10000).filter(a => a.sponsorId).map(a => a.sponsorId)).size, filtered.length),
-
-      // Engagement rate (shared key metric)
-      engagementRate: calculateEngagementRate_(filtered),
-
-      // By surface (shared - shows where engagement happens)
-      bySurface: groupBySurface_(filtered),
-
-      // By event (for event managers)
-      byEvent: !isSponsorView ? groupByEvent_(filtered) : null,
-
-      // By sponsor (for sponsors AND event managers)
-      bySponsor: groupBySponsor_(filtered),
-
-      // Time-based trends (shared)
-      dailyTrends: calculateDailyTrends_(filtered),
-
-      // Top performing combinations
-      topEventSponsorPairs: getTopEventSponsorPairs_(filtered, 10)
-    };
-
-    return Ok(metrics);
+    return Ok(response);
 
   } catch (e) {
     diag_('error', 'api_getSharedAnalytics', e.toString());
     return Err(ERR.INTERNAL, 'Failed to get analytics');
   }
+}
+
+/**
+ * Get Sponsor-Scoped Analytics (Sponsor View)
+ *
+ * SCHEMA CONTRACT: /schemas/analytics.schema.json (MVP-frozen v1.1)
+ * Returns the SharedAnalytics shape scoped to a specific sponsor.
+ *
+ * Used by SharedReport.html when ?sponsor=true&sponsorId=XXX is in URL.
+ *
+ * @param {Object} params - Query parameters
+ * @param {string} params.brandId - Brand ID
+ * @param {string} params.sponsorId - Sponsor ID (required for sponsor view)
+ * @param {string} [params.eventId] - Optional event filter
+ * @returns {Object} SharedAnalytics shape per schema contract (sponsor-scoped)
+ */
+function api_getSponsorAnalytics(params) {
+  try {
+    const { brandId, sponsorId, eventId } = params;
+
+    if (!brandId) {
+      return Err(ERR.BAD_INPUT, 'brandId required');
+    }
+    if (!sponsorId) {
+      return Err(ERR.BAD_INPUT, 'sponsorId required for sponsor analytics');
+    }
+
+    // Delegate to getSharedAnalytics with isSponsorView=true
+    return api_getSharedAnalytics({
+      brandId,
+      sponsorId,
+      eventId,
+      isSponsorView: true
+    });
+
+  } catch (e) {
+    diag_('error', 'api_getSponsorAnalytics', e.toString());
+    return Err(ERR.INTERNAL, 'Failed to get sponsor analytics');
+  }
+}
+
+/**
+ * Build SharedAnalytics response matching /schemas/analytics.schema.json (MVP-frozen v1.1)
+ *
+ * SCHEMA SHAPE:
+ *   { lastUpdatedISO, summary, surfaces, sponsors?, events? }
+ *
+ * @param {Array} analytics - Filtered analytics rows
+ * @param {boolean} isSponsorView - Whether this is sponsor-scoped view
+ * @returns {Object} SharedAnalytics shape per schema
+ */
+function buildSharedAnalyticsResponse_(analytics, isSponsorView) {
+  // Count metrics
+  const impressions = analytics.filter(a => a.metric === 'impression');
+  const clicks = analytics.filter(a => a.metric === 'click');
+  const qrScans = analytics.filter(a => a.metric === 'qr_scan');
+  const signups = analytics.filter(a => a.metric === 'signup');
+
+  // Unique counts (limit to prevent memory issues)
+  const eventIds = new Set(analytics.slice(0, 10000).map(a => a.eventId).filter(Boolean));
+  const sponsorIds = new Set(analytics.slice(0, 10000).map(a => a.sponsorId).filter(Boolean));
+
+  // Build surfaces array
+  const surfaces = buildSurfacesArray_(analytics);
+
+  // Build sponsors array (for organizer view)
+  const sponsors = !isSponsorView ? buildSponsorsArray_(analytics) : null;
+
+  // Build events array
+  const events = buildEventsArray_(analytics);
+
+  return {
+    lastUpdatedISO: new Date().toISOString(),
+    summary: {
+      totalImpressions: impressions.length,
+      totalClicks: clicks.length,
+      totalQrScans: qrScans.length,
+      totalSignups: signups.length,
+      uniqueEvents: eventIds.size,
+      uniqueSponsors: sponsorIds.size
+    },
+    surfaces: surfaces,
+    sponsors: sponsors,
+    events: events.length > 0 ? events : null
+  };
+}
+
+/**
+ * Build surfaces array per schema: { id, label, impressions, clicks, qrScans, engagementRate }
+ */
+function buildSurfacesArray_(analytics) {
+  const surfaceMap = {};
+
+  // Surface labels mapping
+  const SURFACE_LABELS = {
+    'poster': 'Poster',
+    'display': 'Display',
+    'public': 'Public',
+    'signup': 'Signup',
+    'admin': 'Admin'
+  };
+
+  analytics.forEach(a => {
+    const surfaceId = (a.surface || 'unknown').toLowerCase();
+
+    if (!surfaceMap[surfaceId]) {
+      surfaceMap[surfaceId] = {
+        id: surfaceId,
+        label: SURFACE_LABELS[surfaceId] || surfaceId,
+        impressions: 0,
+        clicks: 0,
+        qrScans: 0
+      };
+    }
+
+    if (a.metric === 'impression') surfaceMap[surfaceId].impressions++;
+    if (a.metric === 'click') surfaceMap[surfaceId].clicks++;
+    if (a.metric === 'qr_scan') surfaceMap[surfaceId].qrScans++;
+  });
+
+  // Calculate engagement rate and convert to array
+  return Object.values(surfaceMap).map(s => {
+    const totalEngagement = s.clicks + s.qrScans;
+    s.engagementRate = s.impressions > 0
+      ? Number(((totalEngagement / s.impressions) * 100).toFixed(1))
+      : 0;
+    return s;
+  }).sort((a, b) => b.impressions - a.impressions);
+}
+
+/**
+ * Build sponsors array per schema: { id, name, impressions, clicks, ctr }
+ */
+function buildSponsorsArray_(analytics) {
+  const sponsorMap = {};
+
+  analytics.forEach(a => {
+    if (!a.sponsorId) return;
+
+    if (!sponsorMap[a.sponsorId]) {
+      sponsorMap[a.sponsorId] = {
+        id: a.sponsorId,
+        name: a.sponsorId, // TODO: Look up actual name from sponsors sheet
+        impressions: 0,
+        clicks: 0
+      };
+    }
+
+    if (a.metric === 'impression') sponsorMap[a.sponsorId].impressions++;
+    if (a.metric === 'click') sponsorMap[a.sponsorId].clicks++;
+  });
+
+  // Calculate CTR and convert to array
+  return Object.values(sponsorMap).map(s => {
+    s.ctr = s.impressions > 0
+      ? Number(((s.clicks / s.impressions) * 100).toFixed(2))
+      : 0;
+    return s;
+  }).sort((a, b) => b.impressions - a.impressions);
+}
+
+/**
+ * Build events array per schema: { id, name, impressions, clicks, ctr }
+ */
+function buildEventsArray_(analytics) {
+  const eventMap = {};
+
+  analytics.forEach(a => {
+    if (!a.eventId) return;
+
+    if (!eventMap[a.eventId]) {
+      eventMap[a.eventId] = {
+        id: a.eventId,
+        name: a.eventId, // TODO: Look up actual name from events sheet
+        impressions: 0,
+        clicks: 0
+      };
+    }
+
+    if (a.metric === 'impression') eventMap[a.eventId].impressions++;
+    if (a.metric === 'click') eventMap[a.eventId].clicks++;
+  });
+
+  // Calculate CTR and convert to array
+  return Object.values(eventMap).map(e => {
+    e.ctr = e.impressions > 0
+      ? Number(((e.clicks / e.impressions) * 100).toFixed(2))
+      : 0;
+    return e;
+  }).sort((a, b) => b.impressions - a.impressions);
 }
 
 /**

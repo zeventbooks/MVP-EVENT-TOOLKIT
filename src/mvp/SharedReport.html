@@ -6,12 +6,68 @@ Page: SharedReport.html
 Purpose: Shareable analytics dashboard for stakeholders and sponsors
 Status: LOCKED for MVP v1.0
 
-DO NOT modify this file's contracts without updating:
-  - NUSDK.html (API client)
-  - tests/e2e/* (end-to-end tests)
-  - tests/unit/* (unit tests)
+SCHEMA CONTRACT: /schemas/shared-analytics.schema.json (v1.1 frozen)
 
-Related MVP Surfaces: Admin, Poster, Display, Public, Sponsor
+═══════════════════════════════════════════════════════════════════════════════
+READS FROM SHAREDANALYTICS SCHEMA (via api_getSharedAnalytics):
+═══════════════════════════════════════════════════════════════════════════════
+  Root (MVP Required):
+    - lastUpdatedISO           → Last updated timestamp display
+    - summary                  → Key metrics cards
+    - surfaces[]               → Surface performance table
+
+  Root (MVP Optional):
+    - sponsors[]               → Sponsor performance table
+    - events[]                 → Event performance table (if present)
+
+  Summary Fields (MVP Required):
+    - summary.totalImpressions → "Total Impressions" metric card
+    - summary.totalClicks      → "Total Clicks" metric card
+    - summary.totalQrScans     → "QR Scans" metric card
+    - summary.totalSignups     → "Signups" metric card
+    - summary.uniqueEvents     → "Active Events" metric card
+    - summary.uniqueSponsors   → "Active Sponsors" metric card
+
+  SurfaceMetrics[] (MVP Required):
+    - surface.id               → Surface identifier
+    - surface.label            → Display name
+    - surface.impressions      → Table column
+    - surface.clicks           → Table column
+    - surface.qrScans          → Table column
+    - surface.engagementRate   → Badge (derived if missing)
+
+  SponsorMetrics[] (MVP Optional):
+    - sponsor.id               → Row key
+    - sponsor.name             → Display name
+    - sponsor.impressions      → Table column
+    - sponsor.clicks           → Table column
+    - sponsor.ctr              → CTR badge
+
+  EventMetrics[] (MVP Optional):
+    - event.id                 → Row key
+    - event.name               → Display name + rank badge
+    - event.impressions        → Table column + Top callout
+    - event.clicks             → Table column
+    - event.ctr                → CTR badge + Top callout
+
+═══════════════════════════════════════════════════════════════════════════════
+SECTION GATES (schema-backed visibility):
+═══════════════════════════════════════════════════════════════════════════════
+  Metrics Grid:       Always shown (summary is required)
+  Surface Table:      Always shown (surfaces[] is required)
+  Sponsor Table:      if (sponsors?.length) → renderSponsorPerformance()
+  Event Table:        if (events?.length) → renderEventPerformance()
+  Top Callouts:       if (events?.length || sponsors?.length) → renderTopCallouts()
+
+  NO freelancing: JS only accesses fields defined in shared-analytics.schema.json
+
+API ENDPOINTS:
+  - api_getSharedAnalytics({ brandId }) → SharedAnalytics
+  - api_getSponsorAnalytics({ brandId, sponsorId }) → SharedAnalytics (scoped)
+
+DO NOT modify contracts without updating:
+  - /schemas/shared-analytics.schema.json (source of truth)
+  - NUSDK.html (API client)
 ================================================================================
 -->
 <!DOCTYPE html>
@@ -52,10 +108,10 @@ Related MVP Surfaces: Admin, Poster, Display, Public, Sponsor
       font-size: var(--font-size-sm, 0.875rem); /* D-AUDIT: Using design token */
     }
 
-    /* Override metrics-grid for 5-column layout on desktop */
+    /* Override metrics-grid for 6-column layout (3x2) on desktop */
     @media (min-width: 1024px) {
       .metrics-grid {
-        grid-template-columns: repeat(5, 1fr);
+        grid-template-columns: repeat(3, 1fr);
       }
     }
 
@@ -218,7 +274,7 @@ Related MVP Surfaces: Admin, Poster, Display, Public, Sponsor
     }
 
     @media (min-width: 1024px) {
-      .metrics-grid { grid-template-columns: repeat(5, 1fr); }
+      .metrics-grid { grid-template-columns: repeat(3, 1fr); }
     }
 
     /* Metric card overrides for SharedReport */
@@ -281,14 +337,63 @@ Related MVP Surfaces: Admin, Poster, Display, Public, Sponsor
     .error-state p { color: #b91c1c; }
     /* .btn-retry - Now centralized in Styles.html (C-001) */
     /* .site-footer - Now centralized in FooterComponent.html (D-005) */
+
+    /* Feature 5: Top Event / Top Sponsor Callout Cards */
+    .top-callout {
+      background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+      border: 2px solid #f59e0b;
+      border-radius: var(--radius-md, 12px);
+      padding: 20px;
+      text-align: center;
+      box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2);
+    }
+    .top-callout.event {
+      background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+      border-color: #3b82f6;
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+    }
+    .top-callout .callout-icon {
+      font-size: 2rem;
+      margin-bottom: 8px;
+    }
+    .top-callout .callout-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #92400e;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .top-callout.event .callout-label {
+      color: #1e40af;
+    }
+    .top-callout .callout-name {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 8px;
+    }
+    .top-callout .callout-stats {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      font-size: 0.875rem;
+      color: #64748b;
+    }
+    .top-callout .callout-stats strong {
+      color: #1e293b;
+    }
+    @media (max-width: 640px) {
+      #topCallouts { grid-template-columns: 1fr !important; }
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <!-- Header -->
     <div class="report-header">
-      <h1>📊 Shared Event-Sponsor Analytics</h1>
-      <p class="subtitle">Single source of truth for Event Managers & Sponsors</p>
+      <h1 id="reportTitle">📊 Shared Event-Sponsor Analytics</h1>
+      <p class="subtitle" id="reportSubtitle">Single source of truth for Event Managers & Sponsors</p>
       <p class="subtitle" id="lastUpdated">Loading...</p>
     </div>
 
@@ -315,6 +420,9 @@ Related MVP Surfaces: Admin, Poster, Display, Public, Sponsor
     <div id="metrics" style="display:none;">
       <div class="metrics-grid" id="metricsGrid"></div>
 
+      <!-- Feature 5: Top Event / Top Sponsor Callouts -->
+      <div id="topCallouts" class="metrics-grid" style="grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 24px;"></div>
+
       <!-- Surface Performance -->
       <div class="section-card">
         <h2>🌐 Performance by Surface</h2>
@@ -327,37 +435,14 @@ Related MVP Surfaces: Admin, Poster, Display, Public, Sponsor
         <div id="sponsorPerformance"></div>
       </div>
 
-      <!-- ROI & Surface Breakdown (Sponsors Only) -->
-      <div class="section-card" id="sponsorROICard" style="display:none;">
-        <h2>💰 ROI & Performance Breakdown</h2>
-        <div id="sponsorROI"></div>
-      </div>
-
-      <!-- Event Breakdown (Sponsors Only) -->
-      <div class="section-card" id="sponsorEventsCard" style="display:none;">
-        <h2>🎯 Performance by Event</h2>
-        <div id="sponsorEvents"></div>
-      </div>
-
-      <!-- Event Performance (Event Managers Only) -->
+      <!-- Event Performance -->
       <div class="section-card" id="eventPerformanceCard" style="display:none;">
         <h2>🎉 Event Performance</h2>
         <div id="eventPerformance"></div>
       </div>
 
-      <!-- Trends -->
-      <div class="section-card">
-        <h2>📈 Daily Trends</h2>
-        <div class="chart-container">
-          Chart: Daily Impressions & Clicks Over Time
-        </div>
-      </div>
-
-      <!-- Recommendations -->
-      <div class="section-card">
-        <h2>💡 Recommendations</h2>
-        <div id="recommendations"></div>
-      </div>
+      <!-- V2 HIDDEN: ROI, Daily Trends, Recommendations require backend work -->
+      <!-- Sections removed to keep MVP honest -->
     </div>
 
     <!-- Error State (hidden by default) -->
@@ -379,118 +464,230 @@ Related MVP Surfaces: Admin, Poster, Display, Public, Sponsor
   <script>
     const BRAND_ID = '<?= brandId ?>';
 
-    // Detect sponsor view from URL params
+    // URL parameters control whether this is a sponsor-scoped view
     const urlParams = new URLSearchParams(window.location.search);
     const IS_SPONSOR_VIEW = urlParams.get('sponsor') === 'true';
     const SPONSOR_ID = urlParams.get('sponsorId') || '';
     const EVENT_ID = urlParams.get('eventId') || '';
 
+    // Update header for sponsor view
+    function updateHeaderForSponsorView(sponsorName) {
+      if (!IS_SPONSOR_VIEW) return;
+
+      const titleEl = document.getElementById('reportTitle');
+      const subtitleEl = document.getElementById('reportSubtitle');
+
+      if (titleEl) {
+        titleEl.textContent = '📊 Sponsor Report';
+      }
+      if (subtitleEl) {
+        // Clear existing content safely
+        subtitleEl.textContent = '';
+        if (sponsorName) {
+          // Build DOM safely to avoid XSS - don't use innerHTML with user data
+          subtitleEl.appendChild(document.createTextNode('Performance metrics for '));
+          const strong = document.createElement('strong');
+          strong.textContent = sponsorName;
+          subtitleEl.appendChild(strong);
+        } else if (SPONSOR_ID) {
+          subtitleEl.textContent = 'Performance metrics for ' + SPONSOR_ID;
+        } else {
+          subtitleEl.textContent = 'Your sponsor performance metrics';
+        }
+      }
+    }
+
+    // Initialize header on page load if sponsor view
+    if (IS_SPONSOR_VIEW) {
+      updateHeaderForSponsorView(null);
+    }
+
+    /**
+     * Expected API contract (envelope omitted):
+     *
+     * Shared report (organizer):
+     * {
+     *   lastUpdatedISO: string,
+     *   summary: {
+     *     totalImpressions: number,
+     *     totalClicks: number,
+     *     totalQrScans: number,
+     *     totalSignups: number,
+     *     uniqueEvents: number,
+     *     uniqueSponsors: number
+     *   },
+     *   surfaces: [
+     *     { id, label, impressions, clicks, qrScans, engagementRate }
+     *   ],
+     *   sponsors?: [
+     *     { id, name, impressions, clicks, ctr }
+     *   ],
+     *   events?: [
+     *     { id, name, impressions, clicks, ctr }
+     *   ]
+     * }
+     *
+     * Sponsor view:
+     * - Same shape, but summary/surfaces are scoped to that sponsor.
+     */
     async function loadReport() {
       try {
-        document.getElementById('loading').style.display = 'block';
-        document.getElementById('metrics').style.display = 'none';
+        toggleLoading(true);
 
-        let result;
+        const rpcName = IS_SPONSOR_VIEW && SPONSOR_ID
+          ? 'api_getSponsorAnalytics'
+          : 'api_getSharedAnalytics';
 
-        // Use different API endpoint for sponsor view
-        if (IS_SPONSOR_VIEW && SPONSOR_ID) {
-          result = await NU.rpc('api_getSponsorAnalytics', {
-            sponsorId: SPONSOR_ID,
-            eventId: EVENT_ID || null,
-            brandId: BRAND_ID
-          });
-        } else {
-          result = await NU.rpc('api_getSharedAnalytics', {
-            brandId: BRAND_ID,
-            isSponsorView: IS_SPONSOR_VIEW
-          });
+        const payload = IS_SPONSOR_VIEW && SPONSOR_ID
+          ? { brandId: BRAND_ID, sponsorId: SPONSOR_ID, eventId: EVENT_ID || null }
+          : { brandId: BRAND_ID };
+
+        const result = await NU.rpc(rpcName, payload);
+
+        if (!result || !result.ok) {
+          throw new Error(result && result.message || 'Failed to load analytics');
         }
 
-        if (!result.ok) {
-          throw new Error(result.message || 'Failed to load analytics');
-        }
-
-        renderReport(result.value);
-
-        document.getElementById('loading').style.display = 'none';
-        document.getElementById('metrics').style.display = 'block';
-        document.getElementById('lastUpdated').textContent = `Last updated: ${new Date().toLocaleString()}`;
-
-      } catch (e) {
-        console.error(e);
-        document.getElementById('loading').style.display = 'none';
-        document.getElementById('metrics').style.display = 'none';
-        document.getElementById('errorMessage').textContent = e.message || 'We couldn\'t load the report data. Please try again.';
-        document.getElementById('errorState').style.display = 'block';
+        renderReport(result.value || {});
+        toggleLoading(false);
+      } catch (err) {
+        console.error('SharedReport load error', err);
+        showError(err && err.message);
       }
     }
 
-    function renderReport(metrics) {
-      // Render key metrics
-      renderMetrics(metrics);
+    function toggleLoading(isLoading) {
+      document.getElementById('loading').style.display = isLoading ? 'block' : 'none';
+      document.getElementById('metrics').style.display = isLoading ? 'none' : 'block';
+      document.getElementById('errorState').style.display = 'none';
+    }
 
-      // Render surface performance
-      renderSurfacePerformance(metrics.bySurface);
+    function showError(message) {
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('metrics').style.display = 'none';
+      document.getElementById('errorMessage').textContent =
+        message || 'We couldn\'t load the report data. Please try again.';
+      document.getElementById('errorState').style.display = 'block';
+    }
 
-      // Handle sponsor-specific view
-      if (IS_SPONSOR_VIEW && SPONSOR_ID) {
-        // Show sponsor-specific sections
-        document.getElementById('sponsorROICard').style.display = 'block';
-        document.getElementById('sponsorEventsCard').style.display = 'block';
+    // Feature 5: Render Top Event / Top Sponsor Callouts
+    function renderTopCallouts(events, sponsors) {
+      const container = document.getElementById('topCallouts');
+      let html = '';
 
-        // Render ROI and surface breakdown
-        renderSponsorROI(metrics);
+      // Top Event (by impressions)
+      if (events.length > 0) {
+        const topEvent = events.reduce((a, b) => (b.impressions || 0) > (a.impressions || 0) ? b : a);
+        html += `
+          <div class="top-callout event">
+            <div class="callout-icon">🏆</div>
+            <div class="callout-label">Top Event</div>
+            <div class="callout-name">${topEvent.name || topEvent.id || 'Event'}</div>
+            <div class="callout-stats">
+              <span><strong>${(topEvent.impressions || 0).toLocaleString()}</strong> impressions</span>
+              <span><strong>${(topEvent.ctr || 0).toFixed(1)}%</strong> CTR</span>
+            </div>
+          </div>
+        `;
+      }
 
-        // Render event breakdown for sponsor
-        renderSponsorEventBreakdown(metrics.byEvent);
+      // Top Sponsor (by impressions)
+      if (sponsors.length > 0) {
+        const topSponsor = sponsors.reduce((a, b) => (b.impressions || 0) > (a.impressions || 0) ? b : a);
+        html += `
+          <div class="top-callout">
+            <div class="callout-icon">⭐</div>
+            <div class="callout-label">Top Sponsor</div>
+            <div class="callout-name">${topSponsor.name || topSponsor.id || 'Sponsor'}</div>
+            <div class="callout-stats">
+              <span><strong>${(topSponsor.impressions || 0).toLocaleString()}</strong> impressions</span>
+              <span><strong>${(topSponsor.ctr || 0).toFixed(2)}%</strong> CTR</span>
+            </div>
+          </div>
+        `;
+      }
 
-        // Render sponsor-specific insights
-        renderSponsorInsights(metrics.insights || []);
-      } else {
-        // Event manager view
-        // Render sponsor performance
-        renderSponsorPerformance(metrics.bySponsor);
+      container.innerHTML = html;
+      container.style.display = html ? '' : 'none';
+    }
 
-        // Render event performance (if not sponsor view)
-        if (metrics.byEvent) {
+    function renderReport(data) {
+      // Defensive defaults
+      const summary = data.summary || {};
+      const surfaces = Array.isArray(data.surfaces) ? data.surfaces : [];
+      const sponsors = Array.isArray(data.sponsors) ? data.sponsors : [];
+      const events = Array.isArray(data.events) ? data.events : [];
+
+      // Update header with sponsor name if in sponsor view
+      if (IS_SPONSOR_VIEW && sponsors.length > 0) {
+        const sponsorName = sponsors[0].name || SPONSOR_ID;
+        updateHeaderForSponsorView(sponsorName);
+      }
+
+      renderSummaryMetrics(summary);
+      renderSurfacePerformance(surfaces);
+
+      // Feature 5: Render top callouts
+      renderTopCallouts(events, sponsors);
+
+      if (IS_SPONSOR_VIEW) {
+        // In sponsor mode, focus on sponsor + event breakdown
+        if (sponsors.length) {
+          renderSponsorPerformance(sponsors);
+        }
+        if (events.length) {
           document.getElementById('eventPerformanceCard').style.display = 'block';
-          renderEventPerformance(metrics.byEvent);
+          renderEventPerformance(events);
         }
+      } else {
+        // Organizer view: show sponsors + events if present
+        if (sponsors.length) {
+          renderSponsorPerformance(sponsors);
+        }
+        if (events.length) {
+          document.getElementById('eventPerformanceCard').style.display = 'block';
+          renderEventPerformance(events);
+        }
+      }
 
-        // Render recommendations
-        renderRecommendations(metrics);
+      // Last updated label
+      const lastUpdated = data.lastUpdatedISO || data.lastUpdated || null;
+      if (lastUpdated) {
+        document.getElementById('lastUpdated').textContent =
+          'Last updated: ' + new Date(lastUpdated).toLocaleString();
+      } else {
+        document.getElementById('lastUpdated').textContent = 'Last updated: not available';
       }
     }
 
-    function renderMetrics(metrics) {
+    function renderSummaryMetrics(summary) {
       const grid = document.getElementById('metricsGrid');
       grid.innerHTML = '';
 
       const metricCards = [
         {
           label: 'Total Impressions',
-          value: metrics.totalImpressions.toLocaleString(),
-          trend: null
+          value: (summary.totalImpressions || 0).toLocaleString()
         },
         {
           label: 'Total Clicks',
-          value: metrics.totalClicks.toLocaleString(),
-          trend: null
+          value: (summary.totalClicks || 0).toLocaleString()
         },
         {
-          label: 'Engagement Rate',
-          value: metrics.engagementRate.rate,
-          trend: null
+          label: 'QR Scans',
+          value: (summary.totalQrScans || 0).toLocaleString()
+        },
+        {
+          label: 'Signups',
+          value: (summary.totalSignups || 0).toLocaleString()
         },
         {
           label: 'Active Events',
-          value: metrics.uniqueEvents,
-          trend: null
+          value: summary.uniqueEvents || 0
         },
         {
           label: 'Active Sponsors',
-          value: metrics.uniqueSponsors,
-          trend: null
+          value: summary.uniqueSponsors || 0
         }
       ];
 
@@ -500,9 +697,6 @@ Related MVP Surfaces: Admin, Poster, Display, Public, Sponsor
         card.innerHTML = `
           <div class="label">${metric.label}</div>
           <div class="value">${metric.value}</div>
-          ${metric.trend ? `<div class="trend ${metric.trend < 0 ? 'negative' : ''}">
-            ${metric.trend > 0 ? '↑' : '↓'} ${Math.abs(metric.trend)}%
-          </div>` : ''}
         `;
         grid.appendChild(card);
       });
@@ -511,283 +705,137 @@ Related MVP Surfaces: Admin, Poster, Display, Public, Sponsor
     function renderSurfacePerformance(surfaces) {
       const container = document.getElementById('surfacePerformance');
 
-      const html = `
+      if (!surfaces.length) {
+        container.innerHTML = '<p class="muted">No surface data available yet.</p>';
+        return;
+      }
+
+      const rows = surfaces.map(surface => {
+        const impressions = surface.impressions || 0;
+        const clicks = surface.clicks || 0;
+        const qrScans = surface.qrScans || 0;
+        const rate = typeof surface.engagementRate === 'number'
+          ? surface.engagementRate
+          : (impressions > 0 ? (clicks + qrScans) * 100 / impressions : 0);
+        const label = surface.label || surface.id || 'Unknown';
+
+        const badgeClass =
+          rate >= 5 ? 'success' :
+          rate >= 2 ? 'info' : 'warning';
+
+        return `
+          <tr>
+            <td data-label="Surface"><strong>${label}</strong></td>
+            <td data-label="Impressions">${impressions.toLocaleString()}</td>
+            <td data-label="Clicks">${clicks.toLocaleString()}</td>
+            <td data-label="QR Scans">${qrScans.toLocaleString()}</td>
+            <td data-label="Engagement">
+              <span class="badge ${badgeClass}">${rate.toFixed(1)}%</span>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      container.innerHTML = `
         <table class="data-table">
           <thead>
             <tr>
               <th>Surface</th>
               <th>Impressions</th>
               <th>Clicks</th>
+              <th>QR Scans</th>
               <th>Engagement Rate</th>
-              <th>Performance</th>
             </tr>
           </thead>
           <tbody>
-            ${Object.keys(surfaces).map(surface => {
-              const data = surfaces[surface];
-              const rate = parseFloat(data.engagementRate);
-              return `
-                <tr>
-                  <td data-label="Surface"><strong>${surface}</strong></td>
-                  <td data-label="Impressions">${data.impressions.toLocaleString()}</td>
-                  <td data-label="Clicks">${data.clicks.toLocaleString()}</td>
-                  <td data-label="Engagement Rate">${data.engagementRate}</td>
-                  <td data-label="Performance">
-                    <div class="progress-bar">
-                      <div class="fill" style="width: ${Math.min(rate * 10, 100)}%"></div>
-                    </div>
-                  </td>
-                </tr>
-              `;
-            }).join('')}
+            ${rows}
           </tbody>
         </table>
       `;
-
-      container.innerHTML = html;
     }
 
     function renderSponsorPerformance(sponsors) {
       const container = document.getElementById('sponsorPerformance');
 
-      if (!sponsors || sponsors.length === 0) {
-        container.innerHTML = '<p style="color: #64748b;">No sponsor data available.</p>';
+      if (!sponsors.length) {
+        container.innerHTML = '<p class="muted">No sponsor activity recorded yet.</p>';
         return;
       }
 
-      const html = `
+      const rows = sponsors.map((sponsor, index) => {
+        const ctr = sponsor.ctr || 0;
+        const badgeClass =
+          ctr >= 2 ? 'success' :
+          ctr >= 1 ? 'info' : 'warning';
+
+        return `
+          <tr>
+            <td data-label="Sponsor">
+              <strong>${sponsor.name || sponsor.id || ('Sponsor #' + (index + 1))}</strong>
+            </td>
+            <td data-label="Impressions">${(sponsor.impressions || 0).toLocaleString()}</td>
+            <td data-label="Clicks">${(sponsor.clicks || 0).toLocaleString()}</td>
+            <td data-label="CTR">
+              <span class="badge ${badgeClass}">${ctr.toFixed(2)}%</span>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      container.innerHTML = `
         <table class="data-table">
           <thead>
             <tr>
               <th>Sponsor</th>
               <th>Impressions</th>
               <th>Clicks</th>
-              <th>Events</th>
-              <th>Engagement Rate</th>
+              <th>CTR</th>
             </tr>
           </thead>
           <tbody>
-            ${sponsors.slice(0, 10).map(sponsor => `
-              <tr>
-                <td data-label="Sponsor"><strong>${sponsor.sponsorId}</strong></td>
-                <td data-label="Impressions">${sponsor.impressions.toLocaleString()}</td>
-                <td data-label="Clicks">${sponsor.clicks.toLocaleString()}</td>
-                <td data-label="Events">${sponsor.uniqueEvents}</td>
-                <td data-label="Engagement Rate">
-                  <span class="badge success">${sponsor.engagementRate}</span>
-                </td>
-              </tr>
-            `).join('')}
+            ${rows}
           </tbody>
         </table>
       `;
-
-      container.innerHTML = html;
     }
 
     function renderEventPerformance(events) {
       const container = document.getElementById('eventPerformance');
 
-      if (!events || events.length === 0) {
-        container.innerHTML = '<p style="color: #64748b;">No event data available.</p>';
+      if (!events.length) {
+        container.innerHTML = '<p class="muted">No event-level analytics yet.</p>';
         return;
       }
 
-      const html = `
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Event</th>
-              <th>Impressions</th>
-              <th>Clicks</th>
-              <th>Sponsors</th>
-              <th>Engagement Rate</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${events.slice(0, 10).map(event => `
-              <tr>
-                <td data-label="Event"><strong>${event.eventId}</strong></td>
-                <td data-label="Impressions">${event.impressions.toLocaleString()}</td>
-                <td data-label="Clicks">${event.clicks.toLocaleString()}</td>
-                <td data-label="Sponsors">${event.uniqueSponsors}</td>
-                <td data-label="Engagement Rate">
-                  <span class="badge info">${event.engagementRate}</span>
-                </td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      `;
+      const rows = events.map((ev, index) => {
+        const ctr = ev.ctr || 0;
+        const badgeClass =
+          ctr >= 2 ? 'success' :
+          ctr >= 1 ? 'info' : 'warning';
 
-      container.innerHTML = html;
-    }
+        const rank =
+          index === 0 ? '🥇' :
+          index === 1 ? '🥈' :
+          index === 2 ? '🥉' : '#' + (index + 1);
 
-    function renderRecommendations(metrics) {
-      const container = document.getElementById('recommendations');
+        return `
+          <tr>
+            <td data-label="Event">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span style="font-size:1.1rem;">${rank}</span>
+                <strong>${ev.name || ev.id}</strong>
+              </div>
+            </td>
+            <td data-label="Impressions">${(ev.impressions || 0).toLocaleString()}</td>
+            <td data-label="Clicks">${(ev.clicks || 0).toLocaleString()}</td>
+            <td data-label="CTR">
+              <span class="badge ${badgeClass}">${ctr.toFixed(2)}%</span>
+            </td>
+          </tr>
+        `;
+      }).join('');
 
-      // Generate recommendations
-      const recommendations = [];
-
-      const overallRate = parseFloat(metrics.engagementRate.rate);
-      if (overallRate < 2) {
-        recommendations.push({
-          type: 'engagement',
-          priority: 'high',
-          message: `Low engagement rate (${metrics.engagementRate.rate}). Consider testing different sponsor placements or creative.`
-        });
-      } else if (overallRate > 10) {
-        recommendations.push({
-          type: 'engagement',
-          priority: 'success',
-          message: `Excellent engagement rate (${metrics.engagementRate.rate})! Current strategy is working well.`
-        });
-      }
-
-      // Add surface-specific recommendations
-      Object.keys(metrics.bySurface).forEach(surface => {
-        const rate = parseFloat(metrics.bySurface[surface].engagementRate);
-        if (rate > overallRate * 1.5) {
-          recommendations.push({
-            type: 'surface',
-            priority: 'info',
-            message: `"${surface}" surface is performing ${rate.toFixed(1)}% above average. Consider increasing sponsor presence here.`
-          });
-        }
-      });
-
-      if (recommendations.length === 0) {
-        container.innerHTML = '<p style="color: #64748b;">No recommendations at this time. Keep monitoring your metrics!</p>';
-        return;
-      }
-
-      const html = recommendations.map(rec => `
-        <div class="recommendation ${rec.priority}">
-          <div class="recommendation-icon">
-            ${rec.priority === 'high' ? '⚠️' : rec.priority === 'success' ? '✅' : '💡'}
-          </div>
-          <div class="recommendation-content">
-            <div class="title">${rec.priority}</div>
-            <div>${rec.message}</div>
-          </div>
-        </div>
-      `).join('');
-
-      container.innerHTML = html;
-    }
-
-    // Sponsor-specific rendering functions
-    function renderSponsorROI(metrics) {
-      const container = document.getElementById('sponsorROI');
-
-      if (!metrics || !metrics.bySurface) {
-        container.innerHTML = '<p style="color: #64748b;">No ROI data available.</p>';
-        return;
-      }
-
-      // Calculate ROI estimates (placeholder for actual cost data)
-      const totalImpressions = metrics.totals.impressions || 0;
-      const totalClicks = metrics.totals.clicks || 0;
-      const ctr = metrics.totals.ctr || 0;
-      const engagementScore = metrics.totals.engagementScore || 0;
-
-      // Surface breakdown with performance metrics
-      const surfaces = Object.entries(metrics.bySurface).map(([name, data]) => ({
-        name,
-        ...data,
-        percentage: totalImpressions > 0 ? ((data.impressions / totalImpressions) * 100).toFixed(1) : 0
-      })).sort((a, b) => b.ctr - a.ctr);
-
-      const html = `
-        <div style="margin-bottom: 2rem;">
-          <h3 style="margin-bottom: 1rem; color: #1e293b;">Performance Summary</h3>
-          <div class="metrics-grid" style="margin-bottom: 1.5rem;">
-            <div class="metric-card">
-              <div class="label">Overall CTR</div>
-              <div class="value">${ctr}%</div>
-              <div class="trend positive">${ctr >= 2 ? '↑ Good' : '→ Average'}</div>
-            </div>
-            <div class="metric-card">
-              <div class="label">Engagement Score</div>
-              <div class="value">${engagementScore}</div>
-              <div class="trend positive">${engagementScore >= 50 ? '↑ High' : '→ Moderate'}</div>
-            </div>
-            <div class="metric-card">
-              <div class="label">Cost per Click</div>
-              <div class="value">$${totalClicks > 0 ? (100 / totalClicks).toFixed(2) : '0.00'}</div>
-              <div class="trend neutral">Estimated</div>
-            </div>
-          </div>
-
-          <h3 style="margin-bottom: 1rem; color: #1e293b;">Performance by Surface</h3>
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Surface</th>
-                <th>Impressions</th>
-                <th>Share</th>
-                <th>Clicks</th>
-                <th>CTR</th>
-                <th>Avg Dwell</th>
-                <th>Recommendation</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${surfaces.map(surface => {
-                const avgDwell = surface.impressions > 0 ? (surface.dwellSec / surface.impressions).toFixed(1) : 0;
-                const recommendation = surface.ctr >= ctr ? '✅ Maintain' : surface.ctr >= ctr * 0.5 ? '🔄 Optimize' : '⚠️ Review';
-
-                return `
-                  <tr>
-                    <td data-label="Surface"><strong>${surface.name}</strong></td>
-                    <td data-label="Impressions">${surface.impressions.toLocaleString()}</td>
-                    <td data-label="Share">
-                      <div class="progress-bar">
-                        <div class="progress-fill" style="width: ${surface.percentage}%; background: #2563eb;"></div>
-                      </div>
-                      ${surface.percentage}%
-                    </td>
-                    <td data-label="Clicks">${surface.clicks.toLocaleString()}</td>
-                    <td data-label="CTR">
-                      <span class="badge ${surface.ctr >= ctr ? 'success' : 'warning'}">${surface.ctr}%</span>
-                    </td>
-                    <td data-label="Avg Dwell">${avgDwell}s</td>
-                    <td data-label="Recommendation">${recommendation}</td>
-                  </tr>
-                `;
-              }).join('')}
-            </tbody>
-          </table>
-
-          <div style="margin-top: 1.5rem; padding: 1rem; background: #f0f9ff; border-left: 4px solid #2563eb; border-radius: 8px;">
-            <h4 style="margin: 0 0 0.5rem 0; color: #1e40af;">💡 ROI Insight</h4>
-            <p style="margin: 0; color: #1e293b;">
-              ${surfaces.length > 0 && surfaces[0].ctr > 0 ?
-                `Your best performing surface is <strong>${surfaces[0].name}</strong> with a ${surfaces[0].ctr}% CTR.
-                 ${surfaces[0].ctr > ctr * 1.5 ? 'Consider increasing your investment here for maximum ROI.' : 'This channel is performing well.'}` :
-                'Continue monitoring your performance metrics to optimize ROI.'}
-            </p>
-          </div>
-        </div>
-      `;
-
-      container.innerHTML = html;
-    }
-
-    function renderSponsorEventBreakdown(byEvent) {
-      const container = document.getElementById('sponsorEvents');
-
-      if (!byEvent || Object.keys(byEvent).length === 0) {
-        container.innerHTML = '<p style="color: #64748b;">No event data available.</p>';
-        return;
-      }
-
-      const events = Object.entries(byEvent).map(([eventId, data]) => ({
-        eventId,
-        ...data
-      })).sort((a, b) => b.impressions - a.impressions);
-
-      const html = `
+      container.innerHTML = `
         <table class="data-table">
           <thead>
             <tr>
@@ -795,130 +843,35 @@ Related MVP Surfaces: Admin, Poster, Display, Public, Sponsor
               <th>Impressions</th>
               <th>Clicks</th>
               <th>CTR</th>
-              <th>Performance</th>
             </tr>
           </thead>
           <tbody>
-            ${events.map((event, index) => {
-              const rank = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`;
-
-              return `
-                <tr>
-                  <td data-label="Event">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                      <span style="font-size: 1.25rem;">${rank}</span>
-                      <strong>${event.eventId}</strong>
-                    </div>
-                  </td>
-                  <td data-label="Impressions">${event.impressions.toLocaleString()}</td>
-                  <td data-label="Clicks">${event.clicks.toLocaleString()}</td>
-                  <td data-label="CTR">
-                    <span class="badge ${event.ctr >= 2 ? 'success' : event.ctr >= 1 ? 'info' : 'warning'}">
-                      ${event.ctr}%
-                    </span>
-                  </td>
-                  <td data-label="Performance">
-                    ${event.ctr >= 2 ? '🔥 Excellent' : event.ctr >= 1 ? '✅ Good' : '📊 Average'}
-                  </td>
-                </tr>
-              `;
-            }).join('')}
+            ${rows}
           </tbody>
         </table>
-
-        <div style="margin-top: 1.5rem; padding: 1rem; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 8px;">
-          <h4 style="margin: 0 0 0.5rem 0; color: #92400e;">📊 Event Performance Insight</h4>
-          <p style="margin: 0; color: #1e293b;">
-            You are active in <strong>${events.length}</strong> event${events.length !== 1 ? 's' : ''}.
-            ${events.length > 0 ? `Your top event is <strong>${events[0].eventId}</strong> with ${events[0].impressions.toLocaleString()} impressions.` : ''}
-          </p>
-        </div>
       `;
-
-      container.innerHTML = html;
     }
 
-    function renderSponsorInsights(insights) {
-      const container = document.getElementById('recommendations');
-
-      if (!insights || insights.length === 0) {
-        container.innerHTML = '<p style="color: #64748b;">No insights available at this time. Keep monitoring your metrics!</p>';
-        return;
-      }
-
-      const iconMap = {
-        'success': '✅',
-        'warning': '⚠️',
-        'info': '💡',
-        'high': '🔴'
-      };
-
-      const html = insights.map(insight => `
-        <div class="recommendation ${insight.type}">
-          <div class="recommendation-icon">
-            ${iconMap[insight.type] || '💡'}
-          </div>
-          <div class="recommendation-content">
-            <div class="title">${insight.title}</div>
-            <div>${insight.message}</div>
-          </div>
-        </div>
-      `).join('');
-
-      container.innerHTML = html;
-    }
-
-    async function exportReport() {
-      const btn = document.getElementById('exportBtn');
-      const btnText = btn.querySelector('.btn-text');
-      const originalText = btnText.textContent;
-
-      try {
-        if (!confirm('Export report to Google Sheets?')) return;
-
-        // Show loading state (C-006)
-        btn.disabled = true;
-        btn.classList.add('btn-loading');
-        btnText.textContent = '⏳ Exporting...';
-
-        const result = await NU.rpc('api_exportSharedReport', BRAND_ID, {});
-
-        if (!result.ok) {
-          throw new Error(result.message || 'Failed to export');
-        }
-
-        btnText.textContent = '✅ Exported!';
-        setTimeout(() => {
-          btnText.textContent = originalText;
-          btn.classList.remove('btn-loading');
-          btn.disabled = false;
-        }, 2000);
-
-        window.open(result.value.url, '_blank');
-
-      } catch (e) {
-        btnText.textContent = '❌ Failed';
-        setTimeout(() => {
-          btnText.textContent = originalText;
-          btn.classList.remove('btn-loading');
-          btn.disabled = false;
-        }, 2000);
-        console.error('Export error:', e);
-      }
+    // Stubbed v2 features – keep buttons wired but don't fake data
+    function exportReport() {
+      showComingSoon(document.getElementById('exportBtn'));
     }
 
     function showFilters() {
-      const btn = document.getElementById('filterBtn');
-      // Show brief feedback for coming soon feature
-      const btnText = btn.querySelector('.btn-text');
-      const originalText = btnText.textContent;
-      btnText.textContent = '🚧 Coming Soon';
+      showComingSoon(document.getElementById('filterBtn'));
+    }
+
+    function showComingSoon(btn) {
+      if (!btn) return;
+      const label = btn.querySelector('.btn-text');
+      if (!label) return;
+      const original = label.textContent;
+      label.textContent = '🚧 Coming Soon';
       setTimeout(() => {
-        btnText.textContent = originalText;
+        label.textContent = original;
       }, 1500);
     }
 
-    // Auto-load on page load
     window.addEventListener('load', loadReport);
   </script>
 </body>

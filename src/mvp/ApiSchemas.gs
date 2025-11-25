@@ -1,18 +1,84 @@
 /**
  * API Schemas and Contracts
  *
- * Defines formal JSON Schema contracts for all API endpoints:
- * - Request schemas (input validation)
- * - Response schemas (output validation)
- * - Error schemas (error handling)
+ * GAS runtime validation that MIRRORS the JSON Schema source of truth.
  *
- * Benefits:
- * - Type-safe client generation
- * - Contract testing
- * - API documentation
- * - Runtime validation
+ * ═══════════════════════════════════════════════════════════════════════════
+ * [MVP] CANONICAL SCHEMA FILES (4 total)
+ * ═══════════════════════════════════════════════════════════════════════════
+ *   - /schemas/event.schema.json           [MVP] Event entity (v2.2 frozen)
+ *   - /schemas/sponsor.schema.json         [MVP] Sponsor entity (V2 feature)
+ *   - /schemas/shared-analytics.schema.json [MVP] SharedAnalytics (v1.1 frozen)
+ *   - /schemas/form-config.schema.json     [MVP] FormConfig (v1.0 frozen)
+ *
+ * IMPORTANT: If a field isn't in the JSON schema, it doesn't exist.
+ *            If it's in the schema, it must be wired here.
+ *
+ * See EVENT_CONTRACT.md for human-readable documentation.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
+ * RESPONSE ENVELOPE CONTRACT
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * ALL API endpoints MUST return one of these two envelope shapes:
+ *
+ * SUCCESS:
+ * {
+ *   ok: true,
+ *   etag?: string,           // Optional cache tag
+ *   notModified?: boolean,   // Optional 304 equivalent
+ *   value: { ... }           // Endpoint-specific payload
+ * }
+ *
+ * ERROR:
+ * {
+ *   ok: false,
+ *   code: "BAD_INPUT" | "NOT_FOUND" | "RATE_LIMITED" | "INTERNAL" | "UNAUTHORIZED" | "CONTRACT",
+ *   message: "Human-readable error description"
+ * }
+ *
+ * NUSDK.html handles these envelopes consistently:
+ * - Success: res.ok === true, data in res.value
+ * - Error: res.ok === false, error in res.code + res.message
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
+ * RPC ENDPOINT INVENTORY (12 endpoints used by surfaces)
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * Admin.html:
+ *   - api_getEventTemplates   → templates.getEventTemplates
+ *   - api_create              → events.create
+ *   - api_get                 → events.get
+ *   - api_updateEventData     → events.update
+ *   - api_createFormFromTemplate → forms.createFromTemplate
+ *   - api_generateFormShortlink  → forms.generateShortlink
+ *
+ * Public.html:
+ *   - api_getPublicBundle     → bundles.public
+ *   - api_list                → events.list
+ *   - api_logExternalClick    → analytics.logExternalClick
+ *
+ * Display.html:
+ *   - api_getDisplayBundle    → bundles.display
+ *   - api_logExternalClick    → analytics.logExternalClick
+ *
+ * Poster.html:
+ *   - api_getPosterBundle     → bundles.poster
+ *
+ * SharedReport.html:
+ *   - api_getSharedAnalytics  → analytics.getSharedReport
+ *   - api_getSponsorAnalytics → sponsors.getAnalytics
+ *   - api_exportSharedReport  → analytics.exportReport
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
  *
  * @module ApiSchemas
+ * @version 2.4.0
+ * @see /schemas/event.schema.json           [MVP] Event entity (v2.2 frozen)
+ * @see /schemas/sponsor.schema.json         [MVP] Sponsor entity (V2)
+ * @see /schemas/shared-analytics.schema.json [MVP] SharedAnalytics (v1.1 frozen)
+ * @see /schemas/form-config.schema.json     [MVP] FormConfig (v1.0 frozen)
+ * @see EVENT_CONTRACT.md
  */
 
 // === Common Schemas =======================================================
@@ -84,8 +150,10 @@ const SCHEMAS = {
     }
   },
 
-  // === Event Schemas =======================================================
-  // Canonical Event Contract v2.0 (MVP + V2-Ready) - See EVENT_CONTRACT.md
+  // ═══════════════════════════════════════════════════════════════════════════
+  // [MVP] EVENT SCHEMA - MIRRORS: /schemas/event.schema.json (v2.2.0 frozen)
+  // ═══════════════════════════════════════════════════════════════════════════
+  // See EVENT_CONTRACT.md for human-readable documentation
 
   events: {
     // Shared schema definitions for reuse
@@ -151,7 +219,8 @@ const SCHEMAS = {
       }
     },
 
-    // Sponsor with placement (V2)
+    // [MVP] SPONSOR SCHEMA - MIRRORS: /schemas/sponsor.schema.json
+    // V2 feature but shape is MVP-frozen
     _sponsor: {
       type: 'object',
       required: ['id', 'name', 'logoUrl', 'placement'],
@@ -216,19 +285,27 @@ const SCHEMAS = {
       }
     },
 
-    // Settings (MVP Required)
+    // Settings - MIRRORS: /schemas/event.schema.json Settings (MVP-frozen v2.2)
     _settings: {
       type: 'object',
       required: ['showSchedule', 'showStandings', 'showBracket'],
       properties: {
+        // MVP Required
         showSchedule: { type: 'boolean' },
         showStandings: { type: 'boolean' },
         showBracket: { type: 'boolean' },
-        showSponsors: { type: 'boolean' }
+        // MVP Optional (V2 content but MVP toggles)
+        showSponsors: { type: 'boolean' },
+        // MVP Optional - surface-specific toggles (default true)
+        showSponsorBanner: { type: 'boolean' },
+        showSponsorStrip: { type: 'boolean' },
+        showLeagueStrip: { type: 'boolean' },
+        showQRSection: { type: 'boolean' }
       }
     },
 
-    // Full event shape per EVENT_CONTRACT.md v2.0
+    // [MVP] FULL EVENT SHAPE - MIRRORS: /schemas/event.schema.json (v2.2 frozen)
+    // This is THE canonical Event object shape for all MVP surfaces
     _eventShape: {
       type: 'object',
       required: ['id', 'slug', 'name', 'startDateISO', 'venue', 'links', 'qr', 'ctas', 'settings', 'createdAtISO', 'updatedAtISO'],
@@ -239,6 +316,7 @@ const SCHEMAS = {
         name: { type: 'string', minLength: 1, maxLength: 200 },
         startDateISO: { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}$' },
         venue: { type: 'string', minLength: 1, maxLength: 200 },
+        templateId: { type: ['string', 'null'], maxLength: 64 },  // MVP Optional
 
         // Links (MVP Required)
         links: {
@@ -450,9 +528,350 @@ const SCHEMAS = {
     }
   },
 
+  // === Bundle Schemas ======================================================
+  // Optimized payloads for each surface (Public, Display, Poster)
+
+  bundles: {
+    // api_getPublicBundle - Public.html
+    public: {
+      request: {
+        type: 'object',
+        required: ['brandId', 'id'],
+        properties: {
+          brandId: { $ref: '#/common/brandId' },
+          scope: { $ref: '#/common/scope' },
+          id: { $ref: '#/common/id' },
+          ifNoneMatch: { type: 'string' }
+        }
+      },
+      response: {
+        type: 'object',
+        required: ['ok', 'value'],
+        properties: {
+          ok: { type: 'boolean' },
+          etag: { type: 'string' },
+          notModified: { type: 'boolean' },
+          value: {
+            type: 'object',
+            required: ['event', 'config'],
+            properties: {
+              event: { $ref: '#/schemas/events/_eventShape' },
+              config: {
+                type: 'object',
+                properties: {
+                  brandId: { type: 'string' },
+                  brandName: { type: 'string' },
+                  appTitle: { type: 'string' }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    // api_getDisplayBundle - Display.html
+    display: {
+      request: {
+        type: 'object',
+        required: ['brandId', 'id'],
+        properties: {
+          brandId: { $ref: '#/common/brandId' },
+          scope: { $ref: '#/common/scope' },
+          id: { $ref: '#/common/id' },
+          ifNoneMatch: { type: 'string' }
+        }
+      },
+      response: {
+        type: 'object',
+        required: ['ok', 'value'],
+        properties: {
+          ok: { type: 'boolean' },
+          etag: { type: 'string' },
+          notModified: { type: 'boolean' },
+          value: {
+            type: 'object',
+            required: ['event', 'rotation', 'layout'],
+            properties: {
+              event: { $ref: '#/schemas/events/_eventShape' },
+              rotation: {
+                type: 'object',
+                properties: {
+                  sponsorSlots: { type: 'number' },
+                  rotationMs: { type: 'number' }
+                }
+              },
+              layout: {
+                type: 'object',
+                properties: {
+                  hasSidePane: { type: 'boolean' },
+                  emphasis: { type: 'string', enum: ['hero', 'scores', 'sponsors'] }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    // api_getPosterBundle - Poster.html
+    poster: {
+      request: {
+        type: 'object',
+        required: ['brandId', 'id'],
+        properties: {
+          brandId: { $ref: '#/common/brandId' },
+          scope: { $ref: '#/common/scope' },
+          id: { $ref: '#/common/id' },
+          ifNoneMatch: { type: 'string' }
+        }
+      },
+      response: {
+        type: 'object',
+        required: ['ok', 'value'],
+        properties: {
+          ok: { type: 'boolean' },
+          etag: { type: 'string' },
+          notModified: { type: 'boolean' },
+          value: {
+            type: 'object',
+            required: ['event', 'qrCodes', 'print'],
+            properties: {
+              event: { $ref: '#/schemas/events/_eventShape' },
+              qrCodes: {
+                type: 'object',
+                properties: {
+                  public: { type: ['string', 'null'] },
+                  signup: { type: ['string', 'null'] }
+                }
+              },
+              print: {
+                type: 'object',
+                properties: {
+                  dateLine: { type: ['string', 'null'] },
+                  venueLine: { type: ['string', 'null'] }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+
+  // === Template Schemas ====================================================
+
+  templates: {
+    // api_getEventTemplates - Admin.html
+    getEventTemplates: {
+      request: {
+        type: 'object',
+        required: ['brandId'],
+        properties: {
+          brandId: { $ref: '#/common/brandId' }
+        }
+      },
+      response: {
+        type: 'object',
+        required: ['ok', 'value'],
+        properties: {
+          ok: { type: 'boolean' },
+          value: {
+            type: 'object',
+            required: ['templates', 'defaultTemplateId'],
+            properties: {
+              templates: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  required: ['id', 'label'],
+                  properties: {
+                    id: { type: 'string' },
+                    label: { type: 'string' },
+                    description: { type: 'string' },
+                    icon: { type: 'string' },
+                    exampleName: { type: 'string' }
+                  }
+                }
+              },
+              defaultTemplateId: { type: 'string' }
+            }
+          }
+        }
+      }
+    }
+  },
+
   // === Analytics Schemas ===================================================
 
   analytics: {
+    // api_logExternalClick - Public.html, Display.html
+    logExternalClick: {
+      request: {
+        type: 'object',
+        required: ['eventId', 'surface', 'token'],
+        properties: {
+          eventId: { $ref: '#/common/id' },
+          surface: { type: 'string', enum: ['public', 'display', 'poster'] },
+          token: { type: 'string' },
+          brandId: { $ref: '#/common/brandId' }
+        }
+      },
+      response: {
+        type: 'object',
+        required: ['ok'],
+        properties: {
+          ok: { type: 'boolean' },
+          value: {
+            type: 'object',
+            properties: {
+              logged: { type: 'boolean' }
+            }
+          }
+        }
+      }
+    },
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // [MVP] SHAREDANALYTICS SCHEMA - MIRRORS: /schemas/shared-analytics.schema.json (v1.1 frozen)
+    // Used by: api_getSharedAnalytics, api_getSponsorAnalytics
+    // This is THE canonical SharedAnalytics object shape for SharedReport.html
+    // ═══════════════════════════════════════════════════════════════════════════
+    _sharedAnalytics: {
+      type: 'object',
+      required: ['lastUpdatedISO', 'summary', 'surfaces'],
+      properties: {
+        lastUpdatedISO: { type: 'string' },
+        summary: {
+          type: 'object',
+          required: ['totalImpressions', 'totalClicks', 'totalQrScans', 'totalSignups', 'uniqueEvents', 'uniqueSponsors'],
+          properties: {
+            totalImpressions: { type: 'integer', minimum: 0 },
+            totalClicks: { type: 'integer', minimum: 0 },
+            totalQrScans: { type: 'integer', minimum: 0 },
+            totalSignups: { type: 'integer', minimum: 0 },
+            uniqueEvents: { type: 'integer', minimum: 0 },
+            uniqueSponsors: { type: 'integer', minimum: 0 }
+          }
+        },
+        surfaces: {
+          type: 'array',
+          items: {
+            type: 'object',
+            required: ['id', 'label', 'impressions', 'clicks', 'qrScans'],
+            properties: {
+              id: { type: 'string', enum: ['poster', 'display', 'public', 'signup'] },
+              label: { type: 'string' },
+              impressions: { type: 'integer', minimum: 0 },
+              clicks: { type: 'integer', minimum: 0 },
+              qrScans: { type: 'integer', minimum: 0 },
+              engagementRate: { type: ['number', 'null'] }
+            }
+          }
+        },
+        sponsors: {
+          type: ['array', 'null'],
+          items: {
+            type: 'object',
+            required: ['id', 'name', 'impressions', 'clicks', 'ctr'],
+            properties: {
+              id: { type: 'string' },
+              name: { type: 'string' },
+              impressions: { type: 'integer', minimum: 0 },
+              clicks: { type: 'integer', minimum: 0 },
+              ctr: { type: 'number', minimum: 0 }
+            }
+          }
+        },
+        events: {
+          type: ['array', 'null'],
+          items: {
+            type: 'object',
+            required: ['id', 'name', 'impressions', 'clicks', 'ctr'],
+            properties: {
+              id: { type: 'string' },
+              name: { type: 'string' },
+              impressions: { type: 'integer', minimum: 0 },
+              clicks: { type: 'integer', minimum: 0 },
+              ctr: { type: 'number', minimum: 0 }
+            }
+          }
+        }
+      }
+    },
+
+    // api_getSharedAnalytics - SharedReport.html (organizer view)
+    getSharedReport: {
+      request: {
+        type: 'object',
+        required: ['brandId'],
+        properties: {
+          brandId: { $ref: '#/common/brandId' },
+          eventId: { type: ['string', 'null'] },  // Optional: filter by event
+          isSponsorView: { type: 'boolean' }      // Optional: sponsor-scoped mode
+        }
+      },
+      response: {
+        type: 'object',
+        required: ['ok', 'value'],
+        properties: {
+          ok: { type: 'boolean' },
+          etag: { type: 'string' },
+          value: { $ref: '#/analytics/_sharedAnalytics' }
+        }
+      }
+    },
+
+    // api_getSponsorAnalytics - SharedReport.html (sponsor view)
+    getSponsorAnalytics: {
+      request: {
+        type: 'object',
+        required: ['brandId', 'sponsorId'],
+        properties: {
+          brandId: { $ref: '#/common/brandId' },
+          sponsorId: { type: 'string', minLength: 1 },
+          eventId: { type: ['string', 'null'] }   // Optional: filter by event
+        }
+      },
+      response: {
+        type: 'object',
+        required: ['ok', 'value'],
+        properties: {
+          ok: { type: 'boolean' },
+          etag: { type: 'string' },
+          value: { $ref: '#/analytics/_sharedAnalytics' }
+        }
+      }
+    },
+
+    // api_exportSharedReport - SharedReport.html
+    exportReport: {
+      request: {
+        type: 'object',
+        required: ['brandId'],
+        properties: {
+          brandId: { $ref: '#/common/brandId' },
+          eventId: { $ref: '#/common/id' },
+          format: { type: 'string', enum: ['csv', 'json', 'pdf'] }
+        }
+      },
+      response: {
+        type: 'object',
+        required: ['ok', 'value'],
+        properties: {
+          ok: { type: 'boolean' },
+          value: {
+            type: 'object',
+            properties: {
+              data: { type: 'string' },
+              filename: { type: 'string' },
+              mimeType: { type: 'string' }
+            }
+          }
+        }
+      }
+    },
+
     logEvents: {
       request: {
         type: 'object',
@@ -536,7 +955,9 @@ const SCHEMAS = {
     }
   },
 
-  // === Sponsor Schemas =====================================================
+  // ═══════════════════════════════════════════════════════════════════════════
+  // [MVP] SPONSOR SCHEMAS - MIRRORS: /schemas/sponsor.schema.json
+  // ═══════════════════════════════════════════════════════════════════════════
 
   sponsors: {
     getAnalytics: {
@@ -625,9 +1046,32 @@ const SCHEMAS = {
     }
   },
 
-  // === Form Schemas ========================================================
+  // ═══════════════════════════════════════════════════════════════════════════
+  // [MVP] FORMCONFIG SCHEMA - MIRRORS: /schemas/form-config.schema.json (v1.0 frozen)
+  // ═══════════════════════════════════════════════════════════════════════════
+  // FormConfig shape used by Admin signup tile and Report UI:
+  // {
+  //   formId: string,          // Google Form ID
+  //   signupUrl: string,       // Published form URL
+  //   shortLink: string|null,  // Short URL (if generated)
+  //   qrB64: string|null,      // QR code base64 PNG (if generated)
+  //   totalResponses: number   // Response count from linked sheet
+  // }
 
   forms: {
+    // [MVP] FormConfig shape - used by Admin signup tile, Report UI
+    formConfig: {
+      type: 'object',
+      required: ['formId', 'signupUrl', 'totalResponses'],
+      properties: {
+        formId: { type: 'string', description: 'Google Form ID' },
+        signupUrl: { $ref: '#/common/url', description: 'Published form URL' },
+        shortLink: { type: ['string', 'null'], description: 'Short URL (if generated)' },
+        qrB64: { type: ['string', 'null'], description: 'QR code base64 PNG (if generated)' },
+        totalResponses: { type: 'integer', minimum: 0, description: 'Response count' }
+      }
+    },
+
     listTemplates: {
       request: {
         type: 'object',
@@ -675,6 +1119,36 @@ const SCHEMAS = {
               publishedUrl: { $ref: '#/common/url' },
               responseSheetUrl: { $ref: '#/common/url' },
               templateType: { type: 'string' },
+              eventId: { type: 'string' }
+            }
+          }
+        }
+      }
+    },
+
+    // api_generateFormShortlink - Admin.html
+    generateShortlink: {
+      request: {
+        type: 'object',
+        required: ['formUrl', 'brandId', 'adminKey'],
+        properties: {
+          formUrl: { $ref: '#/common/url' },
+          eventId: { $ref: '#/common/id' },
+          brandId: { $ref: '#/common/brandId' },
+          adminKey: { type: 'string' }
+        }
+      },
+      response: {
+        type: 'object',
+        required: ['ok', 'value'],
+        properties: {
+          ok: { type: 'boolean' },
+          value: {
+            type: 'object',
+            required: ['shortUrl'],
+            properties: {
+              shortUrl: { $ref: '#/common/url' },
+              originalUrl: { $ref: '#/common/url' },
               eventId: { type: 'string' }
             }
           }

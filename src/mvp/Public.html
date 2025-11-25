@@ -4,12 +4,61 @@ MVP SURFACE - Focus Group Critical
 ================================================================================
 Page: Public.html
 Purpose: Public-facing event listing and registration page
-Status: LOCKED for MVP v1.0
+Status: HARDENED for MVP v1.0
 
-DO NOT modify this file's contracts without updating:
-  - NUSDK.html (API client)
-  - tests/e2e/* (end-to-end tests)
-  - tests/unit/* (unit tests)
+SCHEMA CONTRACT: /schemas/event.schema.json
+
+═══════════════════════════════════════════════════════════════════════════════
+READS FROM EVENT SCHEMA:
+═══════════════════════════════════════════════════════════════════════════════
+  Identity (MVP Required):
+    - event.id, event.name, event.startDateISO, event.venue
+
+  CTAs (MVP Required):
+    - event.ctas.primary.label, event.ctas.primary.url
+    - event.ctas.secondary.label, event.ctas.secondary.url
+
+  Settings (MVP Required - section visibility):
+    - event.settings.showSchedule, showStandings, showBracket, showSponsors
+    - event.settings.showVideo, showMap, showGallery (Feature 4: Template-Aware)
+
+  Data Sections (MVP Optional):
+    - event.schedule[].time, title, description
+    - event.standings[].rank, team, wins, losses, points
+    - event.bracket.rounds[].name, matches[]
+
+  Sponsors (V2 Optional):
+    - event.sponsors[].id, name, logoUrl, linkUrl, placement
+
+  Media (V2 Optional):
+    - event.media.videoUrl, mapUrl, gallery[]
+
+  External Data (V2 Optional):
+    - event.externalData.scheduleUrl, standingsUrl, bracketUrl
+
+  Payments (Reserved):
+    - event.payments.enabled, checkoutUrl, price, currency
+
+═══════════════════════════════════════════════════════════════════════════════
+SECTION GATES (each optional section requires explicit schema field check):
+═══════════════════════════════════════════════════════════════════════════════
+  Content Sections (Feature 4: Template-Aware Toggles):
+  Video:     if (settings.showVideo && media?.videoUrl) → render video embed
+  Map:       if (settings.showMap && (media?.mapUrl OR venue)) → render map link
+  Gallery:   if (settings.showGallery && media?.gallery?.length) → render photo gallery
+
+  Data Sections:
+  Schedule:  if (settings.showSchedule && (schedule?.length || externalData.scheduleUrl))
+  Standings: if (settings.showStandings && (standings?.length || externalData.standingsUrl))
+  Bracket:   if (settings.showBracket && (bracket?.rounds?.length || externalData.bracketUrl))
+  Sponsors:  if (settings.showSponsors && sponsors?.some(s => s.placement === 'public'))
+  Payments:  if (payments?.enabled && payments.checkoutUrl) → show checkout CTA
+
+  NO freelancing: sections only render when their schema field exists AND is enabled.
+
+DO NOT add fields without updating:
+  - /schemas/event.schema.json (source of truth)
+  - src/mvp/Code.gs (_buildEventContract_)
 
 Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
 ================================================================================
@@ -26,31 +75,31 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <meta name="referrer" content="no-referrer"/>
   <style>
-    .card{ background:#fff; border-radius:12px; padding:20px; margin-bottom:20px; box-shadow:0 1px 3px rgba(0,0,0,0.1); }
-    .card h2{ margin:0 0 16px; color:#1e293b; }
+    .card{ background:#fff; border-radius:var(--radius-md, 12px); padding:var(--card-padding-tablet, 20px); margin-bottom:var(--card-padding-tablet, 20px); box-shadow:var(--shadow-base, 0 1px 3px rgba(0,0,0,0.1)); }
+    .card h2{ margin:0 0 16px; color:var(--color-gray-800, #1e293b); }
     .events-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:16px; }
-    .event-card{ background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:16px; transition:all 0.2s; }
-    .event-card:hover{ transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,0.1); border-color:#2563eb; }
-    .event-card h3{ margin:0 0 8px; color:#1e293b; }
-    .event-card p{ margin:4px 0; color:#64748b; font-size:14px; }
+    .event-card{ background:var(--color-gray-50, #f8fafc); border:1px solid var(--color-gray-200, #e2e8f0); border-radius:var(--radius-md, 12px); padding:var(--card-padding-mobile, 16px); transition:all var(--transition-base, 0.2s); }
+    .event-card:hover{ transform:translateY(-2px); box-shadow:var(--shadow-md, 0 4px 12px rgba(0,0,0,0.1)); border-color:var(--color-primary, #2563eb); }
+    .event-card h3{ margin:0 0 8px; color:var(--color-gray-800, #1e293b); }
+    .event-card p{ margin:4px 0; color:var(--color-gray-500, #64748b); font-size:var(--font-size-sm, 14px); }
 
     /* Enhanced Sponsor Banner */
     .sponsor-banner{
-      background:linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-      border:2px solid #e2e8f0; border-radius:12px; padding:20px;
-      margin-bottom:24px; text-align:center; display:flex; align-items:center;
+      background:linear-gradient(135deg, var(--color-gray-50, #f8fafc) 0%, var(--color-gray-200, #e2e8f0) 100%);
+      border:2px solid var(--color-gray-200, #e2e8f0); border-radius:var(--radius-md, 12px); padding:var(--card-padding-tablet, 20px);
+      margin-bottom:var(--space-6, 24px); text-align:center; display:flex; align-items:center;
       justify-content:center; gap:16px; flex-wrap:wrap;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      box-shadow: var(--shadow-sm, 0 2px 8px rgba(0,0,0,0.05));
     }
     .sponsor-banner img{
-      max-height:60px; max-width:220px; object-fit:contain;
-      transition: transform 0.2s ease;
+      max-height:var(--sponsor-logo-height, 60px); max-width:var(--sponsor-logo-max-width, 220px); object-fit:contain;
+      transition: transform var(--transition-base, 0.2s ease);
     }
     .sponsor-banner img:hover {
       transform: scale(1.05);
     }
     .sponsor-banner strong{
-      color:#1e293b; font-size:1.1em; font-weight:600;
+      color:var(--color-gray-800, #1e293b); font-size:1.1em; font-weight:var(--font-weight-semibold, 600);
       text-transform: uppercase; letter-spacing: 0.5px;
     }
     .sponsor-banner a {
@@ -83,10 +132,10 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
     }
     .event-header {
       text-align: center;
-      margin-bottom: 24px;
+      margin-bottom: var(--space-6, 24px);
     }
     .event-header h1 {
-      color: #2563eb;
+      color: var(--color-primary, #2563eb);
       font-size: 2.2rem;
       margin-bottom: 12px;
       line-height: 1.2;
@@ -97,7 +146,7 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       justify-content: center;
       gap: 16px;
       margin: 12px 0;
-      color: #475569;
+      color: var(--color-gray-600, #475569);
       font-size: 1rem;
     }
     .event-meta-item {
@@ -106,7 +155,7 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       gap: 6px;
     }
     .event-meta-item strong {
-      color: #1e293b;
+      color: var(--color-gray-800, #1e293b);
     }
     .event-image {
       width: 100%;
@@ -128,21 +177,21 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       margin: 32px 0;
     }
     .event-section h2 {
-      color: #1e293b;
+      color: var(--color-gray-800, #1e293b);
       font-size: 1.5rem;
       margin-bottom: 12px;
-      border-bottom: 2px solid #e2e8f0;
+      border-bottom: 2px solid var(--color-gray-200, #e2e8f0);
       padding-bottom: 8px;
     }
     .event-section p {
-      color: #475569;
+      color: var(--color-gray-600, #475569);
       line-height: 1.7;
       margin: 12px 0;
     }
     .event-section a {
-      color: #2563eb;
+      color: var(--color-primary, #2563eb);
       text-decoration: none;
-      font-weight: 500;
+      font-weight: var(--font-weight-medium, 500);
     }
     .event-section a:hover {
       text-decoration: underline;
@@ -175,22 +224,22 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       grid-template-columns: auto 1fr;
       gap: 8px 16px;
       padding: 12px;
-      background: #f8fafc;
-      border-radius: 8px;
-      border-left: 3px solid #2563eb;
+      background: var(--color-gray-50, #f8fafc);
+      border-radius: var(--radius-base, 8px);
+      border-left: 3px solid var(--color-primary, #2563eb);
     }
     .schedule-time {
-      font-weight: 600;
-      color: #2563eb;
+      font-weight: var(--font-weight-semibold, 600);
+      color: var(--color-primary, #2563eb);
       white-space: nowrap;
     }
     .schedule-title {
-      font-weight: 600;
-      color: #1e293b;
+      font-weight: var(--font-weight-semibold, 600);
+      color: var(--color-gray-800, #1e293b);
     }
     .schedule-desc {
       grid-column: 2;
-      color: #64748b;
+      color: var(--color-gray-500, #64748b);
       font-size: 0.9rem;
     }
     /* Fundraising progress */
@@ -199,21 +248,21 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
     }
     .fundraising-progress .progress-bar {
       height: 24px;
-      background: #e2e8f0;
-      border-radius: 12px;
+      background: var(--color-gray-200, #e2e8f0);
+      border-radius: var(--radius-md, 12px);
       overflow: hidden;
     }
     .fundraising-progress .progress-fill {
       height: 100%;
-      background: linear-gradient(90deg, #10b981, #059669);
-      border-radius: 12px;
+      background: linear-gradient(90deg, var(--color-success, #10b981), var(--color-success-dark, #059669));
+      border-radius: var(--radius-md, 12px);
       transition: width 0.5s ease;
     }
     .fundraising-progress .progress-text {
       text-align: center;
       margin-top: 8px;
-      font-weight: 600;
-      color: #059669;
+      font-weight: var(--font-weight-semibold, 600);
+      color: var(--color-success-dark, #059669);
     }
     /* Data tables (standings, etc.) */
     .data-table {
@@ -224,17 +273,17 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
     .data-table th, .data-table td {
       padding: 12px;
       text-align: left;
-      border-bottom: 1px solid #e2e8f0;
+      border-bottom: 1px solid var(--color-gray-200, #e2e8f0);
     }
     .data-table th {
-      background: #f8fafc;
-      font-weight: 600;
-      color: #475569;
+      background: var(--color-gray-50, #f8fafc);
+      font-weight: var(--font-weight-semibold, 600);
+      color: var(--color-gray-600, #475569);
       font-size: 0.8rem;
       text-transform: uppercase;
     }
     .data-table tbody tr:hover {
-      background: #f8fafc;
+      background: var(--color-gray-50, #f8fafc);
     }
     .standings-table .rank {
       display: inline-block;
@@ -242,19 +291,19 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       height: 24px;
       line-height: 24px;
       text-align: center;
-      background: #e2e8f0;
+      background: var(--color-gray-200, #e2e8f0);
       border-radius: 50%;
-      font-weight: 600;
+      font-weight: var(--font-weight-semibold, 600);
       font-size: 0.75rem;
       margin-right: 8px;
     }
     .standings-table .top-rank .rank {
-      background: #fef3c7;
-      color: #92400e;
+      background: var(--color-warning-bg, #fef3c7);
+      color: var(--color-warning-dark, #92400e);
     }
     .standings-table .top-rank:first-child .rank {
-      background: #fcd34d;
-      color: #78350f;
+      background: var(--color-warning-light, #fcd34d);
+      color: var(--color-warning-darker, #78350f);
     }
     /* Vendor grid */
     .vendor-grid {
@@ -263,24 +312,24 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       gap: 16px;
     }
     .vendor-card {
-      padding: 16px;
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
-      border-radius: 12px;
+      padding: var(--card-padding-mobile, 16px);
+      background: var(--color-gray-50, #f8fafc);
+      border: 1px solid var(--color-gray-200, #e2e8f0);
+      border-radius: var(--radius-md, 12px);
     }
     .vendor-card h4 {
       margin: 0 0 8px 0;
-      color: #1e293b;
+      color: var(--color-gray-800, #1e293b);
     }
     .vendor-card p {
       margin: 0 0 12px 0;
-      color: #64748b;
+      color: var(--color-gray-500, #64748b);
       font-size: 0.9rem;
     }
     .vendor-card a {
-      color: #2563eb;
+      color: var(--color-primary, #2563eb);
       text-decoration: none;
-      font-weight: 500;
+      font-weight: var(--font-weight-medium, 500);
     }
     /* Bracket/Tournament styling */
     .bracket-container {
@@ -297,12 +346,12 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
     }
     .round-title {
       font-size: 0.85rem;
-      color: #64748b;
+      color: var(--color-gray-500, #64748b);
       text-transform: uppercase;
       letter-spacing: 0.05em;
       margin: 0 0 12px 0;
       padding-bottom: 8px;
-      border-bottom: 2px solid #e2e8f0;
+      border-bottom: 2px solid var(--color-gray-200, #e2e8f0);
     }
     .bracket-matches {
       display: flex;
@@ -316,14 +365,14 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
     }
     .match-num {
       font-size: 0.75rem;
-      color: #94a3b8;
-      font-weight: 600;
+      color: var(--color-gray-400, #94a3b8);
+      font-weight: var(--font-weight-semibold, 600);
       min-width: 28px;
     }
     .bracket-match {
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
-      border-radius: 8px;
+      background: var(--color-gray-50, #f8fafc);
+      border: 1px solid var(--color-gray-200, #e2e8f0);
+      border-radius: var(--radius-base, 8px);
       padding: 12px;
       margin-bottom: 12px;
       flex: 1;
@@ -334,36 +383,36 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       align-items: center;
       padding: 8px 12px;
       background: white;
-      border-radius: 6px;
+      border-radius: var(--radius-sm, 6px);
       margin: 4px 0;
     }
     .match-team.winner {
-      background: #dcfce7;
-      border-left: 3px solid #22c55e;
+      background: var(--color-success-bg, #dcfce7);
+      border-left: 3px solid var(--color-success, #22c55e);
     }
     .team-name {
-      font-weight: 500;
-      color: #1e293b;
+      font-weight: var(--font-weight-medium, 500);
+      color: var(--color-gray-800, #1e293b);
     }
     .team-score {
-      font-weight: 700;
-      color: #2563eb;
+      font-weight: var(--font-weight-bold, 700);
+      color: var(--color-primary, #2563eb);
       font-size: 1.1rem;
     }
     .match-vs {
       text-align: center;
       font-size: 0.7rem;
-      color: #94a3b8;
+      color: var(--color-gray-400, #94a3b8);
       text-transform: uppercase;
       margin: 2px 0;
     }
     /* Loading placeholder */
     .loading-placeholder {
-      padding: 24px;
+      padding: var(--space-6, 24px);
       text-align: center;
-      color: #64748b;
-      background: #f8fafc;
-      border-radius: 8px;
+      color: var(--color-gray-500, #64748b);
+      background: var(--color-gray-50, #f8fafc);
+      border-radius: var(--radius-base, 8px);
       animation: pulse 1.5s infinite;
     }
     @keyframes pulse {
@@ -386,7 +435,7 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
 
       .events-grid{ grid-template-columns:1fr; }
       .sponsor-banner{ flex-direction:column; padding:16px; gap:12px; }
-      .sponsor-banner img{ max-height:50px; }
+      .sponsor-banner img{ max-height:var(--sponsor-logo-height-sm, 50px); }
       .event-header h1 { font-size: 1.75rem; }
       .event-meta { font-size: 0.9rem; gap: 12px; }
       .gallery { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
@@ -403,7 +452,7 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
         margin: 0;
         box-shadow: 0 -4px 12px rgba(0,0,0,0.1);
         z-index: 100;
-        border-top: 2px solid #e2e8f0;
+        border-top: 2px solid var(--color-gray-200, #e2e8f0);
         flex-direction: column;
         gap: 8px;
       }
@@ -687,6 +736,35 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       margin-left: 8px;
     }
 
+    /* Feature 3: Primary Sponsor - Bigger Rendering */
+    .sponsor-primary img,
+    .sponsor-logo.sponsor-primary {
+      max-height: calc(var(--sponsor-logo-height, 60px) * 1.5) !important;
+      max-width: calc(var(--sponsor-logo-max-width, 220px) * 1.3) !important;
+    }
+    .sponsor-primary strong {
+      font-size: 1.4em;
+    }
+    .sponsor-item.sponsor-primary {
+      order: -1; /* Primary sponsors appear first */
+      padding: 8px 16px;
+      background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+      border-radius: var(--radius-base, 8px);
+      box-shadow: 0 2px 8px rgba(245, 158, 11, 0.2);
+    }
+    .sponsor-tier-badge {
+      display: inline-block;
+      padding: 2px 6px;
+      background: #f59e0b;
+      color: white;
+      font-size: 0.6rem;
+      font-weight: 700;
+      border-radius: 8px;
+      text-transform: uppercase;
+      margin-left: 6px;
+      vertical-align: middle;
+    }
+
     @media (max-width: 640px) {
       .league-links {
         flex-direction: column;
@@ -967,28 +1045,32 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       return html;
     }
 
-    // Map CTA label to URL from event data
-    function getCTAUrl(data, label) {
-      const labelLower = label.toLowerCase();
-      // Map common CTA labels to data fields
-      if (labelLower.includes('register') || labelLower.includes('rsvp')) return data.registerUrl || data.signupUrl;
-      if (labelLower.includes('sign up')) return data.signupUrl || data.registerUrl;
-      if (labelLower.includes('donate')) return data.donationUrl;
-      if (labelLower.includes('ticket')) return data.ticketUrl || data.registerUrl;
-      if (labelLower.includes('registry')) return data.registryUrl;
-      if (labelLower.includes('schedule') || labelLower.includes('itinerary')) return data.scheduleUrl;
-      if (labelLower.includes('standing')) return data.standingsUrl;
-      if (labelLower.includes('bracket')) return data.bracketUrl;
-      if (labelLower.includes('photo') || labelLower.includes('album')) return data.albumUrl;
-      if (labelLower.includes('download')) return data.downloadUrl;
-      if (labelLower.includes('vendor')) return data.vendorListUrl;
-      if (labelLower.includes('calendar')) return buildGoogleCalendarUrl(data);
-      if (labelLower.includes('direction') || labelLower.includes('map')) return buildMapsUrl(data.location);
-      if (labelLower.includes('rule')) return data.rulesUrl;
-      if (labelLower.includes('roster') || labelLower.includes('team')) return data.rosterUrl;
-      // Fallback to generic URLs
-      return data.registerUrl || data.signupUrl || data.summaryLink;
-    }
+    // ═══════════════════════════════════════════════════════════════
+    // V2 COMMENTED OUT - getCTAUrl references many non-schema fields
+    // MVP relies on event.ctas.primary.url / event.ctas.secondary.url
+    // TODO: Remove this legacy function after Admin CTA refactor
+    // ═══════════════════════════════════════════════════════════════
+    // function getCTAUrl(data, label) {
+    //   const labelLower = label.toLowerCase();
+    //   // Map common CTA labels to data fields
+    //   if (labelLower.includes('register') || labelLower.includes('rsvp')) return data.registerUrl || data.signupUrl;
+    //   if (labelLower.includes('sign up')) return data.signupUrl || data.registerUrl;
+    //   if (labelLower.includes('donate')) return data.donationUrl;
+    //   if (labelLower.includes('ticket')) return data.ticketUrl || data.registerUrl;
+    //   if (labelLower.includes('registry')) return data.registryUrl;
+    //   if (labelLower.includes('schedule') || labelLower.includes('itinerary')) return data.scheduleUrl;
+    //   if (labelLower.includes('standing')) return data.standingsUrl;
+    //   if (labelLower.includes('bracket')) return data.bracketUrl;
+    //   if (labelLower.includes('photo') || labelLower.includes('album')) return data.albumUrl;
+    //   if (labelLower.includes('download')) return data.downloadUrl;
+    //   if (labelLower.includes('vendor')) return data.vendorListUrl;
+    //   if (labelLower.includes('calendar')) return buildGoogleCalendarUrl(data);
+    //   if (labelLower.includes('direction') || labelLower.includes('map')) return buildMapsUrl(data.location);
+    //   if (labelLower.includes('rule')) return data.rulesUrl;
+    //   if (labelLower.includes('roster') || labelLower.includes('team')) return data.rosterUrl;
+    //   // Fallback to generic URLs
+    //   return data.registerUrl || data.signupUrl || data.summaryLink;
+    // }
 
     // Build Google Maps URL from location string
     function buildMapsUrl(location) {
@@ -1036,9 +1118,9 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       const startDate = data.dateISO.replace(/-/g, '');
       params.set('dates', `${startDate}/${startDate}`);
 
-      // Use venue (canonical) with fallback to location (legacy)
-      if (data.venue || data.location) {
-        params.set('location', data.venue || data.location);
+      // MVP-frozen: Use only canonical venue field (no legacy fallback)
+      if (data.venue) {
+        params.set('location', data.venue);
       }
 
       return `https://calendar.google.com/calendar/render?${params.toString()}`;
@@ -1058,8 +1140,8 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       const start = data.dateISO.replace(/-/g, '');
       const end = start;
 
-      // Use venue (canonical) with fallback to location (legacy)
-      const venueStr = data.venue || data.location || '';
+      // MVP-frozen: Use only canonical venue field (no legacy fallback)
+      const venueStr = data.venue || '';
 
       const ics = [
         'BEGIN:VCALENDAR',
@@ -1156,7 +1238,7 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
 
     /**
      * Render event list view
-     * EVENT_CONTRACT.md v2.0: Consumes canonical Event shapes from api_list
+     * SCHEMA: /schemas/event.schema.json
      * Uses: event.name, event.startDateISO, event.venue
      */
     async function renderList(items) {
@@ -1173,7 +1255,7 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
         return;
       }
       for (const event of items) {
-        // EVENT_CONTRACT.md v2.0: Use canonical fields directly
+        // Schema fields: name, startDateISO, venue
         const name = event.name || '(untitled)';
         const startDateISO = event.startDateISO || '';
         const venue = event.venue || '';
@@ -1215,28 +1297,15 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
 
     /**
      * Render event detail view
-     * EVENT_CONTRACT.md v2.0: Consumes canonical Event shape from getPublicBundle
+     * API: api_getPublicBundle → { event, config }
+     * SCHEMA: /schemas/event.schema.json
      *
-     * Contract fields used:
-     * - event.name (MVP Required)
-     * - event.startDateISO (MVP Required)
-     * - event.venue (MVP Required)
-     * - event.ctas.primary / event.ctas.secondary (MVP Required)
-     * - event.settings.showSchedule / showStandings / showBracket / showSponsors (MVP Required)
-     * - event.links.* (MVP Required - never hardcode URLs)
-     * - event.schedule / event.standings / event.bracket (MVP Optional)
-     * - event.sponsors (V2 Optional)
-     * - event.media (V2 Optional)
-     * - event.externalData (V2 Optional)
-     *
-     * @param {Object} event - Canonical Event object per EVENT_CONTRACT.md
-     * @param {Object} config - Brand config from getPublicBundle
+     * See file header for complete field mapping.
      */
     async function renderDetail(event, config = {}) {
       const root = document.getElementById('list');
 
-      // === CONTRACT FIELDS (MVP REQUIRED) ===
-      // Trust the contract - no fallback chains
+      // === SCHEMA FIELDS (MVP REQUIRED) ===
       const eventId = event.id;
       const eventName = event.name;
       const startDateISO = event.startDateISO;
@@ -1245,12 +1314,12 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       const settings = event.settings || { showSchedule: false, showStandings: false, showBracket: false, showSponsors: false };
       const links = event.links || {};
 
-      // === CONTRACT FIELDS (MVP OPTIONAL) ===
+      // === SCHEMA FIELDS (MVP OPTIONAL) ===
       const schedule = event.schedule || [];
       const standings = event.standings || [];
       const bracket = event.bracket || null;
 
-      // === CONTRACT FIELDS (V2 OPTIONAL) ===
+      // === SCHEMA FIELDS (V2 OPTIONAL) ===
       const sponsors = event.sponsors || [];
       const media = event.media || {};
       const externalData = event.externalData || {};
@@ -1273,23 +1342,28 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       currentEventData = data;
 
       // === SETTINGS-BASED VISIBILITY ===
-      // EVENT_CONTRACT.md v2.0: Trust event.settings.* - never invent flags
+      // /schemas/event.schema.json Settings: showSchedule, showStandings, showBracket, showSponsors
+      // Feature 4: Template-Aware Section Toggles - added showVideo, showMap, showGallery
       const sectionEnabled = (key) => {
         switch (key) {
           case 'schedule': return settings.showSchedule === true;
           case 'standings': return settings.showStandings === true;
           case 'bracket': return settings.showBracket === true;
           case 'sponsors': return settings.showSponsors === true;
-          default: return true; // Media sections default to visible if data exists
+          // Feature 4: Template-Aware Content Sections
+          case 'video': return settings.showVideo !== false; // Default true for backwards compat
+          case 'map': return settings.showMap !== false;     // Default true for backwards compat
+          case 'gallery': return settings.showGallery !== false; // Default true for backwards compat
+          default: return false; // Unknown keys are not schema-valid
         }
       };
 
-      // === RESERVED SPONSOR BAR ===
-      // Always render sponsor bar container (even if empty for future use)
+      // === SPONSOR BANNER (V2 Optional) ===
+      // Schema: event.sponsors[].placement MUST be 'public' - no fallback
       const sponsorBanner = document.getElementById('sponsorBanner');
       if (sectionEnabled('sponsors') && sponsors.length > 0) {
-        // Filter for public placement sponsors
-        const publicSponsors = sponsors.filter(s => s.placement === 'public' || !s.placement);
+        // STRICT: Only sponsors with placement === 'public' (schema-required field)
+        const publicSponsors = sponsors.filter(s => s.placement === 'public');
         if (publicSponsors.length > 0) {
           // Use unified SponsorRenderer carousel from SponsorUtils
           const { SponsorRenderer } = window.SponsorUtils;
@@ -1358,7 +1432,7 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       html += '</div>';
       html += '</div>';
 
-      // === ACTION ROW (EVENT_CONTRACT.md v2.0: ctas.primary / ctas.secondary) ===
+      // === ACTION ROW (event.ctas.primary / event.ctas.secondary) ===
       html += '<div class="action-buttons">';
 
       // Primary CTA (MVP Required) - trust event.ctas.primary
@@ -1389,13 +1463,16 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       html += '<div class="utility-buttons">';
 
       // Open in Maps - use media.mapUrl or build from venue
-      if (media.mapUrl) {
-        // Direct map URL from event.media.mapUrl (V2 Optional)
-        html += `<a class="btn-utility" href="${esc(media.mapUrl)}" target="_blank" rel="noopener">📍 Open in Maps</a>`;
-      } else if (venue) {
-        // Build Google Maps search URL from event.venue (MVP Required)
-        const mapsUrl = buildMapsUrl(venue);
-        html += `<a class="btn-utility" href="${esc(mapsUrl)}" target="_blank" rel="noopener">📍 Open in Maps</a>`;
+      // Feature 4: Gated by settings.showMap (template-aware toggle)
+      if (sectionEnabled('map')) {
+        if (media.mapUrl) {
+          // Direct map URL from event.media.mapUrl (V2 Optional)
+          html += `<a class="btn-utility" href="${esc(media.mapUrl)}" target="_blank" rel="noopener">📍 Open in Maps</a>`;
+        } else if (venue) {
+          // Build Google Maps search URL from event.venue (MVP Required)
+          const mapsUrl = buildMapsUrl(venue);
+          html += `<a class="btn-utility" href="${esc(mapsUrl)}" target="_blank" rel="noopener">📍 Open in Maps</a>`;
+        }
       }
 
       // Add to Calendar (Google URL + .ics) - uses event.startDateISO
@@ -1417,31 +1494,38 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
 
       html += '</div>';
 
-      // Event Image
-      if (data.imageUrl) {
-        html += `<img src="${esc(data.imageUrl)}" alt="${esc(data.name || 'Event')}" class="event-image">`;
-      }
+      // ═══════════════════════════════════════════════════════════════
+      // V2 COMMENTED OUT - imageUrl NOT IN /schemas/event.schema.json
+      // TODO: Add event.media.heroImageUrl to schema when ready
+      // ═══════════════════════════════════════════════════════════════
+      // if (data.imageUrl) {
+      //   html += `<img src="${esc(data.imageUrl)}" alt="${esc(data.name || 'Event')}" class="event-image">`;
+      // }
 
-      // Summary Section
-      if (data.summary || data.summaryLink) {
-        html += '<div class="event-section">';
-        html += '<h2>About This Event</h2>';
-        if (data.summary) {
-          html += `<p>${esc(data.summary)}</p>`;
-        }
-        if (data.summaryLink) {
-          html += `<p><a href="${esc(data.summaryLink)}" target="_blank" rel="noopener">Learn more →</a></p>`;
-        }
-        html += '</div>';
-      }
+      // ═══════════════════════════════════════════════════════════════
+      // V2 COMMENTED OUT - summary/summaryLink NOT IN /schemas/event.schema.json
+      // TODO: Add event.description field to schema when ready
+      // ═══════════════════════════════════════════════════════════════
+      // if (data.summary || data.summaryLink) {
+      //   html += '<div class="event-section">';
+      //   html += '<h2>About This Event</h2>';
+      //   if (data.summary) {
+      //     html += `<p>${esc(data.summary)}</p>`;
+      //   }
+      //   if (data.summaryLink) {
+      //     html += `<p><a href="${esc(data.summaryLink)}" target="_blank" rel="noopener">Learn more →</a></p>`;
+      //   }
+      //   html += '</div>';
+      // }
 
-      // Video Section - Fixed: Bug #3 - XSS via video URL injection (respects sections.video)
-      if (data.videoUrl && sectionEnabled('video')) {
+      // Video Section - uses event.media.videoUrl (V2 OPTIONAL per /schemas/event.schema.json)
+      // Feature 4: Gated by settings.showVideo (template-aware toggle)
+      if (sectionEnabled('video') && media.videoUrl) {
         html += '<div class="event-section">';
         html += '<h2>Video</h2>';
 
         // Validate and sanitize video URL with strict regex
-        const videoUrl = String(data.videoUrl);
+        const videoUrl = String(media.videoUrl);
         let embedUrl = null;
         let isValidVideo = false;
 
@@ -1480,19 +1564,18 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
         html += '</div>';
       }
 
-      // Gallery Section (respects sections.gallery)
-      if (data.galleryUrls && sectionEnabled('gallery')) {
-        const urls = data.galleryUrls.split(',').map(u => u.trim()).filter(u => u);
-        if (urls.length > 0) {
-          html += '<div class="event-section">';
-          html += '<h2>Gallery</h2>';
-          html += '<div class="gallery">';
-          urls.forEach(url => {
-            html += `<img src="${esc(url)}" alt="Event photo" loading="lazy">`;
-          });
-          html += '</div>';
-          html += '</div>';
-        }
+      // Gallery Section - uses event.media.gallery (V2 OPTIONAL per /schemas/event.schema.json)
+      // Feature 4: Gated by settings.showGallery (template-aware toggle)
+      // media.gallery is an array of URLs, not comma-separated string
+      if (sectionEnabled('gallery') && media.gallery && Array.isArray(media.gallery) && media.gallery.length > 0) {
+        html += '<div class="event-section">';
+        html += '<h2>Gallery</h2>';
+        html += '<div class="gallery">';
+        media.gallery.forEach(url => {
+          html += `<img src="${esc(url)}" alt="Event photo" loading="lazy">`;
+        });
+        html += '</div>';
+        html += '</div>';
       }
 
       // Schedule Section - uses event.schedule (MVP Optional) + event.settings.showSchedule
@@ -1500,7 +1583,7 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
         html += '<div class="event-section">';
         html += '<h2>Schedule</h2>';
         if (schedule.length > 0) {
-          // Render from event.schedule array per EVENT_CONTRACT.md
+          // Render from event.schedule[] per schema
           html += '<div class="schedule-list">';
           schedule.forEach(item => {
             html += `<div class="schedule-item">`;
@@ -1519,32 +1602,40 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
         html += '</div>';
       }
 
+      // ═══════════════════════════════════════════════════════════════
+      // V2 COMMENTED OUT - albumUrl/downloadUrl NOT IN /schemas/event.schema.json
+      // TODO: Add to media schema when template-specific features are ready
+      // ═══════════════════════════════════════════════════════════════
       // Template-specific sections
       // Photo Album (photo_gallery, wedding, shower templates)
-      if (data.albumUrl && sectionEnabled('gallery')) {
-        html += '<div class="event-section">';
-        html += '<h2>Photo Album</h2>';
-        html += `<p><a class="btn-primary" href="${esc(data.albumUrl)}" target="_blank" rel="noopener">📸 View Photo Album</a></p>`;
-        if (data.downloadUrl) {
-          html += `<p><a class="btn-secondary" href="${esc(data.downloadUrl)}" target="_blank" rel="noopener">⬇️ Download All Photos</a></p>`;
-        }
-        html += '</div>';
-      }
+      // if (data.albumUrl) {
+      //   html += '<div class="event-section">';
+      //   html += '<h2>Photo Album</h2>';
+      //   html += `<p><a class="btn-primary" href="${esc(data.albumUrl)}" target="_blank" rel="noopener">📸 View Photo Album</a></p>`;
+      //   if (data.downloadUrl) {
+      //     html += `<p><a class="btn-secondary" href="${esc(data.downloadUrl)}" target="_blank" rel="noopener">⬇️ Download All Photos</a></p>`;
+      //   }
+      //   html += '</div>';
+      // }
 
+      // ═══════════════════════════════════════════════════════════════
+      // V2 COMMENTED OUT - registryUrl NOT IN /schemas/event.schema.json
+      // TODO: Add to event schema when gift registry feature is ready
+      // ═══════════════════════════════════════════════════════════════
       // Registry (wedding, shower templates)
-      if (data.registryUrl) {
-        html += '<div class="event-section">';
-        html += '<h2>Gift Registry</h2>';
-        html += `<p><a class="btn-primary" href="${esc(data.registryUrl)}" target="_blank" rel="noopener">🎁 View Registry</a></p>`;
-        html += '</div>';
-      }
+      // if (data.registryUrl) {
+      //   html += '<div class="event-section">';
+      //   html += '<h2>Gift Registry</h2>';
+      //   html += `<p><a class="btn-primary" href="${esc(data.registryUrl)}" target="_blank" rel="noopener">🎁 View Registry</a></p>`;
+      //   html += '</div>';
+      // }
 
       // === STANDINGS SECTION - uses event.standings (MVP Optional) + event.settings.showStandings ===
       if (sectionEnabled('standings') && (standings.length > 0 || externalData.standingsUrl)) {
         html += '<div class="event-section">';
         html += '<h2>Standings</h2>';
         if (standings.length > 0) {
-          // Render from event.standings array per EVENT_CONTRACT.md
+          // Render from event.standings[] per schema
           html += '<table class="data-table standings-table">';
           html += '<thead><tr><th>Team</th><th>W</th><th>L</th><th>Pts</th></tr></thead>';
           html += '<tbody>';
@@ -1571,7 +1662,7 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
         html += '<div class="event-section">';
         html += '<h2>Bracket</h2>';
         if (bracket && bracket.rounds && bracket.rounds.length > 0) {
-          // Render from event.bracket per EVENT_CONTRACT.md
+          // Render from event.bracket per schema
           html += '<div class="bracket-container"><div class="bracket-rounds">';
           bracket.rounds.forEach(round => {
             html += `<div class="bracket-round">`;
@@ -1602,54 +1693,70 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
         html += '</div>';
       }
 
+      // ═══════════════════════════════════════════════════════════════
+      // V2 COMMENTED OUT - vendorListUrl NOT IN /schemas/event.schema.json
+      // TODO: Add externalData.vendorsUrl to schema when vendor feature is ready
+      // ═══════════════════════════════════════════════════════════════
       // Vendor List (farmers_market template) - supports Google Sheets BYOD
-      if (data.vendorListUrl) {
-        html += '<div class="event-section">';
-        html += '<h2>Vendors</h2>';
-        html += `<div id="vendors-container" data-url="${esc(data.vendorListUrl)}">
-          <div class="loading-placeholder">Loading vendors...</div>
-        </div>`;
-        html += '</div>';
-      }
+      // if (data.vendorListUrl) {
+      //   html += '<div class="event-section">';
+      //   html += '<h2>Vendors</h2>';
+      //   html += `<div id="vendors-container" data-url="${esc(data.vendorListUrl)}">
+      //     <div class="loading-placeholder">Loading vendors...</div>
+      //   </div>`;
+      //   html += '</div>';
+      // }
 
+      // ═══════════════════════════════════════════════════════════════
+      // V2 COMMENTED OUT - goalAmount/raisedAmount/donationUrl NOT IN /schemas/event.schema.json
+      // TODO: Add fundraising object to schema when donation feature is ready
+      // ═══════════════════════════════════════════════════════════════
       // Donation Progress (fundraiser template)
-      if (data.goalAmount && data.raisedAmount !== undefined) {
-        const progress = Math.min(100, Math.round((data.raisedAmount / data.goalAmount) * 100));
-        html += '<div class="event-section">';
-        html += '<h2>Fundraising Progress</h2>';
-        html += `<div class="fundraising-progress">`;
-        html += `<div class="progress-bar"><div class="progress-fill" style="width: ${progress}%"></div></div>`;
-        html += `<p class="progress-text">$${data.raisedAmount.toLocaleString()} raised of $${data.goalAmount.toLocaleString()} goal (${progress}%)</p>`;
-        html += `</div>`;
-        if (data.donationUrl) {
-          html += `<p><a class="btn-primary" href="${esc(data.donationUrl)}" target="_blank" rel="noopener">💝 Donate Now</a></p>`;
-        }
-        html += '</div>';
-      }
+      // if (data.goalAmount && data.raisedAmount !== undefined) {
+      //   const progress = Math.min(100, Math.round((data.raisedAmount / data.goalAmount) * 100));
+      //   html += '<div class="event-section">';
+      //   html += '<h2>Fundraising Progress</h2>';
+      //   html += `<div class="fundraising-progress">`;
+      //   html += `<div class="progress-bar"><div class="progress-fill" style="width: ${progress}%"></div></div>`;
+      //   html += `<p class="progress-text">$${data.raisedAmount.toLocaleString()} raised of $${data.goalAmount.toLocaleString()} goal (${progress}%)</p>`;
+      //   html += `</div>`;
+      //   if (data.donationUrl) {
+      //     html += `<p><a class="btn-primary" href="${esc(data.donationUrl)}" target="_blank" rel="noopener">💝 Donate Now</a></p>`;
+      //   }
+      //   html += '</div>';
+      // }
 
+      // ═══════════════════════════════════════════════════════════════
+      // V2 COMMENTED OUT - bio/bioLink/notes NOT IN /schemas/event.schema.json
+      // TODO: Add description field to schema when rich text support is ready
+      // ═══════════════════════════════════════════════════════════════
       // Bio/Notes Section (respects sections.notes) - uses custom label from template
-      if ((data.bio || data.bioLink || data.notes) && sectionEnabled('notes')) {
-        html += '<div class="event-section">';
-        html += `<h2>${esc(getSectionTitle('notes', 'More Information'))}</h2>`;
-        if (data.notes) {
-          html += `<p>${esc(data.notes)}</p>`;
-        }
-        if (data.bio) {
-          html += `<p>${esc(data.bio)}</p>`;
-        }
-        if (data.bioLink) {
-          html += `<p><a href="${esc(data.bioLink)}" target="_blank" rel="noopener">Read more →</a></p>`;
-        }
-        html += '</div>';
-      }
+      // if (data.bio || data.bioLink || data.notes) {
+      //   html += '<div class="event-section">';
+      //   html += `<h2>More Information</h2>`;
+      //   if (data.notes) {
+      //     html += `<p>${esc(data.notes)}</p>`;
+      //   }
+      //   if (data.bio) {
+      //     html += `<p>${esc(data.bio)}</p>`;
+      //   }
+      //   if (data.bioLink) {
+      //     html += `<p><a href="${esc(data.bioLink)}" target="_blank" rel="noopener">Read more →</a></p>`;
+      //   }
+      //   html += '</div>';
+      // }
 
-      // Feedback Survey (uses feedbackUrl per EVENT_CONTRACT.md)
-      if (data.feedbackUrl) {
-        html += '<div class="event-section">';
-        html += '<h2>Feedback</h2>';
-        html += `<p><a class="btn-primary" href="${esc(data.feedbackUrl)}" target="_blank" rel="noopener">📋 Share Your Feedback</a></p>`;
-        html += '</div>';
-      }
+      // ═══════════════════════════════════════════════════════════════
+      // V2 COMMENTED OUT - feedbackUrl NOT IN /schemas/event.schema.json
+      // TODO: Add links.feedbackUrl to schema when feedback feature is ready
+      // ═══════════════════════════════════════════════════════════════
+      // Feedback Survey
+      // if (data.feedbackUrl) {
+      //   html += '<div class="event-section">';
+      //   html += '<h2>Feedback</h2>';
+      //   html += `<p><a class="btn-primary" href="${esc(data.feedbackUrl)}" target="_blank" rel="noopener">📋 Share Your Feedback</a></p>`;
+      //   html += '</div>';
+      // }
 
       html += '</div>';
 
@@ -1710,7 +1817,7 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
     }
 
     // Load event data
-    // EVENT_CONTRACT.md v2.0: Use getPublicBundle for single event (returns { event, config })
+    // SCHEMA: /schemas/event.schema.json via api_getPublicBundle
     if (ID) {
       NU.rpc('api_getPublicBundle', { brandId: BRAND, scope: SCOPE, id: ID }).then(res => {
         if (res.ok && res.value && res.value.event) {

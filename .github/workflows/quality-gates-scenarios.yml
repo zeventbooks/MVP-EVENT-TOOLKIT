@@ -84,7 +84,6 @@ jobs:
           # Use Google Apps Script endpoint for direct API testing
           BASE_URL: https://eventangle.com
           ADMIN_KEY: ${{ secrets.ADMIN_KEY_ROOT }}
-          ADMIN_KEY: ${{ secrets.ADMIN_KEY_ROOT }}
           BRAND_ID: root
 
       - name: Upload Scenario 1 Results

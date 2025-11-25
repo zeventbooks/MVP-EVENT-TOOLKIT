@@ -1,0 +1,494 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zeventbook.com/schemas/event.schema.json",
+  "title": "Event",
+  "description": "Canonical Event Contract v2.2 - Single Source of Truth for all event data in Zeventbook (MVP-frozen)",
+  "type": "object",
+  "required": [
+    "id",
+    "slug",
+    "name",
+    "startDateISO",
+    "venue",
+    "links",
+    "qr",
+    "ctas",
+    "settings",
+    "createdAtISO",
+    "updatedAtISO"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[a-zA-Z0-9_-]+$",
+      "description": "MVP REQUIRED - UUID, system-generated"
+    },
+    "slug": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[a-z0-9-]+$",
+      "description": "MVP REQUIRED - URL-safe identifier"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "description": "MVP REQUIRED - Event display name"
+    },
+    "startDateISO": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "description": "MVP REQUIRED - Event date in YYYY-MM-DD format"
+    },
+    "venue": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "description": "MVP REQUIRED - Venue name/location"
+    },
+    "templateId": {
+      "type": ["string", "null"],
+      "maxLength": 64,
+      "pattern": "^[a-z_]+$",
+      "description": "MVP OPTIONAL - Template ID used to create this event"
+    },
+    "links": {
+      "$ref": "#/$defs/Links"
+    },
+    "qr": {
+      "$ref": "#/$defs/QRCodes"
+    },
+    "schedule": {
+      "type": ["array", "null"],
+      "items": { "$ref": "#/$defs/ScheduleRow" },
+      "description": "MVP OPTIONAL - Event schedule items"
+    },
+    "standings": {
+      "type": ["array", "null"],
+      "items": { "$ref": "#/$defs/StandingRow" },
+      "description": "MVP OPTIONAL - Team/player standings"
+    },
+    "bracket": {
+      "oneOf": [
+        { "$ref": "#/$defs/BracketTree" },
+        { "type": "null" }
+      ],
+      "description": "MVP OPTIONAL - Tournament bracket (V2-ready)"
+    },
+    "ctas": {
+      "$ref": "#/$defs/CTAs"
+    },
+    "sponsors": {
+      "type": ["array", "null"],
+      "items": { "$ref": "#/$defs/Sponsor" },
+      "description": "V2 OPTIONAL - Sponsor logos with placement"
+    },
+    "media": {
+      "oneOf": [
+        { "$ref": "#/$defs/Media" },
+        { "type": "null" }
+      ],
+      "description": "V2 OPTIONAL - Video, map, gallery URLs"
+    },
+    "externalData": {
+      "oneOf": [
+        { "$ref": "#/$defs/ExternalData" },
+        { "type": "null" }
+      ],
+      "description": "V2 OPTIONAL - External data source URLs"
+    },
+    "analytics": {
+      "oneOf": [
+        { "$ref": "#/$defs/Analytics" },
+        { "type": "null" }
+      ],
+      "description": "RESERVED - Event analytics data"
+    },
+    "payments": {
+      "oneOf": [
+        { "$ref": "#/$defs/Payments" },
+        { "type": "null" }
+      ],
+      "description": "RESERVED - Stripe payment integration"
+    },
+    "settings": {
+      "$ref": "#/$defs/Settings"
+    },
+    "createdAtISO": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}(T\\d{2}:\\d{2}:\\d{2}(\\.\\d{3})?Z)?$",
+      "description": "MVP REQUIRED - Creation timestamp (ISO 8601)"
+    },
+    "updatedAtISO": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}(T\\d{2}:\\d{2}:\\d{2}(\\.\\d{3})?Z)?$",
+      "description": "MVP REQUIRED - Last update timestamp (ISO 8601)"
+    }
+  },
+  "$defs": {
+    "Links": {
+      "type": "object",
+      "description": "MVP REQUIRED - All surfaces must use THESE, never rebuild URLs",
+      "required": ["publicUrl", "displayUrl", "posterUrl", "signupUrl"],
+      "additionalProperties": false,
+      "properties": {
+        "publicUrl": {
+          "type": "string",
+          "description": "MVP REQUIRED - Public.html URL"
+        },
+        "displayUrl": {
+          "type": "string",
+          "description": "MVP REQUIRED - Display.html URL"
+        },
+        "posterUrl": {
+          "type": "string",
+          "description": "MVP REQUIRED - Poster.html URL"
+        },
+        "signupUrl": {
+          "type": "string",
+          "description": "MVP REQUIRED - Form or signup page URL"
+        },
+        "sharedReportUrl": {
+          "type": ["string", "null"],
+          "description": "V2 OPTIONAL - Shared analytics report URL"
+        }
+      }
+    },
+    "QRCodes": {
+      "type": "object",
+      "description": "MVP REQUIRED - Base64-encoded PNG QR codes",
+      "required": ["public", "signup"],
+      "additionalProperties": false,
+      "properties": {
+        "public": {
+          "type": "string",
+          "description": "MVP REQUIRED - QR code linking to publicUrl (base64 PNG)"
+        },
+        "signup": {
+          "type": "string",
+          "description": "MVP REQUIRED - QR code linking to signupUrl (base64 PNG)"
+        }
+      }
+    },
+    "ScheduleRow": {
+      "type": "object",
+      "required": ["time", "title"],
+      "additionalProperties": false,
+      "properties": {
+        "time": {
+          "type": "string",
+          "description": "Display time (e.g., '10:00 AM')"
+        },
+        "title": {
+          "type": "string",
+          "description": "Schedule item title"
+        },
+        "description": {
+          "type": ["string", "null"],
+          "description": "Optional details"
+        }
+      }
+    },
+    "StandingRow": {
+      "type": "object",
+      "required": ["rank", "team", "wins", "losses"],
+      "additionalProperties": false,
+      "properties": {
+        "rank": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "team": {
+          "type": "string"
+        },
+        "wins": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "losses": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "points": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        }
+      }
+    },
+    "BracketTree": {
+      "type": "object",
+      "required": ["rounds"],
+      "additionalProperties": false,
+      "properties": {
+        "rounds": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/BracketRound" }
+        }
+      }
+    },
+    "BracketRound": {
+      "type": "object",
+      "required": ["name", "matches"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Round name (e.g., 'Quarterfinals')"
+        },
+        "matches": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/BracketMatch" }
+        }
+      }
+    },
+    "BracketMatch": {
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "team1": {
+          "type": ["string", "null"]
+        },
+        "team2": {
+          "type": ["string", "null"]
+        },
+        "score1": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        },
+        "score2": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        },
+        "winner": {
+          "type": ["string", "null"]
+        }
+      }
+    },
+    "CTA": {
+      "type": "object",
+      "required": ["label", "url"],
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 50
+        },
+        "url": {
+          "type": "string"
+        }
+      }
+    },
+    "CTAs": {
+      "type": "object",
+      "description": "MVP REQUIRED - Call-to-action buttons",
+      "required": ["primary"],
+      "additionalProperties": false,
+      "properties": {
+        "primary": {
+          "$ref": "#/$defs/CTA",
+          "description": "MVP REQUIRED - Primary CTA button"
+        },
+        "secondary": {
+          "oneOf": [
+            { "$ref": "#/$defs/CTA" },
+            { "type": "null" }
+          ],
+          "description": "V2 OPTIONAL - Secondary CTA button"
+        }
+      }
+    },
+    "Sponsor": {
+      "type": "object",
+      "description": "V2 REQUIRED fields when sponsor is present",
+      "required": ["id", "name", "logoUrl", "placement"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "logoUrl": {
+          "type": "string",
+          "pattern": "^https?://.+"
+        },
+        "linkUrl": {
+          "type": ["string", "null"],
+          "pattern": "^https?://.+"
+        },
+        "placement": {
+          "type": "string",
+          "enum": ["poster", "display", "public", "tv-banner"]
+        }
+      }
+    },
+    "Media": {
+      "type": "object",
+      "description": "V2 OPTIONAL - Media attachments",
+      "additionalProperties": false,
+      "properties": {
+        "videoUrl": {
+          "type": ["string", "null"],
+          "pattern": "^https?://.+"
+        },
+        "mapUrl": {
+          "type": ["string", "null"],
+          "pattern": "^https?://.+"
+        },
+        "gallery": {
+          "type": ["array", "null"],
+          "items": {
+            "type": "string",
+            "pattern": "^https?://.+"
+          }
+        }
+      }
+    },
+    "ExternalData": {
+      "type": "object",
+      "description": "V2 OPTIONAL - External data source URLs (ABC/CBC integration)",
+      "additionalProperties": false,
+      "properties": {
+        "scheduleUrl": {
+          "type": ["string", "null"],
+          "pattern": "^https?://.+"
+        },
+        "standingsUrl": {
+          "type": ["string", "null"],
+          "pattern": "^https?://.+"
+        },
+        "bracketUrl": {
+          "type": ["string", "null"],
+          "pattern": "^https?://.+"
+        }
+      }
+    },
+    "Analytics": {
+      "type": "object",
+      "description": "RESERVED - Event analytics (your moat)",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "eventViews": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        },
+        "publicPageViews": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        },
+        "displayViews": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        },
+        "signupStarts": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        },
+        "signupCompletes": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        },
+        "qrScans": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        }
+      }
+    },
+    "Payments": {
+      "type": "object",
+      "description": "RESERVED - Stripe payment integration",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "provider": {
+          "type": "string",
+          "const": "stripe"
+        },
+        "price": {
+          "type": "number",
+          "minimum": 0
+        },
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$"
+        },
+        "checkoutUrl": {
+          "type": ["string", "null"],
+          "pattern": "^https?://.+"
+        }
+      }
+    },
+    "Settings": {
+      "type": "object",
+      "description": "MVP REQUIRED - Admin visibility flags for all surfaces",
+      "required": ["showSchedule", "showStandings", "showBracket"],
+      "additionalProperties": false,
+      "properties": {
+        "showSchedule": {
+          "type": "boolean",
+          "description": "MVP REQUIRED - Show schedule section"
+        },
+        "showStandings": {
+          "type": "boolean",
+          "description": "MVP REQUIRED - Show standings section"
+        },
+        "showBracket": {
+          "type": "boolean",
+          "description": "MVP OPTIONAL - Show bracket section"
+        },
+        "showSponsors": {
+          "type": "boolean",
+          "description": "MVP OPTIONAL - Show sponsors section (V2 content)"
+        },
+        "showVideo": {
+          "type": "boolean",
+          "description": "MVP OPTIONAL - Show video section on public page (Feature 4: Template-Aware Toggle, default: true)"
+        },
+        "showMap": {
+          "type": "boolean",
+          "description": "MVP OPTIONAL - Show map button on public page (Feature 4: Template-Aware Toggle, default: true)"
+        },
+        "showGallery": {
+          "type": "boolean",
+          "description": "MVP OPTIONAL - Show gallery section on public page (Feature 4: Template-Aware Toggle, default: true)"
+        },
+        "showSponsorBanner": {
+          "type": "boolean",
+          "description": "MVP OPTIONAL - Show sponsor banner on public page (default: true)"
+        },
+        "showSponsorStrip": {
+          "type": "boolean",
+          "description": "MVP OPTIONAL - Show sponsor strip on display surface (default: true)"
+        },
+        "showLeagueStrip": {
+          "type": "boolean",
+          "description": "MVP OPTIONAL - Show league/broadcast strip on display (default: true)"
+        },
+        "showQRSection": {
+          "type": "boolean",
+          "description": "MVP OPTIONAL - Show QR code section on public page (default: true)"
+        }
+      }
+    }
+  }
+}

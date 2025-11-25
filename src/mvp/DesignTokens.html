@@ -15,12 +15,15 @@
     --color-primary: #2563eb;           /* Main brand blue */
     --color-primary-dark: #1d4ed8;      /* Darker blue for hover states */
     --color-primary-light: #3b82f6;     /* Lighter blue for accents */
+    --color-primary-bg: #eff6ff;        /* Light blue for selected backgrounds */
     --color-primary-pale: #dbeafe;      /* Very light blue for backgrounds */
 
     /* Semantic Colors */
     --color-success: #10b981;           /* Green for success states */
     --color-success-dark: #059669;      /* Darker green for hover */
-    --color-success-pale: #d1fae5;      /* Light green background */
+    --color-success-light: #34d399;     /* Lighter green for accents */
+    --color-success-bg: #dcfce7;        /* Light green for backgrounds */
+    --color-success-pale: #d1fae5;      /* Very light green background */
 
     --color-danger: #ef4444;            /* Red for errors/warnings */
     --color-danger-dark: #dc2626;       /* Darker red for hover */
@@ -28,7 +31,10 @@
 
     --color-warning: #f59e0b;           /* Orange for warnings */
     --color-warning-dark: #d97706;      /* Darker orange for hover */
-    --color-warning-pale: #fed7aa;      /* Light orange background */
+    --color-warning-darker: #78350f;    /* Darkest orange for text */
+    --color-warning-light: #fbbf24;     /* Lighter orange for accents */
+    --color-warning-bg: #fef3c7;        /* Light orange background */
+    --color-warning-pale: #fed7aa;      /* Very light orange background */
 
     /* Neutral Palette (Slate) */
     --color-gray-50: #f8fafc;           /* Lightest gray - body background */
@@ -124,6 +130,8 @@
     --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.1);
     --shadow-primary: 0 4px 12px rgba(37, 99, 235, 0.3);
     --shadow-primary-sm: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    --shadow-primary-alpha: rgba(37, 99, 235, 0.1);
+    --focus-ring-color-alpha: rgba(37, 99, 235, 0.1);
 
     /* ========== Transitions ========== */
 
@@ -146,6 +154,11 @@
     --touch-target-min: 44px;
     --touch-target-comfortable: 48px;
 
+    /* Card Padding (responsive 24/20/16 pattern) */
+    --card-padding: 24px;         /* Desktop default */
+    --card-padding-tablet: 20px;  /* Tablet */
+    --card-padding-mobile: 16px;  /* Mobile */
+
     /* ========== Z-Index Scale ========== */
 
     --z-index-base: 1;
@@ -156,9 +169,18 @@
 
     /* ========== Surface-Specific Tokens ========== */
 
+    /* Sponsor Logo Sizing (unified across surfaces) */
+    --sponsor-logo-height: 60px;           /* Standard height for most surfaces */
+    --sponsor-logo-height-sm: 40px;        /* Compact banners, mobile */
+    --sponsor-logo-height-lg: 80px;        /* Large displays */
+    --sponsor-logo-height-tv: 120px;       /* TV mode (10-foot viewing) */
+    --sponsor-logo-max-width: 220px;       /* Max width to prevent overflow */
+    --sponsor-logo-gap: 16px;              /* Gap between logos */
+
     /* Poster */
     --poster-border-width: 3px;
     --poster-qr-max-width: 250px;
+    --poster-sponsor-logo-height: 70px;    /* Slightly larger for print */
 
     /* D-AUDIT: Print Safety Margins */
     /* Consumer printers typically need 0.5-1in unprintable margins */
@@ -169,6 +191,8 @@
     /* Display (TV/Kiosk) */
     --display-overlay-opacity: 0.95;
     --display-carousel-duration: 5s;
+    --display-sponsor-logo-height-top: 72px;
+    --display-sponsor-logo-height-side: 64px;
 
     /* TV Mode Colors (dark theme for 10ft viewing) */
     --color-tv-bg: #111111;

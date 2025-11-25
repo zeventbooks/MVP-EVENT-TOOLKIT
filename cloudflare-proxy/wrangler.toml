@@ -61,6 +61,23 @@ routes = [
 DEPLOYMENT_ID = "AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw"
 
 # ============================================
+# Events Only (/events* path on main site)
+# ============================================
+# This serves ONLY the /events path through Cloudflare,
+# allowing the rest of the site (Squarespace, etc.) to work normally.
+# Use this for: eventangle.com/events?page=admin, /events?page=public, etc.
+[env.events]
+name = "eventangle-events"
+routes = [
+  # Only intercept /events paths - rest of site passes through
+  { pattern = "eventangle.com/events*", zone_name = "eventangle.com" },
+  { pattern = "www.eventangle.com/events*", zone_name = "eventangle.com" }
+]
+
+[env.events.vars]
+DEPLOYMENT_ID = "AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw"
+
+# ============================================
 # Development (workers.dev subdomain)
 # ============================================
 # Default deployment uses workers.dev:

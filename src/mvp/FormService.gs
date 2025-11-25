@@ -7,6 +7,53 @@
  * - Generate shortlinks for forms
  * - Form template management
  *
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * [MVP] SERVICE CONTRACT
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * READS:
+ *   ← Form templates (via listFormTemplates_(), findFormTemplate_())
+ *   ← Google Forms API (FormApp.openById for form details)
+ *
+ * WRITES:
+ *   → Google Forms API (FormApp.create for new forms)
+ *   → Google Sheets API (SpreadsheetApp.create for response sheets)
+ *
+ * OUTPUT SHAPES:
+ *   → FormConfig: /schemas/form-config.schema.json (MVP-frozen v1.0)
+ *
+ * INTERNAL SHAPES (not exposed to surfaces):
+ *   - Form template definitions (used by FormService_createFromTemplate)
+ *   - Question definitions (used by FormService_addQuestionsToForm)
+ *   - Response analytics (future V2+ feature)
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * [MVP] FORMCONFIG CONTRACT - /schemas/form-config.schema.json (v1.0 frozen)
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * CANONICAL FormConfig SHAPE (the ONLY outward-facing form data structure):
+ * {
+ *   formId: string,          // MVP REQUIRED - Google Form ID
+ *   signupUrl: string,       // MVP REQUIRED - Published form URL (viewform URL)
+ *   shortLink: string|null,  // MVP OPTIONAL - Shortened URL for sharing
+ *   qrB64: string|null,      // MVP OPTIONAL - QR code as base64-encoded PNG
+ *   totalResponses: integer  // MVP REQUIRED - Response count from linked sheet
+ * }
+ *
+ * All other internal structures (templates, questions, etc.) are NOT exposed
+ * to Admin.html or SharedReport.html. Only FormConfig is the public contract.
+ *
+ * Runtime validation: ApiSchemas.forms.formConfig
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * Used by:
+ * - Admin.html signup tile (displays FormConfig data)
+ * - SharedReport.html signup metrics (uses totalResponses from FormConfig)
+ *
+ * [V2+] FEATURES (not in MVP scope):
+ *   - FormService_getResponseAnalytics() → Form response analytics
+ *   - FormService_linkToEvent() → Form-event relationship management
+ *
  * Design principles:
  * - Encapsulates Google Forms API interactions
  * - Provides template-based form creation
@@ -14,6 +61,7 @@
  * - Handles response spreadsheet creation
  *
  * @module FormService
+ * @see /schemas/form-config.schema.json
  */
 
 // === Template Operations ==================================================
@@ -235,10 +283,10 @@ function FormService_generateShortlink(params) {
   return shortlinkResult;
 }
 
-// === Form Analytics =======================================================
+// === [V2+] Form Analytics =================================================
 
 /**
- * Get form response analytics
+ * [V2+] Get form response analytics
  * (Future enhancement - analyze form response data)
  *
  * @param {string} formId - Google Form ID
@@ -260,7 +308,7 @@ function FormService_getResponseAnalytics(formId) {
 }
 
 /**
- * Link form to event
+ * [V2+] Link form to event
  * (Future enhancement - maintain form-event relationships)
  *
  * @param {string} formId - Google Form ID

@@ -85,8 +85,8 @@ jobs:
             echo "url=$DEPLOYMENT_URL" >> $GITHUB_OUTPUT
           else
             echo "⚠️ No deployment URL found from Stage 1"
-            echo "Using default Apps Script URL"
-            echo "url=https://script.google.com/macros/s/AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw/exec" >> $GITHUB_OUTPUT
+            echo "Using default Cloudflare friendly URL"
+            echo "url=https://eventangle.com" >> $GITHUB_OUTPUT
           fi
         env:
           GH_TOKEN: ${{ github.token }}

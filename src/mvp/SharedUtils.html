@@ -1,12 +1,31 @@
 <script>
 /**
+ * ═══════════════════════════════════════════════════════════════════════════════
  * SharedUtils - Common utilities for all front-end pages
- * Consolidates duplicated functions: showAlert, formatDate, form validation
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * RESPONSIBILITY: This file provides UI utilities (alerts, dates, forms) ONLY.
+ * It does NOT handle data entities or business logic - that belongs in Code.gs.
+ *
+ * WINDOW ADDITION: window.SharedUtils
  *
  * Dependencies: NUSDK.html (for NU.esc)
- * Used by: Sponsor.html, Signup.html, PlannerCards.html, Admin.html
+ * Used by: Admin.html (MVP surface)
  *
- * @version 1.0.0
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * HELPER INDEX (keep updated when adding/removing functions):
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *   showAlert(message, type, options)  → Alert notifications (Admin.html)
+ *   formatDate(dateInput, options)     → Date formatting (Admin.html)
+ *   formatTime(timeStr)                → Time formatting (Admin.html)
+ *   debounce(fn, delay)                → Event debouncing (Admin.html)
+ *   copyToClipboard(text)              → Clipboard utility (Admin.html)
+ *   validateUrl(url)                   → URL validation (Admin.html)
+ *   sectionEnabled(settings, key)      → Section visibility check (Feature 4)
+ *     Keys: schedule, standings, bracket, sponsors, video, map, gallery
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * @version 1.2.0
  */
 window.SharedUtils = (function() {
   'use strict';
@@ -433,17 +452,24 @@ window.SharedUtils = (function() {
    * Extracted from Display.html and Poster.html (D-008)
    * Trust the contract - never invent flags
    *
+   * Feature 4: Template-Aware Section Toggles - added showVideo, showMap, showGallery
+   *
    * @param {Object} settings - Event settings object
-   * @param {string} key - Section key: 'schedule', 'standings', 'bracket', 'sponsors'
+   * @param {string} key - Section key: 'schedule', 'standings', 'bracket', 'sponsors', 'video', 'map', 'gallery'
    * @returns {boolean} True if section is enabled
    */
   function sectionEnabled(settings, key) {
     if (!settings) return false;
     switch (key) {
+      // Data sections (require explicit true)
       case 'schedule': return settings.showSchedule === true;
       case 'standings': return settings.showStandings === true;
       case 'bracket': return settings.showBracket === true;
       case 'sponsors': return settings.showSponsors === true;
+      // Content sections (default true for backwards compat - Feature 4)
+      case 'video': return settings.showVideo !== false;
+      case 'map': return settings.showMap !== false;
+      case 'gallery': return settings.showGallery !== false;
       default: return false;
     }
   }
