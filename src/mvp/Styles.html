@@ -553,11 +553,11 @@
   .stat-card {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
-    padding: 24px;
-    border-radius: 12px;
+    padding: var(--space-6, 24px); /* D-AUDIT: Using design token for consistent rhythm */
+    border-radius: var(--radius-md, 12px); /* D-AUDIT: Using design token for consistency */
     text-align: center;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    transition: transform 0.2s ease;
+    box-shadow: var(--shadow-md, 0 4px 12px rgba(0,0,0,0.1));
+    transition: transform var(--transition-base, 0.2s ease);
   }
 
   .stat-card:hover {
@@ -593,16 +593,16 @@
   }
 
   .stat-label {
-    font-size: 0.9rem;
+    font-size: var(--font-size-sm, 0.875rem); /* D-AUDIT: Aligned to type scale from 0.9rem */
     opacity: 0.95;
-    font-weight: 500;
+    font-weight: var(--font-weight-medium, 500);
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: var(--letter-spacing-wide, 0.025em);
   }
 
   .stat-trend {
-    margin-top: 8px;
-    font-size: 0.85rem;
+    margin-top: var(--space-2, 8px);
+    font-size: var(--font-size-sm, 0.875rem); /* D-AUDIT: Aligned to type scale from 0.85rem */
     opacity: 0.9;
   }
 
@@ -701,7 +701,7 @@
     color: var(--color-gray-500, #64748b);
     font-weight: var(--font-weight-medium, 500);
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: var(--letter-spacing-wide, 0.025em);
   }
 
   .metric-value {

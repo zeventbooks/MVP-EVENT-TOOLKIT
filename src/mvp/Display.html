@@ -139,7 +139,7 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
       margin:0 0 16px; color: var(--color-warning, #f59e0b); font-size:2em;
       text-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
     }
-    .fallback-card p { color: var(--color-tv-text-muted, #9ca3af); font-size:1.2em; margin:8px 0; line-height: 1.6; }
+    .fallback-card p { color: var(--color-tv-text-muted, #9ca3af); font-size: max(1.2em, 1.125rem); margin:8px 0; line-height: 1.6; } /* D-AUDIT: Min 18px for TV legibility */
     aside#sponsorSide {
       grid-column:2; grid-row:2; padding: var(--tv-pad); overflow:auto;
       background: linear-gradient(180deg, var(--color-tv-bg, #0b0b0b) 0%, var(--color-tv-bg-elevated, #161616) 100%);
@@ -168,7 +168,8 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
       position:fixed; right:20px; bottom:20px;
       background: linear-gradient(135deg, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.95) 100%);
       color:#fff; padding:12px 20px; border-radius:12px;
-      font-size:.9em; z-index:999;
+      font-size: max(1rem, 0.9em); /* D-AUDIT: Min 1rem for TV legibility at 10ft */
+      z-index:999;
       border: 1px solid rgba(255,255,255,0.1);
       box-shadow: 0 4px 12px rgba(0,0,0,0.5);
       backdrop-filter: blur(8px);
@@ -298,10 +299,10 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
       gap: 10px;
       color: #eee;
       text-decoration: none;
-      padding: 10px 14px;
+      padding: 12px 16px; /* D-AUDIT: Increased padding for touch targets */
       background: rgba(255, 255, 255, 0.05);
       border-radius: 8px;
-      font-size: 0.9em;
+      font-size: max(1rem, 0.9em); /* D-AUDIT: Min 1rem for TV legibility */
       transition: all 0.2s ease;
     }
     .league-info-overlay .league-link:hover {

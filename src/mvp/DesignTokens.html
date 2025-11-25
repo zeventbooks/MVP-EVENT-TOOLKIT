@@ -182,6 +182,12 @@
     --poster-qr-max-width: 250px;
     --poster-sponsor-logo-height: 70px;    /* Slightly larger for print */
 
+    /* D-AUDIT: Print Safety Margins */
+    /* Consumer printers typically need 0.5-1in unprintable margins */
+    --print-margin-safe: 0.75in;        /* Safe margin for most printers */
+    --print-margin-min: 0.5in;          /* Minimum margin for edge printers */
+    --print-padding-inner: 0.25in;      /* Inner content padding */
+
     /* Display (TV/Kiosk) */
     --display-overlay-opacity: 0.95;
     --display-carousel-duration: 5s;
@@ -197,6 +203,14 @@
     --color-tv-text: #eeeeee;
     --color-tv-text-muted: #aaaaaa;
     --color-tv-accent: #3b82f6;
+
+    /* D-AUDIT: TV Mode Font Sizing (10ft viewing distance) */
+    /* Minimum readable sizes for TV displays at 10-12ft viewing distance */
+    --tv-font-size-min: 1rem;           /* 16px minimum for any text */
+    --tv-font-size-label: 0.875rem;     /* 14px for labels (uppercase helps legibility) */
+    --tv-font-size-body: 1.125rem;      /* 18px for body text */
+    --tv-font-size-heading: 1.5rem;     /* 24px for headings */
+    --tv-font-size-title: 2rem;         /* 32px for titles */
 
     /* Public Page */
     --public-hero-min-height: 300px;
