@@ -20,6 +20,7 @@ READS FROM EVENT SCHEMA:
 
   Settings (MVP Required - section visibility):
     - event.settings.showSchedule, showStandings, showBracket, showSponsors
+    - event.settings.showVideo, showMap, showGallery (Feature 4: Template-Aware)
 
   Data Sections (MVP Optional):
     - event.schedule[].time, title, description
@@ -41,9 +42,12 @@ READS FROM EVENT SCHEMA:
 ═══════════════════════════════════════════════════════════════════════════════
 SECTION GATES (each optional section requires explicit schema field check):
 ═══════════════════════════════════════════════════════════════════════════════
-  Video:     if (media?.videoUrl) → render video embed
-  Map:       if (media?.mapUrl) OR venue → render map link
-  Gallery:   if (media?.gallery?.length) → render photo gallery
+  Content Sections (Feature 4: Template-Aware Toggles):
+  Video:     if (settings.showVideo && media?.videoUrl) → render video embed
+  Map:       if (settings.showMap && (media?.mapUrl OR venue)) → render map link
+  Gallery:   if (settings.showGallery && media?.gallery?.length) → render photo gallery
+
+  Data Sections:
   Schedule:  if (settings.showSchedule && (schedule?.length || externalData.scheduleUrl))
   Standings: if (settings.showStandings && (standings?.length || externalData.standingsUrl))
   Bracket:   if (settings.showBracket && (bracket?.rounds?.length || externalData.bracketUrl))
@@ -1339,13 +1343,17 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
 
       // === SETTINGS-BASED VISIBILITY ===
       // /schemas/event.schema.json Settings: showSchedule, showStandings, showBracket, showSponsors
-      // Only these four flags exist in schema - no video/gallery/notes flags
+      // Feature 4: Template-Aware Section Toggles - added showVideo, showMap, showGallery
       const sectionEnabled = (key) => {
         switch (key) {
           case 'schedule': return settings.showSchedule === true;
           case 'standings': return settings.showStandings === true;
           case 'bracket': return settings.showBracket === true;
           case 'sponsors': return settings.showSponsors === true;
+          // Feature 4: Template-Aware Content Sections
+          case 'video': return settings.showVideo !== false; // Default true for backwards compat
+          case 'map': return settings.showMap !== false;     // Default true for backwards compat
+          case 'gallery': return settings.showGallery !== false; // Default true for backwards compat
           default: return false; // Unknown keys are not schema-valid
         }
       };
@@ -1455,13 +1463,16 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       html += '<div class="utility-buttons">';
 
       // Open in Maps - use media.mapUrl or build from venue
-      if (media.mapUrl) {
-        // Direct map URL from event.media.mapUrl (V2 Optional)
-        html += `<a class="btn-utility" href="${esc(media.mapUrl)}" target="_blank" rel="noopener">📍 Open in Maps</a>`;
-      } else if (venue) {
-        // Build Google Maps search URL from event.venue (MVP Required)
-        const mapsUrl = buildMapsUrl(venue);
-        html += `<a class="btn-utility" href="${esc(mapsUrl)}" target="_blank" rel="noopener">📍 Open in Maps</a>`;
+      // Feature 4: Gated by settings.showMap (template-aware toggle)
+      if (sectionEnabled('map')) {
+        if (media.mapUrl) {
+          // Direct map URL from event.media.mapUrl (V2 Optional)
+          html += `<a class="btn-utility" href="${esc(media.mapUrl)}" target="_blank" rel="noopener">📍 Open in Maps</a>`;
+        } else if (venue) {
+          // Build Google Maps search URL from event.venue (MVP Required)
+          const mapsUrl = buildMapsUrl(venue);
+          html += `<a class="btn-utility" href="${esc(mapsUrl)}" target="_blank" rel="noopener">📍 Open in Maps</a>`;
+        }
       }
 
       // Add to Calendar (Google URL + .ics) - uses event.startDateISO
@@ -1508,7 +1519,8 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       // }
 
       // Video Section - uses event.media.videoUrl (V2 OPTIONAL per /schemas/event.schema.json)
-      if (media.videoUrl) {
+      // Feature 4: Gated by settings.showVideo (template-aware toggle)
+      if (sectionEnabled('video') && media.videoUrl) {
         html += '<div class="event-section">';
         html += '<h2>Video</h2>';
 
@@ -1553,8 +1565,9 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       }
 
       // Gallery Section - uses event.media.gallery (V2 OPTIONAL per /schemas/event.schema.json)
+      // Feature 4: Gated by settings.showGallery (template-aware toggle)
       // media.gallery is an array of URLs, not comma-separated string
-      if (media.gallery && Array.isArray(media.gallery) && media.gallery.length > 0) {
+      if (sectionEnabled('gallery') && media.gallery && Array.isArray(media.gallery) && media.gallery.length > 0) {
         html += '<div class="event-section">';
         html += '<h2>Gallery</h2>';
         html += '<div class="gallery">';

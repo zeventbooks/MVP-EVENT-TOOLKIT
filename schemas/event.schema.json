@@ -460,6 +460,18 @@
           "type": "boolean",
           "description": "MVP OPTIONAL - Show sponsors section (V2 content)"
         },
+        "showVideo": {
+          "type": "boolean",
+          "description": "MVP OPTIONAL - Show video section on public page (Feature 4: Template-Aware Toggle, default: true)"
+        },
+        "showMap": {
+          "type": "boolean",
+          "description": "MVP OPTIONAL - Show map button on public page (Feature 4: Template-Aware Toggle, default: true)"
+        },
+        "showGallery": {
+          "type": "boolean",
+          "description": "MVP OPTIONAL - Show gallery section on public page (Feature 4: Template-Aware Toggle, default: true)"
+        },
         "showSponsorBanner": {
           "type": "boolean",
           "description": "MVP OPTIONAL - Show sponsor banner on public page (default: true)"

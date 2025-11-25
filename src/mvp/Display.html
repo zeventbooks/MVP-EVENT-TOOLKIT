@@ -24,6 +24,9 @@ READS FROM EVENT SCHEMA (via api_getDisplayBundle):
     - event.settings.showStandings    → Section toggle (passed to iframe)
     - event.settings.showBracket      → Section toggle (passed to iframe)
     - event.settings.showSponsors     → Master sponsor strip toggle
+    - event.settings.showVideo        → Video toggle (Feature 4 - passed to iframe)
+    - event.settings.showMap          → Map toggle (Feature 4 - passed to iframe)
+    - event.settings.showGallery      → Gallery toggle (Feature 4 - passed to iframe)
     - event.settings.showSponsorStrip → TV sponsor strip visibility
     - event.settings.showLeagueStrip  → TV league/broadcast strip visibility
 
@@ -456,6 +459,7 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
 
     // === SCHEMA SUPPORT: /schemas/event.schema.json ===
     // Use centralized sectionEnabled from SharedUtils
+    // Feature 4: Template-Aware Section Toggles - added showVideo, showMap, showGallery
     const sectionEnabled = window.SharedUtils?.sectionEnabled || function(settings, key) {
       if (!settings) return false;
       switch (key) {
@@ -463,6 +467,10 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
         case 'standings': return settings.showStandings === true;
         case 'bracket': return settings.showBracket === true;
         case 'sponsors': return settings.showSponsors === true;
+        // Feature 4: Template-Aware Content Sections
+        case 'video': return settings.showVideo !== false; // Default true for backwards compat
+        case 'map': return settings.showMap !== false;     // Default true for backwards compat
+        case 'gallery': return settings.showGallery !== false; // Default true for backwards compat
         default: return false;
       }
     };

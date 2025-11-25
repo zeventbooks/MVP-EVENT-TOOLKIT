@@ -44,8 +44,13 @@ WRITES TO EVENT SCHEMA (via buildEventFromForm()):
     - event.settings.showStandings    ← #showStandings checkbox
     - event.settings.showBracket      ← #showBracket checkbox
 
+    Content Section Visibility (Template-Aware - Feature 4):
+    - event.settings.showVideo        ← #showVideo checkbox (template default)
+    - event.settings.showMap          ← #showMap checkbox (template default)
+    - event.settings.showGallery      ← #showGallery checkbox (template default)
+
     Master Toggle (MVP Optional):
-    - event.settings.showSponsors     ← hardcoded false (V2)
+    - event.settings.showSponsors     ← #showSponsors checkbox (template default)
 
     Surface-Specific (MVP Optional, default: true):
     - event.settings.showSponsorBanner ← #showSponsorBanner checkbox
@@ -431,7 +436,26 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
           </div>
           <div class="collapsible-content">
             <p style="color:#64748b; font-size:0.9rem; margin-bottom:12px;">Control what sections are visible on event pages</p>
-            <div class="checkbox-group">
+
+            <!-- Template-Aware Section Toggles (Feature 4) -->
+            <p style="color:#475569; font-size:0.85rem; margin-bottom:8px; font-weight:500;">Content Sections</p>
+            <div class="checkbox-group" style="margin-bottom:16px;">
+              <label class="checkbox-label">
+                <input type="checkbox" id="showVideo" checked>
+                <span>Show Video</span>
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" id="showMap" checked>
+                <span>Show Map</span>
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" id="showGallery" checked>
+                <span>Show Gallery</span>
+              </label>
+            </div>
+
+            <p style="color:#475569; font-size:0.85rem; margin-bottom:8px; font-weight:500;">Data Sections</p>
+            <div class="checkbox-group" style="margin-bottom:16px;">
               <label class="checkbox-label">
                 <input type="checkbox" id="showSchedule">
                 <span>Show Schedule</span>
@@ -443,6 +467,10 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
               <label class="checkbox-label">
                 <input type="checkbox" id="showBracket">
                 <span>Show Bracket</span>
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" id="showSponsors" checked>
+                <span>Show Sponsors</span>
               </label>
             </div>
 
@@ -980,6 +1008,9 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
         checkSectionsModified(); // Reset notice
       }
 
+      // Feature 4: Apply template-specific defaults (standings, bracket for league templates)
+      applyTemplateSpecificDefaults(templateId);
+
       // Update template-filtered panel visibility
       updateTemplatePanelVisibility(templateId);
     }
@@ -1013,8 +1044,14 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
       });
     });
 
+    /**
+     * Apply template section defaults to form checkboxes
+     * Feature 4: Template-Aware Section Toggles
+     * Maps template.sections to both legacy checkboxes and Display Settings checkboxes
+     */
     function applySectionDefaults(sections) {
-      const sectionMap = {
+      // Legacy section checkboxes (v2SectionsTogglePanel - hidden in MVP)
+      const legacySectionMap = {
         video: 'sectionVideo',
         map: 'sectionMap',
         schedule: 'sectionSchedule',
@@ -1022,12 +1059,50 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
         notes: 'sectionNotes',
         gallery: 'sectionGallery'
       };
-      Object.keys(sectionMap).forEach(key => {
-        const checkbox = document.getElementById(sectionMap[key]);
+      Object.keys(legacySectionMap).forEach(key => {
+        const checkbox = document.getElementById(legacySectionMap[key]);
         if (checkbox && Object.prototype.hasOwnProperty.call(sections, key)) {
           checkbox.checked = !!sections[key];
         }
       });
+
+      // Display Settings checkboxes (template-aware toggles - Feature 4)
+      const settingsMap = {
+        video: 'showVideo',
+        map: 'showMap',
+        gallery: 'showGallery',
+        schedule: 'showSchedule',
+        sponsors: 'showSponsors'
+      };
+      Object.keys(settingsMap).forEach(key => {
+        const checkbox = document.getElementById(settingsMap[key]);
+        if (checkbox && Object.prototype.hasOwnProperty.call(sections, key)) {
+          checkbox.checked = !!sections[key];
+        }
+      });
+
+      // Template-specific defaults for standings/bracket (league templates)
+      // These don't come from sections but from template ID logic
+    }
+
+    /**
+     * Apply template-specific defaults for standings and bracket
+     * Called from selectTemplate() after applySectionDefaults()
+     */
+    function applyTemplateSpecificDefaults(templateId) {
+      // League templates default to showing standings
+      const leagueTemplates = ['rec_league', 'darts', 'bags', 'pinball'];
+      const showStandingsCheckbox = document.getElementById('showStandings');
+      if (showStandingsCheckbox) {
+        showStandingsCheckbox.checked = leagueTemplates.includes(templateId);
+      }
+
+      // Tournament templates default to showing bracket
+      const bracketTemplates = ['rec_league', 'bags'];
+      const showBracketCheckbox = document.getElementById('showBracket');
+      if (showBracketCheckbox) {
+        showBracketCheckbox.checked = bracketTemplates.includes(templateId);
+      }
     }
 
     function getSectionsFromForm() {
@@ -1096,12 +1171,16 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
 
         // Settings (MVP Required) - must match schema Settings definition
         settings: {
-          // MVP Required
+          // Data Section Visibility (MVP Required)
           showSchedule: document.getElementById('showSchedule').checked,
           showStandings: document.getElementById('showStandings').checked,
           showBracket: document.getElementById('showBracket').checked,
-          // MVP Optional (V2 content but MVP toggles)
-          showSponsors: false,
+          // Content Section Visibility (Template-Aware - Feature 4)
+          showVideo: document.getElementById('showVideo')?.checked ?? true,
+          showMap: document.getElementById('showMap')?.checked ?? true,
+          showGallery: document.getElementById('showGallery')?.checked ?? true,
+          // Master toggle for sponsors (template default, user can override)
+          showSponsors: document.getElementById('showSponsors')?.checked ?? true,
           // MVP Optional - surface-specific toggles (per schema)
           showSponsorBanner: document.getElementById('showSponsorBanner')?.checked ?? true,
           showSponsorStrip: document.getElementById('showSponsorStrip')?.checked ?? true,
