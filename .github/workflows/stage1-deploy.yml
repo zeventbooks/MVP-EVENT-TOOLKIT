@@ -241,7 +241,7 @@ jobs:
 
           echo ""
           echo "✅ Cloudflare Worker updated!"
-          echo "🔗 Worker URL: https://eventangle.workers.dev?p=status&brand=root"
+          echo "🔗 Worker URL: https://eventangle.workers.dev/status"
 
       - name: Generate comprehensive brand URLs
         id: urls
@@ -252,8 +252,9 @@ jobs:
           # Brands: root, abc, cbc, cbl
           BRANDS=("root" "abc" "cbc" "cbl")
 
-          # Page types
-          PAGES=("status" "admin" "events" "display" "sponsor" "public")
+          # Friendly URL aliases (maps to pages internally)
+          # events -> public page, manage -> admin page, etc.
+          ALIASES=("status" "manage" "events" "display")
 
           echo ""
           echo "=============================================="
@@ -269,22 +270,22 @@ jobs:
           echo "=============================================="
           echo ""
 
-          # Generate URLs for each brand and page type
+          # Generate friendly URLs for each brand
           for brand in "${BRANDS[@]}"; do
             echo "🎯 Brand: ${brand^^}"
             echo "----------------------------------------"
-            for page in "${PAGES[@]}"; do
-              # Use 'p' parameter for most pages, 'page' for admin
-              if [ "$page" == "admin" ]; then
-                PARAM="page"
+            for alias in "${ALIASES[@]}"; do
+              # Friendly URL format: /{alias} for root, /{brand}/{alias} for others
+              if [ "$brand" == "root" ]; then
+                FRIENDLY_PATH="/${alias}"
               else
-                PARAM="p"
+                FRIENDLY_PATH="/${brand}/${alias}"
               fi
 
-              APPS_URL="${APPS_SCRIPT_BASE}?${PARAM}=${page}&brand=${brand}"
-              CF_URL="${CLOUDFLARE_BASE}?${PARAM}=${page}&brand=${brand}"
+              APPS_URL="${APPS_SCRIPT_BASE}${FRIENDLY_PATH}"
+              CF_URL="${CLOUDFLARE_BASE}${FRIENDLY_PATH}"
 
-              echo "  ${page}:"
+              echo "  ${alias}:"
               echo "    Apps Script: $APPS_URL"
               echo "    Cloudflare:  $CF_URL"
             done
@@ -297,10 +298,10 @@ jobs:
           echo ""
 
           # Save primary URLs for backward compatibility with Stage 2
-          echo "root_url=${APPS_SCRIPT_BASE}?p=events&brand=root" >> $GITHUB_OUTPUT
-          echo "abc_url=${APPS_SCRIPT_BASE}?p=events&brand=abc" >> $GITHUB_OUTPUT
-          echo "cbc_url=${APPS_SCRIPT_BASE}?p=events&brand=cbc" >> $GITHUB_OUTPUT
-          echo "cbl_url=${APPS_SCRIPT_BASE}?p=events&brand=cbl" >> $GITHUB_OUTPUT
+          echo "root_url=${APPS_SCRIPT_BASE}/events" >> $GITHUB_OUTPUT
+          echo "abc_url=${APPS_SCRIPT_BASE}/abc/events" >> $GITHUB_OUTPUT
+          echo "cbc_url=${APPS_SCRIPT_BASE}/cbc/events" >> $GITHUB_OUTPUT
+          echo "cbl_url=${APPS_SCRIPT_BASE}/cbl/events" >> $GITHUB_OUTPUT
 
       - name: Save deployment URL for Stage 2
         run: |
@@ -351,28 +352,29 @@ jobs:
             brand="${BRANDS[$i]}"
             brand_name="${BRAND_NAMES[$i]}"
 
+            # Build brand prefix for friendly URLs
+            if [ "$brand" == "root" ]; then
+              PREFIX=""
+            else
+              PREFIX="/${brand}"
+            fi
+
             echo "### 🎯 Brand: ${brand_name}" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "| Page | Apps Script URL | Cloudflare URL |" >> $GITHUB_STEP_SUMMARY
             echo "|------|-----------------|---------------|" >> $GITHUB_STEP_SUMMARY
 
-            # Status
-            echo "| 🔍 **Status** | [Test](${APPS_SCRIPT_BASE}?p=status&brand=${brand}) | [Test](${CLOUDFLARE_BASE}?p=status&brand=${brand}) |" >> $GITHUB_STEP_SUMMARY
+            # Status (friendly URL: /status or /{brand}/status)
+            echo "| 🔍 **Status** | [Test](${APPS_SCRIPT_BASE}${PREFIX}/status) | [Test](${CLOUDFLARE_BASE}${PREFIX}/status) |" >> $GITHUB_STEP_SUMMARY
 
-            # Admin
-            echo "| ⚙️ **Admin** | [Test](${APPS_SCRIPT_BASE}?page=admin&brand=${brand}) | [Test](${CLOUDFLARE_BASE}?page=admin&brand=${brand}) |" >> $GITHUB_STEP_SUMMARY
+            # Manage/Admin (friendly URL: /manage or /{brand}/manage)
+            echo "| ⚙️ **Manage** | [Test](${APPS_SCRIPT_BASE}${PREFIX}/manage) | [Test](${CLOUDFLARE_BASE}${PREFIX}/manage) |" >> $GITHUB_STEP_SUMMARY
 
-            # Events (Public listing)
-            echo "| 📅 **Events** | [Test](${APPS_SCRIPT_BASE}?p=events&brand=${brand}) | [Test](${CLOUDFLARE_BASE}?p=events&brand=${brand}) |" >> $GITHUB_STEP_SUMMARY
+            # Events (friendly URL: /events or /{brand}/events)
+            echo "| 📅 **Events** | [Test](${APPS_SCRIPT_BASE}${PREFIX}/events) | [Test](${CLOUDFLARE_BASE}${PREFIX}/events) |" >> $GITHUB_STEP_SUMMARY
 
-            # Display (TV mode)
-            echo "| 📺 **Display** | [Test](${APPS_SCRIPT_BASE}?p=display&brand=${brand}) | [Test](${CLOUDFLARE_BASE}?p=display&brand=${brand}) |" >> $GITHUB_STEP_SUMMARY
-
-            # Sponsor
-            echo "| 💼 **Sponsor** | [Test](${APPS_SCRIPT_BASE}?p=sponsor&brand=${brand}) | [Test](${CLOUDFLARE_BASE}?p=sponsor&brand=${brand}) |" >> $GITHUB_STEP_SUMMARY
-
-            # Public
-            echo "| 👥 **Public** | [Test](${APPS_SCRIPT_BASE}?p=public&brand=${brand}) | [Test](${CLOUDFLARE_BASE}?p=public&brand=${brand}) |" >> $GITHUB_STEP_SUMMARY
+            # Display (friendly URL: /display or /{brand}/display)
+            echo "| 📺 **Display** | [Test](${APPS_SCRIPT_BASE}${PREFIX}/display) | [Test](${CLOUDFLARE_BASE}${PREFIX}/display) |" >> $GITHUB_STEP_SUMMARY
 
             echo "" >> $GITHUB_STEP_SUMMARY
           done
@@ -381,47 +383,45 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 💡 Testing Instructions" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "1. **Status Page**: Verify API health and connectivity" >> $GITHUB_STEP_SUMMARY
-          echo "2. **Admin Page**: Test event management interface (requires admin key)" >> $GITHUB_STEP_SUMMARY
-          echo "3. **Events Page**: Test public event listing" >> $GITHUB_STEP_SUMMARY
-          echo "4. **Display Page**: Test TV/kiosk display mode" >> $GITHUB_STEP_SUMMARY
-          echo "5. **Sponsor Page**: Test sponsor self-service interface" >> $GITHUB_STEP_SUMMARY
-          echo "6. **Public Page**: Test customer-facing event view" >> $GITHUB_STEP_SUMMARY
+          echo "1. **Status Page** (\`/status\`): Verify API health and connectivity" >> $GITHUB_STEP_SUMMARY
+          echo "2. **Manage Page** (\`/manage\`): Test event management interface (requires admin key)" >> $GITHUB_STEP_SUMMARY
+          echo "3. **Events Page** (\`/events\`): Test public event listing" >> $GITHUB_STEP_SUMMARY
+          echo "4. **Display Page** (\`/display\`): Test TV/kiosk display mode" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "📊 **Next Step**: Stage 2 will automatically run Playwright tests against these URLs" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 📋 Quick Copy-Paste URLs" >> $GITHUB_STEP_SUMMARY
+          echo "### 📋 Quick Copy-Paste URLs (Friendly URLs)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "#### Apps Script - Status Endpoints (API Health)" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          echo "${APPS_SCRIPT_BASE}?p=status&brand=root" >> $GITHUB_STEP_SUMMARY
-          echo "${APPS_SCRIPT_BASE}?p=status&brand=abc" >> $GITHUB_STEP_SUMMARY
-          echo "${APPS_SCRIPT_BASE}?p=status&brand=cbc" >> $GITHUB_STEP_SUMMARY
-          echo "${APPS_SCRIPT_BASE}?p=status&brand=cbl" >> $GITHUB_STEP_SUMMARY
+          echo "${APPS_SCRIPT_BASE}/status" >> $GITHUB_STEP_SUMMARY
+          echo "${APPS_SCRIPT_BASE}/abc/status" >> $GITHUB_STEP_SUMMARY
+          echo "${APPS_SCRIPT_BASE}/cbc/status" >> $GITHUB_STEP_SUMMARY
+          echo "${APPS_SCRIPT_BASE}/cbl/status" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "#### Cloudflare - Status Endpoints (API Health)" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          echo "${CLOUDFLARE_BASE}?p=status&brand=root" >> $GITHUB_STEP_SUMMARY
-          echo "${CLOUDFLARE_BASE}?p=status&brand=abc" >> $GITHUB_STEP_SUMMARY
-          echo "${CLOUDFLARE_BASE}?p=status&brand=cbc" >> $GITHUB_STEP_SUMMARY
-          echo "${CLOUDFLARE_BASE}?p=status&brand=cbl" >> $GITHUB_STEP_SUMMARY
+          echo "${CLOUDFLARE_BASE}/status" >> $GITHUB_STEP_SUMMARY
+          echo "${CLOUDFLARE_BASE}/abc/status" >> $GITHUB_STEP_SUMMARY
+          echo "${CLOUDFLARE_BASE}/cbc/status" >> $GITHUB_STEP_SUMMARY
+          echo "${CLOUDFLARE_BASE}/cbl/status" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "#### Apps Script - Admin Pages (Event Management)" >> $GITHUB_STEP_SUMMARY
+          echo "#### Apps Script - Manage Pages (Event Management)" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          echo "${APPS_SCRIPT_BASE}?page=admin&brand=root" >> $GITHUB_STEP_SUMMARY
-          echo "${APPS_SCRIPT_BASE}?page=admin&brand=abc" >> $GITHUB_STEP_SUMMARY
-          echo "${APPS_SCRIPT_BASE}?page=admin&brand=cbc" >> $GITHUB_STEP_SUMMARY
-          echo "${APPS_SCRIPT_BASE}?page=admin&brand=cbl" >> $GITHUB_STEP_SUMMARY
+          echo "${APPS_SCRIPT_BASE}/manage" >> $GITHUB_STEP_SUMMARY
+          echo "${APPS_SCRIPT_BASE}/abc/manage" >> $GITHUB_STEP_SUMMARY
+          echo "${APPS_SCRIPT_BASE}/cbc/manage" >> $GITHUB_STEP_SUMMARY
+          echo "${APPS_SCRIPT_BASE}/cbl/manage" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "#### Cloudflare - Admin Pages (Event Management)" >> $GITHUB_STEP_SUMMARY
+          echo "#### Cloudflare - Manage Pages (Event Management)" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          echo "${CLOUDFLARE_BASE}?page=admin&brand=root" >> $GITHUB_STEP_SUMMARY
-          echo "${CLOUDFLARE_BASE}?page=admin&brand=abc" >> $GITHUB_STEP_SUMMARY
-          echo "${CLOUDFLARE_BASE}?page=admin&brand=cbc" >> $GITHUB_STEP_SUMMARY
-          echo "${CLOUDFLARE_BASE}?page=admin&brand=cbl" >> $GITHUB_STEP_SUMMARY
+          echo "${CLOUDFLARE_BASE}/manage" >> $GITHUB_STEP_SUMMARY
+          echo "${CLOUDFLARE_BASE}/abc/manage" >> $GITHUB_STEP_SUMMARY
+          echo "${CLOUDFLARE_BASE}/cbc/manage" >> $GITHUB_STEP_SUMMARY
+          echo "${CLOUDFLARE_BASE}/cbl/manage" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "---" >> $GITHUB_STEP_SUMMARY
