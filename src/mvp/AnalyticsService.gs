@@ -8,30 +8,63 @@
  * - Shared analytics (event managers & sponsors)
  * - Timeline and trend analysis
  *
- * ═══════════════════════════════════════════════════════════════════════════
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * [MVP] SERVICE CONTRACT
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * READS:
+ *   ← Analytics sheet (raw event logs: timestamp, eventId, surface, metric, etc.)
+ *   ← Events sheet (for ownership verification)
+ *
+ * WRITES:
+ *   → Analytics sheet (via AnalyticsService_logEvents)
+ *
+ * OUTPUT SHAPES (consumed by SharedReporting.gs):
+ *   → Summary metrics → SharedAnalytics.summary
+ *   → Surface metrics → SharedAnalytics.surfaces
+ *   → Sponsor metrics → SharedAnalytics.sponsors
+ *   → Event metrics   → SharedAnalytics.events
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════
  * [MVP] LOCKED METRICS LIST (SharedReport renders only these)
- * ═══════════════════════════════════════════════════════════════════════════
+ * ═══════════════════════════════════════════════════════════════════════════════
  *
- * Summary metrics:
- *   - totalImpressions    // Page views across all surfaces
- *   - totalClicks         // CTA button clicks
- *   - totalQrScans        // QR code scans (poster/public)
- *   - totalSignups        // Form submission completions
- *   - uniqueEvents        // Distinct events in scope
- *   - uniqueSponsors      // Distinct sponsors in scope
+ * Summary metrics (/schemas/shared-analytics.schema.json $defs/Summary):
+ *   - totalImpressions    // [MVP] Page views across all surfaces
+ *   - totalClicks         // [MVP] CTA button clicks
+ *   - totalQrScans        // [MVP] QR code scans (poster/public)
+ *   - totalSignups        // [MVP] Form submission completions
+ *   - uniqueEvents        // [MVP] Distinct events in scope
+ *   - uniqueSponsors      // [MVP] Distinct sponsors in scope
  *
- * Per-surface metrics:
- *   - impressions, clicks, qrScans, engagementRate
+ * Per-surface metrics (/schemas/shared-analytics.schema.json $defs/SurfaceMetrics):
+ *   - id                  // [MVP] Surface identifier (poster|display|public|signup)
+ *   - label               // [MVP] Human-readable name
+ *   - impressions         // [MVP] Surface page views
+ *   - clicks              // [MVP] Surface CTA clicks
+ *   - qrScans             // [MVP] Surface QR scans
+ *   - engagementRate      // [MVP OPTIONAL] Derived (clicks/impressions * 100)
  *
- * Per-sponsor metrics:
- *   - impressions, clicks, ctr
+ * Per-sponsor metrics (/schemas/shared-analytics.schema.json $defs/SponsorMetrics):
+ *   - id                  // [MVP] Sponsor identifier
+ *   - name                // [MVP] Sponsor display name
+ *   - impressions         // [MVP] Sponsor logo impressions
+ *   - clicks              // [MVP] Sponsor link clicks
+ *   - ctr                 // [MVP] Click-through rate percentage
+ *
+ * Per-event metrics (/schemas/shared-analytics.schema.json $defs/EventMetrics):
+ *   - id                  // [MVP] Event identifier
+ *   - name                // [MVP] Event display name
+ *   - impressions         // [MVP] Event page views
+ *   - clicks              // [MVP] Event CTA clicks
+ *   - ctr                 // [MVP] Click-through rate percentage
  *
  * DO NOT add metrics to SharedAnalytics without updating:
- *   - /schemas/analytics.schema.json
+ *   - /schemas/shared-analytics.schema.json
  *   - SharedReport.html (consumer)
  *   - SharedReporting.gs (producer)
  *
- * ═══════════════════════════════════════════════════════════════════════════
+ * ═══════════════════════════════════════════════════════════════════════════════
  *
  * Design principles:
  * - Separates data aggregation from presentation
