@@ -50,7 +50,7 @@ WRITES TO EVENT SCHEMA (via buildEventFromForm()):
     - event.settings.showGallery      ← #showGallery checkbox (template default)
 
     Master Toggle (MVP Optional):
-    - event.settings.showSponsors     ← hardcoded false (V2)
+    - event.settings.showSponsors     ← #showSponsors checkbox (template default)
 
     Surface-Specific (MVP Optional, default: true):
     - event.settings.showSponsorBanner ← #showSponsorBanner checkbox
@@ -455,7 +455,7 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
             </div>
 
             <p style="color:#475569; font-size:0.85rem; margin-bottom:8px; font-weight:500;">Data Sections</p>
-            <div class="checkbox-group">
+            <div class="checkbox-group" style="margin-bottom:16px;">
               <label class="checkbox-label">
                 <input type="checkbox" id="showSchedule">
                 <span>Show Schedule</span>
@@ -467,6 +467,10 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
               <label class="checkbox-label">
                 <input type="checkbox" id="showBracket">
                 <span>Show Bracket</span>
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" id="showSponsors" checked>
+                <span>Show Sponsors</span>
               </label>
             </div>
 
@@ -1067,7 +1071,8 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
         video: 'showVideo',
         map: 'showMap',
         gallery: 'showGallery',
-        schedule: 'showSchedule'
+        schedule: 'showSchedule',
+        sponsors: 'showSponsors'
       };
       Object.keys(settingsMap).forEach(key => {
         const checkbox = document.getElementById(settingsMap[key]);
@@ -1174,8 +1179,8 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
           showVideo: document.getElementById('showVideo')?.checked ?? true,
           showMap: document.getElementById('showMap')?.checked ?? true,
           showGallery: document.getElementById('showGallery')?.checked ?? true,
-          // MVP Optional (V2 content but MVP toggles)
-          showSponsors: false,
+          // Master toggle for sponsors (template default, user can override)
+          showSponsors: document.getElementById('showSponsors')?.checked ?? true,
           // MVP Optional - surface-specific toggles (per schema)
           showSponsorBanner: document.getElementById('showSponsorBanner')?.checked ?? true,
           showSponsorStrip: document.getElementById('showSponsorStrip')?.checked ?? true,
