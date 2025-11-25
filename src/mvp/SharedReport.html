@@ -17,40 +17,45 @@ Related MVP Surfaces: Admin, Poster, Display, Public
 SCHEMA CONTRACT: /schemas/analytics.schema.json (MVP v1.0)
 This surface READS analytics data aggregated from tracked events.
 
-MVP METRICS (Required):
-  - totals.impressions    → Total page views across all surfaces
-  - totals.clicks         → Total sponsor link/CTA clicks
-  - totals.qrScans        → Total QR code scans (public + signup)
-  - totals.signups        → Total form submissions / registrations
-  - totals.ctr            → Click-through rate (clicks / impressions * 100)
+RESPONSE ENVELOPE (same as NUSDK):
+  { ok: true, value: SharedAnalytics } | { ok: false, code, message }
 
-BREAKDOWNS (Optional):
-  - bySurface[].name         → Surface identifier (poster, display, public, admin)
-  - bySurface[].impressions  → Impressions for this surface
-  - bySurface[].clicks       → Clicks for this surface
-  - bySurface[].ctr          → CTR for this surface
-
-  - bySponsor[].sponsorId    → Sponsor identifier (from /schemas/sponsor.schema.json)
-  - bySponsor[].impressions  → Impressions for this sponsor
-  - bySponsor[].clicks       → Clicks for this sponsor
-  - bySponsor[].ctr          → CTR for this sponsor
-
-  - byEvent[].eventId        → Event identifier (from /schemas/event.schema.json)
-  - byEvent[].impressions    → Impressions for this event
-  - byEvent[].clicks         → Clicks for this event
-  - byEvent[].ctr            → CTR for this event
-
-V2 HIDDEN (Not in MVP):
-  - ROI calculations (no cost data in v1)
-  - Cost per Click (no cost data in v1)
-  - Engagement Score (overcooked metric)
-  - Daily Trends chart (requires time-series backend)
-  - Dwell time / dwellSec (requires advanced tracking)
-  - Auto-generated recommendations (premature optimization)
+SharedAnalytics SHAPE:
+  lastUpdatedISO: string              → #lastUpdated display
+  summary: {
+    totalImpressions: number          → Metric card
+    totalClicks: number               → Metric card
+    totalQrScans: number              → Metric card
+    totalSignups: number              → Metric card
+    uniqueEvents: number              → Metric card
+    uniqueSponsors: number            → Metric card
+  }
+  surfaces: Array<{
+    id: string                        → 'poster' | 'display' | 'public' | 'signup'
+    label: string                     → Display name
+    impressions: number
+    clicks: number
+    qrScans: number
+    engagementRate?: number           → Derived if missing
+  }>
+  sponsors?: Array<{                  → Organizer view only
+    id: string
+    name: string
+    impressions: number
+    clicks: number
+    ctr: number                       → Percentage (e.g., 2.5)
+  }>
+  events?: Array<{                    → Optional breakdown
+    id: string
+    name: string
+    impressions: number
+    clicks: number
+    ctr: number                       → Percentage (e.g., 2.5)
+  }>
 
 API ENDPOINTS:
-  - api_getSharedAnalytics({ brandId })     → Event manager view
-  - api_getSponsorAnalytics({ sponsorId })  → Sponsor-specific view (V2)
+  - api_getSharedAnalytics({ brandId })     → Organizer view (aggregated)
+  - api_getSponsorAnalytics({ sponsorId })  → Sponsor view (scoped) - V2
 ================================================================================
 -->
 <!DOCTYPE html>
@@ -91,10 +96,10 @@ API ENDPOINTS:
       font-size: 0.875rem;
     }
 
-    /* Override metrics-grid for 5-column layout on desktop */
+    /* Override metrics-grid for 6-column layout (3x2) on desktop */
     @media (min-width: 1024px) {
       .metrics-grid {
-        grid-template-columns: repeat(5, 1fr);
+        grid-template-columns: repeat(3, 1fr);
       }
     }
 
@@ -257,7 +262,7 @@ API ENDPOINTS:
     }
 
     @media (min-width: 1024px) {
-      .metrics-grid { grid-template-columns: repeat(5, 1fr); }
+      .metrics-grid { grid-template-columns: repeat(3, 1fr); }
     }
 
     /* Metric card overrides for SharedReport */
@@ -459,7 +464,12 @@ API ENDPOINTS:
 
         document.getElementById('loading').style.display = 'none';
         document.getElementById('metrics').style.display = 'block';
-        document.getElementById('lastUpdated').textContent = `Last updated: ${new Date().toLocaleString()}`;
+
+        // Use lastUpdatedISO from response, fallback to now
+        const lastUpdated = result.value.lastUpdatedISO
+          ? new Date(result.value.lastUpdatedISO).toLocaleString()
+          : new Date().toLocaleString();
+        document.getElementById('lastUpdated').textContent = `Last updated: ${lastUpdated}`;
 
       } catch (e) {
         console.error(e);
@@ -470,74 +480,81 @@ API ENDPOINTS:
       }
     }
 
-    function renderReport(metrics) {
-      // Render key metrics
-      renderMetrics(metrics);
+    /**
+     * Renders the full report from SharedAnalytics data.
+     * Schema contract: /schemas/analytics.schema.json
+     */
+    function renderReport(data) {
+      // Render key metrics from summary
+      renderMetrics(data);
 
-      // Render surface performance
-      renderSurfacePerformance(metrics.bySurface);
+      // Render surface performance (required field)
+      renderSurfacePerformance(data.surfaces);
 
-      // Handle sponsor-specific view
+      // Handle sponsor-specific view (V2)
       if (IS_SPONSOR_VIEW && SPONSOR_ID) {
         // Show sponsor-specific sections
         document.getElementById('sponsorROICard').style.display = 'block';
         document.getElementById('sponsorEventsCard').style.display = 'block';
 
-        // Render ROI and surface breakdown
-        renderSponsorROI(metrics);
+        // V2: ROI and surface breakdown
+        renderSponsorROI(data);
 
         // Render event breakdown for sponsor
-        renderSponsorEventBreakdown(metrics.byEvent);
+        renderSponsorEventBreakdown(data.events);
 
-        // Render sponsor-specific insights
-        renderSponsorInsights(metrics.insights || []);
+        // V2: Sponsor-specific insights
+        renderSponsorInsights(data.insights || []);
       } else {
-        // Event manager view
-        // Render sponsor performance
-        renderSponsorPerformance(metrics.bySponsor);
+        // Organizer view
+        // Render sponsor performance (optional)
+        renderSponsorPerformance(data.sponsors);
 
-        // Render event performance (if not sponsor view)
-        if (metrics.byEvent) {
+        // Render event performance (optional)
+        if (data.events && data.events.length > 0) {
           document.getElementById('eventPerformanceCard').style.display = 'block';
-          renderEventPerformance(metrics.byEvent);
+          renderEventPerformance(data.events);
         }
 
-        // Render recommendations
-        renderRecommendations(metrics);
+        // V2: Recommendations placeholder
+        renderRecommendations(data);
       }
     }
 
     /**
      * Renders MVP key metrics grid.
-     * Schema contract: /schemas/analytics.schema.json
-     * MVP metrics only: Impressions, Clicks, QR Scans, Signups, CTR
+     * Schema contract: /schemas/analytics.schema.json#/$defs/Summary
      */
-    function renderMetrics(metrics) {
+    function renderMetrics(data) {
       const grid = document.getElementById('metricsGrid');
       grid.innerHTML = '';
 
-      // MVP metrics only - matches analytics.schema.json#/$defs/Totals
-      const totals = metrics.totals || metrics; // Support both envelope styles
+      // Use summary object from new contract
+      const summary = data.summary || {};
       const metricCards = [
         {
           label: 'Impressions',
-          value: (totals.impressions ?? metrics.totalImpressions ?? 0).toLocaleString()
+          value: (summary.totalImpressions ?? 0).toLocaleString()
         },
         {
           label: 'Clicks',
-          value: (totals.clicks ?? metrics.totalClicks ?? 0).toLocaleString()
+          value: (summary.totalClicks ?? 0).toLocaleString()
         },
         {
           label: 'QR Scans',
-          value: (totals.qrScans ?? 0).toLocaleString()
+          value: (summary.totalQrScans ?? 0).toLocaleString()
         },
         {
           label: 'Signups',
-          value: (totals.signups ?? 0).toLocaleString()
+          value: (summary.totalSignups ?? 0).toLocaleString()
         },
         {
-          label: 'CTR',
-          value: totals.ctr ?? calculateCTR(totals.clicks ?? metrics.totalClicks, totals.impressions ?? metrics.totalImpressions)
+          label: 'Events',
+          value: (summary.uniqueEvents ?? 0).toLocaleString()
+        },
+        {
+          label: 'Sponsors',
+          value: (summary.uniqueSponsors ?? 0).toLocaleString()
         }
       ];
 
@@ -570,15 +587,10 @@ API ENDPOINTS:
     function renderSurfacePerformance(surfaces) {
       const container = document.getElementById('surfacePerformance');
 
-      if (!surfaces || (Array.isArray(surfaces) && surfaces.length === 0) || Object.keys(surfaces).length === 0) {
+      if (!surfaces || surfaces.length === 0) {
         container.innerHTML = '<p style="color: #64748b;">No surface data available.</p>';
         return;
       }
-
-      // Normalize: support both array (schema) and object (legacy) formats
-      const surfaceList = Array.isArray(surfaces)
-        ? surfaces
-        : Object.entries(surfaces).map(([name, data]) => ({ name, ...data }));
 
       const html = `
         <table class="data-table">
@@ -587,17 +599,21 @@ API ENDPOINTS:
               <th>Surface</th>
               <th>Impressions</th>
               <th>Clicks</th>
+              <th>QR Scans</th>
               <th>CTR</th>
             </tr>
           </thead>
           <tbody>
-            ${surfaceList.map(surface => {
-              const ctr = surface.ctr || calculateCTR(surface.clicks, surface.impressions);
+            ${surfaces.map(surface => {
+              const ctr = surface.engagementRate != null
+                ? surface.engagementRate.toFixed(1) + '%'
+                : calculateCTR(surface.clicks, surface.impressions);
               return `
                 <tr>
-                  <td data-label="Surface"><strong>${surface.name}</strong></td>
+                  <td data-label="Surface"><strong>${surface.label || surface.id}</strong></td>
                   <td data-label="Impressions">${(surface.impressions || 0).toLocaleString()}</td>
                   <td data-label="Clicks">${(surface.clicks || 0).toLocaleString()}</td>
+                  <td data-label="QR Scans">${(surface.qrScans || 0).toLocaleString()}</td>
                   <td data-label="CTR"><span class="badge info">${ctr}</span></td>
                 </tr>
               `;
@@ -633,10 +649,13 @@ API ENDPOINTS:
           </thead>
           <tbody>
             ${sponsors.slice(0, 10).map(sponsor => {
-              const ctr = sponsor.ctr || calculateCTR(sponsor.clicks, sponsor.impressions);
+              // ctr is a number (e.g., 2.5), format it
+              const ctr = sponsor.ctr != null
+                ? sponsor.ctr.toFixed(1) + '%'
+                : calculateCTR(sponsor.clicks, sponsor.impressions);
               return `
               <tr>
-                <td data-label="Sponsor"><strong>${sponsor.sponsorName || sponsor.sponsorId}</strong></td>
+                <td data-label="Sponsor"><strong>${sponsor.name || sponsor.id}</strong></td>
                 <td data-label="Impressions">${(sponsor.impressions || 0).toLocaleString()}</td>
                 <td data-label="Clicks">${(sponsor.clicks || 0).toLocaleString()}</td>
                 <td data-label="CTR">
@@ -675,10 +694,13 @@ API ENDPOINTS:
           </thead>
           <tbody>
             ${events.slice(0, 10).map(event => {
-              const ctr = event.ctr || calculateCTR(event.clicks, event.impressions);
+              // ctr is a number (e.g., 2.5), format it
+              const ctr = event.ctr != null
+                ? event.ctr.toFixed(1) + '%'
+                : calculateCTR(event.clicks, event.impressions);
               return `
               <tr>
-                <td data-label="Event"><strong>${event.eventName || event.eventId}</strong></td>
+                <td data-label="Event"><strong>${event.name || event.id}</strong></td>
                 <td data-label="Impressions">${(event.impressions || 0).toLocaleString()}</td>
                 <td data-label="Clicks">${(event.clicks || 0).toLocaleString()}</td>
                 <td data-label="CTR">
@@ -717,20 +739,16 @@ API ENDPOINTS:
      * Renders sponsor event breakdown table.
      * Schema contract: /schemas/analytics.schema.json#/$defs/EventMetrics
      */
-    function renderSponsorEventBreakdown(byEvent) {
+    function renderSponsorEventBreakdown(events) {
       const container = document.getElementById('sponsorEvents');
 
-      if (!byEvent || (Array.isArray(byEvent) && byEvent.length === 0) || Object.keys(byEvent).length === 0) {
+      if (!events || events.length === 0) {
         container.innerHTML = '<p style="color: #64748b;">No event data available.</p>';
         return;
       }
 
-      // Normalize: support both array (schema) and object (legacy) formats
-      const events = Array.isArray(byEvent)
-        ? byEvent
-        : Object.entries(byEvent).map(([eventId, data]) => ({ eventId, ...data }));
-
-      events.sort((a, b) => (b.impressions || 0) - (a.impressions || 0));
+      // Sort by impressions descending
+      const sorted = [...events].sort((a, b) => (b.impressions || 0) - (a.impressions || 0));
 
       const html = `
         <table class="data-table">
@@ -743,11 +761,14 @@ API ENDPOINTS:
             </tr>
           </thead>
           <tbody>
-            ${events.slice(0, 10).map(event => {
-              const ctr = event.ctr || calculateCTR(event.clicks, event.impressions);
+            ${sorted.slice(0, 10).map(event => {
+              // ctr is a number (e.g., 2.5), format it
+              const ctr = event.ctr != null
+                ? event.ctr.toFixed(1) + '%'
+                : calculateCTR(event.clicks, event.impressions);
               return `
                 <tr>
-                  <td data-label="Event"><strong>${event.eventName || event.eventId}</strong></td>
+                  <td data-label="Event"><strong>${event.name || event.id}</strong></td>
                   <td data-label="Impressions">${(event.impressions || 0).toLocaleString()}</td>
                   <td data-label="Clicks">${(event.clicks || 0).toLocaleString()}</td>
                   <td data-label="CTR">
