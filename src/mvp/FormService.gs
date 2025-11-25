@@ -7,14 +7,21 @@
  * - Generate shortlinks for forms
  * - Form template management
  *
- * SCHEMA CONTRACT: FormConfig shape (ApiSchemas.forms.formConfig)
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * [MVP] FORMCONFIG CONTRACT - /schemas/form-config.schema.json (v1.0 frozen)
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * CANONICAL FormConfig SHAPE (all fields per schema):
  * {
- *   formId: string,          // Google Form ID
- *   signupUrl: string,       // Published form URL
- *   shortLink: string|null,  // Short URL (if generated)
- *   qrB64: string|null,      // QR code base64 PNG (if generated)
- *   totalResponses: number   // Response count from linked sheet
+ *   formId: string,          // MVP REQUIRED - Google Form ID
+ *   signupUrl: string,       // MVP REQUIRED - Published form URL (viewform URL)
+ *   shortLink: string|null,  // MVP OPTIONAL - Shortened URL for sharing
+ *   qrB64: string|null,      // MVP OPTIONAL - QR code as base64-encoded PNG
+ *   totalResponses: integer  // MVP REQUIRED - Response count from linked sheet
  * }
+ *
+ * Runtime validation: ApiSchemas.forms.formConfig
+ * ═══════════════════════════════════════════════════════════════════════════════
  *
  * Used by:
  * - Admin.html signup tile
@@ -27,6 +34,7 @@
  * - Handles response spreadsheet creation
  *
  * @module FormService
+ * @see /schemas/form-config.schema.json
  */
 
 // === Template Operations ==================================================

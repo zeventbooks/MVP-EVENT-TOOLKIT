@@ -20,43 +20,60 @@ MVP Surfaces (5 total):
   ✅ SharedReport.html ?page=report
 ═══════════════════════════════════════════════════════════════════════════════
 
-SCHEMA CONTRACT: /schemas/analytics.schema.json (MVP-frozen v1.1)
+[MVP] SCHEMA CONTRACT: /schemas/shared-analytics.schema.json (v1.1 frozen)
 This surface READS analytics data aggregated from tracked events.
 
 RESPONSE ENVELOPE (same as NUSDK):
   { ok: true, value: SharedAnalytics } | { ok: false, code, message }
 
 ═══════════════════════════════════════════════════════════════════════════════
-SharedAnalytics CONTRACT (JSON fields this surface expects):
+[MVP] SharedAnalytics FIELD OVERVIEW (/schemas/shared-analytics.schema.json)
 ═══════════════════════════════════════════════════════════════════════════════
-{
-  "lastUpdatedISO": "2025-01-15T10:30:00Z",   // ISO timestamp
-  "summary": {
-    "totalImpressions": 12500,                // Total page views
-    "totalClicks": 450,                       // Total CTA clicks
-    "totalQrScans": 89,                       // Total QR scans
-    "totalSignups": 34,                       // Signup completions
-    "uniqueEvents": 5,                        // Events in scope
-    "uniqueSponsors": 3                       // Sponsors in scope
-  },
-  "surfaces": [                               // Per-surface breakdown
-    { "id": "poster", "label": "Poster", "impressions": 0, "clicks": 0, "qrScans": 89, "engagementRate": 0 },
-    { "id": "display", "label": "Display", "impressions": 8000, "clicks": 0, "qrScans": 0, "engagementRate": 0 },
-    { "id": "public", "label": "Public", "impressions": 4500, "clicks": 450, "qrScans": 0, "engagementRate": 10 },
-    { "id": "signup", "label": "Signup", "impressions": 200, "clicks": 34, "qrScans": 0, "engagementRate": 17 }
-  ],
-  "sponsors": [                               // Organizer view only
-    { "id": "sp1", "name": "Local Pizza", "impressions": 5000, "clicks": 120, "ctr": 2.4 }
-  ],
-  "events": [                                 // Optional event breakdown
-    { "id": "ev1", "name": "Summer Tourney", "impressions": 12500, "clicks": 450, "ctr": 3.6 }
-  ]
-}
+
+  REQUIRED FIELDS:
+    - lastUpdatedISO: string     // ISO 8601 timestamp of last data refresh
+    - summary: Summary           // Aggregate metrics (see below)
+    - surfaces: SurfaceMetrics[] // Per-surface breakdown (poster, display, public, signup)
+
+  OPTIONAL FIELDS:
+    - sponsors: SponsorMetrics[] // Organizer view: per-sponsor breakdown
+    - events: EventMetrics[]     // Per-event breakdown
+
+  Summary (all MVP REQUIRED):
+    - totalImpressions: integer  // Total page views across all surfaces
+    - totalClicks: integer       // Total sponsor/CTA clicks
+    - totalQrScans: integer      // Total QR code scans
+    - totalSignups: integer      // Total form submissions
+    - uniqueEvents: integer      // Count of distinct events
+    - uniqueSponsors: integer    // Count of distinct sponsors
+
+  SurfaceMetrics (MVP REQUIRED):
+    - id: "poster"|"display"|"public"|"signup"
+    - label: string              // Human-readable name
+    - impressions: integer
+    - clicks: integer
+    - qrScans: integer
+    - engagementRate?: number    // Optional, derived if missing
+
+  SponsorMetrics (MVP OPTIONAL):
+    - id: string                 // Matches sponsor.schema.json
+    - name: string
+    - impressions: integer
+    - clicks: integer
+    - ctr: number                // Click-through rate %
+
+  EventMetrics (MVP OPTIONAL):
+    - id: string                 // Matches event.schema.json
+    - name: string
+    - impressions: integer
+    - clicks: integer
+    - ctr: number                // Click-through rate %
+
 ═══════════════════════════════════════════════════════════════════════════════
 
 API ENDPOINTS (with contract references):
-  - api_getSharedAnalytics({ brandId })     → SharedAnalytics (ApiSchemas.analytics.sharedReport)
-  - api_getSponsorAnalytics({ sponsorId })  → SharedAnalytics scoped (ApiSchemas.analytics.sponsorReport)
+  - api_getSharedAnalytics({ brandId })     → SharedAnalytics (ApiSchemas.analytics._sharedAnalytics)
+  - api_getSponsorAnalytics({ sponsorId })  → SharedAnalytics scoped (ApiSchemas.analytics._sharedAnalytics)
   - api_exportSharedReport({ brandId, format }) → CSV/PDF export (V2)
 ================================================================================
 -->
