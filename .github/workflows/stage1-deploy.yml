@@ -306,8 +306,14 @@ jobs:
       - name: Save deployment URL for Stage 2
         run: |
           mkdir -p deployment-info
-          echo "${{ steps.deploy.outputs.url }}" > deployment-info/deployment-url.txt
-          echo "✅ Saved deployment URL for Stage 2 auto-trigger"
+          # Use the Cloudflare friendly URL for Stage 2 testing
+          # This ensures tests run against the production-ready endpoint
+          CLOUDFLARE_URL="https://eventangle.com"
+          echo "$CLOUDFLARE_URL" > deployment-info/deployment-url.txt
+          echo "✅ Saved Cloudflare URL for Stage 2 auto-trigger: $CLOUDFLARE_URL"
+          echo ""
+          echo "📋 Stage 2 will test against: $CLOUDFLARE_URL"
+          echo "   (Apps Script URL also available: ${{ steps.deploy.outputs.url }})"
 
       - name: Upload deployment info artifact
         uses: actions/upload-artifact@v4
