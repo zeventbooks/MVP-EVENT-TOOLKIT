@@ -120,7 +120,15 @@ function getCurrentEnvironment() {
     const url = new URL(baseUrl);
     const hostname = url.hostname;
 
-    // Check for QA environments first (more specific)
+    // Check for production domain (eventangle.com)
+    if (hostname === 'eventangle.com' || hostname === 'www.eventangle.com') {
+      return {
+        ...ENVIRONMENTS.production,
+        baseUrl: baseUrl // Use actual BASE_URL
+      };
+    }
+
+    // Check for QA environments (zeventbooks.com)
     if (hostname === 'qa.zeventbooks.com') {
       return {
         ...ENVIRONMENTS.qaHostinger,
@@ -130,7 +138,7 @@ function getCurrentEnvironment() {
 
     if (hostname === 'zeventbooks.com' || hostname === 'www.zeventbooks.com') {
       return {
-        ...ENVIRONMENTS.hostinger,
+        ...ENVIRONMENTS.qaHostinger,
         baseUrl: baseUrl // Use actual BASE_URL
       };
     }
@@ -161,7 +169,7 @@ function getCurrentEnvironment() {
       name: 'Custom',
       baseUrl: baseUrl,
       description: 'Custom environment',
-      brands: ENVIRONMENTS.hostinger.brands
+      brands: ENVIRONMENTS.production.brands
     };
   } catch (error) {
     // If URL parsing fails, return custom environment
@@ -170,7 +178,7 @@ function getCurrentEnvironment() {
       name: 'Custom',
       baseUrl: baseUrl,
       description: 'Custom environment (invalid URL)',
-      brands: ENVIRONMENTS.hostinger.brands
+      brands: ENVIRONMENTS.production.brands
     };
   }
 }
