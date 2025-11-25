@@ -471,6 +471,9 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
      * - event.links.publicUrl (MVP Required) - shown as text
      * - event.links.signupUrl (MVP Required) - shown as text
      * - event.ctas.primary.label (MVP Required) - button label
+     *
+     * IMPORTANT: QR codes MUST come from event.qr.* - no manual generation allowed.
+     * This ensures URLs are verified by the server before being encoded.
      */
     function renderQRCodes(event) {
       const el = document.getElementById('qrGrid');
@@ -481,36 +484,34 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
       const links = event.links || {};
       const ctas = event.ctas || { primary: { label: 'Sign Up', url: '' } };
 
-      // QR Code 1: Sign Up - event.qr.signup + event.links.signupUrl
+      // QR Code 1: Sign Up - MUST use event.qr.signup (no manual generation)
       const signupQR = qr.signup;
       const signupUrl = links.signupUrl || '';
       const signupLabel = ctas.primary?.label || 'Sign Up';
 
-      if (signupQR || signupUrl) {
-        // Use pre-generated QR from contract, fallback to quickchart.io
-        const qrSrc = signupQR || `https://quickchart.io/qr?text=${encodeURIComponent(signupUrl)}&size=200&margin=4`;
+      if (signupQR) {
+        // Only render if server-generated QR is present
         el.innerHTML += `
           <div class="qr-code">
             <h3>${esc(signupLabel)}</h3>
             <h4>Register Now</h4>
-            <img alt="Sign Up QR Code" src="${qrSrc}">
+            <img alt="Sign Up QR Code" src="${signupQR}">
             <p>${esc(signupUrl)}</p>
           </div>
         `;
       }
 
-      // QR Code 2: Public Event Page - event.qr.public + event.links.publicUrl
+      // QR Code 2: Public Event Page - MUST use event.qr.public (no manual generation)
       const publicQR = qr.public;
       const publicUrl = links.publicUrl || '';
 
-      if (publicQR || publicUrl) {
-        // Use pre-generated QR from contract, fallback to quickchart.io
-        const qrSrc = publicQR || `https://quickchart.io/qr?text=${encodeURIComponent(publicUrl)}&size=200&margin=4`;
+      if (publicQR) {
+        // Only render if server-generated QR is present
         el.innerHTML += `
           <div class="qr-code">
             <h3>Event Page</h3>
             <h4>View Details</h4>
-            <img alt="Public Page QR Code" src="${qrSrc}">
+            <img alt="Public Page QR Code" src="${publicQR}">
             <p>${esc(publicUrl)}</p>
           </div>
         `;
