@@ -15,13 +15,15 @@
  *   → event.settings.showStandings        [MVP REQUIRED - event.schema.json]
  *   → event.settings.showBracket          [MVP REQUIRED - event.schema.json]
  *   → event.settings.showSponsors         [MVP OPTIONAL - event.schema.json]
+ *   → event.settings.showVideo            [MVP OPTIONAL - event.schema.json]
+ *   → event.settings.showMap              [MVP OPTIONAL - event.schema.json]
+ *   → event.settings.showGallery          [MVP OPTIONAL - event.schema.json]
  *   → event.settings.showSponsorBanner    [MVP OPTIONAL - event.schema.json]
  *   → event.settings.showSponsorStrip     [MVP OPTIONAL - event.schema.json]
  *   → event.settings.showLeagueStrip      [MVP OPTIONAL - event.schema.json]
  *   → event.settings.showQRSection        [MVP OPTIONAL - event.schema.json]
  *
  * DOES NOT WRITE (internal template fields only):
- *   - sections.video, sections.map, sections.gallery → [V2+] media features
  *   - sections.notes → Legacy, not in schema
  *   - defaultCtas[] → Used for UI suggestions only, not written to event
  *   - defaults.* → Used for UI pre-fill only, not written to event
@@ -34,10 +36,10 @@
  * Template fields that map to schema:
  *   - sections.schedule  → event.settings.showSchedule
  *   - sections.sponsors  → event.settings.showSponsors
+ *   - sections.video     → event.settings.showVideo
+ *   - sections.map       → event.settings.showMap
+ *   - sections.gallery   → event.settings.showGallery
  *   - defaultCtas[]      → event.ctas.primary.label (UI suggestion only)
- *   - sections.video     → event.media.videoUrl (V2 - not in MVP settings)
- *   - sections.map       → event.media.mapUrl (V2 - not in MVP settings)
- *   - sections.gallery   → event.media.gallery (V2 - not in MVP settings)
  *   - sections.notes     → NOT IN SCHEMA (legacy, ignored in MVP)
  *
  * [MVP] Templates (focus-group ready):
@@ -558,6 +560,18 @@ function applyTemplateToEvent_(event, templateId) {
   // Template sections.sponsors → settings.showSponsors
   if (event.settings.showSponsors == null) {
     event.settings.showSponsors = !!(tpl.sections && tpl.sections.sponsors);
+  }
+  // Template sections.video → settings.showVideo
+  if (event.settings.showVideo == null) {
+    event.settings.showVideo = !!(tpl.sections && tpl.sections.video);
+  }
+  // Template sections.map → settings.showMap
+  if (event.settings.showMap == null) {
+    event.settings.showMap = !!(tpl.sections && tpl.sections.map);
+  }
+  // Template sections.gallery → settings.showGallery
+  if (event.settings.showGallery == null) {
+    event.settings.showGallery = !!(tpl.sections && tpl.sections.gallery);
   }
   // showStandings and showBracket - default false unless template has specific support
   if (event.settings.showStandings == null) {
