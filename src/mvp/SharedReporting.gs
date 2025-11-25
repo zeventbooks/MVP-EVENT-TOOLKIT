@@ -4,6 +4,18 @@
 // Used by: SharedReport.html
 //
 // ═══════════════════════════════════════════════════════════════════════════════
+// [MVP] SERVICE CONTRACT
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// READS:
+//   ← Analytics sheet (via _ensureAnalyticsSheet_())
+//
+// WRITES: None (read-only reporting service)
+//
+// OUTPUT SHAPES:
+//   → SharedAnalytics: /schemas/shared-analytics.schema.json (MVP-frozen v1.1)
+//
+// ═══════════════════════════════════════════════════════════════════════════════
 // SharedAnalytics SHAPE - FROZEN (MVP v1.1)
 // ═══════════════════════════════════════════════════════════════════════════════
 //
@@ -26,8 +38,41 @@
 //   events: Array<{ id, name, impressions, clicks, ctr }> | null
 // }
 //
+// ═══════════════════════════════════════════════════════════════════════════════
+// FIELD → SOURCE MAPPING
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// SharedAnalytics.lastUpdatedISO
+//   → new Date().toISOString() (generated at response time)
+//
+// SharedAnalytics.summary
+//   → buildSharedAnalyticsResponse_() counts metrics from filtered analytics
+//   → totalImpressions:  filter(metric === 'impression').length
+//   → totalClicks:       filter(metric === 'click').length
+//   → totalQrScans:      filter(metric === 'qr_scan').length
+//   → totalSignups:      filter(metric === 'signup').length
+//   → uniqueEvents:      Set(eventId).size
+//   → uniqueSponsors:    Set(sponsorId).size
+//
+// SharedAnalytics.surfaces
+//   → buildSurfacesArray_(analytics)
+//   → Groups by surface id, counts impressions/clicks/qrScans per surface
+//   → Calculates engagementRate = (clicks + qrScans) / impressions * 100
+//
+// SharedAnalytics.sponsors
+//   → buildSponsorsArray_(analytics) [organizer view only]
+//   → Groups by sponsorId, counts impressions/clicks per sponsor
+//   → Calculates ctr = clicks / impressions * 100
+//
+// SharedAnalytics.events
+//   → buildEventsArray_(analytics)
+//   → Groups by eventId, counts impressions/clicks per event
+//   → Calculates ctr = clicks / impressions * 100
+//
+// ═══════════════════════════════════════════════════════════════════════════════
+//
 // DO NOT add new fields without updating:
-//   - /schemas/analytics.schema.json (source of truth)
+//   - /schemas/shared-analytics.schema.json (source of truth)
 //   - ApiSchemas.gs (runtime validation)
 //   - SharedReport.html (consumer)
 //   - AnalyticsService.gs (locked metrics list)

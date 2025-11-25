@@ -3,13 +3,38 @@
  *
  * Event Template System
  *
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * [MVP] SERVICE CONTRACT
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * READS: None (templates are static configuration)
+ *
+ * WRITES (to Event via applyTemplateToEvent_):
+ *   → event.templateId                    [MVP OPTIONAL - event.schema.json]
+ *   → event.settings.showSchedule         [MVP REQUIRED - event.schema.json]
+ *   → event.settings.showStandings        [MVP REQUIRED - event.schema.json]
+ *   → event.settings.showBracket          [MVP REQUIRED - event.schema.json]
+ *   → event.settings.showSponsors         [MVP OPTIONAL - event.schema.json]
+ *   → event.settings.showSponsorBanner    [MVP OPTIONAL - event.schema.json]
+ *   → event.settings.showSponsorStrip     [MVP OPTIONAL - event.schema.json]
+ *   → event.settings.showLeagueStrip      [MVP OPTIONAL - event.schema.json]
+ *   → event.settings.showQRSection        [MVP OPTIONAL - event.schema.json]
+ *
+ * DOES NOT WRITE (internal template fields only):
+ *   - sections.video, sections.map, sections.gallery → [V2+] media features
+ *   - sections.notes → Legacy, not in schema
+ *   - defaultCtas[] → Used for UI suggestions only, not written to event
+ *   - defaults.* → Used for UI pre-fill only, not written to event
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
  * SCHEMA COMPLIANCE: Templates MUST only produce fields defined in
  * /schemas/event.schema.json. Do NOT add custom fields to templates.
  *
  * Template fields that map to schema:
  *   - sections.schedule  → event.settings.showSchedule
  *   - sections.sponsors  → event.settings.showSponsors
- *   - defaultCtas[]      → event.ctas.primary.label
+ *   - defaultCtas[]      → event.ctas.primary.label (UI suggestion only)
  *   - sections.video     → event.media.videoUrl (V2 - not in MVP settings)
  *   - sections.map       → event.media.mapUrl (V2 - not in MVP settings)
  *   - sections.gallery   → event.media.gallery (V2 - not in MVP settings)
@@ -21,9 +46,11 @@
  *   - custom      → Blank slate, all options available
  *
  * [V2+] Templates (require V2 media/gallery features):
- *   - All other templates rely on video/gallery/notes sections
+ *   - school, fundraiser, corporate, wedding, photo_gallery, shower,
+ *     bachelor_party, farmers_market, art_show, carnival, trivia,
+ *     darts, bags, pinball, church, church_club
  *
- * @version 1.2.0
+ * @version 1.3.0
  * @since 2025-11-18
  */
 
@@ -90,8 +117,8 @@ var EVENT_TEMPLATES = {
     defaultExternalProvider: 'Custom'
   },
 
-  // [V2+] School template - requires gallery features
-  school: {
+  // [V2+] School template - requires gallery features (sections.gallery = true)
+  school: {  // [V2+]
     id: 'school',
     label: 'School / Youth Event',
     description: 'School fundraisers, band boosters, sports events',
@@ -113,7 +140,7 @@ var EVENT_TEMPLATES = {
     }
   },
 
-  fundraiser: {
+  fundraiser: {  // [V2+] - requires video/gallery features
     id: 'fundraiser',
     label: 'Fundraiser / Charity',
     description: 'Charity events, donation drives, benefit nights',
@@ -135,7 +162,7 @@ var EVENT_TEMPLATES = {
     }
   },
 
-  corporate: {
+  corporate: {  // [V2+] - requires video features
     id: 'corporate',
     label: 'Corporate / Professional',
     description: 'Conferences, networking, company events',
@@ -157,9 +184,9 @@ var EVENT_TEMPLATES = {
     }
   },
 
-  // === Social & Celebration Templates ===
+  // === Social & Celebration Templates === [V2+]
 
-  wedding: {
+  wedding: {  // [V2+] - requires video/gallery features
     id: 'wedding',
     label: 'Wedding',
     description: 'Wedding celebrations, ceremonies, receptions',
@@ -181,7 +208,7 @@ var EVENT_TEMPLATES = {
     }
   },
 
-  photo_gallery: {
+  photo_gallery: {  // [V2+] - requires video/gallery features
     id: 'photo_gallery',
     label: 'Photo Gallery / Sharing',
     description: 'Weddings, birthdays, anniversaries - share photos',
@@ -203,7 +230,7 @@ var EVENT_TEMPLATES = {
     }
   },
 
-  shower: {
+  shower: {  // [V2+] - requires gallery features
     id: 'shower',
     label: 'Shower (Baby/Bridal)',
     description: 'Baby showers, bridal showers, gift registries',
@@ -225,7 +252,7 @@ var EVENT_TEMPLATES = {
     }
   },
 
-  bachelor_party: {
+  bachelor_party: {  // [V2+] - requires gallery features
     id: 'bachelor_party',
     label: 'Bachelor / Bachelorette',
     description: 'Bachelor parties, bachelorette weekends, stag nights',
@@ -247,9 +274,9 @@ var EVENT_TEMPLATES = {
     }
   },
 
-  // === Market & Arts Templates ===
+  // === Market & Arts Templates === [V2+]
 
-  farmers_market: {
+  farmers_market: {  // [V2+] - requires gallery features
     id: 'farmers_market',
     label: 'Farmers Market',
     description: 'Local markets, vendor fairs, craft shows',
@@ -271,7 +298,7 @@ var EVENT_TEMPLATES = {
     }
   },
 
-  art_show: {
+  art_show: {  // [V2+] - requires video/gallery features
     id: 'art_show',
     label: 'Art Show / Exhibition',
     description: 'Art exhibits, gallery shows, artist showcases',
@@ -293,7 +320,7 @@ var EVENT_TEMPLATES = {
     }
   },
 
-  carnival: {
+  carnival: {  // [V2+] - requires video/gallery features
     id: 'carnival',
     label: 'Carnival / Fair',
     description: 'Carnivals, county fairs, community festivals',
@@ -315,9 +342,9 @@ var EVENT_TEMPLATES = {
     }
   },
 
-  // === Bar Games & League Templates ===
+  // === Bar Games & League Templates === [V2+]
 
-  trivia: {
+  trivia: {  // [V2+] - bar_night covers MVP trivia use case
     id: 'trivia',
     label: 'Trivia Night',
     description: 'Pub trivia, quiz nights, team competitions',
@@ -339,7 +366,7 @@ var EVENT_TEMPLATES = {
     }
   },
 
-  darts: {
+  darts: {  // [V2+] - rec_league covers MVP league use case
     id: 'darts',
     label: 'Darts League',
     description: 'Dart leagues, tournaments, competitions',
@@ -362,7 +389,7 @@ var EVENT_TEMPLATES = {
     defaultExternalProvider: 'Custom'
   },
 
-  bags: {
+  bags: {  // [V2+] - rec_league covers MVP league use case
     id: 'bags',
     label: 'Bags / Cornhole',
     description: 'Cornhole leagues, bags tournaments',
@@ -385,7 +412,7 @@ var EVENT_TEMPLATES = {
     defaultExternalProvider: 'Custom'
   },
 
-  pinball: {
+  pinball: {  // [V2+] - rec_league covers MVP league use case
     id: 'pinball',
     label: 'Pinball League',
     description: 'Pinball leagues, arcade tournaments',
@@ -408,9 +435,9 @@ var EVENT_TEMPLATES = {
     defaultExternalProvider: 'Custom'
   },
 
-  // === Faith & Community Templates ===
+  // === Faith & Community Templates === [V2+]
 
-  church: {
+  church: {  // [V2+] - requires video/gallery features
     id: 'church',
     label: 'Church Event',
     description: 'Services, potlucks, community gatherings',
@@ -432,7 +459,7 @@ var EVENT_TEMPLATES = {
     }
   },
 
-  church_club: {
+  church_club: {  // [V2+] - requires gallery features
     id: 'church_club',
     label: "Church Group / Club",
     description: "Men's, women's, youth groups and ministries",
