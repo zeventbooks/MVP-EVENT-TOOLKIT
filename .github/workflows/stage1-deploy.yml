@@ -201,10 +201,6 @@ jobs:
           echo "deployment_id=$DEPLOYMENT_ID_FROM_OUTPUT" >> $GITHUB_OUTPUT
           echo "✅ Deployment complete! Base URL: $WEB_APP_URL"
 
-      # NOTE: Hostinger proxy is DEPRECATED - use Cloudflare Workers instead
-      # See /cloudflare-proxy/CLOUDFLARE_SETUP.md for current deployment
-      # The Hostinger FTP step has been removed as of Nov 2025
-
       - name: Update Cloudflare Worker (Optional)
         if: success()
         env:

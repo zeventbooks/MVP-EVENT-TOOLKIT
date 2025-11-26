@@ -173,11 +173,11 @@ npm run test:bug:report
 ### Environment-Specific Testing
 
 ```bash
-# Test against production (Hostinger)
-BASE_URL=https://zeventbooks.com npm run test:scenario:1
+# Test against production (Cloudflare)
+BASE_URL=https://eventangle.com npm run test:scenario:1
 
-# Test against QA environment
-BASE_URL=https://qa.zeventbooks.com npm run test:scenario:2
+# Test against QA environment (Cloudflare)
+BASE_URL=https://zeventbooks.com npm run test:scenario:2
 
 # Test with admin key
 ADMIN_KEY=your_admin_key npm run test:scenario:1

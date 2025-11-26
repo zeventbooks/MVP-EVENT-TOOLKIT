@@ -238,26 +238,22 @@ This is required for service account deployments to work.
 
 ## QA Environment Setup
 
-### Hostinger Redirect Setup (30 minutes)
+### Cloudflare Workers Setup
+
+The QA environment (zeventbooks.com) uses Cloudflare Workers to proxy requests to Google Apps Script.
 
 1. **Get Deployment URL**
    - From GitHub Actions job summary, OR
    - From Apps Script: Deploy → Manage deployments
 
-2. **Create Redirect in Hostinger**
-   - Log into https://hpanel.hostinger.com
-   - Go to **Domains** → **zeventbooks.com** → **Redirects**
-   - Click **Create Redirect**
-   - Configure:
-     - Type: 301 or 302
-     - Source: `qa.zeventbooks.com`
-     - Destination: `[YOUR_APPS_SCRIPT_URL]`
-     - Include path: Yes
+2. **Update Cloudflare Worker**
+   - The worker is automatically updated during Stage 1 deployment
+   - See `/cloudflare-proxy/CLOUDFLARE_SETUP.md` for manual configuration
 
 3. **Test It**
    ```bash
-   curl -I https://qa.zeventbooks.com
-   # Should show redirect to Apps Script URL
+   curl -I https://zeventbooks.com/status
+   # Should return 200 with content from Apps Script
    ```
 
 4. **Run Stage 2**
@@ -408,10 +404,10 @@ Expected:
 ### QA environment not accessible
 
 **Fix:**
-1. Check Hostinger redirect is configured
-2. Verify redirect target URL is correct
+1. Check Cloudflare Worker is deployed and running
+2. Verify Apps Script deployment ID in worker configuration
 3. Test Apps Script URL directly
-4. Check DNS: https://dnschecker.org
+4. Check Cloudflare dashboard for errors
 
 ---
 

@@ -65,11 +65,11 @@ const ENVIRONMENTS = {
     }
   },
 
-  // Hostinger - QA domain
-  qaHostinger: {
-    name: 'QA Hostinger',
-    baseUrl: process.env.QA_HOSTINGER_URL || 'https://zeventbooks.com',
-    description: 'Hostinger custom domain (QA) - Currently pointing to zeventbooks.com',
+  // QA environment (zeventbooks.com via Cloudflare)
+  qa: {
+    name: 'QA',
+    baseUrl: process.env.QA_URL || 'https://zeventbooks.com',
+    description: 'QA environment via Cloudflare Workers (zeventbooks.com)',
     brands: {
       root: 'root',
       abc: 'abc',
@@ -120,17 +120,25 @@ function getCurrentEnvironment() {
     const url = new URL(baseUrl);
     const hostname = url.hostname;
 
-    // Check for QA environments first (more specific)
+    // Check for production domain (eventangle.com)
+    if (hostname === 'eventangle.com' || hostname === 'www.eventangle.com') {
+      return {
+        ...ENVIRONMENTS.production,
+        baseUrl: baseUrl // Use actual BASE_URL
+      };
+    }
+
+    // Check for QA environments (zeventbooks.com via Cloudflare)
     if (hostname === 'qa.zeventbooks.com') {
       return {
-        ...ENVIRONMENTS.qaHostinger,
+        ...ENVIRONMENTS.qa,
         baseUrl: baseUrl // Use actual BASE_URL
       };
     }
 
     if (hostname === 'zeventbooks.com' || hostname === 'www.zeventbooks.com') {
       return {
-        ...ENVIRONMENTS.hostinger,
+        ...ENVIRONMENTS.qa,
         baseUrl: baseUrl // Use actual BASE_URL
       };
     }
@@ -161,7 +169,7 @@ function getCurrentEnvironment() {
       name: 'Custom',
       baseUrl: baseUrl,
       description: 'Custom environment',
-      brands: ENVIRONMENTS.hostinger.brands
+      brands: ENVIRONMENTS.production.brands
     };
   } catch (error) {
     // If URL parsing fails, return custom environment
@@ -170,7 +178,7 @@ function getCurrentEnvironment() {
       name: 'Custom',
       baseUrl: baseUrl,
       description: 'Custom environment (invalid URL)',
-      brands: ENVIRONMENTS.hostinger.brands
+      brands: ENVIRONMENTS.production.brands
     };
   }
 }

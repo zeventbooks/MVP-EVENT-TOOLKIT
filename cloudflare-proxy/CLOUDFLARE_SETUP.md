@@ -1,19 +1,19 @@
 # Cloudflare Workers Setup Guide
 
-Replace Hostinger with Cloudflare Workers as your proxy layer to Google Apps Script.
+Cloudflare Workers serves as the proxy layer to Google Apps Script for all environments.
 
 ## Why Cloudflare Workers?
 
-| Feature | Hostinger (PHP) | Cloudflare Workers |
-|---------|-----------------|-------------------|
-| Cold start | ~500ms | ~0ms (edge computing) |
-| Global CDN | Limited regions | 300+ edge locations |
-| Free tier | No | 100,000 requests/day |
-| Latency | Variable | <50ms globally |
-| SSL | Manual setup | Automatic |
-| Custom headers | PHP code | Built-in |
-| Analytics | Basic | Real-time dashboard |
-| Deployment | FTP upload | CLI or CI/CD |
+| Feature | Cloudflare Workers |
+|---------|-------------------|
+| Cold start | ~0ms (edge computing) |
+| Global CDN | 300+ edge locations |
+| Free tier | 100,000 requests/day |
+| Latency | <50ms globally |
+| SSL | Automatic |
+| Custom headers | Built-in |
+| Analytics | Real-time dashboard |
+| Deployment | CLI or CI/CD |
 
 ## Architecture
 
@@ -40,7 +40,7 @@ User → api.eventangle.com ──→ Cloudflare Worker ──→ Google Apps Sc
        (API subdomain)         (edge: <50ms)         (backend)
 
        Serves: API responses only
-       Main site: Still on Hostinger or elsewhere
+       Main site: Can be on Squarespace or other origin
 
 
 Option C: Events Path Only (Mixed Site)
@@ -366,7 +366,7 @@ cd cloudflare-proxy
 wrangler deploy
 ```
 
-## Cost Comparison
+## Cost
 
 ### Cloudflare Workers (Free Tier)
 - 100,000 requests/day
@@ -379,11 +379,7 @@ wrangler deploy
 - Unlimited requests at $0.50/million
 - **Cost: $5/month base**
 
-### Hostinger (Current)
-- Shared hosting plan
-- **Cost: ~$3-10/month**
-
-## Migration Checklist
+## Setup Checklist
 
 - [ ] Create Cloudflare account
 - [ ] Install Wrangler CLI
@@ -394,7 +390,6 @@ wrangler deploy
 - [ ] Update CI/CD workflow
 - [ ] Update test configuration
 - [ ] Verify production traffic
-- [ ] Decommission Hostinger proxy
 
 ## File Structure
 

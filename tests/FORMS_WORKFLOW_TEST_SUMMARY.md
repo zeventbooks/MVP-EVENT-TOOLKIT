@@ -143,7 +143,7 @@ ADMIN_KEY=your-admin-key npx playwright test tests/e2e/3-flows/forms-shortlinks-
 # Without admin key (read-only tests only)
 npx playwright test tests/e2e/3-flows/forms-shortlinks-qr.spec.js --grep "No Auth Required"
 
-# To test against Hostinger instead (override default)
+# To test against QA environment (Cloudflare)
 BASE_URL=https://zeventbooks.com npx playwright test tests/e2e/3-flows/forms-shortlinks-qr.spec.js
 ```
 
@@ -214,7 +214,7 @@ Tests require:
    npx playwright test tests/e2e/3-flows/forms-shortlinks-qr.spec.js
    ```
 
-**Note:** Tests now default to Google Apps Script endpoint for direct API testing. To test against Hostinger proxy, set `BASE_URL=https://zeventbooks.com`
+**Note:** Tests now default to Google Apps Script endpoint for direct API testing. To test against QA environment via Cloudflare, set `BASE_URL=https://zeventbooks.com`
 
 ### **Short Term (Coverage Improvements)**
 

@@ -127,7 +127,18 @@ jobs:
         continue-on-error: true
         env:
           BASE_URL: ${{ needs.setup.outputs.deployment_url }}
+          # Per-brand admin keys (brand-specific > shared fallback)
           ADMIN_KEY: ${{ secrets.ADMIN_KEY_ROOT }}
+          ADMIN_KEY_ROOT: ${{ secrets.ADMIN_KEY_ROOT }}
+          ADMIN_KEY_ABC: ${{ secrets.ADMIN_KEY_ABC }}
+          ADMIN_KEY_CBC: ${{ secrets.ADMIN_KEY_CBC }}
+          ADMIN_KEY_CBL: ${{ secrets.ADMIN_KEY_CBL }}
+          # Per-brand spreadsheet IDs (brand-specific > shared fallback)
+          SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
+          SPREADSHEET_ID_ROOT: ${{ secrets.SPREADSHEET_ID_ROOT }}
+          SPREADSHEET_ID_ABC: ${{ secrets.SPREADSHEET_ID_ABC }}
+          SPREADSHEET_ID_CBC: ${{ secrets.SPREADSHEET_ID_CBC }}
+          SPREADSHEET_ID_CBL: ${{ secrets.SPREADSHEET_ID_CBL }}
         run: |
           echo "🔥 Running API tests"
           echo "BASE_URL: $BASE_URL"
@@ -215,7 +226,18 @@ jobs:
         continue-on-error: true
         env:
           BASE_URL: ${{ needs.setup.outputs.deployment_url }}
+          # Per-brand admin keys (brand-specific > shared fallback)
           ADMIN_KEY: ${{ secrets.ADMIN_KEY_ROOT }}
+          ADMIN_KEY_ROOT: ${{ secrets.ADMIN_KEY_ROOT }}
+          ADMIN_KEY_ABC: ${{ secrets.ADMIN_KEY_ABC }}
+          ADMIN_KEY_CBC: ${{ secrets.ADMIN_KEY_CBC }}
+          ADMIN_KEY_CBL: ${{ secrets.ADMIN_KEY_CBL }}
+          # Per-brand spreadsheet IDs (brand-specific > shared fallback)
+          SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
+          SPREADSHEET_ID_ROOT: ${{ secrets.SPREADSHEET_ID_ROOT }}
+          SPREADSHEET_ID_ABC: ${{ secrets.SPREADSHEET_ID_ABC }}
+          SPREADSHEET_ID_CBC: ${{ secrets.SPREADSHEET_ID_CBC }}
+          SPREADSHEET_ID_CBL: ${{ secrets.SPREADSHEET_ID_CBL }}
         run: |
           echo "🔥 Running Smoke tests"
           echo "BASE_URL: $BASE_URL"
@@ -311,7 +333,18 @@ jobs:
         continue-on-error: true
         env:
           BASE_URL: ${{ needs.setup.outputs.deployment_url }}
+          # Per-brand admin keys (brand-specific > shared fallback)
           ADMIN_KEY: ${{ secrets.ADMIN_KEY_ROOT }}
+          ADMIN_KEY_ROOT: ${{ secrets.ADMIN_KEY_ROOT }}
+          ADMIN_KEY_ABC: ${{ secrets.ADMIN_KEY_ABC }}
+          ADMIN_KEY_CBC: ${{ secrets.ADMIN_KEY_CBC }}
+          ADMIN_KEY_CBL: ${{ secrets.ADMIN_KEY_CBL }}
+          # Per-brand spreadsheet IDs (brand-specific > shared fallback)
+          SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
+          SPREADSHEET_ID_ROOT: ${{ secrets.SPREADSHEET_ID_ROOT }}
+          SPREADSHEET_ID_ABC: ${{ secrets.SPREADSHEET_ID_ABC }}
+          SPREADSHEET_ID_CBC: ${{ secrets.SPREADSHEET_ID_CBC }}
+          SPREADSHEET_ID_CBL: ${{ secrets.SPREADSHEET_ID_CBL }}
         run: |
           echo "💰 Running ${{ matrix.suite }} tests"
           echo "BASE_URL: $BASE_URL"
