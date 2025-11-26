@@ -43,6 +43,12 @@ export default {
     // Log incoming request for debugging (visible in Cloudflare dashboard)
     console.log(`[EventAngle] ${request.method} ${url.pathname}${url.search}`);
 
+    // DEBUG: Test if worker is receiving the request
+    if (url.pathname === '/events' || url.pathname === '/events/') {
+      const gasUrl = `https://script.google.com/macros/s/${deploymentId}/exec?p=events`;
+      return Response.redirect(gasUrl, 302);
+    }
+
     // Redirect Google's static assets to script.google.com
     // These cannot be proxied - must redirect to Google's CDN
     if (url.pathname.startsWith('/static/')) {
