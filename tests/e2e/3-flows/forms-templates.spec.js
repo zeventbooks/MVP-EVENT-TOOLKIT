@@ -10,11 +10,17 @@
  * 3. Creates forms from templates (check-in, walk-in, survey)
  * 4. Verifies shortlinks are generated
  * 5. Verifies copy functionality works
+ *
+ * BASE_URL-Aware: Tests work against GAS or eventangle.com:
+ *   BASE_URL="https://www.eventangle.com" npm run test:flows
+ *   BASE_URL="https://script.google.com/macros/s/<ID>/exec" npm run test:flows
  */
 
 const { test, expect } = require('@playwright/test');
+const { getBaseUrl } = require('../../config/environments');
 
-const BASE_URL = process.env.BASE_URL || 'https://script.google.com/macros/s/AKfycbzu-U4UgdjdAiXHTg9TD5Y-1gDkc798YSTqQCdhOddG/exec';
+// Use centralized BASE_URL config (defaults to eventangle.com)
+const BASE_URL = getBaseUrl();
 const BRAND_ID = process.env.BRAND_ID || 'root';
 const ADMIN_KEY = process.env.ADMIN_KEY || 'CHANGE_ME_root';
 

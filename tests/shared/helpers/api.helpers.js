@@ -2,9 +2,15 @@
  * API Helper Functions for Testing
  *
  * Shared utilities for making API requests across all test types
+ *
+ * BASE_URL-Aware: Automatically uses centralized environment config
+ * Default: https://eventangle.com (production via Cloudflare Workers)
  */
 
-const BASE_URL = process.env.BASE_URL || 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec';
+const { getBaseUrl } = require('../../config/environments');
+
+// Use centralized BASE_URL config (defaults to eventangle.com)
+const BASE_URL = getBaseUrl();
 const ADMIN_KEY = process.env.ADMIN_KEY || 'CHANGE_ME_root';
 const BRAND_ID = process.env.BRAND_ID || 'root';
 

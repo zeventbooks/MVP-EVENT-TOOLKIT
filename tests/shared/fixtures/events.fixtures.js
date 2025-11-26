@@ -9,11 +9,14 @@
  * - MVP Required: name, startDateISO, venue, links, qr, ctas, settings
  * - V2 Optional: sponsors[], media{}, externalData{}, analytics{}, payments{}
  *
- * NOTE: BASE_URL defaults to placeholder for unit/contract tests
- * These tests use mock data and don't require a real deployment URL
+ * BASE_URL-Aware: Automatically uses centralized environment config
+ * Default: https://eventangle.com (production via Cloudflare Workers)
  */
 
-const BASE_URL = process.env.BASE_URL || 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec';
+const { getBaseUrl } = require('../../config/environments');
+
+// Use centralized BASE_URL config (defaults to eventangle.com)
+const BASE_URL = getBaseUrl();
 const BRAND_ID = process.env.BRAND_ID || 'root';
 
 /**

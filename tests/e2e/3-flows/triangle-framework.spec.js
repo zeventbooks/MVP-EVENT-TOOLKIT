@@ -10,11 +10,17 @@
  * 3. Poster changes syncing back to Admin and flowing forward
  * 4. Display rendering with all features (notes, videos, maps, sponsors)
  * 5. Public mobile and desktop views with templates
+ *
+ * BASE_URL-Aware: Tests work against GAS or eventangle.com:
+ *   BASE_URL="https://www.eventangle.com" npm run test:flows
+ *   BASE_URL="https://script.google.com/macros/s/<ID>/exec" npm run test:flows
  */
 
 const { test, expect } = require('@playwright/test');
+const { getBaseUrl } = require('../../config/environments');
 
-const BASE_URL = process.env.BASE_URL || 'https://script.google.com/macros/s/.../exec';
+// Use centralized BASE_URL config (defaults to eventangle.com)
+const BASE_URL = getBaseUrl();
 const ADMIN_KEY = process.env.ADMIN_KEY || 'CHANGE_ME_root';
 const BRAND_ID = 'root';
 

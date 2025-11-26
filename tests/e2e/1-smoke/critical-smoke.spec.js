@@ -10,13 +10,18 @@
  * 2. Page Tests - Component and interaction testing
  * 3. Flow Tests - End-to-end user journeys
  *
+ * BASE_URL-Aware: Tests work against GAS or eventangle.com:
+ *   BASE_URL="https://www.eventangle.com" npm run test:smoke
+ *   BASE_URL="https://script.google.com/macros/s/<ID>/exec" npm run test:smoke
+ *
  * CRITICAL: No retries configured - tests must pass reliably on first run
  */
 
 const { test, expect } = require('@playwright/test');
+const { getBaseUrl } = require('../../config/environments');
 
-// APP_URL = eventangle.com (Cloudflare Workers)
-const BASE_URL = process.env.APP_URL || 'https://eventangle.com';
+// Use centralized BASE_URL config (defaults to eventangle.com)
+const BASE_URL = getBaseUrl();
 const BRAND_ID = 'root';
 
 // Validate environment configuration before running tests

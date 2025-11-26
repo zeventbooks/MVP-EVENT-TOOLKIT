@@ -190,6 +190,29 @@ npm run test:triangle:all
 
 Tests complete user workflows on deployed application.
 
+#### BASE_URL-Aware Testing
+
+All E2E and API tests are **BASE_URL-aware** - run the same tests against different environments without code changes:
+
+```bash
+# Run against eventangle.com (default - no BASE_URL needed)
+npm run test:smoke
+
+# Run against production (eventangle.com)
+BASE_URL="https://www.eventangle.com" npm run test:smoke
+
+# Run against GAS webapp directly
+BASE_URL="https://script.google.com/macros/s/<DEPLOYMENT_ID>/exec" npm run test:smoke
+```
+
+| Environment | BASE_URL |
+|-------------|----------|
+| Production (default) | `https://eventangle.com` |
+| GAS Direct | `https://script.google.com/macros/s/<ID>/exec` |
+| Staging | `https://staging.zeventbooks.com` |
+
+Configuration: `tests/config/environments.js`
+
 #### a. Authentication Tests ✨ NEW!
 **File:** `tests/e2e/authentication.spec.js`
 

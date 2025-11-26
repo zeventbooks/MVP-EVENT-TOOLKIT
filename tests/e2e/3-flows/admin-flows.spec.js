@@ -3,12 +3,17 @@
  *
  * Purpose: Test complete admin workflows from start to finish
  * Coverage: Event creation, sponsor management, configuration, publishing
+ *
+ * BASE_URL-Aware: Tests work against GAS or eventangle.com:
+ *   BASE_URL="https://www.eventangle.com" npm run test:flows
+ *   BASE_URL="https://script.google.com/macros/s/<ID>/exec" npm run test:flows
  */
 
 const { test, expect } = require('@playwright/test');
+const { getBaseUrl } = require('../../config/environments');
 
-// APP_URL = eventangle.com (Cloudflare Workers)
-const BASE_URL = process.env.APP_URL || 'https://eventangle.com';
+// Use centralized BASE_URL config (defaults to eventangle.com)
+const BASE_URL = getBaseUrl();
 const ADMIN_KEY = process.env.ADMIN_KEY || 'CHANGE_ME_root';
 const BRAND_ID = 'root';
 

@@ -328,11 +328,48 @@ Tests Poster editing and Google Maps integration:
 
 ## Environment Variables
 
-Required for E2E tests:
+### BASE_URL-Aware Testing
+
+All E2E and API tests are **BASE_URL-aware** - they work against any deployment:
+
 ```bash
-BASE_URL=https://your-deployment-url.com    # Apps Script web app URL
-ADMIN_KEY=your_admin_key_here               # Admin authentication key
-BRAND_ID=root                               # Default brand (optional)
+# Run against eventangle.com (default - no BASE_URL needed)
+npm run test:smoke
+
+# Run against production (eventangle.com)
+BASE_URL="https://www.eventangle.com" npm run test:smoke
+
+# Run against GAS webapp directly
+BASE_URL="https://script.google.com/macros/s/<DEPLOYMENT_ID>/exec" npm run test:smoke
+
+# Run against staging/QA
+BASE_URL="https://staging.zeventbooks.com" npm run test:smoke
+```
+
+### Configuration
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `BASE_URL` | No | `https://eventangle.com` | Target deployment URL |
+| `ADMIN_KEY` | Yes (for admin tests) | - | Admin authentication key |
+| `BRAND_ID` | No | `root` | Default brand ID |
+
+### URL Configuration File
+
+All tests use the centralized config at `tests/config/environments.js`:
+
+```javascript
+const { getBaseUrl, isGoogleAppsScript, isEventangle } = require('../config/environments');
+
+// Get the base URL (respects BASE_URL env var, defaults to eventangle.com)
+const BASE_URL = getBaseUrl();
+
+// Check environment type
+if (isGoogleAppsScript()) {
+  // GAS-specific behavior
+} else if (isEventangle()) {
+  // Production-specific behavior
+}
 ```
 
 Set in CI/CD:
