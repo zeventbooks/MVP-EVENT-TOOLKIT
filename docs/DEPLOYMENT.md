@@ -468,7 +468,7 @@ Expected:
 
 ### Frontend (.html)
 
-6 MVP surfaces + supporting files:
+5 MVP surfaces + supporting files:
 
 | File | Purpose |
 |------|---------|
@@ -476,7 +476,6 @@ Expected:
 | Public.html | Mobile event page |
 | Display.html | TV/kiosk display |
 | Poster.html | Print/QR |
-| Sponsor.html | Sponsor portal |
 | SharedReport.html | Analytics |
 
 ---

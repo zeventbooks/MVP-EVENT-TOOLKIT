@@ -19,7 +19,7 @@ Project ID: 1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l
 - **REST API** - Build custom frontends in React, Vue, mobile apps!
 - **3 Authentication Methods** - adminKey, JWT tokens, API key header
 - **Interactive API Docs** - Test endpoints right in your browser!
-- **6 MVP Surfaces** - Admin, Public, Display, Poster, Sponsor, SharedReport (LOCKED for focus groups)
+- **5 MVP Surfaces** - Admin, Public, Display, Poster, SharedReport (LOCKED for focus groups)
 - **Experimental Pages** - ApiDocs, Diagnostics, Signup, Test (labeled v2+)
 - Multi-brand config (events-only flags)
 - Uniform API envelopes, DIAG logging, idempotency, rate-limits
@@ -38,10 +38,9 @@ Status: LOCKED for MVP v1.0
 | Surface | Purpose | Status |
 |---------|---------|--------|
 | Admin.html | Event management dashboard | MVP LOCKED |
-| Poster.html | Printable poster with QR | MVP LOCKED |
-| Display.html | TV/kiosk display | MVP LOCKED |
 | Public.html | Public event listing | MVP LOCKED |
-| Sponsor.html | Sponsor management | MVP LOCKED |
+| Display.html | TV/kiosk display | MVP LOCKED |
+| Poster.html | Printable poster with QR | MVP LOCKED |
 | SharedReport.html | Shared analytics | MVP LOCKED |
 
 See **[docs/MVP_SCOPE.md](./docs/MVP_SCOPE.md)** for full MVP definition.
@@ -87,7 +86,7 @@ npm run deploy # Create new deployment
 ## Documentation
 
 ### Core Documentation (MVP)
-- **[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)** - MVP architecture (12 backend services, 6 frontend surfaces, feature flags)
+- **[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)** - MVP architecture (12 backend services, 5 frontend surfaces, feature flags)
 - **[docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md)** - Deployment, CI/CD, environments, troubleshooting
 - **[docs/FRIENDLY_URLS.md](./docs/FRIENDLY_URLS.md)** - Customer-friendly URL aliasing system
 - **[docs/SETUP_DIAGNOSTICS.md](./docs/SETUP_DIAGNOSTICS.md)** - Setup verification endpoint

@@ -6,15 +6,21 @@
 // =============================================================================
 // MVP Surfaces (5 total):
 //   ✅ Admin.html        ?page=admin
-//   ✅ Public.html       ?page=public (default)
+//   ✅ Public.html       ?page=public
 //   ✅ Display.html      ?page=display
 //   ✅ Poster.html       ?page=poster
 //   ✅ SharedReport.html ?page=report
 //
-// V2+ Surfaces (not in MVP):
-//   ❌ Sponsor.html      ?page=sponsor (V2 sponsor self-service)
-//   ❌ ApiDocs, Diagnostics, Test, Signup, PlannerCards, ConfigHtml
+// V2+ Surfaces (NOT in MVP):
+//   ❌ Sponsor.html
+//   ❌ ApiDocs.html
+//   ❌ Diagnostics*.html
+//   ❌ Test.html
+//   ❌ Signup.html
+//   ❌ PlannerCards.html
+//   ❌ ConfigHtml.html
 //
+// Any new surface goes in V2 section by default until explicitly promoted.
 // DO NOT add new surfaces without schema review
 // =============================================================================
 //

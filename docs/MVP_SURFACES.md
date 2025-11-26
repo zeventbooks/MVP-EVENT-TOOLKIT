@@ -8,13 +8,13 @@
 
 ## The MVP Statement
 
-**"These 6 pages are the product for focus groups. Everything else is internal or v2."**
+**"These 5 pages are the product for focus groups. Everything else is internal or v2."**
 
 This document is the source of truth for MVP scope. Do not add new surfaces, features, or dependencies without explicit approval.
 
 ---
 
-## MVP Surfaces (6 Total)
+## MVP Surfaces (5 Total)
 
 | # | Surface | File | Route | Purpose |
 |---|---------|------|-------|---------|
@@ -22,8 +22,7 @@ This document is the source of truth for MVP scope. Do not add new surfaces, fea
 | 2 | **Public** | `Public.html` | `?page=public` (default) | Mobile-first public event page |
 | 3 | **Display** | `Display.html` | `?page=display` | TV/kiosk live event display |
 | 4 | **Poster** | `Poster.html` | `?page=poster` | Printable poster with QR code |
-| 5 | **Sponsor** | `Sponsor.html` | `?page=sponsor` | Sponsor management dashboard |
-| 6 | **SharedReport** | `SharedReport.html` | `?page=report` | Shareable analytics dashboard |
+| 5 | **SharedReport** | `SharedReport.html` | `?page=report` | Shareable analytics dashboard |
 
 ### Surface Headers
 
@@ -43,7 +42,7 @@ DO NOT modify this file's contracts without updating:
   - tests/e2e/* (end-to-end tests)
   - tests/unit/* (unit tests)
 
-Related MVP Surfaces: Admin, Poster, Display, Public, Sponsor, SharedReport
+Related MVP Surfaces: Admin, Poster, Display, Public, SharedReport
 ================================================================================
 -->
 ```
@@ -56,6 +55,7 @@ These pages exist but are **NOT** part of focus group testing:
 
 | Page | File | Status | Notes |
 |------|------|--------|-------|
+| Sponsor | `Sponsor.html` | V2+ | Sponsor self-service portal |
 | API Docs | `ApiDocs.html` | EXPERIMENTAL | Developer tooling |
 | Diagnostics | `Diagnostics.html` | EXPERIMENTAL | Admin debugging |
 | DevOps Dashboard | `DiagnosticsDashboard.html` | EXPERIMENTAL | Operations |
@@ -124,12 +124,11 @@ These are not wired into navigation or tests.
 ## MVP Definition of Done
 
 - [ ] Single event can be created and managed (Admin)
-- [ ] All 6 surfaces render correctly with event data
+- [ ] All 5 surfaces render correctly with event data
 - [ ] Impressions tracked on Display, Public, Poster
 - [ ] CTR tracked via shortlinks
-- [ ] Sponsor analytics show real numbers
-- [ ] SharedReport displays data sponsors can use
-- [ ] ROI calculation works with sponsor cost input
+- [ ] SharedReport displays analytics data
+- [ ] Sponsor data visible in SharedReport (managed via Admin)
 
 ---
 
@@ -147,15 +146,19 @@ These are not wired into navigation or tests.
 
 ```
 MVP (Test These):
-  ✅ Admin     - /exec?page=admin
-  ✅ Public    - /exec?page=public (default)
-  ✅ Display   - /exec?page=display
-  ✅ Poster    - /exec?page=poster
-  ✅ Sponsor   - /exec?page=sponsor
+  ✅ Admin        - /exec?page=admin
+  ✅ Public       - /exec?page=public (default)
+  ✅ Display      - /exec?page=display
+  ✅ Poster       - /exec?page=poster
   ✅ SharedReport - /exec?page=report
 
 NOT MVP (Don't Test):
-  ❌ ApiDocs, Diagnostics, Test, Signup
-  ❌ PlannerCards, ConfigHtml, DiagnosticsDashboard
+  ❌ Sponsor.html
+  ❌ ApiDocs.html
+  ❌ Diagnostics*.html
+  ❌ Test.html
+  ❌ Signup.html
+  ❌ PlannerCards.html
+  ❌ ConfigHtml.html
   ❌ docs/archived/*
 ```
