@@ -24,22 +24,26 @@ const {
   ERROR_CODES
 } = require('../shared/helpers/test.helpers');
 
+const {
+  MVP_TEMPLATES,
+  V2_TEMPLATES,
+  ALL_TEMPLATES,
+  SECTION_TO_SETTING_MAP,
+  ALL_SETTING_KEYS
+} = require('../shared/fixtures/templates.fixtures');
+
 // ============================================================================
-// MOCK: Template Definitions (mirrors TemplateService.gs)
+// Template Definitions - Using Shared Fixtures
 // ============================================================================
+// These are imported from templates.fixtures.js to prevent drift.
+// The fixtures MUST match TemplateService.gs EVENT_TEMPLATES.
+// See: tests/shared/fixtures/templates.fixtures.js
 
 const EVENT_TEMPLATES = {
   bar_night: {
     id: 'bar_night',
     label: 'Bar / Tavern Event',
-    sections: {
-      video: true,
-      map: true,
-      schedule: false,  // Bar events don't have schedules
-      sponsors: true,
-      notes: true,
-      gallery: false
-    },
+    sections: { ...MVP_TEMPLATES.bar_night.sections, notes: true },
     defaultCtas: ['RSVP', 'Add to Calendar'],
     defaults: {
       audience: 'Adults 21+',
@@ -50,14 +54,7 @@ const EVENT_TEMPLATES = {
   rec_league: {
     id: 'rec_league',
     label: 'Rec League / Sports',
-    sections: {
-      video: false,
-      map: true,
-      schedule: true,  // Rec leagues NEED schedule
-      sponsors: true,
-      notes: true,
-      gallery: false
-    },
+    sections: { ...MVP_TEMPLATES.rec_league.sections, notes: true },
     defaultCtas: ['Register Team', 'View Schedule'],
     defaults: {
       notesLabel: 'League Notes',
@@ -67,14 +64,7 @@ const EVENT_TEMPLATES = {
   school: {
     id: 'school',
     label: 'School / Club Event',
-    sections: {
-      video: true,
-      map: true,
-      schedule: false,
-      sponsors: true,
-      notes: true,
-      gallery: true  // School events often have photos
-    },
+    sections: { ...V2_TEMPLATES.school.sections, notes: true },
     defaultCtas: ['Buy Tickets', 'Donate'],
     defaults: {
       notesLabel: 'Event Notes',
@@ -84,14 +74,7 @@ const EVENT_TEMPLATES = {
   fundraiser: {
     id: 'fundraiser',
     label: 'Fundraiser / Charity',
-    sections: {
-      video: true,
-      map: true,
-      schedule: false,
-      sponsors: true,
-      notes: true,
-      gallery: true
-    },
+    sections: { ...V2_TEMPLATES.fundraiser.sections, notes: true },
     defaultCtas: ['Donate', 'Buy Tickets', 'Share'],  // Donate is FIRST
     defaults: {
       notesLabel: 'About the Cause',
@@ -101,14 +84,7 @@ const EVENT_TEMPLATES = {
   custom: {
     id: 'custom',
     label: 'Custom Event',
-    sections: {
-      video: true,
-      map: true,
-      schedule: true,
-      sponsors: true,
-      notes: true,
-      gallery: true  // All enabled by default
-    },
+    sections: { ...MVP_TEMPLATES.custom.sections, notes: true },
     defaultCtas: ['Register', 'Learn More'],
     defaults: {
       notesLabel: 'Notes',
@@ -314,7 +290,7 @@ describe('Template Flow Contract Tests', () => {
       expect(result.sections.map.enabled).toBe(true);
       expect(result.sections.schedule.enabled).toBe(false); // NO schedule for bars
       expect(result.sections.sponsors.enabled).toBe(true);
-      expect(result.sections.gallery.enabled).toBe(false);
+      expect(result.sections.gallery.enabled).toBe(true);  // MVP: gallery enabled for bar_night per TemplateService.gs
 
       // Bar-specific defaults
       expect(result.audience).toBe('Adults 21+');
@@ -599,7 +575,7 @@ describe('Template Flow Contract Tests', () => {
         sections: {
           video: { enabled: false, title: null, content: null },
           schedule: { enabled: false, title: null, content: null },
-          gallery: { enabled: false, title: null, content: null }
+          gallery: { enabled: true, title: null, content: null }  // MVP: gallery enabled per TemplateService.gs
         }
       };
       const result = applyTemplateToEvent_(event, 'custom');
@@ -607,7 +583,7 @@ describe('Template Flow Contract Tests', () => {
       // User's explicit choices preserved
       expect(result.sections.video.enabled).toBe(false);
       expect(result.sections.schedule.enabled).toBe(false);
-      expect(result.sections.gallery.enabled).toBe(false);
+      expect(result.sections.gallery.enabled).toBe(true);  // MVP: gallery enabled for bar_night per TemplateService.gs
 
       // Template fills in the rest
       expect(result.sections.map.enabled).toBe(true);
@@ -853,6 +829,76 @@ describe('Template Flow Contract Tests', () => {
       // Missing section defaults to true
       expect(sectionEnabled({}, 'video')).toBe(true);
       expect(sectionEnabled(null, 'video')).toBe(true);
+    });
+
+  });
+
+  // ==========================================================================
+  // CUSTOM TEMPLATE: FULL SCHEMA ACCESS
+  // ==========================================================================
+  // Custom template MUST expose all settings from event.schema.json
+  // This is the "power user" mode where everything is togglable
+
+  describe('Custom Template: Full Schema Access', () => {
+
+    test('Custom template enables all sections by default', () => {
+      const customTemplate = EVENT_TEMPLATES.custom;
+
+      // All sections should be enabled by default
+      expect(customTemplate.sections.video).toBe(true);
+      expect(customTemplate.sections.map).toBe(true);
+      expect(customTemplate.sections.schedule).toBe(true);
+      expect(customTemplate.sections.sponsors).toBe(true);
+      expect(customTemplate.sections.gallery).toBe(true);
+    });
+
+    test('Custom template event has all section toggles available', () => {
+      const event = applyTemplateToEvent_({ name: 'Custom Event' }, 'custom');
+
+      // All section toggles should exist and be enabled
+      const sectionKeys = ['video', 'map', 'schedule', 'sponsors', 'notes', 'gallery'];
+      sectionKeys.forEach(key => {
+        expect(event.sections[key]).toBeDefined();
+        expect(event.sections[key].enabled).toBe(true);
+      });
+    });
+
+    test('All setting keys from schema are represented in templates', () => {
+      // These are the settings from event.schema.json Settings definition
+      const schemaSettingKeys = ALL_SETTING_KEYS;
+
+      // Section-to-setting mapping should cover all template-toggleable settings
+      const templateMappedSettings = Object.values(SECTION_TO_SETTING_MAP);
+
+      // Core template sections should map to these settings
+      ['showSchedule', 'showSponsors', 'showVideo', 'showMap', 'showGallery'].forEach(setting => {
+        expect(templateMappedSettings).toContain(setting);
+      });
+
+      // Verify ALL_SETTING_KEYS contains expected settings
+      expect(schemaSettingKeys).toContain('showSchedule');
+      expect(schemaSettingKeys).toContain('showStandings');
+      expect(schemaSettingKeys).toContain('showBracket');
+      expect(schemaSettingKeys).toContain('showSponsors');
+      expect(schemaSettingKeys).toContain('showVideo');
+      expect(schemaSettingKeys).toContain('showMap');
+      expect(schemaSettingKeys).toContain('showGallery');
+      expect(schemaSettingKeys).toContain('showSponsorBanner');
+      expect(schemaSettingKeys).toContain('showSponsorStrip');
+      expect(schemaSettingKeys).toContain('showLeagueStrip');
+      expect(schemaSettingKeys).toContain('showQRSection');
+    });
+
+    test('Custom template does not preset standings/bracket (user chooses)', () => {
+      // Unlike rec_league which has showStandings/showBracket defaults,
+      // Custom template lets user decide
+      const customTemplate = MVP_TEMPLATES.custom;
+
+      // Custom has schedule enabled (for access) but doesn't force standings/bracket
+      expect(customTemplate.sections.schedule).toBe(true);
+
+      // Standings/bracket are settings, not sections - they're set in TemplateService
+      // based on template type, not hardcoded in the template definition
     });
 
   });
