@@ -13,7 +13,7 @@ compatibility_date = "2024-01-01"
 # ============================================
 # The deployment ID is updated by CI/CD after each Apps Script deployment
 [vars]
-DEPLOYMENT_ID = "AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw"
+DEPLOYMENT_ID = "AKfycbx3n9ALDESLEQTgIf47pimbs4zhugPzC4gLLr6aBff6UpH4VzAquYHRVHurP-6QjZ-g"
 
 # ============================================
 # Production - FULL SITE (eventangle.com)
@@ -33,7 +33,7 @@ routes = [
 ]
 
 [env.production.vars]
-DEPLOYMENT_ID = "AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw"
+DEPLOYMENT_ID = "AKfycbx3n9ALDESLEQTgIf47pimbs4zhugPzC4gLLr6aBff6UpH4VzAquYHRVHurP-6QjZ-g"
 
 # ============================================
 # Staging/QA Environment
@@ -46,7 +46,7 @@ routes = [
 ]
 
 [env.staging.vars]
-DEPLOYMENT_ID = "AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw"
+DEPLOYMENT_ID = "AKfycbx3n9ALDESLEQTgIf47pimbs4zhugPzC4gLLr6aBff6UpH4VzAquYHRVHurP-6QjZ-g"
 
 # ============================================
 # API Only (subdomain only, no main site)
@@ -58,7 +58,7 @@ routes = [
 ]
 
 [env.api-only.vars]
-DEPLOYMENT_ID = "AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw"
+DEPLOYMENT_ID = "AKfycbx3n9ALDESLEQTgIf47pimbs4zhugPzC4gLLr6aBff6UpH4VzAquYHRVHurP-6QjZ-g"
 
 # ============================================
 # Friendly URLs (all app paths on main site)
@@ -126,7 +126,7 @@ routes = [
 ]
 
 [env.events.vars]
-DEPLOYMENT_ID = "AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw"
+DEPLOYMENT_ID = "AKfycbx3n9ALDESLEQTgIf47pimbs4zhugPzC4gLLr6aBff6UpH4VzAquYHRVHurP-6QjZ-g"
 
 # ============================================
 # Development (workers.dev subdomain)
