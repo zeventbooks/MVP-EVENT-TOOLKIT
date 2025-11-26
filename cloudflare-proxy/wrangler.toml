@@ -61,17 +61,68 @@ routes = [
 DEPLOYMENT_ID = "AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw"
 
 # ============================================
-# Events Only (/events* path on main site)
+# Friendly URLs (all app paths on main site)
 # ============================================
-# This serves ONLY the /events path through Cloudflare,
-# allowing the rest of the site (Squarespace, etc.) to work normally.
-# Use this for: eventangle.com/events?page=admin, /events?page=public, etc.
+# Routes all friendly URL patterns through Cloudflare to GAS.
+# See docs/FRIENDLY_URLS.md for complete URL mapping.
 [env.events]
 name = "eventangle-events"
 routes = [
-  # Only intercept /events paths - rest of site passes through
+  # Global aliases
   { pattern = "eventangle.com/events*", zone_name = "eventangle.com" },
-  { pattern = "www.eventangle.com/events*", zone_name = "eventangle.com" }
+  { pattern = "www.eventangle.com/events*", zone_name = "eventangle.com" },
+  { pattern = "eventangle.com/schedule*", zone_name = "eventangle.com" },
+  { pattern = "www.eventangle.com/schedule*", zone_name = "eventangle.com" },
+  { pattern = "eventangle.com/calendar*", zone_name = "eventangle.com" },
+  { pattern = "www.eventangle.com/calendar*", zone_name = "eventangle.com" },
+  { pattern = "eventangle.com/manage*", zone_name = "eventangle.com" },
+  { pattern = "www.eventangle.com/manage*", zone_name = "eventangle.com" },
+  { pattern = "eventangle.com/admin*", zone_name = "eventangle.com" },
+  { pattern = "www.eventangle.com/admin*", zone_name = "eventangle.com" },
+  { pattern = "eventangle.com/dashboard*", zone_name = "eventangle.com" },
+  { pattern = "www.eventangle.com/dashboard*", zone_name = "eventangle.com" },
+  { pattern = "eventangle.com/create*", zone_name = "eventangle.com" },
+  { pattern = "www.eventangle.com/create*", zone_name = "eventangle.com" },
+  { pattern = "eventangle.com/display*", zone_name = "eventangle.com" },
+  { pattern = "www.eventangle.com/display*", zone_name = "eventangle.com" },
+  { pattern = "eventangle.com/tv*", zone_name = "eventangle.com" },
+  { pattern = "www.eventangle.com/tv*", zone_name = "eventangle.com" },
+  { pattern = "eventangle.com/kiosk*", zone_name = "eventangle.com" },
+  { pattern = "www.eventangle.com/kiosk*", zone_name = "eventangle.com" },
+  { pattern = "eventangle.com/screen*", zone_name = "eventangle.com" },
+  { pattern = "www.eventangle.com/screen*", zone_name = "eventangle.com" },
+  { pattern = "eventangle.com/posters*", zone_name = "eventangle.com" },
+  { pattern = "www.eventangle.com/posters*", zone_name = "eventangle.com" },
+  { pattern = "eventangle.com/poster*", zone_name = "eventangle.com" },
+  { pattern = "www.eventangle.com/poster*", zone_name = "eventangle.com" },
+  { pattern = "eventangle.com/flyers*", zone_name = "eventangle.com" },
+  { pattern = "www.eventangle.com/flyers*", zone_name = "eventangle.com" },
+  { pattern = "eventangle.com/analytics*", zone_name = "eventangle.com" },
+  { pattern = "www.eventangle.com/analytics*", zone_name = "eventangle.com" },
+  { pattern = "eventangle.com/reports*", zone_name = "eventangle.com" },
+  { pattern = "www.eventangle.com/reports*", zone_name = "eventangle.com" },
+  { pattern = "eventangle.com/insights*", zone_name = "eventangle.com" },
+  { pattern = "www.eventangle.com/insights*", zone_name = "eventangle.com" },
+  { pattern = "eventangle.com/stats*", zone_name = "eventangle.com" },
+  { pattern = "www.eventangle.com/stats*", zone_name = "eventangle.com" },
+  { pattern = "eventangle.com/status*", zone_name = "eventangle.com" },
+  { pattern = "www.eventangle.com/status*", zone_name = "eventangle.com" },
+  { pattern = "eventangle.com/health*", zone_name = "eventangle.com" },
+  { pattern = "www.eventangle.com/health*", zone_name = "eventangle.com" },
+  { pattern = "eventangle.com/docs*", zone_name = "eventangle.com" },
+  { pattern = "www.eventangle.com/docs*", zone_name = "eventangle.com" },
+  { pattern = "eventangle.com/api*", zone_name = "eventangle.com" },
+  { pattern = "www.eventangle.com/api*", zone_name = "eventangle.com" },
+  # Brand-prefixed paths (abc, cbc, cbl)
+  { pattern = "eventangle.com/abc/*", zone_name = "eventangle.com" },
+  { pattern = "www.eventangle.com/abc/*", zone_name = "eventangle.com" },
+  { pattern = "eventangle.com/cbc/*", zone_name = "eventangle.com" },
+  { pattern = "www.eventangle.com/cbc/*", zone_name = "eventangle.com" },
+  { pattern = "eventangle.com/cbl/*", zone_name = "eventangle.com" },
+  { pattern = "www.eventangle.com/cbl/*", zone_name = "eventangle.com" },
+  # Root brand paths
+  { pattern = "eventangle.com/root/*", zone_name = "eventangle.com" },
+  { pattern = "www.eventangle.com/root/*", zone_name = "eventangle.com" }
 ]
 
 [env.events.vars]
