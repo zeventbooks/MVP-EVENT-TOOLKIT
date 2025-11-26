@@ -30,7 +30,7 @@
  */
 
 // Configuration - Updated by CI/CD or set in wrangler.toml
-const DEFAULT_DEPLOYMENT_ID = 'AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw';
+const DEFAULT_DEPLOYMENT_ID = 'AKfycbx3n9ALDESLEQTgIf47pimbs4zhugPzC4gLLr6aBff6UpH4VzAquYHRVHurP-6QjZ-g';
 
 export default {
   async fetch(request, env, ctx) {
@@ -40,9 +40,6 @@ export default {
 
     const url = new URL(request.url);
 
-    // Log incoming request for debugging (visible in Cloudflare dashboard)
-    console.log(`[EventAngle] ${request.method} ${url.pathname}${url.search}`);
-
     // Redirect Google's static assets to script.google.com
     // These cannot be proxied - must redirect to Google's CDN
     if (url.pathname.startsWith('/static/')) {
@@ -50,14 +47,15 @@ export default {
       return Response.redirect(staticUrl, 302);
     }
 
-    // Handle Google's internal endpoints (warden, etc.)
-    // These are Google's security/analytics endpoints used for bot detection.
-    // When proxying through a custom domain, Google's client-side warden script
-    // validates that the posting URI is a Google domain. Since we're on a custom
-    // domain, we return a stub success response to prevent "posting uri is not valid" errors.
-    // This is safe because warden is for Google's internal security, not user authentication.
+    // Handle Google's internal endpoints (warden, jserror, etc.)
+    // These are Google's security/analytics endpoints used for bot detection and error reporting.
+    // When proxying through a custom domain, Google's client-side scripts
+    // validate that the posting URI is a Google domain. Since we're on a custom
+    // domain, we return a stub success response to prevent errors.
+    // This is safe because these are for Google's internal telemetry, not user authentication.
     if (url.pathname.startsWith('/wardeninit') ||
         url.pathname.startsWith('/warden') ||
+        url.pathname.startsWith('/jserror') ||
         url.pathname.startsWith('/_/')) {
       // Return a minimal success response that satisfies the warden client
       // The warden system expects a response but doesn't require specific data
@@ -75,6 +73,64 @@ export default {
     // Handle CORS preflight
     if (request.method === 'OPTIONS') {
       return handleCORS();
+    }
+
+    // Redirect HTML page requests to Google Apps Script directly
+    // GAS HTML Service uses iframe sandbox with postMessage that validates
+    // the parent origin as script.google.com. Proxying breaks this validation.
+    // Solution: Redirect page requests to Google, only proxy API/JSON requests.
+
+    // Known page paths that should redirect to Google (not be proxied)
+    const pagePaths = [
+      '/events', '/manage', '/admin', '/display', '/tv', '/kiosk',
+      '/screen', '/posters', '/poster', '/flyers', '/schedule',
+      '/calendar', '/dashboard', '/create', '/analytics', '/reports',
+      '/insights', '/stats', '/status', '/health', '/docs'
+    ];
+
+    // Check if this is a page request (not an API request)
+    const isApiRequest = url.searchParams.has('action') ||
+                         url.searchParams.get('format') === 'json' ||
+                         url.pathname.startsWith('/api');
+
+    // Check if path matches a page path (exact or with trailing content)
+    const isPagePath = pagePaths.some(p =>
+      url.pathname === p || url.pathname.startsWith(p + '/') || url.pathname.startsWith(p + '?')
+    ) || url.pathname === '/' || url.pathname === '';
+
+    if (isPagePath && !isApiRequest) {
+      // Build the Google Apps Script URL
+      let path = url.pathname;
+      // Strip known prefixes
+      for (const prefix of pagePaths) {
+        if (path.startsWith(prefix)) {
+          path = path.slice(prefix.length);
+          break;
+        }
+      }
+      if (path.startsWith('/')) {
+        path = path.slice(1);
+      }
+
+      // Add page= parameter for page routing if not already present
+      const params = new URLSearchParams(url.search);
+      if (!params.has('page')) {
+        // Map path to page parameter
+        const pathToPage = {
+          'events': 'admin', 'manage': 'admin', 'admin': 'admin',
+          'display': 'display', 'tv': 'display', 'kiosk': 'display',
+          'status': 'status', 'health': 'status'
+        };
+        const firstSegment = url.pathname.split('/').filter(Boolean)[0] || 'admin';
+        if (pathToPage[firstSegment]) {
+          params.set('page', pathToPage[firstSegment]);
+        }
+      }
+
+      const queryString = params.toString() ? `?${params.toString()}` : '';
+      const gasUrl = `${appsScriptBase}${queryString}`;
+
+      return Response.redirect(gasUrl, 302);
     }
 
     try {

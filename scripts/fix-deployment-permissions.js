@@ -29,7 +29,7 @@ const readline = require('readline');
 const CONFIG = {
   SCRIPT_ID: '1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l',
   SPREADSHEET_ID: '1SV1oZMq4GbZBaRc0YmTeV02Tl5KXWD8R6FZXC7TwVCQ',
-  DEPLOYMENT_URL: process.env.BASE_URL || 'https://script.google.com/macros/s/AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw/exec',
+  DEPLOYMENT_URL: process.env.BASE_URL || 'https://script.google.com/macros/s/AKfycbx3n9ALDESLEQTgIf47pimbs4zhugPzC4gLLr6aBff6UpH4VzAquYHRVHurP-6QjZ-g/exec',
   TEST_BRAND: 'abc',
 };
 

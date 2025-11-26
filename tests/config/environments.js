@@ -25,7 +25,7 @@
 const APP_URL = process.env.BASE_URL || process.env.APP_URL || 'https://eventangle.com';
 
 // Apps Script deployment ID (for direct testing bypass)
-const DEFAULT_DEPLOYMENT_ID = 'AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw';
+const DEFAULT_DEPLOYMENT_ID = 'AKfycbx3n9ALDESLEQTgIf47pimbs4zhugPzC4gLLr6aBff6UpH4VzAquYHRVHurP-6QjZ-g';
 
 const ENVIRONMENTS = {
   // Cloudflare / eventangle.com - Production (DEFAULT)
