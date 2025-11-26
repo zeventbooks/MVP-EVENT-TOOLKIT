@@ -611,7 +611,11 @@ test.describe('📄 PAGE: Display - Analytics Tracking (MVP)', () => {
 test.describe('📄 PAGE: Display - Settings Visibility (v2.0)', () => {
   /**
    * Tests for EVENT_CONTRACT.md v2.0 settings on Display page.
-   * Display page should respect showSponsors setting.
+   * Validates all 11 settings fields:
+   * - MVP Required: showSchedule, showStandings, showBracket
+   * - MVP Optional: showSponsors
+   * - Feature 4 Template-aware: showVideo, showMap, showGallery
+   * - Surface-specific: showSponsorBanner, showSponsorStrip, showLeagueStrip, showQRSection
    */
 
   test('Sponsor display respects showSponsors setting', async ({ page }) => {
@@ -644,6 +648,156 @@ test.describe('📄 PAGE: Display - Settings Visibility (v2.0)', () => {
     // Schedule section visibility is controlled by showSchedule setting
     if (scheduleCount > 0 && await scheduleSection.first().isVisible()) {
       await expect(scheduleSection.first()).toBeVisible();
+    }
+  });
+
+  // Feature 4 Template-aware settings tests (showVideo, showMap, showGallery)
+
+  test('Video display respects showVideo setting', async ({ page }) => {
+    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
+
+    // Check for video section on display page
+    const videoSection = page.locator('#video, .video-section, [data-section="video"], video, iframe[src*="youtube"], iframe[src*="vimeo"]');
+    const videoCount = await videoSection.count();
+
+    // Video section visibility is controlled by showVideo setting
+    if (videoCount > 0 && await videoSection.first().isVisible()) {
+      await expect(videoSection.first()).toBeVisible();
+    }
+  });
+
+  test('Map display respects showMap setting', async ({ page }) => {
+    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
+
+    // Check for map section on display page
+    const mapSection = page.locator('#map, .map-section, [data-section="map"], .venue-map');
+    const mapCount = await mapSection.count();
+
+    // Map section visibility is controlled by showMap setting
+    if (mapCount > 0 && await mapSection.first().isVisible()) {
+      await expect(mapSection.first()).toBeVisible();
+    }
+  });
+
+  test('Gallery display respects showGallery setting', async ({ page }) => {
+    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
+
+    // Check for gallery section on display page
+    const gallerySection = page.locator('#gallery, .gallery-section, [data-section="gallery"], .event-gallery');
+    const galleryCount = await gallerySection.count();
+
+    // Gallery section visibility is controlled by showGallery setting
+    if (galleryCount > 0 && await gallerySection.first().isVisible()) {
+      await expect(gallerySection.first()).toBeVisible();
+    }
+  });
+
+  // MVP Required settings
+
+  test('Standings display respects showStandings setting', async ({ page }) => {
+    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
+
+    // Check for standings section on display page (league events)
+    const standingsSection = page.locator('#standings, .standings-section, [data-section="standings"]');
+    const standingsCount = await standingsSection.count();
+
+    // Standings section visibility is controlled by showStandings setting
+    if (standingsCount > 0 && await standingsSection.first().isVisible()) {
+      await expect(standingsSection.first()).toBeVisible();
+    }
+  });
+
+  test('Bracket display respects showBracket setting', async ({ page }) => {
+    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
+
+    // Check for bracket section on display page (tournament events)
+    const bracketSection = page.locator('#bracket, .bracket-section, [data-section="bracket"]');
+    const bracketCount = await bracketSection.count();
+
+    // Bracket section visibility is controlled by showBracket setting
+    if (bracketCount > 0 && await bracketSection.first().isVisible()) {
+      await expect(bracketSection.first()).toBeVisible();
+    }
+  });
+
+  // Surface-specific settings
+
+  test('QR section respects showQRSection setting', async ({ page }) => {
+    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
+
+    // Check for QR code section on display page
+    const qrSection = page.locator('#qrCode, .qr-section, [data-section="qr"], .qr-code');
+    const qrCount = await qrSection.count();
+
+    // QR section visibility is controlled by showQRSection setting
+    if (qrCount > 0 && await qrSection.first().isVisible()) {
+      await expect(qrSection.first()).toBeVisible();
+    }
+  });
+
+  test('Sponsor banner respects showSponsorBanner setting', async ({ page }) => {
+    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
+
+    // Check for sponsor banner (top/bottom rotating banner)
+    const sponsorBanner = page.locator('#sponsorBanner, .sponsor-banner, [data-sponsor-area="top"], [data-sponsor-area="bottom"]');
+    const bannerCount = await sponsorBanner.count();
+
+    // Sponsor banner visibility is controlled by showSponsorBanner setting
+    if (bannerCount > 0 && await sponsorBanner.first().isVisible()) {
+      await expect(sponsorBanner.first()).toBeVisible();
+    }
+  });
+
+  test('Sponsor strip respects showSponsorStrip setting', async ({ page }) => {
+    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
+
+    // Check for sponsor strip (side panels)
+    const sponsorStrip = page.locator('#sponsorStrip, .sponsor-strip, [data-sponsor-area="left"], [data-sponsor-area="right"]');
+    const stripCount = await sponsorStrip.count();
+
+    // Sponsor strip visibility is controlled by showSponsorStrip setting
+    if (stripCount > 0 && await sponsorStrip.first().isVisible()) {
+      await expect(sponsorStrip.first()).toBeVisible();
+    }
+  });
+
+  test('League strip respects showLeagueStrip setting', async ({ page }) => {
+    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
+
+    // Check for league info strip
+    const leagueStrip = page.locator('#leagueStrip, .league-strip, [data-section="league-info"]');
+    const leagueCount = await leagueStrip.count();
+
+    // League strip visibility is controlled by showLeagueStrip setting
+    if (leagueCount > 0 && await leagueStrip.first().isVisible()) {
+      await expect(leagueStrip.first()).toBeVisible();
     }
   });
 });

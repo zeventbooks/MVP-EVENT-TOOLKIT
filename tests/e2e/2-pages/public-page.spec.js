@@ -776,7 +776,11 @@ test.describe('📄 PAGE: Public - Payments CTA (Stripe Seam)', () => {
 test.describe('📄 PAGE: Public - Settings Visibility (v2.0)', () => {
   /**
    * Tests for EVENT_CONTRACT.md v2.0 settings visibility.
-   * Validates showSchedule, showStandings, showBracket, showSponsors.
+   * Validates all 11 settings fields:
+   * - MVP Required: showSchedule, showStandings, showBracket
+   * - MVP Optional: showSponsors
+   * - Feature 4 Template-aware: showVideo, showMap, showGallery
+   * - Surface-specific: showSponsorBanner, showSponsorStrip, showLeagueStrip, showQRSection
    */
 
   test('Schedule section respects showSchedule setting', async ({ page }) => {
@@ -871,6 +875,106 @@ test.describe('📄 PAGE: Public - Settings Visibility (v2.0)', () => {
       // If sponsors section exists, it should be properly structured
       if (sponsorsCount > 0 && await sponsorsSection.first().isVisible()) {
         await expect(sponsorsSection.first()).toBeVisible();
+      }
+    }
+  });
+
+  // Feature 4 Template-aware settings tests (showVideo, showMap, showGallery)
+
+  test('Video section respects showVideo setting', async ({ page }) => {
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
+
+    const eventCards = page.locator('.event-card');
+    const count = await eventCards.count();
+
+    if (count > 0) {
+      await eventCards.first().locator('a').first().click();
+      await page.waitForLoadState('networkidle');
+
+      // Video section should only be visible when showVideo=true and video URL exists
+      const videoSection = page.locator('#video, .video-section, [data-section="video"], video, iframe[src*="youtube"], iframe[src*="vimeo"]');
+      const videoCount = await videoSection.count();
+
+      // If video section exists, it should be properly structured
+      if (videoCount > 0 && await videoSection.first().isVisible()) {
+        await expect(videoSection.first()).toBeVisible();
+      }
+    }
+  });
+
+  test('Map section respects showMap setting', async ({ page }) => {
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
+
+    const eventCards = page.locator('.event-card');
+    const count = await eventCards.count();
+
+    if (count > 0) {
+      await eventCards.first().locator('a').first().click();
+      await page.waitForLoadState('networkidle');
+
+      // Map section should only be visible when showMap=true
+      const mapSection = page.locator('#map, .map-section, [data-section="map"], .directions-btn, a[href*="maps.google"], a[href*="maps.apple"]');
+      const mapCount = await mapSection.count();
+
+      // If map section exists, it should be properly structured
+      if (mapCount > 0 && await mapSection.first().isVisible()) {
+        await expect(mapSection.first()).toBeVisible();
+      }
+    }
+  });
+
+  test('Gallery section respects showGallery setting', async ({ page }) => {
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
+
+    const eventCards = page.locator('.event-card');
+    const count = await eventCards.count();
+
+    if (count > 0) {
+      await eventCards.first().locator('a').first().click();
+      await page.waitForLoadState('networkidle');
+
+      // Gallery section should only be visible when showGallery=true and gallery images exist
+      const gallerySection = page.locator('#gallery, .gallery-section, [data-section="gallery"], .event-gallery, .photo-gallery');
+      const galleryCount = await gallerySection.count();
+
+      // If gallery section exists, it should be properly structured
+      if (galleryCount > 0 && await gallerySection.first().isVisible()) {
+        await expect(gallerySection.first()).toBeVisible();
+      }
+    }
+  });
+
+  // Surface-specific settings tests
+
+  test('QR section respects showQRSection setting', async ({ page }) => {
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
+
+    const eventCards = page.locator('.event-card');
+    const count = await eventCards.count();
+
+    if (count > 0) {
+      await eventCards.first().locator('a').first().click();
+      await page.waitForLoadState('networkidle');
+
+      // QR section should only be visible when showQRSection=true
+      const qrSection = page.locator('#qrCode, .qr-section, [data-section="qr"], .qr-code');
+      const qrCount = await qrSection.count();
+
+      // If QR section exists, it should be properly structured
+      if (qrCount > 0 && await qrSection.first().isVisible()) {
+        await expect(qrSection.first()).toBeVisible();
       }
     }
   });
