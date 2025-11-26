@@ -48,12 +48,12 @@ See root directory for active documentation:
 - `MVP_GOLDEN_PATH.md` - Canonical pages and architecture
 
 See `docs/` for scope and architecture:
-- **`docs/MVP_SURFACES.md`** - MVP scope lock (6 surfaces for focus groups)
+- **`docs/MVP_SURFACES.md`** - MVP scope lock (5 surfaces for focus groups)
 - `docs/ARCHITECTURE.md` - System architecture
 - `docs/FRIENDLY_URLS.md` - URL routing documentation
 
 ## MVP vs Archived
 
-**MVP Surfaces (6 total)**: Admin, Public, Display, Poster, Sponsor, SharedReport
+**MVP Surfaces (5 total)**: Admin, Public, Display, Poster, SharedReport
 
 **Everything in this directory is NOT part of the MVP** and should NOT be wired into navigation or tests.

@@ -7,7 +7,7 @@
 
 ## Overview
 
-The MVP Event Toolkit is a Google Apps Script web application with 12 backend services and 6 frontend surfaces. This document defines the runtime architecture for the MVP focus group.
+The MVP Event Toolkit is a Google Apps Script web application with 12 backend services and 5 frontend surfaces. This document defines the runtime architecture for the MVP focus group.
 
 ---
 
@@ -47,12 +47,12 @@ ZEB.FEATURES = {
 
 ```
 doGet(e) → Route by ?p= parameter
-  ├─ p=admin    → Admin.html
-  ├─ p=public   → Public.html
-  ├─ p=display  → Display.html
-  ├─ p=poster   → Poster.html
-  ├─ p=sponsor  → Sponsor.html
-  ├─ p=report   → SharedReport.html
+  ├─ p=admin    → Admin.html        [MVP]
+  ├─ p=public   → Public.html       [MVP]
+  ├─ p=display  → Display.html      [MVP]
+  ├─ p=poster   → Poster.html       [MVP]
+  ├─ p=report   → SharedReport.html [MVP]
+  ├─ p=sponsor  → Sponsor.html      [V2+]
   └─ p=status   → Health check JSON
 
 doPost(e) → REST API by action parameter
@@ -82,7 +82,7 @@ This enables:
 
 ## Frontend Surfaces (.html files)
 
-These 6 files are the **only user-visible surfaces** for MVP:
+These 5 files are the **only user-visible surfaces** for MVP:
 
 | Surface | Purpose | Key Features |
 |---------|---------|--------------|
@@ -90,8 +90,13 @@ These 6 files are the **only user-visible surfaces** for MVP:
 | **Public.html** | Mobile-first public event page | Map, Calendar, Share, Skeleton loaders, YouTube/Vimeo |
 | **Display.html** | TV/kiosk display layout | Auto-rotate, iframe stage, fallback handling |
 | **Poster.html** | Print/share with QR | QR grid, sponsor strip, print CSS |
-| **Sponsor.html** | Sponsor management portal | Tier management, placement config |
 | **SharedReport.html** | Analytics dashboard | 5-metric grid, data tables |
+
+### V2+ Surfaces (NOT in MVP)
+
+| Surface | Purpose | Status |
+|---------|---------|--------|
+| **Sponsor.html** | Sponsor self-service portal | V2+ |
 
 ### Supporting HTML (included via templates)
 
@@ -286,7 +291,7 @@ Multi-language support. Feature-flagged OFF for MVP.
 ```
 MVP-EVENT-TOOLKIT/
 ├── *.gs              # Backend services (12 files)
-├── *.html            # Frontend surfaces (6 MVP + supporting)
+├── *.html            # Frontend surfaces (5 MVP + supporting)
 ├── docs/             # Documentation
 ├── tests/            # Test suites
 ├── scripts/          # Build/deploy scripts
