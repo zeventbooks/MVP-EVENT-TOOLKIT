@@ -296,6 +296,10 @@ const SCHEMAS = {
         showBracket: { type: 'boolean' },
         // MVP Optional (V2 content but MVP toggles)
         showSponsors: { type: 'boolean' },
+        // MVP Optional - Template-aware section toggles (Feature 4, default true)
+        showVideo: { type: 'boolean' },
+        showMap: { type: 'boolean' },
+        showGallery: { type: 'boolean' },
         // MVP Optional - surface-specific toggles (default true)
         showSponsorBanner: { type: 'boolean' },
         showSponsorStrip: { type: 'boolean' },
