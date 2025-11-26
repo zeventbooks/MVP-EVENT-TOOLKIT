@@ -78,6 +78,33 @@ export default {
       return handleCORS();
     }
 
+    // Redirect HTML page requests to Google Apps Script directly
+    // GAS HTML Service uses iframe sandbox with postMessage that validates
+    // the parent origin as script.google.com. Proxying breaks this validation.
+    // Solution: Redirect HTML pages to Google, only proxy API/JSON requests.
+    const acceptHeader = request.headers.get('Accept') || '';
+    const isHtmlRequest = acceptHeader.includes('text/html');
+    const isApiRequest = url.searchParams.has('action') ||
+                         url.searchParams.get('format') === 'json' ||
+                         url.pathname.startsWith('/api');
+
+    if (isHtmlRequest && !isApiRequest) {
+      // Build the Google Apps Script URL
+      let path = url.pathname;
+      if (path.startsWith('/events')) {
+        path = path.slice('/events'.length);
+      }
+      if (path.startsWith('/')) {
+        path = path.slice(1);
+      }
+
+      const gasUrl = path
+        ? `${appsScriptBase}/${path}${url.search}`
+        : `${appsScriptBase}${url.search}`;
+
+      return Response.redirect(gasUrl, 302);
+    }
+
     try {
       const response = await proxyToAppsScript(request, appsScriptBase);
       return addCORSHeaders(response);
