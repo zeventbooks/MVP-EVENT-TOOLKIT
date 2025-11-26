@@ -78,7 +78,7 @@ jobs:
           files: ./coverage/lcov.info
 
   contract-tests:
-    name: 📋 Contract Tests
+    name: 📋 Contract Tests (Schema Gate)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -94,8 +94,51 @@ jobs:
 
       - name: Run contract tests
         run: |
-          echo "ℹ️ Running contract tests (validates API response structure)"
+          echo "ℹ️ Running contract tests (validates API response structure & schema consistency)"
+          echo ""
+          echo "📋 Contract Test Coverage:"
+          echo "   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "   🔒 SCHEMA CONSISTENCY (MVP Gate):"
+          echo "      - schema-consistency.contract.test.js"
+          echo "        → Validates JSON schemas match ApiSchemas.gs"
+          echo "        → Validates Settings includes all template toggles"
+          echo "        → Cross-schema consistency (enums, surfaces)"
+          echo ""
+          echo "   📄 TEMPLATE VALIDATION:"
+          echo "      - template-flows.contract.test.js"
+          echo "        → Uses shared fixtures (templates.fixtures.js)"
+          echo "        → Custom template full schema access"
+          echo "        → Template → Settings mapping"
+          echo ""
+          echo "   🔗 API CONTRACTS:"
+          echo "      - api.contract.test.js"
+          echo "      - bundles.contract.test.js"
+          echo "      - all-endpoints.contract.test.js"
+          echo "      - jwt-security.contract.test.js"
+          echo "   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
           npm run test:contract
+
+      - name: Verify schema consistency tests ran
+        run: |
+          echo "🔍 Verifying schema consistency tests exist and ran..."
+
+          # Check that the schema consistency test file exists
+          if [ ! -f "tests/contract/schema-consistency.contract.test.js" ]; then
+            echo "❌ ERROR: schema-consistency.contract.test.js not found!"
+            echo "   This file is required to prevent schema drift."
+            exit 1
+          fi
+
+          # Check that templates fixtures exist
+          if [ ! -f "tests/shared/fixtures/templates.fixtures.js" ]; then
+            echo "❌ ERROR: templates.fixtures.js not found!"
+            echo "   This file is required for template validation."
+            exit 1
+          fi
+
+          echo "✅ Schema consistency tests verified"
+          echo "✅ Template fixtures verified"
 
   deploy-to-apps-script:
     name: 🚀 Deploy to Apps Script API

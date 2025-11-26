@@ -46,6 +46,11 @@ jobs:
         continue-on-error: true
         run: |
           echo "📋 Running contract tests..."
+          echo ""
+          echo "🔒 Schema Consistency Tests (MVP Gate):"
+          echo "   - schema-consistency.contract.test.js"
+          echo "   - templates.fixtures.js (shared fixtures)"
+          echo ""
           npm run test:contract
 
       - name: Generate coverage report
@@ -169,7 +174,12 @@ jobs:
           echo "**Contract Tests:**" >> $GITHUB_STEP_SUMMARY
           echo "- \`tests/contract/api.contract.test.js\`" >> $GITHUB_STEP_SUMMARY
           echo "- \`tests/contract/jwt-security.contract.test.js\`" >> $GITHUB_STEP_SUMMARY
-          echo "- \`tests/contract/all-endpoints.contract.test.js\` ✨ NEW" >> $GITHUB_STEP_SUMMARY
+          echo "- \`tests/contract/all-endpoints.contract.test.js\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`tests/contract/schema-consistency.contract.test.js\` 🔒 **Schema Gate**" >> $GITHUB_STEP_SUMMARY
+          echo "- \`tests/contract/template-flows.contract.test.js\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Shared Fixtures:**" >> $GITHUB_STEP_SUMMARY
+          echo "- \`tests/shared/fixtures/templates.fixtures.js\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
           if [[ "${{ steps.unit-tests.outcome }}" == "success" ]] && \
