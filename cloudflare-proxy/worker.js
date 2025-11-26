@@ -81,26 +81,57 @@ export default {
     // Redirect HTML page requests to Google Apps Script directly
     // GAS HTML Service uses iframe sandbox with postMessage that validates
     // the parent origin as script.google.com. Proxying breaks this validation.
-    // Solution: Redirect HTML pages to Google, only proxy API/JSON requests.
-    const acceptHeader = request.headers.get('Accept') || '';
-    const isHtmlRequest = acceptHeader.includes('text/html');
+    // Solution: Redirect page requests to Google, only proxy API/JSON requests.
+
+    // Known page paths that should redirect to Google (not be proxied)
+    const pagePaths = [
+      '/events', '/manage', '/admin', '/display', '/tv', '/kiosk',
+      '/screen', '/posters', '/poster', '/flyers', '/schedule',
+      '/calendar', '/dashboard', '/create', '/analytics', '/reports',
+      '/insights', '/stats', '/status', '/health', '/docs'
+    ];
+
+    // Check if this is a page request (not an API request)
     const isApiRequest = url.searchParams.has('action') ||
                          url.searchParams.get('format') === 'json' ||
                          url.pathname.startsWith('/api');
 
-    if (isHtmlRequest && !isApiRequest) {
+    // Check if path matches a page path (exact or with trailing content)
+    const isPagePath = pagePaths.some(p =>
+      url.pathname === p || url.pathname.startsWith(p + '/') || url.pathname.startsWith(p + '?')
+    ) || url.pathname === '/' || url.pathname === '';
+
+    if (isPagePath && !isApiRequest) {
       // Build the Google Apps Script URL
       let path = url.pathname;
-      if (path.startsWith('/events')) {
-        path = path.slice('/events'.length);
+      // Strip known prefixes
+      for (const prefix of pagePaths) {
+        if (path.startsWith(prefix)) {
+          path = path.slice(prefix.length);
+          break;
+        }
       }
       if (path.startsWith('/')) {
         path = path.slice(1);
       }
 
-      const gasUrl = path
-        ? `${appsScriptBase}/${path}${url.search}`
-        : `${appsScriptBase}${url.search}`;
+      // Add p= parameter for page routing if not already present
+      const params = new URLSearchParams(url.search);
+      if (!params.has('p') && !params.has('page')) {
+        // Map path to page parameter
+        const pathToPage = {
+          'events': 'events', 'manage': 'admin', 'admin': 'admin',
+          'display': 'display', 'tv': 'display', 'kiosk': 'display',
+          'status': 'status', 'health': 'status'
+        };
+        const firstSegment = url.pathname.split('/').filter(Boolean)[0] || 'events';
+        if (pathToPage[firstSegment]) {
+          params.set('p', pathToPage[firstSegment]);
+        }
+      }
+
+      const queryString = params.toString() ? `?${params.toString()}` : '';
+      const gasUrl = `${appsScriptBase}${queryString}`;
 
       return Response.redirect(gasUrl, 302);
     }
