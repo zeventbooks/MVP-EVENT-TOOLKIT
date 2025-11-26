@@ -3,20 +3,28 @@
  *
  * Shared configuration for all test types across Triangle phases
  *
- * IMPORTANT: BASE_URL behavior
- * - Unit/Contract tests (Jest): BASE_URL is OPTIONAL - uses default mock URL if not set
- * - E2E/API tests (Playwright): BASE_URL should be set to test real deployment
- * - This allows `npm test` to run without environment variables
- * - Playwright tests should validate BASE_URL is set before running
+ * BASE_URL-Aware Configuration
+ * ============================
+ * All tests respect the BASE_URL environment variable:
+ *
+ *   BASE_URL="https://www.eventangle.com" npm run test:smoke
+ *   BASE_URL="https://script.google.com/macros/s/<DEPLOYMENT_ID>/exec" npm run test:smoke
+ *
+ * Default: https://eventangle.com (production via Cloudflare Workers)
+ *
+ * For unit/contract tests that mock APIs, the BASE_URL is used for URL validation
+ * but no real network calls are made.
  */
+
+// Import centralized environment configuration
+const { getBaseUrl } = require('../../config/environments');
 
 // Environment
 const ENV = process.env.NODE_ENV || 'test';
 const IS_CI = process.env.CI === 'true';
 
-// Base URLs - Provide defaults for unit/contract tests
-// These tests use mock data and don't make real API calls
-const BASE_URL = process.env.BASE_URL || 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec';
+// Base URL from centralized config (defaults to eventangle.com)
+const BASE_URL = getBaseUrl();
 const BRAND_ID = process.env.BRAND_ID || 'root';
 const ADMIN_KEY = process.env.ADMIN_KEY || 'CHANGE_ME_root';
 

@@ -52,13 +52,29 @@ npm run test:smoke tests/smoke/pages.smoke.test.js
 
 ## Environment Variables
 
-```bash
-# Required
-export BASE_URL="https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec"
+### BASE_URL-Aware Testing
 
-# Optional (for full E2E tests)
-export ADMIN_KEY="your-admin-secret"
+All smoke tests are **BASE_URL-aware** - run against any deployment:
+
+```bash
+# Run against eventangle.com (default - no BASE_URL needed)
+npm run test:smoke
+
+# Run against production (eventangle.com)
+BASE_URL="https://www.eventangle.com" npm run test:smoke
+
+# Run against GAS webapp directly
+BASE_URL="https://script.google.com/macros/s/<DEPLOYMENT_ID>/exec" npm run test:smoke
 ```
+
+### Configuration
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `BASE_URL` | No | `https://eventangle.com` | Target deployment URL |
+| `ADMIN_KEY` | No | - | Admin secret (for admin tests) |
+
+**No code changes needed** to switch between GAS and eventangle.com.
 
 ## CI/CD Integration
 

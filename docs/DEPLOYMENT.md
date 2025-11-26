@@ -319,6 +319,30 @@ npm run test:triangle
 npm run test:triangle:parallel
 ```
 
+### BASE_URL-Aware Testing
+
+All E2E and API tests are **BASE_URL-aware** - run the same tests against different environments:
+
+```bash
+# Run against eventangle.com (default - no BASE_URL needed)
+npm run test:smoke
+
+# Run against production (eventangle.com)
+BASE_URL="https://www.eventangle.com" npm run test:smoke
+
+# Run against GAS webapp directly
+BASE_URL="https://script.google.com/macros/s/<DEPLOYMENT_ID>/exec" npm run test:smoke
+
+# Run against staging/QA
+BASE_URL="https://staging.zeventbooks.com" npm run test:smoke
+```
+
+**Key Points:**
+- Default URL: `https://eventangle.com` (production via Cloudflare Workers)
+- No code changes needed to switch environments
+- Tests auto-detect environment type (GAS vs Cloudflare)
+- Configuration: `tests/config/environments.js`
+
 ---
 
 ## Verification

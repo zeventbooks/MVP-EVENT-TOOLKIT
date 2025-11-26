@@ -3,13 +3,17 @@
  *
  * Purpose: Verify brand-specific branding and logos load correctly
  * Coverage: Logo visibility, brand identification, multi-brand isolation
+ *
+ * BASE_URL-Aware: Tests work against GAS or eventangle.com:
+ *   BASE_URL="https://www.eventangle.com" npm run test:smoke
+ *   BASE_URL="https://script.google.com/macros/s/<ID>/exec" npm run test:smoke
  */
 
 const { test, expect } = require('@playwright/test');
+const { getBaseUrl } = require('../../config/environments');
 
-// Use production Apps Script URL
-// Set via: export GOOGLE_SCRIPT_URL="https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec"
-const BASE_URL = process.env.BASE_URL || process.env.GOOGLE_SCRIPT_URL || 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec';
+// Use centralized BASE_URL config (defaults to eventangle.com)
+const BASE_URL = getBaseUrl();
 
 test.describe('🎨 SMOKE: Brand Verification', () => {
 

@@ -9,11 +9,17 @@
  * 5. Report generation
  * 6. Report export
  * 7. Shortlink creation
+ *
+ * BASE_URL-Aware: Tests work against GAS or eventangle.com:
+ *   BASE_URL="https://www.eventangle.com" npm run test:e2e
+ *   BASE_URL="https://script.google.com/macros/s/<ID>/exec" npm run test:e2e
  */
 
 const { test, expect } = require('@playwright/test');
+const { getBaseUrl } = require('./config/environments');
 
-const BASE_URL = process.env.BASE_URL || 'https://script.google.com/macros/s/.../exec';
+// Use centralized BASE_URL config (defaults to eventangle.com)
+const BASE_URL = getBaseUrl();
 const BRAND_ID = 'root';
 
 test.describe('Diagnostics Page - System Testing Interface', () => {

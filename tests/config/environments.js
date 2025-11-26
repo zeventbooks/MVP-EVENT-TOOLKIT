@@ -1,13 +1,28 @@
 /**
  * Test Environment Configuration
  *
- * APP_URL = https://eventangle.com (Cloudflare Workers)
+ * BASE_URL-Aware Test Configuration
+ * =================================
+ * Tests can run against different environments without code changes:
  *
- * Override with: APP_URL=https://api.eventangle.com npm run test:e2e
+ * Production (eventangle.com):
+ *   BASE_URL="https://www.eventangle.com" npm run test:smoke
+ *
+ * GAS Webapp (direct):
+ *   BASE_URL="https://script.google.com/macros/s/<DEPLOYMENT_ID>/exec" npm run test:smoke
+ *
+ * Default (no BASE_URL set):
+ *   Uses eventangle.com (production via Cloudflare Workers)
+ *
+ * Environment Variables:
+ *   - BASE_URL: Primary URL override (recommended)
+ *   - APP_URL: Alias for BASE_URL (deprecated, use BASE_URL)
+ *   - TEST_ENV: Environment name (production, googleAppsScript, qa, staging, local)
+ *   - GOOGLE_SCRIPT_URL: Direct GAS URL override
  */
 
-// APP_URL = eventangle.com (Cloudflare Workers) - DEFAULT
-const APP_URL = process.env.APP_URL || 'https://eventangle.com';
+// Priority: BASE_URL > APP_URL > default
+const APP_URL = process.env.BASE_URL || process.env.APP_URL || 'https://eventangle.com';
 
 // Apps Script deployment ID (for direct testing bypass)
 const DEFAULT_DEPLOYMENT_ID = 'AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw';
@@ -239,10 +254,73 @@ function printEnvironmentInfo() {
   console.log('==============================================\n');
 }
 
+/**
+ * Get the base URL for tests
+ * This is the single source of truth - all tests should use this
+ * @returns {string} The base URL
+ */
+function getBaseUrl() {
+  return getCurrentEnvironment().baseUrl;
+}
+
+/**
+ * Check if the current environment is Google Apps Script
+ * @returns {boolean} True if testing against GAS directly
+ */
+function isGoogleAppsScript() {
+  const env = getCurrentEnvironment();
+  try {
+    const url = new URL(env.baseUrl);
+    return url.hostname === 'script.google.com';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Check if the current environment is eventangle.com (production)
+ * @returns {boolean} True if testing against eventangle.com
+ */
+function isEventangle() {
+  const env = getCurrentEnvironment();
+  try {
+    const url = new URL(env.baseUrl);
+    return url.hostname === 'eventangle.com' || url.hostname === 'www.eventangle.com';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Get URL with query parameters for the current environment
+ * Handles different URL patterns for GAS vs Cloudflare
+ * @param {object} params - Query parameters
+ * @returns {string} Full URL with parameters
+ */
+function getUrlWithParams(params = {}) {
+  const baseUrl = getBaseUrl();
+  const url = new URL(baseUrl);
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) {
+      url.searchParams.set(key, value);
+    }
+  });
+
+  return url.toString();
+}
+
 module.exports = {
   ENVIRONMENTS,
   getCurrentEnvironment,
   getBrandUrl,
   getAllBrandUrls,
-  printEnvironmentInfo
+  printEnvironmentInfo,
+  // New exports for centralized BASE_URL access
+  getBaseUrl,
+  isGoogleAppsScript,
+  isEventangle,
+  getUrlWithParams,
+  // Expose the resolved APP_URL for backward compatibility
+  APP_URL
 };

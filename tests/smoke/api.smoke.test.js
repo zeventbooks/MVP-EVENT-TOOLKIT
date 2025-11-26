@@ -7,12 +7,18 @@
  * - Basic error handling works
  * - No critical backend failures
  *
+ * BASE_URL-Aware: Tests work against GAS or eventangle.com:
+ *   BASE_URL="https://www.eventangle.com" npm run test:smoke
+ *   BASE_URL="https://script.google.com/macros/s/<ID>/exec" npm run test:smoke
+ *
  * Run with: npm run test:smoke
  */
 
 const { test, expect } = require('@playwright/test');
+const { getBaseUrl } = require('../config/environments');
 
-const BASE_URL = process.env.BASE_URL || 'https://script.google.com/macros/s/.../exec';
+// Use centralized BASE_URL config (defaults to eventangle.com)
+const BASE_URL = getBaseUrl();
 const BRAND_ID = 'root';
 
 test.describe('API Smoke Tests - Status & Health', () => {

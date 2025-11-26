@@ -3,11 +3,17 @@
  *
  * Purpose: Test all buttons, navigation, and interactions on Public pages
  * Coverage: Event listing, event details, sponsor displays, analytics
+ *
+ * BASE_URL-Aware: Tests work against GAS or eventangle.com:
+ *   BASE_URL="https://www.eventangle.com" npm run test:pages
+ *   BASE_URL="https://script.google.com/macros/s/<ID>/exec" npm run test:pages
  */
 
 const { test, expect } = require('@playwright/test');
+const { getBaseUrl } = require('../../config/environments');
 
-const BASE_URL = process.env.BASE_URL || 'https://script.google.com/macros/s/.../exec';
+// Use centralized BASE_URL config (defaults to eventangle.com)
+const BASE_URL = getBaseUrl();
 const BRAND_ID = 'root';
 
 test.describe('📄 PAGE: Public - Events List View', () => {

@@ -2,12 +2,18 @@
  * Base Page Object for E2E Tests
  *
  * Contains common methods and utilities for all page objects
+ *
+ * BASE_URL-Aware: Automatically uses centralized environment config
+ * Default: https://eventangle.com (production via Cloudflare Workers)
  */
+
+const { getBaseUrl } = require('../../config/environments');
 
 class BasePage {
   constructor(page) {
     this.page = page;
-    this.baseUrl = process.env.BASE_URL || 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec';
+    // Use centralized BASE_URL config (defaults to eventangle.com)
+    this.baseUrl = getBaseUrl();
     this.brandId = process.env.BRAND_ID || 'root';
     this.adminKey = process.env.ADMIN_KEY || 'CHANGE_ME_root';
   }
