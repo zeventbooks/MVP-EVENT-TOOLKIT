@@ -33,7 +33,7 @@ test.beforeAll(async () => {
 
 test.describe('🚨 SMOKE: Critical Endpoints', () => {
 
-  test('Status API responds with 200 and valid schema', async ({ page }) => {
+  test('Status API responds with 200 and valid schema (pure flat format)', async ({ page }) => {
     // Wait for load state to handle Google Apps Script cold starts
     const response = await page.goto(`${BASE_URL}?page=status&brand=${BRAND_ID}`, {
       waitUntil: 'networkidle',
@@ -44,13 +44,11 @@ test.describe('🚨 SMOKE: Critical Endpoints', () => {
 
     const json = await response.json();
 
-    // STRICT: API contract validation
+    // STRICT: Pure status API contract validation (flat format, no envelope)
     expect(json).toHaveProperty('ok', true);
-    expect(json).toHaveProperty('value');
-    expect(json.value).toHaveProperty('build');
-    expect(json.value).toHaveProperty('brand');
-    expect(json.value.build).toBe('triangle-extended-v1.3');
-    expect(json.value.brand).toBe(BRAND_ID);
+    expect(json).toHaveProperty('buildId', 'triangle-extended-v1.5');
+    expect(json).toHaveProperty('brandId', BRAND_ID);
+    expect(json).toHaveProperty('timestamp');
 
     // STRICT: Response must be JSON (not HTML error page)
     expect(response.headers()['content-type']).toContain('application/json');

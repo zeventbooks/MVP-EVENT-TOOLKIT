@@ -318,7 +318,7 @@ function doGet(e){
         // Handle API-like pages that return JSON
         if (resolvedPage === 'status') {
           const brandParam = (e?.parameter?.brand || brand.id || 'root').toString();
-          const status = api_status(brandParam);
+          const status = api_statusPure(brandParam);
           return ContentService.createTextOutput(JSON.stringify(status, null, 2))
             .setMimeType(ContentService.MimeType.JSON);
         }
@@ -383,10 +383,10 @@ function doGet(e){
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.DENY);
   }
 
-  // Status endpoint
+  // Status endpoint (pure - no external dependencies)
   if (pageParam === 'status') {
     const brandParam = (e?.parameter?.brand || 'root').toString();
-    const status = api_status(brandParam);
+    const status = api_statusPure(brandParam);
     return ContentService.createTextOutput(JSON.stringify(status, null, 2))
       .setMimeType(ContentService.MimeType.JSON);
   }
@@ -1626,6 +1626,36 @@ function api_status(brandId){
       );
     }
   });
+}
+
+/**
+ * Pure status endpoint for health checks - no external dependencies
+ * Returns a flat JSON response suitable for quick health monitoring.
+ * This endpoint is intentionally pure: no sheet writes, no external services,
+ * no auth failure scenarios. If brand is invalid, returns ok:false with message.
+ * @tier mvp
+ * @param {string} brandId - Brand identifier (defaults to 'root')
+ * @returns {Object} Flat status object { ok, buildId, brandId, timestamp, [message] }
+ */
+function api_statusPure(brandId) {
+  const brand = brandId ? findBrand_(brandId) : findBrand_('root');
+
+  if (!brand) {
+    return {
+      ok: false,
+      buildId: ZEB.BUILD_ID,
+      brandId: brandId || 'unknown',
+      timestamp: new Date().toISOString(),
+      message: `Brand not found: ${brandId || 'undefined'}`
+    };
+  }
+
+  return {
+    ok: true,
+    buildId: ZEB.BUILD_ID,
+    brandId: brand.id,
+    timestamp: new Date().toISOString()
+  };
 }
 
 /**

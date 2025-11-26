@@ -148,7 +148,7 @@ test.describe('Critical User Flows - E2E', () => {
   });
 
   test('Flow 5: Health check and status endpoints', async ({ page }) => {
-    // Test status endpoint
+    // Test status endpoint (pure, flat format)
     const statusResponse = await page.goto(`${BASE_URL}?page=status`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
@@ -156,10 +156,11 @@ test.describe('Critical User Flows - E2E', () => {
     expect(statusResponse.ok()).toBeTruthy();
 
     const statusJson = await statusResponse.json();
+    // Pure status endpoint returns flat format
     expect(statusJson).toHaveProperty('ok', true);
-    expect(statusJson.value).toHaveProperty('build');
-    expect(statusJson.value).toHaveProperty('contract');
-    expect(statusJson.value.build).toBe('triangle-extended-v1.3');
+    expect(statusJson).toHaveProperty('buildId', 'triangle-extended-v1.5');
+    expect(statusJson).toHaveProperty('brandId');
+    expect(statusJson).toHaveProperty('timestamp');
   });
 
   test('Flow 6: Shortlink redirect', async ({ page, context }) => {

@@ -1,10 +1,12 @@
 /**
  * Contract Tests for Status API (All Phases)
  *
- * Tests the system status endpoint that's always available across all Triangle phases
+ * Tests the system status endpoints that are always available across all Triangle phases
  *
  * Triangle Phase: ⚡ All Phases (Blue)
- * API Endpoint: ?action=status
+ * API Endpoints:
+ *   - ?action=status → api_status() → envelope format { ok, value: { build, contract, time, db } }
+ *   - ?page=status → api_statusPure() → flat format { ok, buildId, brandId, timestamp }
  * Purpose: System health and build information
  */
 
@@ -74,6 +76,69 @@ describe('🔺 TRIANGLE [ALL PHASES]: Status API Contract', () => {
       expect(typeof mockResponse.value.build).toBe('string');
       expect(typeof mockResponse.value.contract).toBe('string');
       expect(mockResponse.value.build).toMatch(/triangle/i);
+    });
+  });
+
+  describe('api_statusPure (flat format for health checks)', () => {
+    const validatePureStatus = (response) => {
+      expect(response).toHaveProperty('ok');
+      expect(typeof response.ok).toBe('boolean');
+      expect(response).toHaveProperty('buildId');
+      expect(response).toHaveProperty('brandId');
+      expect(response).toHaveProperty('timestamp');
+    };
+
+    it('should return flat format with ok, buildId, brandId, timestamp', () => {
+      const mockResponse = {
+        ok: true,
+        buildId: 'triangle-extended-v1.5',
+        brandId: 'root',
+        timestamp: '2025-11-25T12:00:00.000Z'
+      };
+
+      validatePureStatus(mockResponse);
+      expect(mockResponse.ok).toBe(true);
+      expect(typeof mockResponse.buildId).toBe('string');
+      expect(typeof mockResponse.brandId).toBe('string');
+    });
+
+    it('should return ok:false with message for invalid brand', () => {
+      const mockResponse = {
+        ok: false,
+        buildId: 'triangle-extended-v1.5',
+        brandId: 'invalid-brand',
+        timestamp: '2025-11-25T12:00:00.000Z',
+        message: 'Brand not found: invalid-brand'
+      };
+
+      expect(mockResponse.ok).toBe(false);
+      expect(mockResponse).toHaveProperty('message');
+      expect(mockResponse.message).toContain('not found');
+    });
+
+    it('should have ISO 8601 formatted timestamp', () => {
+      const mockResponse = {
+        ok: true,
+        buildId: 'triangle-extended-v1.5',
+        brandId: 'root',
+        timestamp: '2025-11-25T12:00:00.000Z'
+      };
+
+      // Timestamp should be parseable as ISO 8601
+      const parsed = new Date(mockResponse.timestamp);
+      expect(parsed.toISOString()).toBe(mockResponse.timestamp);
+    });
+
+    it('should NOT include envelope wrapper (no value property)', () => {
+      const mockResponse = {
+        ok: true,
+        buildId: 'triangle-extended-v1.5',
+        brandId: 'root',
+        timestamp: '2025-11-25T12:00:00.000Z'
+      };
+
+      // Pure status is flat format - no value wrapper
+      expect(mockResponse).not.toHaveProperty('value');
     });
   });
 });

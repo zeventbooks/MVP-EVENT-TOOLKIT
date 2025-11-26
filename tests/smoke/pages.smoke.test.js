@@ -81,17 +81,17 @@ test.describe('Smoke Tests - All Pages', () => {
     await expect(page.locator('button:has-text("Run All Tests")')).toBeVisible();
   });
 
-  test('Status API - JSON endpoint responds', async ({ page }) => {
+  test('Status API - JSON endpoint responds (pure flat format)', async ({ page }) => {
     const response = await page.goto(`${BASE_URL}?p=status&brand=${BRAND_ID}`);
 
     expect(response.status()).toBe(200);
     const json = await response.json();
 
+    // Pure status endpoint returns flat format
     expect(json).toHaveProperty('ok', true);
-    expect(json.value).toHaveProperty('build');
-    expect(json.value).toHaveProperty('contract');
-    expect(json.value.build).toBe('triangle-extended-v1.3');
-    expect(json.value.contract).toBe('1.0.3');
+    expect(json).toHaveProperty('buildId', 'triangle-extended-v1.5');
+    expect(json).toHaveProperty('brandId', BRAND_ID);
+    expect(json).toHaveProperty('timestamp');
   });
 });
 
