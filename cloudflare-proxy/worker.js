@@ -34,15 +34,6 @@ const DEFAULT_DEPLOYMENT_ID = 'AKfycbx3n9ALDESLEQTgIf47pimbs4zhugPzC4gLLr6aBff6U
 
 export default {
   async fetch(request, env, ctx) {
-    // VERY FIRST LINE DEBUG: Return test response immediately
-    const reqUrl = new URL(request.url);
-    if (reqUrl.pathname === '/events' || reqUrl.pathname === '/events/') {
-      return new Response('DEBUG: Worker received /events request', {
-        status: 200,
-        headers: { 'Content-Type': 'text/plain' }
-      });
-    }
-
     // Use env variable if available, otherwise fallback to default
     const deploymentId = env.DEPLOYMENT_ID || DEFAULT_DEPLOYMENT_ID;
     const appsScriptBase = `https://script.google.com/macros/s/${deploymentId}/exec`;
