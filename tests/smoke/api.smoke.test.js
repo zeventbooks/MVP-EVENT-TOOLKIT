@@ -17,18 +17,19 @@ const BRAND_ID = 'root';
 
 test.describe('API Smoke Tests - Status & Health', () => {
 
-  test('api_status - Returns system status', async ({ page }) => {
+  test('api_statusPure - Returns pure system status (flat format)', async ({ page }) => {
     const response = await page.goto(`${BASE_URL}?p=status&brand=${BRAND_ID}`);
 
     expect(response.status()).toBe(200);
     const json = await response.json();
 
+    // Pure status endpoint returns flat format (no envelope wrapper)
     expect(json).toHaveProperty('ok', true);
-    expect(json.value).toHaveProperty('build', 'triangle-extended-v1.3');
-    expect(json.value).toHaveProperty('contract', '1.0.3');
-    expect(json.value).toHaveProperty('time');
-    expect(json.value).toHaveProperty('db');
-    expect(json.value.db).toHaveProperty('ok');
+    expect(json).toHaveProperty('buildId', 'triangle-extended-v1.5');
+    expect(json).toHaveProperty('brandId', BRAND_ID);
+    expect(json).toHaveProperty('timestamp');
+    // Validate timestamp is ISO 8601
+    expect(new Date(json.timestamp).toISOString()).toBe(json.timestamp);
   });
 
   test('Health check page - Returns OK response', async ({ page }) => {
@@ -68,14 +69,16 @@ test.describe('API Smoke Tests - Error Handling', () => {
 
 test.describe('API Smoke Tests - Response Format', () => {
 
-  test('Status endpoint - Follows OK envelope format', async ({ page }) => {
+  test('Status endpoint - Follows flat response format', async ({ page }) => {
     const response = await page.goto(`${BASE_URL}?p=status&brand=${BRAND_ID}`);
     const json = await response.json();
 
-    // OK envelope: { ok: true, value: {...} }
+    // Pure status: { ok: true, buildId: '...', brandId: '...', timestamp: '...' }
     expect(json).toMatchObject({
       ok: true,
-      value: expect.any(Object)
+      buildId: expect.any(String),
+      brandId: expect.any(String),
+      timestamp: expect.any(String)
     });
   });
 

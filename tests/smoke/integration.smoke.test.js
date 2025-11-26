@@ -324,19 +324,22 @@ test.describe('Integration Smoke - RPC Communication', () => {
     expect(hasNURPC).toBe(true);
   });
 
-  test('API calls return expected envelope format', async ({ page }) => {
-    // Test via status endpoint
+  test('Status endpoint returns flat format', async ({ page }) => {
+    // Test via status endpoint (pure, flat format - no envelope wrapper)
     const response = await page.goto(`${BASE_URL}?p=status&brand=${BRAND_ID}`);
     const json = await response.json();
 
-    // Should follow OK envelope
+    // Should follow pure status flat format
     expect(json).toHaveProperty('ok');
     expect(typeof json.ok).toBe('boolean');
 
     if (json.ok) {
-      expect(json).toHaveProperty('value');
+      // Pure status returns flat format with buildId, brandId, timestamp
+      expect(json).toHaveProperty('buildId');
+      expect(json).toHaveProperty('brandId');
+      expect(json).toHaveProperty('timestamp');
     } else {
-      expect(json).toHaveProperty('code');
+      // Error case includes message
       expect(json).toHaveProperty('message');
     }
   });
