@@ -112,18 +112,18 @@ export default {
         path = path.slice(1);
       }
 
-      // Add p= parameter for page routing if not already present
+      // Add page= parameter for page routing if not already present
       const params = new URLSearchParams(url.search);
-      if (!params.has('p') && !params.has('page')) {
+      if (!params.has('page')) {
         // Map path to page parameter
         const pathToPage = {
-          'events': 'events', 'manage': 'admin', 'admin': 'admin',
+          'events': 'admin', 'manage': 'admin', 'admin': 'admin',
           'display': 'display', 'tv': 'display', 'kiosk': 'display',
           'status': 'status', 'health': 'status'
         };
-        const firstSegment = url.pathname.split('/').filter(Boolean)[0] || 'events';
+        const firstSegment = url.pathname.split('/').filter(Boolean)[0] || 'admin';
         if (pathToPage[firstSegment]) {
-          params.set('p', pathToPage[firstSegment]);
+          params.set('page', pathToPage[firstSegment]);
         }
       }
 
