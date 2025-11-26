@@ -71,6 +71,13 @@ routes = [
   # Google Apps Script static assets (CSS, JS) - redirect to Google CDN
   { pattern = "eventangle.com/static/*", zone_name = "eventangle.com" },
   { pattern = "www.eventangle.com/static/*", zone_name = "eventangle.com" },
+  # Google internal endpoints (warden bot detection) - stub responses
+  { pattern = "eventangle.com/wardeninit*", zone_name = "eventangle.com" },
+  { pattern = "www.eventangle.com/wardeninit*", zone_name = "eventangle.com" },
+  { pattern = "eventangle.com/warden*", zone_name = "eventangle.com" },
+  { pattern = "www.eventangle.com/warden*", zone_name = "eventangle.com" },
+  { pattern = "eventangle.com/_/*", zone_name = "eventangle.com" },
+  { pattern = "www.eventangle.com/_/*", zone_name = "eventangle.com" },
   # Global aliases
   { pattern = "eventangle.com/events*", zone_name = "eventangle.com" },
   { pattern = "www.eventangle.com/events*", zone_name = "eventangle.com" },
