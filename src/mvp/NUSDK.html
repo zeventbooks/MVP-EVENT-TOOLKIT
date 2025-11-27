@@ -46,10 +46,25 @@ window.NU = {
    */
   rpc(method, payload) {
     return new Promise((resolve) => {
-      google.script.run
-        .withSuccessHandler(res => resolve(res))
-        .withFailureHandler(err => resolve({ ok: false, code: 'INTERNAL', message: String(err) }))
-        [method](payload);
+      // Check if google.script.run is available (required for GAS HTML pages)
+      if (!window.google || !window.google.script || !window.google.script.run) {
+        console.error('[NUSDK] google.script.run is not available');
+        resolve({ ok: false, code: 'INTERNAL', message: 'google.script.run not available - page must be served from Apps Script' });
+        return;
+      }
+
+      try {
+        google.script.run
+          .withSuccessHandler(res => resolve(res))
+          .withFailureHandler(err => {
+            console.error('[NUSDK] Server error for', method, ':', err);
+            resolve({ ok: false, code: 'INTERNAL', message: String(err) });
+          })
+          [method](payload);
+      } catch (e) {
+        console.error('[NUSDK] Exception calling', method, ':', e);
+        resolve({ ok: false, code: 'INTERNAL', message: String(e) });
+      }
     });
   },
 
