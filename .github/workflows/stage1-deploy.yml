@@ -355,7 +355,7 @@ jobs:
           echo "   (Apps Script URL also available: ${{ steps.deploy.outputs.url }})"
 
       - name: Upload deployment info artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: deployment-info
           path: deployment-info/deployment-url.txt
