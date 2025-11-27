@@ -120,13 +120,14 @@ jobs:
         run: npm ci
 
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install --with-deps chromium webkit
 
       - name: Run API tests
         id: test
         continue-on-error: true
         env:
           BASE_URL: ${{ needs.setup.outputs.deployment_url }}
+          CI: true
           # Per-brand admin keys (brand-specific > shared fallback)
           ADMIN_KEY: ${{ secrets.ADMIN_KEY_ROOT }}
           ADMIN_KEY_ROOT: ${{ secrets.ADMIN_KEY_ROOT }}
@@ -219,13 +220,14 @@ jobs:
         run: npm ci
 
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install --with-deps chromium webkit
 
       - name: Run Smoke tests
         id: test
         continue-on-error: true
         env:
           BASE_URL: ${{ needs.setup.outputs.deployment_url }}
+          CI: true
           # Per-brand admin keys (brand-specific > shared fallback)
           ADMIN_KEY: ${{ secrets.ADMIN_KEY_ROOT }}
           ADMIN_KEY_ROOT: ${{ secrets.ADMIN_KEY_ROOT }}
@@ -241,6 +243,7 @@ jobs:
         run: |
           echo "🔥 Running Smoke tests"
           echo "BASE_URL: $BASE_URL"
+          echo "CI: $CI (only chromium browser will be used)"
           npm run test:smoke
           if [ $? -eq 0 ]; then
             echo "result=success" >> $GITHUB_OUTPUT
@@ -248,6 +251,45 @@ jobs:
             echo "result=failure" >> $GITHUB_OUTPUT
             exit 1
           fi
+
+      - name: Generate test summary
+        if: always()
+        run: |
+          echo "## 🔥 Smoke Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Parse junit.xml if it exists for detailed results
+          if [ -f ".test-results/junit.xml" ]; then
+            TESTS=$(grep -oP 'tests="\K[0-9]+' .test-results/junit.xml | head -1 || echo "0")
+            FAILURES=$(grep -oP 'failures="\K[0-9]+' .test-results/junit.xml | head -1 || echo "0")
+            ERRORS=$(grep -oP 'errors="\K[0-9]+' .test-results/junit.xml | head -1 || echo "0")
+            SKIPPED=$(grep -oP 'skipped="\K[0-9]+' .test-results/junit.xml | head -1 || echo "0")
+            TIME=$(grep -oP 'time="\K[0-9.]+' .test-results/junit.xml | head -1 || echo "0")
+
+            PASSED=$((TESTS - FAILURES - ERRORS - SKIPPED))
+
+            echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
+            echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| ✅ Passed | $PASSED |" >> $GITHUB_STEP_SUMMARY
+            echo "| ❌ Failed | $FAILURES |" >> $GITHUB_STEP_SUMMARY
+            echo "| ⚠️ Errors | $ERRORS |" >> $GITHUB_STEP_SUMMARY
+            echo "| ⏭️ Skipped | $SKIPPED |" >> $GITHUB_STEP_SUMMARY
+            echo "| ⏱️ Duration | ${TIME}s |" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+
+            # List failed tests if any
+            if [ "$FAILURES" -gt 0 ] || [ "$ERRORS" -gt 0 ]; then
+              echo "### ❌ Failed Tests" >> $GITHUB_STEP_SUMMARY
+              echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+              grep -oP 'name="\K[^"]+(?=".*(failure|error))' .test-results/junit.xml | head -20 >> $GITHUB_STEP_SUMMARY || echo "See full report for details"
+              echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "⚠️ No junit.xml found - check test output above" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📊 [View Full HTML Report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
 
       - name: Upload Smoke test results
         if: always()
@@ -326,13 +368,14 @@ jobs:
         run: npm ci
 
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install --with-deps chromium webkit
 
       - name: Run ${{ matrix.suite }} tests
         id: test
         continue-on-error: true
         env:
           BASE_URL: ${{ needs.setup.outputs.deployment_url }}
+          CI: true
           # Per-brand admin keys (brand-specific > shared fallback)
           ADMIN_KEY: ${{ secrets.ADMIN_KEY_ROOT }}
           ADMIN_KEY_ROOT: ${{ secrets.ADMIN_KEY_ROOT }}

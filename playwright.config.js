@@ -64,14 +64,26 @@ module.exports = defineConfig({
   // Global setup - print environment info before tests
   globalSetup: require.resolve('./tests/config/global-setup.js'),
 
-  projects: [
-    // COST-OPTIMIZED: Only essential devices to minimize CI/CD costs
-    // Mobile: Safari iPhone 14 Pro only (represents latest iOS/Safari)
+  // CI and Local now use the same browser matrix for consistent coverage
+  // Both chromium (Chrome/Edge) and webkit (Safari/iOS) are tested
+  projects: process.env.CI ? [
+    // CI: Chromium + WebKit for cross-browser coverage
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'] },
+    },
     {
       name: 'iPhone 14 Pro',
       use: { ...devices['iPhone 14 Pro'] },
     },
-    // Desktop: Chromium only (most common browser, Chrome/Edge base)
+  ] : [
+    // Local: Both mobile and desktop for comprehensive testing
+    // Mobile: Safari iPhone 14 Pro (represents latest iOS/Safari)
+    {
+      name: 'iPhone 14 Pro',
+      use: { ...devices['iPhone 14 Pro'] },
+    },
+    // Desktop: Chromium (most common browser, Chrome/Edge base)
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
