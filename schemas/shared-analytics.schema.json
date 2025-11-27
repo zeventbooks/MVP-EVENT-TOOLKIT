@@ -29,6 +29,12 @@
       "type": ["array", "null"],
       "items": { "$ref": "#/$defs/EventMetrics" },
       "description": "MVP OPTIONAL - Breakdown by event"
+    },
+    "topSponsors": {
+      "type": ["array", "null"],
+      "items": { "$ref": "#/$defs/SponsorMetrics" },
+      "maxItems": 3,
+      "description": "MVP OPTIONAL - Top 3 sponsors by clicks for highlight card"
     }
   },
   "$defs": {

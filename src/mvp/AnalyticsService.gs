@@ -530,3 +530,48 @@ function AnalyticsService_calculateDailyTrends(analytics) {
 
   return MetricsUtils_finalizeTimeline(timeline);
 }
+
+/**
+ * Get top sponsors by clicks (for Top Sponsors card)
+ *
+ * Returns the top N sponsors sorted by click count (descending).
+ * Used by SharedReporting.gs to populate the topSponsors field.
+ *
+ * @param {array} analytics - Analytics data rows with sponsorId and metric fields
+ * @param {object} sponsorNameMap - Map of { sponsorId: sponsorName } for name resolution
+ * @param {number} [limit=3] - Maximum number of sponsors to return
+ * @returns {array} Array of SponsorMetrics: { id, name, impressions, clicks, ctr }
+ */
+function AnalyticsService_getTopSponsorsByClicks(analytics, sponsorNameMap, limit) {
+  limit = limit || 3;
+  const nameMap = sponsorNameMap || {};
+  const sponsorMap = {};
+
+  // Aggregate metrics per sponsor
+  analytics.forEach(function(a) {
+    if (!a.sponsorId) return;
+
+    if (!sponsorMap[a.sponsorId]) {
+      sponsorMap[a.sponsorId] = {
+        id: a.sponsorId,
+        name: nameMap[a.sponsorId] || a.sponsorId,
+        impressions: 0,
+        clicks: 0
+      };
+    }
+
+    if (a.metric === 'impression') sponsorMap[a.sponsorId].impressions++;
+    if (a.metric === 'click') sponsorMap[a.sponsorId].clicks++;
+  });
+
+  // Calculate CTR, sort by clicks descending, and limit results
+  return Object.values(sponsorMap)
+    .map(function(s) {
+      s.ctr = s.impressions > 0
+        ? Number(((s.clicks / s.impressions) * 100).toFixed(2))
+        : 0;
+      return s;
+    })
+    .sort(function(a, b) { return b.clicks - a.clicks; })
+    .slice(0, limit);
+}

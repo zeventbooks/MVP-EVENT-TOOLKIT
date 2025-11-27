@@ -754,6 +754,173 @@ describe('📊 SharedReporting.gs - Analytics Calculations', () => {
       expect(result[0].name).toBe('evt1');
     });
   });
+
+  describe('AnalyticsService_getTopSponsorsByClicks(analytics, sponsorNameMap, limit)', () => {
+
+    function getTopSponsorsByClicks(analytics, sponsorNameMap, limit) {
+      limit = limit || 3;
+      const nameMap = sponsorNameMap || {};
+      const sponsorMap = {};
+
+      analytics.forEach(function(a) {
+        if (!a.sponsorId) return;
+
+        if (!sponsorMap[a.sponsorId]) {
+          sponsorMap[a.sponsorId] = {
+            id: a.sponsorId,
+            name: nameMap[a.sponsorId] || a.sponsorId,
+            impressions: 0,
+            clicks: 0
+          };
+        }
+
+        if (a.metric === 'impression') sponsorMap[a.sponsorId].impressions++;
+        if (a.metric === 'click') sponsorMap[a.sponsorId].clicks++;
+      });
+
+      return Object.values(sponsorMap)
+        .map(function(s) {
+          s.ctr = s.impressions > 0
+            ? Number(((s.clicks / s.impressions) * 100).toFixed(2))
+            : 0;
+          return s;
+        })
+        .sort(function(a, b) { return b.clicks - a.clicks; })
+        .slice(0, limit);
+    }
+
+    test('returns top sponsors sorted by clicks descending', () => {
+      const analytics = [
+        { sponsorId: 'spo1', metric: 'click' },
+        { sponsorId: 'spo1', metric: 'click' },
+        { sponsorId: 'spo1', metric: 'impression' },
+        { sponsorId: 'spo2', metric: 'click' },
+        { sponsorId: 'spo2', metric: 'click' },
+        { sponsorId: 'spo2', metric: 'click' },
+        { sponsorId: 'spo2', metric: 'impression' },
+        { sponsorId: 'spo3', metric: 'click' },
+        { sponsorId: 'spo3', metric: 'impression' }
+      ];
+
+      const result = getTopSponsorsByClicks(analytics, {}, 3);
+
+      expect(result.length).toBe(3);
+      expect(result[0].id).toBe('spo2'); // 3 clicks
+      expect(result[0].clicks).toBe(3);
+      expect(result[1].id).toBe('spo1'); // 2 clicks
+      expect(result[2].id).toBe('spo3'); // 1 click
+    });
+
+    test('limits results to specified count', () => {
+      const analytics = [
+        { sponsorId: 'spo1', metric: 'click' },
+        { sponsorId: 'spo2', metric: 'click' },
+        { sponsorId: 'spo3', metric: 'click' },
+        { sponsorId: 'spo4', metric: 'click' },
+        { sponsorId: 'spo5', metric: 'click' }
+      ];
+
+      const result = getTopSponsorsByClicks(analytics, {}, 2);
+
+      expect(result.length).toBe(2);
+    });
+
+    test('defaults to limit of 3', () => {
+      const analytics = [
+        { sponsorId: 'spo1', metric: 'click' },
+        { sponsorId: 'spo2', metric: 'click' },
+        { sponsorId: 'spo3', metric: 'click' },
+        { sponsorId: 'spo4', metric: 'click' },
+        { sponsorId: 'spo5', metric: 'click' }
+      ];
+
+      const result = getTopSponsorsByClicks(analytics, {});
+
+      expect(result.length).toBe(3);
+    });
+
+    test('uses sponsor name from nameMap', () => {
+      const analytics = [
+        { sponsorId: 'spo1', metric: 'click' },
+        { sponsorId: 'spo1', metric: 'impression' }
+      ];
+      const nameMap = { spo1: 'Acme Corp' };
+
+      const result = getTopSponsorsByClicks(analytics, nameMap, 3);
+
+      expect(result[0].name).toBe('Acme Corp');
+    });
+
+    test('falls back to sponsorId when name not in map', () => {
+      const analytics = [
+        { sponsorId: 'spo1', metric: 'click' }
+      ];
+
+      const result = getTopSponsorsByClicks(analytics, {}, 3);
+
+      expect(result[0].name).toBe('spo1');
+    });
+
+    test('calculates CTR correctly', () => {
+      const analytics = [
+        { sponsorId: 'spo1', metric: 'click' },
+        { sponsorId: 'spo1', metric: 'impression' },
+        { sponsorId: 'spo1', metric: 'impression' }
+      ];
+
+      const result = getTopSponsorsByClicks(analytics, {}, 3);
+
+      expect(result[0].ctr).toBe(50); // 1 click / 2 impressions * 100
+    });
+
+    test('handles zero impressions (CTR = 0)', () => {
+      const analytics = [
+        { sponsorId: 'spo1', metric: 'click' }
+      ];
+
+      const result = getTopSponsorsByClicks(analytics, {}, 3);
+
+      expect(result[0].ctr).toBe(0);
+    });
+
+    test('handles empty analytics array', () => {
+      const result = getTopSponsorsByClicks([], {}, 3);
+
+      expect(result).toEqual([]);
+    });
+
+    test('skips analytics without sponsorId', () => {
+      const analytics = [
+        { sponsorId: 'spo1', metric: 'click' },
+        { metric: 'click' }, // No sponsorId
+        { sponsorId: null, metric: 'click' }
+      ];
+
+      const result = getTopSponsorsByClicks(analytics, {}, 3);
+
+      expect(result.length).toBe(1);
+    });
+
+    test('returns correct SponsorMetrics shape', () => {
+      const analytics = [
+        { sponsorId: 'spo1', metric: 'click' },
+        { sponsorId: 'spo1', metric: 'impression' }
+      ];
+
+      const result = getTopSponsorsByClicks(analytics, { spo1: 'Test Sponsor' }, 3);
+
+      expect(result[0]).toHaveProperty('id');
+      expect(result[0]).toHaveProperty('name');
+      expect(result[0]).toHaveProperty('impressions');
+      expect(result[0]).toHaveProperty('clicks');
+      expect(result[0]).toHaveProperty('ctr');
+      expect(result[0].id).toBe('spo1');
+      expect(result[0].name).toBe('Test Sponsor');
+      expect(typeof result[0].impressions).toBe('number');
+      expect(typeof result[0].clicks).toBe('number');
+      expect(typeof result[0].ctr).toBe('number');
+    });
+  });
 });
 
 /**
@@ -767,9 +934,10 @@ describe('📊 SharedReporting.gs - Analytics Calculations', () => {
  * ✅ calculateDailyTrends_(analytics) - 5 tests
  * ✅ getTopEventSponsorPairs_(analytics, limit) - 5 tests
  * ✅ buildEventsArray_(analytics, eventNameMap) - 8 tests (incl. signupsCount)
+ * ✅ AnalyticsService_getTopSponsorsByClicks(analytics, sponsorNameMap, limit) - 10 tests
  *
- * TOTAL: 41 unit tests
- * Coverage: 100% of SharedReporting.gs calculation functions
+ * TOTAL: 51 unit tests
+ * Coverage: 100% of SharedReporting.gs and AnalyticsService.gs calculation functions
  *
  * Edge Cases Covered:
  * - Empty arrays
@@ -779,6 +947,7 @@ describe('📊 SharedReporting.gs - Analytics Calculations', () => {
  * - Sorting and ranking
  * - Date parsing and timezone handling
  * - signupsCount per event
+ * - topSponsors by clicks
  *
  * Run with: npm run test:unit
  */
