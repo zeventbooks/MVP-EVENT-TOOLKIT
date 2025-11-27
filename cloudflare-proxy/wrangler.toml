@@ -13,7 +13,7 @@ compatibility_date = "2024-01-01"
 # ============================================
 # The deployment ID is updated by CI/CD after each Apps Script deployment
 [vars]
-DEPLOYMENT_ID = "AKfycbx3n9ALDESLEQTgIf47pimbs4zhugPzC4gLLr6aBff6UpH4VzAquYHRVHurP-6QjZ-g"
+DEPLOYMENT_ID = "AKfycbxaTPh3FS4NHJblIcUrz4k01kWAdxsKzLNnYRf0TXe18lBditTm3hqbBoQ4ZxbGhhGuCA"
 
 # ============================================
 # Production - FULL SITE (eventangle.com)
@@ -33,7 +33,7 @@ routes = [
 ]
 
 [env.production.vars]
-DEPLOYMENT_ID = "AKfycbx3n9ALDESLEQTgIf47pimbs4zhugPzC4gLLr6aBff6UpH4VzAquYHRVHurP-6QjZ-g"
+DEPLOYMENT_ID = "AKfycbxaTPh3FS4NHJblIcUrz4k01kWAdxsKzLNnYRf0TXe18lBditTm3hqbBoQ4ZxbGhhGuCA"
 
 # ============================================
 # Staging/QA Environment
@@ -46,7 +46,7 @@ routes = [
 ]
 
 [env.staging.vars]
-DEPLOYMENT_ID = "AKfycbx3n9ALDESLEQTgIf47pimbs4zhugPzC4gLLr6aBff6UpH4VzAquYHRVHurP-6QjZ-g"
+DEPLOYMENT_ID = "AKfycbxaTPh3FS4NHJblIcUrz4k01kWAdxsKzLNnYRf0TXe18lBditTm3hqbBoQ4ZxbGhhGuCA"
 
 # ============================================
 # API Only (subdomain only, no main site)
@@ -58,7 +58,7 @@ routes = [
 ]
 
 [env.api-only.vars]
-DEPLOYMENT_ID = "AKfycbx3n9ALDESLEQTgIf47pimbs4zhugPzC4gLLr6aBff6UpH4VzAquYHRVHurP-6QjZ-g"
+DEPLOYMENT_ID = "AKfycbxaTPh3FS4NHJblIcUrz4k01kWAdxsKzLNnYRf0TXe18lBditTm3hqbBoQ4ZxbGhhGuCA"
 
 # ============================================
 # Friendly URLs (all app paths on main site)
@@ -140,8 +140,8 @@ routes = [
 [env.events.vars]
 # The full Google Apps Script exec URL - this is the production backend
 # Update this URL after each Apps Script deployment (see DEPLOYMENT.md)
-GAS_DEPLOYMENT_BASE_URL = "https://script.google.com/macros/s/AKfycbx3n9ALDESLEQTgIf47pimbs4zhugPzC4gLLr6aBff6UpH4VzAquYHRVHurP-6QjZ-g/exec"
-DEPLOYMENT_ID = "AKfycbx3n9ALDESLEQTgIf47pimbs4zhugPzC4gLLr6aBff6UpH4VzAquYHRVHurP-6QjZ-g"
+GAS_DEPLOYMENT_BASE_URL = "https://script.google.com/macros/s/AKfycbxaTPh3FS4NHJblIcUrz4k01kWAdxsKzLNnYRf0TXe18lBditTm3hqbBoQ4ZxbGhhGuCA/exec"
+DEPLOYMENT_ID = "AKfycbxaTPh3FS4NHJblIcUrz4k01kWAdxsKzLNnYRf0TXe18lBditTm3hqbBoQ4ZxbGhhGuCA"
 
 # ============================================
 # Development (workers.dev subdomain)
