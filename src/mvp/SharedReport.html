@@ -570,39 +570,31 @@ DO NOT modify contracts without updating:
       document.getElementById('errorState').style.display = 'block';
     }
 
-    // Feature 5: Render Top Event / Top Sponsor Callouts
+    // Feature 5: Render Top Event / Top Sponsor Callouts (by highest CTR)
     function renderTopCallouts(events, sponsors) {
       const container = document.getElementById('topCallouts');
       let html = '';
 
-      // Top Event (by impressions)
-      if (events.length > 0) {
-        const topEvent = events.reduce((a, b) => (b.impressions || 0) > (a.impressions || 0) ? b : a);
-        html += `
-          <div class="top-callout event">
-            <div class="callout-icon">🏆</div>
-            <div class="callout-label">Top Event</div>
-            <div class="callout-name">${topEvent.name || topEvent.id || 'Event'}</div>
-            <div class="callout-stats">
-              <span><strong>${(topEvent.impressions || 0).toLocaleString()}</strong> impressions</span>
-              <span><strong>${(topEvent.ctr || 0).toFixed(1)}%</strong> CTR</span>
-            </div>
-          </div>
-        `;
-      }
-
-      // Top Sponsor (by impressions)
-      if (sponsors.length > 0) {
-        const topSponsor = sponsors.reduce((a, b) => (b.impressions || 0) > (a.impressions || 0) ? b : a);
+      // Top Sponsor (by CTR) - show first per spec order
+      if (sponsors && sponsors.length > 0) {
+        const topSponsor = sponsors.reduce((a, b) => (b.ctr || 0) > (a.ctr || 0) ? b : a);
         html += `
           <div class="top-callout">
             <div class="callout-icon">⭐</div>
             <div class="callout-label">Top Sponsor</div>
-            <div class="callout-name">${topSponsor.name || topSponsor.id || 'Sponsor'}</div>
-            <div class="callout-stats">
-              <span><strong>${(topSponsor.impressions || 0).toLocaleString()}</strong> impressions</span>
-              <span><strong>${(topSponsor.ctr || 0).toFixed(2)}%</strong> CTR</span>
-            </div>
+            <div class="callout-name">${escapeHtml(topSponsor.name || topSponsor.id || 'Sponsor')} — ${(topSponsor.ctr || 0).toFixed(1)}% CTR</div>
+          </div>
+        `;
+      }
+
+      // Top Event (by CTR)
+      if (events && events.length > 0) {
+        const topEvent = events.reduce((a, b) => (b.ctr || 0) > (a.ctr || 0) ? b : a);
+        html += `
+          <div class="top-callout event">
+            <div class="callout-icon">🏆</div>
+            <div class="callout-label">Top Event</div>
+            <div class="callout-name">${escapeHtml(topEvent.name || topEvent.id || 'Event')} — ${(topEvent.ctr || 0).toFixed(1)}% CTR</div>
           </div>
         `;
       }
