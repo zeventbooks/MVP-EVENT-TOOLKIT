@@ -9,6 +9,7 @@
     "test:coverage": "jest --coverage",
     "test:unit": "jest --testMatch='**/tests/unit/**/*.test.js' --runInBand",
     "test:contract": "jest --testMatch='**/tests/contract/**/*.test.js' --runInBand",
+    "test:status-contract": "jest tests/contract/status-contract.test.js --runInBand",
     "test:jest": "jest --coverage --runInBand",
 
     "test:ci:stage1": "npm run lint && npm run test:unit && npm run test:contract",
