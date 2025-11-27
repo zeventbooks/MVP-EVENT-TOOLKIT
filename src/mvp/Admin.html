@@ -1232,34 +1232,46 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
 
       overlay(true);
 
-      // Build canonical event object
-      const eventData = buildEventFromForm();
+      try {
+        console.log('[CreateEvent] Building event data...');
+        // Build canonical event object
+        const eventData = buildEventFromForm();
+        console.log('[CreateEvent] Event data built:', eventData.name, eventData.startDateISO, eventData.venue);
 
-      // Get the selected event template (bar_night, rec_league, etc.)
-      const selectedTemplateId = document.getElementById('templateId').value || 'custom';
+        // Get the selected event template (bar_night, rec_league, etc.)
+        const selectedTemplateId = document.getElementById('templateId').value || 'custom';
+        console.log('[CreateEvent] Selected template:', selectedTemplateId);
 
-      // TODO (V2): Replace api_create with api_saveEvent for schema-first saves
-      // V2 Admin will post full Event object directly:
-      //   await NU.rpc('api_saveEvent', { brandId, adminKey, event: fullEventObject });
-      // This enables the frontend to own the Event shape per schema
-      const res = await NU.rpc('api_create', {
-        brandId: BRAND,
-        scope: SCOPE,
-        templateId: selectedTemplateId,
-        adminKey: getAdminKey(),
-        idemKey: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        data: eventData
-      });
+        // TODO (V2): Replace api_create with api_saveEvent for schema-first saves
+        // V2 Admin will post full Event object directly:
+        //   await NU.rpc('api_saveEvent', { brandId, adminKey, event: fullEventObject });
+        // This enables the frontend to own the Event shape per schema
+        console.log('[CreateEvent] Calling api_create...');
+        const res = await NU.rpc('api_create', {
+          brandId: BRAND,
+          scope: SCOPE,
+          templateId: selectedTemplateId,
+          adminKey: getAdminKey(),
+          idemKey: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          data: eventData
+        });
+        console.log('[CreateEvent] API response:', res.ok ? 'success' : 'error', res.ok ? res.value?.id : res.message);
 
-      overlay(false);
+        if (!res.ok) {
+          SharedUtils.showToast(`Error: ${res.message}`, 'error');
+          return;
+        }
 
-      if (!res.ok) {
-        SharedUtils.showToast(`Error: ${res.message}`, 'error');
-        return;
+        currentEventId = res.value.id;
+        console.log('[CreateEvent] Showing event card for:', currentEventId);
+        showEventCard(res.value);
+        console.log('[CreateEvent] Event created successfully');
+      } catch (err) {
+        console.error('[CreateEvent] Exception during event creation:', err);
+        SharedUtils.showToast(`Error creating event: ${err.message || 'Unknown error'}`, 'error');
+      } finally {
+        overlay(false);
       }
-
-      currentEventId = res.value.id;
-      showEventCard(res.value);
     });
 
     /**
