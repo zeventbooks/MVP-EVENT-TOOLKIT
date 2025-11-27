@@ -21,6 +21,7 @@ READS FROM EVENT SCHEMA:
   Settings (MVP Required - section visibility):
     - event.settings.showSchedule, showStandings, showBracket, showSponsors
     - event.settings.showVideo, showMap, showGallery (Feature 4: Template-Aware)
+    - event.settings.showSponsorBanner → Sponsor banner visibility (default: true)
 
   Data Sections (MVP Optional):
     - event.schedule[].time, title, description
@@ -51,7 +52,8 @@ SECTION GATES (each optional section requires explicit schema field check):
   Schedule:  if (settings.showSchedule && (schedule?.length || externalData.scheduleUrl))
   Standings: if (settings.showStandings && (standings?.length || externalData.standingsUrl))
   Bracket:   if (settings.showBracket && (bracket?.rounds?.length || externalData.bracketUrl))
-  Sponsors:  if (settings.showSponsors && sponsors?.some(s => s.placement === 'public'))
+  Sponsors:  if (settings.showSponsors && settings.showSponsorBanner !== false
+             && sponsors?.some(s => s.placement === 'public'))
   Payments:  if (payments?.enabled && payments.checkoutUrl) → show checkout CTA
 
   NO freelancing: sections only render when their schema field exists AND is enabled.
@@ -1360,8 +1362,9 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
 
       // === SPONSOR BANNER (V2 Optional) ===
       // Schema: event.sponsors[].placement MUST be 'public' - no fallback
+      // Feature: Gated by settings.showSponsors (master) AND settings.showSponsorBanner (default: true)
       const sponsorBanner = document.getElementById('sponsorBanner');
-      if (sectionEnabled('sponsors') && sponsors.length > 0) {
+      if (sectionEnabled('sponsors') && (settings.showSponsorBanner !== false) && sponsors.length > 0) {
         // STRICT: Only sponsors with placement === 'public' (schema-required field)
         const publicSponsors = sponsors.filter(s => s.placement === 'public');
         if (publicSponsors.length > 0) {
