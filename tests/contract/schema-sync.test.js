@@ -196,7 +196,7 @@ function parseHtmlFields(filename) {
   const readsSection = header.match(/READS FROM[\s\S]*?(?=WRITES TO|SECTION GATES|═{10,}|$)/i);
   if (readsSection) {
     // Match patterns like "event.id", "event.settings.showSchedule", etc.
-    const fieldMatches = readsSection[0].matchAll(/(?:event|surface|sponsor|analytics|summary)\.([a-zA-Z._\[\]]+)/g);
+    const fieldMatches = readsSection[0].matchAll(/(?:event|surface|sponsor|analytics|summary)\.([a-zA-Z._[\]]+)/g);
     for (const match of fieldMatches) {
       // Normalize: remove trailing commas, dots, and clean up
       const field = match[1].replace(/[,.\s]+$/, '').replace(/\[\]$/, '');
@@ -214,7 +214,7 @@ function parseHtmlFields(filename) {
   // Parse WRITES section
   const writesSection = header.match(/WRITES TO[\s\S]*?(?=V2 HIDDEN|SERVER-GENERATED|SECTION GATES|DO NOT|═{10,}|$)/i);
   if (writesSection) {
-    const fieldMatches = writesSection[0].matchAll(/(?:event|surface)\.([a-zA-Z._\[\]]+)/g);
+    const fieldMatches = writesSection[0].matchAll(/(?:event|surface)\.([a-zA-Z._[\]]+)/g);
     for (const match of fieldMatches) {
       const field = match[1].replace(/[,.\s]+$/, '').replace(/\[\]$/, '');
       if (field && !field.startsWith('_') && field.length > 0) {
