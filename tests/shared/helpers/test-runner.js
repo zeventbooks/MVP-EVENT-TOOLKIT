@@ -391,9 +391,29 @@ const validateEventContractV2 = (event) => {
   if (!event.settings) {
     errors.push('Missing settings');
   } else {
+    // MVP Required settings
     if (typeof event.settings.showSchedule !== 'boolean') errors.push('Missing settings.showSchedule');
     if (typeof event.settings.showStandings !== 'boolean') errors.push('Missing settings.showStandings');
     if (typeof event.settings.showBracket !== 'boolean') errors.push('Missing settings.showBracket');
+
+    // MVP Optional settings - validate type if present (must be boolean)
+    // These match event.schema.json Settings and ApiSchemas.gs _settings
+    const optionalSettings = [
+      'showSponsors',
+      'showVideo',
+      'showMap',
+      'showGallery',
+      'showSponsorBanner',
+      'showSponsorStrip',
+      'showLeagueStrip',
+      'showQRSection'
+    ];
+
+    optionalSettings.forEach(setting => {
+      if (event.settings[setting] !== undefined && typeof event.settings[setting] !== 'boolean') {
+        errors.push(`settings.${setting} must be boolean if present`);
+      }
+    });
   }
 
   // METADATA (MVP REQUIRED)
