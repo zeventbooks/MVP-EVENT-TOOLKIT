@@ -800,13 +800,14 @@ const SCHEMAS = {
           type: ['array', 'null'],
           items: {
             type: 'object',
-            required: ['id', 'name', 'impressions', 'clicks', 'ctr'],
+            required: ['id', 'name', 'impressions', 'clicks', 'ctr', 'signupsCount'],
             properties: {
               id: { type: 'string' },
               name: { type: 'string' },
               impressions: { type: 'integer', minimum: 0 },
               clicks: { type: 'integer', minimum: 0 },
-              ctr: { type: 'number', minimum: 0 }
+              ctr: { type: 'number', minimum: 0 },
+              signupsCount: { type: 'integer', minimum: 0 }
             }
           }
         },
@@ -1478,6 +1479,35 @@ const SCHEMAS = {
     }
   }
 };
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SC_* CONSTANTS - Direct references to canonical schema shapes
+// ═══════════════════════════════════════════════════════════════════════════════
+// These constants provide easy access to the core schema shapes that MUST match
+// the JSON Schema files in /schemas/. Use these for validation and contract checks.
+//
+// Mapping:
+//   SC_EVENT          → /schemas/event.schema.json
+//   SC_SPONSOR        → /schemas/sponsor.schema.json
+//   SC_FORM_CONFIG    → /schemas/form-config.schema.json
+//   SC_SHARED_ANALYTICS → /schemas/shared-analytics.schema.json
+//   SC_SETTINGS       → /schemas/event.schema.json#/$defs/Settings
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/** @const {Object} SC_EVENT - Event schema shape (mirrors /schemas/event.schema.json) */
+const SC_EVENT = SCHEMAS.events._eventShape;
+
+/** @const {Object} SC_SPONSOR - Sponsor schema shape (mirrors /schemas/sponsor.schema.json) */
+const SC_SPONSOR = SCHEMAS.events._sponsor;
+
+/** @const {Object} SC_FORM_CONFIG - FormConfig schema shape (mirrors /schemas/form-config.schema.json) */
+const SC_FORM_CONFIG = SCHEMAS.forms.formConfig;
+
+/** @const {Object} SC_SHARED_ANALYTICS - SharedAnalytics schema shape (mirrors /schemas/shared-analytics.schema.json) */
+const SC_SHARED_ANALYTICS = SCHEMAS.analytics._sharedAnalytics;
+
+/** @const {Object} SC_SETTINGS - Settings sub-schema (mirrors /schemas/event.schema.json#/$defs/Settings) */
+const SC_SETTINGS = SCHEMAS.events._settings;
 
 /**
  * Validate request against schema

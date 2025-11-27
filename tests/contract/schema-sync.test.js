@@ -287,7 +287,7 @@ const CANONICAL = {
   // SharedAnalytics schema
   sharedAnalytics: {
     required: ['lastUpdatedISO', 'summary', 'surfaces'],
-    optional: ['sponsors', 'events']
+    optional: ['sponsors', 'events', 'topSponsors']
   },
 
   // Summary sub-schema
@@ -310,7 +310,7 @@ const CANONICAL = {
 
   // EventMetrics sub-schema
   eventMetrics: {
-    required: ['id', 'name', 'impressions', 'clicks', 'ctr'],
+    required: ['id', 'name', 'impressions', 'clicks', 'ctr', 'signupsCount'],
     optional: []
   },
 
