@@ -1894,8 +1894,8 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
                   '<div style="font-size:0.7rem;color:#94a3b8;margin-top:4px;word-break:break-all;">' + escapedUrl.slice(0,60) + '...</div>' +
                 '</td>' +
                 '<td style="padding:0.75rem 1rem;text-align:center;white-space:nowrap;">' +
-                  '<a href="' + escapedUrl + '" target="_blank" rel="noopener" class="btn-secondary sponsor-open-btn" data-sponsor-url="' + escapedUrl + '" style="display:inline-block;padding:6px 10px;font-size:0.75rem;margin-right:6px;text-decoration:none;">Open Sponsor Report</a>' +
-                  '<button class="btn-secondary sponsor-copy-btn" data-sponsor-url="' + escapedUrl + '" style="padding:6px 10px;font-size:0.75rem;">Copy Sponsor Report Link</button>' +
+                  '<button class="btn-secondary sponsor-open-btn" data-sponsor-url="' + escapedUrl + '" style="padding:6px 10px;font-size:0.75rem;margin-right:6px;">Open Report</button>' +
+                  '<button class="btn-secondary sponsor-copy-btn" data-sponsor-url="' + escapedUrl + '" style="padding:6px 10px;font-size:0.75rem;">Copy Link</button>' +
                 '</td>' +
               '</tr>';
             }).join('')}
@@ -1909,11 +1909,20 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
 
     /**
      * Wire click handlers for sponsor report buttons within a container
-     * Attaches copy functionality to all .sponsor-copy-btn elements
+     * Attaches handlers for Open (window.open) and Copy (clipboard + toast) buttons
      * @param {HTMLElement} root - Container element to search for buttons
      */
     function wireSponsorReportButtons(root) {
       if (!root) return;
+
+      // Wire Open buttons - use window.open() per story spec
+      root.querySelectorAll('.sponsor-open-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const url = this.dataset.sponsorUrl;
+          if (!url) return;
+          window.open(url, '_blank', 'noopener');
+        });
+      });
 
       // Wire Copy buttons
       root.querySelectorAll('.sponsor-copy-btn').forEach(btn => {
@@ -1936,8 +1945,6 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
           });
         });
       });
-
-      // Open buttons are already <a> tags with target="_blank", no extra wiring needed
     }
 
     /**
