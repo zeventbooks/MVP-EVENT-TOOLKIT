@@ -77,8 +77,8 @@ test.describe('🚨 SMOKE: Critical Endpoints', () => {
     });
     expect(response.status()).toBe(200);
 
-    // Wait for main app container to be visible (with proper timeout)
-    await expect(page.locator('main#app')).toBeVisible({ timeout: 10000 });
+    // Wait for main container (Public.html uses div.container, Admin uses main#app)
+    await expect(page.locator('.container, main#app')).toBeVisible({ timeout: 10000 });
   });
 
   test('Admin page loads', async ({ page }) => {
