@@ -770,6 +770,15 @@ function handleRestApiPost_(e, action, body, brand) {
     }));
   }
 
+  // Sponsor Report QR Code
+  if (action === 'getSponsorReportQr' || action === 'api_getSponsorReportQr') {
+    return jsonResponse_(api_getSponsorReportQr({
+      sponsorId: body.sponsorId || '',
+      brandId,
+      adminKey
+    }));
+  }
+
   // Webhook Management Endpoints (gated by WEBHOOKS feature flag)
   if (action === 'registerWebhook' || action === 'api_registerWebhook') {
     const featureCheck = requireFeature_('WEBHOOKS');
@@ -4494,6 +4503,86 @@ function api_getSponsorSettings(req) {
     });
 
     return settingsResult;
+  });
+}
+
+/**
+ * Get QR code for sponsor report link
+ *
+ * Generates a QR code that links to the sponsor's SharedReport view.
+ * Returns both the URL and base64-encoded PNG QR code.
+ *
+ * Invariant: If the URL cannot be verified (e.g., no valid deployment),
+ * qrB64 will be empty and the frontend should not render the QR image.
+ *
+ * @param {object} req - Request parameters
+ * @param {string} req.sponsorId - Sponsor ID to generate QR for
+ * @param {string} [req.brandId] - Brand ID (optional)
+ * @param {string} [req.adminKey] - Admin key for authentication
+ * @returns {object} Result envelope with { url, qrB64 }
+ * @tier mvp
+ */
+function api_getSponsorReportQr(req) {
+  return runSafe('api_getSponsorReportQr', () => {
+    if (!req || typeof req !== 'object') {
+      return Err(ERR.BAD_INPUT, 'Missing payload');
+    }
+
+    const { sponsorId, brandId, adminKey } = req;
+
+    if (!sponsorId) {
+      return Err(ERR.BAD_INPUT, 'Missing sponsorId');
+    }
+
+    // Sanitize sponsorId to prevent injection
+    const sanitizedSponsorId = sanitizeId_(sponsorId);
+    if (!sanitizedSponsorId) {
+      return Err(ERR.BAD_INPUT, 'Invalid sponsorId format');
+    }
+
+    // Optional authentication - admin can request QR for any sponsor
+    if (adminKey && brandId) {
+      const g = gate_(brandId, adminKey);
+      if (!g.ok) return g;
+    }
+
+    // Build the sponsor report URL
+    let baseUrl = '';
+    try {
+      baseUrl = ScriptApp.getService().getUrl();
+    } catch (e) {
+      diag_('warn', 'api_getSponsorReportQr', 'Could not get deployment URL', { error: e.message });
+      // Return empty QR if URL cannot be verified
+      return Ok({ url: '', qrB64: '', verified: false });
+    }
+
+    if (!baseUrl) {
+      // No valid deployment URL - return empty QR (invariant: no QR for unverified URLs)
+      return Ok({ url: '', qrB64: '', verified: false });
+    }
+
+    // Build sponsor report URL: ?page=report&sponsor=true&sponsorId=<ID>
+    const sponsorReportUrl = `${baseUrl}?page=report&sponsor=true&sponsorId=${encodeURIComponent(sanitizedSponsorId)}`;
+
+    // Generate QR code as base64 data URI
+    const qrDataUri = generateQRDataUri_(sponsorReportUrl);
+
+    // Extract just the base64 part (remove "data:image/png;base64," prefix)
+    let qrB64 = '';
+    if (qrDataUri && qrDataUri.startsWith('data:image/png;base64,')) {
+      qrB64 = qrDataUri.substring('data:image/png;base64,'.length);
+    }
+
+    diag_('info', 'api_getSponsorReportQr', 'QR code generated', {
+      sponsorId: sanitizedSponsorId,
+      hasQr: !!qrB64
+    });
+
+    return Ok({
+      url: sponsorReportUrl,
+      qrB64: qrB64,
+      verified: !!qrB64  // QR only generated for verified/valid URLs
+    });
   });
 }
 
