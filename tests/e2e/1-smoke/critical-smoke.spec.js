@@ -51,7 +51,10 @@ test.describe('🚨 SMOKE: Critical Endpoints', () => {
 
     // STRICT: Pure status API contract validation (flat format, no envelope)
     expect(json).toHaveProperty('ok', true);
-    expect(json).toHaveProperty('buildId', 'triangle-extended-v1.5');
+    // Validate buildId exists and has valid format (not hardcoded version)
+    expect(json).toHaveProperty('buildId');
+    expect(typeof json.buildId).toBe('string');
+    expect(json.buildId.length).toBeGreaterThan(0);
     expect(json).toHaveProperty('brandId', BRAND_ID);
     expect(json).toHaveProperty('timestamp');
 
