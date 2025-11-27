@@ -138,6 +138,73 @@ npm run test:e2e
 
 ---
 
+## MVP Surfaces Smoke Tests (Story 3.1)
+
+Happy-path E2E tests for all 5 MVP surfaces: Admin, Public, Display, Poster, SharedReport.
+
+### Local Setup
+
+```bash
+# 1. Install dependencies
+npm install
+
+# 2. Install Playwright browsers (chromium is fastest)
+npx playwright install chromium
+```
+
+### Running Smoke Tests
+
+```bash
+# Run all smoke tests against eventangle.com (default)
+npm run test:smoke
+
+# Run against direct GAS URL
+BASE_URL="https://script.google.com/macros/s/AKfycbx3n9ALDESLEQTgIf47pimbs4zhugPzC4gLLr6aBff6UpH4VzAquYHRVHurP-6QjZ-g/exec" npm run test:smoke
+
+# Run only MVP surface tests
+npx playwright test tests/e2e/1-smoke/mvp-surfaces-smoke.spec.js
+
+# Run with UI mode (visual debugging)
+npx playwright test tests/e2e/1-smoke/mvp-surfaces-smoke.spec.js --ui
+
+# Run headed (see browser)
+npx playwright test tests/e2e/1-smoke/mvp-surfaces-smoke.spec.js --headed
+
+# View test report after run
+npx playwright show-report
+```
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `BASE_URL` | Target URL for tests | `https://eventangle.com` |
+| `ADMIN_KEY` | Admin key for event creation | `CHANGE_ME_root` |
+| `BRAND_ID` | Brand to test against | `root` |
+
+### MVP Surface Test Coverage
+
+| Surface | Test File | Verifications |
+|---------|-----------|---------------|
+| **Admin** | `mvp-surfaces-smoke.spec.js` | Load page → Create event → Verify listing |
+| **Public** | `mvp-surfaces-smoke.spec.js` | Load page → Verify title, date, sections |
+| **Display** | `mvp-surfaces-smoke.spec.js` | Load page → Verify event title, schedule/placeholder |
+| **Poster** | `mvp-surfaces-smoke.spec.js` | Load page → Verify title, date, QR codes |
+| **SharedReport** | `mvp-surfaces-smoke.spec.js` | Load page → Verify KPI/metrics cards |
+
+### Expected Output
+
+```
+Running 10 tests using 2 workers (5 tests × 2 browsers)
+  ✓ MVP Surface: Admin › Admin: Load page, create event, verify listing
+  ✓ MVP Surface: Public › Public: Load page, verify title/date/sections
+  ✓ MVP Surface: Display › Display: Load page, verify event title...
+  ✓ MVP Surface: Poster › Poster: Load page, verify title/date/QR codes
+  ✓ MVP Surface: SharedReport › SharedReport: Load page, verify KPI cards
+```
+
+---
+
 ## CI Gate Coverage
 
 **Stage 1 (Fast):** Unit + Contract tests
