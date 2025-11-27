@@ -83,6 +83,40 @@ npm run deploy # Create new deployment
 4. Open `/exec?page=test` → all ✅
 5. Open `/exec?page=admin&p=events&brand=root` → create an event → get Public/Poster links
 
+## Testing
+
+### BASE_URL Toggle (GAS vs EventAngle)
+
+The same test suite runs against either GAS exec URL or eventangle.com by changing `BASE_URL`:
+
+```bash
+# Test against GAS directly (default)
+BASE_URL="https://script.google.com/macros/s/XXX/exec" npm run test:smoke
+
+# Test against EventAngle (production via Cloudflare)
+BASE_URL="https://www.eventangle.com/events" npm run test:smoke
+```
+
+### Quick Test Commands
+
+```bash
+# Stage 1: Lint + Unit + Contract (must pass before deploy)
+npm run test:ci:stage1
+
+# Stage 2: API + E2E tests
+npm run test:ci:stage2
+
+# Smoke tests only
+npm run test:smoke
+
+# All tests
+npm run test:all
+```
+
+See **[tests/README.md](./tests/README.md)** for complete test documentation.
+
+---
+
 ## Documentation
 
 ### Core Documentation (MVP)

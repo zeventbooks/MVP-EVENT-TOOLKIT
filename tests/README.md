@@ -190,26 +190,28 @@ npm run test:triangle:all
 
 Tests complete user workflows on deployed application.
 
-#### BASE_URL-Aware Testing
+#### BASE_URL Toggle (Single Toggle: GAS vs EventAngle)
 
-All E2E and API tests are **BASE_URL-aware** - run the same tests against different environments without code changes:
+All E2E and API tests are **BASE_URL-aware** - the same test suite runs against either GAS exec URL or eventangle.com by changing `BASE_URL`:
 
 ```bash
-# Run against eventangle.com (default - no BASE_URL needed)
-npm run test:smoke
+# Test against GAS directly (default in .env.example)
+BASE_URL="https://script.google.com/macros/s/XXX/exec" npm run test:smoke
 
-# Run against production (eventangle.com)
-BASE_URL="https://www.eventangle.com" npm run test:smoke
-
-# Run against GAS webapp directly
-BASE_URL="https://script.google.com/macros/s/<DEPLOYMENT_ID>/exec" npm run test:smoke
+# Test against EventAngle (production via Cloudflare)
+BASE_URL="https://www.eventangle.com/events" npm run test:smoke
 ```
 
-| Environment | BASE_URL |
-|-------------|----------|
-| Production (default) | `https://eventangle.com` |
-| GAS Direct | `https://script.google.com/macros/s/<ID>/exec` |
-| Staging | `https://staging.zeventbooks.com` |
+| Environment | BASE_URL | Notes |
+|-------------|----------|-------|
+| GAS Direct (default) | `https://script.google.com/macros/s/<ID>/exec` | Default in `.env.example` |
+| EventAngle Production | `https://www.eventangle.com/events` | Via Cloudflare Workers |
+| QA/Staging | `https://qa.zeventbooks.com` | Testing environment |
+
+**Key Points:**
+- Default `BASE_URL` in `.env.example` → Apps Script exec URL
+- Tests auto-detect environment type (GAS vs Cloudflare)
+- No code changes needed to switch targets
 
 Configuration: `tests/config/environments.js`
 
