@@ -34,12 +34,21 @@
  * {
  *   ok: false,
  *   code: "BAD_INPUT" | "NOT_FOUND" | "RATE_LIMITED" | "INTERNAL" | "UNAUTHORIZED" | "CONTRACT",
- *   message: "Human-readable error description"
+ *   message: "Human-readable error description",
+ *   corrId?: string          // [Story 5.1] Correlation ID for error tracing (format: "timestamp36-random")
  * }
+ *
+ * [Story 5.1] CORRELATION ID (corrId):
+ * - Format: Base36 timestamp + "-" + random suffix (e.g., "lqx5m8k-a7b2")
+ * - Included in structured error responses via ErrWithCorrId_()
+ * - Client sees: "Something went wrong. Reference: <corrId>"
+ * - Logs contain: { level:"error", corrId, endpoint, message, stack, eventId? }
+ * - Stack trace is NEVER exposed to client (only in logs)
+ * - Use corrId to grep logs for debugging production errors
  *
  * NUSDK.html handles these envelopes consistently:
  * - Success: res.ok === true, data in res.value
- * - Error: res.ok === false, error in res.code + res.message
+ * - Error: res.ok === false, error in res.code + res.message + res.corrId?
  *
  * ═══════════════════════════════════════════════════════════════════════════
  * RPC ENDPOINT INVENTORY (12 endpoints used by surfaces)

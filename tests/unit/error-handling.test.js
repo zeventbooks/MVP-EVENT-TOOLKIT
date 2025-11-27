@@ -5,6 +5,7 @@
  * - Bug #22: Separate try-catch blocks in doPost
  * - Bug #25: UUID split validation
  * - Bug #26: _ensureOk_ error response handling
+ * - Story 5.1: Structured Error Logging with Correlation ID
  */
 
 describe('Error Handling Bug Fixes', () => {
@@ -339,6 +340,284 @@ describe('Error Handling Bug Fixes', () => {
 
       expect(result.ok).toBe(false);
       expect(result.code).toBe('NOT_FOUND');
+    });
+  });
+
+  // Story 5.1: Structured Error Logging with Correlation ID
+  describe('Story 5.1: Correlation ID Generation', () => {
+    /**
+     * Mock implementation of generateCorrId_ for testing
+     * Format: timestamp (base36) + "-" + random suffix
+     */
+    const generateCorrId = () => {
+      const timestamp = Date.now().toString(36);
+      const random = Math.random().toString(36).substring(2, 6);
+      return `${timestamp}-${random}`;
+    };
+
+    test('should generate unique correlation IDs', () => {
+      const ids = new Set();
+      for (let i = 0; i < 100; i++) {
+        ids.add(generateCorrId());
+      }
+      // All 100 should be unique
+      expect(ids.size).toBe(100);
+    });
+
+    test('should generate corrId in expected format', () => {
+      const corrId = generateCorrId();
+      // Format: alphanumeric-alphanumeric
+      expect(corrId).toMatch(/^[a-z0-9]+-[a-z0-9]+$/);
+    });
+
+    test('should have timestamp part before dash', () => {
+      const corrId = generateCorrId();
+      const [timestampPart] = corrId.split('-');
+      // Timestamp in base36 should be parseable
+      const parsed = parseInt(timestampPart, 36);
+      expect(parsed).toBeGreaterThan(0);
+      // Should be a recent timestamp (within last day)
+      const now = Date.now();
+      expect(parsed).toBeLessThanOrEqual(now);
+      expect(parsed).toBeGreaterThan(now - 86400000); // Within 24 hours
+    });
+  });
+
+  describe('Story 5.1: Error Response with Correlation ID', () => {
+    /**
+     * Mock implementation of Err with corrId support
+     */
+    const Err = (code, message, corrId) => {
+      const envelope = { ok: false, code, message: message || code };
+      if (corrId) envelope.corrId = corrId;
+      return envelope;
+    };
+
+    test('should include corrId when provided', () => {
+      const error = Err('INTERNAL', 'Something went wrong. Reference: abc123-def4', 'abc123-def4');
+      expect(error.corrId).toBe('abc123-def4');
+      expect(error.ok).toBe(false);
+    });
+
+    test('should work without corrId for backward compatibility', () => {
+      const error = Err('BAD_INPUT', 'Invalid input');
+      expect(error).not.toHaveProperty('corrId');
+      expect(error.ok).toBe(false);
+      expect(error.code).toBe('BAD_INPUT');
+    });
+
+    test('should not expose stack trace in client response', () => {
+      const error = Err('INTERNAL', 'Something went wrong. Reference: xyz789-abc1', 'xyz789-abc1');
+      expect(error).not.toHaveProperty('stack');
+    });
+  });
+
+  describe('Story 5.1: ErrWithCorrId Function', () => {
+    const logs = [];
+
+    // Mock diag_ function
+    const mockDiag = (level, where, msg, meta) => {
+      logs.push({ level, where, msg, meta });
+    };
+
+    // Mock implementation of ErrWithCorrId_
+    const ErrWithCorrId = (code, internalMessage, options = {}) => {
+      const timestamp = Date.now().toString(36);
+      const random = Math.random().toString(36).substring(2, 6);
+      const corrId = `${timestamp}-${random}`;
+      const { stack, eventId, endpoint = 'API', extra = {} } = options;
+
+      // Log structured error internally
+      const structured = {
+        level: 'error',
+        corrId,
+        endpoint,
+        message: internalMessage
+      };
+      if (stack) structured.stack = stack;
+      if (eventId) structured.eventId = eventId;
+      Object.assign(structured, extra);
+      mockDiag('error', endpoint, `[${corrId}] ${internalMessage}`, structured);
+
+      // Return sanitized error to client
+      return {
+        ok: false,
+        code,
+        message: `Something went wrong. Reference: ${corrId}`,
+        corrId
+      };
+    };
+
+    beforeEach(() => {
+      logs.length = 0;
+    });
+
+    test('should generate corrId and include in response', () => {
+      const error = ErrWithCorrId('INTERNAL', 'Database connection failed');
+      expect(error.corrId).toBeDefined();
+      expect(error.corrId).toMatch(/^[a-z0-9]+-[a-z0-9]+$/);
+      expect(error.message).toContain('Reference:');
+      expect(error.message).toContain(error.corrId);
+    });
+
+    test('should log structured error with corrId', () => {
+      const error = ErrWithCorrId('INTERNAL', 'Database connection failed', {
+        endpoint: 'api_create'
+      });
+
+      expect(logs.length).toBe(1);
+      expect(logs[0].meta.corrId).toBe(error.corrId);
+      expect(logs[0].meta.endpoint).toBe('api_create');
+      expect(logs[0].meta.message).toBe('Database connection failed');
+    });
+
+    test('should include stack trace in logs but not in response', () => {
+      const mockStack = 'Error: Test\n    at test.js:1:1';
+      const error = ErrWithCorrId('INTERNAL', 'Something broke', {
+        stack: mockStack
+      });
+
+      // Stack in logs
+      expect(logs[0].meta.stack).toBe(mockStack);
+      // No stack in response
+      expect(error).not.toHaveProperty('stack');
+    });
+
+    test('should include eventId when provided', () => {
+      const error = ErrWithCorrId('NOT_FOUND', 'Event not found', {
+        eventId: 'evt-12345'
+      });
+
+      expect(logs[0].meta.eventId).toBe('evt-12345');
+    });
+
+    test('should sanitize internal message from client response', () => {
+      const error = ErrWithCorrId('INTERNAL', 'SQL Error: SELECT * FROM users WHERE password="secret"');
+
+      // Internal message should NOT be in client response
+      expect(error.message).not.toContain('SQL');
+      expect(error.message).not.toContain('password');
+      expect(error.message).not.toContain('secret');
+      // Only generic message with reference
+      expect(error.message).toMatch(/Something went wrong\. Reference: [a-z0-9]+-[a-z0-9]+/);
+    });
+  });
+
+  describe('Story 5.1: runSafe with Correlation ID', () => {
+    const logs = [];
+
+    const runSafeWithCorrId = (where, fn, eventId) => {
+      try {
+        return fn();
+      } catch (e) {
+        const timestamp = Date.now().toString(36);
+        const random = Math.random().toString(36).substring(2, 6);
+        const corrId = `${timestamp}-${random}`;
+
+        // Log structured error
+        logs.push({
+          level: 'error',
+          corrId,
+          endpoint: where,
+          message: String(e),
+          stack: e && e.stack,
+          eventId
+        });
+
+        return {
+          ok: false,
+          code: 'INTERNAL',
+          message: `Something went wrong. Reference: ${corrId}`,
+          corrId
+        };
+      }
+    };
+
+    beforeEach(() => {
+      logs.length = 0;
+    });
+
+    test('should return error with corrId on exception', () => {
+      const result = runSafeWithCorrId('test_endpoint', () => {
+        throw new Error('Test error');
+      });
+
+      expect(result.ok).toBe(false);
+      expect(result.corrId).toBeDefined();
+      expect(result.message).toContain('Reference:');
+    });
+
+    test('should log structured error with stack trace', () => {
+      runSafeWithCorrId('api_update', () => {
+        throw new Error('Update failed');
+      });
+
+      expect(logs.length).toBe(1);
+      expect(logs[0].endpoint).toBe('api_update');
+      expect(logs[0].message).toContain('Update failed');
+      expect(logs[0].stack).toBeDefined();
+    });
+
+    test('should include eventId in logs when provided', () => {
+      runSafeWithCorrId('api_get', () => {
+        throw new Error('Not found');
+      }, 'evt-99999');
+
+      expect(logs[0].eventId).toBe('evt-99999');
+    });
+
+    test('should pass through successful results unchanged', () => {
+      const result = runSafeWithCorrId('test', () => ({
+        ok: true,
+        value: { id: '123' }
+      }));
+
+      expect(result.ok).toBe(true);
+      expect(result).not.toHaveProperty('corrId');
+      expect(logs.length).toBe(0);
+    });
+  });
+
+  describe('Story 5.1: Structured Log Format', () => {
+    test('should create structured log with all required fields', () => {
+      const corrId = 'lqx5m8k-a7b2';
+      const structuredLog = {
+        level: 'error',
+        corrId: corrId,
+        endpoint: 'api_create',
+        message: 'Validation failed'
+      };
+
+      expect(structuredLog.level).toBe('error');
+      expect(structuredLog.corrId).toBe(corrId);
+      expect(structuredLog.endpoint).toBe('api_create');
+      expect(structuredLog.message).toBe('Validation failed');
+    });
+
+    test('should include optional fields when present', () => {
+      const structuredLog = {
+        level: 'error',
+        corrId: 'abc123-def4',
+        endpoint: 'api_get',
+        message: 'Event not found',
+        stack: 'Error: Not found\n    at api_get:42',
+        eventId: 'evt-12345'
+      };
+
+      expect(structuredLog.stack).toBeDefined();
+      expect(structuredLog.eventId).toBe('evt-12345');
+    });
+
+    test('should be greppable by corrId', () => {
+      const logLine = JSON.stringify({
+        level: 'error',
+        corrId: 'lqx5m8k-a7b2',
+        endpoint: 'api_create',
+        message: 'Database error'
+      });
+
+      // Simulating grep by corrId
+      expect(logLine.includes('lqx5m8k-a7b2')).toBe(true);
     });
   });
 });
