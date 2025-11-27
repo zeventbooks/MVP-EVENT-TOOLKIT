@@ -29,7 +29,8 @@ READS FROM EVENT SCHEMA (via api_getPosterBundle):
     - event.ctas.primary.label → Sign-up QR title text
 
   Settings (V2 Optional):
-    - event.settings.showSponsors → Master sponsor toggle
+    - event.settings.showSponsors   → Master sponsor toggle
+    - event.settings.showQRSection  → QR codes section visibility (default: true)
 
   Sponsors (V2 Optional):
     - event.sponsors[].id, name, logoUrl, linkUrl, placement
@@ -39,7 +40,8 @@ READS FROM EVENT SCHEMA (via api_getPosterBundle):
 SECTION GATES (schema-backed visibility):
 ═══════════════════════════════════════════════════════════════════════════════
   Sponsor Strip: if (settings.showSponsors && sponsors.some(s => s.placement === 'poster'))
-  QR Codes:      if (qr.public) → Public QR; if (qr.signup) → Signup QR
+  QR Codes:      if (settings.showQRSection !== false)
+                 && (qr.public) → Public QR; if (qr.signup) → Signup QR
 
   INVARIANT: "NO QR UNLESS VERIFIED URL"
   Backend (_buildEventContract_ in Code.gs) enforces QR codes are ONLY
@@ -555,6 +557,7 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
      * - event.qr.public, event.qr.signup (MVP Required)
      * - event.links.publicUrl, event.links.signupUrl (MVP Required)
      * - event.settings.showSponsors (V2 Optional)
+     * - event.settings.showQRSection (default: true) - QR section visibility
      * - event.sponsors[] with placement === 'poster' (V2 Optional)
      */
     function renderPoster(event) {
@@ -604,7 +607,16 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
 
       // Render event details and QR codes
       renderEventDetails(event);
-      renderQRCodes(event);
+
+      // === QR SECTION (MVP Required, gated by showQRSection setting) ===
+      // Feature: settings.showQRSection (default: true) gates entire QR section
+      const qrSection = document.querySelector('.qr-section');
+      if (settings.showQRSection !== false) {
+        renderQRCodes(event);
+        qrSection.hidden = false;
+      } else {
+        qrSection.hidden = true;
+      }
 
       // Track print events
       window.addEventListener('beforeprint', () => {
