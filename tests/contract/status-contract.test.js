@@ -13,10 +13,20 @@
  *
  * Environment:
  *   BASE_URL - Target environment (default: https://eventangle.com)
+ *   CI - When set, network-dependent tests are skipped (no external HTTP calls in CI)
+ *   SKIP_NETWORK_TESTS - Explicitly skip network tests
  */
 
 const fs = require('fs');
 const path = require('path');
+
+// --- CI Detection ---
+// Skip network tests in CI environments where external HTTP calls may not work
+const isCI = process.env.CI === 'true' || process.env.CI === true;
+const skipNetworkTests = isCI || process.env.SKIP_NETWORK_TESTS === 'true';
+
+// Use describe.skip for network tests in CI, otherwise regular describe
+const describeNetwork = skipNetworkTests ? describe.skip : describe;
 
 // --- Extract canonical values from Config.gs (Single Source of Truth) ---
 
@@ -108,6 +118,10 @@ describe('Status Contract - Single Source of Truth', () => {
     console.log(`BASE_URL: ${BASE_URL}`);
     console.log(`Canonical BUILD_ID: ${CANONICAL_BUILD_ID}`);
     console.log(`Canonical Brand IDs: ${CANONICAL_BRAND_IDS.join(', ')}`);
+    if (skipNetworkTests) {
+      console.log('⚠️  Network tests SKIPPED (CI environment detected)');
+      console.log('   Run locally with: npm run test:status-contract');
+    }
     console.log('==============================================\n');
   });
 
@@ -126,7 +140,7 @@ describe('Status Contract - Single Source of Truth', () => {
     });
   });
 
-  describe('?page=status API Contract', () => {
+  describeNetwork('?page=status API Contract', () => {
     it('should return ok: true', async () => {
       const data = await fetchStatus('root');
 
@@ -171,7 +185,7 @@ describe('Status Contract - Single Source of Truth', () => {
     }, TIMEOUT_MS);
   });
 
-  describe('Multi-Brand Contract Validation', () => {
+  describeNetwork('Multi-Brand Contract Validation', () => {
     it.each(['root', 'abc', 'cbc', 'cbl'])(
       'should return consistent buildId for brand: %s',
       async (brandId) => {
@@ -204,7 +218,7 @@ describe('Status Contract - Single Source of Truth', () => {
     }, TIMEOUT_MS);
   });
 
-  describe('Contract Schema Validation', () => {
+  describeNetwork('Contract Schema Validation', () => {
     it('should match the exact status response schema', async () => {
       const data = await fetchStatus('root');
 
