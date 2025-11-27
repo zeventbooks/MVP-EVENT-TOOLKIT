@@ -9,8 +9,9 @@
  */
 
 const { test, expect } = require('@playwright/test');
+const { getBaseUrl } = require('../config/environments');
 
-const BASE_URL = process.env.BASE_URL || 'https://script.google.com/macros/s/.../exec';
+const BASE_URL = getBaseUrl();
 const ADMIN_KEY = process.env.ADMIN_KEY || 'CHANGE_ME_root';
 const BRAND_ID = 'root';
 

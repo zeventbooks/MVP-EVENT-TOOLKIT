@@ -9,7 +9,9 @@
  * pm.sendRequest(createEventRequest(eventData));
  */
 
-const BASE_URL = process.env.BASE_URL || 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec';
+const { getBaseUrl } = require('../../config/environments');
+
+const BASE_URL = getBaseUrl();
 
 /**
  * Environment Configuration

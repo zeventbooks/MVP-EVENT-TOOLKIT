@@ -1,16 +1,25 @@
 /**
  * k6 Load Testing Helpers
  * Shared utilities for load testing the MVP Event Toolkit API
+ *
+ * Note: K6 uses ES modules and __ENV for environment variables.
+ * BASE_URL should be set via environment variable when running k6:
+ *   BASE_URL="https://script.google.com/macros/s/XXXX/exec" k6 run ...
+ *   BASE_URL="https://www.eventangle.com" k6 run ...
  */
 
 import { check, group, sleep } from 'k6';
 import http from 'k6/http';
 
+// Default deployment ID (matches tests/config/environments.js)
+const DEFAULT_DEPLOYMENT_ID = 'AKfycbx3n9ALDESLEQTgIf47pimbs4zhugPzC4gLLr6aBff6UpH4VzAquYHRVHurP-6QjZ-g';
+
 /**
- * Get base URL from environment or use default
+ * Get base URL from environment or use default GAS URL
+ * Use the same default as tests/config/environments.js
  */
 export function getBaseUrl() {
-  return __ENV.BASE_URL || 'https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec';
+  return __ENV.BASE_URL || `https://script.google.com/macros/s/${DEFAULT_DEPLOYMENT_ID}/exec`;
 }
 
 /**
