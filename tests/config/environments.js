@@ -12,7 +12,7 @@
  *   BASE_URL="https://script.google.com/macros/s/<DEPLOYMENT_ID>/exec" npm run test:smoke
  *
  * Default (no BASE_URL set):
- *   Uses eventangle.com (production via Cloudflare Workers)
+ *   Uses GAS URL for local dev (direct Google Apps Script)
  *
  * Environment Variables:
  *   - BASE_URL: Primary URL override (recommended)
@@ -21,11 +21,14 @@
  *   - GOOGLE_SCRIPT_URL: Direct GAS URL override
  */
 
-// Priority: BASE_URL > APP_URL > default
-const APP_URL = process.env.BASE_URL || process.env.APP_URL || 'https://eventangle.com';
-
 // Apps Script deployment ID (for direct testing bypass)
 const DEFAULT_DEPLOYMENT_ID = 'AKfycbx3n9ALDESLEQTgIf47pimbs4zhugPzC4gLLr6aBff6UpH4VzAquYHRVHurP-6QjZ-g';
+
+// Default GAS URL for local development
+const DEFAULT_GAS_URL = `https://script.google.com/macros/s/${DEFAULT_DEPLOYMENT_ID}/exec`;
+
+// Priority: BASE_URL > APP_URL > default (GAS URL for local dev)
+const APP_URL = process.env.BASE_URL || process.env.APP_URL || DEFAULT_GAS_URL;
 
 const ENVIRONMENTS = {
   // Cloudflare / eventangle.com - Production (DEFAULT)
@@ -322,5 +325,8 @@ module.exports = {
   isEventangle,
   getUrlWithParams,
   // Expose the resolved APP_URL for backward compatibility
-  APP_URL
+  APP_URL,
+  // Expose default GAS URL for tests that need it
+  DEFAULT_GAS_URL,
+  DEFAULT_DEPLOYMENT_ID
 };

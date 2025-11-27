@@ -12,9 +12,13 @@
  * Run: npm run test:status-contract
  *
  * Environment:
- *   BASE_URL - Target environment (default: https://eventangle.com)
+ *   BASE_URL - Target environment (default: GAS URL via tests/config/environments.js)
  *   CI - When set, network-dependent tests are skipped (no external HTTP calls in CI)
  *   SKIP_NETWORK_TESTS - Explicitly skip network tests
+ *
+ * Examples:
+ *   BASE_URL="https://www.eventangle.com" npm run test:status-contract
+ *   BASE_URL="https://script.google.com/macros/s/XXXX/exec" npm run test:status-contract
  */
 
 const fs = require('fs');
@@ -76,8 +80,9 @@ function getCanonicalBrandIds() {
 }
 
 // --- Test Configuration ---
+const { getBaseUrl } = require('../config/environments');
 
-const BASE_URL = process.env.BASE_URL || 'https://eventangle.com';
+const BASE_URL = getBaseUrl();
 const TIMEOUT_MS = 30000; // 30 seconds for Google Apps Script
 
 // --- HTTP Client ---

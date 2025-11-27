@@ -10,8 +10,9 @@
  */
 
 const { test, expect } = require('@playwright/test');
+const { getBaseUrl } = require('../config/environments');
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:8080';
+const BASE_URL = getBaseUrl();
 const ADMIN_KEY = process.env.ADMIN_KEY || 'test-admin-key';
 
 test.describe('API Documentation Page', () => {
