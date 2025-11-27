@@ -9,9 +9,9 @@ module.exports = defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
 
-  // CRITICAL FIX: Remove automatic retries to expose real failures
-  // Retries mask underlying issues - fix the root cause instead
-  retries: 0,
+  // CI: Allow 1 retry for transient network failures (Google Apps Script cold starts, redirects)
+  // Local: No retries to expose real failures immediately
+  retries: process.env.CI ? 1 : 0,
 
   workers: process.env.CI ? 1 : undefined,
 

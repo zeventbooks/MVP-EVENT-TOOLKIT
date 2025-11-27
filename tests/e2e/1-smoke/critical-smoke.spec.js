@@ -71,33 +71,57 @@ test.describe('🚨 SMOKE: Critical Endpoints', () => {
   });
 
   test('Public page loads', async ({ page }) => {
-    const response = await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, {
+    const targetUrl = `${BASE_URL}?page=events&brand=${BRAND_ID}`;
+    const response = await page.goto(targetUrl, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
-    expect(response.status()).toBe(200);
+
+    // Log details if status is not 200 for easier debugging in CI
+    const status = response.status();
+    if (status !== 200) {
+      console.error(`❌ Public page failed: ${status} at ${response.url()}`);
+      console.error(`   Original URL: ${targetUrl}`);
+    }
+    expect(status).toBe(200);
 
     // Wait for main container (Public.html uses div.container, Admin uses main#app)
     await expect(page.locator('.container, main#app')).toBeVisible({ timeout: 10000 });
   });
 
   test('Admin page loads', async ({ page }) => {
-    const response = await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`, {
+    const targetUrl = `${BASE_URL}?page=admin&brand=${BRAND_ID}`;
+    const response = await page.goto(targetUrl, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
-    expect(response.status()).toBe(200);
+
+    // Log details if status is not 200 for easier debugging in CI
+    const status = response.status();
+    if (status !== 200) {
+      console.error(`❌ Admin page failed: ${status} at ${response.url()}`);
+      console.error(`   Original URL: ${targetUrl}`);
+    }
+    expect(status).toBe(200);
 
     // Wait for admin page to fully initialize
     await expect(page.locator('h2:has-text("Create Event")')).toBeVisible({ timeout: 10000 });
   });
 
   test('Display page loads', async ({ page }) => {
-    const response = await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}`, {
+    const targetUrl = `${BASE_URL}?page=display&brand=${BRAND_ID}`;
+    const response = await page.goto(targetUrl, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
-    expect(response.status()).toBe(200);
+
+    // Log details if status is not 200 for easier debugging in CI
+    const status = response.status();
+    if (status !== 200) {
+      console.error(`❌ Display page failed: ${status} at ${response.url()}`);
+      console.error(`   Original URL: ${targetUrl}`);
+    }
+    expect(status).toBe(200);
 
     // Wait for stage element to be visible
     await expect(page.locator('#stage')).toBeVisible({ timeout: 10000 });
