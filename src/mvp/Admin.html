@@ -355,7 +355,7 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
         <!--   showSchedule, showStandings, showBracket, showSponsors,           -->
         <!--   showSponsorBanner, showSponsorStrip, showLeagueStrip, showQRSection -->
         <!-- These legacy toggles map to the old sections object (not schema)    -->
-        <!-- TODO: Remove this subsection once Display Settings covers all needs -->
+        <!-- V2 FEATURE – NOT MVP: Remove this subsection once Display Settings covers all needs -->
         <!-- ═══════════════════════════════════════════════════════════════ -->
         <div class="subsection" id="v2SectionsTogglePanel" style="display:none;">
           <div class="collapsible-header" onclick="toggleSection(this)">
@@ -633,7 +633,7 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
         <!-- ═══════════════════════════════════════════════════════════════ -->
         <!-- V2 HIDDEN - Template-Specific Fields NOT IN /schemas/event.schema.json -->
         <!-- ticketUrl, donationUrl, albumUrl, registryUrl, vendorListUrl, goalAmount, raisedAmount -->
-        <!-- TODO: Add these fields to schema when template-specific features are ready -->
+        <!-- V2 FEATURE – NOT MVP: Add these fields to schema when template-specific features are ready -->
         <!-- ═══════════════════════════════════════════════════════════════ -->
         <div class="subsection" style="display:none;">
           <div class="collapsible-header collapsed" onclick="toggleSection(this)">
@@ -1242,7 +1242,7 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
         const selectedTemplateId = document.getElementById('templateId').value || 'custom';
         console.log('[CreateEvent] Selected template:', selectedTemplateId);
 
-        // TODO (V2): Replace api_create with api_saveEvent for schema-first saves
+        // V2 FEATURE – NOT MVP: Replace api_create with api_saveEvent for schema-first saves
         // V2 Admin will post full Event object directly:
         //   await NU.rpc('api_saveEvent', { brandId, adminKey, event: fullEventObject });
         // This enables the frontend to own the Event shape per schema
@@ -1538,7 +1538,7 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
       };
 
       overlay(true);
-      // TODO (V2): Replace with api_saveEvent for schema-first saves
+      // V2 FEATURE – NOT MVP: Replace with api_saveEvent for schema-first saves
       const res = await NU.rpc('api_updateEventData', {
         brandId: BRAND,
         scope: SCOPE,
@@ -1809,7 +1809,7 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
       });
 
       overlay(true);
-      // TODO (V2): Replace with api_saveEvent for schema-first saves
+      // V2 FEATURE – NOT MVP: Replace with api_saveEvent for schema-first saves
       const res = await NU.rpc('api_updateEventData', {
         brandId: BRAND,
         scope: SCOPE,
