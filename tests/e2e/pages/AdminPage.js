@@ -13,10 +13,11 @@ export class AdminPage extends BasePage {
   constructor(page) {
     super(page);
 
-    // Event Form Selectors
+    // Event Form Selectors (match Admin.html actual IDs)
     this.eventNameInput = '#name';
-    this.eventDateInput = '#dateISO';
-    this.eventDescriptionInput = '#description, textarea[placeholder*="description"]';
+    this.eventDateInput = '#startDateISO';  // Note: Admin.html uses #startDateISO, not #dateISO
+    this.eventVenueInput = '#venue';  // Note: Admin.html uses #venue, not #location
+    this.eventDescriptionInput = '#summary, #description, textarea[placeholder*="description"]';
     this.eventSubmitButton = 'button[type="submit"]:has-text("Create"), button:has-text("Save Event")';
     this.eventCard = '#eventCard, [data-testid="event-card"]';
 
