@@ -800,6 +800,21 @@ const SCHEMAS = {
               ctr: { type: 'number', minimum: 0 }
             }
           }
+        },
+        topSponsors: {
+          type: ['array', 'null'],
+          maxItems: 3,
+          items: {
+            type: 'object',
+            required: ['id', 'name', 'impressions', 'clicks', 'ctr'],
+            properties: {
+              id: { type: 'string' },
+              name: { type: 'string' },
+              impressions: { type: 'integer', minimum: 0 },
+              clicks: { type: 'integer', minimum: 0 },
+              ctr: { type: 'number', minimum: 0 }
+            }
+          }
         }
       }
     },
