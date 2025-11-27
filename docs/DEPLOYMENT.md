@@ -22,7 +22,28 @@
 
 ## Quick Start: Running Tests Locally
 
-### Stage 1 (Fast Gate - Must Pass Before Deploy)
+### Production Gate (Single Command)
+
+**Before any prod deploy, run `npm run ci:all`. No green, no deploy.**
+
+```bash
+npm run ci:all
+```
+
+This unified gate chains all required tests for production release:
+1. `test:ci:stage1` — lint + unit tests + contract tests
+2. `test:api-contracts` — explicit API contract validation
+3. `test:smoke` — smoke tests (requires Playwright)
+
+If any test fails, the chain stops immediately.
+
+For comprehensive coverage including negative tests:
+
+```bash
+npm run ci:all:full
+```
+
+### Stage 1 (Fast Gate)
 
 ```bash
 npm run test:ci:stage1
@@ -184,12 +205,19 @@ Push to main
 
 ### Quality Gate Requirements
 
+**Use `npm run ci:all` as the single gate for production releases.**
+
 All of these must pass:
 - Lint
 - Unit Tests (>80% coverage)
 - Contract Tests
-- Deploy (main branch only)
+- API Contract Tests
 - E2E Smoke Tests
+
+Optional (via `npm run ci:all:full`):
+- E2E Negative Tests
+
+Post-deploy verification:
 - E2E Page Tests
 - E2E Flow Tests
 
@@ -299,6 +327,12 @@ npm run deploy
 ### Testing Commands
 
 ```bash
+# Production gate (run before any deploy)
+npm run ci:all
+
+# Production gate + negative tests
+npm run ci:all:full
+
 # Unit tests only
 npm run test:unit
 
