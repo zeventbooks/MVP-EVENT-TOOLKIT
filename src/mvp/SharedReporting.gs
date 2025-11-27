@@ -144,8 +144,8 @@ function api_getSharedAnalytics(params) {
       filtered = filtered.filter(a => a.sponsorId === (sponsorId || params.sponsorId));
     }
 
-    // Build SharedAnalytics response per schema contract
-    const response = buildSharedAnalyticsResponse_(filtered, isSponsorView);
+    // Build SharedAnalytics response per schema contract (pass brandId for name resolution)
+    const response = buildSharedAnalyticsResponse_(filtered, isSponsorView, brandId);
 
     return Ok(response);
 
@@ -194,6 +194,139 @@ function api_getSponsorAnalytics(params) {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// NAME RESOLUTION HELPERS - Story 4.1
+// ═══════════════════════════════════════════════════════════════════════════════
+// These functions build lookup maps for resolving IDs to human-readable names.
+// Used to display "Joe's Tavern" instead of "sponsor_123" in SharedReport.html.
+
+/**
+ * Build a map of eventId → eventName for all events of a brand
+ *
+ * @param {string} brandId - Brand ID to look up events for
+ * @returns {Object} Map of { eventId: eventName }
+ * @private
+ */
+function buildEventNameMap_(brandId) {
+  const nameMap = {};
+
+  if (!brandId) return nameMap;
+
+  try {
+    const brand = findBrand_(brandId);
+    if (!brand) return nameMap;
+
+    const sh = getStoreSheet_(brand, 'events');
+    const lastRow = sh.getLastRow();
+    if (lastRow <= 1) return nameMap;
+
+    // Get all event rows: [id, brandId, templateId, dataJSON, createdAt, slug]
+    const rows = sh.getRange(2, 1, lastRow - 1, 4).getValues();
+
+    rows.forEach(row => {
+      const id = row[0];
+      const rowBrandId = row[1];
+      const dataJson = row[3];
+
+      // Only include events for this brand
+      if (rowBrandId === brandId && id) {
+        const data = safeJSONParse_(dataJson, {});
+        nameMap[id] = data.name || id; // Fallback to ID if no name
+      }
+    });
+  } catch (e) {
+    diag_('warn', 'buildEventNameMap_', 'Failed to build event name map', {
+      brandId,
+      error: e.message
+    });
+  }
+
+  return nameMap;
+}
+
+/**
+ * Build a map of sponsorId → sponsorName for all sponsors of a brand
+ *
+ * Sponsors can be stored in two places:
+ * 1. SPONSORS sheet (dedicated sponsor entities)
+ * 2. Embedded within events (event.sponsors[])
+ *
+ * This function checks both sources.
+ *
+ * @param {string} brandId - Brand ID to look up sponsors for
+ * @returns {Object} Map of { sponsorId: sponsorName }
+ * @private
+ */
+function buildSponsorNameMap_(brandId) {
+  const nameMap = {};
+
+  if (!brandId) return nameMap;
+
+  try {
+    const brand = findBrand_(brandId);
+    if (!brand) return nameMap;
+
+    // Source 1: SPONSORS sheet
+    try {
+      const sponsorSheet = getStoreSheet_(brand, 'sponsors');
+      const lastRow = sponsorSheet.getLastRow();
+      if (lastRow > 1) {
+        // Get sponsor rows: [id, brandId, ?, dataJSON, ...]
+        const rows = sponsorSheet.getRange(2, 1, lastRow - 1, 4).getValues();
+
+        rows.forEach(row => {
+          const id = row[0];
+          const rowBrandId = row[1];
+          const dataJson = row[3];
+
+          if (rowBrandId === brandId && id) {
+            const data = safeJSONParse_(dataJson, {});
+            nameMap[id] = data.name || id; // Fallback to ID if no name
+          }
+        });
+      }
+    } catch (e) {
+      // SPONSORS sheet might not exist - that's OK
+      diag_('debug', 'buildSponsorNameMap_', 'No SPONSORS sheet or error', {
+        brandId,
+        error: e.message
+      });
+    }
+
+    // Source 2: Sponsors embedded in events
+    const eventSheet = getStoreSheet_(brand, 'events');
+    const eventLastRow = eventSheet.getLastRow();
+    if (eventLastRow > 1) {
+      const eventRows = eventSheet.getRange(2, 1, eventLastRow - 1, 4).getValues();
+
+      eventRows.forEach(row => {
+        const rowBrandId = row[1];
+        const dataJson = row[3];
+
+        if (rowBrandId === brandId) {
+          const data = safeJSONParse_(dataJson, {});
+
+          // Check for embedded sponsors array
+          if (Array.isArray(data.sponsors)) {
+            data.sponsors.forEach(sponsor => {
+              if (sponsor.id && sponsor.name && !nameMap[sponsor.id]) {
+                nameMap[sponsor.id] = sponsor.name;
+              }
+            });
+          }
+        }
+      });
+    }
+  } catch (e) {
+    diag_('warn', 'buildSponsorNameMap_', 'Failed to build sponsor name map', {
+      brandId,
+      error: e.message
+    });
+  }
+
+  return nameMap;
+}
+
 /**
  * Build SharedAnalytics response matching /schemas/analytics.schema.json (MVP-frozen v1.1)
  *
@@ -202,9 +335,10 @@ function api_getSponsorAnalytics(params) {
  *
  * @param {Array} analytics - Filtered analytics rows
  * @param {boolean} isSponsorView - Whether this is sponsor-scoped view
+ * @param {string} brandId - Brand ID for name resolution
  * @returns {Object} SharedAnalytics shape per schema
  */
-function buildSharedAnalyticsResponse_(analytics, isSponsorView) {
+function buildSharedAnalyticsResponse_(analytics, isSponsorView, brandId) {
   // Count metrics
   const impressions = analytics.filter(a => a.metric === 'impression');
   const clicks = analytics.filter(a => a.metric === 'click');
@@ -215,14 +349,18 @@ function buildSharedAnalyticsResponse_(analytics, isSponsorView) {
   const eventIds = new Set(analytics.slice(0, 10000).map(a => a.eventId).filter(Boolean));
   const sponsorIds = new Set(analytics.slice(0, 10000).map(a => a.sponsorId).filter(Boolean));
 
+  // Build name lookup maps for human-readable display (Story 4.1)
+  const eventNameMap = buildEventNameMap_(brandId);
+  const sponsorNameMap = buildSponsorNameMap_(brandId);
+
   // Build surfaces array
   const surfaces = buildSurfacesArray_(analytics);
 
-  // Build sponsors array (for organizer view)
-  const sponsors = !isSponsorView ? buildSponsorsArray_(analytics) : null;
+  // Build sponsors array (for organizer view) with name resolution
+  const sponsors = !isSponsorView ? buildSponsorsArray_(analytics, sponsorNameMap) : null;
 
-  // Build events array
-  const events = buildEventsArray_(analytics);
+  // Build events array with name resolution
+  const events = buildEventsArray_(analytics, eventNameMap);
 
   return {
     lastUpdatedISO: new Date().toISOString(),
@@ -285,8 +423,15 @@ function buildSurfacesArray_(analytics) {
 
 /**
  * Build sponsors array per schema: { id, name, impressions, clicks, ctr }
+ *
+ * Story 4.1: Now resolves sponsorId to human-readable names using sponsorNameMap.
+ *
+ * @param {Array} analytics - Analytics rows
+ * @param {Object} sponsorNameMap - Map of { sponsorId: sponsorName } for name resolution
+ * @returns {Array} Array of sponsor metrics with resolved names
  */
-function buildSponsorsArray_(analytics) {
+function buildSponsorsArray_(analytics, sponsorNameMap) {
+  const nameMap = sponsorNameMap || {};
   const sponsorMap = {};
 
   analytics.forEach(a => {
@@ -295,7 +440,7 @@ function buildSponsorsArray_(analytics) {
     if (!sponsorMap[a.sponsorId]) {
       sponsorMap[a.sponsorId] = {
         id: a.sponsorId,
-        name: a.sponsorId, // TODO: Look up actual name from sponsors sheet
+        name: nameMap[a.sponsorId] || a.sponsorId, // Use resolved name or fallback to ID
         impressions: 0,
         clicks: 0
       };
@@ -316,8 +461,15 @@ function buildSponsorsArray_(analytics) {
 
 /**
  * Build events array per schema: { id, name, impressions, clicks, ctr }
+ *
+ * Story 4.1: Now resolves eventId to human-readable names using eventNameMap.
+ *
+ * @param {Array} analytics - Analytics rows
+ * @param {Object} eventNameMap - Map of { eventId: eventName } for name resolution
+ * @returns {Array} Array of event metrics with resolved names
  */
-function buildEventsArray_(analytics) {
+function buildEventsArray_(analytics, eventNameMap) {
+  const nameMap = eventNameMap || {};
   const eventMap = {};
 
   analytics.forEach(a => {
@@ -326,7 +478,7 @@ function buildEventsArray_(analytics) {
     if (!eventMap[a.eventId]) {
       eventMap[a.eventId] = {
         id: a.eventId,
-        name: a.eventId, // TODO: Look up actual name from events sheet
+        name: nameMap[a.eventId] || a.eventId, // Use resolved name or fallback to ID
         impressions: 0,
         clicks: 0
       };
