@@ -941,20 +941,25 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
     // === MVP Template System ===
     async function loadTemplates() {
       try {
+        console.log('[Templates] Loading templates for brand:', BRAND);
         const res = await NU.rpc('api_getEventTemplates', { brandId: BRAND });
+        console.log('[Templates] Response:', res);
+
         if (res.ok && res.value) {
           availableTemplates = res.value.items || [];
           defaultTemplateId = res.value.defaultTemplateId || 'custom';
+          console.log('[Templates] Loaded', availableTemplates.length, 'templates, default:', defaultTemplateId);
           renderTemplatePicker();
           // Select default template
           selectTemplate(defaultTemplateId);
         } else {
+          console.warn('[Templates] API returned error:', res.code, res.message);
           document.getElementById('templatePicker').innerHTML =
-            '<p class="muted">Could not load templates. Using defaults.</p>';
+            `<p class="muted">Could not load templates. ${res.message || 'Using defaults.'}</p>`;
           updateTemplatePanelVisibility('custom'); // Show league panel for custom fallback
         }
       } catch (e) {
-        console.error('Failed to load templates:', e);
+        console.error('[Templates] Exception loading templates:', e);
         document.getElementById('templatePicker').innerHTML =
           '<p class="muted">Could not load templates. Using defaults.</p>';
         updateTemplatePanelVisibility('custom'); // Show league panel for custom fallback
