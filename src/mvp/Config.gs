@@ -3,7 +3,7 @@
 
 const ZEB = Object.freeze({
   APP_TITLE: 'Zeventbook',
-  BUILD_ID: 'triangle-extended-v1.5',
+  BUILD_ID: 'mvp-v19',
   CONTRACT_VER: '1.0.0', // EVENT_CONTRACT.md v1.0.0
 
   // === Feature Flags ===
