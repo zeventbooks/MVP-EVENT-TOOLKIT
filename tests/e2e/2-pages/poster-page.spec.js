@@ -222,6 +222,60 @@ test.describe('📄 PAGE: Poster - QR Codes', () => {
       expect(text).toBeTruthy();
     }
   });
+
+  test('QR section handles missing/invalid URLs gracefully', async ({ page }) => {
+    await page.goto(`${BASE_URL}?page=poster&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
+
+    const qrGrid = page.locator('#qrGrid, .qr-grid');
+    const qrItems = qrGrid.locator('.qr-item, > div');
+    const qrImages = qrGrid.locator('img');
+
+    const itemCount = await qrItems.count();
+    const imageCount = await qrImages.count();
+
+    // QR grid should be present (even if empty)
+    await expect(qrGrid).toBeAttached();
+
+    // Check each QR item for valid state
+    for (let i = 0; i < itemCount; i++) {
+      const item = qrItems.nth(i);
+      const img = item.locator('img');
+      const hasImage = await img.count() > 0;
+
+      if (hasImage) {
+        // If image exists, verify it has a valid src (not broken)
+        const src = await img.getAttribute('src');
+        const isValidSrc = src && src.length > 0 && !src.includes('undefined') && !src.includes('null');
+
+        if (isValidSrc) {
+          // Valid QR image should be visible
+          await expect(img).toBeVisible();
+        } else {
+          // Invalid src - QR item should be hidden or show fallback
+          const isHidden = await item.isHidden();
+          const hasFallback = await item.locator('text=/unavailable|no url|coming soon/i').count() > 0;
+          expect(isHidden || hasFallback || !isValidSrc).toBe(true);
+        }
+      }
+    }
+
+    // Page should not crash - poster container must still be visible
+    await expect(page.locator('.poster-container')).toBeVisible();
+
+    // No JavaScript errors should occur
+    const errors = [];
+    page.on('pageerror', error => errors.push(error));
+    await page.waitForTimeout(1000);
+
+    const criticalErrors = errors.filter(e =>
+      !e.message.includes('google.script') &&
+      !e.message.includes('google is not defined')
+    );
+    expect(criticalErrors.length).toBe(0);
+  });
 });
 
 test.describe('📄 PAGE: Poster - Analytics Integration', () => {

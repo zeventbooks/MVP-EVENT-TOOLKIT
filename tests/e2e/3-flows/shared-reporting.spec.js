@@ -366,3 +366,132 @@ test.describe('🔺 TRIANGLE: SharedReport Integration', () => {
     await reportPage.close();
   });
 });
+
+test.describe('📊 SHARED REPORTING: Sponsor View', () => {
+
+  test('SharedReport loads filtered view with sponsorId parameter', async ({ page }) => {
+    console.log('🎯 Testing sponsor-specific view...');
+
+    // Test sponsor view with sponsorId query parameter
+    const testSponsorId = 'test-sponsor-123';
+    await page.goto(`${BASE_URL}?page=report&brand=${BRAND_ID}&sponsorId=${testSponsorId}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
+    await page.waitForLoadState('networkidle');
+
+    // Page should load without crashing
+    const heading = page.locator('h1, h2');
+    await expect(heading.first()).toBeVisible();
+
+    // Check if page acknowledges sponsorId filter
+    const sponsorFilter = page.locator('[data-sponsor-filter], .sponsor-filter, text=/sponsor.*view|filtered.*sponsor/i');
+    const hasSponsorFilter = await sponsorFilter.count() > 0;
+
+    // Check for sponsor-specific metrics display
+    const sponsorMetrics = page.locator('[data-sponsor-id], .sponsor-metrics, .sponsor-performance');
+    const hasSponsorMetrics = await sponsorMetrics.count() > 0;
+
+    // Check for generic analytics (fallback when no sponsor data)
+    const genericMetrics = page.locator('.metric-card, .metric, [data-metric]');
+    const hasGenericMetrics = await genericMetrics.count() > 0;
+
+    // Page should show either sponsor-specific view, generic metrics, or "no data" message
+    const noDataMessage = page.locator('text=/no data|no analytics|sponsor not found/i');
+    const hasNoData = await noDataMessage.count() > 0;
+
+    expect(hasSponsorFilter || hasSponsorMetrics || hasGenericMetrics || hasNoData).toBe(true);
+
+    console.log(`✅ Sponsor view loaded (filter: ${hasSponsorFilter}, metrics: ${hasSponsorMetrics}, generic: ${hasGenericMetrics}, no-data: ${hasNoData})`);
+
+    // No JavaScript errors should occur
+    const errors = [];
+    page.on('pageerror', error => errors.push(error));
+    await page.waitForTimeout(1000);
+
+    const criticalErrors = errors.filter(e =>
+      !e.message.includes('google.script') &&
+      !e.message.includes('google is not defined')
+    );
+    expect(criticalErrors.length).toBe(0);
+  });
+
+  test('SharedReport handles invalid sponsorId gracefully', async ({ page }) => {
+    console.log('🔒 Testing invalid sponsorId handling...');
+
+    // Test with clearly invalid sponsorId
+    await page.goto(`${BASE_URL}?page=report&brand=${BRAND_ID}&sponsorId=INVALID_ID_12345`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
+    await page.waitForLoadState('networkidle');
+
+    // Page should not crash - should show error or empty state
+    const heading = page.locator('h1, h2');
+    await expect(heading.first()).toBeVisible();
+
+    // Should show either error message or fallback to general analytics
+    const errorMessage = page.locator('text=/not found|invalid|no data|error/i');
+    const hasError = await errorMessage.count() > 0;
+
+    const metricsContainer = page.locator('.metrics, .metrics-grid, [data-metrics], main');
+    const hasMetrics = await metricsContainer.count() > 0;
+
+    // Should gracefully handle invalid sponsor - either show error or generic view
+    expect(hasError || hasMetrics).toBe(true);
+
+    console.log(`✅ Invalid sponsorId handled gracefully (error: ${hasError}, fallback: ${hasMetrics})`);
+
+    // No JavaScript errors should occur
+    const errors = [];
+    page.on('pageerror', error => errors.push(error));
+    await page.waitForTimeout(1000);
+
+    const criticalErrors = errors.filter(e =>
+      !e.message.includes('google.script') &&
+      !e.message.includes('google is not defined')
+    );
+    expect(criticalErrors.length).toBe(0);
+  });
+
+  test('Sponsor view shows sponsor-specific metrics when data exists', async ({ page }) => {
+    console.log('📈 Testing sponsor metrics display...');
+
+    await page.goto(`${BASE_URL}?page=report&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
+    await page.waitForLoadState('networkidle');
+
+    // Check for sponsor performance section
+    const sponsorSection = page.locator(
+      'section:has-text("Sponsor"), ' +
+      '[data-section="sponsor"], ' +
+      '.sponsor-performance, ' +
+      'table:has-text("Sponsor")'
+    );
+    const hasSponsorSection = await sponsorSection.count() > 0;
+
+    if (hasSponsorSection) {
+      console.log('✅ Sponsor performance section found');
+
+      // Check for expected sponsor metrics columns/fields
+      const impressionsCol = page.locator('text=/impressions/i');
+      const clicksCol = page.locator('text=/clicks|ctr/i');
+      const dwellCol = page.locator('text=/dwell|time/i');
+
+      const hasImpressions = await impressionsCol.count() > 0;
+      const hasClicks = await clicksCol.count() > 0;
+      const hasDwell = await dwellCol.count() > 0;
+
+      console.log(`  - Impressions: ${hasImpressions}`);
+      console.log(`  - Clicks/CTR: ${hasClicks}`);
+      console.log(`  - Dwell time: ${hasDwell}`);
+
+      // At least one metric type should be present
+      expect(hasImpressions || hasClicks || hasDwell).toBe(true);
+    } else {
+      console.log('ℹ️ No sponsor section found (may have no sponsor data)');
+    }
+  });
+});

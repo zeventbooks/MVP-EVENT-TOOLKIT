@@ -75,6 +75,39 @@ test.describe('📄 PAGE: Admin - Page Load', () => {
     await expect(page.locator('label:has-text("Date")')).toBeVisible();
     await expect(page.locator('label:has-text("Location")')).toBeVisible();
   });
+
+  test('Admin page handles empty events list gracefully', async ({ page }) => {
+    // Load admin page - events list section should exist even if empty
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
+
+    // Events list section should always be present
+    const eventsList = page.locator('#eventsList, .events-list, [data-section="events"]');
+    await expect(eventsList).toBeAttached();
+
+    // Check for either event cards OR empty state message
+    const eventCards = page.locator('.event-card, .event-item, [data-event]');
+    const emptyMessage = page.locator('text=/no events|no upcoming|create your first/i');
+
+    const hasEvents = await eventCards.count() > 0;
+    const hasEmptyState = await emptyMessage.count() > 0;
+
+    // Page should show either events or empty state - not crash
+    expect(hasEvents || hasEmptyState || await eventsList.isVisible()).toBe(true);
+
+    // No JavaScript errors should occur
+    const errors = [];
+    page.on('pageerror', error => errors.push(error));
+    await page.waitForTimeout(1000);
+
+    const criticalErrors = errors.filter(e =>
+      !e.message.includes('google.script') &&
+      !e.message.includes('google is not defined')
+    );
+    expect(criticalErrors.length).toBe(0);
+  });
 });
 
 test.describe('📄 PAGE: Admin - Button Interactions', () => {

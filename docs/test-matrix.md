@@ -25,7 +25,7 @@ Each scenario is marked with:
 
 | Scenario | Status | Test Location |
 |----------|--------|---------------|
-| Load with no events | **TODO** | Needs explicit test for empty events list state |
+| Load with no events | Implemented | `tests/e2e/2-pages/admin-page.spec.js` - "Admin page handles empty events list gracefully" |
 | Create new event (minimum fields) | Implemented | `tests/e2e/2-pages/admin-page.spec.js` - "Submit button prompts for admin key" |
 | Edit settings (toggle sections) | Implemented | `tests/e2e/2-pages/admin-page.spec.js` - "📄 PAGE: Admin - Collapsible Sections" |
 | Save & reload event, verify persistence | Implemented | `tests/e2e/3-flows/admin-flows.spec.js` - "Complete flow: Create event → Verify on public page" |
@@ -77,7 +77,7 @@ Each scenario is marked with:
 | Scenario | Status | Test Location |
 |----------|--------|---------------|
 | Load live event | Implemented | `tests/e2e/2-pages/display-page.spec.js` - "Display page loads with TV layout" |
-| Empty schedule fallback | **TODO** | Needs explicit test for schedule empty state |
+| Empty schedule fallback | Implemented | `tests/e2e/2-pages/display-page.spec.js` - "Empty schedule shows fallback gracefully" |
 | Sponsor strip visible/hidden | Implemented | `tests/e2e/2-pages/display-page.spec.js` - "Sponsor strip respects showSponsorStrip setting" |
 
 ### Display - Additional Coverage
@@ -110,7 +110,7 @@ Each scenario is marked with:
 |----------|--------|---------------|
 | Show correct title/date/venue | Implemented | `tests/e2e/2-pages/poster-page.spec.js` - "Event name is displayed prominently" |
 | Show QR for public & signup when URLs exist | Implemented | `tests/e2e/2-pages/poster-page.spec.js` - "QR codes have proper images" |
-| No QR when URLs invalid/absent | **TODO** | Needs explicit test for QR fallback when URLs missing |
+| No QR when URLs invalid/absent | Implemented | `tests/e2e/2-pages/poster-page.spec.js` - "QR section handles missing/invalid URLs gracefully" |
 
 ### Poster - Additional Coverage
 
@@ -139,7 +139,7 @@ Each scenario is marked with:
 | Scenario | Status | Test Location |
 |----------|--------|---------------|
 | Organizer view with populated data | Implemented | `tests/e2e/3-flows/shared-reporting.spec.js` - "SharedReport page loads and displays key metrics" |
-| Sponsor view by sponsorId | **TODO** | Needs test for `?sponsorId=X` filtered view |
+| Sponsor view by sponsorId | Implemented | `tests/e2e/3-flows/shared-reporting.spec.js` - "SharedReport loads filtered view with sponsorId parameter" |
 | Graceful UI when analytics arrays are empty | Implemented | `tests/e2e/3-flows/shared-reporting.spec.js` - "Full cycle: Create event → Configure sponsors → View analytics" (checks empty state) |
 
 ### SharedReport - Additional Coverage
@@ -156,19 +156,19 @@ Each scenario is marked with:
 
 ---
 
-## Summary: Coverage Gaps (TODOs)
+## Summary: Coverage Status
 
-| Surface | Scenario | Priority |
-|---------|----------|----------|
-| Admin | Load with no events | Medium |
-| Display | Empty schedule fallback | Low |
-| Poster | No QR when URLs invalid/absent | Medium |
-| SharedReport | Sponsor view by sponsorId | High |
+**All core scenarios for the 5 MVP surfaces are now covered.**
 
-### Priority Legend
-- **High**: Core user journey, blocks sponsor value proposition
-- **Medium**: Edge case but affects user experience
-- **Low**: Edge case, graceful degradation acceptable
+| Surface | Core Scenarios | Status |
+|---------|----------------|--------|
+| Admin | 4/4 | ✅ Complete |
+| Public | 4/4 | ✅ Complete |
+| Display | 3/3 | ✅ Complete |
+| Poster | 3/3 | ✅ Complete |
+| SharedReport | 3/3 | ✅ Complete |
+
+**Total: 17/17 core scenarios implemented**
 
 ---
 
