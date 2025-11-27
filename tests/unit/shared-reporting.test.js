@@ -619,6 +619,141 @@ describe('📊 SharedReporting.gs - Analytics Calculations', () => {
       expect(result).toEqual([]);
     });
   });
+
+  describe('buildEventsArray_(analytics, eventNameMap)', () => {
+
+    function buildEventsArray_(analytics, eventNameMap) {
+      const nameMap = eventNameMap || {};
+      const eventMap = {};
+
+      analytics.forEach(a => {
+        if (!a.eventId) return;
+
+        if (!eventMap[a.eventId]) {
+          eventMap[a.eventId] = {
+            id: a.eventId,
+            name: nameMap[a.eventId] || a.eventId,
+            impressions: 0,
+            clicks: 0,
+            signupsCount: 0
+          };
+        }
+
+        if (a.metric === 'impression') eventMap[a.eventId].impressions++;
+        if (a.metric === 'click') eventMap[a.eventId].clicks++;
+        if (a.metric === 'signup') eventMap[a.eventId].signupsCount++;
+      });
+
+      return Object.values(eventMap).map(e => {
+        e.ctr = e.impressions > 0
+          ? Number(((e.clicks / e.impressions) * 100).toFixed(2))
+          : 0;
+        return e;
+      }).sort((a, b) => b.impressions - a.impressions);
+    }
+
+    test('counts signupsCount per event', () => {
+      const analytics = [
+        { eventId: 'evt1', metric: 'signup' },
+        { eventId: 'evt1', metric: 'signup' },
+        { eventId: 'evt1', metric: 'signup' },
+        { eventId: 'evt1', metric: 'impression' },
+        { eventId: 'evt2', metric: 'signup' }
+      ];
+
+      const result = buildEventsArray_(analytics, { evt1: 'Event One', evt2: 'Event Two' });
+
+      expect(result.find(e => e.id === 'evt1').signupsCount).toBe(3);
+      expect(result.find(e => e.id === 'evt2').signupsCount).toBe(1);
+    });
+
+    test('signupsCount is a number (type check)', () => {
+      const analytics = [
+        { eventId: 'evt1', metric: 'signup' },
+        { eventId: 'evt1', metric: 'impression' }
+      ];
+
+      const result = buildEventsArray_(analytics, {});
+
+      expect(typeof result[0].signupsCount).toBe('number');
+      expect(result[0].signupsCount).toBeGreaterThanOrEqual(0);
+    });
+
+    test('signupsCount is 0 when no signups', () => {
+      const analytics = [
+        { eventId: 'evt1', metric: 'impression' },
+        { eventId: 'evt1', metric: 'click' }
+      ];
+
+      const result = buildEventsArray_(analytics, {});
+
+      expect(result[0].signupsCount).toBe(0);
+    });
+
+    test('includes signupsCount in event metrics', () => {
+      const analytics = [
+        { eventId: 'evt1', metric: 'impression' },
+        { eventId: 'evt1', metric: 'click' },
+        { eventId: 'evt1', metric: 'signup' }
+      ];
+
+      const result = buildEventsArray_(analytics, { evt1: 'Test Event' });
+
+      expect(result[0]).toHaveProperty('signupsCount');
+      expect(result[0].signupsCount).toBe(1);
+      expect(result[0]).toHaveProperty('impressions');
+      expect(result[0]).toHaveProperty('clicks');
+      expect(result[0]).toHaveProperty('ctr');
+    });
+
+    test('handles multiple events with different signup counts', () => {
+      const analytics = [
+        { eventId: 'evt1', metric: 'signup' },
+        { eventId: 'evt1', metric: 'signup' },
+        { eventId: 'evt2', metric: 'signup' },
+        { eventId: 'evt2', metric: 'signup' },
+        { eventId: 'evt2', metric: 'signup' },
+        { eventId: 'evt3', metric: 'impression' } // No signups
+      ];
+
+      const result = buildEventsArray_(analytics, {});
+
+      const evt1 = result.find(e => e.id === 'evt1');
+      const evt2 = result.find(e => e.id === 'evt2');
+      const evt3 = result.find(e => e.id === 'evt3');
+
+      expect(evt1.signupsCount).toBe(2);
+      expect(evt2.signupsCount).toBe(3);
+      expect(evt3.signupsCount).toBe(0);
+    });
+
+    test('handles empty analytics array', () => {
+      const result = buildEventsArray_([], {});
+
+      expect(result).toEqual([]);
+    });
+
+    test('uses name from eventNameMap', () => {
+      const analytics = [
+        { eventId: 'evt1', metric: 'impression' }
+      ];
+      const nameMap = { evt1: 'My Event Name' };
+
+      const result = buildEventsArray_(analytics, nameMap);
+
+      expect(result[0].name).toBe('My Event Name');
+    });
+
+    test('falls back to eventId when name not in map', () => {
+      const analytics = [
+        { eventId: 'evt1', metric: 'impression' }
+      ];
+
+      const result = buildEventsArray_(analytics, {});
+
+      expect(result[0].name).toBe('evt1');
+    });
+  });
 });
 
 /**
@@ -631,17 +766,19 @@ describe('📊 SharedReporting.gs - Analytics Calculations', () => {
  * ✅ groupBySponsor_(analytics) - 5 tests
  * ✅ calculateDailyTrends_(analytics) - 5 tests
  * ✅ getTopEventSponsorPairs_(analytics, limit) - 5 tests
+ * ✅ buildEventsArray_(analytics, eventNameMap) - 8 tests (incl. signupsCount)
  *
- * TOTAL: 33 unit tests
+ * TOTAL: 41 unit tests
  * Coverage: 100% of SharedReporting.gs calculation functions
  *
  * Edge Cases Covered:
  * - Empty arrays
- * - Zero values (impressions, clicks)
+ * - Zero values (impressions, clicks, signups)
  * - Missing fields (eventId, sponsorId, surface)
  * - Division by zero
  * - Sorting and ranking
  * - Date parsing and timezone handling
+ * - signupsCount per event
  *
  * Run with: npm run test:unit
  */
