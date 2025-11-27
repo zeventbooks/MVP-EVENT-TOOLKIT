@@ -137,7 +137,7 @@
     "EventMetrics": {
       "type": "object",
       "description": "MVP OPTIONAL - Metrics for a single event",
-      "required": ["id", "name", "impressions", "clicks", "ctr"],
+      "required": ["id", "name", "impressions", "clicks", "ctr", "signupsCount"],
       "additionalProperties": false,
       "properties": {
         "id": {
@@ -161,6 +161,11 @@
           "type": "number",
           "minimum": 0,
           "description": "Click-through rate as percentage (e.g., 2.5)"
+        },
+        "signupsCount": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of form signups for this event (sourced from Form/Sheet)"
         }
       }
     }

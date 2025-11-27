@@ -283,6 +283,50 @@ function FormService_generateShortlink(params) {
   return shortlinkResult;
 }
 
+// === Signup Count =========================================================
+
+/**
+ * Get signup count for an event
+ *
+ * Counts the number of 'signup' metrics logged in the ANALYTICS sheet for the given eventId.
+ * This provides the source of truth for signup counts displayed in SharedReport.
+ *
+ * @param {string} eventId - Event ID to count signups for
+ * @returns {number} Count of signups for the event (0 if none or error)
+ */
+function FormService_getSignupCount(eventId) {
+  if (!eventId) return 0;
+
+  try {
+    const analyticsSheet = _ensureAnalyticsSheet_();
+    if (!analyticsSheet) return 0;
+
+    const lastRow = analyticsSheet.getLastRow();
+    if (lastRow <= 1) return 0;
+
+    // Analytics sheet columns: [timestamp, eventId, surface, metric, sponsorId, value, ...]
+    const rows = analyticsSheet.getDataRange().getValues();
+    let count = 0;
+
+    // Skip header row (index 0), count 'signup' metrics for this eventId
+    for (let i = 1; i < rows.length; i++) {
+      const rowEventId = rows[i][1];
+      const metric = rows[i][3];
+      if (rowEventId === eventId && metric === 'signup') {
+        count++;
+      }
+    }
+
+    return count;
+  } catch (e) {
+    diag_('warn', 'FormService_getSignupCount', 'Failed to count signups', {
+      eventId,
+      error: e.message
+    });
+    return 0;
+  }
+}
+
 // === [V2+] Form Analytics =================================================
 
 /**

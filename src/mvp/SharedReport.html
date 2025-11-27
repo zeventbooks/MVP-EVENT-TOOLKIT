@@ -48,6 +48,7 @@ READS FROM SHAREDANALYTICS SCHEMA (via api_getSharedAnalytics):
     - event.name               → Display name + rank badge
     - event.impressions        → Table column + Top callout
     - event.clicks             → Table column
+    - event.signupsCount       → Signups column (from Form/Sheet)
     - event.ctr                → CTR badge + Top callout
 
 ═══════════════════════════════════════════════════════════════════════════════
@@ -523,7 +524,7 @@ DO NOT modify contracts without updating:
      *     { id, name, impressions, clicks, ctr }
      *   ],
      *   events?: [
-     *     { id, name, impressions, clicks, ctr }
+     *     { id, name, impressions, clicks, ctr, signupsCount }
      *   ]
      * }
      *
@@ -950,6 +951,8 @@ DO NOT modify contracts without updating:
           index === 1 ? '🥈' :
           index === 2 ? '🥉' : '#' + (index + 1);
 
+        const signups = ev.signupsCount || 0;
+
         return `
           <tr>
             <td data-label="Event">
@@ -960,6 +963,7 @@ DO NOT modify contracts without updating:
             </td>
             <td data-label="Impressions">${(ev.impressions || 0).toLocaleString()}</td>
             <td data-label="Clicks">${(ev.clicks || 0).toLocaleString()}</td>
+            <td data-label="Signups">${signups.toLocaleString()}</td>
             <td data-label="CTR">
               <span class="badge ${badgeClass}">${ctr.toFixed(2)}%</span>
             </td>
@@ -974,6 +978,7 @@ DO NOT modify contracts without updating:
               <th>Event</th>
               <th>Impressions</th>
               <th>Clicks</th>
+              <th>Signups</th>
               <th>CTR</th>
             </tr>
           </thead>

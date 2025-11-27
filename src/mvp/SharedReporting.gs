@@ -35,7 +35,7 @@
 //   },
 //   surfaces: Array<{ id, label, impressions, clicks, qrScans, engagementRate }>,
 //   sponsors: Array<{ id, name, impressions, clicks, ctr }> | null,
-//   events: Array<{ id, name, impressions, clicks, ctr }> | null
+//   events: Array<{ id, name, impressions, clicks, ctr, signupsCount }> | null
 // }
 //
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -66,8 +66,9 @@
 //
 // SharedAnalytics.events
 //   → buildEventsArray_(analytics)
-//   → Groups by eventId, counts impressions/clicks per event
+//   → Groups by eventId, counts impressions/clicks/signups per event
 //   → Calculates ctr = clicks / impressions * 100
+//   → signupsCount: filter(metric === 'signup' && eventId).length
 //
 // ═══════════════════════════════════════════════════════════════════════════════
 //
@@ -460,13 +461,14 @@ function buildSponsorsArray_(analytics, sponsorNameMap) {
 }
 
 /**
- * Build events array per schema: { id, name, impressions, clicks, ctr }
+ * Build events array per schema: { id, name, impressions, clicks, ctr, signupsCount }
  *
  * Story 4.1: Now resolves eventId to human-readable names using eventNameMap.
+ * Story 4.2: Now includes signupsCount per event from Form/Sheet.
  *
  * @param {Array} analytics - Analytics rows
  * @param {Object} eventNameMap - Map of { eventId: eventName } for name resolution
- * @returns {Array} Array of event metrics with resolved names
+ * @returns {Array} Array of event metrics with resolved names and signup counts
  */
 function buildEventsArray_(analytics, eventNameMap) {
   const nameMap = eventNameMap || {};
@@ -480,12 +482,14 @@ function buildEventsArray_(analytics, eventNameMap) {
         id: a.eventId,
         name: nameMap[a.eventId] || a.eventId, // Use resolved name or fallback to ID
         impressions: 0,
-        clicks: 0
+        clicks: 0,
+        signupsCount: 0
       };
     }
 
     if (a.metric === 'impression') eventMap[a.eventId].impressions++;
     if (a.metric === 'click') eventMap[a.eventId].clicks++;
+    if (a.metric === 'signup') eventMap[a.eventId].signupsCount++;
   });
 
   // Calculate CTR and convert to array

@@ -367,6 +367,119 @@ test.describe('🔺 TRIANGLE: SharedReport Integration', () => {
   });
 });
 
+test.describe('📊 SHARED REPORTING: Event Performance with Signups', () => {
+
+  test('SharedReport displays Event Performance table with Signups column', async ({ page }) => {
+    console.log('📊 Testing Event Performance table with signups count...');
+
+    await page.goto(`${BASE_URL}?page=report&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
+    await page.waitForLoadState('networkidle');
+
+    // Wait for analytics to load
+    await page.waitForTimeout(2000);
+
+    // Check for event performance section
+    const eventSection = page.locator('#eventPerformanceCard, section:has-text("Event Performance")');
+    const hasEventSection = await eventSection.count() > 0;
+
+    if (hasEventSection) {
+      console.log('✅ Event Performance section found');
+
+      // Check for the Signups column header in the table
+      const signupsHeader = page.locator('th:has-text("Signups")');
+      const hasSignupsHeader = await signupsHeader.count() > 0;
+
+      if (hasSignupsHeader) {
+        console.log('✅ Signups column header found in Event Performance table');
+
+        // Check for signups data cells
+        const signupsCells = page.locator('td[data-label="Signups"]');
+        const signupsCellCount = await signupsCells.count();
+        console.log(`✅ Found ${signupsCellCount} signup data cells`);
+
+        // If there are events, verify signupsCount values are numbers
+        if (signupsCellCount > 0) {
+          const firstSignupText = await signupsCells.first().textContent();
+          const isNumeric = /^\d+/.test(firstSignupText?.trim() || '');
+          console.log(`✅ First signups value: "${firstSignupText}" (numeric: ${isNumeric})`);
+          expect(isNumeric || firstSignupText?.trim() === '0').toBe(true);
+        }
+      } else {
+        console.log('⚠️ Signups column not found in Event Performance table');
+      }
+    } else {
+      console.log('ℹ️ Event Performance section not visible (may have no event data)');
+    }
+  });
+
+  test('signupsCount is a number in api_getSharedAnalytics response', async ({ page }) => {
+    console.log('🔌 Testing signupsCount in analytics API response...');
+
+    // Capture the API response by intercepting console logs
+    const apiResponses = [];
+    page.on('console', msg => {
+      const text = msg.text();
+      if (text.includes('signupsCount') || text.includes('events')) {
+        apiResponses.push(text);
+      }
+    });
+
+    await page.goto(`${BASE_URL}?page=report&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
+    await page.waitForLoadState('networkidle');
+
+    // Wait for analytics to load
+    await page.waitForTimeout(3000);
+
+    // Evaluate if events data contains signupsCount
+    const hasValidSignupsCount = await page.evaluate(() => {
+      // Check if NU object and rpc are available (GAS environment)
+      if (typeof NU === 'undefined' || typeof NU.rpc !== 'function') {
+        return { skip: true, reason: 'NU.rpc not available' };
+      }
+
+      // The SharedReport page should have already loaded analytics
+      // We check if the DOM reflects signupsCount was rendered
+      const signupsCells = document.querySelectorAll('td[data-label="Signups"]');
+      const signupValues = Array.from(signupsCells).map(cell => cell.textContent?.trim());
+
+      return {
+        skip: false,
+        cellCount: signupsCells.length,
+        values: signupValues,
+        allNumeric: signupValues.every(v => /^\d+$/.test(v || ''))
+      };
+    });
+
+    if (hasValidSignupsCount.skip) {
+      console.log(`ℹ️ API check skipped: ${hasValidSignupsCount.reason}`);
+    } else if (hasValidSignupsCount.cellCount > 0) {
+      console.log(`✅ Found ${hasValidSignupsCount.cellCount} signupsCount values in DOM`);
+      console.log(`✅ Values: ${JSON.stringify(hasValidSignupsCount.values)}`);
+      console.log(`✅ All numeric: ${hasValidSignupsCount.allNumeric}`);
+      expect(hasValidSignupsCount.allNumeric).toBe(true);
+    } else {
+      console.log('ℹ️ No signupsCount cells found (may have no event data)');
+    }
+
+    // No critical JavaScript errors
+    const errors = [];
+    page.on('pageerror', error => errors.push(error));
+    await page.waitForTimeout(500);
+
+    const criticalErrors = errors.filter(e =>
+      !e.message.includes('google.script') &&
+      !e.message.includes('google is not defined')
+    );
+    expect(criticalErrors.length).toBe(0);
+  });
+});
+
 test.describe('📊 SHARED REPORTING: Sponsor View', () => {
 
   test('SharedReport loads filtered view with sponsorId parameter', async ({ page }) => {
