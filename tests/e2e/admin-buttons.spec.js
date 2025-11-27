@@ -62,9 +62,9 @@ test.describe('Admin Page - All Buttons Comprehensive Test', () => {
     // Button 1: Create Event button
     await test.step('Button: Create Event (submit)', async () => {
       await page.fill('#name', 'Complete Button Test Event');
-      await page.fill('#dateISO', '2025-12-31');
+      await page.fill('#startDateISO', '2025-12-31');
       await page.fill('#timeISO', '19:00');
-      await page.fill('#location', 'Test Venue');
+      await page.fill('#venue', 'Test Venue');
       await page.fill('#entity', 'Test Organization');
 
       await page.click('button[type="submit"]');
@@ -252,11 +252,11 @@ test.describe('Admin Page - All Buttons Comprehensive Test', () => {
 
     await test.step('Clear button works on partially filled form', async () => {
       await page.fill('#name', 'Partial');
-      await page.fill('#location', 'Location Only');
+      await page.fill('#venue', 'Location Only');
       await page.click('button:has-text("Clear")');
 
       const nameValue = await page.locator('#name').inputValue();
-      const locationValue = await page.locator('#location').inputValue();
+      const locationValue = await page.locator('#venue').inputValue();
       expect(nameValue).toBe('');
       expect(locationValue).toBe('');
     });
@@ -289,7 +289,7 @@ test.describe('Admin Page - All Buttons Comprehensive Test', () => {
 
     await test.step('Create event', async () => {
       await page.fill('#name', 'Rapid Click Test');
-      await page.fill('#dateISO', '2025-12-31');
+      await page.fill('#startDateISO', '2025-12-31');
       await page.click('button[type="submit"]');
       await expect(page.locator('#eventCard')).toBeVisible({ timeout: 10000 });
     });
@@ -330,7 +330,7 @@ test.describe('Admin Page - All Buttons Comprehensive Test', () => {
 
     await test.step('Submit button should be enabled with required fields', async () => {
       await page.fill('#name', 'State Test Event');
-      await page.fill('#dateISO', '2025-12-31');
+      await page.fill('#startDateISO', '2025-12-31');
 
       const submitBtn = page.locator('button[type="submit"]');
       const isDisabled = await submitBtn.isDisabled();

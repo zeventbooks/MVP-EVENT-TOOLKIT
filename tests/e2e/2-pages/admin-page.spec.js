@@ -62,9 +62,9 @@ test.describe('📄 PAGE: Admin - Page Load', () => {
     });
 
     await expect(page.locator('#name')).toBeVisible();
-    await expect(page.locator('#dateISO')).toBeVisible();
+    await expect(page.locator('#startDateISO')).toBeVisible();
     await expect(page.locator('#timeISO')).toBeVisible();
-    await expect(page.locator('#location')).toBeVisible();
+    await expect(page.locator('#venue')).toBeVisible();
     await expect(page.locator('#summary')).toBeVisible();
     await expect(page.locator('#tags')).toBeVisible();
   });
@@ -147,7 +147,7 @@ test.describe('📄 PAGE: Admin - Button Interactions', () => {
     });
 
     await page.fill('#name', 'Test Event');
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
     await page.click('button[type="submit"]');
 
     await page.waitForTimeout(1000);
@@ -165,7 +165,7 @@ test.describe('📄 PAGE: Admin - Button Interactions', () => {
     });
 
     await page.fill('#name', 'Button Test Event');
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
     await page.click('button[type="submit"]');
 
     await expect(page.locator('#eventCard')).toBeVisible({ timeout: 10000 });
@@ -187,7 +187,7 @@ test.describe('📄 PAGE: Admin - Button Interactions', () => {
     });
 
     await page.fill('#name', 'Config Panel Test');
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
     await page.click('button[type="submit"]');
 
     await expect(page.locator('#eventCard')).toBeVisible({ timeout: 10000 });
@@ -211,7 +211,7 @@ test.describe('📄 PAGE: Admin - Button Interactions', () => {
     });
 
     await page.fill('#name', 'Sponsor Add Test');
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
     await page.click('button[type="submit"]');
 
     await expect(page.locator('#eventCard')).toBeVisible({ timeout: 10000 });
@@ -240,7 +240,7 @@ test.describe('📄 PAGE: Admin - Button Interactions', () => {
     });
 
     await page.fill('#name', 'Remove Sponsor Test');
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
     await page.click('button[type="submit"]');
 
     await expect(page.locator('#eventCard')).toBeVisible({ timeout: 10000 });
@@ -270,7 +270,7 @@ test.describe('📄 PAGE: Admin - Button Interactions', () => {
     });
 
     await page.fill('#name', 'Save Config Test');
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
     await page.click('button[type="submit"]');
 
     await expect(page.locator('#eventCard')).toBeVisible({ timeout: 10000 });
@@ -334,7 +334,7 @@ test.describe('📄 PAGE: Admin - Navigation Links', () => {
     });
 
     await page.fill('#name', 'Link Test Event');
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
     await page.click('button[type="submit"]');
 
     await expect(page.locator('#eventCard')).toBeVisible({ timeout: 10000 });
@@ -359,9 +359,9 @@ test.describe('📄 PAGE: Admin - Form Validation', () => {
     });
 
     await page.fill('#name', 'Valid Event Name');
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
     await page.fill('#timeISO', '19:00');
-    await page.fill('#location', 'Test Venue');
+    await page.fill('#venue', 'Test Venue');
     await page.fill('#summary', 'Event description');
     await page.fill('#tags', 'test, event');
 
@@ -376,8 +376,8 @@ test.describe('📄 PAGE: Admin - Form Validation', () => {
       timeout: 20000,
     });
 
-    await page.fill('#dateISO', '2025-12-31');
-    const dateValue = await page.locator('#dateISO').inputValue();
+    await page.fill('#startDateISO', '2025-12-31');
+    const dateValue = await page.locator('#startDateISO').inputValue();
     expect(dateValue).toBe('2025-12-31');
   });
 
@@ -578,7 +578,7 @@ test.describe('📄 PAGE: Admin - Collapsible Sections', () => {
     });
 
     await page.fill('#name', 'Dashboard Test Event');
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
     await page.click('button[type="submit"]');
 
     await expect(page.locator('#dashboardCard')).toBeVisible({ timeout: 10000 });
@@ -599,7 +599,7 @@ test.describe('📄 PAGE: Admin - Collapsible Sections', () => {
     });
 
     await page.fill('#name', 'Dashboard Collapse Test');
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
     await page.click('button[type="submit"]');
 
     await expect(page.locator('#dashboardCard')).toBeVisible({ timeout: 10000 });
@@ -646,7 +646,7 @@ test.describe('📄 PAGE: Admin - Collapsible Sections', () => {
 
     // Fill required fields
     await page.fill('#name', 'Collapsed Section Test');
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
 
     // Collapse Summary section
     await page.locator('.collapsible-header:has-text("Summary")').click();
@@ -702,7 +702,7 @@ test.describe('📄 PAGE: Admin - Sign-Ups Section', () => {
     });
 
     await page.fill('#name', 'Sign-ups Test Event');
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
     await page.click('button[type="submit"]');
 
     await expect(page.locator('#eventCard')).toBeVisible({ timeout: 10000 });
@@ -728,7 +728,7 @@ test.describe('📄 PAGE: Admin - Sign-Ups Section', () => {
     });
 
     await page.fill('#name', 'Registration List Test');
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
     await page.click('button[type="submit"]');
 
     await expect(page.locator('#eventCard')).toBeVisible({ timeout: 10000 });
@@ -756,7 +756,7 @@ test.describe('📄 PAGE: Admin - Sign-Ups Section', () => {
     });
 
     await page.fill('#name', 'Export Test Event');
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
     await page.click('button[type="submit"]');
 
     await expect(page.locator('#eventCard')).toBeVisible({ timeout: 10000 });
@@ -783,7 +783,7 @@ test.describe('📄 PAGE: Admin - Sign-Ups Section', () => {
     });
 
     await page.fill('#name', 'Stats Sign-up Test');
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
     await page.click('button[type="submit"]');
 
     await expect(page.locator('#dashboardCard')).toBeVisible({ timeout: 10000 });
@@ -835,7 +835,7 @@ test.describe('📄 PAGE: Admin - CTA & Payments Configuration', () => {
     });
 
     await page.fill('#name', 'Payments Config Test');
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
     await page.click('button[type="submit"]');
 
     await expect(page.locator('#eventCard')).toBeVisible({ timeout: 10000 });
@@ -905,7 +905,7 @@ test.describe('📄 PAGE: Admin - Analytics Tracking (MVP)', () => {
     });
 
     await page.fill('#name', 'Admin Action Test');
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
     await page.click('button[type="submit"]');
 
     await expect(page.locator('#eventCard')).toBeVisible({ timeout: 10000 });
@@ -949,7 +949,7 @@ test.describe('📄 PAGE: Admin - Settings Visibility (v2.0)', () => {
     });
 
     await page.fill('#name', 'Settings Toggle Test');
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
     await page.click('button[type="submit"]');
 
     await expect(page.locator('#eventCard')).toBeVisible({ timeout: 10000 });

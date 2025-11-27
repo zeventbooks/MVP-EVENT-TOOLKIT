@@ -159,7 +159,7 @@ test.describe('🔌 API CONTRACT: Event Creation Response', () => {
     });
 
     await page.fill('#name', `API Test ${Date.now()}`);
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
     await page.click('button[type="submit"]');
 
     await page.waitForTimeout(3000);

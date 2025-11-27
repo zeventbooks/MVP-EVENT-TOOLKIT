@@ -30,9 +30,9 @@ test.describe('🔄 FLOW: Admin - Create and Publish Event', () => {
     // Step 2: Fill event creation form
     const eventName = `Admin Flow Test ${Date.now()}`;
     await page.fill('#name', eventName);
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
     await page.fill('#timeISO', '19:00');
-    await page.fill('#location', 'Convention Center');
+    await page.fill('#venue', 'Convention Center');
     await page.fill('#summary', 'Comprehensive flow test for admin event creation');
     await page.fill('#tags', 'test, automated, e2e');
 
@@ -75,8 +75,8 @@ test.describe('🔄 FLOW: Admin - Create and Publish Event', () => {
 
     const originalName = `Edit Flow Test ${Date.now()}`;
     await page.fill('#name', originalName);
-    await page.fill('#dateISO', '2025-12-31');
-    await page.fill('#location', 'Original Location');
+    await page.fill('#startDateISO', '2025-12-31');
+    await page.fill('#venue', 'Original Location');
     await page.click('button[type="submit"]');
 
     await expect(page.locator('#eventCard')).toBeVisible({ timeout: 10000 });
@@ -107,8 +107,8 @@ test.describe('🔄 FLOW: Admin - Configure Sponsors', () => {
 
     const eventName = `Sponsor Flow ${Date.now()}`;
     await page.fill('#name', eventName);
-    await page.fill('#dateISO', '2025-12-31');
-    await page.fill('#location', 'Sponsor Test Venue');
+    await page.fill('#startDateISO', '2025-12-31');
+    await page.fill('#venue', 'Sponsor Test Venue');
     await page.click('button[type="submit"]');
 
     await expect(page.locator('#eventCard')).toBeVisible({ timeout: 10000 });
@@ -171,7 +171,7 @@ test.describe('🔄 FLOW: Admin - Configure Sponsors', () => {
     });
 
     await page.fill('#name', `Reorder Flow ${Date.now()}`);
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
     await page.click('button[type="submit"]');
 
     await expect(page.locator('#eventCard')).toBeVisible({ timeout: 10000 });
@@ -226,8 +226,8 @@ test.describe('🔄 FLOW: Admin - Multi-Event Management', () => {
 
     for (const event of events) {
       await page.fill('#name', event.name);
-      await page.fill('#dateISO', event.date);
-      await page.fill('#location', event.location);
+      await page.fill('#startDateISO', event.date);
+      await page.fill('#venue', event.location);
       await page.click('button[type="submit"]');
 
       await expect(page.locator('#eventCard')).toBeVisible({ timeout: 10000 });
@@ -256,9 +256,9 @@ test.describe('🔄 FLOW: Admin - Event Publishing Workflow', () => {
 
     const eventName = `Publishing Flow ${Date.now()}`;
     await page.fill('#name', eventName);
-    await page.fill('#dateISO', '2025-12-25');
+    await page.fill('#startDateISO', '2025-12-25');
     await page.fill('#timeISO', '18:00');
-    await page.fill('#location', 'Grand Ballroom');
+    await page.fill('#venue', 'Grand Ballroom');
     await page.fill('#summary', 'Annual holiday celebration with sponsors');
     await page.click('button[type="submit"]');
 
@@ -328,7 +328,7 @@ test.describe('🔄 FLOW: Admin - Error Handling', () => {
     });
 
     await page.fill('#name', 'Error Flow Test');
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
 
     // First attempt (will fail)
     await page.click('button[type="submit"]');
@@ -364,7 +364,7 @@ test.describe('🔄 FLOW: Admin - Error Handling', () => {
     // Or custom validation should show error
 
     // Now fill all required fields
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
     await page.click('button[type="submit"]');
 
     await expect(page.locator('#eventCard')).toBeVisible({ timeout: 10000 });
@@ -393,7 +393,7 @@ test.describe('🔄 FLOW: Admin - Bulk Operations', () => {
 
     for (const eventName of bulkEvents) {
       await page.fill('#name', eventName);
-      await page.fill('#dateISO', '2025-12-31');
+      await page.fill('#startDateISO', '2025-12-31');
       await page.click('button[type="submit"]');
 
       await expect(page.locator('#eventCard')).toBeVisible({ timeout: 10000 });

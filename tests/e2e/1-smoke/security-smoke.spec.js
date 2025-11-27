@@ -41,7 +41,7 @@ test.describe('🔒 SECURITY: Admin Key Validation', () => {
     });
 
     await page.fill('#name', 'Security Test Event');
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
     await page.click('button[type="submit"]');
 
     // Wait for potential error message
@@ -69,7 +69,7 @@ test.describe('🔒 SECURITY: Admin Key Validation', () => {
     });
 
     await page.fill('#name', 'Empty Key Test');
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
     await page.click('button[type="submit"]');
 
     await page.waitForTimeout(2000);
@@ -106,7 +106,7 @@ test.describe('🔒 SECURITY: XSS Prevention', () => {
     });
 
     await page.fill('#name', xssPayload);
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
     await page.click('button[type="submit"]');
 
     await page.waitForTimeout(2000);
@@ -137,7 +137,7 @@ test.describe('🔒 SECURITY: XSS Prevention', () => {
     });
 
     await page.fill('#name', htmlPayload);
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
     await page.click('button[type="submit"]');
 
     await page.waitForTimeout(2000);
@@ -182,7 +182,7 @@ test.describe('🔒 SECURITY: Invalid Inputs', () => {
     });
 
     await page.fill('#name', 'Bad Date Test');
-    await page.fill('#dateISO', 'NOT-A-DATE');
+    await page.fill('#startDateISO', 'NOT-A-DATE');
     await page.click('button[type="submit"]');
 
     await page.waitForTimeout(2000);
@@ -212,7 +212,7 @@ test.describe('🔒 SECURITY: Invalid Inputs', () => {
     });
 
     await page.fill('#name', sqlPayload);
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
     await page.click('button[type="submit"]');
 
     await page.waitForTimeout(2000);
@@ -278,7 +278,7 @@ test.describe('🔒 SECURITY: Performance Limits', () => {
     });
 
     await page.fill('#name', longName);
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
     await page.click('button[type="submit"]');
 
     await page.waitForTimeout(2000);

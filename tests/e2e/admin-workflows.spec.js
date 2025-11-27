@@ -34,9 +34,9 @@ test.describe('Admin Workflows - Complete Event Setup', () => {
 
       // Fill complete event form
       await page.fill('#name', eventName);
-      await page.fill('#dateISO', '2025-12-31');
+      await page.fill('#startDateISO', '2025-12-31');
       await page.fill('#timeISO', '19:00');
-      await page.fill('#location', 'Grand Ballroom');
+      await page.fill('#venue', 'Grand Ballroom');
       await page.fill('#entity', 'Tech Conference 2025');
 
       // Optional fields
@@ -237,7 +237,7 @@ test.describe('Admin Workflows - Complete Event Setup', () => {
       });
 
       await page.fill('#name', 'Lifecycle Test Event');
-      await page.fill('#dateISO', '2025-12-31');
+      await page.fill('#startDateISO', '2025-12-31');
       await page.click('button[type="submit"]');
 
       await expect(page.locator('#dashboardCard')).toBeVisible({ timeout: 10000 });
@@ -276,7 +276,7 @@ test.describe('Admin Workflows - Complete Event Setup', () => {
       });
 
       await page.fill('#name', eventName);
-      await page.fill('#dateISO', '2025-12-31');
+      await page.fill('#startDateISO', '2025-12-31');
       await page.click('button[type="submit"]');
       await expect(page.locator('#eventCard')).toBeVisible({ timeout: 10000 });
     });
@@ -346,17 +346,17 @@ test.describe('Admin Workflows - Error Handling & Edge Cases', () => {
 
     await test.step('Clear button resets form completely', async () => {
       await page.fill('#name', 'Test Event');
-      await page.fill('#dateISO', '2025-12-31');
+      await page.fill('#startDateISO', '2025-12-31');
       await page.fill('#timeISO', '19:00');
-      await page.fill('#location', 'Test Location');
+      await page.fill('#venue', 'Test Location');
 
       await page.click('button:has-text("Clear")');
 
       // All fields should be empty
       expect(await page.locator('#name').inputValue()).toBe('');
-      expect(await page.locator('#dateISO').inputValue()).toBe('');
+      expect(await page.locator('#startDateISO').inputValue()).toBe('');
       expect(await page.locator('#timeISO').inputValue()).toBe('');
-      expect(await page.locator('#location').inputValue()).toBe('');
+      expect(await page.locator('#venue').inputValue()).toBe('');
     });
 
     await test.step('Cancel buttons close modals without saving', async () => {
@@ -368,7 +368,7 @@ test.describe('Admin Workflows - Error Handling & Edge Cases', () => {
       });
 
       await page.fill('#name', 'Cancel Test Event');
-      await page.fill('#dateISO', '2025-12-31');
+      await page.fill('#startDateISO', '2025-12-31');
       await page.click('button[type="submit"]');
       await expect(page.locator('#eventCard')).toBeVisible({ timeout: 10000 });
 
@@ -410,7 +410,7 @@ test.describe('Admin Workflows - Error Handling & Edge Cases', () => {
 
     await test.step('Create event', async () => {
       await page.fill('#name', 'Rapid Test Event');
-      await page.fill('#dateISO', '2025-12-31');
+      await page.fill('#startDateISO', '2025-12-31');
       await page.click('button[type="submit"]');
       await expect(page.locator('#eventCard')).toBeVisible({ timeout: 10000 });
     });
@@ -463,7 +463,7 @@ test.describe('Admin Workflows - Error Handling & Edge Cases', () => {
       timeout: 20000,
     });
       await page.fill('#name', 'Event Alpha');
-      await page.fill('#dateISO', '2025-12-31');
+      await page.fill('#startDateISO', '2025-12-31');
       await page.click('button[type="submit"]');
       await expect(page.locator('#eventCard')).toBeVisible({ timeout: 10000 });
     });
@@ -474,7 +474,7 @@ test.describe('Admin Workflows - Error Handling & Edge Cases', () => {
       await page.click('button:has-text("Clear")');
 
       await page.fill('#name', 'Event Beta');
-      await page.fill('#dateISO', '2026-01-15');
+      await page.fill('#startDateISO', '2026-01-15');
       await page.click('button[type="submit"]');
       await expect(page.locator('#eventCard')).toBeVisible({ timeout: 10000 });
 
@@ -505,9 +505,9 @@ test.describe('Admin Workflows - Integration Verification', () => {
       });
 
       await page.fill('#name', eventName);
-      await page.fill('#dateISO', '2025-12-31');
+      await page.fill('#startDateISO', '2025-12-31');
       await page.fill('#timeISO', '18:00');
-      await page.fill('#location', 'Integration Hall');
+      await page.fill('#venue', 'Integration Hall');
       await page.click('button[type="submit"]');
       await expect(page.locator('#eventCard')).toBeVisible({ timeout: 10000 });
 

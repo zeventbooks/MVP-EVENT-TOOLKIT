@@ -121,7 +121,7 @@ test.describe('📺 DISPLAY: Admin Notes Window Updates', () => {
 
     const eventName = `Notes Test ${Date.now()}`;
     await page.fill('#name', eventName);
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
     await page.fill('#summary', 'Testing admin notes propagation to display');
 
     await page.click('button[type="submit"]');
@@ -207,7 +207,7 @@ test.describe('📺 DISPLAY: Video Streaming Support', () => {
 
     const eventName = `YouTube Test ${Date.now()}`;
     await page.fill('#name', eventName);
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
 
     // Look for video URL field
     const videoField = page.locator('#videoUrl, input[name="videoUrl"], .video-input');
@@ -283,7 +283,7 @@ test.describe('📺 DISPLAY: Video Streaming Support', () => {
 
     const eventName = `Vimeo Test ${Date.now()}`;
     await page.fill('#name', eventName);
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
 
     const videoField = page.locator('#videoUrl, input[name="videoUrl"], .video-input');
     const hasVideoField = await videoField.count() > 0;
@@ -415,7 +415,7 @@ test.describe('📺 DISPLAY: Sponsor Slide-Up Behavior', () => {
 
     const eventName = `Sponsor Layout ${Date.now()}`;
     await page.fill('#name', eventName);
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
     await page.click('button[type="submit"]');
 
     await expect(page.locator('#eventCard')).toBeVisible({ timeout: 10000 });

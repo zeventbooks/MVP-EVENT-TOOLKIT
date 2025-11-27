@@ -33,8 +33,8 @@ test.describe('Integration Smoke - Admin to Public Flow', () => {
     page.on('dialog', async dialog => await dialog.accept(ADMIN_KEY));
 
     await page.fill('#name', uniqueName);
-    await page.fill('#dateISO', '2025-12-31');
-    await page.fill('#location', 'Integration Test Venue');
+    await page.fill('#startDateISO', '2025-12-31');
+    await page.fill('#venue', 'Integration Test Venue');
     await page.click('button[type="submit"]');
 
     await expect(page.locator('#eventCard')).toBeVisible({ timeout: 10000 });
@@ -64,7 +64,7 @@ test.describe('Integration Smoke - Admin to Public Flow', () => {
     page.on('dialog', async dialog => await dialog.accept(ADMIN_KEY));
 
     await page.fill('#name', 'Link Test Event');
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
     await page.click('button[type="submit"]');
 
     await expect(page.locator('#eventCard')).toBeVisible({ timeout: 10000 });
@@ -95,7 +95,7 @@ test.describe('Integration Smoke - Admin Config to Display Propagation', () => {
     page.on('dialog', async dialog => await dialog.accept(ADMIN_KEY));
 
     await page.fill('#name', uniqueName);
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
     await page.click('button[type="submit"]');
 
     await expect(page.locator('#eventCard')).toBeVisible({ timeout: 10000 });
@@ -145,7 +145,7 @@ test.describe('Integration Smoke - Admin Config to Display Propagation', () => {
     page.on('dialog', async dialog => await dialog.accept(ADMIN_KEY));
 
     await page.fill('#name', 'Display Mode Test');
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
     await page.click('button[type="submit"]');
 
     await page.click('button:has-text("Configure Display & Sponsors")');
@@ -224,7 +224,7 @@ test.describe('Integration Smoke - Multi-brand Isolation', () => {
 
     const rootEventName = `Root Brand ${Date.now()}`;
     await page.fill('#name', rootEventName);
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
     await page.click('button[type="submit"]');
 
     await expect(page.locator('#eventCard')).toBeVisible({ timeout: 10000 });
@@ -262,7 +262,7 @@ test.describe('Integration Smoke - Multi-brand Isolation', () => {
     page.on('dialog', async dialog => await dialog.accept('WRONG_KEY'));
 
     await page.fill('#name', 'Auth Test Event');
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
     await page.click('button[type="submit"]');
 
     // Should show error or fail
@@ -359,7 +359,7 @@ test.describe('Integration Smoke - State Management', () => {
     page.on('dialog', async dialog => await dialog.accept(ADMIN_KEY));
 
     await page.fill('#name', 'Session Test');
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
     await page.click('button[type="submit"]');
 
     await page.waitForTimeout(2000);
@@ -381,7 +381,7 @@ test.describe('Integration Smoke - State Management', () => {
     page.on('dialog', async dialog => await dialog.accept(ADMIN_KEY));
 
     await page.fill('#name', uniqueName);
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
     await page.click('button[type="submit"]');
 
     await expect(page.locator('#eventCard')).toBeVisible({ timeout: 10000 });
@@ -414,7 +414,7 @@ test.describe('Integration Smoke - Error Propagation', () => {
     page.on('dialog', async dialog => await dialog.dismiss()); // Cancel admin key prompt
 
     await page.fill('#name', ''); // Empty required field
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
     await page.click('button[type="submit"]');
 
     // HTML5 validation should catch this before RPC

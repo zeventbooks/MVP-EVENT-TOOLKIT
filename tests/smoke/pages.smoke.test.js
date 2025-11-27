@@ -30,7 +30,7 @@ test.describe('Smoke Tests - All Pages', () => {
     await expect(page).toHaveTitle(/Admin/);
     await expect(page.locator('h2:has-text("Create Event")')).toBeVisible();
     await expect(page.locator('#name')).toBeVisible();
-    await expect(page.locator('#dateISO')).toBeVisible();
+    await expect(page.locator('#startDateISO')).toBeVisible();
     await expect(page.locator('button[type="submit"]')).toBeVisible();
   });
 

@@ -42,9 +42,9 @@ test.describe('🔺 TRIANGLE: Sponsor → Admin → All Pages Propagation', () =
 
     const eventName = `TRIANGLE Test ${Date.now()}`;
     await page.fill('#name', eventName);
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
     await page.fill('#timeISO', '19:00');
-    await page.fill('#location', 'Grand Convention Center');
+    await page.fill('#venue', 'Grand Convention Center');
     await page.fill('#summary', 'Testing TRIANGLE framework propagation across all pages');
     await page.fill('#tags', 'triangle, automation, test');
 
@@ -201,7 +201,7 @@ test.describe('🔺 TRIANGLE: Sponsor → Admin → All Pages Propagation', () =
     // ====================
     console.log('✏️ STEP 7: Updating event details in Admin...');
     const updatedLocation = 'Updated: Riverside Arena';
-    await page.fill('#location', updatedLocation);
+    await page.fill('#venue', updatedLocation);
     await page.click('button[type="submit"]');
     await expect(page.locator('#eventCard')).toBeVisible({ timeout: 10000 });
 
@@ -251,9 +251,9 @@ test.describe('🔺 TRIANGLE: Admin Card-by-Card Flow', () => {
     await expect(page.locator('h2:has-text("Create Event")')).toBeVisible();
 
     await page.fill('#name', `Card Test ${Date.now()}`);
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
     await page.fill('#timeISO', '18:00');
-    await page.fill('#location', 'Test Venue');
+    await page.fill('#venue', 'Test Venue');
     await page.fill('#summary', 'Testing all admin cards');
     await page.fill('#tags', 'test, cards, admin');
 
@@ -542,7 +542,7 @@ test.describe('🔺 TRIANGLE: Shared Reporting - Admin & Sponsors', () => {
     // Create event with analytics
     const eventName = `Analytics Test ${Date.now()}`;
     await page.fill('#name', eventName);
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
     await page.click('button[type="submit"]');
 
     await expect(page.locator('#eventCard')).toBeVisible({ timeout: 10000 });

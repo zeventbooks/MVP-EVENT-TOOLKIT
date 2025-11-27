@@ -39,9 +39,9 @@ test.describe('🖼️ POSTER: Edit and Propagate Back to Admin', () => {
 
     const eventName = `Poster Edit Test ${Date.now()}`;
     await page.fill('#name', eventName);
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
     await page.fill('#timeISO', '19:00');
-    await page.fill('#location', 'Original Location');
+    await page.fill('#venue', 'Original Location');
     await page.fill('#summary', 'Original summary text');
 
     await page.click('button[type="submit"]');
@@ -89,7 +89,7 @@ test.describe('🖼️ POSTER: Edit and Propagate Back to Admin', () => {
     // STEP 4: Edit in Admin and verify propagation to Poster
     // ====================
     console.log('✏️ Editing event in Admin...');
-    await page.fill('#location', 'Updated: New Venue');
+    await page.fill('#venue', 'Updated: New Venue');
     await page.fill('#summary', 'Updated summary with new details');
     await page.click('button[type="submit"]');
     await expect(page.locator('#eventCard')).toBeVisible({ timeout: 10000 });
@@ -168,8 +168,8 @@ test.describe('🗺️ MAPS: Google Maps Integration', () => {
 
     const eventName = `Maps Test ${Date.now()}`;
     await page.fill('#name', eventName);
-    await page.fill('#dateISO', '2025-12-31');
-    await page.fill('#location', '1600 Amphitheatre Parkway, Mountain View, CA 94043'); // Google HQ
+    await page.fill('#startDateISO', '2025-12-31');
+    await page.fill('#venue', '1600 Amphitheatre Parkway, Mountain View, CA 94043'); // Google HQ
 
     await page.click('button[type="submit"]');
     await expect(page.locator('#eventCard')).toBeVisible({ timeout: 10000 });
@@ -220,8 +220,8 @@ test.describe('🗺️ MAPS: Google Maps Integration', () => {
 
     const eventName = `Mobile Maps ${Date.now()}`;
     await page.fill('#name', eventName);
-    await page.fill('#dateISO', '2025-12-31');
-    await page.fill('#location', 'Times Square, New York, NY 10036');
+    await page.fill('#startDateISO', '2025-12-31');
+    await page.fill('#venue', 'Times Square, New York, NY 10036');
 
     await page.click('button[type="submit"]');
     await expect(page.locator('#eventCard')).toBeVisible({ timeout: 10000 });
@@ -264,8 +264,8 @@ test.describe('🗺️ MAPS: Google Maps Integration', () => {
 
     const eventName = `Directions Test ${Date.now()}`;
     await page.fill('#name', eventName);
-    await page.fill('#dateISO', '2025-12-31');
-    await page.fill('#location', 'Golden Gate Bridge, San Francisco, CA');
+    await page.fill('#startDateISO', '2025-12-31');
+    await page.fill('#venue', 'Golden Gate Bridge, San Francisco, CA');
 
     await page.click('button[type="submit"]');
     await expect(page.locator('#eventCard')).toBeVisible({ timeout: 10000 });
@@ -314,9 +314,9 @@ test.describe('🔺 CROSS-PAGE: Complete Propagation Cycle', () => {
     const timestamp = Date.now();
     const eventName = `Full Cycle ${timestamp}`;
     await page.fill('#name', eventName);
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
     await page.fill('#timeISO', '19:00');
-    await page.fill('#location', '123 Main Street, Anytown, USA');
+    await page.fill('#venue', '123 Main Street, Anytown, USA');
     await page.fill('#summary', 'Testing complete propagation cycle');
     await page.fill('#tags', 'cycle, test, propagation');
 
@@ -410,7 +410,7 @@ test.describe('🔺 CROSS-PAGE: Complete Propagation Cycle', () => {
     // STEP 6: Update in Admin and verify all pages update
     // ====================
     console.log('✏️ Updating event in Admin...');
-    await page.fill('#location', 'UPDATED: 456 New Street, Newtown, USA');
+    await page.fill('#venue', 'UPDATED: 456 New Street, Newtown, USA');
     await page.click('button[type="submit"]');
     await expect(page.locator('#eventCard')).toBeVisible({ timeout: 10000 });
 
