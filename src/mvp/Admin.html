@@ -1874,21 +1874,23 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
         return;
       }
 
-      // Render sponsor performance table with Open Report + Copy Link
+      // Render sponsor performance table with Open Report + Copy Link + QR
       container.innerHTML = `
         <table class="sponsor-report-table" style="width:100%;border-collapse:collapse;font-size:0.875rem;">
           <thead style="background:var(--color-gray-100,#f1f5f9);">
             <tr>
               <th style="text-align:left;padding:0.75rem 1rem;font-weight:600;color:var(--color-gray-600,#475569);font-size:0.75rem;text-transform:uppercase;">Sponsor</th>
               <th style="text-align:center;padding:0.75rem 1rem;font-weight:600;color:var(--color-gray-600,#475569);font-size:0.75rem;text-transform:uppercase;">Actions</th>
+              <th style="text-align:center;padding:0.75rem 1rem;font-weight:600;color:var(--color-gray-600,#475569);font-size:0.75rem;text-transform:uppercase;">QR</th>
             </tr>
           </thead>
           <tbody>
             ${sponsors.map(sp => {
               const sponsorUrl = buildSponsorReportUrl(sp.id);
               const escapedUrl = NU.esc(sponsorUrl);
+              const escapedId = NU.esc(sp.id);
               const primaryBadge = sp.isPrimary ? '<span style="background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:8px;font-size:0.65rem;margin-left:6px;">PRIMARY</span>' : '';
-              return '<tr style="border-bottom:1px solid var(--color-gray-100,#f1f5f9);" data-sponsor-id="' + NU.esc(sp.id) + '">' +
+              return '<tr style="border-bottom:1px solid var(--color-gray-100,#f1f5f9);" data-sponsor-id="' + escapedId + '">' +
                 '<td style="padding:0.75rem 1rem;">' +
                   '<strong>' + NU.esc(sp.name || sp.id) + '</strong>' + primaryBadge +
                   '<div style="font-size:0.7rem;color:#94a3b8;margin-top:4px;word-break:break-all;">' + escapedUrl.slice(0,60) + '...</div>' +
@@ -1896,6 +1898,9 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
                 '<td style="padding:0.75rem 1rem;text-align:center;white-space:nowrap;">' +
                   '<button class="btn-secondary sponsor-open-btn" data-sponsor-url="' + escapedUrl + '" style="padding:6px 10px;font-size:0.75rem;margin-right:6px;">Open Report</button>' +
                   '<button class="btn-secondary sponsor-copy-btn" data-sponsor-url="' + escapedUrl + '" style="padding:6px 10px;font-size:0.75rem;">Copy Link</button>' +
+                '</td>' +
+                '<td style="padding:0.75rem 1rem;text-align:center;">' +
+                  '<button class="btn-secondary sponsor-qr-btn" data-sponsor-id="' + escapedId + '" data-sponsor-name="' + NU.esc(sp.name || sp.id) + '" style="padding:6px 10px;font-size:0.75rem;">Show QR</button>' +
                 '</td>' +
               '</tr>';
             }).join('')}
@@ -1909,7 +1914,7 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
 
     /**
      * Wire click handlers for sponsor report buttons within a container
-     * Attaches handlers for Open (window.open) and Copy (clipboard + toast) buttons
+     * Attaches handlers for Open (window.open), Copy (clipboard + toast), and QR buttons
      * @param {HTMLElement} root - Container element to search for buttons
      */
     function wireSponsorReportButtons(root) {
@@ -1945,6 +1950,118 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
           });
         });
       });
+
+      // Wire QR buttons
+      root.querySelectorAll('.sponsor-qr-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const sponsorId = this.dataset.sponsorId;
+          const sponsorName = this.dataset.sponsorName;
+          if (!sponsorId) return;
+          showSponsorQrCode(sponsorId, sponsorName);
+        });
+      });
+    }
+
+    /**
+     * Fetch and display QR code for a sponsor's report
+     * @param {string} sponsorId - The sponsor ID
+     * @param {string} sponsorName - The sponsor name for display
+     */
+    async function showSponsorQrCode(sponsorId, sponsorName) {
+      // Show loading state
+      showSponsorQrModal(sponsorName, null, true);
+
+      try {
+        const payload = {
+          action: 'getSponsorReportQr',
+          sponsorId: sponsorId,
+          brandId: currentBrandId,
+          adminKey: currentAdminKey
+        };
+
+        const response = await fetch(execUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const result = await response.json();
+
+        if (!result.ok) {
+          showSponsorQrModal(sponsorName, null, false, result.error || 'Failed to generate QR code');
+          return;
+        }
+
+        // Respect invariant: no QR for unverified URLs
+        if (!result.value.verified || !result.value.qrB64) {
+          showSponsorQrModal(sponsorName, null, false, 'QR code unavailable - URL not verified');
+          return;
+        }
+
+        // Show QR code
+        showSponsorQrModal(sponsorName, result.value.qrB64, false, null, result.value.url);
+
+      } catch (e) {
+        console.error('Failed to fetch sponsor QR:', e);
+        showSponsorQrModal(sponsorName, null, false, 'Network error - please try again');
+      }
+    }
+
+    /**
+     * Display modal with sponsor QR code
+     * @param {string} sponsorName - Sponsor name for title
+     * @param {string|null} qrB64 - Base64 encoded QR image (null if loading/error)
+     * @param {boolean} loading - Show loading spinner
+     * @param {string|null} error - Error message to display
+     * @param {string|null} url - The URL the QR encodes (for display)
+     */
+    function showSponsorQrModal(sponsorName, qrB64, loading, error, url) {
+      // Remove existing modal if any
+      const existing = document.getElementById('sponsorQrModal');
+      if (existing) existing.remove();
+
+      let content = '';
+      if (loading) {
+        content = '<div style="padding:40px;text-align:center;"><span class="spinner"></span><p style="margin-top:12px;color:#64748b;">Loading QR code...</p></div>';
+      } else if (error) {
+        content = '<div style="padding:40px;text-align:center;color:#ef4444;"><p>' + NU.esc(error) + '</p></div>';
+      } else if (qrB64) {
+        content = `
+          <div style="text-align:center;padding:20px;">
+            <img src="data:image/png;base64,${qrB64}" alt="Sponsor report QR" style="max-width:200px;height:auto;border:1px solid #e2e8f0;border-radius:8px;">
+            <p style="margin-top:12px;font-size:0.75rem;color:#64748b;word-break:break-all;">${NU.esc(url || '')}</p>
+            <p style="margin-top:8px;font-size:0.7rem;color:#94a3b8;">Scan to view sponsor analytics</p>
+          </div>
+        `;
+      }
+
+      const modal = document.createElement('div');
+      modal.id = 'sponsorQrModal';
+      modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:9999;';
+      modal.innerHTML = `
+        <div style="background:white;border-radius:12px;max-width:320px;width:90%;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);">
+          <div style="padding:16px 20px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;">
+            <h3 style="margin:0;font-size:1rem;font-weight:600;">${NU.esc(sponsorName)} QR</h3>
+            <button onclick="closeSponsorQrModal()" style="background:none;border:none;cursor:pointer;font-size:1.25rem;color:#64748b;padding:0;line-height:1;">&times;</button>
+          </div>
+          ${content}
+        </div>
+      `;
+
+      // Close on backdrop click
+      modal.addEventListener('click', function(e) {
+        if (e.target === modal) closeSponsorQrModal();
+      });
+
+      document.body.appendChild(modal);
+    }
+
+    /**
+     * Close the sponsor QR modal
+     */
+    function closeSponsorQrModal() {
+      const modal = document.getElementById('sponsorQrModal');
+      if (modal) modal.remove();
     }
 
     /**
