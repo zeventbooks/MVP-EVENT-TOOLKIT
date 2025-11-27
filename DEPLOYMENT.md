@@ -4,6 +4,37 @@ A boring, step-by-step checklist for shipping a release.
 
 ---
 
+## BASE_URL Toggle (Single Toggle: GAS vs EventAngle)
+
+The same test suite runs against either GAS exec URL or eventangle.com by changing `BASE_URL`.
+
+### Quick Reference
+
+```bash
+# Test against GAS directly (default in .env.example)
+BASE_URL="https://script.google.com/macros/s/XXX/exec" npm run test:smoke
+
+# Test against EventAngle (production via Cloudflare)
+BASE_URL="https://www.eventangle.com/events" npm run test:smoke
+```
+
+### How It Works
+
+- All API/E2E tests use `process.env.BASE_URL` (or config equivalent)
+- Default `BASE_URL` in `.env.example` → Apps Script exec URL
+- Tests auto-detect environment type (GAS vs Cloudflare)
+- No code changes needed to switch targets
+
+### Configuration
+
+| File | Purpose |
+|------|---------|
+| `.env.example` | Template with GAS default |
+| `tests/config/environments.js` | Environment detection logic |
+| `tests/shared/config/test.config.js` | Test configuration using BASE_URL |
+
+---
+
 ## 1. Pre-flight
 
 ```bash
