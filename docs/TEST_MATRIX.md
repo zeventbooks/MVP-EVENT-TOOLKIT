@@ -113,6 +113,7 @@ api-client.contract.test.js       ~10 tests - Client contracts
 1-smoke/          Critical smoke tests (auth, API, security)
 2-pages/          Per-page tests (admin, public, display, poster, sponsor)
 3-flows/          User flow tests (admin-flows, customer-flows, template-scenarios)
+4-negative/       Negative path tests (missing/invalid event IDs, error handling)
 api/              API integration tests
 scenarios/        Full user scenarios
 ```
@@ -202,6 +203,50 @@ Running 10 tests using 2 workers (5 tests × 2 browsers)
   ✓ MVP Surface: Poster › Poster: Load page, verify title/date/QR codes
   ✓ MVP Surface: SharedReport › SharedReport: Load page, verify KPI cards
 ```
+
+---
+
+## Negative Path Tests - Missing/Bad Event IDs
+
+E2E tests verifying all MVP surfaces fail gracefully when event IDs are missing, invalid, or deleted.
+
+### Running Negative Tests
+
+```bash
+# Run all negative path tests
+npm run test:negative
+
+# Run with headed browser (debugging)
+npx playwright test tests/e2e/4-negative --headed
+
+# Run with UI mode (visual debugging)
+npx playwright test tests/e2e/4-negative --ui
+```
+
+### Test Coverage
+
+| Surface | Scenarios Tested | Assertions |
+|---------|------------------|------------|
+| **Public** | No ID, nonsense ID, XSS attempt, special chars | No stack traces, no broken layout, sanitized output |
+| **Display** | No ID, nonsense ID, SQL injection, unicode | Fallback card shown, no internal errors |
+| **Poster** | No ID, nonsense ID, long ID, QR handling | Blank template fallback, no broken images |
+| **SharedReport** | No ID, nonsense ID, XSS attempt | Brand-level report or graceful error |
+
+### Security Assertions (All Surfaces)
+
+- No raw stack traces visible to users
+- No internal implementation details leaked (SpreadsheetApp, getRange, etc.)
+- XSS payloads are sanitized and not reflected
+- SQL injection attempts are handled safely
+- Error messages are generic and user-friendly
+
+### What Qualifies as "Pass"
+
+1. **HTTP 200** response (GAS always returns 200)
+2. **No JavaScript errors** (excluding expected google.script.run in test env)
+3. **No internal error patterns** in page content
+4. **Layout not broken** (has html/head/body, not empty)
+5. **Response time < 15s** (reasonable even with cold starts)
 
 ---
 
