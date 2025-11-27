@@ -2141,6 +2141,10 @@ const EVENT_DEFAULTS_ = {
     showBracket: false,
     // MVP Optional (V2 content but MVP toggles)
     showSponsors: false,
+    // Feature 4: Template-Aware Content Section Toggles (default true for backwards compat)
+    showVideo: true,
+    showMap: true,
+    showGallery: true,
     // MVP Optional - surface-specific toggles (default true)
     showSponsorBanner: true,
     showSponsorStrip: true,
@@ -2228,6 +2232,10 @@ function _buildEventContract_(row, options = {}) {
       showBracket: !!data.settings.showBracket,
       // MVP Optional (V2 content but MVP toggles)
       showSponsors: !!data.settings.showSponsors,
+      // Feature 4: Template-Aware Content Section Toggles (default true for backwards compat)
+      showVideo: data.settings.showVideo !== false,
+      showMap: data.settings.showMap !== false,
+      showGallery: data.settings.showGallery !== false,
       // MVP Optional - surface-specific toggles (default true if undefined)
       showSponsorBanner: data.settings.showSponsorBanner !== false,
       showSponsorStrip: data.settings.showSponsorStrip !== false,
@@ -2236,11 +2244,21 @@ function _buildEventContract_(row, options = {}) {
     };
   } else if (data.sections) {
     // Backward compat: sections object → settings flags
+    // Support both boolean (sections.video: true) and object (sections.video.enabled: true) formats
+    const getSectionEnabled = (section) => {
+      if (typeof section === 'boolean') return section;
+      if (typeof section === 'object' && section !== null) return !!section.enabled;
+      return false;
+    };
     settings = {
-      showSchedule: !!data.sections.schedule?.enabled,
-      showStandings: !!data.sections.standings?.enabled,
-      showBracket: !!data.sections.bracket?.enabled,
-      showSponsors: !!data.sections.sponsors?.enabled,
+      showSchedule: getSectionEnabled(data.sections.schedule),
+      showStandings: getSectionEnabled(data.sections.standings),
+      showBracket: getSectionEnabled(data.sections.bracket),
+      showSponsors: getSectionEnabled(data.sections.sponsors),
+      // Feature 4: Template-Aware Content Section Toggles (default true for legacy data without explicit false)
+      showVideo: data.sections.video !== false,
+      showMap: data.sections.map !== false,
+      showGallery: data.sections.gallery !== false,
       // Surface toggles default to true for legacy data
       showSponsorBanner: true,
       showSponsorStrip: true,
@@ -2949,10 +2967,20 @@ function saveEvent_(brandId, id, data, options = {}) {
     // Settings (MVP REQUIRED)
     if (data.settings !== undefined) {
       mergedData.settings = {
+        // MVP Required data section toggles
         showSchedule: !!data.settings.showSchedule,
         showStandings: !!data.settings.showStandings,
         showBracket: !!data.settings.showBracket,
-        showSponsors: !!data.settings.showSponsors
+        showSponsors: !!data.settings.showSponsors,
+        // Feature 4: Template-Aware Content Section Toggles
+        showVideo: data.settings.showVideo !== false,
+        showMap: data.settings.showMap !== false,
+        showGallery: data.settings.showGallery !== false,
+        // MVP Optional surface-specific toggles
+        showSponsorBanner: data.settings.showSponsorBanner !== false,
+        showSponsorStrip: data.settings.showSponsorStrip !== false,
+        showLeagueStrip: data.settings.showLeagueStrip !== false,
+        showQRSection: data.settings.showQRSection !== false
       };
     } else if (isCreate && !mergedData.settings) {
       // Default settings for create
@@ -2960,7 +2988,16 @@ function saveEvent_(brandId, id, data, options = {}) {
         showSchedule: false,
         showStandings: false,
         showBracket: false,
-        showSponsors: false
+        showSponsors: false,
+        // Feature 4: Template-Aware Content Section Toggles (default true)
+        showVideo: true,
+        showMap: true,
+        showGallery: true,
+        // Surface toggles default true
+        showSponsorBanner: true,
+        showSponsorStrip: true,
+        showLeagueStrip: true,
+        showQRSection: true
       };
     }
 
