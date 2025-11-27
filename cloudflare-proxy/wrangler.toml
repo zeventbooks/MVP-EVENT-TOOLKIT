@@ -138,6 +138,9 @@ routes = [
 ]
 
 [env.events.vars]
+# The full Google Apps Script exec URL - this is the production backend
+# Update this URL after each Apps Script deployment (see DEPLOYMENT.md)
+GAS_DEPLOYMENT_BASE_URL = "https://script.google.com/macros/s/AKfycbx3n9ALDESLEQTgIf47pimbs4zhugPzC4gLLr6aBff6UpH4VzAquYHRVHurP-6QjZ-g/exec"
 DEPLOYMENT_ID = "AKfycbx3n9ALDESLEQTgIf47pimbs4zhugPzC4gLLr6aBff6UpH4VzAquYHRVHurP-6QjZ-g"
 
 # ============================================
