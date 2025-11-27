@@ -9,9 +9,9 @@ module.exports = defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
 
-  // CI: Allow 1 retry for transient network failures (Google Apps Script cold starts, redirects)
+  // CI: Allow 2 retries for transient network failures (Google Apps Script cold starts, redirects)
   // Local: No retries to expose real failures immediately
-  retries: process.env.CI ? 1 : 0,
+  retries: process.env.CI ? 2 : 0,
 
   workers: process.env.CI ? 1 : undefined,
 
@@ -23,14 +23,25 @@ module.exports = defineConfig({
     timeout: 10000,
   },
 
-  reporter: [
+  reporter: process.env.CI ? [
+    // CI: Verbose output to see console logs after every test
     ['html', {
       outputFolder: process.env.PLAYWRIGHT_HTML_REPORT || 'playwright-report',
-      open: 'never',  // Don't auto-open in CI
+      open: 'never',
     }],
     ['json', { outputFile: '.test-results/playwright-results.json' }],
-    ['junit', { outputFile: '.test-results/junit.xml' }],  // For GitHub Actions test result integration
-    ['./tests/shared/history-reporter.js'],  // Track test history for dashboard
+    ['junit', { outputFile: '.test-results/junit.xml' }],
+    ['./tests/shared/history-reporter.js'],
+    ['line'],  // Line reporter shows output in real-time including console.log
+  ] : [
+    // Local: Standard reporters
+    ['html', {
+      outputFolder: process.env.PLAYWRIGHT_HTML_REPORT || 'playwright-report',
+      open: 'never',
+    }],
+    ['json', { outputFile: '.test-results/playwright-results.json' }],
+    ['junit', { outputFile: '.test-results/junit.xml' }],
+    ['./tests/shared/history-reporter.js'],
     ['list']
   ],
 
@@ -39,9 +50,10 @@ module.exports = defineConfig({
     // Defaults to Cloudflare production, can be overridden with BASE_URL or TEST_ENV
     baseURL: env.baseUrl,
 
-    // Enable traces on first retry (for debugging when needed)
-    trace: 'on-first-retry',
-    screenshot: 'only-on-failure',
+    // Enable traces on all retries for better debugging in CI
+    trace: 'retain-on-failure',
+    screenshot: 'on',  // Capture screenshots for all tests (helps track failures across retries)
+    video: process.env.CI ? 'retain-on-failure' : 'off',  // Video only in CI on failure
 
     // Navigation timeout (20 seconds for Google Apps Script)
     navigationTimeout: 20000,
