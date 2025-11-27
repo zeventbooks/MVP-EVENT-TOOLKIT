@@ -17,11 +17,11 @@
  * Admin Page Selectors
  */
 const ADMIN_PAGE = {
-  // Form Elements
-  EVENT_NAME_INPUT: 'input[name="eventName"], #eventName, input[placeholder*="Event Name"]',
-  EVENT_DATE_INPUT: 'input[type="date"], input[name="eventDate"], #eventDate',
-  EVENT_LOCATION_INPUT: 'input[name="location"], #location, input[placeholder*="Location"]',
-  EVENT_DESCRIPTION_TEXTAREA: 'textarea[name="description"], #description',
+  // Form Elements (match Admin.html actual IDs: #name, #startDateISO, #venue)
+  EVENT_NAME_INPUT: '#name, input[name="eventName"], #eventName, input[placeholder*="Event Name"]',
+  EVENT_DATE_INPUT: '#startDateISO, #dateISO, input[type="date"], input[name="eventDate"], #eventDate',
+  EVENT_LOCATION_INPUT: '#venue, #location, input[name="location"], input[placeholder*="Location"]',
+  EVENT_DESCRIPTION_TEXTAREA: '#summary, textarea[name="description"], #description',
 
   // Time Fields
   TIME_START_INPUT: 'input[name="timeStart"], #timeStart',

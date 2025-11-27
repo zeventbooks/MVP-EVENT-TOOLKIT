@@ -38,17 +38,18 @@ test.describe('SCENARIO 1: First-Time Admin', () => {
     await expect(page).toHaveTitle(/Admin/, { timeout: 10000 });
 
     // VERIFY: Empty form state
+    // Note: Selectors match Admin.html actual IDs (#name, #startDateISO, #venue)
     const nameInput = page.locator('#name, input[name="name"], input[placeholder*="Event Name" i]');
     await expect(nameInput).toBeVisible();
     await expect(nameInput).toHaveValue('');
 
-    const dateInput = page.locator('#dateISO, input[type="date"], input[name="date"]');
+    const dateInput = page.locator('#startDateISO, #dateISO, input[type="date"]');
     await expect(dateInput).toBeVisible();
     await expect(dateInput).toHaveValue('');
 
-    const locationInput = page.locator('#location, input[name="location"]');
-    await expect(locationInput).toBeVisible();
-    await expect(locationInput).toHaveValue('');
+    const venueInput = page.locator('#venue, #location, input[name="venue"]');
+    await expect(venueInput).toBeVisible();
+    await expect(venueInput).toHaveValue('');
 
     // VERIFY: Form is in pristine state (no validation errors)
     const errorMessages = page.locator('.error, .error-message, [role="alert"]');
@@ -80,8 +81,8 @@ test.describe('SCENARIO 1: First-Time Admin', () => {
     });
 
     // Fill minimal valid data
-    await page.fill('#name, input[name="name"]', 'Test Event');
-    await page.fill('#dateISO, input[type="date"]', '2025-12-31');
+    await page.fill('#name', 'Test Event');
+    await page.fill('#startDateISO', '2025-12-31');
 
     // Submit without providing admin key
     await page.click('button[type="submit"]');
@@ -108,13 +109,13 @@ test.describe('SCENARIO 1: First-Time Admin', () => {
     });
 
     // Test 1: Empty event name
-    await page.fill('#name, input[name="name"]', '');
-    await page.fill('#dateISO, input[type="date"]', '2025-12-31');
+    await page.fill('#name', '');
+    await page.fill('#startDateISO', '2025-12-31');
     await page.click('button[type="submit"]');
     await page.waitForTimeout(1000);
 
     // VERIFY: Error for empty name (either validation message or failed submission)
-    const nameInput = page.locator('#name, input[name="name"]');
+    const nameInput = page.locator('#name');
     const isInvalid = await nameInput.evaluate(el => !el.validity.valid || el.hasAttribute('aria-invalid'));
 
     // If native HTML5 validation, input should be invalid
@@ -123,8 +124,8 @@ test.describe('SCENARIO 1: First-Time Admin', () => {
     expect(hasError).toBe(true);
 
     // Test 2: Invalid date (past date might be rejected)
-    await page.fill('#name, input[name="name"]', 'Valid Event Name');
-    await page.fill('#dateISO, input[type="date"]', '2020-01-01'); // Past date
+    await page.fill('#name', 'Valid Event Name');
+    await page.fill('#startDateISO', '2020-01-01'); // Past date
     await page.click('button[type="submit"]');
     await page.waitForTimeout(2000);
 
@@ -154,11 +155,12 @@ test.describe('SCENARIO 1: First-Time Admin', () => {
     const eventSummary = 'This is a test event for automated testing';
 
     // Fill complete valid event form
-    await page.fill('#name, input[name="name"]', eventName);
-    await page.fill('#dateISO, input[type="date"]', eventDate);
-    await page.fill('#timeISO, input[type="time"]', eventTime);
-    await page.fill('#location, input[name="location"]', eventLocation);
-    await page.fill('#summary, textarea[name="summary"]', eventSummary);
+    // Note: Selectors match Admin.html actual IDs (#name, #startDateISO, #venue)
+    await page.fill('#name', eventName);
+    await page.fill('#startDateISO', eventDate);
+    // Note: #timeISO doesn't exist in current Admin.html - skipping time field
+    await page.fill('#venue', eventLocation);
+    await page.fill('#summary', eventSummary);
 
     // Submit form
     await page.click('button[type="submit"]');
@@ -200,8 +202,8 @@ test.describe('SCENARIO 1: First-Time Admin', () => {
 
     // First create an event
     const eventName = `Sponsor Test Event ${Date.now()}`;
-    await page.fill('#name, input[name="name"]', eventName);
-    await page.fill('#dateISO, input[type="date"]', '2025-12-31');
+    await page.fill('#name', eventName);
+    await page.fill('#startDateISO', '2025-12-31');
     await page.click('button[type="submit"]');
 
     // Wait for event card
@@ -259,8 +261,8 @@ test.describe('SCENARIO 1: First-Time Admin', () => {
     });
 
     // Create event first
-    await page.fill('#name, input[name="name"]', `Form Test Event ${Date.now()}`);
-    await page.fill('#dateISO, input[type="date"]', '2025-12-31');
+    await page.fill('#name', `Form Test Event ${Date.now()}`);
+    await page.fill('#startDateISO', '2025-12-31');
     await page.click('button[type="submit"]');
 
     await expect(page.locator('#eventCard, .event-card')).toBeVisible({ timeout: 10000 });
@@ -305,9 +307,9 @@ test.describe('SCENARIO 1: First-Time Admin', () => {
     });
 
     // Create event
-    await page.fill('#name, input[name="name"]', `Poster Test Event ${Date.now()}`);
-    await page.fill('#dateISO, input[type="date"]', '2025-12-31');
-    await page.fill('#location, input[name="location"]', 'Test Location');
+    await page.fill('#name', `Poster Test Event ${Date.now()}`);
+    await page.fill('#startDateISO', '2025-12-31');
+    await page.fill('#venue', 'Test Location');
     await page.click('button[type="submit"]');
 
     await expect(page.locator('#eventCard, .event-card')).toBeVisible({ timeout: 10000 });
@@ -357,11 +359,12 @@ test.describe('SCENARIO 1: Complete Admin Workflow (Integration)', () => {
     const timestamp = Date.now();
 
     // Step 1: Create Event
-    await page.fill('#name, input[name="name"]', `Integration Test ${timestamp}`);
-    await page.fill('#dateISO, input[type="date"]', '2025-12-31');
-    await page.fill('#timeISO, input[type="time"]', '19:00');
-    await page.fill('#location, input[name="location"]', 'Test Venue');
-    await page.fill('#summary, textarea[name="summary"]', 'Complete integration test');
+    // Note: Selectors match Admin.html actual IDs (#name, #startDateISO, #venue)
+    await page.fill('#name', `Integration Test ${timestamp}`);
+    await page.fill('#startDateISO', '2025-12-31');
+    // Note: #timeISO doesn't exist in current Admin.html - skipping time field
+    await page.fill('#venue', 'Test Venue');
+    await page.fill('#summary', 'Complete integration test');
     await page.click('button[type="submit"]');
 
     await expect(page.locator('#eventCard, .event-card')).toBeVisible({ timeout: 10000 });

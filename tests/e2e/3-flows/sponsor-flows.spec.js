@@ -32,7 +32,7 @@ test.describe('🔄 FLOW: Sponsor - Display Visibility', () => {
 
     const eventName = `Sponsor Display ${Date.now()}`;
     await page.fill('#name', eventName);
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
     await page.click('button[type="submit"]');
 
     await expect(page.locator('#eventCard')).toBeVisible({ timeout: 10000 });
@@ -90,7 +90,7 @@ test.describe('🔄 FLOW: Sponsor - Display Visibility', () => {
     });
 
     await page.fill('#name', `Multi Sponsor ${Date.now()}`);
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
     await page.click('button[type="submit"]');
 
     await expect(page.locator('#eventCard')).toBeVisible({ timeout: 10000 });
@@ -422,7 +422,7 @@ test.describe('🔄 FLOW: Sponsor - Multi-Position Display', () => {
     });
 
     await page.fill('#name', `All Positions ${Date.now()}`);
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
     await page.click('button[type="submit"]');
 
     await expect(page.locator('#eventCard')).toBeVisible({ timeout: 10000 });

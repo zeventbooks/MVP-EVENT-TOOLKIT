@@ -75,8 +75,8 @@ test.describe('📊 SHARED REPORTING: Analytics Dashboard', () => {
 
     const eventName = `Report Test ${Date.now()}`;
     await page.fill('#name', eventName);
-    await page.fill('#dateISO', '2025-12-31');
-    await page.fill('#location', 'Test Venue');
+    await page.fill('#startDateISO', '2025-12-31');
+    await page.fill('#venue', 'Test Venue');
 
     await page.click('button[type="submit"]');
     await expect(page.locator('#eventCard')).toBeVisible({ timeout: 10000 });
@@ -289,9 +289,9 @@ test.describe('🔺 TRIANGLE: SharedReport Integration', () => {
     const eventName = `Analytics Cycle ${timestamp}`;
 
     await page.fill('#name', eventName);
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
     await page.fill('#timeISO', '19:00');
-    await page.fill('#location', 'Analytics Test Venue');
+    await page.fill('#venue', 'Analytics Test Venue');
     await page.fill('#summary', 'Testing shared analytics functionality');
 
     await page.click('button[type="submit"]');

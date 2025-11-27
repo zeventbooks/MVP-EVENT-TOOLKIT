@@ -46,7 +46,7 @@ test.describe('QA Routes: Create → Publish → View → Display Loop', () => {
       expect(hasNameField).toBe(true);
 
       // Date field should exist
-      const dateField = page.locator('#dateISO, input[type="date"], input[name*="date" i]');
+      const dateField = page.locator('#startDateISO, input[type="date"], input[name*="date" i]');
       const hasDateField = await dateField.count() > 0;
       expect(hasDateField).toBe(true);
 
@@ -77,7 +77,7 @@ test.describe('QA Routes: Create → Publish → View → Display Loop', () => {
         expect(enteredValue).toBe(eventName);
       }
 
-      const dateField = page.locator('#dateISO, input[type="date"]');
+      const dateField = page.locator('#startDateISO, input[type="date"]');
       if (await dateField.count() > 0) {
         await dateField.first().fill('2025-12-31');
       }

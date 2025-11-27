@@ -31,7 +31,7 @@ test.describe('Component Smoke - Event Lifecycle Dashboard', () => {
     page.on('dialog', async dialog => await dialog.accept(ADMIN_KEY));
 
     await page.fill('#name', 'Lifecycle Test Event');
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
     await page.click('button[type="submit"]');
 
     await expect(page.locator('#dashboardCard')).toBeVisible({ timeout: 10000 });
@@ -58,7 +58,7 @@ test.describe('Component Smoke - Event Lifecycle Dashboard', () => {
     page.on('dialog', async dialog => await dialog.accept(ADMIN_KEY));
 
     await page.fill('#name', 'Stats Test Event');
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
     await page.click('button[type="submit"]');
 
     await expect(page.locator('#dashboardCard')).toBeVisible({ timeout: 10000 });
@@ -86,7 +86,7 @@ test.describe('Component Smoke - Sign-Up Form Cards', () => {
 
     // Create event
     await page.fill('#name', 'Sign-Up Test Event');
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
     await page.click('button[type="submit"]');
 
     await expect(page.locator('#eventCard')).toBeVisible({ timeout: 10000 });
@@ -137,7 +137,7 @@ test.describe('Component Smoke - Sponsor Banner System', () => {
 
     // Create event
     await page.fill('#name', 'Sponsor Banner Test');
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
     await page.click('button[type="submit"]');
 
     await expect(page.locator('#eventCard')).toBeVisible({ timeout: 10000 });
@@ -190,7 +190,7 @@ test.describe('Component Smoke - TV Display Carousel', () => {
     page.on('dialog', async dialog => await dialog.accept(ADMIN_KEY));
 
     await page.fill('#name', 'Display Mode Test');
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
     await page.click('button[type="submit"]');
 
     await page.click('button:has-text("Configure Display & Sponsors")');
@@ -206,7 +206,7 @@ test.describe('Component Smoke - TV Display Carousel', () => {
     page.on('dialog', async dialog => await dialog.accept(ADMIN_KEY));
 
     await page.fill('#name', 'Carousel URL Test');
-    await page.fill('#dateISO', '2025-12-31');
+    await page.fill('#startDateISO', '2025-12-31');
     await page.click('button[type="submit"]');
 
     await page.click('button:has-text("Configure Display & Sponsors")');
