@@ -19,6 +19,7 @@ READS FROM SHAREDANALYTICS SCHEMA (via api_getSharedAnalytics):
   Root (MVP Optional):
     - sponsors[]               → Sponsor performance table
     - events[]                 → Event performance table (if present)
+    - topSponsors[]            → Top Sponsors highlight card
 
   Summary Fields (MVP Required):
     - summary.totalImpressions → "Total Impressions" metric card
@@ -59,6 +60,7 @@ SECTION GATES (schema-backed visibility):
   Sponsor Table:      if (sponsors?.length) → renderSponsorPerformance()
   Event Table:        if (events?.length) → renderEventPerformance()
   Top Callouts:       if (events?.length || sponsors?.length) → renderTopCallouts()
+  Top Sponsors Card:  if (topSponsors?.length) → renderTopSponsorsCard()
 
   NO freelancing: JS only accesses fields defined in shared-analytics.schema.json
 
@@ -387,6 +389,77 @@ DO NOT modify contracts without updating:
     @media (max-width: 640px) {
       #topCallouts { grid-template-columns: 1fr !important; }
     }
+
+    /* Top Sponsors Card - Highlights top performers by clicks */
+    .top-sponsors-card {
+      background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+      border: 2px solid var(--color-success, #10b981);
+      border-radius: var(--radius-md, 12px);
+      padding: 20px;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);
+    }
+    .top-sponsors-card h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #065f46;
+      margin: 0 0 16px 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .top-sponsors-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .top-sponsor-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: white;
+      border-radius: var(--radius-base, 8px);
+      padding: 12px 16px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+    .top-sponsor-rank {
+      font-size: 1.25rem;
+      margin-right: 12px;
+    }
+    .top-sponsor-name {
+      flex: 1;
+      font-weight: 600;
+      color: var(--color-gray-800, #1e293b);
+    }
+    .top-sponsor-metric {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: var(--font-size-sm, 0.875rem);
+      color: var(--color-gray-600, #475569);
+    }
+    .top-sponsor-metric .clicks-value {
+      font-weight: 700;
+      color: var(--color-success, #10b981);
+    }
+    .top-sponsor-metric .ctr-badge {
+      background: var(--color-success-pale, #d1fae5);
+      color: #065f46;
+      padding: 2px 8px;
+      border-radius: var(--radius-full, 9999px);
+      font-size: var(--font-size-xs, 0.75rem);
+      font-weight: 600;
+    }
+    @media (max-width: 640px) {
+      .top-sponsor-item {
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .top-sponsor-metric {
+        width: 100%;
+        justify-content: flex-end;
+      }
+    }
   </style>
 </head>
 <body>
@@ -420,6 +493,9 @@ DO NOT modify contracts without updating:
     <!-- Key Metrics -->
     <div id="metrics" style="display:none;">
       <div class="metrics-grid" id="metricsGrid"></div>
+
+      <!-- Top Sponsors Card - Highlights top 3 sponsors by clicks -->
+      <div id="topSponsorsCard" style="display:none;"></div>
 
       <!-- Feature 5: Top Event / Top Sponsor Callouts -->
       <div id="topCallouts" class="metrics-grid" style="grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 24px;"></div>
@@ -604,12 +680,47 @@ DO NOT modify contracts without updating:
       container.style.display = html ? '' : 'none';
     }
 
+    // Render Top Sponsors Card - highlights top 3 sponsors by clicks
+    function renderTopSponsorsCard(topSponsors) {
+      const container = document.getElementById('topSponsorsCard');
+
+      if (!topSponsors || !topSponsors.length) {
+        container.style.display = 'none';
+        return;
+      }
+
+      const rankEmojis = ['🥇', '🥈', '🥉'];
+      const items = topSponsors.slice(0, 3).map(function(sponsor, index) {
+        return `
+          <div class="top-sponsor-item">
+            <span class="top-sponsor-rank">${rankEmojis[index] || '#' + (index + 1)}</span>
+            <span class="top-sponsor-name">${escapeHtml(sponsor.name || sponsor.id || 'Sponsor')}</span>
+            <span class="top-sponsor-metric">
+              <span class="clicks-value">${(sponsor.clicks || 0).toLocaleString()} clicks</span>
+              <span class="ctr-badge">${(sponsor.ctr || 0).toFixed(1)}% CTR</span>
+            </span>
+          </div>
+        `;
+      }).join('');
+
+      container.innerHTML = `
+        <div class="top-sponsors-card">
+          <h3>🏆 Top Sponsors</h3>
+          <div class="top-sponsors-list">
+            ${items}
+          </div>
+        </div>
+      `;
+      container.style.display = 'block';
+    }
+
     function renderReport(data) {
       // Defensive defaults
       const summary = data.summary || {};
       const surfaces = Array.isArray(data.surfaces) ? data.surfaces : [];
       const sponsors = Array.isArray(data.sponsors) ? data.sponsors : [];
       const events = Array.isArray(data.events) ? data.events : [];
+      const topSponsors = Array.isArray(data.topSponsors) ? data.topSponsors : [];
 
       // Update header with sponsor name if in sponsor view
       if (IS_SPONSOR_VIEW && sponsors.length > 0) {
@@ -618,6 +729,12 @@ DO NOT modify contracts without updating:
       }
 
       renderSummaryMetrics(summary);
+
+      // Render Top Sponsors Card (organizer view only, appears after metrics grid)
+      if (!IS_SPONSOR_VIEW) {
+        renderTopSponsorsCard(topSponsors);
+      }
+
       renderSurfacePerformance(surfaces);
 
       // Feature 5: Render top callouts

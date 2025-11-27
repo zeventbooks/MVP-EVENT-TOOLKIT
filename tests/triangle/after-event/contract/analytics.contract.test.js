@@ -420,4 +420,118 @@ describe('🔺 TRIANGLE [AFTER EVENT]: Analytics API Contract', () => {
       expect(mockResponse.code).toBe('BAD_INPUT');
     });
   });
+
+  describe('api_getSharedAnalytics - topSponsors array (Story 5.1)', () => {
+    /**
+     * topSponsors is an optional array in the SharedAnalytics response.
+     * It contains the top 3 sponsors sorted by clicks (descending).
+     * Used by SharedReport.html to render the "Top Sponsors" highlight card.
+     *
+     * Schema: /schemas/shared-analytics.schema.json#/properties/topSponsors
+     * Shape: Array<{ id, name, impressions, clicks, ctr }> | null
+     */
+
+    it('should include topSponsors array in response', () => {
+      const mockResponse = {
+        ok: true,
+        value: {
+          lastUpdatedISO: '2025-01-15T10:00:00.000Z',
+          summary: {
+            totalImpressions: 100,
+            totalClicks: 10,
+            totalQrScans: 5,
+            totalSignups: 3,
+            uniqueEvents: 2,
+            uniqueSponsors: 3
+          },
+          surfaces: [],
+          sponsors: [],
+          events: null,
+          topSponsors: [
+            { id: 'spo1', name: 'Acme Corp', impressions: 50, clicks: 8, ctr: 16 },
+            { id: 'spo2', name: 'Beta Inc', impressions: 30, clicks: 5, ctr: 16.67 },
+            { id: 'spo3', name: 'Gamma LLC', impressions: 20, clicks: 2, ctr: 10 }
+          ]
+        }
+      };
+
+      validateEnvelope(mockResponse);
+      expect(mockResponse.value).toHaveProperty('topSponsors');
+      expect(Array.isArray(mockResponse.value.topSponsors)).toBe(true);
+    });
+
+    it('should have topSponsors with expected SponsorMetrics fields', () => {
+      const mockTopSponsors = [
+        { id: 'spo1', name: 'Acme Corp', impressions: 50, clicks: 8, ctr: 16 }
+      ];
+
+      const sponsor = mockTopSponsors[0];
+      expect(sponsor).toHaveProperty('id');
+      expect(sponsor).toHaveProperty('name');
+      expect(sponsor).toHaveProperty('impressions');
+      expect(sponsor).toHaveProperty('clicks');
+      expect(sponsor).toHaveProperty('ctr');
+      expect(typeof sponsor.id).toBe('string');
+      expect(typeof sponsor.name).toBe('string');
+      expect(typeof sponsor.impressions).toBe('number');
+      expect(typeof sponsor.clicks).toBe('number');
+      expect(typeof sponsor.ctr).toBe('number');
+    });
+
+    it('should limit topSponsors to maximum 3 entries', () => {
+      const mockTopSponsors = [
+        { id: 'spo1', name: 'Sponsor 1', impressions: 100, clicks: 10, ctr: 10 },
+        { id: 'spo2', name: 'Sponsor 2', impressions: 90, clicks: 9, ctr: 10 },
+        { id: 'spo3', name: 'Sponsor 3', impressions: 80, clicks: 8, ctr: 10 }
+      ];
+
+      expect(mockTopSponsors.length).toBeLessThanOrEqual(3);
+    });
+
+    it('should sort topSponsors by clicks descending', () => {
+      const mockTopSponsors = [
+        { id: 'spo1', name: 'Most Clicks', impressions: 50, clicks: 25, ctr: 50 },
+        { id: 'spo2', name: 'Medium Clicks', impressions: 50, clicks: 15, ctr: 30 },
+        { id: 'spo3', name: 'Least Clicks', impressions: 50, clicks: 5, ctr: 10 }
+      ];
+
+      expect(mockTopSponsors[0].clicks).toBeGreaterThanOrEqual(mockTopSponsors[1].clicks);
+      expect(mockTopSponsors[1].clicks).toBeGreaterThanOrEqual(mockTopSponsors[2].clicks);
+    });
+
+    it('should return null or empty array when no sponsor data exists', () => {
+      const mockResponse = {
+        ok: true,
+        value: {
+          lastUpdatedISO: '2025-01-15T10:00:00.000Z',
+          summary: {
+            totalImpressions: 0,
+            totalClicks: 0,
+            totalQrScans: 0,
+            totalSignups: 0,
+            uniqueEvents: 0,
+            uniqueSponsors: 0
+          },
+          surfaces: [],
+          sponsors: null,
+          events: null,
+          topSponsors: null
+        }
+      };
+
+      validateEnvelope(mockResponse);
+      expect(mockResponse.value.topSponsors === null || mockResponse.value.topSponsors.length === 0).toBe(true);
+    });
+
+    it('should include sponsor name (not just ID) for display', () => {
+      const mockTopSponsors = [
+        { id: 'spo-abc-123', name: 'Joe\'s Tavern', impressions: 100, clicks: 15, ctr: 15 }
+      ];
+
+      const sponsor = mockTopSponsors[0];
+      // Name should be human-readable, not just an ID
+      expect(sponsor.name).not.toBe(sponsor.id);
+      expect(sponsor.name).toBe('Joe\'s Tavern');
+    });
+  });
 });

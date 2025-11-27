@@ -35,7 +35,8 @@
 //   },
 //   surfaces: Array<{ id, label, impressions, clicks, qrScans, engagementRate }>,
 //   sponsors: Array<{ id, name, impressions, clicks, ctr }> | null,
-//   events: Array<{ id, name, impressions, clicks, ctr, signupsCount }> | null
+//   events: Array<{ id, name, impressions, clicks, ctr, signupsCount }> | null,
+//   topSponsors: Array<{ id, name, impressions, clicks, ctr }> | null  // Top 3 by clicks
 // }
 //
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -69,6 +70,11 @@
 //   → Groups by eventId, counts impressions/clicks/signups per event
 //   → Calculates ctr = clicks / impressions * 100
 //   → signupsCount: filter(metric === 'signup' && eventId).length
+//
+// SharedAnalytics.topSponsors
+//   → AnalyticsService_getTopSponsorsByClicks(analytics, sponsorNameMap, 3)
+//   → Top 3 sponsors sorted by clicks (descending) for highlight card
+//   → Same shape as SponsorMetrics: { id, name, impressions, clicks, ctr }
 //
 // ═══════════════════════════════════════════════════════════════════════════════
 //
@@ -363,6 +369,11 @@ function buildSharedAnalyticsResponse_(analytics, isSponsorView, brandId) {
   // Build events array with name resolution
   const events = buildEventsArray_(analytics, eventNameMap);
 
+  // Build topSponsors array (top 3 by clicks) using AnalyticsService helper
+  const topSponsors = !isSponsorView
+    ? AnalyticsService_getTopSponsorsByClicks(analytics, sponsorNameMap, 3)
+    : null;
+
   return {
     lastUpdatedISO: new Date().toISOString(),
     summary: {
@@ -375,7 +386,8 @@ function buildSharedAnalyticsResponse_(analytics, isSponsorView, brandId) {
     },
     surfaces: surfaces,
     sponsors: sponsors,
-    events: events.length > 0 ? events : null
+    events: events.length > 0 ? events : null,
+    topSponsors: topSponsors && topSponsors.length > 0 ? topSponsors : null
   };
 }
 
