@@ -1382,12 +1382,21 @@ function generateJWTSignature_(data, secret) {
  * @tier mvp
  */
 function api_getEventTemplates(payload, ctx) {
-  const brandId = (ctx && ctx.brandId) || (payload && payload.brandId) || 'root';
-  const cfg = getBrandTemplateConfig_(brandId);
-  const templates = getTemplatesForBrand_(brandId);
-  return Ok({
-    items: templates,
-    defaultTemplateId: cfg.defaultTemplateId
+  return runSafe('api_getEventTemplates', () => {
+    const brandId = (ctx && ctx.brandId) || (payload && payload.brandId) || 'root';
+    const cfg = getBrandTemplateConfig_(brandId);
+    const templates = getTemplatesForBrand_(brandId);
+
+    diag_('info', 'api_getEventTemplates', 'loaded templates', {
+      brandId,
+      templateCount: templates.length,
+      defaultTemplateId: cfg.defaultTemplateId
+    });
+
+    return Ok({
+      items: templates,
+      defaultTemplateId: cfg.defaultTemplateId
+    });
   });
 }
 
