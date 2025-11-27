@@ -492,7 +492,7 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
       // ═══════════════════════════════════════════════════════════════
       // V2 COMMENTED OUT - statsUrl/scoreboardUrl/streamUrl NOT IN /schemas/event.schema.json
       // ExternalData only has: scheduleUrl, standingsUrl, bracketUrl
-      // TODO: Add broadcast URLs to schema when streaming feature is ready
+      // V2 FEATURE – NOT MVP: Add broadcast URLs to schema when streaming feature is ready
       // ═══════════════════════════════════════════════════════════════
       const broadcastLinks = [];
       // if (ext.statsUrl) broadcastLinks.push({ icon: '📈', label: 'Stats', url: ext.statsUrl, type: 'stats' });
@@ -716,7 +716,7 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
       // ═══════════════════════════════════════════════════════════════
       // [V2+] Dynamic rotation mode - REMOVED FROM MVP (not in schema)
       // MVP: Always use public mode (mirror event page via iframe)
-      // TODO: Add media.displayRotation to schema when TV rotation ships
+      // V2 FEATURE – NOT MVP: Add media.displayRotation to schema when TV rotation ships
       // ═══════════════════════════════════════════════════════════════
 
       // === SPONSOR STRIP (V2 Optional) ===
@@ -754,13 +754,13 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
 
       // === START DISPLAY MODE ===
       // MVP-frozen: Always use public mode (embed Public.html via iframe)
-      // [V2+] Dynamic rotation removed - see TODO above for future feature
+      // [V2+] Dynamic rotation removed - see V2 FEATURE note above for future feature
       startPublicMode();
     }
 
     // V2 STUBS REMOVED: renderEventInfo, renderSchedulePanel, renderStandingsPanel, renderBracketPanel
     // MVP uses embedded Public.html iframe for all content display
-    // TODO: Add dedicated TV overlays when TV-native content feature ships
+    // V2 FEATURE – NOT MVP: Add dedicated TV overlays when TV-native content feature ships
 
     boot();
   </script>

@@ -337,7 +337,7 @@ function FormService_getSignupCount(eventId) {
  * @returns {object} Result envelope with form analytics
  */
 function FormService_getResponseAnalytics(formId) {
-  // TODO: Implement form response analytics
+  // V2 FEATURE – NOT MVP: Implement form response analytics
   // - Response count
   // - Completion rate
   // - Average time to complete
@@ -361,7 +361,7 @@ function FormService_getResponseAnalytics(formId) {
  * @returns {object} Result envelope
  */
 function FormService_linkToEvent(formId, eventId, formType) {
-  // TODO: Store form-event relationship in database
+  // V2 FEATURE – NOT MVP: Store form-event relationship in database
   // This would allow:
   // - Retrieving all forms for an event
   // - Cross-referencing form responses with event analytics

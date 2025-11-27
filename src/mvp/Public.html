@@ -1050,7 +1050,7 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
     // ═══════════════════════════════════════════════════════════════
     // V2 COMMENTED OUT - getCTAUrl references many non-schema fields
     // MVP relies on event.ctas.primary.url / event.ctas.secondary.url
-    // TODO: Remove this legacy function after Admin CTA refactor
+    // V2 FEATURE – NOT MVP: Remove this legacy function after Admin CTA refactor
     // ═══════════════════════════════════════════════════════════════
     // function getCTAUrl(data, label) {
     //   const labelLower = label.toLowerCase();
@@ -1499,7 +1499,7 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
 
       // ═══════════════════════════════════════════════════════════════
       // V2 COMMENTED OUT - imageUrl NOT IN /schemas/event.schema.json
-      // TODO: Add event.media.heroImageUrl to schema when ready
+      // V2 FEATURE – NOT MVP: Add event.media.heroImageUrl to schema when ready
       // ═══════════════════════════════════════════════════════════════
       // if (data.imageUrl) {
       //   html += `<img src="${esc(data.imageUrl)}" alt="${esc(data.name || 'Event')}" class="event-image">`;
@@ -1507,7 +1507,7 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
 
       // ═══════════════════════════════════════════════════════════════
       // V2 COMMENTED OUT - summary/summaryLink NOT IN /schemas/event.schema.json
-      // TODO: Add event.description field to schema when ready
+      // V2 FEATURE – NOT MVP: Add event.description field to schema when ready
       // ═══════════════════════════════════════════════════════════════
       // if (data.summary || data.summaryLink) {
       //   html += '<div class="event-section">';
@@ -1607,7 +1607,7 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
 
       // ═══════════════════════════════════════════════════════════════
       // V2 COMMENTED OUT - albumUrl/downloadUrl NOT IN /schemas/event.schema.json
-      // TODO: Add to media schema when template-specific features are ready
+      // V2 FEATURE – NOT MVP: Add to media schema when template-specific features are ready
       // ═══════════════════════════════════════════════════════════════
       // Template-specific sections
       // Photo Album (photo_gallery, wedding, shower templates)
@@ -1623,7 +1623,7 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
 
       // ═══════════════════════════════════════════════════════════════
       // V2 COMMENTED OUT - registryUrl NOT IN /schemas/event.schema.json
-      // TODO: Add to event schema when gift registry feature is ready
+      // V2 FEATURE – NOT MVP: Add to event schema when gift registry feature is ready
       // ═══════════════════════════════════════════════════════════════
       // Registry (wedding, shower templates)
       // if (data.registryUrl) {
@@ -1698,7 +1698,7 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
 
       // ═══════════════════════════════════════════════════════════════
       // V2 COMMENTED OUT - vendorListUrl NOT IN /schemas/event.schema.json
-      // TODO: Add externalData.vendorsUrl to schema when vendor feature is ready
+      // V2 FEATURE – NOT MVP: Add externalData.vendorsUrl to schema when vendor feature is ready
       // ═══════════════════════════════════════════════════════════════
       // Vendor List (farmers_market template) - supports Google Sheets BYOD
       // if (data.vendorListUrl) {
@@ -1712,7 +1712,7 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
 
       // ═══════════════════════════════════════════════════════════════
       // V2 COMMENTED OUT - goalAmount/raisedAmount/donationUrl NOT IN /schemas/event.schema.json
-      // TODO: Add fundraising object to schema when donation feature is ready
+      // V2 FEATURE – NOT MVP: Add fundraising object to schema when donation feature is ready
       // ═══════════════════════════════════════════════════════════════
       // Donation Progress (fundraiser template)
       // if (data.goalAmount && data.raisedAmount !== undefined) {
@@ -1731,7 +1731,7 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
 
       // ═══════════════════════════════════════════════════════════════
       // V2 COMMENTED OUT - bio/bioLink/notes NOT IN /schemas/event.schema.json
-      // TODO: Add description field to schema when rich text support is ready
+      // V2 FEATURE – NOT MVP: Add description field to schema when rich text support is ready
       // ═══════════════════════════════════════════════════════════════
       // Bio/Notes Section (respects sections.notes) - uses custom label from template
       // if (data.bio || data.bioLink || data.notes) {
@@ -1751,7 +1751,7 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
 
       // ═══════════════════════════════════════════════════════════════
       // V2 COMMENTED OUT - feedbackUrl NOT IN /schemas/event.schema.json
-      // TODO: Add links.feedbackUrl to schema when feedback feature is ready
+      // V2 FEATURE – NOT MVP: Add links.feedbackUrl to schema when feedback feature is ready
       // ═══════════════════════════════════════════════════════════════
       // Feedback Survey
       // if (data.feedbackUrl) {
