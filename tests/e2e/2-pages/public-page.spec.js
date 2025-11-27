@@ -25,7 +25,8 @@ test.describe('📄 PAGE: Public - Events List View', () => {
     });
 
     await expect(page).toHaveTitle(/Public|Events/);
-    await expect(page.locator('main#app')).toBeVisible();
+    // Public.html uses div.container, not main#app
+    await expect(page.locator('.container, main#app')).toBeVisible();
   });
 
   test('Page shows events or "no events" message', async ({ page }) => {

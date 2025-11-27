@@ -27,15 +27,15 @@ test.describe('System APIs', () => {
       const response = await api.getStatus('root');
       const data = await response.json();
 
-      // Should have standard envelope structure
+      // /status endpoint uses api_statusPure which returns FLAT format
       expect(data).toHaveProperty('ok');
       expect(data.ok).toBe(true);
-      expect(data).toHaveProperty('value');
 
-      // Value should contain status info
-      expect(data.value).toHaveProperty('build');
-      expect(data.value).toHaveProperty('brand');
-      expect(data.value.brand).toBe('root');
+      // FLAT format: buildId, brandId, timestamp (not nested in value)
+      expect(data).toHaveProperty('buildId');
+      expect(data).toHaveProperty('brandId');
+      expect(data.brandId).toBe('root');
+      expect(data).toHaveProperty('timestamp');
     });
 
     test('works for all brands', async () => {
@@ -47,7 +47,8 @@ test.describe('System APIs', () => {
 
         expect(response.ok()).toBe(true);
         expect(data.ok).toBe(true);
-        expect(data.value.brand).toBe(brand);
+        // FLAT format: brandId not value.brand
+        expect(data.brandId).toBe(brand);
       }
     });
 
@@ -55,9 +56,10 @@ test.describe('System APIs', () => {
       const response = await api.getStatus('root');
       const data = await response.json();
 
-      expect(data.value.build).toBeDefined();
-      expect(typeof data.value.build).toBe('string');
-      expect(data.value.build.length).toBeGreaterThan(0);
+      // FLAT format: buildId not value.build
+      expect(data.buildId).toBeDefined();
+      expect(typeof data.buildId).toBe('string');
+      expect(data.buildId.length).toBeGreaterThan(0);
     });
   });
 

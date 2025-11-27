@@ -248,6 +248,45 @@ test.describe('📄 PAGE: Display - Event Information', () => {
     const isEmpty = await stage.evaluate(el => el.textContent.trim().length === 0);
     expect(isEmpty).toBe(false);
   });
+
+  test('Empty schedule shows fallback gracefully', async ({ page }) => {
+    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
+
+    // Check for schedule section
+    const scheduleSection = page.locator('#schedule, .schedule-section, [data-section="schedule"]');
+    const hasScheduleSection = await scheduleSection.count() > 0;
+
+    if (hasScheduleSection) {
+      // If schedule section exists, check it handles empty state
+      const scheduleItems = scheduleSection.locator('.schedule-item, .event-item, li, tr');
+      const emptyMessage = scheduleSection.locator('text=/no schedule|no items|coming soon|tbd/i');
+
+      const hasItems = await scheduleItems.count() > 0;
+      const hasEmptyState = await emptyMessage.count() > 0;
+      const sectionVisible = await scheduleSection.isVisible();
+
+      // Schedule should either have items, show empty message, or be hidden
+      expect(hasItems || hasEmptyState || !sectionVisible).toBe(true);
+    }
+
+    // Page should not crash - stage must be visible regardless of schedule state
+    const stage = page.locator('#stage');
+    await expect(stage).toBeVisible();
+
+    // No JavaScript errors should occur
+    const errors = [];
+    page.on('pageerror', error => errors.push(error));
+    await page.waitForTimeout(1000);
+
+    const criticalErrors = errors.filter(e =>
+      !e.message.includes('google.script') &&
+      !e.message.includes('google is not defined')
+    );
+    expect(criticalErrors.length).toBe(0);
+  });
 });
 
 test.describe('📄 PAGE: Display - Full Screen Mode', () => {
