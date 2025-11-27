@@ -5,6 +5,7 @@
 (function() {
   const appTitle = '<?= appTitle ?>';
   const buildId = '<?= ZEB.BUILD_ID ?>';
+  const brandId = '<?= brand?.id || "root" ?>';
   const logoUrl = '<?= brand?.logoUrl || "" ?>';
 
   // Populate header elements
@@ -13,7 +14,8 @@
   const logoEl = document.getElementById('headerLogo');
 
   if (titleEl) titleEl.textContent = appTitle;
-  if (buildEl) buildEl.textContent = 'Build: ' + buildId;
+  // Display both build ID and brand ID for canonical status reference
+  if (buildEl) buildEl.textContent = 'Build: ' + buildId + ' · Brand: ' + brandId;
   if (logoEl) {
     if (logoUrl && logoUrl.startsWith('http')) {
       // Only set logo if we have a valid HTTP/HTTPS URL

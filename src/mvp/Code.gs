@@ -1747,7 +1747,7 @@ function api_status(brandId){
  * no auth failure scenarios. If brand is invalid, returns ok:false with message.
  * @tier mvp
  * @param {string} brandId - Brand identifier (defaults to 'root')
- * @returns {Object} Flat status object { ok, buildId, brandId, timestamp, [message] }
+ * @returns {Object} Flat status object { ok, buildId, brandId, time, [message] }
  */
 function api_statusPure(brandId) {
   const brand = brandId ? findBrand_(brandId) : findBrand_('root');
@@ -1757,7 +1757,7 @@ function api_statusPure(brandId) {
       ok: false,
       buildId: ZEB.BUILD_ID,
       brandId: brandId || 'unknown',
-      timestamp: new Date().toISOString(),
+      time: new Date().toISOString(),
       message: `Brand not found: ${brandId || 'undefined'}`
     };
   }
@@ -1766,7 +1766,7 @@ function api_statusPure(brandId) {
     ok: true,
     buildId: ZEB.BUILD_ID,
     brandId: brand.id,
-    timestamp: new Date().toISOString()
+    time: new Date().toISOString()
   };
 }
 

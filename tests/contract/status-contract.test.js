@@ -163,15 +163,15 @@ describe('Status Contract - Single Source of Truth', () => {
       expect(CANONICAL_BRAND_IDS).toContain(data.brandId);
     }, TIMEOUT_MS);
 
-    it('should return timestamp in ISO 8601 format', async () => {
+    it('should return time in ISO 8601 format', async () => {
       const data = await fetchStatus('root');
 
-      expect(data).toHaveProperty('timestamp');
-      expect(typeof data.timestamp).toBe('string');
+      expect(data).toHaveProperty('time');
+      expect(typeof data.time).toBe('string');
 
       // Validate ISO 8601 format
-      const parsed = new Date(data.timestamp);
-      expect(parsed.toISOString()).toBe(data.timestamp);
+      const parsed = new Date(data.time);
+      expect(parsed.toISOString()).toBe(data.time);
     }, TIMEOUT_MS);
 
     it('should return flat format (no value wrapper)', async () => {
@@ -223,7 +223,7 @@ describe('Status Contract - Single Source of Truth', () => {
       const data = await fetchStatus('root');
 
       // Required fields
-      const requiredFields = ['ok', 'buildId', 'brandId', 'timestamp'];
+      const requiredFields = ['ok', 'buildId', 'brandId', 'time'];
       requiredFields.forEach(field => {
         expect(data).toHaveProperty(field);
       });
@@ -232,7 +232,7 @@ describe('Status Contract - Single Source of Truth', () => {
       expect(typeof data.ok).toBe('boolean');
       expect(typeof data.buildId).toBe('string');
       expect(typeof data.brandId).toBe('string');
-      expect(typeof data.timestamp).toBe('string');
+      expect(typeof data.time).toBe('string');
 
       // Value constraints
       expect(data.ok).toBe(true);
