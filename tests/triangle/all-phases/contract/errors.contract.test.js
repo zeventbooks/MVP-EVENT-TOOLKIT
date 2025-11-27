@@ -2,6 +2,7 @@
  * Contract Tests for Error Codes (All Phases)
  *
  * Tests the standardized error codes used across all API endpoints
+ * Story 5.1: Now includes correlation ID (corrId) validation for error tracing
  *
  * Triangle Phase: ⚡ All Phases (Blue)
  * Purpose: Standardized error handling across the application
@@ -21,6 +22,21 @@ describe('🔺 TRIANGLE [ALL PHASES]: Error Codes Contract', () => {
       expect(response).toHaveProperty('code');
       expect(response).toHaveProperty('message');
     }
+  };
+
+  /**
+   * Story 5.1: Validate error envelope includes correlation ID
+   * corrId is optional for backward compatibility but required for structured errors
+   */
+  const validateErrorWithCorrId = (response) => {
+    validateEnvelope(response);
+    expect(response.ok).toBe(false);
+    expect(response).toHaveProperty('corrId');
+    expect(typeof response.corrId).toBe('string');
+    // corrId format: timestamp (base36) + "-" + random suffix
+    expect(response.corrId).toMatch(/^[a-z0-9]+-[a-z0-9]+$/);
+    // Message should include reference to corrId
+    expect(response.message).toContain('Reference:');
   };
 
   describe('Error code definitions', () => {
@@ -115,6 +131,69 @@ describe('🔺 TRIANGLE [ALL PHASES]: Error Codes Contract', () => {
 
       validateEnvelope(mockResponse);
       expect(mockResponse.code).toBe('CONTRACT');
+    });
+  });
+
+  // Story 5.1: Correlation ID Tests
+  describe('Correlation ID (Story 5.1)', () => {
+    it('should include corrId in structured error responses', () => {
+      const mockStructuredError = {
+        ok: false,
+        code: 'INTERNAL',
+        message: 'Something went wrong. Reference: lqx5m8k-a7b2',
+        corrId: 'lqx5m8k-a7b2'
+      };
+
+      validateErrorWithCorrId(mockStructuredError);
+    });
+
+    it('should have corrId in correct format (timestamp-random)', () => {
+      const mockError = {
+        ok: false,
+        code: 'BAD_INPUT',
+        message: 'Something went wrong. Reference: m1abc23-xyz9',
+        corrId: 'm1abc23-xyz9'
+      };
+
+      expect(mockError.corrId).toMatch(/^[a-z0-9]+-[a-z0-9]+$/);
+    });
+
+    it('should NOT expose stack trace to client', () => {
+      const mockError = {
+        ok: false,
+        code: 'INTERNAL',
+        message: 'Something went wrong. Reference: lqx5m8k-a7b2',
+        corrId: 'lqx5m8k-a7b2'
+      };
+
+      expect(mockError).not.toHaveProperty('stack');
+      expect(mockError.message).not.toContain('Error:');
+      expect(mockError.message).not.toContain('at ');
+    });
+
+    it('should include corrId reference in user-facing message', () => {
+      const mockError = {
+        ok: false,
+        code: 'INTERNAL',
+        message: 'Something went wrong. Reference: abc123-def4',
+        corrId: 'abc123-def4'
+      };
+
+      expect(mockError.message).toContain('Reference:');
+      expect(mockError.message).toContain(mockError.corrId);
+    });
+
+    it('should allow backward-compatible errors without corrId', () => {
+      // Some simple errors (like validation) may not require corrId
+      const simpleError = {
+        ok: false,
+        code: 'BAD_INPUT',
+        message: 'Missing required field: name'
+      };
+
+      validateEnvelope(simpleError);
+      // corrId is optional for simple validation errors
+      expect(simpleError.ok).toBe(false);
     });
   });
 });

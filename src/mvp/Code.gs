@@ -54,34 +54,99 @@ const ERR = Object.freeze({
   CONTRACT:    'CONTRACT'
 });
 const Ok  = (value={}) => ({ ok:true,  value });
-const Err = (code, message) => ({ ok:false, code, message: message||code });
+const Err = (code, message, corrId) => {
+  const envelope = { ok:false, code, message: message||code };
+  if (corrId) envelope.corrId = corrId;
+  return envelope;
+};
+
+/**
+ * Generate a correlation ID for request tracing
+ * Format: timestamp (base36) + random suffix
+ * Example: "lqx5m8k-a7b2"
+ * @returns {string} Unique correlation ID
+ */
+function generateCorrId_() {
+  const timestamp = Date.now().toString(36);
+  const random = Math.random().toString(36).substring(2, 6);
+  return `${timestamp}-${random}`;
+}
+
+/**
+ * Log a structured error with correlation ID for observability
+ * @param {string} level - Log level (error, warn, info)
+ * @param {string} corrId - Correlation ID for tracing
+ * @param {string} endpoint - API endpoint/function name
+ * @param {string} message - Error message
+ * @param {string} stack - Error stack trace (optional)
+ * @param {string} eventId - Event ID if applicable (optional)
+ * @param {object} extra - Additional metadata (optional)
+ */
+function logStructuredError_(level, corrId, endpoint, message, stack, eventId, extra = {}) {
+  const structured = {
+    level: level,
+    corrId: corrId,
+    endpoint: endpoint,
+    message: message
+  };
+  if (stack) structured.stack = stack;
+  if (eventId) structured.eventId = eventId;
+  if (Object.keys(extra).length > 0) {
+    Object.assign(structured, extra);
+  }
+  diag_(level, endpoint, `[${corrId}] ${message}`, structured);
+}
+
+/**
+ * Creates an error response with correlation ID
+ * - Logs detailed structured error internally (with stack trace)
+ * - Returns sanitized error to client (with corrId, without stack)
+ * @param {string} code - Error code (ERR.*)
+ * @param {string} internalMessage - Detailed internal message (logged, not shown to user)
+ * @param {object} options - Options: { stack, eventId, endpoint, extra }
+ * @returns {object} Error envelope with corrId and sanitized message
+ */
+function ErrWithCorrId_(code, internalMessage, options = {}) {
+  const corrId = generateCorrId_();
+  const { stack, eventId, endpoint = 'API', extra = {} } = options;
+
+  // Log structured error with full details internally
+  logStructuredError_('error', corrId, endpoint, internalMessage, stack, eventId, extra);
+
+  // Return sanitized error to client with corrId but no stack
+  return Err(code, `Something went wrong. Reference: ${corrId}`, corrId);
+}
 
 // Fixed: Bug #48 - Sanitize error messages to prevent information disclosure
 /**
  * Creates a user-friendly error response while logging detailed information internally
+ * Now includes correlation ID for request tracing (Story 5.1)
  * @param {string} code - Error code (ERR.*)
  * @param {string} internalMessage - Detailed internal message (logged, not shown to user)
- * @param {object} logDetails - Additional details to log
+ * @param {object} logDetails - Additional details to log (stack, eventId, extra)
  * @param {string} where - Function name for logging context
- * @returns {object} Error envelope with sanitized message
+ * @returns {object} Error envelope with corrId and sanitized message
  */
 function UserFriendlyErr_(code, internalMessage, logDetails = {}, where = 'API') {
-  // Log full details internally
-  diag_('error', where, internalMessage, logDetails);
+  const corrId = generateCorrId_();
+  const { stack, eventId, ...extra } = logDetails;
 
-  // Map error codes to generic user-facing messages
+  // Log structured error with full details internally
+  logStructuredError_('error', corrId, where, internalMessage, stack, eventId, extra);
+
+  // Map error codes to generic user-facing messages (with corrId reference)
   const userMessages = {
-    'BAD_INPUT': 'Invalid request. Please check your input and try again.',
-    'NOT_FOUND': 'The requested resource was not found.',
-    'UNAUTHORIZED': 'Authentication failed. Please verify your credentials.',
-    'RATE_LIMITED': 'Too many requests. Please try again later.',
-    'INTERNAL': 'An internal error occurred. Please try again later.',
-    'CONTRACT': 'An unexpected error occurred. Please contact support.'
+    'BAD_INPUT': `Invalid request. Reference: ${corrId}`,
+    'NOT_FOUND': `The requested resource was not found. Reference: ${corrId}`,
+    'UNAUTHORIZED': `Authentication failed. Reference: ${corrId}`,
+    'RATE_LIMITED': `Too many requests. Reference: ${corrId}`,
+    'INTERNAL': `An internal error occurred. Reference: ${corrId}`,
+    'CONTRACT': `An unexpected error occurred. Reference: ${corrId}`
   };
 
-  // Return sanitized error to user
-  const sanitizedMessage = userMessages[code] || 'An error occurred. Please try again.';
-  return Err(code, sanitizedMessage);
+  // Return sanitized error to user with corrId
+  const sanitizedMessage = userMessages[code] || `An error occurred. Reference: ${corrId}`;
+  return Err(code, sanitizedMessage, corrId);
 }
 
 // === Schema validation (runtime contracts) =================================
@@ -123,8 +188,12 @@ function _ensureOk_(label, schema, obj) {
     schemaCheck(schema, obj, label);
     return obj;
   } catch(e) {
-    diag_('error', label, 'Contract violation', {error: String(e), obj});
-    return Err(ERR.CONTRACT, `Contract violation in ${label}: ${e.message}`);
+    // Story 5.1 - Structured error logging with correlation ID
+    return ErrWithCorrId_(ERR.CONTRACT, `Contract violation in ${label}: ${e.message}`, {
+      stack: e && e.stack,
+      endpoint: label,
+      extra: { error: String(e), obj }
+    });
   }
 }
 
@@ -213,11 +282,16 @@ function diag_(level, where, msg, meta, spreadsheetId){
   }
 }
 
-function runSafe(where, fn){
+function runSafe(where, fn, eventId){
   try{ return fn(); }
   catch(e){
-    diag_('error',where,'Exception',{err:String(e),stack:e&&e.stack});
-    return Err(ERR.INTERNAL,'Unexpected error');
+    // Use structured error logging with correlation ID
+    return ErrWithCorrId_(ERR.INTERNAL, String(e), {
+      stack: e && e.stack,
+      eventId: eventId,
+      endpoint: where,
+      extra: { err: String(e) }
+    });
   }
 }
 
@@ -509,15 +583,22 @@ function doPost(e){
   try {
     body = JSON.parse(e.postData.contents || '{}');
   } catch(jsonErr) {
-    return jsonResponse_(Err(ERR.BAD_INPUT, 'Invalid JSON body'));
+    // Story 5.1 - Structured error logging with correlation ID
+    return jsonResponse_(ErrWithCorrId_(ERR.BAD_INPUT, 'Invalid JSON body', {
+      stack: jsonErr && jsonErr.stack,
+      endpoint: 'doPost'
+    }));
   }
 
   try {
     // Fixed: Bug #16 - Validate request origin to prevent unauthorized access
     const origin = e.parameter?.origin || e.headers?.origin || e.headers?.referer;
     if (!isAllowedOrigin_(origin, e.headers)) {
-      diag_('warn', 'doPost', 'Unauthorized origin or missing auth headers', {origin});
-      return jsonResponse_(Err(ERR.BAD_INPUT, 'Unauthorized origin or missing authentication headers'));
+      // Story 5.1 - Structured error logging with correlation ID
+      return jsonResponse_(ErrWithCorrId_(ERR.BAD_INPUT, 'Unauthorized origin or missing auth headers', {
+        endpoint: 'doPost',
+        extra: { origin }
+      }));
     }
 
     const action = body.action || e.parameter?.action || '';
@@ -527,14 +608,21 @@ function doPost(e){
     const stateChangingActions = ['create', 'update', 'delete', 'updateEventData', 'createShortlink', 'createFormFromTemplate', 'generateFormShortlink'];
     if (stateChangingActions.includes(action)) {
       if (!validateCSRFToken_(body.csrfToken)) {
-        return jsonResponse_(Err(ERR.BAD_INPUT, 'Invalid or missing CSRF token. Please refresh the page and try again.'));
+        // Story 5.1 - Structured error logging with correlation ID
+        return jsonResponse_(ErrWithCorrId_(ERR.BAD_INPUT, 'Invalid or missing CSRF token', {
+          endpoint: 'doPost',
+          extra: { action }
+        }));
       }
     }
 
     return handleRestApiPost_(e, action, body, brand);
   } catch(err) {
-    diag_('error', 'doPost', 'Request handler failed', {error: String(err), stack: err?.stack});
-    return jsonResponse_(Err(ERR.INTERNAL, 'Request processing failed'));
+    // Story 5.1 - Structured error logging with correlation ID
+    return jsonResponse_(ErrWithCorrId_(ERR.INTERNAL, 'Request handler failed: ' + String(err), {
+      stack: err && err.stack,
+      endpoint: 'doPost'
+    }));
   }
 }
 
