@@ -6,6 +6,17 @@ Page: Admin.html
 Purpose: Event management dashboard for organizers
 Status: HARDENED for MVP v1.0
 
+FIVE-CARD ADMIN SHELL (Flow-First Layout):
+  Card 1 - Event Basics: Name, date, venue (confirmation of what was created)
+  Card 2 - Public Page: Link + QR + preview (share with customers)
+  Card 3 - TV Display: Link + tips (put it on your bar screens)
+  Card 4 - Sign-Up Form: Form URL + count (get people registered)
+  Card 5 - Sponsors & Report: Sponsor links + shared report (track value)
+
+  Advanced Tools: Poster link, Event ID, diagnostics (collapsed by default)
+
+  Copy written for bar owners, not developers.
+
 SCHEMA CONTRACT: /schemas/event.schema.json
 
 ═══════════════════════════════════════════════════════════════════════════════
@@ -237,89 +248,18 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
 
   <main id="app" class="container">
 
-    <!-- Event Lifecycle Dashboard -->
-    <section class="card" id="dashboardCard" style="display:none;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-        <h2 style="margin: 0;">Event Dashboard</h2>
-      </div>
+    <!-- Event Lifecycle Dashboard - DEPRECATED: Content moved to Diagnostics accordion in Five-Card layout -->
+    <!-- Kept hidden for backward compatibility with any code referencing these IDs -->
+    <div id="dashboardCard" style="display:none !important;">
       <div id="eventPhaseIndicator"></div>
-
-      <!-- Statistics Section -->
-      <div class="subsection">
-        <div class="collapsible-header" onclick="toggleSection(this)">
-          <h3>Statistics</h3>
-          <span class="collapsible-icon">▼</span>
-        </div>
-        <div class="collapsible-content">
-          <div class="stats-grid" style="margin-top: 20px;">
-        <div class="stat-card blue">
-          <div class="stat-value" id="statViews">-</div>
-          <div class="stat-label">Total Views</div>
-        </div>
-        <div class="stat-card green">
-          <div class="stat-value" id="statImpressions">-</div>
-          <div class="stat-label">Sponsor Impressions</div>
-        </div>
-        <div class="stat-card purple">
-          <div class="stat-value" id="statCTR">-</div>
-          <div class="stat-label">Click-Through Rate</div>
-        </div>
-        <div class="stat-card orange">
-          <div class="stat-value" id="statEngagement">-</div>
-          <div class="stat-label">Engagement Score</div>
-        </div>
-      </div>
-        </div>
-      </div>
-
-      <!-- Event Lifecycle Section -->
-      <div class="subsection">
-        <div class="collapsible-header" onclick="toggleSection(this)">
-          <h3>Event Lifecycle</h3>
-          <span class="collapsible-icon">▼</span>
-        </div>
-        <div class="collapsible-content">
-      <div class="metric-card">
-        <div class="metric-header">
-          <span class="metric-title">Pre-Event Phase</span>
-          <span class="phase-indicator pre-event">Preparation</span>
-        </div>
-        <p style="color: #64748b; font-size: 14px; margin-top: 8px;">
-          Advertising with sponsors, creating posters, setting up displays, and getting the public to register
-        </p>
-        <div class="progress-bar">
-          <div class="progress-bar-fill" id="preEventProgress" style="width: 0%"></div>
-        </div>
-      </div>
-
-      <div class="metric-card">
-        <div class="metric-header">
-          <span class="metric-title">Event Day</span>
-          <span class="phase-indicator event-day">Active</span>
-        </div>
-        <p style="color: #64748b; font-size: 14px; margin-top: 8px;">
-          Public reminders, displays at entrance, check-in at door, sponsor banners rotating on screens
-        </p>
-        <div class="progress-bar">
-          <div class="progress-bar-fill green" id="eventDayProgress" style="width: 0%"></div>
-        </div>
-      </div>
-
-      <div class="metric-card">
-        <div class="metric-header">
-          <span class="metric-title">Post-Event Phase</span>
-          <span class="phase-indicator post-event">Analytics</span>
-        </div>
-        <p style="color: #64748b; font-size: 14px; margin-top: 8px;">
-          CTR analysis, sponsor impressions per screen/time/location, ROI calculations
-        </p>
-        <div class="progress-bar">
-          <div class="progress-bar-fill orange" id="postEventProgress" style="width: 0%"></div>
-        </div>
-      </div>
-        </div>
-      </div>
-    </section>
+      <div id="statViews">-</div>
+      <div id="statImpressions">-</div>
+      <div id="statCTR">-</div>
+      <div id="statEngagement">-</div>
+      <div id="preEventProgress"></div>
+      <div id="eventDayProgress"></div>
+      <div id="postEventProgress"></div>
+    </div>
 
     <!-- Create Event Card - Simplified UX -->
     <section class="card" id="createCard">
@@ -655,133 +595,216 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
     </section>
 
     <!-- ═══════════════════════════════════════════════════════════════════════ -->
-    <!-- YOUR EVENT TOOLS - Bar manager mental model                             -->
-    <!-- Order: Sponsors → Sign-ups → Surfaces (Poster/Display/Public) → Report  -->
+    <!-- FIVE-CARD ADMIN SHELL - Flow-First Layout for Bar Managers             -->
+    <!-- Card 1: Event Basics | Card 2: Public Page | Card 3: TV Display        -->
+    <!-- Card 4: Sign-Up Form | Card 5: Sponsors & Report                       -->
     <!-- ═══════════════════════════════════════════════════════════════════════ -->
-    <section id="eventCard" class="card" style="display:none;">
-      <div style="margin-bottom: 24px;">
-        <h2 style="margin: 0 0 8px 0;">Your Event is Ready!</h2>
-        <div id="eventInfo"></div>
-      </div>
+    <div id="eventCard" style="display:none;">
 
       <!-- ═══════════════════════════════════════════════════════════════════ -->
-      <!-- 1. SPONSORS - First because they're paying                          -->
+      <!-- CARD 1: EVENT BASICS - What you just created                        -->
       <!-- ═══════════════════════════════════════════════════════════════════ -->
-      <div style="margin-bottom: 24px;">
-        <h3 style="margin: 0 0 12px 0; color: var(--color-gray-700, #334155);">Sponsors</h3>
-        <div class="output-card" style="background: linear-gradient(135deg, #fdf4ff 0%, #f5d0fe 100%); border: 1px solid #e879f9; border-radius: 12px; padding: 20px;">
-          <p style="color: #86198f; font-size: 0.9rem; margin: 0 0 16px 0;">Give each sponsor their own analytics link to show impressions and engagement.</p>
-          <div id="sponsorReportsList" class="events-grid" style="margin-bottom: 12px;"></div>
-          <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-            <input type="text" id="customSponsorId" placeholder="Sponsor name" style="flex: 1; min-width: 150px;">
-            <button class="btn-primary" onclick="generateSponsorReportLink()" style="background: #c026d3;">Generate Link</button>
+      <section class="card" id="card1EventBasics" style="border-left: 4px solid #10b981;">
+        <div style="display: flex; align-items: flex-start; gap: 16px;">
+          <div style="font-size: 2.5rem; line-height: 1;">✅</div>
+          <div style="flex: 1;">
+            <h2 style="margin: 0 0 8px 0; color: var(--color-gray-800, #1e293b);">Your Event is Live!</h2>
+            <div id="eventInfo" style="font-size: 1rem; color: var(--color-gray-600, #475569);"></div>
+            <p style="margin: 12px 0 0 0; font-size: 0.9rem; color: var(--color-gray-500, #64748b);">
+              Everything's set up. Use the tools below to promote your event and track results.
+            </p>
           </div>
-          <div id="customSponsorLinkOutput" style="margin-top: 12px; display: none;">
-            <div style="background: white; border-radius: 8px; padding: 12px; margin-bottom: 8px;">
-              <input type="text" id="customSponsorLinkField" readonly style="width: 100%; font-size: 0.8rem; border: none; background: transparent;">
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- CARD 2: PUBLIC PAGE - Share with customers                          -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <section class="card" id="card2PublicPage" style="border-left: 4px solid #16a34a;">
+        <div style="display: flex; align-items: flex-start; gap: 16px;">
+          <div style="font-size: 2rem; line-height: 1;">🌐</div>
+          <div style="flex: 1;">
+            <h3 style="margin: 0 0 4px 0; color: var(--color-gray-800, #1e293b);">Public Page</h3>
+            <p style="margin: 0 0 16px 0; font-size: 0.9rem; color: var(--color-gray-500, #64748b);">
+              This is the link your customers see. Share it on social media, text it to regulars, or add it to your website.
+            </p>
+
+            <div style="background: var(--color-gray-50, #f8fafc); border-radius: 8px; padding: 12px; margin-bottom: 12px; display: flex; align-items: center; gap: 12px;">
+              <a id="lnkPublic" target="_blank" rel="noopener" style="flex: 1; font-size: 0.85rem; word-break: break-all; color: #16a34a; font-family: monospace;"></a>
+              <div id="qrPublicPreview" style="flex-shrink: 0;"></div>
             </div>
-            <button class="btn-secondary" onclick="copyCustomSponsorLink()">Copy Link</button>
+
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button class="btn-primary" onclick="copy('lnkPublic')" style="background: #16a34a;">Copy Link</button>
+              <button class="btn-secondary" onclick="window.open(document.getElementById('lnkPublic').href)">Open Page</button>
+              <button class="btn-secondary" onclick="showPublicQR()">Show QR Code</button>
+            </div>
           </div>
         </div>
-      </div>
+      </section>
 
       <!-- ═══════════════════════════════════════════════════════════════════ -->
-      <!-- 2. SIGN-UPS - Registration forms                                    -->
+      <!-- CARD 3: TV DISPLAY - Put it on your bar screens                     -->
       <!-- ═══════════════════════════════════════════════════════════════════ -->
-      <div style="margin-bottom: 24px;">
-        <h3 style="margin: 0 0 12px 0; color: var(--color-gray-700, #334155);">Sign-Ups</h3>
-        <div class="output-card" style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border: 1px solid #a7f3d0; border-radius: 12px; padding: 20px;">
-          <p style="color: #065f46; font-size: 0.9rem; margin: 0 0 16px 0;">Set up forms for registration, check-in, walk-ins, and feedback.</p>
-          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-            <button class="btn-primary" onclick="configureSignup()" style="background: #059669;">Configure Forms</button>
-            <button class="btn-secondary <? if (demoMode && ZEB.DEMO_MODE.highlightNewFeatures) { ?>demo-new-feature<? } ?>" onclick="openFormsTemplates()">
-              Create Google Forms
-              <? if (demoMode && ZEB.DEMO_MODE.highlightNewFeatures) { ?><span class="demo-new-badge">NEW</span><? } ?>
-            </button>
+      <section class="card" id="card3Display" style="border-left: 4px solid #2563eb;">
+        <div style="display: flex; align-items: flex-start; gap: 16px;">
+          <div style="font-size: 2rem; line-height: 1;">📺</div>
+          <div style="flex: 1;">
+            <h3 style="margin: 0 0 4px 0; color: var(--color-gray-800, #1e293b);">TV Display</h3>
+            <p style="margin: 0 0 16px 0; font-size: 0.9rem; color: var(--color-gray-500, #64748b);">
+              Open this on your bar TV or tablet. It auto-rotates sponsor logos and keeps the event info visible.
+            </p>
+
+            <div style="background: var(--color-gray-50, #f8fafc); border-radius: 8px; padding: 12px; margin-bottom: 12px;">
+              <a id="lnkDisplay" target="_blank" rel="noopener" style="font-size: 0.85rem; word-break: break-all; color: #2563eb; font-family: monospace;"></a>
+            </div>
+
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button class="btn-primary" onclick="copy('lnkDisplay')" style="background: #2563eb;">Copy Link</button>
+              <button class="btn-secondary" onclick="window.open(document.getElementById('lnkDisplay').href)">Open on TV</button>
+              <button class="btn-secondary" onclick="configureDisplay()">Settings</button>
+            </div>
+
+            <!-- TV Tips -->
+            <div style="margin-top: 16px; padding: 12px; background: #eff6ff; border-radius: 8px; border: 1px solid #bfdbfe;">
+              <p style="margin: 0; font-size: 0.8rem; color: #1e40af;">
+                <strong>Tip:</strong> Use your browser's fullscreen mode (F11) for the best look. The display will auto-refresh every few minutes.
+              </p>
+            </div>
           </div>
         </div>
-      </div>
+      </section>
 
       <!-- ═══════════════════════════════════════════════════════════════════ -->
-      <!-- 3. SURFACES - Poster / Display / Public                             -->
+      <!-- CARD 4: SIGN-UP FORM - Get people registered                        -->
       <!-- ═══════════════════════════════════════════════════════════════════ -->
-      <div style="margin-bottom: 24px;">
-        <h3 style="margin: 0 0 12px 0; color: var(--color-gray-700, #334155);">Surfaces</h3>
-        <div class="output-tools-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
+      <section class="card" id="card4SignUp" style="border-left: 4px solid #059669;">
+        <div style="display: flex; align-items: flex-start; gap: 16px;">
+          <div style="font-size: 2rem; line-height: 1;">📝</div>
+          <div style="flex: 1;">
+            <h3 style="margin: 0 0 4px 0; color: var(--color-gray-800, #1e293b);">Sign-Up Forms</h3>
+            <p style="margin: 0 0 16px 0; font-size: 0.9rem; color: var(--color-gray-500, #64748b);">
+              Get people registered before the event, check them in at the door, or sign up walk-ins on the spot.
+            </p>
 
-          <!-- Poster -->
-          <div class="output-card" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border: 1px solid #fcd34d; border-radius: 12px; padding: 20px;">
-            <div style="font-size: 2rem; margin-bottom: 8px;">🖼️</div>
-            <h4 style="margin: 0 0 8px 0; color: #92400e; font-size: 1.1rem;">Poster</h4>
-            <p style="color: #a16207; font-size: 0.85rem; margin-bottom: 16px;">Print-ready with QR code. Great for flyers, table tents, or windows.</p>
-            <div style="background: white; border-radius: 8px; padding: 12px; margin-bottom: 12px;">
-              <a id="lnkPoster" target="_blank" rel="noopener" style="font-size: 0.8rem; word-break: break-all; color: #b45309;"></a>
+            <div id="signupSummary" style="background: var(--color-gray-50, #f8fafc); border-radius: 8px; padding: 12px; margin-bottom: 12px;">
+              <p style="margin: 0; font-size: 0.9rem; color: var(--color-gray-600, #475569);">
+                <span id="signupCount" style="font-weight: 600;">0</span> sign-ups so far
+              </p>
+            </div>
+
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button class="btn-primary" onclick="configureSignup()" style="background: #059669;">Configure Forms</button>
+              <button class="btn-secondary <? if (demoMode && ZEB.DEMO_MODE.highlightNewFeatures) { ?>demo-new-feature<? } ?>" onclick="openFormsTemplates()">
+                Create Google Forms
+                <? if (demoMode && ZEB.DEMO_MODE.highlightNewFeatures) { ?><span class="demo-new-badge">NEW</span><? } ?>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- CARD 5: SPONSORS & SHARED REPORT - Track sponsor value              -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <section class="card" id="card5SponsorsReport" style="border-left: 4px solid #7c3aed;">
+        <div style="display: flex; align-items: flex-start; gap: 16px;">
+          <div style="font-size: 2rem; line-height: 1;">🤝</div>
+          <div style="flex: 1;">
+            <h3 style="margin: 0 0 4px 0; color: var(--color-gray-800, #1e293b);">Sponsors & Analytics</h3>
+            <p style="margin: 0 0 16px 0; font-size: 0.9rem; color: var(--color-gray-500, #64748b);">
+              Give each sponsor their own link to see how their logo performed. After the event, share the full report.
+            </p>
+
+            <!-- Sponsor Quick Add -->
+            <div id="sponsorPerformanceCard" style="background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%); border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+              <div id="sponsorReportsList" style="margin-bottom: 12px;"></div>
+              <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                <input type="text" id="customSponsorId" placeholder="Enter sponsor name" style="flex: 1; min-width: 150px; padding: 10px 12px; border-radius: 6px; border: 1px solid #d8b4fe;">
+                <button class="btn-primary" onclick="generateSponsorReportLink()" style="background: #7c3aed;">Generate Link</button>
+              </div>
+              <div id="customSponsorLinkOutput" style="margin-top: 12px; display: none;">
+                <div style="background: white; border-radius: 8px; padding: 12px; margin-bottom: 8px;">
+                  <input type="text" id="customSponsorLinkField" readonly style="width: 100%; font-size: 0.8rem; border: none; background: transparent; font-family: monospace;">
+                </div>
+                <button class="btn-secondary" onclick="copyCustomSponsorLink()">Copy Sponsor Link</button>
+              </div>
+            </div>
+
+            <!-- Shared Report -->
+            <div style="background: var(--color-gray-50, #f8fafc); border-radius: 8px; padding: 12px; margin-bottom: 12px;">
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="font-size: 1.5rem;">📊</div>
+                <div style="flex: 1;">
+                  <p style="margin: 0 0 4px 0; font-size: 0.9rem; font-weight: 500; color: var(--color-gray-700, #334155);">Shared Analytics Report</p>
+                  <a id="lnkReport" target="_blank" rel="noopener" style="font-size: 0.8rem; word-break: break-all; color: #7c3aed; font-family: monospace;"></a>
+                </div>
+              </div>
+            </div>
+
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button class="btn-primary" onclick="copy('lnkReport')" style="background: #7c3aed;">Copy Report Link</button>
+              <button class="btn-secondary" onclick="window.open(document.getElementById('lnkReport').href)">View Report</button>
+            </div>
+            <div id="qrSharedReport" style="text-align:center;margin-top:12px;display:none;"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- DIAGNOSTICS & ADVANCED - For power users                            -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <section class="card" id="cardDiagnostics" style="border-left: 4px solid var(--color-gray-400, #94a3b8);">
+        <div class="collapsible-header collapsed" onclick="toggleSection(this)" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <span style="font-size: 1.5rem;">🔧</span>
+            <div>
+              <h3 style="margin: 0; color: var(--color-gray-600, #475569); font-size: 1rem;">Advanced Tools</h3>
+              <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: var(--color-gray-400, #94a3b8);">Poster link, diagnostics, and technical details</p>
+            </div>
+          </div>
+          <span class="collapsible-icon" style="color: var(--color-gray-400, #94a3b8); font-size: 0.8rem;">▼</span>
+        </div>
+        <div class="collapsible-content" style="display: none; padding-top: 20px;">
+
+          <!-- Poster Link -->
+          <div style="margin-bottom: 20px; padding: 16px; background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-radius: 8px; border: 1px solid #fcd34d;">
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+              <span style="font-size: 1.5rem;">🖼️</span>
+              <div>
+                <h4 style="margin: 0; color: #92400e; font-size: 1rem;">Printable Poster</h4>
+                <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: #a16207;">Print-ready page with QR code for flyers, table tents, or windows</p>
+              </div>
+            </div>
+            <div style="background: white; border-radius: 6px; padding: 10px; margin-bottom: 10px;">
+              <a id="lnkPoster" target="_blank" rel="noopener" style="font-size: 0.8rem; word-break: break-all; color: #b45309; font-family: monospace;"></a>
             </div>
             <div style="display: flex; gap: 8px;">
-              <button class="btn-primary" onclick="copy('lnkPoster')" style="flex: 1; background: #d97706;">Copy</button>
-              <button class="btn-secondary" onclick="window.open(document.getElementById('lnkPoster').href)" style="background: white;">Open</button>
+              <button class="btn-primary" onclick="copy('lnkPoster')" style="background: #d97706;">Copy</button>
+              <button class="btn-secondary" onclick="window.open(document.getElementById('lnkPoster').href)" style="background: white; color: #92400e;">Open</button>
             </div>
           </div>
 
-          <!-- TV Display -->
-          <div class="output-card" style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 1px solid #93c5fd; border-radius: 12px; padding: 20px;">
-            <div style="font-size: 2rem; margin-bottom: 8px;">📺</div>
-            <h4 style="margin: 0 0 8px 0; color: #1e40af; font-size: 1.1rem;">TV Display</h4>
-            <p style="color: #1d4ed8; font-size: 0.85rem; margin-bottom: 16px;">Open on your bar TV or kiosk. Auto-updates with sponsor content.</p>
-            <div style="background: white; border-radius: 8px; padding: 12px; margin-bottom: 12px;">
-              <a id="lnkDisplay" target="_blank" rel="noopener" style="font-size: 0.8rem; word-break: break-all; color: #2563eb;"></a>
-            </div>
-            <div style="display: flex; gap: 8px;">
-              <button class="btn-primary" onclick="copy('lnkDisplay')" style="flex: 1; background: #2563eb;">Copy</button>
-              <button class="btn-secondary" onclick="window.open(document.getElementById('lnkDisplay').href)" style="background: white;">Open</button>
-              <button class="btn-secondary" onclick="configureDisplay()" style="background: white;" title="Settings">⚙️</button>
-            </div>
-          </div>
-
-          <!-- Public Page -->
-          <div class="output-card" style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 1px solid #86efac; border-radius: 12px; padding: 20px;">
-            <div style="font-size: 2rem; margin-bottom: 8px;">🌐</div>
-            <h4 style="margin: 0 0 8px 0; color: #166534; font-size: 1.1rem;">Public Page</h4>
-            <p style="color: #15803d; font-size: 0.85rem; margin-bottom: 16px;">Share this link so people can see event info and register.</p>
-            <div style="background: white; border-radius: 8px; padding: 12px; margin-bottom: 12px;">
-              <a id="lnkPublic" target="_blank" rel="noopener" style="font-size: 0.8rem; word-break: break-all; color: #16a34a;"></a>
-            </div>
-            <div style="display: flex; gap: 8px;">
-              <button class="btn-primary" onclick="copy('lnkPublic')" style="flex: 1; background: #16a34a;">Copy</button>
-              <button class="btn-secondary" onclick="window.open(document.getElementById('lnkPublic').href)" style="background: white;">Open</button>
-            </div>
+          <!-- Event ID Info -->
+          <div style="padding: 12px; background: var(--color-gray-50, #f8fafc); border-radius: 8px; border: 1px solid var(--color-gray-200, #e2e8f0);">
+            <p style="margin: 0 0 8px 0; font-size: 0.8rem; color: var(--color-gray-500, #64748b);">
+              <strong>Event ID:</strong> <code id="eventIdDisplay" style="font-family: monospace; background: white; padding: 2px 6px; border-radius: 4px;"></code>
+            </p>
+            <p style="margin: 0; font-size: 0.75rem; color: var(--color-gray-400, #94a3b8);">
+              Use this ID if you need technical support or want to reference this event in other systems.
+            </p>
           </div>
 
         </div>
-      </div>
-
-      <!-- ═══════════════════════════════════════════════════════════════════ -->
-      <!-- 4. REPORT - Shared analytics (post-event)                           -->
-      <!-- ═══════════════════════════════════════════════════════════════════ -->
-      <div style="margin-bottom: 24px;">
-        <h3 style="margin: 0 0 12px 0; color: var(--color-gray-700, #334155);">Shared Report</h3>
-        <div class="output-card" style="background: linear-gradient(135deg, #faf5ff 0%, #ede9fe 100%); border: 1px solid #c4b5fd; border-radius: 12px; padding: 20px;">
-          <div style="font-size: 2rem; margin-bottom: 8px;">📊</div>
-          <h4 style="margin: 0 0 8px 0; color: #5b21b6; font-size: 1.1rem;">Analytics Report</h4>
-          <p style="color: #6d28d9; font-size: 0.85rem; margin-bottom: 16px;">Share after the event. Shows views, impressions, and engagement metrics.</p>
-          <div style="background: white; border-radius: 8px; padding: 12px; margin-bottom: 12px;">
-            <a id="lnkReport" target="_blank" rel="noopener" style="font-size: 0.8rem; word-break: break-all; color: #7c3aed;"></a>
-          </div>
-          <div style="display: flex; gap: 8px;">
-            <button class="btn-primary" onclick="copy('lnkReport')" style="flex: 1; background: #7c3aed;">Copy Link</button>
-            <button class="btn-secondary" onclick="window.open(document.getElementById('lnkReport').href)" style="background: white;">Open</button>
-          </div>
-          <div id="qrSharedReport" style="text-align:center;margin-top:12px;display:none;"></div>
-        </div>
-      </div>
+      </section>
 
       <!-- Create Another Event -->
-      <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--color-gray-200, #e2e8f0);">
-        <button class="btn-secondary" onclick="clearForm(); document.getElementById('createCard').scrollIntoView({behavior: 'smooth'});">
+      <div style="margin-top: 24px; padding: 20px; text-align: center; border-top: 1px solid var(--color-gray-200, #e2e8f0);">
+        <button class="btn-secondary" onclick="clearForm(); document.getElementById('createCard').scrollIntoView({behavior: 'smooth'});" style="padding: 12px 24px;">
           Create Another Event
         </button>
       </div>
-    </section>
+    </div>
 
     <!-- Sign Up Forms -->
     <section id="signupCard" class="card" style="display:none;">
@@ -1332,14 +1355,23 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
 
       document.getElementById('eventInfo').innerHTML = info;
 
+      // Five-Card Shell: Display event ID in diagnostics section
+      const eventIdDisplay = document.getElementById('eventIdDisplay');
+      if (eventIdDisplay) {
+        eventIdDisplay.textContent = event.id || 'N/A';
+      }
+
+      // Five-Card Shell: Show mini QR preview for public page
+      renderPublicQRPreview(links.publicUrl);
+
       // Feature 2: Render SharedReport QR Code (in the Share Report card)
       renderSharedReportQR(event);
 
       // Feature 1: Render Sponsor Performance Links
       renderSponsorReports(event);
 
-      // Scroll to the event card
-      document.getElementById('eventCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // Scroll to the first card in the Five-Card layout
+      document.getElementById('card1EventBasics').scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
     function setLink(id, url) {
@@ -2011,6 +2043,74 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
       navigator.clipboard.writeText(url).then(() => {
         SharedUtils.showToast('SharedReport link copied!', 'success');
       });
+    }
+
+    // === FIVE-CARD SHELL QR FUNCTIONS ===
+
+    /**
+     * Render a mini QR preview in the Public Page card
+     * @param {string} url - The public page URL
+     */
+    function renderPublicQRPreview(url) {
+      const container = document.getElementById('qrPublicPreview');
+      if (!container || !url) return;
+
+      const qrApiUrl = `https://chart.googleapis.com/chart?cht=qr&chs=60x60&chl=${encodeURIComponent(url)}`;
+      container.innerHTML = `<img src="${qrApiUrl}" alt="QR" style="width:60px;height:60px;border-radius:4px;opacity:0.8;">`;
+    }
+
+    /**
+     * Show full-size Public Page QR code in a modal
+     */
+    function showPublicQR() {
+      const publicLink = document.getElementById('lnkPublic');
+      const url = publicLink ? publicLink.href : '';
+      if (!url) {
+        SharedUtils.showToast('No public page URL available', 'warning');
+        return;
+      }
+
+      // Remove existing modal if any
+      const existing = document.getElementById('publicQrModal');
+      if (existing) existing.remove();
+
+      const qrApiUrl = `https://chart.googleapis.com/chart?cht=qr&chs=200x200&chl=${encodeURIComponent(url)}`;
+
+      const modal = document.createElement('div');
+      modal.id = 'publicQrModal';
+      modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:9999;';
+      modal.innerHTML = `
+        <div style="background:white;border-radius:16px;max-width:340px;width:90%;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);overflow:hidden;">
+          <div style="padding:20px 24px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;">
+            <h3 style="margin:0;font-size:1.1rem;font-weight:600;color:#1e293b;">Public Page QR Code</h3>
+            <button onclick="closePublicQrModal()" style="background:none;border:none;cursor:pointer;font-size:1.5rem;color:#64748b;padding:0;line-height:1;">&times;</button>
+          </div>
+          <div style="padding:24px;text-align:center;">
+            <img src="${qrApiUrl}" alt="Public page QR code" style="width:200px;height:200px;border:1px solid #e2e8f0;border-radius:12px;">
+            <p style="margin:16px 0 8px 0;font-size:0.85rem;color:#64748b;">Scan to view your event page</p>
+            <p style="margin:0;font-size:0.75rem;color:#94a3b8;word-break:break-all;font-family:monospace;">${NU.esc(url)}</p>
+          </div>
+          <div style="padding:16px 24px;background:#f8fafc;border-top:1px solid #e2e8f0;display:flex;gap:8px;justify-content:center;">
+            <button class="btn-primary" onclick="copy('lnkPublic'); closePublicQrModal();" style="background:#16a34a;">Copy Link</button>
+            <button class="btn-secondary" onclick="closePublicQrModal()">Close</button>
+          </div>
+        </div>
+      `;
+
+      // Close on backdrop click
+      modal.addEventListener('click', function(e) {
+        if (e.target === modal) closePublicQrModal();
+      });
+
+      document.body.appendChild(modal);
+    }
+
+    /**
+     * Close the public QR modal
+     */
+    function closePublicQrModal() {
+      const modal = document.getElementById('publicQrModal');
+      if (modal) modal.remove();
     }
   </script>
 </body>
