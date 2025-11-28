@@ -631,9 +631,11 @@ function validateCSRFToken_(token) {
 }
 
 // === Router ================================================================
-// MVP Routes: admin, public (default), display, poster, sponsor, report/analytics
-// Non-MVP Routes: docs/api, test, diagnostics, signup, config, planner, sponsor-roi
+// MVP Routes (5 surfaces): admin, public (default), display, poster, report/analytics
 // See docs/MVP_SURFACES.md for scope definition
+//
+// Story 16: Removed non-MVP routes (test, diagnostics, signup, config, planner,
+// sponsor, sponsor-roi) - these reference V2 files not in deployment (src/mvp only)
 // ===========================================================================
 function doGet(e){
   const pageParam = (e?.parameter?.page || e?.parameter?.p || '').toString();
@@ -712,12 +714,8 @@ function doGet(e){
             .setMimeType(ContentService.MimeType.JSON);
         }
 
-        // Handle API docs page (returns HTML, but special)
-        if (resolvedPage === 'api' || resolvedPage === 'docs') {
-          return HtmlService.createHtmlOutputFromFile('ApiDocs')
-            .setTitle('API Documentation - MVP Event Toolkit')
-            .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.DENY);
-        }
+        // Story 16: Removed API docs route - ApiDocs.html not in MVP deployment
+        // API docs available in archive/v2-code/ApiDocs.html for future use
 
         // Standard HTML page routing
         // Override brand if specified in path
@@ -750,13 +748,7 @@ function doGet(e){
     return handleRedirect_(token);
   }
 
-  // API Documentation page
-  if (pageParam === 'docs' || pageParam === 'api') {
-    // Fixed: Bug #31 - Add security headers
-    return HtmlService.createHtmlOutputFromFile('ApiDocs')
-      .setTitle('API Documentation - MVP Event Toolkit')
-      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.DENY);
-  }
+  // Story 16: Removed API docs route - ApiDocs.html not in MVP deployment
 
   // Status endpoint (pure - no external dependencies)
   if (pageParam === 'status') {
@@ -791,9 +783,9 @@ function doGet(e){
     return HtmlService.createHtmlOutput(`<meta http-equiv="refresh" content="0;url=?p=${first}&brand=${brand.id}">`);
   }
 
-  // Page routing - MVP surfaces are: admin, public (default), display, poster, report/analytics
-  // Non-MVP routes (v2+): sponsor, sponsor-roi, signup, test, diagnostics, config, planner
-  let page = (pageParam==='admin' || pageParam==='wizard' || pageParam==='planner' || pageParam==='poster' || pageParam==='test' || pageParam==='display' || pageParam==='report' || pageParam==='analytics' || pageParam==='diagnostics' || pageParam==='sponsor' || pageParam==='sponsor-roi' || pageParam==='signup' || pageParam==='config') ? pageParam : 'public';
+  // Page routing - MVP surfaces only (5 total): admin, public (default), display, poster, report/analytics
+  // Story 16: Removed non-MVP routes (test, diagnostics, sponsor, sponsor-roi, signup, config, planner)
+  let page = (pageParam==='admin' || pageParam==='poster' || pageParam==='display' || pageParam==='report' || pageParam==='analytics') ? pageParam : 'public';
 
   // Route using helper function
   return routePage_(e, page, brand, demoMode, { mode: e?.parameter?.mode });
@@ -811,21 +803,9 @@ function doGet(e){
  * @returns {HtmlOutput} - Rendered page
  */
 function routePage_(e, page, brand, demoMode, options = {}) {
-  // Admin variant routing - three intentional modes:
-  //   - AdminWizard.html (default): Simplified event creation wizard for quick setup
-  //   - Admin.html (mode=advanced): Full admin dashboard with lifecycle, stats, analytics
-  //   - AdminEnhanced.html (mode=enhanced): Enhanced UI with component libraries (experimental)
-  // Access via: /manage, /admin, /dashboard → defaults to wizard
-  //             /manage?mode=advanced → full admin dashboard
-  //             /manage?mode=enhanced → enhanced components mode
-  if (page === 'admin') {
-    const mode = options.mode || '';
-    if (mode === 'enhanced') {
-      page = 'admin-enhanced';
-    } else if (mode !== 'advanced') {
-      page = 'wizard'; // Default to wizard (simple mode)
-    }
-  }
+  // Story 16: Simplified admin routing - only Admin.html is deployed
+  // Admin variant files (AdminWizard.html, AdminEnhanced.html) were moved to archive
+  // All admin routes now use the single Admin.html dashboard
 
   const scope = (e?.parameter?.p || e?.parameter?.scope || 'events').toString();
   const allowed = brand.scopesAllowed?.length ? brand.scopesAllowed : ['events','leagues','tournaments'];
@@ -1162,83 +1142,12 @@ function handleRestApiPost_(e, action, body, brand) {
     }));
   }
 
-  // Webhook Management Endpoints (gated by WEBHOOKS feature flag)
-  if (action === 'registerWebhook' || action === 'api_registerWebhook') {
-    const featureCheck = requireFeature_('WEBHOOKS');
-    if (featureCheck) return jsonResponse_(featureCheck);
-    return jsonResponse_(WebhookService_register({
-      brandId,
-      adminKey,
-      eventType: body.eventType || '',
-      url: body.url || '',
-      secret: body.secret || '',
-      enabled: body.enabled,
-      filters: body.filters
-    }));
-  }
+  // Story 16: Removed V2 Webhook endpoints (registerWebhook, unregisterWebhook, listWebhooks,
+  // testWebhook, getWebhookDeliveries) - WebhookService.gs not in MVP deployment
+  // Webhook service code archived in archive/v2-code/WebhookService.gs
 
-  if (action === 'unregisterWebhook' || action === 'api_unregisterWebhook') {
-    const featureCheck = requireFeature_('WEBHOOKS');
-    if (featureCheck) return jsonResponse_(featureCheck);
-    return jsonResponse_(WebhookService_unregister({
-      brandId,
-      adminKey,
-      webhookId: body.webhookId || ''
-    }));
-  }
-
-  if (action === 'listWebhooks' || action === 'api_listWebhooks') {
-    const featureCheck = requireFeature_('WEBHOOKS');
-    if (featureCheck) return jsonResponse_(featureCheck);
-    return jsonResponse_(WebhookService_list({
-      brandId,
-      adminKey
-    }));
-  }
-
-  if (action === 'testWebhook' || action === 'api_testWebhook') {
-    const featureCheck = requireFeature_('WEBHOOKS');
-    if (featureCheck) return jsonResponse_(featureCheck);
-    return jsonResponse_(WebhookService_test({
-      brandId,
-      adminKey,
-      webhookId: body.webhookId || ''
-    }));
-  }
-
-  if (action === 'getWebhookDeliveries' || action === 'api_getWebhookDeliveries') {
-    const featureCheck = requireFeature_('WEBHOOKS');
-    if (featureCheck) return jsonResponse_(featureCheck);
-    return jsonResponse_(WebhookService_getDeliveries({
-      brandId,
-      adminKey,
-      webhookId: body.webhookId || '',
-      limit: body.limit || 50
-    }));
-  }
-
-  // i18n (Internationalization) Endpoints (gated by I18N feature flag)
-  if (action === 'translate' || action === 'api_translate') {
-    const featureCheck = requireFeature_('I18N');
-    if (featureCheck) return jsonResponse_(featureCheck);
-    return jsonResponse_(api_translate({
-      key: body.key || '',
-      locale: body.locale || '',
-      params: body.params || {}
-    }));
-  }
-
-  if (action === 'getSupportedLocales' || action === 'api_getSupportedLocales') {
-    const featureCheck = requireFeature_('I18N');
-    if (featureCheck) return jsonResponse_(featureCheck);
-    return jsonResponse_(i18n_getSupportedLocales());
-  }
-
-  if (action === 'setUserLocale' || action === 'api_setUserLocale') {
-    const featureCheck = requireFeature_('I18N');
-    if (featureCheck) return jsonResponse_(featureCheck);
-    return jsonResponse_(i18n_setUserLocale(body.locale || ''));
-  }
+  // Story 16: Removed V2 i18n endpoints (translate, getSupportedLocales, setUserLocale)
+  // i18nService.gs not in MVP deployment, archived in archive/v2-code/i18nService.gs
 
   // Template Management Endpoints
   if (action === 'getTemplate' || action === 'api_getTemplate') {
@@ -1332,10 +1241,16 @@ function jsonResponse_(data) {
  * Map page identifiers to HTML template files
  * Page routing: URL param → internal page → HTML file
  *
- * Admin variants (see routePage_ for mode logic):
- *   admin → Admin.html (full dashboard, mode=advanced)
- *   admin-enhanced → AdminEnhanced.html (experimental, mode=enhanced)
- *   wizard → AdminWizard.html (default simplified wizard)
+ * MVP surfaces (5 total):
+ *   public → Public.html (default)
+ *   admin → Admin.html
+ *   poster → Poster.html
+ *   display → Display.html
+ *   report/analytics → SharedReport.html
+ *
+ * Story 16: Removed V2+ surfaces (test, diagnostics, sponsor, sponsor-roi,
+ * signup, planner, config) - files not in deployment (src/mvp only).
+ * V2 code archived in archive/v2-code/
  *
  * @param {string} page - Page identifier from routing
  * @returns {string} HTML template filename (without .html extension)
@@ -1346,17 +1261,7 @@ function pageFile_(page){
   if (page==='poster') return 'Poster';
   if (page==='display') return 'Display';
   if (page==='report' || page==='analytics') return 'SharedReport';
-  // === V2+ Surfaces (archived, not in MVP) ===
-  if (page==='sponsor') return 'Sponsor';
-  if (page==='sponsor-roi') return 'SponsorDashboard';
-  if (page==='signup') return 'Signup';
-  if (page==='planner') return 'PlannerCards';
-  // === Internal/Dev Pages ===
-  if (page==='test') return 'Test';
-  if (page==='diagnostics') return 'Diagnostics';
-  if (page==='config') return 'ConfigHtml';
-  // === Admin variants (mode parameter handling) ===
-  if (page==='wizard' || page==='admin-enhanced') return 'Admin';
+  // Default to Public for any unknown page
   return 'Public';
 }
 
