@@ -13,7 +13,7 @@ compatibility_date = "2024-01-01"
 # ============================================
 # The deployment ID is updated by CI/CD after each Apps Script deployment
 [vars]
-DEPLOYMENT_ID = "AKfycbxaTPh3FS4NHJblIcUrz4k01kWAdxsKzLNnYRf0TXe18lBditTm3hqbBoQ4ZxbGhhGuCA"
+DEPLOYMENT_ID = "AKfycbyS1cW9VhviR-Jr8AmYY_BAGrb1gzuKkrgEBP2M3bMdqAv4ktqHOZInWV8ogkpz5i8SYQ"
 
 # ============================================
 # Production - FULL SITE (eventangle.com)
@@ -33,7 +33,7 @@ routes = [
 ]
 
 [env.production.vars]
-DEPLOYMENT_ID = "AKfycbxaTPh3FS4NHJblIcUrz4k01kWAdxsKzLNnYRf0TXe18lBditTm3hqbBoQ4ZxbGhhGuCA"
+DEPLOYMENT_ID = "AKfycbyS1cW9VhviR-Jr8AmYY_BAGrb1gzuKkrgEBP2M3bMdqAv4ktqHOZInWV8ogkpz5i8SYQ"
 
 # ============================================
 # Staging/QA Environment
@@ -46,7 +46,7 @@ routes = [
 ]
 
 [env.staging.vars]
-DEPLOYMENT_ID = "AKfycbxaTPh3FS4NHJblIcUrz4k01kWAdxsKzLNnYRf0TXe18lBditTm3hqbBoQ4ZxbGhhGuCA"
+DEPLOYMENT_ID = "AKfycbyS1cW9VhviR-Jr8AmYY_BAGrb1gzuKkrgEBP2M3bMdqAv4ktqHOZInWV8ogkpz5i8SYQ"
 
 # ============================================
 # API Only (subdomain only, no main site)
@@ -58,7 +58,7 @@ routes = [
 ]
 
 [env.api-only.vars]
-DEPLOYMENT_ID = "AKfycbxaTPh3FS4NHJblIcUrz4k01kWAdxsKzLNnYRf0TXe18lBditTm3hqbBoQ4ZxbGhhGuCA"
+DEPLOYMENT_ID = "AKfycbyS1cW9VhviR-Jr8AmYY_BAGrb1gzuKkrgEBP2M3bMdqAv4ktqHOZInWV8ogkpz5i8SYQ"
 
 # ============================================
 # Friendly URLs (all app paths on main site)
@@ -140,8 +140,8 @@ routes = [
 [env.events.vars]
 # The full Google Apps Script exec URL - this is the production backend
 # Update this URL after each Apps Script deployment (see DEPLOYMENT.md)
-GAS_DEPLOYMENT_BASE_URL = "https://script.google.com/macros/s/AKfycbxaTPh3FS4NHJblIcUrz4k01kWAdxsKzLNnYRf0TXe18lBditTm3hqbBoQ4ZxbGhhGuCA/exec"
-DEPLOYMENT_ID = "AKfycbxaTPh3FS4NHJblIcUrz4k01kWAdxsKzLNnYRf0TXe18lBditTm3hqbBoQ4ZxbGhhGuCA"
+GAS_DEPLOYMENT_BASE_URL = "https://script.google.com/macros/s/AKfycbyS1cW9VhviR-Jr8AmYY_BAGrb1gzuKkrgEBP2M3bMdqAv4ktqHOZInWV8ogkpz5i8SYQ/exec"
+DEPLOYMENT_ID = "AKfycbyS1cW9VhviR-Jr8AmYY_BAGrb1gzuKkrgEBP2M3bMdqAv4ktqHOZInWV8ogkpz5i8SYQ"
 
 # ============================================
 # Development (workers.dev subdomain)
