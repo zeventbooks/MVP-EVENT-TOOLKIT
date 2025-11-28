@@ -14,22 +14,18 @@
     "test:status-contract": "jest tests/contract/status-contract.test.js --runInBand",
     "test:schemas": "jest tests/contract/schema-sync.test.js --runInBand",
     "test:jest": "jest --coverage --runInBand",
-
     "test:ci:stage1": "npm run lint && npm run test:unit && npm run test:contract",
     "test:ci:stage2": "npm run test:api && npm run test:fe",
-
     "test:api": "playwright test tests/e2e/api",
     "test:fe": "playwright test tests/e2e/1-smoke tests/e2e/2-pages tests/e2e/3-flows",
     "test:smoke": "playwright test tests/e2e/1-smoke",
     "test:pages": "playwright test tests/e2e/2-pages",
     "test:flows": "playwright test tests/e2e/3-flows",
     "test:negative": "playwright test tests/e2e/4-negative",
-
     "test:api:system": "playwright test tests/e2e/api/system-api.spec.js",
     "test:api:events": "playwright test tests/e2e/api/events-crud-api.spec.js",
     "test:api:sponsors": "playwright test tests/e2e/api/sponsors-crud-api.spec.js",
     "test:security": "playwright test tests/e2e/1-smoke/security-smoke.spec.js",
-
     "test:e2e": "npm run test:api && npm run test:smoke && npm run test:pages && npm run test:flows",
     "test:playwright": "playwright test",
     "test:all": "npm run test:ci:stage1 && npm run test:ci:stage2",
@@ -143,6 +139,7 @@
     "@google/clasp": "^2.4.2",
     "@playwright/test": "^1.56.1",
     "@types/google-apps-script": "^1.0.83",
+    "ajv-formats": "^3.0.1",
     "eslint": "^8.57.0",
     "googleapis": "^134.0.0",
     "jest": "^29.7.0",

@@ -1,16 +1,20 @@
 /**
- * Cloudflare Worker - Google Apps Script Proxy
+ * Cloudflare Worker - Transparent Google Apps Script Proxy
  *
- * This worker proxies requests to Google Apps Script, providing:
+ * This worker provides a TRANSPARENT proxy to Google Apps Script:
  * - Custom domain support (e.g., eventangle.com/events)
  * - CORS headers for API cross-origin requests
  * - Friendly URL routing (/events/abc/manage → exec/abc/manage)
  * - Query string preservation (?page=admin passes through)
+ * - Transparency headers for debugging (X-Proxied-By, X-Worker-Version)
  * - Error handling and retry logic
  *
- * IMPORTANT: All requests are PROXIED, not redirected.
- * This ensures https://www.eventangle.com stays in the browser address bar
- * and no script.google.com URL is ever user-facing.
+ * TRANSPARENCY PRINCIPLE:
+ * All requests are PROXIED, not redirected. The worker adds diagnostic headers
+ * but does NOT modify response bodies. This ensures:
+ * - https://www.eventangle.com stays in the browser address bar
+ * - No script.google.com URL is ever user-facing
+ * - Response content is identical to direct GAS access
  *
  * Request routing:
  * - HTML page routes (?page=*) → Proxy to GAS, return HTML directly
@@ -38,11 +42,16 @@
  * - DEPLOYMENT_ID: Apps Script deployment ID (fallback)
  */
 
+// Worker version - used for transparency headers and debugging
+const WORKER_VERSION = '1.1.0';
+
 // Configuration - Updated by CI/CD or set in wrangler.toml
-const DEFAULT_DEPLOYMENT_ID = 'AKfycbxaTPh3FS4NHJblIcUrz4k01kWAdxsKzLNnYRf0TXe18lBditTm3hqbBoQ4ZxbGhhGuCA';
+const DEFAULT_DEPLOYMENT_ID = 'AKfycbyS1cW9VhviR-Jr8AmYY_BAGrb1gzuKkrgEBP2M3bMdqAv4ktqHOZInWV8ogkpz5i8SYQ';
 
 export default {
   async fetch(request, env, ctx) {
+    const startTime = Date.now();
+
     // Use GAS_DEPLOYMENT_BASE_URL if available (preferred), otherwise build from DEPLOYMENT_ID
     const appsScriptBase = env.GAS_DEPLOYMENT_BASE_URL ||
       `https://script.google.com/macros/s/${env.DEPLOYMENT_ID || DEFAULT_DEPLOYMENT_ID}/exec`;
@@ -75,13 +84,19 @@ export default {
           'Content-Type': 'application/json',
           'Access-Control-Allow-Origin': '*',
           'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'X-Proxied-By': 'eventangle-worker',
+          'X-Worker-Version': WORKER_VERSION,
         },
       });
     }
 
     // Handle CORS preflight
     if (request.method === 'OPTIONS') {
-      return handleCORS();
+      const corsResponse = handleCORS();
+      // Add transparency headers to CORS response
+      corsResponse.headers.set('X-Proxied-By', 'eventangle-worker');
+      corsResponse.headers.set('X-Worker-Version', WORKER_VERSION);
+      return corsResponse;
     }
 
     // Determine request type:
@@ -96,12 +111,13 @@ export default {
       if (isApiRequest) {
         // API request: proxy and add CORS headers
         const response = await proxyToAppsScript(request, appsScriptBase);
-        return addCORSHeaders(response);
+        const corsResponse = addCORSHeaders(response);
+        return addTransparencyHeaders(corsResponse, startTime);
       } else {
         // HTML page request: proxy directly without CORS wrapping
         // This keeps eventangle.com in the browser address bar
         const response = await proxyPageRequest(request, appsScriptBase, url);
-        return response;
+        return addTransparencyHeaders(response, startTime);
       }
     } catch (error) {
       return errorResponse(error);
@@ -321,6 +337,26 @@ function addCORSHeaders(response) {
 }
 
 /**
+ * Add transparency headers to response
+ * These headers help with debugging and monitoring without modifying response body
+ */
+function addTransparencyHeaders(response, startTime) {
+  const newResponse = new Response(response.body, response);
+
+  // Transparency headers for debugging
+  newResponse.headers.set('X-Proxied-By', 'eventangle-worker');
+  newResponse.headers.set('X-Worker-Version', WORKER_VERSION);
+
+  // Timing header (if start time provided)
+  if (startTime) {
+    const duration = Date.now() - startTime;
+    newResponse.headers.set('X-Proxy-Duration-Ms', duration.toString());
+  }
+
+  return newResponse;
+}
+
+/**
  * Error response handler
  */
 function errorResponse(error) {
@@ -330,11 +366,14 @@ function errorResponse(error) {
     ok: false,
     error: 'PROXY_ERROR',
     message: error.message || 'Failed to proxy request to Apps Script',
+    workerVersion: WORKER_VERSION,
   }), {
     status: 502,
     headers: {
       'Content-Type': 'application/json',
       'Access-Control-Allow-Origin': '*',
+      'X-Proxied-By': 'eventangle-worker',
+      'X-Worker-Version': WORKER_VERSION,
     },
   });
 }

@@ -5,14 +5,15 @@
  * =================================
  * Tests can run against different environments without code changes:
  *
- * Production (eventangle.com):
- *   BASE_URL="https://www.eventangle.com" npm run test:smoke
+ * Production (eventangle.com) - DEFAULT:
+ *   npm run test:smoke
+ *   BASE_URL="https://www.eventangle.com/events" npm run test:smoke
  *
- * GAS Webapp (direct):
+ * GAS Webapp (direct - for debugging):
  *   BASE_URL="https://script.google.com/macros/s/<DEPLOYMENT_ID>/exec" npm run test:smoke
  *
  * Default (no BASE_URL set):
- *   Uses GAS URL for local dev (direct Google Apps Script)
+ *   Uses EventAngle production URL (via Cloudflare Workers)
  *
  * Environment Variables:
  *   - BASE_URL: Primary URL override (recommended)
@@ -21,14 +22,17 @@
  *   - GOOGLE_SCRIPT_URL: Direct GAS URL override
  */
 
-// Apps Script deployment ID (for direct testing bypass)
-const DEFAULT_DEPLOYMENT_ID = 'AKfycbx3n9ALDESLEQTgIf47pimbs4zhugPzC4gLLr6aBff6UpH4VzAquYHRVHurP-6QjZ-g';
+// Apps Script deployment ID (sync with cloudflare-proxy/wrangler.toml)
+const DEFAULT_DEPLOYMENT_ID = 'AKfycbyS1cW9VhviR-Jr8AmYY_BAGrb1gzuKkrgEBP2M3bMdqAv4ktqHOZInWV8ogkpz5i8SYQ';
 
-// Default GAS URL for local development
+// Default GAS URL (for direct debugging)
 const DEFAULT_GAS_URL = `https://script.google.com/macros/s/${DEFAULT_DEPLOYMENT_ID}/exec`;
 
-// Priority: BASE_URL > APP_URL > default (GAS URL for local dev)
-const APP_URL = process.env.BASE_URL || process.env.APP_URL || DEFAULT_GAS_URL;
+// Default production URL (EventAngle via Cloudflare)
+const DEFAULT_PRODUCTION_URL = 'https://www.eventangle.com/events';
+
+// Priority: BASE_URL > APP_URL > default (EventAngle production)
+const APP_URL = process.env.BASE_URL || process.env.APP_URL || DEFAULT_PRODUCTION_URL;
 
 const ENVIRONMENTS = {
   // Cloudflare / eventangle.com - Production (DEFAULT)
@@ -326,7 +330,8 @@ module.exports = {
   getUrlWithParams,
   // Expose the resolved APP_URL for backward compatibility
   APP_URL,
-  // Expose default GAS URL for tests that need it
+  // Expose default URLs for tests that need them
   DEFAULT_GAS_URL,
-  DEFAULT_DEPLOYMENT_ID
+  DEFAULT_DEPLOYMENT_ID,
+  DEFAULT_PRODUCTION_URL
 };
