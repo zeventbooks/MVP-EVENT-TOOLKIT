@@ -242,6 +242,15 @@ const validateSharedAnalyticsSchema = (analytics) => {
   if (analytics.events !== null && analytics.events !== undefined) {
     if (!Array.isArray(analytics.events)) {
       errors.push('events: must be array or null');
+    } else {
+      analytics.events.forEach((event, i) => {
+        if (typeof event.id !== 'string') errors.push(`events[${i}].id: must be string`);
+        if (typeof event.name !== 'string') errors.push(`events[${i}].name: must be string`);
+        if (typeof event.impressions !== 'number') errors.push(`events[${i}].impressions: must be number`);
+        if (typeof event.clicks !== 'number') errors.push(`events[${i}].clicks: must be number`);
+        if (typeof event.ctr !== 'number') errors.push(`events[${i}].ctr: must be number`);
+        if (typeof event.signupsCount !== 'number') errors.push(`events[${i}].signupsCount: must be number`);
+      });
     }
   }
 
@@ -863,7 +872,7 @@ describe('Explicit API Response Contracts', () => {
             { id: 'sponsor-002', name: 'Silver Sponsor LLC', impressions: 300, clicks: 15, ctr: 5.0 }
           ],
           events: [
-            { id: 'fixture-event-001', name: 'Fixture Test Event', impressions: 1000, clicks: 100, ctr: 10.0 }
+            { id: 'fixture-event-001', name: 'Fixture Test Event', impressions: 1000, clicks: 100, ctr: 10.0, signupsCount: 45 }
           ]
         }
       };
@@ -954,6 +963,33 @@ describe('Explicit API Response Contracts', () => {
       expect(sponsor).toHaveProperty('ctr');
     });
 
+    it('should include events array with human-readable names (Story 4.1)', () => {
+      const mockResponse = {
+        ok: true,
+        value: {
+          lastUpdatedISO: '2025-11-27T10:00:00.000Z',
+          summary: { totalImpressions: 0, totalClicks: 0, totalQrScans: 0, totalSignups: 0, uniqueEvents: 1, uniqueSponsors: 0 },
+          surfaces: [],
+          sponsors: null,
+          events: [
+            { id: 'evt-abc-123', name: 'Summer Bocce Tournament', impressions: 1000, clicks: 100, ctr: 10.0, signupsCount: 45 }
+          ]
+        }
+      };
+
+      const event = mockResponse.value.events[0];
+      expect(event).toHaveProperty('id');
+      expect(event).toHaveProperty('name');
+      expect(event).toHaveProperty('impressions');
+      expect(event).toHaveProperty('clicks');
+      expect(event).toHaveProperty('ctr');
+      expect(event).toHaveProperty('signupsCount');
+
+      // Name should be human-readable, not just an ID (Story 4.1 requirement)
+      expect(event.name).not.toBe(event.id);
+      expect(event.name).toBe('Summer Bocce Tournament');
+    });
+
     it('should return BAD_INPUT for missing brandId', () => {
       const mockResponse = {
         ok: false,
@@ -999,7 +1035,7 @@ describe('Explicit API Response Contracts', () => {
           ],
           sponsors: null, // Sponsor view doesn't show other sponsors
           events: [
-            { id: 'event-001', name: 'Test Event', impressions: 500, clicks: 50, ctr: 10.0 }
+            { id: 'event-001', name: 'Test Event', impressions: 500, clicks: 50, ctr: 10.0, signupsCount: 15 }
           ]
         }
       };

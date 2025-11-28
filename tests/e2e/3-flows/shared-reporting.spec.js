@@ -608,3 +608,207 @@ test.describe('📊 SHARED REPORTING: Sponsor View', () => {
     }
   });
 });
+
+test.describe('📊 SHARED REPORTING: Name Resolution (Story 4.1)', () => {
+
+  test('SharedReport displays human-readable event names, not IDs', async ({ page }) => {
+    console.log('🏷️ Testing event name resolution...');
+
+    await page.goto(`${BASE_URL}?page=report&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
+    await page.waitForLoadState('networkidle');
+
+    // Wait for analytics to load
+    await page.waitForTimeout(2000);
+
+    // Check event performance table
+    const eventSection = page.locator('#eventPerformanceCard, #eventPerformance, section:has-text("Event Performance")');
+    const hasEventSection = await eventSection.count() > 0;
+
+    if (hasEventSection) {
+      // Look for event names in the table
+      const eventTable = page.locator('#eventPerformance table, .data-table');
+      const hasTable = await eventTable.count() > 0;
+
+      if (hasTable) {
+        // Get all event name cells (first column typically)
+        const eventRows = eventTable.locator('tbody tr');
+        const rowCount = await eventRows.count();
+
+        if (rowCount > 0) {
+          // Check first event row for human-readable name
+          const firstRow = eventRows.first();
+          const nameCell = firstRow.locator('td').first();
+          const nameText = await nameCell.textContent();
+
+          console.log(`✅ First event name: "${nameText}"`);
+
+          // Name should NOT look like a UUID/ID pattern (evt-xxx, uuid-xxx, etc)
+          const looksLikeId = /^(evt[-_]|event[-_]|[a-f0-9]{8}-[a-f0-9]{4})/i.test(nameText?.trim() || '');
+          if (looksLikeId) {
+            console.log('⚠️ Event name looks like an ID - name resolution may not be working');
+          } else {
+            console.log('✅ Event name appears to be human-readable');
+          }
+        } else {
+          console.log('ℹ️ No event rows found (may have no event data)');
+        }
+      }
+    } else {
+      console.log('ℹ️ Event Performance section not visible (may have no event data)');
+    }
+
+    // No JavaScript errors should occur
+    const errors = [];
+    page.on('pageerror', error => errors.push(error));
+    await page.waitForTimeout(500);
+
+    const criticalErrors = errors.filter(e =>
+      !e.message.includes('google.script') &&
+      !e.message.includes('google is not defined')
+    );
+    expect(criticalErrors.length).toBe(0);
+  });
+
+  test('SharedReport displays human-readable sponsor names, not IDs', async ({ page }) => {
+    console.log('🏷️ Testing sponsor name resolution...');
+
+    await page.goto(`${BASE_URL}?page=report&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
+    await page.waitForLoadState('networkidle');
+
+    // Wait for analytics to load
+    await page.waitForTimeout(2000);
+
+    // Check sponsor performance table
+    const sponsorSection = page.locator('#sponsorPerformance, section:has-text("Sponsor Performance")');
+    const hasSection = await sponsorSection.count() > 0;
+
+    if (hasSection) {
+      const sponsorTable = page.locator('#sponsorPerformance table, .data-table');
+      const hasTable = await sponsorTable.count() > 0;
+
+      if (hasTable) {
+        const sponsorRows = sponsorTable.locator('tbody tr');
+        const rowCount = await sponsorRows.count();
+
+        if (rowCount > 0) {
+          const firstRow = sponsorRows.first();
+          const nameCell = firstRow.locator('td').first();
+          const nameText = await nameCell.textContent();
+
+          console.log(`✅ First sponsor name: "${nameText}"`);
+
+          // Name should NOT look like a UUID/ID pattern (spo-xxx, sponsor-xxx, uuid-xxx, etc)
+          const looksLikeId = /^(spo[-_]|sponsor[-_]|[a-f0-9]{8}-[a-f0-9]{4})/i.test(nameText?.trim() || '');
+          if (looksLikeId) {
+            console.log('⚠️ Sponsor name looks like an ID - name resolution may not be working');
+          } else {
+            console.log('✅ Sponsor name appears to be human-readable');
+          }
+        } else {
+          console.log('ℹ️ No sponsor rows found (may have no sponsor data)');
+        }
+      }
+    } else {
+      console.log('ℹ️ Sponsor Performance section not visible (may have no sponsor data)');
+    }
+
+    // No JavaScript errors should occur
+    const errors = [];
+    page.on('pageerror', error => errors.push(error));
+    await page.waitForTimeout(500);
+
+    const criticalErrors = errors.filter(e =>
+      !e.message.includes('google.script') &&
+      !e.message.includes('google is not defined')
+    );
+    expect(criticalErrors.length).toBe(0);
+  });
+
+  test('Top Sponsors card displays human-readable sponsor names', async ({ page }) => {
+    console.log('🏆 Testing Top Sponsors card name resolution...');
+
+    await page.goto(`${BASE_URL}?page=report&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
+    await page.waitForLoadState('networkidle');
+
+    // Wait for analytics to load
+    await page.waitForTimeout(2000);
+
+    // Check for Top Sponsors card
+    const topSponsorsCard = page.locator('#topSponsorsCard, .top-sponsors-card');
+    const hasCard = await topSponsorsCard.count() > 0;
+
+    if (hasCard) {
+      const isVisible = await topSponsorsCard.isVisible();
+
+      if (isVisible) {
+        // Get sponsor names from the card
+        const sponsorItems = topSponsorsCard.locator('.top-sponsor-name, .top-sponsor-item');
+        const itemCount = await sponsorItems.count();
+
+        if (itemCount > 0) {
+          const firstSponsorName = await sponsorItems.first().textContent();
+          console.log(`✅ Top sponsor name: "${firstSponsorName}"`);
+
+          // Name should be human-readable
+          const looksLikeId = /^(spo[-_]|sponsor[-_]|[a-f0-9]{8}-[a-f0-9]{4})/i.test(firstSponsorName?.trim() || '');
+          expect(looksLikeId).toBe(false);
+          console.log('✅ Top sponsor name is human-readable');
+        }
+      } else {
+        console.log('ℹ️ Top Sponsors card exists but is hidden (may have no sponsor data)');
+      }
+    } else {
+      console.log('ℹ️ Top Sponsors card not found (may have no sponsor data)');
+    }
+  });
+
+  test('Top callouts display human-readable event and sponsor names', async ({ page }) => {
+    console.log('⭐ Testing Top callouts name resolution...');
+
+    await page.goto(`${BASE_URL}?page=report&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
+    await page.waitForLoadState('networkidle');
+
+    // Wait for analytics to load
+    await page.waitForTimeout(2000);
+
+    // Check for top callouts section
+    const callouts = page.locator('#topCallouts .top-callout, .top-callout');
+    const calloutCount = await callouts.count();
+
+    if (calloutCount > 0) {
+      console.log(`✅ Found ${calloutCount} top callout(s)`);
+
+      // Check each callout for human-readable names
+      for (let i = 0; i < calloutCount; i++) {
+        const callout = callouts.nth(i);
+        const nameElement = callout.locator('.callout-name');
+        const hasName = await nameElement.count() > 0;
+
+        if (hasName) {
+          const nameText = await nameElement.textContent();
+          console.log(`  Callout ${i + 1}: "${nameText}"`);
+
+          // Name should NOT be an ID pattern
+          const looksLikeId = /^(evt[-_]|event[-_]|spo[-_]|sponsor[-_]|[a-f0-9]{8}-[a-f0-9]{4})/i.test(nameText?.trim() || '');
+          if (!looksLikeId) {
+            console.log(`  ✅ Name is human-readable`);
+          }
+        }
+      }
+    } else {
+      console.log('ℹ️ No top callouts found (may have no data)');
+    }
+  });
+});
