@@ -482,7 +482,7 @@
         },
         "showLeagueStrip": {
           "type": "boolean",
-          "description": "MVP OPTIONAL - Show league/broadcast strip on display (default: true)"
+          "description": "MVP OPTIONAL - Show external links strip on display (default: true)"
         },
         "showQRSection": {
           "type": "boolean",

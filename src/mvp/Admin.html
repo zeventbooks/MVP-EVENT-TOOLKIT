@@ -297,7 +297,7 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
             <!-- Event Template Section -->
             <div style="margin-bottom: 20px;">
               <label style="font-weight: 500; margin-bottom: 8px; display: block;">Event Type</label>
-              <p class="muted" style="margin-bottom: 12px; font-size: 0.85rem;">Choose a type to auto-configure your event (optional)</p>
+              <p class="muted" style="margin-bottom: 12px; font-size: 0.85rem;">Trivia night, fundraiser, tournament, league, or anything else</p>
               <div id="templatePicker" class="template-grid">
                 <div class="template-loading">Loading options...</div>
               </div>
@@ -363,7 +363,7 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
                   </label>
                   <label class="checkbox-label">
                     <input type="checkbox" id="showLeagueStrip" checked>
-                    <span>League info on TV</span>
+                    <span>External links on TV</span>
                   </label>
                   <label class="checkbox-label">
                     <input type="checkbox" id="showQRSection" checked>
@@ -447,15 +447,15 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
           </div>
         </div>
 
-        <!-- League & Broadcast Section (MVP Optional per externalData schema) -->
+        <!-- External Links Section (MVP Optional per externalData schema) -->
         <!-- V2 fields (statsUrl, scoreboardUrl, streamUrl, provider) are hidden within -->
         <div class="subsection" id="leagueBroadcastPanel" data-template-filter="rec_league,custom">
           <div class="collapsible-header" onclick="toggleSection(this)">
-            <h3>League & Broadcast</h3>
+            <h3>External Links</h3>
             <span class="collapsible-icon">▼</span>
           </div>
           <div class="collapsible-content">
-            <p class="muted" style="margin-bottom: 12px;">Add league schedule, standings, and broadcast information</p>
+            <p class="muted" style="margin-bottom: 12px;">Link to schedules, standings, brackets, or other resources</p>
 
             <!-- Core League Links -->
             <div class="form-row">
@@ -481,7 +481,7 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
               <div class="form-group" style="display:none;">
                 <label>📈 Stats URL</label>
                 <input id="statsUrl" type="url" placeholder="https://...">
-                <small class="muted">Stats hub (e.g., BocceLabs league page)</small>
+                <small class="muted">Statistics or analytics hub</small>
               </div>
             </div>
 
@@ -496,7 +496,7 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
               <div class="form-group">
                 <label>🎥 Stream URL</label>
                 <input id="streamUrl" type="url" placeholder="https://...">
-                <small class="muted">Live or VOD stream (YouTube, Twitch, BBN)</small>
+                <small class="muted">Live or VOD stream (YouTube, Twitch, etc.)</small>
               </div>
             </div>
 
@@ -506,17 +506,15 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
                 <label>Provider</label>
                 <select id="providerName">
                   <option value="">-- Select Provider --</option>
-                  <option value="BocceLabs">BocceLabs</option>
-                  <option value="BBN">BBN (Bocce Broadcast Network)</option>
                   <option value="Custom">Custom</option>
                   <option value="None">None</option>
                 </select>
-                <small class="muted">External league platform if applicable</small>
+                <small class="muted">External platform if applicable</small>
               </div>
               <div class="form-group">
-                <label>Provider League ID</label>
-                <input id="providerLeagueId" type="text" placeholder="External league ID">
-                <small class="muted">ID from the league platform (optional)</small>
+                <label>Provider Event ID</label>
+                <input id="providerLeagueId" type="text" placeholder="External event ID">
+                <small class="muted">ID from the external platform (optional)</small>
               </div>
             </div>
           </div>
