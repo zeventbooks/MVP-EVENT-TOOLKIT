@@ -79,16 +79,25 @@ class TestRunner {
    * @returns {Promise<Object>} - API response
    */
   async request(payload) {
+    // Build URL with action as query parameter
+    // The Cloudflare Worker uses ?action= to identify API requests vs page requests
+    // Without this, the worker returns HTML pages instead of proxying to the API
+    const url = new URL(this.baseUrl);
+    if (payload.action) {
+      url.searchParams.set('action', payload.action);
+    }
+    const targetUrl = url.toString();
+
     if (this.requestFn) {
       // Use provided request function (Playwright)
-      const response = await this.requestFn.post(this.baseUrl, {
+      const response = await this.requestFn.post(targetUrl, {
         data: payload
       });
       return response.json();
     }
 
     // Default fetch implementation
-    const response = await fetch(this.baseUrl, {
+    const response = await fetch(targetUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)

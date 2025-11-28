@@ -28,6 +28,20 @@ const BASE_URL = env.baseUrl;
 const BRAND_ID = 'root';
 const ADMIN_KEY = process.env.ADMIN_KEY || 'CHANGE_ME_root';
 
+/**
+ * Build API URL with action as query parameter
+ * The Cloudflare Worker uses ?action= to identify API requests vs page requests
+ * @param {string} action - The API action to call
+ * @returns {string} URL with action query parameter
+ */
+function buildApiUrl(action) {
+  const url = new URL(BASE_URL);
+  if (action) {
+    url.searchParams.set('action', action);
+  }
+  return url.toString();
+}
+
 // ============================================================================
 // TEST MATRICES FOR LIVE VALIDATION
 // ============================================================================
@@ -275,7 +289,7 @@ test.describe('🔬 Backend Validation: TestRunner', () => {
       const eventIds = [];
 
       for (const endpoint of bundles) {
-        const response = await request.post(BASE_URL, {
+        const response = await request.post(buildApiUrl(endpoint), {
           data: {
             action: endpoint,
             brandId: BRAND_ID
@@ -305,7 +319,7 @@ test.describe('🔬 Backend Validation: TestRunner', () => {
       const bundles = ['api_getPublicBundle', 'api_getDisplayBundle', 'api_getPosterBundle'];
 
       for (const endpoint of bundles) {
-        const response = await request.post(BASE_URL, {
+        const response = await request.post(buildApiUrl(endpoint), {
           data: {
             action: endpoint,
             brandId: BRAND_ID
@@ -325,7 +339,7 @@ test.describe('🔬 Backend Validation: TestRunner', () => {
 
   test.describe('Error Handling', () => {
     test('invalid action returns proper error envelope', async ({ request }) => {
-      const response = await request.post(BASE_URL, {
+      const response = await request.post(buildApiUrl('nonexistent_action_xyz'), {
         data: {
           action: 'nonexistent_action_xyz',
           brandId: BRAND_ID
@@ -341,7 +355,8 @@ test.describe('🔬 Backend Validation: TestRunner', () => {
     });
 
     test('missing action returns error', async ({ request }) => {
-      const response = await request.post(BASE_URL, {
+      // Use a placeholder action to trigger API mode in Cloudflare Worker
+      const response = await request.post(buildApiUrl('api_unknown'), {
         data: {
           brandId: BRAND_ID
         }
@@ -356,7 +371,7 @@ test.describe('🔬 Backend Validation: TestRunner', () => {
   test.describe('Caching (ETags)', () => {
     test('notModified response when etag matches', async ({ request }) => {
       // First request to get etag
-      const firstResponse = await request.post(BASE_URL, {
+      const firstResponse = await request.post(buildApiUrl('api_getPublicBundle'), {
         data: {
           action: 'api_getPublicBundle',
           brandId: BRAND_ID
@@ -371,7 +386,7 @@ test.describe('🔬 Backend Validation: TestRunner', () => {
       }
 
       // Second request with matching etag
-      const secondResponse = await request.post(BASE_URL, {
+      const secondResponse = await request.post(buildApiUrl('api_getPublicBundle'), {
         data: {
           action: 'api_getPublicBundle',
           brandId: BRAND_ID,
@@ -387,7 +402,7 @@ test.describe('🔬 Backend Validation: TestRunner', () => {
     });
 
     test('fresh response when etag does not match', async ({ request }) => {
-      const response = await request.post(BASE_URL, {
+      const response = await request.post(buildApiUrl('api_getPublicBundle'), {
         data: {
           action: 'api_getPublicBundle',
           brandId: BRAND_ID,
@@ -464,7 +479,7 @@ test.describe('🔬 Full Test Matrix Validation', () => {
 test.describe('📜 EVENT_CONTRACT.md v2.0 Compliance', () => {
 
   test('public bundle event has all MVP required fields', async ({ request }) => {
-    const response = await request.post(BASE_URL, {
+    const response = await request.post(buildApiUrl('api_getPublicBundle'), {
       data: {
         action: 'api_getPublicBundle',
         brandId: BRAND_ID
@@ -511,7 +526,7 @@ test.describe('📜 EVENT_CONTRACT.md v2.0 Compliance', () => {
   });
 
   test('startDateISO uses correct format', async ({ request }) => {
-    const response = await request.post(BASE_URL, {
+    const response = await request.post(buildApiUrl('api_getPublicBundle'), {
       data: {
         action: 'api_getPublicBundle',
         brandId: BRAND_ID
@@ -532,7 +547,7 @@ test.describe('📜 EVENT_CONTRACT.md v2.0 Compliance', () => {
   });
 
   test('QR codes are base64 PNG data URIs', async ({ request }) => {
-    const response = await request.post(BASE_URL, {
+    const response = await request.post(buildApiUrl('api_getPosterBundle'), {
       data: {
         action: 'api_getPosterBundle',
         brandId: BRAND_ID
@@ -553,7 +568,7 @@ test.describe('📜 EVENT_CONTRACT.md v2.0 Compliance', () => {
   });
 
   test('timestamps are ISO 8601 format', async ({ request }) => {
-    const response = await request.post(BASE_URL, {
+    const response = await request.post(buildApiUrl('api_getPublicBundle'), {
       data: {
         action: 'api_getPublicBundle',
         brandId: BRAND_ID
