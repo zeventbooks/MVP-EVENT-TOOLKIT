@@ -86,8 +86,10 @@ jobs:
             echo "url=$DEPLOYMENT_URL" >> $GITHUB_OUTPUT
           else
             echo "⚠️ No deployment URL found from Stage 1"
-            echo "Using default Cloudflare friendly URL"
-            echo "url=https://eventangle.com" >> $GITHUB_OUTPUT
+            echo "Using default Cloudflare friendly URL (www.eventangle.com)"
+            # Use www.eventangle.com to match Cloudflare Worker routes and DNS config
+            # Note: The base URL should NOT include /events path - tests append paths like /status, /{brand}/status
+            echo "url=https://www.eventangle.com" >> $GITHUB_OUTPUT
           fi
         env:
           GH_TOKEN: ${{ github.token }}
