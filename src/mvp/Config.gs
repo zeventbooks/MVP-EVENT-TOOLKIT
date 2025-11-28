@@ -138,12 +138,12 @@ const ZEB = Object.freeze({
 
     // Sample data templates
     sampleEvent: {
-      name: 'Summer Bocce Tournament 2025',
+      name: 'Community Fundraiser Night 2025',
       dateISO: '2025-08-15',
       timeISO: '18:00',
-      location: 'Chicago Bocce Club - North Avenue Courts',
-      entity: 'Chicago Bocce League',
-      summary: 'Join us for the annual summer tournament! Open to all skill levels.',
+      location: 'Main Street Tavern',
+      entity: 'Community Events',
+      summary: 'Join us for a great night out! All proceeds support local programs.',
       imageUrl: 'https://picsum.photos/800/400?random=1',
       sponsorIds: ''
     },
@@ -152,7 +152,7 @@ const ZEB = Object.freeze({
       name: 'Local Pizza Co.',
       website: 'https://example.com',
       tier: 'Gold',
-      entity: 'Chicago Bocce League',
+      entity: 'Community Events',
       logoUrl: 'https://picsum.photos/200/200?random=2'
     }
   },
