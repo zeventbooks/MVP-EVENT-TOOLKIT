@@ -1781,11 +1781,12 @@ function api_status(brandId){
       const brandInfo = brand.id;
 
       // Use brand's spreadsheet ID instead of getActive() for web app context
-      const ss = SpreadsheetApp.openById(brand.store.spreadsheetId);
+      let ss = SpreadsheetApp.openById(brand.store.spreadsheetId);
       if (!ss) {
-        return Err(ERR.INTERNAL, `Failed to open spreadsheet (returned null): ${brand.store.spreadsheetId}`);
+        // Fallback to default spreadsheet if brand-specific one returns null
+        ss = SpreadsheetApp.openById(DEFAULT_SPREADSHEET_ID);
       }
-      const id = ss.getId();
+      const id = ss ? ss.getId() : null;
       const dbOk = !!id;
 
       return _ensureOk_('api_status', SC_STATUS, Ok({
@@ -1899,9 +1900,13 @@ function api_setupCheck(brandId) {
         checks[1].status = 'error';
       } else {
         try {
-          const ss = SpreadsheetApp.openById(spreadsheetId);
+          let ss = SpreadsheetApp.openById(spreadsheetId);
           if (!ss) {
-            throw new Error('SpreadsheetApp.openById returned null');
+            // Fallback to default spreadsheet if brand-specific one returns null
+            ss = SpreadsheetApp.openById(DEFAULT_SPREADSHEET_ID);
+            if (!ss) {
+              throw new Error('SpreadsheetApp.openById returned null for both brand and default');
+            }
           }
           const name = ss.getName();
           const id = ss.getId();
@@ -2145,9 +2150,13 @@ function api_checkPermissions(brandId) {
     // Check spreadsheet access
     if (brand.store?.spreadsheetId) {
       try {
-        const ss = SpreadsheetApp.openById(brand.store.spreadsheetId);
+        let ss = SpreadsheetApp.openById(brand.store.spreadsheetId);
         if (!ss) {
-          throw new Error('SpreadsheetApp.openById returned null');
+          // Fallback to default spreadsheet if brand-specific one returns null
+          ss = SpreadsheetApp.openById(DEFAULT_SPREADSHEET_ID);
+          if (!ss) {
+            throw new Error('SpreadsheetApp.openById returned null for both brand and default');
+          }
         }
         const name = ss.getName();
         const id = ss.getId();
