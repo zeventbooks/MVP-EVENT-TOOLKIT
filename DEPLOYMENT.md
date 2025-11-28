@@ -37,26 +37,21 @@ BASE_URL="https://www.eventangle.com/events" npm run test:smoke
 
 ## 1. Pre-flight (Production Gate)
 
-**Before any prod deploy, run `npm run ci:all`. No green, no deploy.**
+**Before any production deployment, run:**
 
 ```bash
-npm run ci:all
+BASE_URL="https://www.eventangle.com/events" npm run ci:all
 ```
+
+**No green, no deploy.**
 
 This unified gate runs all tests required for a production release:
-1. `test:ci:stage1` — lint + unit tests + contract tests
+1. `test:schemas` — schema synchronization validation
 2. `test:api-contracts` — explicit API contract validation
 3. `test:smoke` — smoke tests (requires Playwright)
+4. `test:negative` — negative/edge-case tests
 
 If any test fails, the chain stops immediately.
-
-### Full CI (includes negative tests)
-
-```bash
-npm run ci:all:full
-```
-
-Adds `test:negative` for comprehensive edge-case coverage.
 
 ### Legacy Commands
 
@@ -165,8 +160,7 @@ Both should pass. If they fail, check:
 
 | Step | Command |
 |------|---------|
-| **Pre-flight (gate)** | `npm run ci:all` |
-| Pre-flight (full) | `npm run ci:all:full` |
+| **Pre-flight (gate)** | `BASE_URL="https://www.eventangle.com/events" npm run ci:all` |
 | Deploy GAS | `npm run deploy` |
 | Deploy CF Worker | `cd cloudflare-proxy && wrangler deploy --env events` |
 | Health check | `BASE_URL="https://www.eventangle.com/events" npm run test:health` |
