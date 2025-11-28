@@ -1782,6 +1782,9 @@ function api_status(brandId){
 
       // Use brand's spreadsheet ID instead of getActive() for web app context
       const ss = SpreadsheetApp.openById(brand.store.spreadsheetId);
+      if (!ss) {
+        return Err(ERR.INTERNAL, `Failed to open spreadsheet (returned null): ${brand.store.spreadsheetId}`);
+      }
       const id = ss.getId();
       const dbOk = !!id;
 
@@ -1897,6 +1900,9 @@ function api_setupCheck(brandId) {
       } else {
         try {
           const ss = SpreadsheetApp.openById(spreadsheetId);
+          if (!ss) {
+            throw new Error('SpreadsheetApp.openById returned null');
+          }
           const name = ss.getName();
           const id = ss.getId();
           checks[1].status = 'ok';
@@ -2140,6 +2146,9 @@ function api_checkPermissions(brandId) {
     if (brand.store?.spreadsheetId) {
       try {
         const ss = SpreadsheetApp.openById(brand.store.spreadsheetId);
+        if (!ss) {
+          throw new Error('SpreadsheetApp.openById returned null');
+        }
         const name = ss.getName();
         const id = ss.getId();
 
