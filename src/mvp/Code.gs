@@ -149,6 +149,66 @@ function UserFriendlyErr_(code, internalMessage, logDetails = {}, where = 'API')
   return Err(code, sanitizedMessage, corrId);
 }
 
+/**
+ * Creates an HTML error page with correlation ID for tracing
+ * - Logs detailed structured error internally (with stack trace)
+ * - Returns user-friendly HTML page with corrId (without stack)
+ * Story 11: HTML surfaces show generic error with correlation ID
+ *
+ * @param {string} title - Error title shown to user (e.g., "Invalid shortlink")
+ * @param {string} internalMessage - Detailed internal message (logged, not shown)
+ * @param {object} options - Options: { stack, eventId, endpoint, extra, spreadsheetId }
+ * @returns {HtmlOutput} - HTML page with error message and correlation ID
+ */
+function HtmlErrorWithCorrId_(title, internalMessage, options = {}) {
+  const corrId = generateCorrId_();
+  const { stack, eventId, endpoint = 'HTML', extra = {}, spreadsheetId } = options;
+
+  // Log structured error with full details internally
+  logStructuredError_('error', corrId, endpoint, internalMessage, stack, eventId, extra);
+
+  // Also log to DIAG sheet if spreadsheetId is provided
+  if (spreadsheetId) {
+    diag_('error', endpoint, `[${corrId}] ${internalMessage}`, { corrId, ...extra }, spreadsheetId);
+  }
+
+  // Return user-friendly HTML with corrId but no internal details
+  const safeTitle = String(title)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+
+  return HtmlService.createHtmlOutput(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <title>Error - ${safeTitle}</title>
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+               max-width: 600px; margin: 50px auto; padding: 20px; text-align: center; }
+        .error-box { background: #fee2e2; border: 1px solid #fca5a5; padding: 30px;
+                     border-radius: 8px; }
+        h1 { color: #dc2626; margin-bottom: 15px; }
+        .message { color: #7f1d1d; margin-bottom: 20px; }
+        .reference { background: #f5f5f5; padding: 10px; border-radius: 4px;
+                     font-family: monospace; font-size: 14px; color: #666; }
+        .help-text { margin-top: 15px; font-size: 13px; color: #888; }
+      </style>
+    </head>
+    <body>
+      <div class="error-box">
+        <h1>⚠️ ${safeTitle}</h1>
+        <p class="message">Something went wrong. Please try again or contact support.</p>
+        <div class="reference">Reference: ${corrId}</div>
+        <p class="help-text">If you need assistance, please provide this reference code.</p>
+      </div>
+    </body>
+    </html>
+  `).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.DENY);
+}
+
 // === Schema validation (runtime contracts) =================================
 function schemaCheck(schema, obj, where='') {
   if (schema.type === 'object' && obj && typeof obj === 'object') {
@@ -1118,29 +1178,42 @@ function include(filename) {
 
 // === Shortlink redirect handler ============================================
 function handleRedirect_(token) {
+  // Story 11: All HTML errors include correlation IDs for tracing
   if (!token) {
-    return HtmlService.createHtmlOutput('<h1>Invalid shortlink</h1>');
+    return HtmlErrorWithCorrId_('Invalid shortlink', 'Missing token parameter', {
+      endpoint: 'handleRedirect_'
+    });
   }
 
   // Use root brand spreadsheet for shortlinks
   const rootBrand = findBrand_('root');
   if (!rootBrand || !rootBrand.store || !rootBrand.store.spreadsheetId) {
-    return HtmlService.createHtmlOutput('<h1>Configuration error</h1>');
+    return HtmlErrorWithCorrId_('Configuration error', 'Root brand spreadsheet not configured', {
+      endpoint: 'handleRedirect_',
+      extra: { token }
+    });
   }
 
   const spreadsheetId = rootBrand.store.spreadsheetId;
   const ss = SpreadsheetApp.openById(spreadsheetId);
   let sh = ss.getSheetByName('SHORTLINKS');
   if (!sh) {
-    return HtmlService.createHtmlOutput('<h1>Shortlink not found</h1>');
+    return HtmlErrorWithCorrId_('Shortlink not found', 'SHORTLINKS sheet does not exist', {
+      endpoint: 'handleRedirect_',
+      extra: { token },
+      spreadsheetId
+    });
   }
 
   const rows = sh.getDataRange().getValues().slice(1);
   const row = rows.find(r => r[0] === token);
 
   if (!row) {
-    diag_('warn', 'handleRedirect_', 'Token not found', {token}, spreadsheetId);
-    return HtmlService.createHtmlOutput('<h1>Shortlink not found</h1>');
+    return HtmlErrorWithCorrId_('Shortlink not found', `Token not found: ${token}`, {
+      endpoint: 'handleRedirect_',
+      extra: { token },
+      spreadsheetId
+    });
   }
 
   // Fixed: Bug #53 - Extract brandId for validation (7th column if present)
@@ -1148,20 +1221,30 @@ function handleRedirect_(token) {
 
   // Fixed: Bug #52 - Validate URL before redirect to prevent XSS
   if (!isUrl(targetUrl)) {
-    diag_('error', 'handleRedirect_', 'Invalid URL in shortlink', {token, targetUrl}, spreadsheetId);
-    return HtmlService.createHtmlOutput('<h1>Invalid shortlink URL</h1>');
+    return HtmlErrorWithCorrId_('Invalid shortlink URL', `URL validation failed for token: ${token}`, {
+      endpoint: 'handleRedirect_',
+      extra: { token, targetUrl },
+      spreadsheetId
+    });
   }
 
   // Additional validation: ensure HTTP(S) only
   try {
     const url = new URL(targetUrl);
     if (!['http:', 'https:'].includes(url.protocol)) {
-      diag_('error', 'handleRedirect_', 'Non-HTTP protocol in shortlink', {token, protocol: url.protocol}, spreadsheetId);
-      return HtmlService.createHtmlOutput('<h1>Invalid shortlink protocol</h1>');
+      return HtmlErrorWithCorrId_('Invalid shortlink protocol', `Non-HTTP protocol: ${url.protocol}`, {
+        endpoint: 'handleRedirect_',
+        extra: { token, protocol: url.protocol },
+        spreadsheetId
+      });
     }
   } catch(e) {
-    diag_('error', 'handleRedirect_', 'URL parsing failed', {token, targetUrl, error: String(e)}, spreadsheetId);
-    return HtmlService.createHtmlOutput('<h1>Invalid shortlink URL</h1>');
+    return HtmlErrorWithCorrId_('Invalid shortlink URL', `URL parsing failed: ${String(e)}`, {
+      endpoint: 'handleRedirect_',
+      stack: e && e.stack,
+      extra: { token, targetUrl },
+      spreadsheetId
+    });
   }
 
   // Log analytics
