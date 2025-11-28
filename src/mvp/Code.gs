@@ -2534,9 +2534,9 @@ function _buildEventContract_(row, options = {}) {
   const [id, brandId, templateId, dataJson, createdAt, slug] = row;
   const data = safeJSONParse_(dataJson, {});
 
-  // Use friendly base URL for user-facing links (QR codes, shareable URLs)
-  // Falls back to raw GAS URL if friendly URL not configured
-  const friendlyBaseUrl = ZEB.FRIENDLY_BASE_URL || ScriptApp.getService().getUrl();
+  // Use canonical base URL for user-facing links (QR codes, shareable URLs)
+  // getBaseUrl() returns friendly domain or falls back to GAS URL
+  const friendlyBaseUrl = getBaseUrl();
   const rawBaseUrl = options.baseUrl || ScriptApp.getService().getUrl();
 
   // Extract startDateISO (backward compat: dateISO → startDateISO)
