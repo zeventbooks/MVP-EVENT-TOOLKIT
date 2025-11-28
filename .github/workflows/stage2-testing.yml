@@ -98,6 +98,9 @@ jobs:
         run: |
           echo "📋 Deployment URL for testing:"
           echo "${{ steps.get-url.outputs.url }}"
+          echo ""
+          echo "🎯 Canonical Events URL: ${{ steps.get-url.outputs.url }}/events"
+          echo "   All user-facing links use this base URL pattern"
 
   # ============================================================================
   # STAGE 2A: API TESTS (Always Run First)
@@ -146,6 +149,7 @@ jobs:
         run: |
           echo "🔥 Running API tests"
           echo "BASE_URL: $BASE_URL"
+          echo "📍 Canonical Events URL: $BASE_URL/events"
           npm run test:api
           if [ $? -eq 0 ]; then
             echo "result=success" >> $GITHUB_OUTPUT

@@ -79,10 +79,12 @@ jobs:
         run: npx playwright install --with-deps chromium webkit
 
       - name: Run Scenario 1 Tests
-        run: npm run test:scenario:1
+        run: |
+          echo "🎯 Testing against canonical URL: https://www.eventangle.com/events"
+          npm run test:scenario:1
         env:
-          # Use Google Apps Script endpoint for direct API testing
-          BASE_URL: https://eventangle.com
+          # Canonical EventAngle production URL
+          BASE_URL: https://www.eventangle.com
           ADMIN_KEY: ${{ secrets.ADMIN_KEY_ROOT }}
           BRAND_ID: root
 
@@ -137,10 +139,12 @@ jobs:
         run: npx playwright install --with-deps chromium webkit
 
       - name: Run Scenario 2 Tests
-        run: npm run test:scenario:2
+        run: |
+          echo "🎯 Testing against canonical URL: https://www.eventangle.com/events"
+          npm run test:scenario:2
         env:
-          # Use Google Apps Script endpoint for direct API testing
-          BASE_URL: https://eventangle.com
+          # Canonical EventAngle production URL
+          BASE_URL: https://www.eventangle.com
           ADMIN_KEY: ${{ secrets.ADMIN_KEY_ROOT }}
 
       - name: Upload Scenario 2 Results
@@ -174,10 +178,12 @@ jobs:
         run: npx playwright install --with-deps chromium webkit
 
       - name: Run Scenario 3 Tests
-        run: npm run test:scenario:3
+        run: |
+          echo "🎯 Testing against canonical URL: https://www.eventangle.com/events"
+          npm run test:scenario:3
         env:
-          # Use Google Apps Script endpoint for direct API testing
-          BASE_URL: https://eventangle.com
+          # Canonical EventAngle production URL
+          BASE_URL: https://www.eventangle.com
           ADMIN_KEY: ${{ secrets.ADMIN_KEY_ROOT }}
 
       - name: Upload Scenario 3 Results
@@ -270,10 +276,12 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Run Performance Tests
-        run: npm run test:scenario:2  # Mobile performance tests
+        run: |
+          echo "🎯 Testing against canonical URL: https://www.eventangle.com/events"
+          npm run test:scenario:2  # Mobile performance tests
         env:
-          # Use Google Apps Script endpoint for direct API testing
-          BASE_URL: https://eventangle.com
+          # Canonical EventAngle production URL
+          BASE_URL: https://www.eventangle.com
           ADMIN_KEY: ${{ secrets.ADMIN_KEY_ROOT }}
 
       - name: Check Performance Budgets

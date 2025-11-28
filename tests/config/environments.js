@@ -28,10 +28,18 @@ const DEFAULT_DEPLOYMENT_ID = 'AKfycbyS1cW9VhviR-Jr8AmYY_BAGrb1gzuKkrgEBP2M3bMdq
 // Default GAS URL (for direct debugging)
 const DEFAULT_GAS_URL = `https://script.google.com/macros/s/${DEFAULT_DEPLOYMENT_ID}/exec`;
 
-// Default production URL (EventAngle via Cloudflare)
-// Note: Use base URL without path suffix - tests append their own paths like /status, /{brand}/status
-// The /events path is only for Public page deep-links, not the test base URL
+// =============================================================================
+// Canonical Base URL (Single Source of Truth)
+// =============================================================================
+// This mirrors the getBaseUrl() function in Config.gs
+// All user-facing URLs use this base: https://www.eventangle.com/events
+//
+// Note: Tests use BASE_URL without path suffix - they append their own paths
+// like /status, /{brand}/status, /manage, etc.
 const DEFAULT_PRODUCTION_URL = 'https://www.eventangle.com';
+
+// Canonical events URL (for CI logs and documentation)
+const CANONICAL_EVENTS_URL = `${DEFAULT_PRODUCTION_URL}/events`;
 
 // Priority: BASE_URL > APP_URL > default (EventAngle production)
 const APP_URL = process.env.BASE_URL || process.env.APP_URL || DEFAULT_PRODUCTION_URL;
@@ -252,6 +260,7 @@ function printEnvironmentInfo() {
   console.log(`Environment: ${env.name}`);
   console.log(`Description: ${env.description}`);
   console.log(`Base URL: ${env.baseUrl}`);
+  console.log(`📍 Canonical Events URL: ${env.baseUrl}/events`);
   console.log('\nBrand URLs (status page):');
   Object.keys(env.brands).forEach(brand => {
     console.log(`  ${brand}: ${getBrandUrl(brand, 'status')}`);
@@ -259,6 +268,10 @@ function printEnvironmentInfo() {
   console.log('\nBrand URLs (admin page):');
   Object.keys(env.brands).forEach(brand => {
     console.log(`  ${brand}: ${getBrandUrl(brand, 'admin')}`);
+  });
+  console.log('\nBrand URLs (events page):');
+  Object.keys(env.brands).forEach(brand => {
+    console.log(`  ${brand}: ${getBrandUrl(brand, 'events')}`);
   });
   console.log('==============================================\n');
 }
@@ -335,5 +348,7 @@ module.exports = {
   // Expose default URLs for tests that need them
   DEFAULT_GAS_URL,
   DEFAULT_DEPLOYMENT_ID,
-  DEFAULT_PRODUCTION_URL
+  DEFAULT_PRODUCTION_URL,
+  // Canonical events URL (mirrors Config.gs getEventsBaseUrl())
+  CANONICAL_EVENTS_URL
 };

@@ -199,6 +199,54 @@ const ZEB = Object.freeze({
 });
 
 // ============================================================================
+// Canonical Base URL Configuration
+// ============================================================================
+// Single source of truth for user-facing URLs (QR codes, shareable links, posters)
+// All URL construction for external/user-facing surfaces should use getBaseUrl()
+
+/**
+ * Get the canonical base URL for user-facing links
+ *
+ * This is the single source of truth for constructing user-facing URLs:
+ * - QR codes (Public, Signup)
+ * - Shareable links (Public, Display, Poster)
+ * - Copy link buttons in Admin
+ * - SharedReport links
+ *
+ * Returns the friendly domain (without path) for URL construction.
+ * Individual surfaces append their paths: /events, /display, /poster, etc.
+ *
+ * @returns {string} Canonical base URL (e.g., 'https://www.eventangle.com')
+ */
+function getBaseUrl() {
+  // Production: Use friendly URL from config
+  // Development: Falls back to raw GAS URL
+  if (ZEB.FRIENDLY_BASE_URL) {
+    return ZEB.FRIENDLY_BASE_URL;
+  }
+
+  // Fallback to GAS URL (development/testing without Cloudflare)
+  try {
+    return ScriptApp.getService().getUrl();
+  } catch (e) {
+    // ScriptApp not available (e.g., during offline testing)
+    return 'https://www.eventangle.com';
+  }
+}
+
+/**
+ * Get the canonical events page URL
+ *
+ * This is the primary user-facing URL shown in marketing materials,
+ * CI logs, and documentation.
+ *
+ * @returns {string} Canonical events URL (e.g., 'https://www.eventangle.com/events')
+ */
+function getEventsBaseUrl() {
+  return getBaseUrl() + '/events';
+}
+
+// ============================================================================
 // Spreadsheet ID Configuration (Per-Brand Support)
 // ============================================================================
 // Spreadsheet IDs can be configured via Script Properties:
