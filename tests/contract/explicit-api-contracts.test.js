@@ -872,7 +872,7 @@ describe('Explicit API Response Contracts', () => {
             { id: 'sponsor-002', name: 'Silver Sponsor LLC', impressions: 300, clicks: 15, ctr: 5.0 }
           ],
           events: [
-            { id: 'fixture-event-001', name: 'Fixture Test Event', impressions: 1000, clicks: 100, ctr: 10.0 }
+            { id: 'fixture-event-001', name: 'Fixture Test Event', impressions: 1000, clicks: 100, ctr: 10.0, signupsCount: 45 }
           ]
         }
       };
@@ -1035,7 +1035,7 @@ describe('Explicit API Response Contracts', () => {
           ],
           sponsors: null, // Sponsor view doesn't show other sponsors
           events: [
-            { id: 'event-001', name: 'Test Event', impressions: 500, clicks: 50, ctr: 10.0 }
+            { id: 'event-001', name: 'Test Event', impressions: 500, clicks: 50, ctr: 10.0, signupsCount: 15 }
           ]
         }
       };
