@@ -99,7 +99,7 @@ const ZEB = Object.freeze({
       'cbc': {
         'tournaments': { page: 'public', label: 'CBC Tournaments', public: true },
         'club-events': { page: 'public', label: 'Club Events', public: true },
-        'register': { page: 'wizard', label: 'Register Event', public: false }
+        'register': { page: 'admin', label: 'Register Event', public: false }
       },
 
       // CBL (Child Brand) - Custom URLs

@@ -785,7 +785,8 @@ function doGet(e){
 
   // Page routing - MVP surfaces only (5 total): admin, public (default), display, poster, report/analytics
   // Story 16: Removed non-MVP routes (test, diagnostics, sponsor, sponsor-roi, signup, config, planner)
-  let page = (pageParam==='admin' || pageParam==='poster' || pageParam==='display' || pageParam==='report' || pageParam==='analytics') ? pageParam : 'public';
+  // Uses _isMvpSurface_() to validate against canonical list from _listMvpSurfaces_()
+  let page = _isMvpSurface_(pageParam) ? pageParam : 'public';
 
   // Route using helper function
   return routePage_(e, page, brand, demoMode, { mode: e?.parameter?.mode });
@@ -1235,6 +1236,39 @@ function jsonResponse_(data) {
   // CORS headers are automatically handled by Apps Script
   // Origin validation is performed in doPost/doGet handlers
   return output;
+}
+
+/**
+ * Returns the canonical list of MVP surfaces
+ * This is the single source of truth for allowed ?page= values.
+ *
+ * Used by:
+ * - Router validation (doGet)
+ * - Node.js surface check script (scripts/check-surfaces.js)
+ * - pageFile_() for template mapping
+ *
+ * MVP surfaces (5 total):
+ *   - admin: Event management dashboard
+ *   - public: Event listing & registration (default)
+ *   - display: TV/kiosk display
+ *   - poster: Printable poster with QR
+ *   - report: Analytics & sponsor performance (alias: analytics)
+ *
+ * @returns {string[]} Array of valid MVP surface identifiers
+ */
+function _listMvpSurfaces_() {
+  return ['admin', 'public', 'display', 'poster', 'report'];
+}
+
+/**
+ * Check if a page identifier is a valid MVP surface
+ * @param {string} page - Page identifier to check
+ * @returns {boolean} True if page is a valid MVP surface
+ */
+function _isMvpSurface_(page) {
+  const surfaces = _listMvpSurfaces_();
+  // 'analytics' is an alias for 'report'
+  return surfaces.includes(page) || page === 'analytics';
 }
 
 /**
@@ -2231,8 +2265,8 @@ function api_setupCheck(brandId) {
       fixes,
       nextSteps: fixes.length > 0 ? fixes : [
         'Your setup is complete!',
-        'Test the API: ' + ScriptApp.getService().getUrl() + '?p=status&brand=' + brand.id,
-        'View documentation: ' + ScriptApp.getService().getUrl() + '?p=docs'
+        'Test the API: ' + ScriptApp.getService().getUrl() + '?page=status&brand=' + brand.id,
+        'View admin dashboard: ' + ScriptApp.getService().getUrl() + '?page=admin&brand=' + brand.id
       ]
     });
   });
@@ -2383,7 +2417,7 @@ function api_checkPermissions(brandId) {
         nextSteps: [
           'Your deployment is ready to use',
           'Test the API: ' + (results.deployment.url || '') + '?page=status&brand=' + brand.id,
-          'View docs: ' + (results.deployment.url || '') + '?page=docs'
+          'View admin: ' + (results.deployment.url || '') + '?page=admin&brand=' + brand.id
         ]
       });
     } else {
