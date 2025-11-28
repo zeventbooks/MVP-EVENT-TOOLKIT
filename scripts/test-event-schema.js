@@ -340,7 +340,7 @@ function parseSurfaceHeaders() {
 
     // Extract all event.XXX top-level field references
     // Pattern: event.fieldName (followed by . or , or [ or whitespace or end)
-    const fieldMatches = readsBlock.matchAll(/event\.([a-z][a-zA-Z_]*)(?:[.\[,\s]|$)/g);
+    const fieldMatches = readsBlock.matchAll(/event\.([a-z][a-zA-Z_]*)(?:[.[,\s]|$)/g);
     for (const match of fieldMatches) {
       const field = match[1];
       // Skip 'schema' which appears in 'event.schema.json'
