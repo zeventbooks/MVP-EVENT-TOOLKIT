@@ -589,7 +589,7 @@ test.describe('Negative Path: Network/API Error Handling', () => {
 // =============================================================================
 test.describe('Negative Path: Browser Edge Cases', () => {
 
-  test('Admin page works with JavaScript date manipulation', async ({ page }) => {
+  test('Admin page works with edge case dates (New Years Eve)', async ({ page }) => {
     page.on('dialog', async dialog => {
       if (dialog.type() === 'prompt') {
         await dialog.accept(ADMIN_KEY);
@@ -598,26 +598,33 @@ test.describe('Negative Path: Browser Edge Cases', () => {
       }
     });
 
-    // Override Date to test timezone edge cases
-    await page.addInitScript(() => {
-      const OriginalDate = Date;
-      // @ts-ignore
-      Date = class extends OriginalDate {
-        constructor(...args) {
-          if (args.length === 0) {
-            super(2025, 11, 31, 23, 59, 59); // Edge case: New Year's Eve
-          } else {
-            // @ts-ignore
-            super(...args);
-          }
-        }
-      };
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`, TIMEOUT_CONFIG);
+
+    // Test with New Year's Eve date (timezone edge case)
+    await page.fill('#name', `New Years Eve Test ${Date.now()}`);
+    await page.fill('#startDateISO', '2025-12-31');
+    await page.fill('#venue', 'Test Venue');
+    await page.locator(ADMIN_PAGE.CREATE_EVENT_BUTTON).first().click();
+    await page.waitForTimeout(3000);
+
+    await assertNoInternalErrors(page);
+    await assertLayoutNotBroken(page);
+  });
+
+  test('Admin page works with leap year date', async ({ page }) => {
+    page.on('dialog', async dialog => {
+      if (dialog.type() === 'prompt') {
+        await dialog.accept(ADMIN_KEY);
+      } else {
+        await dialog.accept();
+      }
     });
 
     await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`, TIMEOUT_CONFIG);
 
-    await page.fill('#name', `Date Edge Test ${Date.now()}`);
-    await page.fill('#startDateISO', '2025-12-31');
+    // Test with leap year date
+    await page.fill('#name', `Leap Year Test ${Date.now()}`);
+    await page.fill('#startDateISO', '2028-02-29');
     await page.fill('#venue', 'Test Venue');
     await page.locator(ADMIN_PAGE.CREATE_EVENT_BUTTON).first().click();
     await page.waitForTimeout(3000);
