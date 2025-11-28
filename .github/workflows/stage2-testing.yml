@@ -79,8 +79,9 @@ jobs:
             --name deployment-info || true
 
           # If artifact exists, read URL from it
-          if [[ -f deployment-url.txt ]]; then
-            DEPLOYMENT_URL=$(cat deployment-url.txt)
+          # Note: gh run download creates a folder with the artifact name
+          if [[ -f deployment-info/deployment-url.txt ]]; then
+            DEPLOYMENT_URL=$(cat deployment-info/deployment-url.txt)
             echo "✅ Found deployment URL: $DEPLOYMENT_URL"
             echo "url=$DEPLOYMENT_URL" >> $GITHUB_OUTPUT
           else
