@@ -1781,12 +1781,11 @@ function api_status(brandId){
       const brandInfo = brand.id;
 
       // Use brand's spreadsheet ID instead of getActive() for web app context
-      let ss = SpreadsheetApp.openById(brand.store.spreadsheetId);
+      const ss = SpreadsheetApp.openById(brand.store.spreadsheetId);
       if (!ss) {
-        // Fallback to default spreadsheet if brand-specific one returns null
-        ss = SpreadsheetApp.openById(DEFAULT_SPREADSHEET_ID);
+        return Err(ERR.INTERNAL, `Failed to open spreadsheet (returned null): ${brand.store.spreadsheetId}`);
       }
-      const id = ss ? ss.getId() : null;
+      const id = ss.getId();
       const dbOk = !!id;
 
       return _ensureOk_('api_status', SC_STATUS, Ok({
@@ -1900,13 +1899,9 @@ function api_setupCheck(brandId) {
         checks[1].status = 'error';
       } else {
         try {
-          let ss = SpreadsheetApp.openById(spreadsheetId);
+          const ss = SpreadsheetApp.openById(spreadsheetId);
           if (!ss) {
-            // Fallback to default spreadsheet if brand-specific one returns null
-            ss = SpreadsheetApp.openById(DEFAULT_SPREADSHEET_ID);
-            if (!ss) {
-              throw new Error('SpreadsheetApp.openById returned null for both brand and default');
-            }
+            throw new Error('SpreadsheetApp.openById returned null');
           }
           const name = ss.getName();
           const id = ss.getId();
@@ -2150,13 +2145,9 @@ function api_checkPermissions(brandId) {
     // Check spreadsheet access
     if (brand.store?.spreadsheetId) {
       try {
-        let ss = SpreadsheetApp.openById(brand.store.spreadsheetId);
+        const ss = SpreadsheetApp.openById(brand.store.spreadsheetId);
         if (!ss) {
-          // Fallback to default spreadsheet if brand-specific one returns null
-          ss = SpreadsheetApp.openById(DEFAULT_SPREADSHEET_ID);
-          if (!ss) {
-            throw new Error('SpreadsheetApp.openById returned null for both brand and default');
-          }
+          throw new Error('SpreadsheetApp.openById returned null');
         }
         const name = ss.getName();
         const id = ss.getId();
