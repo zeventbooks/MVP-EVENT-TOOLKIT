@@ -23,6 +23,8 @@
 
 const fs = require('fs');
 const path = require('path');
+const Ajv = require('ajv');
+const addFormats = require('ajv-formats');
 
 // --- CI Detection ---
 // Skip network tests in CI environments where external HTTP calls may not work
@@ -77,6 +79,16 @@ function getCanonicalBrandIds() {
     throw new Error('Could not extract brand IDs from Config.gs BRANDS array');
   }
   return brandIds;
+}
+
+// --- Schema Validation ---
+/**
+ * Load and compile the status schema for validation
+ */
+function loadStatusSchema() {
+  const schemaPath = path.join(__dirname, '../../schemas/status.schema.json');
+  const schemaContent = fs.readFileSync(schemaPath, 'utf8');
+  return JSON.parse(schemaContent);
 }
 
 // --- Test Configuration ---
@@ -244,5 +256,47 @@ describe('Status Contract - Single Source of Truth', () => {
       expect(data.buildId).toBe(CANONICAL_BUILD_ID);
       expect(CANONICAL_BRAND_IDS).toContain(data.brandId);
     }, TIMEOUT_MS);
+
+    it('should validate against status.schema.json', async () => {
+      const data = await fetchStatus('root');
+      const schema = loadStatusSchema();
+
+      // Set up AJV with formats support
+      const ajv = new Ajv({ strict: false, allErrors: true });
+      addFormats(ajv);
+
+      const validate = ajv.compile(schema);
+      const valid = validate(data);
+
+      if (!valid) {
+        console.error('Schema validation errors:', validate.errors);
+      }
+
+      expect(valid).toBe(true);
+    }, TIMEOUT_MS);
+  });
+
+  describe('JSON Schema File Validation', () => {
+    it('should have a valid status.schema.json file', () => {
+      const schema = loadStatusSchema();
+
+      expect(schema).toHaveProperty('$schema');
+      expect(schema).toHaveProperty('title', 'Status Response');
+      expect(schema).toHaveProperty('required');
+      expect(schema.required).toContain('ok');
+      expect(schema.required).toContain('buildId');
+      expect(schema.required).toContain('brandId');
+      expect(schema.required).toContain('time');
+    });
+
+    it('should define the canonical contract properties', () => {
+      const schema = loadStatusSchema();
+
+      expect(schema.properties).toHaveProperty('ok');
+      expect(schema.properties).toHaveProperty('buildId');
+      expect(schema.properties).toHaveProperty('brandId');
+      expect(schema.properties).toHaveProperty('time');
+      expect(schema.properties).toHaveProperty('message'); // Optional error message
+    });
   });
 });
