@@ -62,14 +62,17 @@ const Err = (code, message, corrId) => {
 
 /**
  * Generate a correlation ID for request tracing
- * Format: timestamp (base36) + random suffix
- * Example: "lqx5m8k-a7b2"
+ * Format: {endpoint}_{timestamp}_{random}
+ * Example: "api_20251128_182310_Z9F7"
+ * @param {string} endpoint - Optional endpoint name to include in corrId
  * @returns {string} Unique correlation ID
  */
-function generateCorrId_() {
-  const timestamp = Date.now().toString(36);
-  const random = Math.random().toString(36).substring(2, 6);
-  return `${timestamp}-${random}`;
+function generateCorrId_(endpoint) {
+  const now = new Date();
+  const ts = now.toISOString().replace(/[-:TZ.]/g, '').slice(0, 14); // YYYYMMDDHHMMSS
+  const rand = Math.random().toString(36).slice(2, 6).toUpperCase();
+  const safeEndpoint = (endpoint || 'api').slice(0, 8).replace(/[^a-zA-Z0-9]/g, '');
+  return `${safeEndpoint}_${ts}_${rand}`;
 }
 
 /**
@@ -107,8 +110,8 @@ function logStructuredError_(level, corrId, endpoint, message, stack, eventId, e
  * @returns {object} Error envelope with corrId and sanitized message
  */
 function ErrWithCorrId_(code, internalMessage, options = {}) {
-  const corrId = generateCorrId_();
-  const { stack, eventId, endpoint = 'API', extra = {} } = options;
+  const { stack, eventId, endpoint = 'api', extra = {} } = options;
+  const corrId = generateCorrId_(endpoint);
 
   // Log structured error with full details internally
   logStructuredError_('error', corrId, endpoint, internalMessage, stack, eventId, extra);
@@ -127,9 +130,9 @@ function ErrWithCorrId_(code, internalMessage, options = {}) {
  * @param {string} where - Function name for logging context
  * @returns {object} Error envelope with corrId and sanitized message
  */
-function UserFriendlyErr_(code, internalMessage, logDetails = {}, where = 'API') {
-  const corrId = generateCorrId_();
+function UserFriendlyErr_(code, internalMessage, logDetails = {}, where = 'api') {
   const { stack, eventId, ...extra } = logDetails;
+  const corrId = generateCorrId_(where);
 
   // Log structured error with full details internally
   logStructuredError_('error', corrId, where, internalMessage, stack, eventId, extra);
@@ -161,8 +164,8 @@ function UserFriendlyErr_(code, internalMessage, logDetails = {}, where = 'API')
  * @returns {HtmlOutput} - HTML page with error message and correlation ID
  */
 function HtmlErrorWithCorrId_(title, internalMessage, options = {}) {
-  const corrId = generateCorrId_();
-  const { stack, eventId, endpoint = 'HTML', extra = {}, spreadsheetId } = options;
+  const { stack, eventId, endpoint = 'html', extra = {}, spreadsheetId } = options;
+  const corrId = generateCorrId_(endpoint);
 
   // Log structured error with full details internally
   logStructuredError_('error', corrId, endpoint, internalMessage, stack, eventId, extra);
@@ -259,6 +262,238 @@ function _ensureOk_(label, schema, obj) {
 
 // === Logger (append-only with caps) =======================================
 const DIAG_SHEET='DIAG', DIAG_MAX=3000, DIAG_PER_DAY=800;
+const LOG_ERRORS_SHEET = 'LOG_ERRORS', LOG_ERRORS_MAX = 5000;
+
+/**
+ * Get or create the LOG_ERRORS sheet for structured error logging
+ * Columns: ts, corrId, endpoint, method, eventId, errorName, message, stack, params, postData
+ * @param {string} spreadsheetId - Optional spreadsheet ID
+ * @returns {Sheet} The LOG_ERRORS sheet
+ */
+function _getErrorLogSheet_(spreadsheetId) {
+  let ss;
+  if (spreadsheetId) {
+    ss = SpreadsheetApp.openById(spreadsheetId);
+  } else {
+    const rootBrand = findBrand_('root');
+    if (rootBrand && rootBrand.store && rootBrand.store.spreadsheetId) {
+      ss = SpreadsheetApp.openById(rootBrand.store.spreadsheetId);
+    } else {
+      ss = SpreadsheetApp.getActive();
+    }
+  }
+
+  let sh = ss.getSheetByName(LOG_ERRORS_SHEET);
+  if (!sh) {
+    sh = ss.insertSheet(LOG_ERRORS_SHEET);
+    sh.appendRow(['ts', 'corrId', 'endpoint', 'method', 'eventId', 'errorName', 'message', 'stack', 'params', 'postData', 'userAgent', 'severity']);
+    sh.setFrozenRows(1);
+    // Set column widths for readability
+    sh.setColumnWidth(1, 180);  // ts
+    sh.setColumnWidth(2, 200);  // corrId
+    sh.setColumnWidth(3, 120);  // endpoint
+    sh.setColumnWidth(7, 300);  // message
+    sh.setColumnWidth(8, 400);  // stack
+  }
+  return sh;
+}
+
+/**
+ * Story 14: Structured error logging to LOG_ERRORS sheet
+ * Logs errors with full context for debugging while keeping user-facing messages safe.
+ *
+ * @param {object} params - Error details
+ * @param {string} params.method - HTTP method (GET/POST)
+ * @param {string} params.endpoint - API endpoint/function name
+ * @param {string} params.corrId - Correlation ID for tracing
+ * @param {object} params.e - Request event object
+ * @param {Error} params.err - Error object
+ * @param {string} params.eventId - Event ID if applicable
+ * @param {string} params.severity - Severity level (ERROR, WARN, INFO)
+ */
+function _logError_(params) {
+  const { method, endpoint, corrId, e, err, eventId, severity = 'ERROR' } = params;
+
+  try {
+    const sheet = _getErrorLogSheet_();
+
+    // Sanitize and extract request data
+    const sanitizedParams = sanitizeMetaForLogging_(e && e.parameter ? { ...e.parameter } : {});
+    const sanitizedPostData = sanitizeMetaForLogging_(e && e.postData ? { contents: (e.postData.contents || '').slice(0, 500) } : {});
+    const userAgent = (e && e.headers && e.headers['user-agent']) || '';
+
+    const row = [
+      new Date().toISOString(),                                    // ts
+      corrId || '',                                                 // corrId
+      endpoint || '',                                               // endpoint
+      method || '',                                                 // method
+      eventId || _getEventIdFromParams_(e) || '',                  // eventId
+      (err && err.name) || 'Error',                                // errorName
+      (err && err.message) || String(err) || 'Unknown error',      // message
+      ((err && err.stack) || '').slice(0, 2000),                   // stack (truncated)
+      JSON.stringify(sanitizedParams || {}).slice(0, 500),         // params (truncated)
+      JSON.stringify(sanitizedPostData || {}).slice(0, 500),       // postData (truncated)
+      userAgent.slice(0, 200),                                     // userAgent (truncated)
+      severity                                                      // severity
+    ];
+
+    sheet.appendRow(row);
+
+    // Cleanup old rows if exceeding max
+    const lastRow = sheet.getLastRow();
+    if (lastRow > LOG_ERRORS_MAX) {
+      const rowsToDelete = lastRow - LOG_ERRORS_MAX;
+      sheet.deleteRows(2, rowsToDelete);
+    }
+  } catch (logErr) {
+    // Last resort: log to Apps Script native logs; do NOT throw
+    console.error('_logError_ failed:', logErr && logErr.message, { corrId, endpoint, err: err && err.message });
+  }
+}
+
+/**
+ * Extract event ID from request parameters
+ * @param {object} e - Request event object
+ * @returns {string|null} Event ID if found
+ */
+function _getEventIdFromParams_(e) {
+  if (!e || !e.parameter) return null;
+  return e.parameter.id || e.parameter.eventId || e.parameter.event || null;
+}
+
+/**
+ * Story 14: Central request handler with structured error handling
+ * Wraps all request processing with correlation ID and error logging.
+ *
+ * @param {string} method - HTTP method (GET/POST)
+ * @param {object} e - Request event object
+ * @param {function} handler - Handler function to execute
+ * @returns {*} Handler result or error response
+ */
+function _handleRequestSafe_(method, e, handler) {
+  const endpoint = _resolveEndpointFromRequest_(e, method);
+  const corrId = generateCorrId_(endpoint);
+
+  try {
+    // Execute the handler with corrId available
+    return handler(corrId);
+  } catch (err) {
+    // Log to LOG_ERRORS sheet
+    _logError_({
+      method,
+      endpoint,
+      corrId,
+      e,
+      err,
+      severity: 'ERROR'
+    });
+
+    // Return appropriate error response based on request type
+    if (_isApiRequest_(e, method)) {
+      const errorResponse = {
+        ok: false,
+        code: ERR.INTERNAL,
+        error: `Something went wrong. Reference: ${corrId}`,
+        corrId
+      };
+      return ContentService.createTextOutput(JSON.stringify(errorResponse))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // HTML error response using template
+    return _renderErrorPage_(corrId);
+  }
+}
+
+/**
+ * Resolve endpoint name from request for corrId generation
+ * @param {object} e - Request event object
+ * @param {string} method - HTTP method
+ * @returns {string} Endpoint name
+ */
+function _resolveEndpointFromRequest_(e, method) {
+  if (method === 'POST') {
+    try {
+      const body = JSON.parse(e.postData.contents || '{}');
+      return body.action ? `api_${body.action}` : 'doPost';
+    } catch (_) {
+      return 'doPost';
+    }
+  }
+
+  const action = e && e.parameter && e.parameter.action;
+  if (action) return `api_${action}`;
+
+  const page = e && e.parameter && (e.parameter.page || e.parameter.p);
+  if (page) return `page_${page}`;
+
+  const pathInfo = e && e.pathInfo;
+  if (pathInfo) {
+    const parts = pathInfo.split('/').filter(p => p);
+    return parts.length > 0 ? `path_${parts[parts.length - 1]}` : 'doGet';
+  }
+
+  return 'doGet';
+}
+
+/**
+ * Check if request is an API request (expects JSON response)
+ * @param {object} e - Request event object
+ * @param {string} method - HTTP method
+ * @returns {boolean}
+ */
+function _isApiRequest_(e, method) {
+  if (method === 'POST') return true;
+  if (e && e.parameter && e.parameter.action) return true;
+  const accept = e && e.headers && e.headers.accept;
+  if (accept && accept.includes('application/json')) return true;
+  return false;
+}
+
+/**
+ * Render the error page template with corrId
+ * @param {string} corrId - Correlation ID
+ * @returns {HtmlOutput}
+ */
+function _renderErrorPage_(corrId) {
+  try {
+    const tpl = HtmlService.createTemplateFromFile('ErrorTemplate');
+    tpl.corrId = corrId;
+    return tpl.evaluate()
+      .setTitle('Error · EventAngle')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.DENY);
+  } catch (_) {
+    // Fallback if template doesn't exist
+    return HtmlService.createHtmlOutput(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Error</title>
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                 max-width: 600px; margin: 50px auto; padding: 20px; text-align: center; }
+          .error-box { background: #fee2e2; border: 1px solid #fca5a5; padding: 30px;
+                       border-radius: 8px; }
+          h1 { color: #dc2626; margin-bottom: 15px; }
+          .reference { background: #f5f5f5; padding: 10px; border-radius: 4px;
+                       font-family: monospace; font-size: 14px; color: #666; }
+        </style>
+      </head>
+      <body>
+        <div class="error-box">
+          <h1>Something went wrong</h1>
+          <p>We hit an unexpected error while loading this page.</p>
+          <div class="reference">Reference: ${corrId}</div>
+          <p style="margin-top: 15px; font-size: 13px; color: #888;">
+            You can refresh the page, or share this reference code with the event organizer if the problem continues.
+          </p>
+        </div>
+      </body>
+      </html>
+    `).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.DENY);
+  }
+}
 
 /**
  * Diagnostic logging with spreadsheet ID support for web app context

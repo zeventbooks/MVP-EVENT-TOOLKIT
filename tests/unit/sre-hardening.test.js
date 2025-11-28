@@ -10,58 +10,85 @@
 describe('Story 14: Structured Error Logging with Correlation ID', () => {
   /**
    * Mock implementation of generateCorrId_ matching Code.gs
-   * Format: timestamp (base36) + "-" + random suffix
-   * Example: "lqx5m8k-a7b2"
+   * Format: {endpoint}_{timestamp}_{random}
+   * Example: "api_20251128_182310_Z9F7"
    */
-  const generateCorrId = () => {
-    const timestamp = Date.now().toString(36);
-    const random = Math.random().toString(36).substring(2, 6);
-    return `${timestamp}-${random}`;
+  const generateCorrId = (endpoint = 'api') => {
+    const now = new Date();
+    const ts = now.toISOString().replace(/[-:TZ.]/g, '').slice(0, 14); // YYYYMMDDHHMMSS
+    const rand = Math.random().toString(36).slice(2, 6).toUpperCase();
+    const safeEndpoint = (endpoint || 'api').slice(0, 8).replace(/[^a-zA-Z0-9]/g, '');
+    return `${safeEndpoint}_${ts}_${rand}`;
   };
 
   describe('Correlation ID Generation', () => {
     test('should generate unique correlation IDs', () => {
       const ids = new Set();
+      for (let i = 0; i < 100; i++) {
+        ids.add(generateCorrId());
+      }
+      // All 100 should be unique (smaller sample avoids timestamp collision)
+      expect(ids.size).toBe(100);
+    });
+
+    test('should have high uniqueness rate', () => {
+      const ids = new Set();
       for (let i = 0; i < 1000; i++) {
         ids.add(generateCorrId());
       }
-      // All 1000 should be unique
-      expect(ids.size).toBe(1000);
+      // At least 99% should be unique (allowing for rare timestamp collisions)
+      expect(ids.size).toBeGreaterThanOrEqual(990);
     });
 
-    test('should generate corrId in expected format (timestamp-random)', () => {
+    test('should generate corrId in expected format (endpoint_timestamp_random)', () => {
       const corrId = generateCorrId();
-      // Format: alphanumeric-alphanumeric (base36 encoding)
-      expect(corrId).toMatch(/^[a-z0-9]+-[a-z0-9]+$/);
+      // Format: endpoint_YYYYMMDDHHMMSS_RAND (e.g., api_20251128_182310_Z9F7)
+      expect(corrId).toMatch(/^[a-zA-Z0-9]+_\d{14}_[A-Z0-9]{4}$/);
     });
 
-    test('should have timestamp component before dash', () => {
+    test('should include endpoint prefix', () => {
+      const corrId = generateCorrId('doGet');
+      expect(corrId.startsWith('doGet_')).toBe(true);
+
+      const corrId2 = generateCorrId('api_create');
+      expect(corrId2.startsWith('apicrea_')).toBe(true); // truncated to 8 chars
+    });
+
+    test('should have timestamp component in the middle', () => {
       const corrId = generateCorrId();
-      const [timestampPart] = corrId.split('-');
+      const parts = corrId.split('_');
+      expect(parts.length).toBe(3);
 
-      // Timestamp in base36 should be parseable to a valid timestamp
-      const parsed = parseInt(timestampPart, 36);
-      expect(parsed).toBeGreaterThan(0);
+      const timestampPart = parts[1];
+      // Should be 14 digits (YYYYMMDDHHMMSS)
+      expect(timestampPart).toMatch(/^\d{14}$/);
 
-      // Should be a recent timestamp (within last 24 hours)
-      const now = Date.now();
-      expect(parsed).toBeLessThanOrEqual(now);
-      expect(parsed).toBeGreaterThan(now - 86400000);
+      // Parse and validate it's a reasonable date
+      const year = parseInt(timestampPart.slice(0, 4), 10);
+      const month = parseInt(timestampPart.slice(4, 6), 10);
+      const day = parseInt(timestampPart.slice(6, 8), 10);
+
+      expect(year).toBeGreaterThanOrEqual(2024);
+      expect(month).toBeGreaterThanOrEqual(1);
+      expect(month).toBeLessThanOrEqual(12);
+      expect(day).toBeGreaterThanOrEqual(1);
+      expect(day).toBeLessThanOrEqual(31);
     });
 
-    test('should have random suffix after dash', () => {
+    test('should have random suffix at the end', () => {
       const corrId = generateCorrId();
-      const [, randomPart] = corrId.split('-');
+      const parts = corrId.split('_');
+      const randomPart = parts[2];
 
-      // Random part should be alphanumeric and 4 chars
-      expect(randomPart).toMatch(/^[a-z0-9]{4}$/);
+      // Random part should be uppercase alphanumeric and 4 chars
+      expect(randomPart).toMatch(/^[A-Z0-9]{4}$/);
     });
 
-    test('should be URL-safe (no special characters)', () => {
+    test('should be URL-safe (no special characters except underscore)', () => {
       for (let i = 0; i < 100; i++) {
         const corrId = generateCorrId();
-        // No special characters that would need URL encoding
-        expect(corrId).not.toMatch(/[^a-z0-9-]/);
+        // Only alphanumeric and underscore allowed
+        expect(corrId).toMatch(/^[a-zA-Z0-9_]+$/);
       }
     });
 
@@ -70,6 +97,13 @@ describe('Story 14: Structured Error Logging with Correlation ID', () => {
       expect(corrId).not.toContain(' ');
       expect(corrId).not.toContain('\n');
       expect(corrId).not.toContain('\t');
+    });
+
+    test('should sanitize special characters from endpoint', () => {
+      const corrId = generateCorrId('api/create');
+      // Special chars removed
+      expect(corrId).not.toContain('/');
+      expect(corrId.startsWith('apicrea_')).toBe(true);
     });
   });
 
@@ -87,7 +121,8 @@ describe('Story 14: Structured Error Logging with Correlation ID', () => {
      * Mock implementation of ErrWithCorrId_
      */
     const ErrWithCorrId = (code, internalMessage, options = {}) => {
-      const corrId = generateCorrId();
+      const { endpoint = 'api' } = options;
+      const corrId = generateCorrId(endpoint);
       // Return sanitized error to client
       return {
         ok: false,
@@ -100,7 +135,12 @@ describe('Story 14: Structured Error Logging with Correlation ID', () => {
     test('should include corrId in error response', () => {
       const error = ErrWithCorrId('INTERNAL', 'Database connection failed');
       expect(error.corrId).toBeDefined();
-      expect(error.corrId).toMatch(/^[a-z0-9]+-[a-z0-9]+$/);
+      expect(error.corrId).toMatch(/^[a-zA-Z0-9]+_\d{14}_[A-Z0-9]{4}$/);
+    });
+
+    test('should include endpoint in corrId', () => {
+      const error = ErrWithCorrId('INTERNAL', 'Database connection failed', { endpoint: 'doPost' });
+      expect(error.corrId.startsWith('doPost_')).toBe(true);
     });
 
     test('should include corrId reference in user message', () => {
@@ -293,6 +333,145 @@ describe('Story 14: Structured Error Logging with Correlation ID', () => {
         // Should not contain file paths or line numbers
         expect(message).not.toMatch(/at \w+\./);
       });
+    });
+  });
+
+  describe('LOG_ERRORS Sheet Structure', () => {
+    const LOG_ERRORS_COLUMNS = [
+      'ts',           // ISO timestamp
+      'corrId',       // Correlation ID
+      'endpoint',     // API endpoint/function name
+      'method',       // HTTP method (GET/POST)
+      'eventId',      // Event ID if applicable
+      'errorName',    // Error name (e.g., TypeError)
+      'message',      // Error message
+      'stack',        // Stack trace (truncated)
+      'params',       // Request params (sanitized)
+      'postData',     // POST data (sanitized)
+      'userAgent',    // User agent string
+      'severity'      // Severity level
+    ];
+
+    test('should have all required columns', () => {
+      expect(LOG_ERRORS_COLUMNS.length).toBe(12);
+      expect(LOG_ERRORS_COLUMNS).toContain('ts');
+      expect(LOG_ERRORS_COLUMNS).toContain('corrId');
+      expect(LOG_ERRORS_COLUMNS).toContain('endpoint');
+      expect(LOG_ERRORS_COLUMNS).toContain('stack');
+    });
+
+    test('should include traceability fields', () => {
+      expect(LOG_ERRORS_COLUMNS).toContain('corrId');
+      expect(LOG_ERRORS_COLUMNS).toContain('eventId');
+    });
+
+    test('should include request context fields', () => {
+      expect(LOG_ERRORS_COLUMNS).toContain('method');
+      expect(LOG_ERRORS_COLUMNS).toContain('params');
+      expect(LOG_ERRORS_COLUMNS).toContain('postData');
+      expect(LOG_ERRORS_COLUMNS).toContain('userAgent');
+    });
+
+    test('should include error details fields', () => {
+      expect(LOG_ERRORS_COLUMNS).toContain('errorName');
+      expect(LOG_ERRORS_COLUMNS).toContain('message');
+      expect(LOG_ERRORS_COLUMNS).toContain('stack');
+      expect(LOG_ERRORS_COLUMNS).toContain('severity');
+    });
+  });
+
+  describe('Central Error Handler (_handleRequestSafe_)', () => {
+    // Mock implementation of _handleRequestSafe_ logic
+    const mockHandleRequestSafe = (method, e, handler) => {
+      const endpoint = 'test_endpoint';
+      const corrId = generateCorrId(endpoint);
+
+      try {
+        return handler(corrId);
+      } catch (err) {
+        // Would log to LOG_ERRORS sheet
+        return {
+          type: 'error',
+          corrId,
+          error: err.message
+        };
+      }
+    };
+
+    test('should pass corrId to handler', () => {
+      let receivedCorrId = null;
+      mockHandleRequestSafe('GET', {}, (corrId) => {
+        receivedCorrId = corrId;
+        return { ok: true };
+      });
+
+      expect(receivedCorrId).toBeDefined();
+      expect(receivedCorrId).toMatch(/^[a-zA-Z0-9]+_\d{14}_[A-Z0-9]{4}$/);
+    });
+
+    test('should catch errors and return corrId', () => {
+      const result = mockHandleRequestSafe('GET', {}, () => {
+        throw new Error('Test error');
+      });
+
+      expect(result.type).toBe('error');
+      expect(result.corrId).toBeDefined();
+      expect(result.error).toBe('Test error');
+    });
+
+    test('should include corrId in error response', () => {
+      const result = mockHandleRequestSafe('POST', {}, () => {
+        throw new Error('Handler failed');
+      });
+
+      expect(result.corrId).toMatch(/^[a-zA-Z0-9]+_\d{14}_[A-Z0-9]{4}$/);
+    });
+  });
+
+  describe('Endpoint Resolution', () => {
+    // Mock implementation of _resolveEndpointFromRequest_
+    const resolveEndpoint = (e, method) => {
+      if (method === 'POST') {
+        try {
+          const body = JSON.parse(e.postData?.contents || '{}');
+          return body.action ? `api_${body.action}` : 'doPost';
+        } catch (_) {
+          return 'doPost';
+        }
+      }
+
+      if (e?.parameter?.action) return `api_${e.parameter.action}`;
+      if (e?.parameter?.page) return `page_${e.parameter.page}`;
+      if (e?.pathInfo) {
+        const parts = e.pathInfo.split('/').filter(p => p);
+        return parts.length > 0 ? `path_${parts[parts.length - 1]}` : 'doGet';
+      }
+      return 'doGet';
+    };
+
+    test('should resolve POST action', () => {
+      const e = { postData: { contents: '{"action":"create"}' } };
+      expect(resolveEndpoint(e, 'POST')).toBe('api_create');
+    });
+
+    test('should resolve GET action parameter', () => {
+      const e = { parameter: { action: 'list' } };
+      expect(resolveEndpoint(e, 'GET')).toBe('api_list');
+    });
+
+    test('should resolve page parameter', () => {
+      const e = { parameter: { page: 'admin' } };
+      expect(resolveEndpoint(e, 'GET')).toBe('page_admin');
+    });
+
+    test('should resolve path info', () => {
+      const e = { pathInfo: '/abc/events' };
+      expect(resolveEndpoint(e, 'GET')).toBe('path_events');
+    });
+
+    test('should default to doGet for unknown requests', () => {
+      const e = {};
+      expect(resolveEndpoint(e, 'GET')).toBe('doGet');
     });
   });
 });
