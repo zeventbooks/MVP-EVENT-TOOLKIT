@@ -924,6 +924,350 @@ describe('📊 SharedReporting.gs - Analytics Calculations', () => {
 });
 
 /**
+ * STORY 11: NAME RESOLUTION HARDENING
+ *
+ * Unit tests for buildEventNameMap_ and buildSponsorNameMap_ functions
+ * These functions resolve IDs to human-readable names in SharedReport.html
+ */
+describe('🏷️ Story 11: Name Resolution Hardening', () => {
+
+  describe('buildEventNameMap_(brandId) - Event ID to Name Resolution', () => {
+
+    // Simulates the core logic of buildEventNameMap_ for unit testing
+    function buildEventNameMap_(events) {
+      const nameMap = {};
+      if (!events || !Array.isArray(events)) return nameMap;
+
+      events.forEach(event => {
+        if (event.id && event.name) {
+          nameMap[event.id] = event.name;
+        } else if (event.id) {
+          // Fallback to ID if no name provided
+          nameMap[event.id] = event.id;
+        }
+      });
+
+      return nameMap;
+    }
+
+    test('maps event IDs to names correctly', () => {
+      const events = [
+        { id: 'evt-001', name: 'Summer Bocce Tournament' },
+        { id: 'evt-002', name: 'Winter 1v1 Championship' }
+      ];
+
+      const result = buildEventNameMap_(events);
+
+      expect(result['evt-001']).toBe('Summer Bocce Tournament');
+      expect(result['evt-002']).toBe('Winter 1v1 Championship');
+    });
+
+    test('handles empty events array', () => {
+      const result = buildEventNameMap_([]);
+
+      expect(result).toEqual({});
+    });
+
+    test('handles null/undefined input', () => {
+      expect(buildEventNameMap_(null)).toEqual({});
+      expect(buildEventNameMap_(undefined)).toEqual({});
+    });
+
+    test('falls back to ID when name is missing', () => {
+      const events = [
+        { id: 'evt-001', name: null },
+        { id: 'evt-002' } // No name property
+      ];
+
+      const result = buildEventNameMap_(events);
+
+      expect(result['evt-001']).toBe('evt-001');
+      expect(result['evt-002']).toBe('evt-002');
+    });
+
+    test('skips events without ID', () => {
+      const events = [
+        { name: 'Orphan Event' }, // No ID
+        { id: '', name: 'Empty ID Event' }, // Empty ID
+        { id: 'evt-001', name: 'Valid Event' }
+      ];
+
+      const result = buildEventNameMap_(events);
+
+      expect(Object.keys(result).length).toBe(1);
+      expect(result['evt-001']).toBe('Valid Event');
+    });
+
+    test('handles special characters in names (XSS prevention)', () => {
+      const events = [
+        { id: 'evt-001', name: "Joe's Tavern" }, // Apostrophe
+        { id: 'evt-002', name: 'Event <script>alert(1)</script>' }, // HTML
+        { id: 'evt-003', name: 'Event with "quotes"' }, // Quotes
+        { id: 'evt-004', name: 'Event & Company' } // Ampersand
+      ];
+
+      const result = buildEventNameMap_(events);
+
+      expect(result['evt-001']).toBe("Joe's Tavern");
+      expect(result['evt-002']).toBe('Event <script>alert(1)</script>');
+      expect(result['evt-003']).toBe('Event with "quotes"');
+      expect(result['evt-004']).toBe('Event & Company');
+      // Note: Actual XSS prevention happens in escapeHtml() on the frontend
+    });
+
+    test('handles unicode characters in names', () => {
+      const events = [
+        { id: 'evt-001', name: 'Café & Bistro' },
+        { id: 'evt-002', name: 'Müller Events' },
+        { id: 'evt-003', name: '日本イベント' } // Japanese
+      ];
+
+      const result = buildEventNameMap_(events);
+
+      expect(result['evt-001']).toBe('Café & Bistro');
+      expect(result['evt-002']).toBe('Müller Events');
+      expect(result['evt-003']).toBe('日本イベント');
+    });
+
+    test('handles whitespace-only names', () => {
+      const events = [
+        { id: 'evt-001', name: '   ' }, // Spaces only
+        { id: 'evt-002', name: '\t\n' } // Tabs and newlines
+      ];
+
+      const result = buildEventNameMap_(events);
+
+      // Whitespace-only names are still valid (trimming is display concern)
+      expect(result['evt-001']).toBe('   ');
+      expect(result['evt-002']).toBe('\t\n');
+    });
+
+    test('handles very long names', () => {
+      const longName = 'A'.repeat(500);
+      const events = [
+        { id: 'evt-001', name: longName }
+      ];
+
+      const result = buildEventNameMap_(events);
+
+      expect(result['evt-001']).toBe(longName);
+      expect(result['evt-001'].length).toBe(500);
+    });
+
+    test('handles duplicate IDs (last one wins)', () => {
+      const events = [
+        { id: 'evt-001', name: 'First Name' },
+        { id: 'evt-001', name: 'Second Name' }
+      ];
+
+      const result = buildEventNameMap_(events);
+
+      expect(result['evt-001']).toBe('Second Name');
+    });
+  });
+
+  describe('buildSponsorNameMap_(brandId) - Sponsor ID to Name Resolution', () => {
+
+    // Simulates the core logic of buildSponsorNameMap_ for unit testing
+    function buildSponsorNameMap_(sponsors, embeddedSponsors) {
+      const nameMap = {};
+
+      // Source 1: Dedicated sponsors
+      if (Array.isArray(sponsors)) {
+        sponsors.forEach(sponsor => {
+          if (sponsor.id && sponsor.name) {
+            nameMap[sponsor.id] = sponsor.name;
+          } else if (sponsor.id) {
+            nameMap[sponsor.id] = sponsor.id;
+          }
+        });
+      }
+
+      // Source 2: Embedded sponsors (from events)
+      if (Array.isArray(embeddedSponsors)) {
+        embeddedSponsors.forEach(sponsor => {
+          // Only add if not already present (dedicated sponsors take precedence)
+          if (sponsor.id && sponsor.name && !nameMap[sponsor.id]) {
+            nameMap[sponsor.id] = sponsor.name;
+          }
+        });
+      }
+
+      return nameMap;
+    }
+
+    test('maps sponsor IDs to names correctly', () => {
+      const sponsors = [
+        { id: 'spo-001', name: 'Acme Corp' },
+        { id: 'spo-002', name: "Joe's Tavern" }
+      ];
+
+      const result = buildSponsorNameMap_(sponsors, []);
+
+      expect(result['spo-001']).toBe('Acme Corp');
+      expect(result['spo-002']).toBe("Joe's Tavern");
+    });
+
+    test('handles empty sponsors arrays', () => {
+      const result = buildSponsorNameMap_([], []);
+
+      expect(result).toEqual({});
+    });
+
+    test('handles null/undefined sponsors input', () => {
+      expect(buildSponsorNameMap_(null, null)).toEqual({});
+      expect(buildSponsorNameMap_(undefined, undefined)).toEqual({});
+    });
+
+    test('falls back to ID when name is missing', () => {
+      const sponsors = [
+        { id: 'spo-001', name: null },
+        { id: 'spo-002' } // No name property
+      ];
+
+      const result = buildSponsorNameMap_(sponsors, []);
+
+      expect(result['spo-001']).toBe('spo-001');
+      expect(result['spo-002']).toBe('spo-002');
+    });
+
+    test('merges dedicated and embedded sponsors', () => {
+      const dedicatedSponsors = [
+        { id: 'spo-001', name: 'Dedicated Sponsor' }
+      ];
+      const embeddedSponsors = [
+        { id: 'spo-002', name: 'Embedded Sponsor' }
+      ];
+
+      const result = buildSponsorNameMap_(dedicatedSponsors, embeddedSponsors);
+
+      expect(result['spo-001']).toBe('Dedicated Sponsor');
+      expect(result['spo-002']).toBe('Embedded Sponsor');
+    });
+
+    test('dedicated sponsors take precedence over embedded', () => {
+      const dedicatedSponsors = [
+        { id: 'spo-001', name: 'Dedicated Name' }
+      ];
+      const embeddedSponsors = [
+        { id: 'spo-001', name: 'Embedded Name' } // Same ID
+      ];
+
+      const result = buildSponsorNameMap_(dedicatedSponsors, embeddedSponsors);
+
+      expect(result['spo-001']).toBe('Dedicated Name');
+    });
+
+    test('handles special characters in sponsor names', () => {
+      const sponsors = [
+        { id: 'spo-001', name: "Joe's Tavern & Grill" },
+        { id: 'spo-002', name: 'Sponsor <b>Bold</b>' },
+        { id: 'spo-003', name: 'Sponsor "Quoted"' }
+      ];
+
+      const result = buildSponsorNameMap_(sponsors, []);
+
+      expect(result['spo-001']).toBe("Joe's Tavern & Grill");
+      expect(result['spo-002']).toBe('Sponsor <b>Bold</b>');
+      expect(result['spo-003']).toBe('Sponsor "Quoted"');
+    });
+
+    test('handles unicode sponsor names', () => {
+      const sponsors = [
+        { id: 'spo-001', name: 'Café Sponsoring' },
+        { id: 'spo-002', name: 'スポンサー株式会社' } // Japanese
+      ];
+
+      const result = buildSponsorNameMap_(sponsors, []);
+
+      expect(result['spo-001']).toBe('Café Sponsoring');
+      expect(result['spo-002']).toBe('スポンサー株式会社');
+    });
+
+    test('skips sponsors without ID', () => {
+      const sponsors = [
+        { name: 'No ID Sponsor' },
+        { id: '', name: 'Empty ID' },
+        { id: 'spo-001', name: 'Valid Sponsor' }
+      ];
+
+      const result = buildSponsorNameMap_(sponsors, []);
+
+      expect(Object.keys(result).length).toBe(1);
+      expect(result['spo-001']).toBe('Valid Sponsor');
+    });
+  });
+
+  describe('Name Resolution Integration - buildSponsorsArray_', () => {
+
+    // Simulates buildSponsorsArray_ with name resolution
+    function buildSponsorsArray_(analytics, sponsorNameMap) {
+      const nameMap = sponsorNameMap || {};
+      const sponsorMap = {};
+
+      analytics.forEach(a => {
+        if (!a.sponsorId) return;
+
+        if (!sponsorMap[a.sponsorId]) {
+          sponsorMap[a.sponsorId] = {
+            id: a.sponsorId,
+            name: nameMap[a.sponsorId] || a.sponsorId, // Use resolved name or fallback
+            impressions: 0,
+            clicks: 0
+          };
+        }
+
+        if (a.metric === 'impression') sponsorMap[a.sponsorId].impressions++;
+        if (a.metric === 'click') sponsorMap[a.sponsorId].clicks++;
+      });
+
+      return Object.values(sponsorMap).map(s => {
+        s.ctr = s.impressions > 0
+          ? Number(((s.clicks / s.impressions) * 100).toFixed(2))
+          : 0;
+        return s;
+      }).sort((a, b) => b.impressions - a.impressions);
+    }
+
+    test('uses resolved sponsor names from nameMap', () => {
+      const analytics = [
+        { sponsorId: 'spo-001', metric: 'impression' },
+        { sponsorId: 'spo-002', metric: 'impression' }
+      ];
+      const nameMap = {
+        'spo-001': 'Acme Corporation',
+        'spo-002': "Joe's Tavern"
+      };
+
+      const result = buildSponsorsArray_(analytics, nameMap);
+
+      expect(result[0].name).toBe('Acme Corporation');
+      expect(result[1].name).toBe("Joe's Tavern");
+    });
+
+    test('falls back to sponsorId when not in nameMap', () => {
+      const analytics = [
+        { sponsorId: 'unknown-sponsor', metric: 'impression' }
+      ];
+
+      const result = buildSponsorsArray_(analytics, {});
+
+      expect(result[0].name).toBe('unknown-sponsor');
+    });
+
+    test('handles empty nameMap gracefully', () => {
+      const analytics = [
+        { sponsorId: 'spo-001', metric: 'impression' }
+      ];
+
+      const result = buildSponsorsArray_(analytics, null);
+
+      expect(result[0].name).toBe('spo-001');
+    });
+  });
+});
+
+/**
  * Coverage Report: SharedReporting.gs
  *
  * Functions Tested:
@@ -935,8 +1279,11 @@ describe('📊 SharedReporting.gs - Analytics Calculations', () => {
  * ✅ getTopEventSponsorPairs_(analytics, limit) - 5 tests
  * ✅ buildEventsArray_(analytics, eventNameMap) - 8 tests (incl. signupsCount)
  * ✅ AnalyticsService_getTopSponsorsByClicks(analytics, sponsorNameMap, limit) - 10 tests
+ * ✅ buildEventNameMap_(brandId) - 10 tests [STORY 11]
+ * ✅ buildSponsorNameMap_(brandId) - 9 tests [STORY 11]
+ * ✅ buildSponsorsArray_ name resolution - 3 tests [STORY 11]
  *
- * TOTAL: 51 unit tests
+ * TOTAL: 73 unit tests
  * Coverage: 100% of SharedReporting.gs and AnalyticsService.gs calculation functions
  *
  * Edge Cases Covered:
@@ -948,6 +1295,10 @@ describe('📊 SharedReporting.gs - Analytics Calculations', () => {
  * - Date parsing and timezone handling
  * - signupsCount per event
  * - topSponsors by clicks
+ * - Name resolution with special characters [STORY 11]
+ * - Unicode support in names [STORY 11]
+ * - Fallback to ID when name missing [STORY 11]
+ * - Dedicated vs embedded sponsor precedence [STORY 11]
  *
  * Run with: npm run test:unit
  */
