@@ -19,14 +19,11 @@ const ZEB = Object.freeze({
     FORMS: true,            // [MVP] Google Forms integration
     SHORTLINKS: true,       // [MVP] URL shortening
 
-    // [V2+] Deferred Features (disabled for MVP)
-    WEBHOOKS: false,        // [V2+] External integrations (Zapier, Slack, etc.)
-    I18N: false,            // [V2+] Multi-language support (EN, ES, FR, DE, etc.)
-    ADVANCED_ANALYTICS: false, // [V2+] Advanced sponsor ROI calculations
+    // [MVP] Portfolio Features (enabled for parent organizations)
+    PORTFOLIO_ANALYTICS: true,  // [MVP] Parent org portfolio reporting
 
-    // [V2+] Experimental Features (enabled but limited scope)
-    PORTFOLIO_ANALYTICS: true,  // [V2+] Parent org portfolio reporting
-    SPONSOR_SELF_SERVICE: true  // [V2+] Sponsor dashboard access
+    // Story 16: V2 features archived - code moved to archive/v2-code/
+    // WEBHOOKS, I18N, ADVANCED_ANALYTICS, SPONSOR_SELF_SERVICE removed
   },
 
   // Customer-Friendly URL Routing
@@ -40,12 +37,11 @@ const ZEB = Object.freeze({
     'calendar': { page: 'public', label: 'Calendar', public: true },
 
     // Admin/Management aliases (authentication required)
-    'manage': { page: 'admin', mode: 'advanced', label: 'Management', public: false },
-    'admin': { page: 'admin', mode: 'advanced', label: 'Admin', public: false },
-    'create': { page: 'wizard', label: 'Create Event', public: false },
-    'planner': { page: 'planner', label: 'Event Planner', public: false },
-    'cards': { page: 'planner', label: 'Card Interface', public: false },
+    'manage': { page: 'admin', label: 'Management', public: false },
+    'admin': { page: 'admin', label: 'Admin', public: false },
+    'create': { page: 'admin', label: 'Create Event', public: false },
     'dashboard': { page: 'admin', label: 'Dashboard', public: false },
+    // Story 16: Removed planner, cards - pages archived in v2-code
 
     // Display aliases (for TV/kiosks)
     'display': { page: 'display', label: 'Display', public: true },
@@ -66,9 +62,8 @@ const ZEB = Object.freeze({
 
     // Utility aliases
     'status': { page: 'status', label: 'Status', public: true },
-    'health': { page: 'status', label: 'Health Check', public: true },
-    'docs': { page: 'api', label: 'API Docs', public: true },
-    'api': { page: 'api', label: 'API Documentation', public: true }
+    'health': { page: 'status', label: 'Health Check', public: true }
+    // Story 16: Removed docs, api - ApiDocs.html archived in v2-code
   },
 
   // Brand URL Templates
