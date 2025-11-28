@@ -20,6 +20,7 @@ const ADMIN_PAGE = {
   // Form Elements (match Admin.html actual IDs: #name, #startDateISO, #venue)
   EVENT_NAME_INPUT: '#name, input[name="eventName"], #eventName, input[placeholder*="Event Name"]',
   EVENT_DATE_INPUT: '#startDateISO, #dateISO, input[type="date"], input[name="eventDate"], #eventDate',
+  EVENT_TIME_INPUT: '#timeISO, input[name="timeISO"]',
   EVENT_LOCATION_INPUT: '#venue, #location, input[name="location"], input[placeholder*="Location"]',
   EVENT_DESCRIPTION_TEXTAREA: '#summary, textarea[name="description"], #description',
 
@@ -34,12 +35,76 @@ const ADMIN_PAGE = {
   SPONSOR_WEBSITE_INPUT: 'input[name*="sponsorWebsite"], input[placeholder*="Website"]',
 
   // Buttons
-  CREATE_EVENT_BUTTON: 'button:has-text("Create Event"), input[type="submit"][value*="Create"]',
+  CREATE_EVENT_BUTTON: 'button[type="submit"], button:has-text("Create Event"), input[type="submit"][value*="Create"]',
   SAVE_BUTTON: 'button:has-text("Save"), input[type="submit"][value*="Save"]',
   CANCEL_BUTTON: 'button:has-text("Cancel")',
   DELETE_BUTTON: 'button:has-text("Delete"), button.delete-btn',
   ADD_SPONSOR_BUTTON: 'button:has-text("Add Sponsor"), button#addSponsor',
   REMOVE_SPONSOR_BUTTON: 'button:has-text("Remove"), button.remove-sponsor',
+
+  // Create Card (Phase 1 - Event Creation Form)
+  CREATE_CARD: '#createCard',
+  CREATE_FORM: '#createForm, form',
+
+  // Seven-Card Shell (Phase 2 - After Event Creation)
+  EVENT_CARD_CONTAINER: '#eventCard',
+
+  // Card 1: Event Basics
+  CARD_1_EVENT_BASICS: '#card1EventBasics',
+  EVENT_INFO: '#eventInfo',
+
+  // Card 2: Sponsors
+  CARD_2_SPONSORS: '#card2Sponsors',
+  SPONSOR_PERFORMANCE_CARD: '#sponsorPerformanceCard',
+  SPONSOR_REPORTS_LIST: '#sponsorReportsList',
+  CUSTOM_SPONSOR_ID_INPUT: '#customSponsorId',
+  GENERATE_SPONSOR_LINK_BUTTON: 'button:has-text("Generate Link")',
+  CUSTOM_SPONSOR_LINK_OUTPUT: '#customSponsorLinkOutput',
+  CUSTOM_SPONSOR_LINK_FIELD: '#customSponsorLinkField',
+
+  // Card 3: Sign-Up Forms
+  CARD_3_SIGNUP: '#card3SignUp',
+  SIGNUP_COUNT: '#signupCount',
+  SIGNUP_SUMMARY: '#signupSummary',
+  CONFIGURE_SIGNUP_BUTTON: 'button:has-text("Configure Forms")',
+  CREATE_GOOGLE_FORMS_BUTTON: 'button:has-text("Create Google Forms")',
+
+  // Card 4: Poster Page
+  CARD_4_POSTER: '#card4Poster',
+  POSTER_LINK: '#lnkPoster',
+  POSTER_QR_PREVIEW: '#qrPosterPreview',
+  COPY_POSTER_LINK_BUTTON: '#card4Poster button:has-text("Copy Link")',
+  OPEN_POSTER_BUTTON: '#card4Poster button:has-text("Open Poster")',
+  SHOW_POSTER_QR_BUTTON: 'button:has-text("Show QR Code")',
+
+  // Card 5: TV Display
+  CARD_5_DISPLAY: '#card5Display',
+  DISPLAY_LINK: '#lnkDisplay',
+  COPY_DISPLAY_LINK_BUTTON: '#card5Display button:has-text("Copy Link")',
+  OPEN_DISPLAY_BUTTON: '#card5Display button:has-text("Open on TV")',
+  DISPLAY_SETTINGS_BUTTON: '#card5Display button:has-text("Settings")',
+
+  // Card 6: Public Page
+  CARD_6_PUBLIC: '#card6PublicPage',
+  PUBLIC_LINK: '#lnkPublic',
+  PUBLIC_QR_PREVIEW: '#qrPublicPreview',
+  COPY_PUBLIC_LINK_BUTTON: '#card6PublicPage button:has-text("Copy Link")',
+  OPEN_PUBLIC_BUTTON: '#card6PublicPage button:has-text("Open Page")',
+  SHOW_PUBLIC_QR_BUTTON: '#card6PublicPage button:has-text("Show QR Code")',
+
+  // Card 7: Shared Report
+  CARD_7_REPORT: '#card7Report',
+  REPORT_LINK: '#lnkReport',
+  COPY_REPORT_LINK_BUTTON: '#card7Report button:has-text("Copy Report Link")',
+  VIEW_REPORT_BUTTON: '#card7Report button:has-text("View Report")',
+  SHARED_REPORT_QR: '#qrSharedReport',
+
+  // Diagnostics Card (Advanced Tools)
+  CARD_DIAGNOSTICS: '#cardDiagnostics',
+  EVENT_ID_DISPLAY: '#eventIdDisplay',
+
+  // Create Another Event
+  CREATE_ANOTHER_BUTTON: 'button:has-text("Create Another Event")',
 
   // Display Configuration
   DISPLAY_MODE_SELECT: 'select[name="displayMode"], #displayMode',
@@ -47,7 +112,7 @@ const ADMIN_PAGE = {
   ADD_DISPLAY_URL_BUTTON: 'button:has-text("Add Display URL")',
 
   // Form URLs
-  REGISTRATION_URL_INPUT: 'input[name="registrationUrl"], #registrationUrl',
+  REGISTRATION_URL_INPUT: 'input[name="registrationUrl"], #registrationUrl, #registerUrl',
   CHECKIN_URL_INPUT: 'input[name="checkinUrl"], #checkinUrl',
   WALKIN_URL_INPUT: 'input[name="walkinUrl"], #walkinUrl',
   SURVEY_URL_INPUT: 'input[name="surveyUrl"], #surveyUrl',
