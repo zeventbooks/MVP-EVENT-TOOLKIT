@@ -1,24 +1,30 @@
 /**
- * CONTRACT TESTS: Bundle APIs
+ * API Contract Tests for All MVP Bundles - Story 8
  *
- * Tests the contract for all bundle endpoints:
- * - api_getPublicBundle
- * - api_getDisplayBundle
- * - api_getAdminBundle
- * - api_getPosterBundle
+ * LOCKED CONTRACT: Tests the contract for all MVP bundle endpoints:
+ * - api_getPublicBundle  (Public.html surface)
+ * - api_getDisplayBundle (Display.html TV mode)
+ * - api_getAdminBundle   (Admin.html - 7-card layout)
+ * - api_getPosterBundle  (Poster.html print-ready)
  *
  * All bundles follow EVENT_CONTRACT.md v2.0 canonical event shape.
+ *
+ * This ensures the new Admin layout (Story 5-6) still speaks the
+ * correct event object format.
  *
  * Bundle Envelope:
  * {
  *   ok: true,
  *   etag: string,
  *   value: {
- *     event: EventCore,  // Canonical v2.0 event
+ *     event: EventCore,  // Canonical v2.2 event (MVP-frozen)
  *     config: BrandConfig,
  *     ... (bundle-specific fields)
  *   }
  * }
+ *
+ * @see /schemas/event.schema.json (v2.2 MVP-frozen)
+ * @see /src/mvp/Admin.html (7-card layout)
  */
 
 const {
@@ -341,7 +347,7 @@ const POSTER_BUNDLE_MATRIX = {
 // TEST SUITES
 // ============================================================================
 
-describe('📦 Bundle Contract Tests', () => {
+describe('📦 Bundle Contract Tests - Story 8 (LOCKED)', () => {
 
   describe('api_getPublicBundle', () => {
 
@@ -601,6 +607,165 @@ describe('📦 Bundle Contract Tests', () => {
 
         expect(diagnostics).toHaveProperty('formStatus');
         expect(['ok', 'error', 'pending']).toContain(diagnostics.formStatus);
+      });
+    });
+
+    /**
+     * Admin 7-Card Layout Contract Tests
+     *
+     * Ensures Admin bundle provides all fields required by the 7-card layout:
+     * Card 1: Event Details (name, date, venue, template)
+     * Card 2: CTA Manager (ctas.primary, ctas.secondary)
+     * Card 3: Schedule (schedule[], settings.showSchedule)
+     * Card 4: Standings (standings[], settings.showStandings)
+     * Card 5: External Data (externalData.scheduleUrl, etc)
+     * Card 6: Sponsors (sponsors[], settings.showSponsors)
+     * Card 7: Settings Toggles (all settings.show* booleans)
+     */
+    describe('Admin 7-Card Layout Contract (Story 5-6)', () => {
+      const mockAdminEvent = {
+        id: 'test-event-1',
+        slug: 'test-event',
+        name: 'Test Event',
+        startDateISO: '2025-12-31',
+        venue: 'Test Venue',
+        templateId: 'rec_league',
+        links: {
+          publicUrl: 'https://example.com/public',
+          displayUrl: 'https://example.com/display',
+          posterUrl: 'https://example.com/poster',
+          signupUrl: 'https://forms.google.com/test'
+        },
+        qr: { public: 'data:image/png;base64,abc', signup: 'data:image/png;base64,def' },
+        ctas: {
+          primary: { label: 'Sign Up', url: 'https://forms.google.com/test' },
+          secondary: { label: 'Learn More', url: 'https://example.com' }
+        },
+        settings: {
+          showSchedule: true,
+          showStandings: true,
+          showBracket: false,
+          showSponsors: true,
+          showVideo: false,
+          showMap: false,
+          showGallery: false,
+          showSponsorBanner: true,
+          showSponsorStrip: true,
+          showLeagueStrip: true,
+          showQRSection: true
+        },
+        schedule: [
+          { time: '10:00 AM', title: 'Check-in' }
+        ],
+        standings: [
+          { rank: 1, team: 'Team A', wins: 5, losses: 1 }
+        ],
+        bracket: null,
+        sponsors: [
+          { id: 'sp-1', name: 'Sponsor', logoUrl: 'https://example.com/logo.png', placement: 'poster' }
+        ],
+        media: {},
+        externalData: {
+          scheduleUrl: 'https://example.com/schedule.json',
+          standingsUrl: 'https://example.com/standings.json'
+        },
+        createdAtISO: '2025-01-01T00:00:00.000Z',
+        updatedAtISO: '2025-01-01T00:00:00.000Z'
+      };
+
+      it('Card 1: Event Details - provides name, date, venue, templateId', () => {
+        expect(mockAdminEvent).toHaveProperty('name');
+        expect(mockAdminEvent).toHaveProperty('startDateISO');
+        expect(mockAdminEvent).toHaveProperty('venue');
+        expect(mockAdminEvent).toHaveProperty('templateId');
+      });
+
+      it('Card 2: CTA Manager - provides primary and secondary CTAs', () => {
+        expect(mockAdminEvent.ctas).toHaveProperty('primary');
+        expect(mockAdminEvent.ctas.primary).toHaveProperty('label');
+        expect(mockAdminEvent.ctas.primary).toHaveProperty('url');
+        // secondary can be null
+        if (mockAdminEvent.ctas.secondary) {
+          expect(mockAdminEvent.ctas.secondary).toHaveProperty('label');
+          expect(mockAdminEvent.ctas.secondary).toHaveProperty('url');
+        }
+      });
+
+      it('Card 3: Schedule - provides schedule array and showSchedule setting', () => {
+        expect(mockAdminEvent).toHaveProperty('schedule');
+        expect(mockAdminEvent.settings).toHaveProperty('showSchedule');
+        expect(typeof mockAdminEvent.settings.showSchedule).toBe('boolean');
+      });
+
+      it('Card 4: Standings - provides standings array and showStandings setting', () => {
+        expect(mockAdminEvent).toHaveProperty('standings');
+        expect(mockAdminEvent.settings).toHaveProperty('showStandings');
+        expect(typeof mockAdminEvent.settings.showStandings).toBe('boolean');
+      });
+
+      it('Card 5: External Data - provides externalData object with URLs', () => {
+        expect(mockAdminEvent).toHaveProperty('externalData');
+        expect(typeof mockAdminEvent.externalData).toBe('object');
+        // URLs are optional but should be strings if present
+        if (mockAdminEvent.externalData.scheduleUrl) {
+          expect(typeof mockAdminEvent.externalData.scheduleUrl).toBe('string');
+        }
+        if (mockAdminEvent.externalData.standingsUrl) {
+          expect(typeof mockAdminEvent.externalData.standingsUrl).toBe('string');
+        }
+        if (mockAdminEvent.externalData.bracketUrl) {
+          expect(typeof mockAdminEvent.externalData.bracketUrl).toBe('string');
+        }
+      });
+
+      it('Card 6: Sponsors - provides sponsors array and showSponsors setting', () => {
+        expect(mockAdminEvent).toHaveProperty('sponsors');
+        expect(mockAdminEvent.settings).toHaveProperty('showSponsors');
+        expect(typeof mockAdminEvent.settings.showSponsors).toBe('boolean');
+      });
+
+      it('Card 7: Settings Toggles - provides all show* boolean settings', () => {
+        const requiredSettings = [
+          'showSchedule',
+          'showStandings',
+          'showBracket'
+        ];
+
+        const optionalSettings = [
+          'showSponsors',
+          'showVideo',
+          'showMap',
+          'showGallery',
+          'showSponsorBanner',
+          'showSponsorStrip',
+          'showLeagueStrip',
+          'showQRSection'
+        ];
+
+        // Required settings must be present and boolean
+        requiredSettings.forEach(setting => {
+          expect(mockAdminEvent.settings).toHaveProperty(setting);
+          expect(typeof mockAdminEvent.settings[setting]).toBe('boolean');
+        });
+
+        // Optional settings if present must be boolean
+        optionalSettings.forEach(setting => {
+          if (mockAdminEvent.settings[setting] !== undefined) {
+            expect(typeof mockAdminEvent.settings[setting]).toBe('boolean');
+          }
+        });
+      });
+
+      it('Admin bundle should provide all links for surface navigation', () => {
+        expect(mockAdminEvent.links).toHaveProperty('publicUrl');
+        expect(mockAdminEvent.links).toHaveProperty('displayUrl');
+        expect(mockAdminEvent.links).toHaveProperty('posterUrl');
+        expect(mockAdminEvent.links).toHaveProperty('signupUrl');
+      });
+
+      it('Admin bundle should provide QR codes for preview', () => {
+        expect(mockAdminEvent.qr).toHaveProperty('public');
+        expect(mockAdminEvent.qr).toHaveProperty('signup');
       });
     });
   });

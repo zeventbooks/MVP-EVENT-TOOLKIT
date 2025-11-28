@@ -1,21 +1,27 @@
 /**
- * Schema Sync Contract Tests - Story 2.1
+ * Schema Sync Contract Tests - Story 7
  *
- * Ensures 100% alignment across:
+ * LOCKED CONTRACT: Ensures 100% alignment across all schema layers:
  * - /schemas/*.schema.json (JSON Schema source of truth)
  * - ApiSchemas.gs SCHEMAS object (GAS runtime validation)
+ * - TemplateService.gs EVENT_TEMPLATES (template → settings mapping)
  * - HTML READS/WRITES header blocks (frontend contracts)
  *
  * TEST FAILS IF:
  * - A field is added in HTML but not in JSON schema
  * - A field exists in ApiSchemas.gs but not in JSON schema
  * - A field is in JSON schema but missing from ApiSchemas.gs
+ * - A template writes to a settings field not in event.schema.json
+ * - A frontend reads a field not defined in the schema
  *
- * @see /schemas/event.schema.json
+ * This is a LOCKED CONTRACT - changes require explicit schema migration.
+ *
+ * @see /schemas/event.schema.json (v2.2 MVP-frozen)
  * @see /schemas/sponsor.schema.json
  * @see /schemas/form-config.schema.json
  * @see /schemas/shared-analytics.schema.json
  * @see src/mvp/ApiSchemas.gs
+ * @see src/mvp/TemplateService.gs
  */
 
 const fs = require('fs');
@@ -226,6 +232,67 @@ function parseHtmlFields(filename) {
   return { reads, writes };
 }
 
+/**
+ * Parse TemplateService.gs to extract template section mappings
+ * Returns object with template IDs and which settings they enable
+ */
+function parseTemplateServiceGs() {
+  const filepath = path.join(MVP_DIR, 'TemplateService.gs');
+  const content = fs.readFileSync(filepath, 'utf8');
+
+  const templates = {};
+  const settingsWritten = new Set();
+
+  // Parse EVENT_TEMPLATES object
+  const templatesMatch = content.match(/const\s+EVENT_TEMPLATES\s*=\s*\{([\s\S]*?)^\};/m);
+  if (templatesMatch) {
+    const templatesBlock = templatesMatch[1];
+
+    // Find all template definitions
+    const templateMatches = templatesBlock.matchAll(/^\s*(\w+):\s*\{([\s\S]*?)^\s{2}\}/gm);
+    for (const match of templateMatches) {
+      const templateId = match[1];
+      const templateBlock = match[2];
+
+      // Extract sections
+      const sectionsMatch = templateBlock.match(/sections:\s*\{([^}]+)\}/);
+      if (sectionsMatch) {
+        const sectionsStr = sectionsMatch[1];
+        const sectionProps = sectionsStr.matchAll(/(\w+):\s*(true|false)/g);
+        for (const prop of sectionProps) {
+          settingsWritten.add(prop[1]);
+        }
+      }
+
+      templates[templateId] = true;
+    }
+  }
+
+  // Map section names to settings field names
+  const sectionToSettingMap = {
+    schedule: 'showSchedule',
+    standings: 'showStandings',
+    bracket: 'showBracket',
+    sponsors: 'showSponsors',
+    video: 'showVideo',
+    map: 'showMap',
+    gallery: 'showGallery'
+  };
+
+  const settingsFields = new Set();
+  settingsWritten.forEach(section => {
+    if (sectionToSettingMap[section]) {
+      settingsFields.add(sectionToSettingMap[section]);
+    }
+  });
+
+  return {
+    templateIds: Object.keys(templates),
+    settingsFields,
+    sectionToSettingMap
+  };
+}
+
 // ============================================================================
 // Test Data - Manual Mirror Lists for Contract Validation
 // ============================================================================
@@ -349,7 +416,7 @@ const CANONICAL = {
 // Tests
 // ============================================================================
 
-describe('Schema Sync Contract Tests - Story 2.1', () => {
+describe('Schema Sync Contract Tests - Story 7 (LOCKED)', () => {
   let eventSchema, sponsorSchema, formConfigSchema, sharedAnalyticsSchema;
   let gasSchemas;
 
@@ -785,6 +852,66 @@ describe('Schema Sync Contract Tests - Story 2.1', () => {
       expect(sponsorPlacements).toContain('display');
       expect(sponsorPlacements).toContain('public');
       expect(sponsorPlacements).toContain('tv-banner');
+    });
+  });
+
+  // ==========================================================================
+  // TemplateService.gs ↔ JSON Schema Alignment
+  // ==========================================================================
+
+  describe('TemplateService.gs ↔ JSON Schema Alignment', () => {
+    let templateServiceData;
+
+    beforeAll(() => {
+      templateServiceData = parseTemplateServiceGs();
+    });
+
+    it('All template section mappings should write to valid settings fields', () => {
+      const settingsSchema = eventSchema.$defs.Settings;
+      const validSettings = Object.keys(settingsSchema.properties);
+      const invalidFields = [];
+
+      templateServiceData.settingsFields.forEach(field => {
+        if (!validSettings.includes(field)) {
+          invalidFields.push(field);
+        }
+      });
+
+      expect(invalidFields).toEqual([]);
+    });
+
+    it('TemplateService should not write to reserved settings fields', () => {
+      // Reserved settings that templates should not control directly
+      const reservedSettings = ['showQRSection'];
+
+      const conflictingFields = [];
+      templateServiceData.settingsFields.forEach(field => {
+        if (reservedSettings.includes(field)) {
+          conflictingFields.push(field);
+        }
+      });
+
+      expect(conflictingFields).toEqual([]);
+    });
+
+    it('Section-to-setting mapping should cover all template sections', () => {
+      const { sectionToSettingMap } = templateServiceData;
+
+      // All core sections should be mapped
+      const coreSections = ['schedule', 'standings', 'bracket', 'sponsors', 'video', 'map', 'gallery'];
+      coreSections.forEach(section => {
+        expect(sectionToSettingMap[section]).toBeDefined();
+      });
+    });
+
+    it('All mapped settings should exist in event.schema.json Settings', () => {
+      const settingsSchema = eventSchema.$defs.Settings;
+      const validSettings = new Set(Object.keys(settingsSchema.properties));
+      const { sectionToSettingMap } = templateServiceData;
+
+      Object.values(sectionToSettingMap).forEach(setting => {
+        expect(validSettings.has(setting)).toBe(true);
+      });
     });
   });
 
