@@ -476,10 +476,12 @@ DO NOT modify contracts without updating:
       <button id="refreshBtn" class="btn btn-primary" onclick="loadReport()">
         <span class="btn-text">🔄 Refresh Data</span>
       </button>
-      <button id="exportBtn" class="btn btn-secondary" onclick="exportReport()">
+      <!-- V2 FEATURE – NOT MVP: Export to Sheets (requires backend export matrix implementation) -->
+      <button id="exportBtn" class="btn btn-secondary" onclick="exportReport()" style="display:none;">
         <span class="btn-text">📊 Export to Sheets</span>
       </button>
-      <button id="filterBtn" class="btn btn-secondary" onclick="showFilters()">
+      <!-- V2 FEATURE – NOT MVP: Filter by date range, sponsor, event (requires backend filter support) -->
+      <button id="filterBtn" class="btn btn-secondary" onclick="showFilters()" style="display:none;">
         <span class="btn-text">🔍 Filter</span>
       </button>
     </div>
@@ -1106,7 +1108,8 @@ DO NOT modify contracts without updating:
       `;
     }
 
-    // Stubbed v2 features – keep buttons wired but don't fake data
+    // V2 FEATURE – NOT MVP: Export and Filter functions (buttons hidden in MVP)
+    // These stubs remain for when V2 features are enabled
     function exportReport() {
       showComingSoon(document.getElementById('exportBtn'));
     }
