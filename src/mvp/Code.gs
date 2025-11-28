@@ -2499,7 +2499,11 @@ const EVENT_DEFAULTS_ = {
 function _buildEventContract_(row, options = {}) {
   const [id, brandId, templateId, dataJson, createdAt, slug] = row;
   const data = safeJSONParse_(dataJson, {});
-  const baseUrl = options.baseUrl || ScriptApp.getService().getUrl();
+
+  // Use friendly base URL for user-facing links (QR codes, shareable URLs)
+  // Falls back to raw GAS URL if friendly URL not configured
+  const friendlyBaseUrl = ZEB.FRIENDLY_BASE_URL || ScriptApp.getService().getUrl();
+  const rawBaseUrl = options.baseUrl || ScriptApp.getService().getUrl();
 
   // Extract startDateISO (backward compat: dateISO → startDateISO)
   const startDateISO = data.startDateISO || data.dateISO || '';
@@ -2510,11 +2514,12 @@ function _buildEventContract_(row, options = {}) {
   // Extract signupUrl for links (from data or build default)
   const signupUrl = data.signupUrl || data.ctas?.primary?.url || '';
 
-  // Build links object
+  // Build links object using friendly URLs
+  // These URLs are shown to users and embedded in QR codes
   const links = {
-    publicUrl: `${baseUrl}?page=events&brand=${brandId}&id=${id}`,
-    displayUrl: `${baseUrl}?page=display&brand=${brandId}&id=${id}&tv=1`,
-    posterUrl: `${baseUrl}?page=poster&brand=${brandId}&id=${id}`,
+    publicUrl: `${friendlyBaseUrl}/events?brand=${brandId}&id=${id}`,
+    displayUrl: `${friendlyBaseUrl}/display?brand=${brandId}&id=${id}&tv=1`,
+    posterUrl: `${friendlyBaseUrl}/poster?brand=${brandId}&id=${id}`,
     signupUrl: signupUrl,
     sharedReportUrl: null  // V2 Optional
   };

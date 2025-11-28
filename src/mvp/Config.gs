@@ -6,6 +6,13 @@ const ZEB = Object.freeze({
   BUILD_ID: 'mvp-v19',
   CONTRACT_VER: '1.0.0', // EVENT_CONTRACT.md v1.0.0
 
+  // === Friendly URL Configuration ===
+  // When set, generates user-facing URLs using this base instead of raw GAS URL
+  // Used for: QR codes, shareable links, display URLs
+  // Leave empty to use raw GAS URL (for development/testing)
+  FRIENDLY_BASE_URL: 'https://www.eventangle.com',  // Production friendly domain
+  FRIENDLY_BASE_URL_DEV: '',  // Empty = use raw GAS URL for development
+
   // === Feature Flags ===
   // Controls which features are active in the current deployment
   // Set to false to defer non-MVP features without removing code
