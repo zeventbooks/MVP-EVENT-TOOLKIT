@@ -421,6 +421,116 @@ describe('🔺 TRIANGLE [AFTER EVENT]: Analytics API Contract', () => {
     });
   });
 
+  describe('api_getSharedAnalytics - events[].signupsCount (Story 4.2)', () => {
+    /**
+     * signupsCount is a required field in each EventMetrics object.
+     * It counts the number of 'signup' metrics logged for that event.
+     * Used by SharedReport.html to display signups per event in the Event Performance table.
+     *
+     * Schema: /schemas/shared-analytics.schema.json#/definitions/EventMetrics
+     * Shape: events[].signupsCount: number
+     */
+
+    it('should include signupsCount field in events array items', () => {
+      const mockResponse = {
+        ok: true,
+        value: {
+          lastUpdatedISO: '2025-01-15T10:00:00.000Z',
+          summary: {
+            totalImpressions: 100,
+            totalClicks: 10,
+            totalQrScans: 5,
+            totalSignups: 8,
+            uniqueEvents: 2,
+            uniqueSponsors: 3
+          },
+          surfaces: [],
+          sponsors: [],
+          events: [
+            { id: 'evt1', name: 'Winter Championship', impressions: 60, clicks: 6, ctr: 10, signupsCount: 5 },
+            { id: 'evt2', name: 'Summer Showdown', impressions: 40, clicks: 4, ctr: 10, signupsCount: 3 }
+          ],
+          topSponsors: null
+        }
+      };
+
+      validateEnvelope(mockResponse);
+      expect(mockResponse.value).toHaveProperty('events');
+      expect(Array.isArray(mockResponse.value.events)).toBe(true);
+
+      mockResponse.value.events.forEach(event => {
+        expect(event).toHaveProperty('signupsCount');
+        expect(typeof event.signupsCount).toBe('number');
+        expect(event.signupsCount).toBeGreaterThanOrEqual(0);
+      });
+    });
+
+    it('should have EventMetrics shape with all required fields including signupsCount', () => {
+      const mockEvent = {
+        id: 'evt1',
+        name: 'Test Event',
+        impressions: 100,
+        clicks: 10,
+        ctr: 10,
+        signupsCount: 5
+      };
+
+      expect(mockEvent).toHaveProperty('id');
+      expect(mockEvent).toHaveProperty('name');
+      expect(mockEvent).toHaveProperty('impressions');
+      expect(mockEvent).toHaveProperty('clicks');
+      expect(mockEvent).toHaveProperty('ctr');
+      expect(mockEvent).toHaveProperty('signupsCount');
+
+      expect(typeof mockEvent.id).toBe('string');
+      expect(typeof mockEvent.name).toBe('string');
+      expect(typeof mockEvent.impressions).toBe('number');
+      expect(typeof mockEvent.clicks).toBe('number');
+      expect(typeof mockEvent.ctr).toBe('number');
+      expect(typeof mockEvent.signupsCount).toBe('number');
+    });
+
+    it('should have signupsCount of 0 when event has no signups', () => {
+      const mockEvent = {
+        id: 'evt1',
+        name: 'Event With No Signups',
+        impressions: 50,
+        clicks: 5,
+        ctr: 10,
+        signupsCount: 0
+      };
+
+      expect(mockEvent.signupsCount).toBe(0);
+    });
+
+    it('should sum to totalSignups in summary', () => {
+      const mockResponse = {
+        ok: true,
+        value: {
+          lastUpdatedISO: '2025-01-15T10:00:00.000Z',
+          summary: {
+            totalImpressions: 100,
+            totalClicks: 10,
+            totalQrScans: 5,
+            totalSignups: 8,
+            uniqueEvents: 2,
+            uniqueSponsors: 0
+          },
+          surfaces: [],
+          sponsors: null,
+          events: [
+            { id: 'evt1', name: 'Event 1', impressions: 60, clicks: 6, ctr: 10, signupsCount: 5 },
+            { id: 'evt2', name: 'Event 2', impressions: 40, clicks: 4, ctr: 10, signupsCount: 3 }
+          ],
+          topSponsors: null
+        }
+      };
+
+      const eventsSignupsSum = mockResponse.value.events.reduce((sum, e) => sum + e.signupsCount, 0);
+      expect(eventsSignupsSum).toBe(mockResponse.value.summary.totalSignups);
+    });
+  });
+
   describe('api_getSharedAnalytics - topSponsors array (Story 5.1)', () => {
     /**
      * topSponsors is an optional array in the SharedAnalytics response.

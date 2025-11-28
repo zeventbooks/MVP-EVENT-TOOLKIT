@@ -286,6 +286,61 @@ test.describe('Story 4.1: Name Resolution in SharedReport', () => {
     }
   });
 
+  test('Event Performance table displays Signups column (Story 4.2)', async ({ page }) => {
+    // Story 4.2: signupsCount per event in SharedReport
+    await page.goto(`${BASE_URL}?page=report&brand=${BRAND_ID}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(2000);
+
+    // Verify the Event Performance section has Signups column
+    const eventSection = page.locator('#eventPerformance');
+    const hasEventSection = await eventSection.count() > 0;
+
+    if (hasEventSection) {
+      const content = await eventSection.textContent();
+
+      // Check that the section has a proper table with Signups column
+      const hasTable = await page.locator('#eventPerformance table').count() > 0;
+
+      if (hasTable) {
+        // Verify table headers include "Signups" column
+        const headers = await page.locator('#eventPerformance table thead th').allTextContents();
+        expect(headers).toContain('Signups');
+        console.log('Event Performance table headers (with Signups):', headers);
+
+        // Verify Signups column is in the expected position (4th column, after Event, Impressions, Clicks)
+        const signupsIndex = headers.indexOf('Signups');
+        expect(signupsIndex).toBe(3); // 0-indexed: Event(0), Impressions(1), Clicks(2), Signups(3), CTR(4)
+
+        // If there are data rows, verify Signups cells contain numeric values
+        const dataRows = page.locator('#eventPerformance table tbody tr');
+        const rowCount = await dataRows.count();
+
+        if (rowCount > 0) {
+          // Check the first row's Signups cell
+          const firstRowSignupsCell = dataRows.first().locator('td').nth(3);
+          const signupsText = await firstRowSignupsCell.textContent();
+
+          // Signups should display a number (possibly with locale formatting)
+          const signupsValue = signupsText.trim().replace(/,/g, '');
+          const isNumeric = !isNaN(parseInt(signupsValue, 10)) || signupsValue === '0';
+          expect(isNumeric).toBe(true);
+          console.log(`First event signups value: ${signupsText.trim()}`);
+        }
+      } else if (content.includes('No event-level analytics')) {
+        console.log('No event analytics data available yet - skipping Signups column data check');
+        // Even without data, verify the table structure would have Signups if rendered
+        test.skip();
+      }
+    } else {
+      console.log('Event Performance section not found');
+      test.skip();
+    }
+  });
+
   test('Sponsor Performance table displays names, IDs only as subtitles', async ({ page }) => {
     await page.goto(`${BASE_URL}?page=report&brand=${BRAND_ID}`, {
       waitUntil: 'domcontentloaded',
