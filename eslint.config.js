@@ -221,6 +221,8 @@ module.exports = [
     },
     rules: {
       'no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+      // Tests often mock/redefine globals
+      'no-redeclare': 'off',
     },
   },
 
@@ -237,6 +239,25 @@ module.exports = [
     },
     rules: {
       'no-unused-vars': 'off',
+      // Tests often mock/redefine globals
+      'no-redeclare': 'off',
+    },
+  },
+
+  // Smoke test files
+  {
+    files: ['tests/smoke/**/*.js'],
+    languageOptions: {
+      ecmaVersion: 2021,
+      sourceType: 'module',
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+      },
+    },
+    rules: {
+      'no-unused-vars': 'off',
+      'no-redeclare': 'off',
     },
   },
 
