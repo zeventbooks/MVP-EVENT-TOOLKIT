@@ -392,6 +392,198 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
     .sp-card.sponsor-primary img {
       max-height: calc(var(--display-sponsor-logo-height-side, 64px) * 1.4);
     }
+
+    /* ===== Mobile Fallback for Phone Preview/Debugging ===== */
+    /* Display is TV-first but must be "mobile-valid" for phone preview */
+    @media (max-width: 768px) {
+      :root {
+        --tv-safe-area: 0;
+      }
+
+      body[data-tv="1"] {
+        font-size: 16px;
+        padding: 0;
+        overflow-x: hidden;
+      }
+
+      /* Stack layout vertically on phone */
+      main#tv {
+        display: flex;
+        flex-direction: column;
+        height: auto;
+        min-height: 100vh;
+      }
+
+      main#tv.has-side {
+        grid-template-columns: 1fr;
+      }
+
+      /* Sponsor strip mobile - scrollable horizontal */
+      .sponsor-top {
+        min-height: 60px;
+        padding: 10px 12px;
+        gap: 12px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        flex-wrap: nowrap;
+        justify-content: flex-start;
+      }
+
+      .sponsor-top img {
+        max-height: 40px;
+        margin: 0 8px;
+      }
+
+      /* Stage takes remaining height */
+      .stage {
+        flex: 1;
+        min-height: 300px;
+        position: relative;
+      }
+
+      /* Hide side panel on mobile - show in top strip only */
+      aside#sponsorSide {
+        display: none !important;
+      }
+
+      /* League strip mobile adjustments */
+      .league-broadcast-strip {
+        bottom: auto;
+        top: auto;
+        position: relative;
+        transform: none;
+        margin: 8px;
+        max-width: 100%;
+        padding: 10px 14px;
+        border-radius: 10px;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+
+      .league-broadcast-strip .strip-title {
+        font-size: 0.85rem;
+        flex-basis: 100%;
+        text-align: center;
+      }
+
+      .league-broadcast-strip .strip-divider {
+        display: none;
+      }
+
+      .league-broadcast-strip .strip-section {
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: center;
+        width: 100%;
+      }
+
+      .league-broadcast-strip .strip-label {
+        font-size: 0.75rem;
+        width: 100%;
+        text-align: center;
+      }
+
+      .league-broadcast-strip .strip-links {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 8px;
+      }
+
+      .league-broadcast-strip .strip-link {
+        font-size: 0.85rem;
+        padding: 8px 12px;
+        min-height: 44px;
+      }
+
+      /* Legacy overlay mobile */
+      .league-info-overlay {
+        position: relative;
+        bottom: auto;
+        right: auto;
+        margin: 8px;
+        max-width: 100%;
+        border-radius: 10px;
+      }
+
+      /* Toast mobile */
+      .toast {
+        right: 12px;
+        bottom: 80px;
+        left: 12px;
+        text-align: center;
+        font-size: 0.85rem;
+      }
+
+      /* Fallback card mobile */
+      .fallback-card {
+        padding: 24px 16px;
+      }
+
+      .fallback-card h2 {
+        font-size: 1.4em;
+      }
+
+      .fallback-card p {
+        font-size: 0.95rem;
+      }
+
+      /* Error state mobile */
+      .error-state-tv {
+        padding: 24px 16px;
+      }
+
+      .error-state-tv .error-icon {
+        font-size: 3rem;
+      }
+
+      .error-state-tv h2 {
+        font-size: 1.3em;
+      }
+
+      .error-state-tv p {
+        font-size: 0.95rem;
+      }
+
+      /* Footer mobile - visible at bottom */
+      .site-footer {
+        position: relative !important;
+        padding: 16px;
+        margin-top: 0;
+        background: var(--color-tv-bg, #111);
+        border-top: 1px solid var(--color-tv-border, #333);
+      }
+
+      /* Primary sponsor mobile */
+      .sponsor-primary img {
+        max-height: 50px !important;
+      }
+
+      .sponsor-item.sponsor-primary {
+        padding: 8px 14px;
+      }
+    }
+
+    /* Very small screens */
+    @media (max-width: 375px) {
+      .sponsor-top {
+        padding: 8px;
+        gap: 8px;
+      }
+
+      .sponsor-top img {
+        max-height: 32px;
+        margin: 0 4px;
+      }
+
+      .league-broadcast-strip {
+        padding: 8px 10px;
+      }
+
+      .league-broadcast-strip .strip-link {
+        font-size: 0.8rem;
+        padding: 6px 10px;
+      }
+    }
   </style>
 </head>
 <body data-tv="1">

@@ -159,6 +159,30 @@
     --card-padding-tablet: 20px;  /* Tablet */
     --card-padding-mobile: 16px;  /* Mobile */
 
+    /* ========== Mobile-First Responsive Tokens ========== */
+
+    /* Overflow prevention */
+    --overflow-wrap: break-word;
+    --word-break: break-word;
+
+    /* Mobile container padding */
+    --container-padding-mobile: 12px;
+    --container-padding-tablet: 16px;
+    --container-padding-desktop: 20px;
+
+    /* Minimum readable font sizes */
+    --font-size-mobile-min: 16px; /* Prevents iOS zoom on focus */
+    --line-height-mobile: 1.5;
+
+    /* Thumb-friendly spacing */
+    --tap-spacing: 12px;          /* Minimum gap between tappable elements */
+
+    /* Mobile-specific shadows (lighter for performance) */
+    --shadow-mobile: 0 1px 2px rgba(0, 0, 0, 0.08);
+
+    /* Safe bottom padding for fixed action buttons */
+    --safe-bottom-padding: 80px;
+
     /* ========== Z-Index Scale ========== */
 
     --z-index-base: 1;
@@ -171,9 +195,12 @@
 
     /* Sponsor Logo Sizing (unified across surfaces) */
     --sponsor-logo-height: 60px;           /* Standard height for most surfaces */
-    --sponsor-logo-height-sm: 40px;        /* Compact banners, mobile */
+    --sponsor-logo-height-sm: 40px;        /* Compact banners, mobile (640px and below) */
+    --sponsor-logo-height-xs: 32px;        /* Very small mobile (375px and below) */
     --sponsor-logo-height-lg: 80px;        /* Large displays */
     --sponsor-logo-height-tv: 120px;       /* TV mode (10-foot viewing) */
+    --sponsor-logo-max-width-mobile: 160px; /* Max width on mobile to prevent overflow */
+    --sponsor-logo-gap-mobile: 10px;       /* Reduced gap on mobile */
     --sponsor-logo-max-width: 220px;       /* Max width to prevent overflow */
     --sponsor-logo-gap: 16px;              /* Gap between logos */
 

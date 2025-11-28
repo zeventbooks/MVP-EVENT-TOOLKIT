@@ -191,6 +191,178 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
       padding: var(--space-6, 24px);
       color: var(--color-gray-500, #64748b);
     }
+
+    /* ===== Mobile-First Admin Enhancements ===== */
+
+    /* Mobile card padding adjustments */
+    @media (max-width: 640px) {
+      .container {
+        padding: 12px;
+      }
+
+      .card {
+        padding: 16px;
+        margin-bottom: 16px;
+      }
+
+      /* Seven-Card Shell mobile adjustments */
+      #eventCard .card {
+        padding: 16px 14px;
+      }
+
+      /* Card headers: stack icon and text on narrow screens */
+      #eventCard .card > div:first-child {
+        flex-wrap: wrap;
+      }
+
+      /* Smaller icons on mobile */
+      #eventCard .card > div > div:first-child {
+        font-size: 1.8rem;
+      }
+
+      /* Card titles */
+      #eventCard h3 {
+        font-size: 1.1rem;
+      }
+
+      /* Link fields with proper truncation */
+      #eventCard a[id^="lnk"] {
+        font-size: 0.75rem;
+        line-height: 1.4;
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
+      }
+
+      /* Full-width buttons on mobile */
+      #eventCard .card button {
+        flex: 1 1 calc(50% - 4px);
+        min-width: 0;
+        padding: 12px 10px;
+        font-size: 0.85rem;
+      }
+
+      /* Stack buttons vertically when 3+ buttons */
+      #eventCard .card div[style*="display: flex"][style*="gap: 8px"] {
+        flex-wrap: wrap;
+      }
+
+      /* Template picker mobile - 2 columns */
+      .template-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+      }
+
+      .template-card {
+        padding: 12px 8px;
+      }
+
+      .template-card .template-icon {
+        font-size: 1.5rem;
+      }
+
+      .template-card .template-name {
+        font-size: 0.8rem;
+      }
+
+      .template-card .template-desc {
+        font-size: 0.7rem;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+
+      .template-card .template-sections {
+        display: none; /* Hide section icons on mobile */
+      }
+
+      /* Form inputs - prevent zoom on iOS */
+      input, select, textarea {
+        font-size: 16px !important;
+      }
+
+      /* Checkbox groups mobile */
+      .checkbox-group {
+        gap: 6px;
+      }
+
+      .checkbox-label {
+        padding: 10px;
+        font-size: 0.85rem;
+        flex: 1 1 calc(50% - 3px);
+        min-width: 0;
+        justify-content: center;
+      }
+
+      /* QR preview sizing */
+      #qrPosterPreview img,
+      #qrPublicPreview img {
+        max-width: 60px;
+        max-height: 60px;
+      }
+
+      /* Sponsor card input */
+      #customSponsorId {
+        min-width: 100% !important;
+        margin-bottom: 8px;
+      }
+
+      #sponsorPerformanceCard > div[style*="display: flex"] {
+        flex-direction: column;
+      }
+
+      #sponsorPerformanceCard button {
+        width: 100%;
+      }
+
+      /* Collapsible headers - better tap target */
+      .collapsible-header {
+        padding: 16px;
+        min-height: 52px;
+      }
+
+      /* Advanced details summary */
+      details summary {
+        padding: 12px 0;
+        font-size: 0.9rem;
+      }
+
+      /* Make button group full-width */
+      .button-group {
+        flex-direction: column;
+      }
+
+      .button-group button {
+        width: 100%;
+        margin: 0;
+      }
+
+      .button-group .btn-primary,
+      .button-group .btn-secondary {
+        padding: 14px 16px;
+      }
+    }
+
+    /* Very small screens (iPhone SE, etc.) */
+    @media (max-width: 375px) {
+      .container {
+        padding: 8px;
+      }
+
+      #eventCard .card {
+        padding: 14px 12px;
+      }
+
+      .template-grid {
+        grid-template-columns: 1fr; /* Single column */
+      }
+
+      .checkbox-label {
+        flex: 1 1 100%;
+      }
+    }
     /* Section toggles grid */
     .sections-grid {
       display: grid;
