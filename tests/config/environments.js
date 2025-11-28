@@ -7,7 +7,7 @@
  *
  * Production (eventangle.com) - DEFAULT:
  *   npm run test:smoke
- *   BASE_URL="https://www.eventangle.com/events" npm run test:smoke
+ *   BASE_URL="https://www.eventangle.com" npm run test:smoke
  *
  * GAS Webapp (direct - for debugging):
  *   BASE_URL="https://script.google.com/macros/s/<DEPLOYMENT_ID>/exec" npm run test:smoke
@@ -29,7 +29,9 @@ const DEFAULT_DEPLOYMENT_ID = 'AKfycbyS1cW9VhviR-Jr8AmYY_BAGrb1gzuKkrgEBP2M3bMdq
 const DEFAULT_GAS_URL = `https://script.google.com/macros/s/${DEFAULT_DEPLOYMENT_ID}/exec`;
 
 // Default production URL (EventAngle via Cloudflare)
-const DEFAULT_PRODUCTION_URL = 'https://www.eventangle.com/events';
+// Note: Use base URL without path suffix - tests append their own paths like /status, /{brand}/status
+// The /events path is only for Public page deep-links, not the test base URL
+const DEFAULT_PRODUCTION_URL = 'https://www.eventangle.com';
 
 // Priority: BASE_URL > APP_URL > default (EventAngle production)
 const APP_URL = process.env.BASE_URL || process.env.APP_URL || DEFAULT_PRODUCTION_URL;
