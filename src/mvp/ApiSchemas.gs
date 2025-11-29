@@ -51,14 +51,13 @@
  * - Error: res.ok === false, error in res.code + res.message + res.corrId?
  *
  * ═══════════════════════════════════════════════════════════════════════════
- * RPC ENDPOINT INVENTORY (12 endpoints used by surfaces)
+ * RPC ENDPOINT INVENTORY (11 endpoints used by surfaces)
  * ═══════════════════════════════════════════════════════════════════════════
  *
  * Admin.html:
  *   - api_getEventTemplates   → templates.getEventTemplates
- *   - api_create              → events.create
+ *   - api_saveEvent           → events.saveEvent   [CANONICAL write endpoint - ZEVENT-003]
  *   - api_get                 → events.get
- *   - api_updateEventData     → events.update
  *   - api_createFormFromTemplate → forms.createFromTemplate
  *   - api_generateFormShortlink  → forms.generateShortlink
  *
@@ -545,6 +544,65 @@ const SCHEMAS = {
               data: { type: 'object' }
             }
           }
+        }
+      }
+    },
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // [MVP] CANONICAL EVENT WRITE API (ZEVENT-003)
+    // ═══════════════════════════════════════════════════════════════════════════
+    // api_saveEvent - Canonical event write endpoint
+    //
+    // Modes:
+    //   - CREATE: event.id absent → generates new ID/slug/links/QR
+    //   - UPDATE: event.id present → updates existing event (field merge)
+    //
+    // This is THE write endpoint for Admin.html and all MVP surfaces.
+    // Legacy endpoints (api_create, api_updateEventData) are orphaned
+    // but kept for backward compatibility.
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    saveEvent: {
+      request: {
+        type: 'object',
+        required: ['brandId', 'adminKey', 'event'],
+        properties: {
+          brandId: { $ref: '#/common/brandId' },
+          adminKey: { type: 'string', minLength: 1 },
+          event: {
+            type: 'object',
+            description: 'Full or partial Event object per EVENT_CONTRACT.md',
+            properties: {
+              // Identity - id present = UPDATE, absent = CREATE
+              id: { $ref: '#/common/id' },
+              slug: { type: 'string', minLength: 1, maxLength: 50 },
+              // MVP Required for CREATE
+              name: { type: 'string', minLength: 1, maxLength: 200 },
+              startDateISO: { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}$' },
+              venue: { type: 'string', minLength: 1, maxLength: 200 },
+              // MVP Optional
+              templateId: { type: ['string', 'null'] },
+              schedule: { type: ['array', 'null'] },
+              standings: { type: ['array', 'null'] },
+              bracket: { type: ['object', 'null'] },
+              ctas: { type: 'object' },
+              settings: { type: 'object' },
+              sponsors: { type: ['array', 'null'] },
+              media: { type: ['object', 'null'] },
+              externalData: { type: ['object', 'null'] }
+            }
+          },
+          scope: { $ref: '#/common/scope' },
+          templateId: { type: 'string', description: 'Template ID for CREATE mode' }
+        }
+      },
+      response: {
+        type: 'object',
+        required: ['ok', 'value'],
+        properties: {
+          ok: { type: 'boolean' },
+          etag: { type: 'string' },
+          value: { $ref: '#/schemas/events/_eventShape' }
         }
       }
     }
