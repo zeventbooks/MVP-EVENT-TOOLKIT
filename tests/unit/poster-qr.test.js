@@ -348,7 +348,8 @@ describe('Poster QR + Domain Integrity', () => {
         const result = validateQRTargetUrl(url);
 
         expect(result.isGAS).toBe(true);
-        expect(result.errors.some(e => e.includes(GAS_DOMAIN))).toBe(true);
+        // Check error message contains expected text (not doing URL validation here)
+        expect(result.errors.some(e => e.includes('forbidden GAS domain'))).toBe(true);
       });
 
       it('should reject any URL containing script.google.com', () => {
