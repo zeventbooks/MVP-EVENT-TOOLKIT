@@ -1479,24 +1479,22 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       // Feature: Gated by settings.showSponsors (master) AND settings.showSponsorBanner (default: true)
       const sponsorBanner = document.getElementById('sponsorBanner');
       if (sectionEnabled('sponsors') && (settings.showSponsorBanner !== false) && sponsors.length > 0) {
-        // STRICT: Only sponsors with placement === 'public' (schema-required field)
-        const publicSponsors = sponsors.filter(s => s.placement === 'public');
-        if (publicSponsors.length > 0) {
-          // Use unified SponsorRenderer carousel from SponsorUtils
-          const { SponsorRenderer } = window.SponsorUtils;
-          const carousel = SponsorRenderer.renderCarousel({
-            container: sponsorBanner,
-            sponsors: publicSponsors,
-            eventId: eventId,
-            surface: 'public',
-            showTier: true,
-            rotationMs: 5000,
-            onRender: ids => { currentRenderedSponsorIds = ids; }
-          });
-          // Store stop function for cleanup if needed
-          window._sponsorCarouselStop = carousel.stop;
-        } else {
-          // Reserved: Show placeholder for future sponsors
+        // Use centralized SponsorRenderer with placement filter (E-003 centralization)
+        const { SponsorRenderer } = window.SponsorUtils;
+        const carousel = SponsorRenderer.renderCarousel({
+          container: sponsorBanner,
+          sponsors: sponsors,
+          placement: 'public',  // Filter to public placement only
+          eventId: eventId,
+          surface: 'public',
+          showTier: true,
+          rotationMs: 5000,
+          onRender: ids => { currentRenderedSponsorIds = ids; }
+        });
+        // Store stop function for cleanup if needed
+        window._sponsorCarouselStop = carousel.stop;
+        // Hide if no sponsors matched placement filter
+        if (!carousel.sponsors.length) {
           sponsorBanner.innerHTML = '';
           sponsorBanner.hidden = true;
         }
