@@ -78,11 +78,14 @@ function extractFunctions(content) {
 
   // Match: function functionName(
   // Match: const functionName = function(
-  // Match: const functionName = (
+  // Match: const functionName = (...) => (arrow functions)
+  // NOTE: We require => for arrow functions to avoid false positives from
+  // local variable assignments like: const foo = (bar || 'default')
   const patterns = [
     /^(?:function\s+)([a-zA-Z_$][a-zA-Z0-9_$]*)\s*\(/,
     /^(?:const|let|var)\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*=\s*function\s*\(/,
-    /^(?:const|let|var)\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*=\s*\(/
+    /^(?:const|let|var)\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*=\s*\([^)]*\)\s*=>/,
+    /^(?:const|let|var)\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*=\s*[a-zA-Z_$][a-zA-Z0-9_$]*\s*=>/
   ];
 
   lines.forEach((line, index) => {
