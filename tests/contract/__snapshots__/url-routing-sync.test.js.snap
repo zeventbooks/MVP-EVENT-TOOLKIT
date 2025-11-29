@@ -1,4 +1,4 @@
-// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+// Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`URL Routing Sync Contract Snapshot consistency Config URL_ALIASES should match expected snapshot 1`] = `
 {
@@ -14,13 +14,16 @@ exports[`URL Routing Sync Contract Snapshot consistency Config URL_ALIASES shoul
   "insights": "report",
   "kiosk": "display",
   "manage": "admin",
+  "picker": "randomizer",
   "poster": "poster",
   "posters": "poster",
+  "randomizer": "randomizer",
   "reports": "report",
   "schedule": "public",
   "screen": "display",
   "stats": "report",
   "status": "status",
+  "teams": "randomizer",
   "tv": "display",
 }
 `;

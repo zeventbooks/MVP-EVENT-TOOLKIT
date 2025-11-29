@@ -1296,6 +1296,9 @@ function _isMvpSurface_(page) {
   // [V2] Template Management UI - gated by feature flag
   if (page === 'templates-v2' && isFeatureEnabled_('TEMPLATE_MANAGEMENT_V2')) return true;
 
+  // [V2] Team Randomizer - standalone utility (no feature flag needed)
+  if (page === 'randomizer' || page === 'teams' || page === 'picker') return true;
+
   return false;
 }
 
@@ -1329,6 +1332,7 @@ function pageFile_(page){
 
   // === V2 SURFACES (feature-gated) ===
   if (page==='templates-v2') return 'AdminTemplateV2';
+  if (page==='randomizer' || page==='teams' || page==='picker') return 'Randomizer';
 
   // Default to Public for any unknown page
   return 'Public';
