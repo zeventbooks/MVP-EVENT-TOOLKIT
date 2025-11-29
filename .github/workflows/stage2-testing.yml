@@ -570,3 +570,168 @@ jobs:
           echo "- 💰 Save test time - skip expensive tests if critical tests fail" >> $GITHUB_STEP_SUMMARY
           echo "- 🎯 Clear feedback - know exactly which stage failed" >> $GITHUB_STEP_SUMMARY
           echo "- 🤖 Fully automated - no manual intervention" >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================================
+  # GLOBAL CI GATE: ci:all - Single pass/fail gate for production safety
+  # ============================================================================
+  # This job runs the unified ci:all command that combines all validations.
+  # Production deployment should be contingent on this gate passing.
+  # ============================================================================
+
+  ci-all-gate:
+    name: 🚦 CI:ALL Global Gate
+    runs-on: ubuntu-latest
+    needs: [setup, quality-gate]
+    if: always() && needs.setup.outputs.skip_tests != 'true'
+    outputs:
+      gate_passed: ${{ steps.ci-all.outputs.passed }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium webkit
+
+      - name: Run ci:all global gate
+        id: ci-all
+        continue-on-error: true
+        env:
+          BASE_URL: ${{ needs.setup.outputs.deployment_url }}
+          CI: true
+          # Per-brand admin keys
+          ADMIN_KEY: ${{ secrets.ADMIN_KEY_ROOT }}
+          ADMIN_KEY_ROOT: ${{ secrets.ADMIN_KEY_ROOT }}
+          ADMIN_KEY_ABC: ${{ secrets.ADMIN_KEY_ABC }}
+          ADMIN_KEY_CBC: ${{ secrets.ADMIN_KEY_CBC }}
+          ADMIN_KEY_CBL: ${{ secrets.ADMIN_KEY_CBL }}
+          # Per-brand spreadsheet IDs
+          SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
+          SPREADSHEET_ID_ROOT: ${{ secrets.SPREADSHEET_ID_ROOT }}
+          SPREADSHEET_ID_ABC: ${{ secrets.SPREADSHEET_ID_ABC }}
+          SPREADSHEET_ID_CBC: ${{ secrets.SPREADSHEET_ID_CBC }}
+          SPREADSHEET_ID_CBL: ${{ secrets.SPREADSHEET_ID_CBL }}
+        run: |
+          echo "🚦 Running ci:all Global Gate"
+          echo "================================================"
+          echo "BASE_URL: $BASE_URL"
+          echo ""
+          echo "This command runs:"
+          echo "  1. ci:fast   - Unit tests"
+          echo "  2. ci:contracts - Schema, services, API contracts, SDK tests"
+          echo "  3. ci:e2e    - All E2E surface tests (admin, public, display, poster, report)"
+          echo ""
+          echo "================================================"
+          npm run ci:all
+          if [ $? -eq 0 ]; then
+            echo "passed=true" >> $GITHUB_OUTPUT
+            echo ""
+            echo "✅ CI:ALL GATE PASSED - Build is safe for production"
+          else
+            echo "passed=false" >> $GITHUB_OUTPUT
+            echo ""
+            echo "❌ CI:ALL GATE FAILED - Do NOT deploy to production"
+            exit 1
+          fi
+
+      - name: Create ci:all summary
+        if: always()
+        run: |
+          echo "## 🚦 CI:ALL Global Gate Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Deployment URL:** \`${{ needs.setup.outputs.deployment_url }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [[ "${{ steps.ci-all.outputs.passed }}" == "true" ]]; then
+            echo "### ✅ GATE PASSED" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "The ci:all gate passed. This build is safe for production." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Tests Executed:**" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ ci:fast (unit tests)" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ ci:contracts (schemas, services, API contracts, SDK)" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ ci:e2e (admin, public, display, poster, report)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ GATE FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "The ci:all gate failed. **DO NOT deploy to production.**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Review the test output above to identify failures." >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # ============================================================================
+  # PRODUCTION DEPLOYMENT GATE
+  # ============================================================================
+  # This gate blocks any production deployment unless ci:all passes.
+  # Use this job as a required check for production deployments.
+  # ============================================================================
+
+  production-gate:
+    name: 🔒 Production Deployment Gate
+    runs-on: ubuntu-latest
+    needs: [setup, quality-gate, ci-all-gate]
+    if: always() && needs.setup.outputs.skip_tests != 'true'
+    steps:
+      - name: Check production readiness
+        id: prod-check
+        run: |
+          echo "🔒 Production Deployment Gate"
+          echo "================================================"
+          echo ""
+          echo "Quality Gate Status: ${{ needs.quality-gate.outputs.qa_approved }}"
+          echo "CI:ALL Gate Status:  ${{ needs.ci-all-gate.outputs.gate_passed }}"
+          echo ""
+
+          QUALITY_PASSED="${{ needs.quality-gate.outputs.qa_approved }}"
+          CIALL_PASSED="${{ needs.ci-all-gate.outputs.gate_passed }}"
+
+          if [[ "$QUALITY_PASSED" == "true" ]] && [[ "$CIALL_PASSED" == "true" ]]; then
+            echo "✅ PRODUCTION GATE PASSED"
+            echo ""
+            echo "All validations passed. This build is approved for production deployment."
+            echo "production_approved=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ PRODUCTION GATE FAILED"
+            echo ""
+            echo "One or more gates failed. DO NOT deploy to production."
+            echo ""
+            if [[ "$QUALITY_PASSED" != "true" ]]; then
+              echo "  - Quality Gate: FAILED"
+            fi
+            if [[ "$CIALL_PASSED" != "true" ]]; then
+              echo "  - CI:ALL Gate: FAILED"
+            fi
+            echo "production_approved=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+      - name: Create production gate summary
+        if: always()
+        run: |
+          echo "## 🔒 Production Deployment Gate" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [[ "${{ steps.prod-check.outputs.production_approved }}" == "true" ]]; then
+            echo "### ✅ APPROVED FOR PRODUCTION" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "All gates passed. This build is safe to deploy to production." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ BLOCKED FROM PRODUCTION" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**This build should NOT be deployed to production.**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Fix the failing tests before attempting production deployment." >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Gate | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Quality Gate | ${{ needs.quality-gate.outputs.qa_approved == 'true' && '✅ PASS' || '❌ FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| CI:ALL Gate | ${{ needs.ci-all-gate.outputs.gate_passed == 'true' && '✅ PASS' || '❌ FAIL' }} |" >> $GITHUB_STEP_SUMMARY
