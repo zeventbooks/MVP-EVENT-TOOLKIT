@@ -1,22 +1,27 @@
 /**
- * Status Contract Test - Single Source of Truth Validation
+ * Unified Status / Setup / Permissions Contract Tests
  *
- * This test validates that the live ?page=status endpoint returns values
- * that match the canonical BUILD_ID and BRAND_ID constants defined in Config.gs.
+ * This test validates the canonical contracts for ops-critical endpoints:
+ * - api_statusPure (?page=status) - Pure health check, flat format
+ * - api_status (?page=statusFull) - Full status with DB check, envelope format
+ * - api_setupCheck (?page=setup) - First-time setup verification
+ * - api_checkPermissions (?page=permissions) - Permission diagnostics
  *
  * Purpose: DevOps / SDET contract validation
  * - Ensures BUILD_ID is exposed consistently
  * - Ensures brandId matches configured brands
- * - Pins the status API contract for integration flow
+ * - Validates response structure against JSON schemas
+ * - Tests both GAS URL and friendly URL patterns
  *
  * Run: npm run test:status-contract
  *
  * Environment:
- *   BASE_URL - Target environment (default: GAS URL via tests/config/environments.js)
- *   CI - When set, network-dependent tests are skipped (no external HTTP calls in CI)
+ *   BASE_URL - Target environment (default: EventAngle production via Cloudflare)
+ *   CI - When set, network-dependent tests are skipped
  *   SKIP_NETWORK_TESTS - Explicitly skip network tests
  *
  * Examples:
+ *   npm run test:status-contract
  *   BASE_URL="https://www.eventangle.com" npm run test:status-contract
  *   BASE_URL="https://script.google.com/macros/s/XXXX/exec" npm run test:status-contract
  */
@@ -27,24 +32,21 @@ const Ajv = require('ajv');
 const addFormats = require('ajv-formats');
 
 // --- CI Detection ---
-// Skip network tests in CI environments where external HTTP calls may not work
 const isCI = process.env.CI === 'true' || process.env.CI === true;
 const skipNetworkTests = isCI || process.env.SKIP_NETWORK_TESTS === 'true';
-
-// Use describe.skip for network tests in CI, otherwise regular describe
 const describeNetwork = skipNetworkTests ? describe.skip : describe;
+
+// --- Test Configuration ---
+const { getBaseUrl, isGoogleAppsScript, DEFAULT_GAS_URL } = require('../config/environments');
+
+const BASE_URL = getBaseUrl();
+const TIMEOUT_MS = 30000;
 
 // --- Extract canonical values from Config.gs (Single Source of Truth) ---
 
-/**
- * Parse BUILD_ID from Config.gs
- * This ensures tests validate against the actual code constant
- */
 function getCanonicalBuildId() {
   const configPath = path.join(__dirname, '../../src/mvp/Config.gs');
   const configContent = fs.readFileSync(configPath, 'utf8');
-
-  // Extract BUILD_ID from: BUILD_ID: 'triangle-extended-v1.5',
   const match = configContent.match(/BUILD_ID:\s*['"]([^'"]+)['"]/);
   if (!match) {
     throw new Error('Could not extract BUILD_ID from Config.gs');
@@ -52,67 +54,93 @@ function getCanonicalBuildId() {
   return match[1];
 }
 
-/**
- * Parse BRANDS array from Config.gs to get valid brand IDs
- */
 function getCanonicalBrandIds() {
   const configPath = path.join(__dirname, '../../src/mvp/Config.gs');
   const configContent = fs.readFileSync(configPath, 'utf8');
-
-  // Find the BRANDS array section (between "const BRANDS = [" and the next "];")
   const brandsMatch = configContent.match(/const BRANDS\s*=\s*\[([\s\S]*?)\];/);
   if (!brandsMatch) {
     throw new Error('Could not find BRANDS array in Config.gs');
   }
-
   const brandsSection = brandsMatch[1];
-
-  // Extract brand IDs from the BRANDS section only
-  // Pattern: { id: 'root', ... } or { id: "root", ... }
   const idMatches = brandsSection.matchAll(/{\s*\n?\s*id:\s*['"]([^'"]+)['"]/g);
   const brandIds = [];
   for (const match of idMatches) {
     brandIds.push(match[1]);
   }
-
   if (brandIds.length === 0) {
     throw new Error('Could not extract brand IDs from Config.gs BRANDS array');
   }
   return brandIds;
 }
 
-// --- Schema Validation ---
-/**
- * Load and compile the status schema for validation
- */
-function loadStatusSchema() {
-  const schemaPath = path.join(__dirname, '../../schemas/status.schema.json');
+function getCanonicalContractVersion() {
+  const configPath = path.join(__dirname, '../../src/mvp/Config.gs');
+  const configContent = fs.readFileSync(configPath, 'utf8');
+  const match = configContent.match(/CONTRACT_VER:\s*['"]([^'"]+)['"]/);
+  return match ? match[1] : null;
+}
+
+// --- Schema Loading ---
+
+function loadSchema(schemaName) {
+  const schemaPath = path.join(__dirname, `../../schemas/${schemaName}`);
   const schemaContent = fs.readFileSync(schemaPath, 'utf8');
   return JSON.parse(schemaContent);
 }
 
-// --- Test Configuration ---
-const { getBaseUrl } = require('../config/environments');
+function createValidator() {
+  const ajv = new Ajv({ strict: false, allErrors: true });
+  addFormats(ajv);
+  return ajv;
+}
 
-const BASE_URL = getBaseUrl();
-const TIMEOUT_MS = 30000; // 30 seconds for Google Apps Script
+// --- URL Builders ---
+
+/**
+ * Build URL for an endpoint using friendly URL pattern
+ * @param {string} page - Page name (status, setup, permissions)
+ * @param {string} brand - Brand ID
+ */
+function buildFriendlyUrl(page, brand = 'root') {
+  const basePath = brand === 'root' ? '' : `/${brand}`;
+  return `${BASE_URL}${basePath}/${page}`;
+}
+
+/**
+ * Build URL for an endpoint using GAS query parameter pattern
+ * @param {string} page - Page name (status, setup, permissions)
+ * @param {string} brand - Brand ID
+ */
+function buildGasUrl(page, brand = 'root') {
+  const params = new URLSearchParams({ page });
+  if (brand !== 'root') {
+    params.set('brand', brand);
+  }
+  return `${BASE_URL}?${params.toString()}`;
+}
+
+/**
+ * Build URL based on current environment
+ */
+function buildUrl(page, brand = 'root') {
+  // Use GAS pattern for script.google.com, friendly pattern otherwise
+  if (isGoogleAppsScript()) {
+    return buildGasUrl(page, brand);
+  }
+  return buildFriendlyUrl(page, brand);
+}
 
 // --- HTTP Client ---
 
-async function fetchStatus(brandId = 'root') {
-  const url = brandId === 'root'
-    ? `${BASE_URL}/status`
-    : `${BASE_URL}/${brandId}/status`;
-
+async function fetchEndpoint(page, brand = 'root') {
+  const url = buildUrl(page, brand);
   const response = await fetch(url, {
     method: 'GET',
-    headers: {
-      'Accept': 'application/json'
-    }
+    headers: { 'Accept': 'application/json' }
   });
 
   if (!response.ok) {
-    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    throw new Error(`HTTP ${response.status}: ${response.statusText} for ${url}`);
   }
 
   return response.json();
@@ -120,27 +148,92 @@ async function fetchStatus(brandId = 'root') {
 
 // --- Contract Tests ---
 
-describe('Status Contract - Single Source of Truth', () => {
+describe('Unified Status/Setup/Permissions Contract Tests', () => {
   let CANONICAL_BUILD_ID;
   let CANONICAL_BRAND_IDS;
+  let CANONICAL_CONTRACT_VER;
+  let ajv;
 
   beforeAll(() => {
-    // Load canonical values from Config.gs
     CANONICAL_BUILD_ID = getCanonicalBuildId();
     CANONICAL_BRAND_IDS = getCanonicalBrandIds();
+    CANONICAL_CONTRACT_VER = getCanonicalContractVersion();
+    ajv = createValidator();
 
     console.log('\n==============================================');
-    console.log('Status Contract Test - Single Source of Truth');
+    console.log('Unified Status/Setup/Permissions Contract Tests');
     console.log('==============================================');
     console.log(`BASE_URL: ${BASE_URL}`);
+    console.log(`URL Pattern: ${isGoogleAppsScript() ? 'GAS Query Params' : 'Friendly URLs'}`);
     console.log(`Canonical BUILD_ID: ${CANONICAL_BUILD_ID}`);
+    console.log(`Canonical CONTRACT_VER: ${CANONICAL_CONTRACT_VER}`);
     console.log(`Canonical Brand IDs: ${CANONICAL_BRAND_IDS.join(', ')}`);
     if (skipNetworkTests) {
       console.log('⚠️  Network tests SKIPPED (CI environment detected)');
-      console.log('   Run locally with: npm run test:status-contract');
     }
     console.log('==============================================\n');
   });
+
+  // ============================================================================
+  // Schema File Validation
+  // ============================================================================
+
+  describe('Schema Files Validation', () => {
+    it('should have valid status.schema.json (for api_statusPure)', () => {
+      const schema = loadSchema('status.schema.json');
+      expect(schema).toHaveProperty('$schema');
+      expect(schema).toHaveProperty('title', 'Status Response');
+      expect(schema.required).toContain('ok');
+      expect(schema.required).toContain('buildId');
+      expect(schema.required).toContain('brandId');
+      expect(schema.required).toContain('time');
+    });
+
+    it('should have valid status-envelope.schema.json (for api_status)', () => {
+      const schema = loadSchema('status-envelope.schema.json');
+      expect(schema).toHaveProperty('$schema');
+      expect(schema).toHaveProperty('title', 'Status Envelope Response');
+      expect(schema.$defs).toHaveProperty('StatusValue');
+      expect(schema.$defs).toHaveProperty('DatabaseStatus');
+    });
+
+    it('should have valid setupcheck.schema.json (for api_setupCheck)', () => {
+      const schema = loadSchema('setupcheck.schema.json');
+      expect(schema).toHaveProperty('$schema');
+      expect(schema).toHaveProperty('title', 'SetupCheck Response');
+      expect(schema.$defs).toHaveProperty('SetupCheckValue');
+      expect(schema.$defs).toHaveProperty('Check');
+      expect(schema.$defs.Check.properties.name.enum).toContain('Brand Configuration');
+      expect(schema.$defs.Check.properties.name.enum).toContain('Spreadsheet Access');
+    });
+
+    it('should have valid checkpermissions.schema.json (for api_checkPermissions)', () => {
+      const schema = loadSchema('checkpermissions.schema.json');
+      expect(schema).toHaveProperty('$schema');
+      expect(schema).toHaveProperty('title', 'CheckPermissions Response');
+      expect(schema.$defs).toHaveProperty('CheckPermissionsValue');
+      expect(schema.$defs).toHaveProperty('PermissionDetails');
+      expect(schema.$defs).toHaveProperty('BrandInfo');
+      expect(schema.$defs).toHaveProperty('SpreadsheetInfo');
+      expect(schema.$defs).toHaveProperty('OAuthInfo');
+    });
+
+    it('should have consistent error codes across all schemas', () => {
+      const statusEnvelope = loadSchema('status-envelope.schema.json');
+      const setupcheck = loadSchema('setupcheck.schema.json');
+      const checkpermissions = loadSchema('checkpermissions.schema.json');
+
+      const expectedCodes = ['NOT_FOUND', 'INTERNAL', 'UNAUTHORIZED', 'BAD_REQUEST'];
+
+      expect(statusEnvelope.$defs.ErrorCode.enum).toEqual(expectedCodes);
+      expect(setupcheck.$defs.ErrorCode.enum).toEqual(expectedCodes);
+      expect(checkpermissions.$defs.ErrorCode.enum).toEqual(expectedCodes);
+    });
+  });
+
+  // ============================================================================
+  // Canonical Values Extraction
+  // ============================================================================
 
   describe('Canonical Values Extraction', () => {
     it('should extract BUILD_ID from Config.gs', () => {
@@ -155,58 +248,56 @@ describe('Status Contract - Single Source of Truth', () => {
       expect(CANONICAL_BRAND_IDS.length).toBeGreaterThan(0);
       expect(CANONICAL_BRAND_IDS).toContain('root');
     });
+
+    it('should extract CONTRACT_VER from Config.gs', () => {
+      expect(CANONICAL_CONTRACT_VER).toBeDefined();
+      expect(CANONICAL_CONTRACT_VER).toMatch(/^\d+\.\d+\.\d+$/);
+    });
   });
 
-  describeNetwork('?page=status API Contract', () => {
-    it('should return ok: true', async () => {
-      const data = await fetchStatus('root');
+  // ============================================================================
+  // api_statusPure (?page=status) Contract Tests
+  // ============================================================================
 
-      expect(data).toHaveProperty('ok');
-      expect(data.ok).toBe(true);
+  describeNetwork('api_statusPure Contract (/status)', () => {
+    it('should return flat format with ok: true', async () => {
+      const data = await fetchEndpoint('status', 'root');
+
+      expect(data).toHaveProperty('ok', true);
+      expect(data).not.toHaveProperty('value'); // Flat format, no envelope
     }, TIMEOUT_MS);
 
     it('should return buildId matching Config.gs BUILD_ID', async () => {
-      const data = await fetchStatus('root');
+      const data = await fetchEndpoint('status', 'root');
 
       expect(data).toHaveProperty('buildId');
       expect(data.buildId).toBe(CANONICAL_BUILD_ID);
     }, TIMEOUT_MS);
 
-    it('should return brandId matching the configured brand', async () => {
-      const data = await fetchStatus('root');
-
-      expect(data).toHaveProperty('brandId');
-      expect(data.brandId).toBe('root');
-      expect(CANONICAL_BRAND_IDS).toContain(data.brandId);
-    }, TIMEOUT_MS);
-
     it('should return time in ISO 8601 format', async () => {
-      const data = await fetchStatus('root');
+      const data = await fetchEndpoint('status', 'root');
 
       expect(data).toHaveProperty('time');
-      expect(typeof data.time).toBe('string');
-
-      // Validate ISO 8601 format
       const parsed = new Date(data.time);
       expect(parsed.toISOString()).toBe(data.time);
     }, TIMEOUT_MS);
 
-    it('should return flat format (no value wrapper)', async () => {
-      const data = await fetchStatus('root');
+    it('should validate against status.schema.json', async () => {
+      const data = await fetchEndpoint('status', 'root');
+      const schema = loadSchema('status.schema.json');
+      const validate = ajv.compile(schema);
+      const valid = validate(data);
 
-      // Flat format - no envelope wrapper
-      expect(data).not.toHaveProperty('value');
-      expect(data).toHaveProperty('ok');
-      expect(data).toHaveProperty('buildId');
-      expect(data).toHaveProperty('brandId');
+      if (!valid) {
+        console.error('Schema validation errors:', validate.errors);
+      }
+      expect(valid).toBe(true);
     }, TIMEOUT_MS);
-  });
 
-  describeNetwork('Multi-Brand Contract Validation', () => {
     it.each(['root', 'abc', 'cbc', 'cbl'])(
       'should return consistent buildId for brand: %s',
       async (brandId) => {
-        const data = await fetchStatus(brandId);
+        const data = await fetchEndpoint('status', brandId);
 
         expect(data.ok).toBe(true);
         expect(data.buildId).toBe(CANONICAL_BUILD_ID);
@@ -216,87 +307,300 @@ describe('Status Contract - Single Source of Truth', () => {
     );
 
     it('should return ok: false for invalid brand', async () => {
-      const url = `${BASE_URL}/nonexistent-brand/status`;
+      const url = buildUrl('status', 'nonexistent-brand-xyz');
 
       const response = await fetch(url, {
         method: 'GET',
         headers: { 'Accept': 'application/json' }
       });
 
-      // May redirect or return error
       if (response.ok) {
         const data = await response.json();
-        // If it returns JSON, should indicate brand not found
         expect(data.ok).toBe(false);
         expect(data).toHaveProperty('message');
         expect(data.message).toMatch(/not found/i);
       }
-      // If not ok, that's also acceptable (404, etc.)
+      // 404 is also acceptable
     }, TIMEOUT_MS);
   });
 
-  describeNetwork('Contract Schema Validation', () => {
-    it('should match the exact status response schema', async () => {
-      const data = await fetchStatus('root');
+  // ============================================================================
+  // api_setupCheck (?page=setup) Contract Tests
+  // ============================================================================
 
-      // Required fields
-      const requiredFields = ['ok', 'buildId', 'brandId', 'time'];
-      requiredFields.forEach(field => {
-        expect(data).toHaveProperty(field);
-      });
+  describeNetwork('api_setupCheck Contract (/setup)', () => {
+    it('should return envelope format with ok: true', async () => {
+      const data = await fetchEndpoint('setup', 'root');
 
-      // Type validation
-      expect(typeof data.ok).toBe('boolean');
-      expect(typeof data.buildId).toBe('string');
-      expect(typeof data.brandId).toBe('string');
-      expect(typeof data.time).toBe('string');
-
-      // Value constraints
-      expect(data.ok).toBe(true);
-      expect(data.buildId).toBe(CANONICAL_BUILD_ID);
-      expect(CANONICAL_BRAND_IDS).toContain(data.brandId);
+      expect(data).toHaveProperty('ok', true);
+      expect(data).toHaveProperty('value');
     }, TIMEOUT_MS);
 
-    it('should validate against status.schema.json', async () => {
-      const data = await fetchStatus('root');
-      const schema = loadStatusSchema();
+    it('should return value with required fields', async () => {
+      const data = await fetchEndpoint('setup', 'root');
 
-      // Set up AJV with formats support
-      const ajv = new Ajv({ strict: false, allErrors: true });
-      addFormats(ajv);
+      expect(data.ok).toBe(true);
+      const value = data.value;
 
+      expect(value).toHaveProperty('status');
+      expect(['ok', 'warning', 'error']).toContain(value.status);
+      expect(value).toHaveProperty('message');
+      expect(value).toHaveProperty('brand');
+      expect(value).toHaveProperty('timestamp');
+      expect(value).toHaveProperty('checks');
+      expect(Array.isArray(value.checks)).toBe(true);
+      expect(value).toHaveProperty('issues');
+      expect(value).toHaveProperty('warnings');
+      expect(value).toHaveProperty('fixes');
+      expect(value).toHaveProperty('nextSteps');
+    }, TIMEOUT_MS);
+
+    it('should return 6 diagnostic checks', async () => {
+      const data = await fetchEndpoint('setup', 'root');
+      const checks = data.value.checks;
+
+      expect(checks.length).toBe(6);
+
+      const checkNames = checks.map(c => c.name);
+      expect(checkNames).toContain('Brand Configuration');
+      expect(checkNames).toContain('Spreadsheet Access');
+      expect(checkNames).toContain('Admin Secrets');
+      expect(checkNames).toContain('Deployment Configuration');
+      expect(checkNames).toContain('OAuth Scopes');
+      expect(checkNames).toContain('Database Structure');
+    }, TIMEOUT_MS);
+
+    it('should have valid check statuses', async () => {
+      const data = await fetchEndpoint('setup', 'root');
+      const checks = data.value.checks;
+
+      const validStatuses = ['ok', 'warning', 'error', 'checking', 'skipped'];
+      checks.forEach(check => {
+        expect(validStatuses).toContain(check.status);
+      });
+    }, TIMEOUT_MS);
+
+    it('should validate against setupcheck.schema.json', async () => {
+      const data = await fetchEndpoint('setup', 'root');
+      const schema = loadSchema('setupcheck.schema.json');
       const validate = ajv.compile(schema);
       const valid = validate(data);
 
       if (!valid) {
         console.error('Schema validation errors:', validate.errors);
       }
-
       expect(valid).toBe(true);
+    }, TIMEOUT_MS);
+
+    it('should return error for invalid brand', async () => {
+      const url = buildUrl('setup', 'nonexistent-brand-xyz');
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        expect(data.ok).toBe(false);
+        expect(data).toHaveProperty('code', 'NOT_FOUND');
+        expect(data).toHaveProperty('message');
+      }
     }, TIMEOUT_MS);
   });
 
-  describe('JSON Schema File Validation', () => {
-    it('should have a valid status.schema.json file', () => {
-      const schema = loadStatusSchema();
+  // ============================================================================
+  // api_checkPermissions (?page=permissions) Contract Tests
+  // ============================================================================
 
-      expect(schema).toHaveProperty('$schema');
-      expect(schema).toHaveProperty('title', 'Status Response');
-      expect(schema).toHaveProperty('required');
-      expect(schema.required).toContain('ok');
-      expect(schema.required).toContain('buildId');
-      expect(schema.required).toContain('brandId');
-      expect(schema.required).toContain('time');
+  describeNetwork('api_checkPermissions Contract (/permissions)', () => {
+    it('should return envelope format with ok: true', async () => {
+      const data = await fetchEndpoint('permissions', 'root');
+
+      expect(data).toHaveProperty('ok', true);
+      expect(data).toHaveProperty('value');
+    }, TIMEOUT_MS);
+
+    it('should return value with required fields', async () => {
+      const data = await fetchEndpoint('permissions', 'root');
+
+      expect(data.ok).toBe(true);
+      const value = data.value;
+
+      expect(value).toHaveProperty('status');
+      expect(['ok', 'error']).toContain(value.status);
+      expect(value).toHaveProperty('message');
+      expect(value).toHaveProperty('details');
+    }, TIMEOUT_MS);
+
+    it('should return details with all permission categories', async () => {
+      const data = await fetchEndpoint('permissions', 'root');
+      const details = data.value.details;
+
+      expect(details).toHaveProperty('brand');
+      expect(details.brand).toHaveProperty('id');
+      expect(details.brand).toHaveProperty('name');
+      expect(details.brand).toHaveProperty('spreadsheetId');
+
+      expect(details).toHaveProperty('deployment');
+      expect(details.deployment).toHaveProperty('configured');
+
+      expect(details).toHaveProperty('spreadsheet');
+      expect(details.spreadsheet).toHaveProperty('accessible');
+      expect(details.spreadsheet).toHaveProperty('message');
+
+      expect(details).toHaveProperty('oauth');
+      expect(details.oauth).toHaveProperty('scopes');
+      expect(details.oauth).toHaveProperty('allGranted');
+    }, TIMEOUT_MS);
+
+    it('should have valid OAuth scope tests', async () => {
+      const data = await fetchEndpoint('permissions', 'root');
+      const scopes = data.value.details.oauth.scopes;
+
+      expect(Array.isArray(scopes)).toBe(true);
+      expect(scopes.length).toBeGreaterThan(0);
+
+      const validScopes = ['spreadsheets', 'external_request'];
+      scopes.forEach(scope => {
+        expect(validScopes).toContain(scope.scope);
+        expect(typeof scope.granted).toBe('boolean');
+      });
+    }, TIMEOUT_MS);
+
+    it('should return nextSteps when status is ok', async () => {
+      const data = await fetchEndpoint('permissions', 'root');
+
+      if (data.value.status === 'ok') {
+        expect(data.value).toHaveProperty('nextSteps');
+        expect(Array.isArray(data.value.nextSteps)).toBe(true);
+      }
+    }, TIMEOUT_MS);
+
+    it('should return recommendations/helpUrl when status is error', async () => {
+      const data = await fetchEndpoint('permissions', 'root');
+
+      if (data.value.status === 'error') {
+        expect(
+          data.value.recommendations || data.value.helpUrl
+        ).toBeDefined();
+      }
+    }, TIMEOUT_MS);
+
+    it('should validate against checkpermissions.schema.json', async () => {
+      const data = await fetchEndpoint('permissions', 'root');
+      const schema = loadSchema('checkpermissions.schema.json');
+      const validate = ajv.compile(schema);
+      const valid = validate(data);
+
+      if (!valid) {
+        console.error('Schema validation errors:', validate.errors);
+      }
+      expect(valid).toBe(true);
+    }, TIMEOUT_MS);
+
+    it('should return error for invalid brand', async () => {
+      const url = buildUrl('permissions', 'nonexistent-brand-xyz');
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        expect(data.ok).toBe(false);
+        expect(data).toHaveProperty('code', 'NOT_FOUND');
+        expect(data).toHaveProperty('message');
+      }
+    }, TIMEOUT_MS);
+  });
+
+  // ============================================================================
+  // Cross-Endpoint Contract Consistency
+  // ============================================================================
+
+  describeNetwork('Cross-Endpoint Contract Consistency', () => {
+    it('should return consistent brand ID across all endpoints', async () => {
+      const [statusData, setupData, permissionsData] = await Promise.all([
+        fetchEndpoint('status', 'root'),
+        fetchEndpoint('setup', 'root'),
+        fetchEndpoint('permissions', 'root')
+      ]);
+
+      expect(statusData.brandId).toBe('root');
+      expect(setupData.value.brand).toBe('root');
+      expect(permissionsData.value.details.brand.id).toBe('root');
+    }, TIMEOUT_MS);
+
+    it('should return consistent buildId from status endpoint', async () => {
+      const statusData = await fetchEndpoint('status', 'root');
+      expect(statusData.buildId).toBe(CANONICAL_BUILD_ID);
+    }, TIMEOUT_MS);
+
+    it('should have consistent error envelope format', async () => {
+      // Test setup and permissions return same error format for invalid brand
+      const [setupResponse, permissionsResponse] = await Promise.all([
+        fetch(buildUrl('setup', 'invalid-brand-xyz'), {
+          method: 'GET',
+          headers: { 'Accept': 'application/json' }
+        }),
+        fetch(buildUrl('permissions', 'invalid-brand-xyz'), {
+          method: 'GET',
+          headers: { 'Accept': 'application/json' }
+        })
+      ]);
+
+      if (setupResponse.ok && permissionsResponse.ok) {
+        const [setupData, permissionsData] = await Promise.all([
+          setupResponse.json(),
+          permissionsResponse.json()
+        ]);
+
+        // Both should return same error structure
+        expect(setupData.ok).toBe(false);
+        expect(permissionsData.ok).toBe(false);
+        expect(setupData).toHaveProperty('code');
+        expect(permissionsData).toHaveProperty('code');
+        expect(setupData).toHaveProperty('message');
+        expect(permissionsData).toHaveProperty('message');
+      }
+    }, TIMEOUT_MS);
+  });
+
+  // ============================================================================
+  // URL Pattern Tests (GAS vs Friendly)
+  // ============================================================================
+
+  describe('URL Pattern Generation', () => {
+    it('should generate correct friendly URL for root brand', () => {
+      const url = buildFriendlyUrl('status', 'root');
+      expect(url).toBe(`${BASE_URL}/status`);
     });
 
-    it('should define the canonical contract properties', () => {
-      const schema = loadStatusSchema();
+    it('should generate correct friendly URL for non-root brand', () => {
+      const url = buildFriendlyUrl('status', 'abc');
+      expect(url).toBe(`${BASE_URL}/abc/status`);
+    });
 
-      expect(schema.properties).toHaveProperty('ok');
-      expect(schema.properties).toHaveProperty('buildId');
-      expect(schema.properties).toHaveProperty('brandId');
-      expect(schema.properties).toHaveProperty('time');
-      expect(schema.properties).toHaveProperty('message'); // Optional error message
+    it('should generate correct GAS URL for root brand', () => {
+      const url = buildGasUrl('status', 'root');
+      expect(url).toBe(`${BASE_URL}?page=status`);
+    });
+
+    it('should generate correct GAS URL for non-root brand', () => {
+      const url = buildGasUrl('status', 'abc');
+      expect(url).toBe(`${BASE_URL}?page=status&brand=abc`);
+    });
+
+    it('should generate setup URLs correctly', () => {
+      expect(buildFriendlyUrl('setup', 'root')).toBe(`${BASE_URL}/setup`);
+      expect(buildFriendlyUrl('setup', 'cbc')).toBe(`${BASE_URL}/cbc/setup`);
+    });
+
+    it('should generate permissions URLs correctly', () => {
+      expect(buildFriendlyUrl('permissions', 'root')).toBe(`${BASE_URL}/permissions`);
+      expect(buildFriendlyUrl('permissions', 'cbl')).toBe(`${BASE_URL}/cbl/permissions`);
     });
   });
 });
