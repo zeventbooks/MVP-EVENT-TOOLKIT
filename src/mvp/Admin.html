@@ -694,8 +694,13 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
     <!-- Create Event Card - Simplified UX -->
     <section class="card" id="createCard">
       <div style="margin-bottom: 20px;">
-        <h2 style="margin: 0 0 8px 0;">New Event</h2>
-        <p class="muted" style="margin: 0;">Create your event in seconds. You'll get everything you need: sign-up forms, posters, TV displays, and reports.</p>
+        <div style="text-align: center; margin-bottom: 24px;">
+          <span style="font-size: 3rem;">🍻</span>
+          <h2 style="margin: 12px 0 8px 0;">Create Your First Event</h2>
+          <p class="muted" style="margin: 0; max-width: 400px; margin-left: auto; margin-right: auto;">
+            Trivia night? Fundraiser? Whatever you're running, we'll give you posters, sign-up forms, a TV display, and post-event reports—all in about 60 seconds.
+          </p>
+        </div>
       </div>
       <form id="createForm">
         <!-- Essential Fields Only -->
@@ -1034,39 +1039,39 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
       <!-- ═══════════════════════════════════════════════════════════════════ -->
       <div class="happy-path-checklist" id="happyPathChecklist">
         <div class="happy-path-header">
-          <span style="font-size: 1.2rem;">📋</span>
-          <h3>Quick Setup Guide</h3>
+          <span style="font-size: 1.2rem;">🍺</span>
+          <h3>Get Your Event Ready</h3>
           <span class="progress-text" id="checklistProgress">0 of 6 done</span>
         </div>
         <div class="checklist-items">
           <div class="checklist-item done" id="checklist-event" onclick="scrollToCard('card1EventBasics')">
             <span class="check-indicator done">✓</span>
-            <span class="item-label">Name &amp; date</span>
+            <span class="item-label">Name your night</span>
             <span class="goto-arrow">→</span>
           </div>
           <div class="checklist-item optional-pending" id="checklist-sponsors" onclick="scrollToCard('card2Sponsors')">
             <span class="check-indicator optional">~</span>
-            <span class="item-label">Add sponsors <span class="optional-tag">(optional)</span></span>
+            <span class="item-label">Add your sponsors <span class="optional-tag">(optional)</span></span>
             <span class="goto-arrow">→</span>
           </div>
           <div class="checklist-item" id="checklist-signup" onclick="scrollToCard('card3SignUp')">
             <span class="check-indicator pending"></span>
-            <span class="item-label">Create signup form</span>
+            <span class="item-label">Set up sign-ups</span>
             <span class="goto-arrow">→</span>
           </div>
           <div class="checklist-item" id="checklist-poster" onclick="scrollToCard('card4Poster')">
             <span class="check-indicator pending"></span>
-            <span class="item-label">Print poster</span>
+            <span class="item-label">Print your poster</span>
             <span class="goto-arrow">→</span>
           </div>
           <div class="checklist-item" id="checklist-display" onclick="scrollToCard('card5Display')">
             <span class="check-indicator pending"></span>
-            <span class="item-label">Open TV display</span>
+            <span class="item-label">Put this page on the TV</span>
             <span class="goto-arrow">→</span>
           </div>
           <div class="checklist-item" id="checklist-public" onclick="scrollToCard('card6PublicPage')">
             <span class="check-indicator pending"></span>
-            <span class="item-label">Share public link</span>
+            <span class="item-label">Share it with your crowd</span>
             <span class="goto-arrow">→</span>
           </div>
         </div>
