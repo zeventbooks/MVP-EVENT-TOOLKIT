@@ -76,18 +76,20 @@ export class ApiHelpers {
   // ============================================================================
 
   /**
-   * Create an event
+   * Create an event using canonical api_saveEvent (ZEVENT-003)
    * @param {string} brand - Brand ID
-   * @param {object} eventData - Event data
+   * @param {object} eventData - Event data (full Event object per EVENT_CONTRACT.md)
    * @param {string} adminKey - Admin key
    */
   async createEvent(brand, eventData, adminKey) {
-    return await this.post('?action=create', {
+    // CANONICAL API: api_saveEvent (ZEVENT-003)
+    // Pass full event object without id to create new event
+    return await this.post('?action=saveEvent', {
       brandId: brand,
-      scope: 'events',
-      templateId: 'event',
       adminKey,
-      data: eventData
+      event: eventData,
+      scope: 'events',
+      templateId: 'event'
     });
   }
 
@@ -109,19 +111,21 @@ export class ApiHelpers {
   }
 
   /**
-   * Update an event
+   * Update an event using canonical api_saveEvent (ZEVENT-003)
+   * Note: For partial updates, caller should merge with existing event first
    * @param {string} brand - Brand ID
    * @param {string} eventId - Event ID
-   * @param {object} updateData - Fields to update
+   * @param {object} eventData - Full or partial event data (must include id)
    * @param {string} adminKey - Admin key
    */
-  async updateEvent(brand, eventId, updateData, adminKey) {
-    return await this.post('?action=update', {
+  async updateEvent(brand, eventId, eventData, adminKey) {
+    // CANONICAL API: api_saveEvent (ZEVENT-003)
+    // Pass event object with id to update existing event
+    return await this.post('?action=saveEvent', {
       brandId: brand,
-      scope: 'events',
-      id: eventId,
       adminKey,
-      data: updateData
+      event: { id: eventId, ...eventData },
+      scope: 'events'
     });
   }
 

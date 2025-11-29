@@ -4,7 +4,8 @@
  * Tests the event creation endpoint used during the Before Event phase
  *
  * Triangle Phase: 📋 Before Event (Green)
- * API Endpoint: ?action=create
+ * CANONICAL API: api_saveEvent (ZEVENT-003)
+ * API Endpoint: ?action=saveEvent (with event object, no id = create mode)
  * Purpose: Create new events with full details
  * User Roles: Event Manager (primary)
  *
@@ -34,7 +35,7 @@ const {
 
 describe('🔺 TRIANGLE [BEFORE EVENT]: Create Event API Contract', () => {
 
-  describe('api_create - Success responses (v2.0 Canonical Shape)', () => {
+  describe('api_saveEvent (CREATE mode) - Success responses (v2.0 Canonical Shape)', () => {
     it('should return full canonical event per EVENT_CONTRACT.md v2.0', () => {
       const mockResponse = {
         ok: true,
@@ -214,7 +215,7 @@ describe('🔺 TRIANGLE [BEFORE EVENT]: Create Event API Contract', () => {
     });
   });
 
-  describe('api_create - Validation errors (v2.0 MVP Required)', () => {
+  describe('api_saveEvent (CREATE mode) - Validation errors (v2.0 MVP Required)', () => {
     it('should return error for missing name field', () => {
       const mockResponse = {
         ok: false,
@@ -293,7 +294,7 @@ describe('🔺 TRIANGLE [BEFORE EVENT]: Create Event API Contract', () => {
     });
   });
 
-  describe('api_create - Authentication errors', () => {
+  describe('api_saveEvent (CREATE mode) - Authentication errors', () => {
     it('should return error for missing admin key', () => {
       const mockResponse = {
         ok: false,
@@ -317,7 +318,7 @@ describe('🔺 TRIANGLE [BEFORE EVENT]: Create Event API Contract', () => {
     });
   });
 
-  describe('api_create - Rate limiting', () => {
+  describe('api_saveEvent (CREATE mode) - Rate limiting', () => {
     it('should return error when rate limit exceeded', () => {
       const mockResponse = {
         ok: false,

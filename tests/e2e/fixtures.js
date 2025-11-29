@@ -142,7 +142,8 @@ export const test = base.extend({
    *
    * Usage:
    *   test('create event via API', async ({ api }) => {
-   *     const response = await api.call('createEvent', { name: 'Test' });
+   *     // CANONICAL: Uses api_saveEvent (ZEVENT-003)
+   *     const eventId = await api.createEvent('Test Event');
    *   });
    */
   api: async ({ request }, use) => {
@@ -164,16 +165,19 @@ export const test = base.extend({
       },
 
       /**
-       * Create test event (returns event ID)
+       * Create test event using canonical api_saveEvent (ZEVENT-003)
+       * @returns {Promise<string>} Event ID
        */
       async createEvent(name = null) {
         const eventName = name || config.testData.event.name();
-        const response = await this.call('create', {
+        // CANONICAL API: api_saveEvent (ZEVENT-003)
+        // Pass full event object per EVENT_CONTRACT.md
+        const response = await this.call('saveEvent', {
           scope: 'events',
-          data: {
+          event: {
             name: eventName,
-            dateISO: config.testData.event.date,
-            description: config.testData.event.description,
+            startDateISO: config.testData.event.date,  // v2.0 canonical field
+            venue: 'Test Venue',                        // v2.0 canonical field
           },
         });
 

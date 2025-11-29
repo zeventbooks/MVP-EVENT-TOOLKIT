@@ -1565,26 +1565,27 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
 
       try {
         console.log('[CreateEvent] Building event data...');
-        // Build canonical event object
+        // Build canonical event object per EVENT_CONTRACT.md v2.0
         const eventData = buildEventFromForm();
+        // For new events, ensure no id is set (api_saveEvent will generate)
+        delete eventData.id;
+        delete eventData.slug;
+        delete eventData.createdAtISO;
         console.log('[CreateEvent] Event data built:', eventData.name, eventData.startDateISO, eventData.venue);
 
         // Get the selected event template (bar_night, rec_league, etc.)
         const selectedTemplateId = document.getElementById('templateId').value || 'custom';
         console.log('[CreateEvent] Selected template:', selectedTemplateId);
 
-        // V2 FEATURE – NOT MVP: Replace api_create with api_saveEvent for schema-first saves
-        // V2 Admin will post full Event object directly:
-        //   await NU.rpc('api_saveEvent', { brandId, adminKey, event: fullEventObject });
-        // This enables the frontend to own the Event shape per schema
-        console.log('[CreateEvent] Calling api_create...');
-        const res = await NU.rpc('api_create', {
+        // CANONICAL API: api_saveEvent (ZEVENT-003)
+        // Contract-First pattern: Admin sends full Event object, server validates and persists
+        console.log('[CreateEvent] Calling api_saveEvent (canonical)...');
+        const res = await NU.rpc('api_saveEvent', {
           brandId: BRAND,
-          scope: SCOPE,
-          templateId: selectedTemplateId,
           adminKey: getAdminKey(),
-          idemKey: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          data: eventData
+          event: eventData,
+          scope: SCOPE,
+          templateId: selectedTemplateId
         });
         console.log('[CreateEvent] API response:', res.ok ? 'success' : 'error', res.ok ? res.value?.id : res.message);
 
@@ -1760,14 +1761,9 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
       };
 
       overlay(true);
-      // V2 FEATURE – NOT MVP: Replace with api_saveEvent for schema-first saves
-      const res = await NU.rpc('api_updateEventData', {
-        brandId: BRAND,
-        scope: SCOPE,
-        id: currentEventId,
-        adminKey: getAdminKey(),
-        data
-      });
+      // CANONICAL API: api_saveEvent via saveEventPartial (ZEVENT-003)
+      // Uses load-merge-save pattern to update partial data via canonical write endpoint
+      const res = await saveEventPartial(currentEventId, { data });
       overlay(false);
 
       if (res.ok) {
@@ -2031,12 +2027,9 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
       });
 
       overlay(true);
-      // V2 FEATURE – NOT MVP: Replace with api_saveEvent for schema-first saves
-      const res = await NU.rpc('api_updateEventData', {
-        brandId: BRAND,
-        scope: SCOPE,
-        id: currentEventId,
-        adminKey: getAdminKey(),
+      // CANONICAL API: api_saveEvent via saveEventPartial (ZEVENT-003)
+      // Uses load-merge-save pattern to update partial data via canonical write endpoint
+      const res = await saveEventPartial(currentEventId, {
         data: { display: { mode, urls }, sponsors }
       });
       overlay(false);
@@ -2061,6 +2054,65 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
       const k = sessionStorage.getItem('ADMIN_KEY:' + BRAND) || prompt('Admin key for ' + BRAND);
       if (k) sessionStorage.setItem('ADMIN_KEY:' + BRAND, k);
       return k || '';
+    }
+
+    /**
+     * CANONICAL WRITE API HELPER (ZEVENT-003)
+     * Load-Merge-Save pattern using only api_saveEvent (canonical write endpoint).
+     *
+     * This helper replaces direct api_updateEventData calls to ensure Admin
+     * uses only the canonical write API per the Event Contract.
+     *
+     * @param {string} eventId - Event ID to update
+     * @param {Object} partialData - Partial data to merge into event
+     * @returns {Object} Result from api_saveEvent { ok, value, message }
+     */
+    async function saveEventPartial(eventId, partialData) {
+      // Step 1: Load current event via api_get
+      const getRes = await NU.rpc('api_get', {
+        brandId: BRAND,
+        scope: SCOPE,
+        id: eventId
+      });
+
+      if (!getRes.ok) {
+        return { ok: false, message: `Failed to load event: ${getRes.message}` };
+      }
+
+      // Step 2: Merge partial data into the full event object
+      const currentEvent = getRes.value;
+      const mergedEvent = deepMerge_(currentEvent, partialData);
+
+      // Step 3: Save via canonical api_saveEvent
+      const saveRes = await NU.rpc('api_saveEvent', {
+        brandId: BRAND,
+        adminKey: getAdminKey(),
+        event: mergedEvent,
+        scope: SCOPE
+      });
+
+      return saveRes;
+    }
+
+    /**
+     * Deep merge helper for event objects.
+     * Merges source into target, handling nested objects.
+     * Arrays are replaced, not merged.
+     */
+    function deepMerge_(target, source) {
+      const result = { ...target };
+      for (const key of Object.keys(source)) {
+        if (source[key] !== null && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+          // Nested object - recurse
+          result[key] = deepMerge_(result[key] || {}, source[key]);
+        } else {
+          // Primitive, array, or null - replace
+          result[key] = source[key];
+        }
+      }
+      // Update timestamp on every save
+      result.updatedAtISO = new Date().toISOString();
+      return result;
     }
 
     // === MOBILE-FIRST CARD COLLAPSE ===
