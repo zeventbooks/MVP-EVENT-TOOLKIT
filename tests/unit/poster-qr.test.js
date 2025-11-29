@@ -32,6 +32,27 @@ const VALID_PAGE_PARAMS = ['public', 'signup'];
 // =============================================================================
 
 /**
+ * Check if hostname exactly matches or is a subdomain of the target domain
+ * This prevents bypass attacks like "evil-script.google.com" or "script.google.com.evil.com"
+ *
+ * @param {string} hostname - The hostname to check
+ * @param {string} domain - The domain to match against
+ * @returns {boolean} True if hostname matches or is a valid subdomain
+ */
+function isExactDomainMatch(hostname, domain) {
+  // Exact match
+  if (hostname === domain) {
+    return true;
+  }
+  // Subdomain match (e.g., "www.eventangle.com" matches "eventangle.com")
+  // Must end with ".domain" to prevent "evileventangle.com" matching
+  if (hostname.endsWith('.' + domain)) {
+    return true;
+  }
+  return false;
+}
+
+/**
  * Extract target URL from quickchart.io QR URL
  * QuickChart URL format: https://quickchart.io/qr?text={encodedUrl}&size=200&margin=1
  *
@@ -124,15 +145,17 @@ function validateQRTargetUrl(url) {
   try {
     const parsed = new URL(url);
 
-    // Check for GAS URL (MUST NOT contain)
-    if (parsed.hostname.includes(GAS_DOMAIN)) {
+    // Check for GAS URL (MUST NOT match) - use exact domain matching to prevent bypass
+    // This prevents attacks like "evil-script.google.com" or "script.google.com.evil.com"
+    if (isExactDomainMatch(parsed.hostname, GAS_DOMAIN)) {
       result.isGAS = true;
       result.errors.push(`URL contains forbidden GAS domain: ${GAS_DOMAIN}`);
       return result;
     }
 
-    // Check for friendly domain
-    if (parsed.hostname.includes(FRIENDLY_DOMAIN)) {
+    // Check for friendly domain - use exact domain matching
+    // Accepts "eventangle.com" or "www.eventangle.com" or other valid subdomains
+    if (isExactDomainMatch(parsed.hostname, FRIENDLY_DOMAIN)) {
       result.isFriendly = true;
     } else {
       result.errors.push(`URL must use friendly domain (${FRIENDLY_DOMAIN}), got: ${parsed.hostname}`);
@@ -183,6 +206,36 @@ function validateQRTargetUrl(url) {
 // =============================================================================
 
 describe('Poster QR + Domain Integrity', () => {
+
+  describe('Domain Matching Security (isExactDomainMatch)', () => {
+
+    it('should match exact domain', () => {
+      expect(isExactDomainMatch('eventangle.com', 'eventangle.com')).toBe(true);
+      expect(isExactDomainMatch('script.google.com', 'script.google.com')).toBe(true);
+    });
+
+    it('should match valid subdomains', () => {
+      expect(isExactDomainMatch('www.eventangle.com', 'eventangle.com')).toBe(true);
+      expect(isExactDomainMatch('api.eventangle.com', 'eventangle.com')).toBe(true);
+      expect(isExactDomainMatch('www.script.google.com', 'script.google.com')).toBe(true);
+    });
+
+    it('should NOT match prefix attacks (evileventangle.com)', () => {
+      expect(isExactDomainMatch('evileventangle.com', 'eventangle.com')).toBe(false);
+      expect(isExactDomainMatch('fakescript.google.com', 'script.google.com')).toBe(false);
+      expect(isExactDomainMatch('notscript.google.com', 'script.google.com')).toBe(false);
+    });
+
+    it('should NOT match suffix attacks (eventangle.com.evil.com)', () => {
+      expect(isExactDomainMatch('eventangle.com.evil.com', 'eventangle.com')).toBe(false);
+      expect(isExactDomainMatch('script.google.com.evil.com', 'script.google.com')).toBe(false);
+    });
+
+    it('should NOT match partial domain names', () => {
+      expect(isExactDomainMatch('eventangle', 'eventangle.com')).toBe(false);
+      expect(isExactDomainMatch('google.com', 'script.google.com')).toBe(false);
+    });
+  });
 
   describe('URL Extraction from QuickChart', () => {
 
@@ -309,6 +362,35 @@ describe('Poster QR + Domain Integrity', () => {
           const result = validateQRTargetUrl(url);
           expect(result.isGAS).toBe(true);
           expect(result.isFriendly).toBe(false);
+        });
+      });
+
+      it('should NOT be bypassed by subdomain prefix attacks', () => {
+        // Security: "evil-script.google.com" should NOT match "script.google.com"
+        const bypassAttempts = [
+          'https://evil-script.google.com/macros/exec',
+          'https://notscript.google.com/test',
+          'https://script.google.com.evil.com/test',
+          'https://fakescript.google.com/macros/exec'
+        ];
+
+        bypassAttempts.forEach(url => {
+          const result = validateQRTargetUrl(url);
+          // These should NOT be flagged as GAS URLs
+          expect(result.isGAS).toBe(false);
+        });
+      });
+
+      it('should accept valid GAS subdomains', () => {
+        // Valid subdomains of script.google.com should still be caught
+        const validGasUrls = [
+          'https://script.google.com/macros/s/id/exec',
+          'https://www.script.google.com/macros/exec' // hypothetical subdomain
+        ];
+
+        validGasUrls.forEach(url => {
+          const result = validateQRTargetUrl(url);
+          expect(result.isGAS).toBe(true);
         });
       });
     });
@@ -512,6 +594,7 @@ describe('Poster QR + Domain Integrity', () => {
 // =============================================================================
 
 module.exports = {
+  isExactDomainMatch,
   extractTargetUrlFromQuickChart,
   validateQRTargetUrl,
   generateMockQRCodes,
