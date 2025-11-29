@@ -967,6 +967,91 @@ DO NOT modify contracts without updating:
         gap: 12px;
       }
     }
+
+    /* ===== Collapsible Detail Sections (Story 12) ===== */
+    .detail-section .section-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      background: none;
+      border: none;
+      padding: 0;
+      cursor: pointer;
+      text-align: left;
+      margin-bottom: 0.5rem;
+    }
+    .detail-section .section-toggle h2 {
+      margin: 0;
+      pointer-events: none;
+    }
+    .detail-section .section-toggle .toggle-icon {
+      font-size: 0.75rem;
+      color: var(--color-gray-400, #94a3b8);
+      transition: transform 0.2s ease;
+      margin-left: 8px;
+    }
+    .detail-section .section-toggle:hover .toggle-icon {
+      color: var(--color-primary, #2563eb);
+    }
+    .detail-section .section-toggle:focus {
+      outline: 2px solid var(--color-primary, #2563eb);
+      outline-offset: 2px;
+      border-radius: 4px;
+    }
+    /* Collapsed state */
+    .detail-section.collapsed .section-content {
+      display: none;
+    }
+    .detail-section.collapsed .toggle-icon {
+      transform: rotate(-90deg);
+    }
+    .detail-section.collapsed .section-help {
+      display: none;
+    }
+    /* Expanded state - add subtle indicator */
+    .detail-section:not(.collapsed) {
+      border-left-color: var(--color-success, #10b981);
+    }
+    .detail-section:not(.collapsed) .toggle-icon {
+      transform: rotate(0deg);
+      color: var(--color-success, #10b981);
+    }
+    /* Collapsed preview hint */
+    .detail-section.collapsed::after {
+      content: 'Tap to show details';
+      display: block;
+      font-size: 0.75rem;
+      color: var(--color-gray-400, #94a3b8);
+      text-align: center;
+      padding: 8px 0;
+      font-style: italic;
+    }
+
+    /* ===== Table Scroll Wrapper for Mobile ===== */
+    .table-scroll-wrapper {
+      width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    /* Show scroll indicator on mobile */
+    @media (max-width: 640px) {
+      .table-scroll-wrapper {
+        margin: 0 -14px;
+        padding: 0 14px;
+        width: calc(100% + 28px);
+      }
+      /* Restore normal table display on mobile for card-style layout */
+      .table-scroll-wrapper .data-table {
+        min-width: auto;
+      }
+    }
+    /* Desktop/tablet: allow horizontal scroll if table overflows */
+    @media (min-width: 641px) {
+      .table-scroll-wrapper .data-table {
+        min-width: 500px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -1017,25 +1102,46 @@ DO NOT modify contracts without updating:
       <!-- Feature 5: Top Event / Top Sponsor Callouts -->
       <div id="topCallouts" class="metrics-grid" style="grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 24px;"></div>
 
-      <!-- Surface Performance (Ad Placements) -->
-      <div class="section-card">
-        <h2>🌐 Performance by Placement</h2>
-        <p class="section-help">Where your sponsor content appears: posters, digital displays, public pages, and signup forms.</p>
-        <div id="surfacePerformance"></div>
+      <!-- Surface Performance (Ad Placements) - Collapsible detail section -->
+      <div class="section-card detail-section collapsed" id="surfacePerformanceCard">
+        <button class="section-toggle" onclick="toggleDetailSection('surfacePerformanceCard')" aria-expanded="false">
+          <h2>🌐 Where you were seen</h2>
+          <span class="toggle-icon">▼</span>
+        </button>
+        <p class="section-help">See which placements drove the most engagement — posters, screens, public pages, or signup forms.</p>
+        <div class="section-content">
+          <div class="table-scroll-wrapper">
+            <div id="surfacePerformance"></div>
+          </div>
+        </div>
       </div>
 
-      <!-- Sponsor Performance -->
-      <div class="section-card">
-        <h2>🏢 Sponsor Performance</h2>
-        <p class="section-help" id="sponsorHelpText">How each sponsor's content is performing. CTR (Click-Through Rate) shows the percentage of viewers who clicked.</p>
-        <div id="sponsorPerformance"></div>
+      <!-- Sponsor Performance - Collapsible detail section -->
+      <div class="section-card detail-section collapsed" id="sponsorPerformanceCard">
+        <button class="section-toggle" onclick="toggleDetailSection('sponsorPerformanceCard')" aria-expanded="false">
+          <h2>🏢 Sponsor breakdown</h2>
+          <span class="toggle-icon">▼</span>
+        </button>
+        <p class="section-help" id="sponsorHelpText">See how each sponsor is performing. Click Rate shows what percentage of viewers clicked.</p>
+        <div class="section-content">
+          <div class="table-scroll-wrapper">
+            <div id="sponsorPerformance"></div>
+          </div>
+        </div>
       </div>
 
-      <!-- Event Performance -->
-      <div class="section-card" id="eventPerformanceCard" style="display:none;">
-        <h2>🎉 Event Performance</h2>
-        <p class="section-help">Performance breakdown by event. See which events are driving the most engagement.</p>
-        <div id="eventPerformance"></div>
+      <!-- Event Performance - Collapsible detail section -->
+      <div class="section-card detail-section collapsed" id="eventPerformanceCard" style="display:none;">
+        <button class="section-toggle" onclick="toggleDetailSection('eventPerformanceCard')" aria-expanded="false">
+          <h2>🎉 Event breakdown</h2>
+          <span class="toggle-icon">▼</span>
+        </button>
+        <p class="section-help">See which events drove the most engagement and signups.</p>
+        <div class="section-content">
+          <div class="table-scroll-wrapper">
+            <div id="eventPerformance"></div>
+          </div>
+        </div>
       </div>
 
       <!-- V2 HIDDEN: ROI, Daily Trends, Recommendations require backend work -->
@@ -1417,6 +1523,37 @@ DO NOT modify contracts without updating:
       document.getElementById('errorState').style.display = 'block';
     }
 
+    /**
+     * Toggle collapsible detail section
+     * @param {string} sectionId - The ID of the section to toggle
+     */
+    function toggleDetailSection(sectionId) {
+      const section = document.getElementById(sectionId);
+      if (!section) return;
+
+      const isCollapsed = section.classList.contains('collapsed');
+      const toggleBtn = section.querySelector('.section-toggle');
+
+      if (isCollapsed) {
+        section.classList.remove('collapsed');
+        if (toggleBtn) toggleBtn.setAttribute('aria-expanded', 'true');
+      } else {
+        section.classList.add('collapsed');
+        if (toggleBtn) toggleBtn.setAttribute('aria-expanded', 'false');
+      }
+    }
+
+    /**
+     * Expand all detail sections (useful for printing or full view)
+     */
+    function expandAllDetailSections() {
+      document.querySelectorAll('.detail-section.collapsed').forEach(section => {
+        section.classList.remove('collapsed');
+        const toggleBtn = section.querySelector('.section-toggle');
+        if (toggleBtn) toggleBtn.setAttribute('aria-expanded', 'true');
+      });
+    }
+
     // Feature 5: Render Top Event / Top Sponsor Callouts (by highest CTR)
     function renderTopCallouts(events, sponsors) {
       const container = document.getElementById('topCallouts');
@@ -1763,13 +1900,13 @@ DO NOT modify contracts without updating:
     function renderSponsorPerformance(sponsors) {
       const container = document.getElementById('sponsorPerformance');
 
-      // Update help text based on view
+      // Update help text based on view (human-readable language)
       const helpText = document.getElementById('sponsorHelpText');
       if (helpText) {
         if (IS_SPONSOR_VIEW) {
-          helpText.textContent = 'Your sponsorship performance across all placements. CTR shows what percentage of viewers clicked your content.';
+          helpText.textContent = 'Your performance across all placements. Click Rate shows what percentage of viewers clicked your content.';
         } else {
-          helpText.textContent = 'Performance for each sponsor. Click "Share Report" to give sponsors access to their own analytics.';
+          helpText.textContent = 'See how each sponsor is performing. Tap "Share Report" to give sponsors access to their own analytics.';
         }
       }
 
