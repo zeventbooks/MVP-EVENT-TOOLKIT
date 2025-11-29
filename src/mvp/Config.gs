@@ -181,23 +181,112 @@ const ZEB = Object.freeze({
       emphasis: 'hero'           // 'scores' | 'sponsors' | 'hero' - what to emphasize
     },
 
+    // === V2 PANE ROTATION ENGINE ===
+    // Defines available pane types for rotation mode
+    // Schema: settings.displayRotation in /schemas/event.schema.json
+    paneTypes: {
+      'public': {
+        label: 'Event Page',
+        description: 'Embeds the public event page',
+        defaultDwellMs: 30000    // 30 seconds default
+      },
+      'schedule': {
+        label: 'Schedule',
+        description: 'Full-screen schedule display',
+        defaultDwellMs: 15000    // 15 seconds default
+      },
+      'standings': {
+        label: 'Standings',
+        description: 'Full-screen standings/leaderboard',
+        defaultDwellMs: 15000    // 15 seconds default
+      },
+      'sponsors': {
+        label: 'Sponsor Carousel',
+        description: 'Rotating sponsor showcase',
+        defaultDwellMs: 20000    // 20 seconds default
+      },
+      'custom': {
+        label: 'Custom URL',
+        description: 'Embed any URL (if embeddable)',
+        defaultDwellMs: 20000    // 20 seconds default
+      }
+    },
+
+    // Default pane rotation (when displayRotation.enabled but no panes specified)
+    defaultPanes: [
+      { type: 'public', dwellMs: 30000 },
+      { type: 'sponsors', dwellMs: 20000 }
+    ],
+
     // Template-specific overrides (merged with defaults)
     templateOverrides: {
       'rec_league': {
         layout: { emphasis: 'scores', hasSidePane: true },
-        rotation: { sponsorSlots: 3, rotationMs: 6000 }
+        rotation: { sponsorSlots: 3, rotationMs: 6000 },
+        // V2: Rotation panes when enabled
+        defaultPanes: [
+          { type: 'standings', dwellMs: 20000, title: 'League Standings' },
+          { type: 'schedule', dwellMs: 15000, title: 'Upcoming Games' },
+          { type: 'sponsors', dwellMs: 15000 },
+          { type: 'public', dwellMs: 30000 }
+        ]
       },
       'bar_night': {
         layout: { emphasis: 'sponsors', hasSidePane: true },
-        rotation: { sponsorSlots: 4, rotationMs: 10000 }
+        rotation: { sponsorSlots: 4, rotationMs: 10000 },
+        // V2: Bar nights emphasize sponsors
+        defaultPanes: [
+          { type: 'sponsors', dwellMs: 25000 },
+          { type: 'public', dwellMs: 35000 }
+        ]
       },
       'trivia': {
         layout: { emphasis: 'hero', hasSidePane: false },
-        rotation: { sponsorSlots: 2, rotationMs: 12000 }
+        rotation: { sponsorSlots: 2, rotationMs: 12000 },
+        // V2: Trivia shows standings between rounds
+        defaultPanes: [
+          { type: 'standings', dwellMs: 20000, title: 'Trivia Leaderboard' },
+          { type: 'sponsors', dwellMs: 15000 },
+          { type: 'public', dwellMs: 25000 }
+        ]
       },
       'fundraiser': {
         layout: { emphasis: 'sponsors', hasSidePane: true },
-        rotation: { sponsorSlots: 6, rotationMs: 5000 }
+        rotation: { sponsorSlots: 6, rotationMs: 5000 },
+        // V2: Fundraisers maximize sponsor visibility
+        defaultPanes: [
+          { type: 'sponsors', dwellMs: 30000, title: 'Thank You to Our Sponsors!' },
+          { type: 'public', dwellMs: 30000 }
+        ]
+      },
+      'darts': {
+        layout: { emphasis: 'scores', hasSidePane: true },
+        rotation: { sponsorSlots: 3, rotationMs: 8000 },
+        defaultPanes: [
+          { type: 'standings', dwellMs: 20000, title: 'Darts Standings' },
+          { type: 'schedule', dwellMs: 15000 },
+          { type: 'sponsors', dwellMs: 15000 },
+          { type: 'public', dwellMs: 30000 }
+        ]
+      },
+      'bags': {
+        layout: { emphasis: 'scores', hasSidePane: true },
+        rotation: { sponsorSlots: 3, rotationMs: 8000 },
+        defaultPanes: [
+          { type: 'standings', dwellMs: 20000, title: 'Cornhole Standings' },
+          { type: 'schedule', dwellMs: 15000 },
+          { type: 'sponsors', dwellMs: 15000 },
+          { type: 'public', dwellMs: 30000 }
+        ]
+      },
+      'pinball': {
+        layout: { emphasis: 'scores', hasSidePane: false },
+        rotation: { sponsorSlots: 2, rotationMs: 10000 },
+        defaultPanes: [
+          { type: 'standings', dwellMs: 25000, title: 'High Scores' },
+          { type: 'sponsors', dwellMs: 15000 },
+          { type: 'public', dwellMs: 20000 }
+        ]
       }
     }
   }
