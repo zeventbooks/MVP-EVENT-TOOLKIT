@@ -32,9 +32,8 @@
 //
 // MVP APIs (used by 5 surfaces):
 //   api_getEventTemplates   → ApiSchemas.templates.list
-//   api_create              → ApiSchemas.events.create
+//   api_saveEvent           → ApiSchemas.events.saveEvent [CANONICAL write - ZEVENT-003]
 //   api_get                 → ApiSchemas.events.get
-//   api_updateEventData     → ApiSchemas.events.update
 //   api_list                → ApiSchemas.events.list
 //   api_getPublicBundle     → ApiSchemas.bundles.public
 //   api_getDisplayBundle    → ApiSchemas.bundles.display
@@ -42,6 +41,10 @@
 //   api_getSharedAnalytics  → ApiSchemas.analytics.sharedReport
 //   api_createFormFromTemplate → ApiSchemas.forms.createFromTemplate
 //   api_generateFormShortlink  → ApiSchemas.forms.generateShortlink
+//
+// Orphaned (backward compatibility only - ZEVENT-003):
+//   api_create              → ApiSchemas.events.create
+//   api_updateEventData     → ApiSchemas.events.update
 //
 // =============================================================================
 
@@ -57,9 +60,8 @@
 function _listMvpApis_() {
   return [
     'api_getEventTemplates',
-    'api_create',
+    'api_saveEvent',
     'api_get',
-    'api_updateEventData',
     'api_list',
     'api_getPublicBundle',
     'api_getDisplayBundle',
@@ -904,7 +906,8 @@ function doPost(e){
     const brand= findBrandByHost_(e?.headers?.host) || findBrand_('root');
 
     // Fixed: Bug #4 - CSRF protection for state-changing operations
-    const stateChangingActions = ['create', 'update', 'delete', 'updateEventData', 'createShortlink', 'createFormFromTemplate', 'generateFormShortlink'];
+    // ZEVENT-003: saveEvent is canonical, but legacy endpoints kept for backward compat
+    const stateChangingActions = ['saveEvent', 'api_saveEvent', 'create', 'update', 'delete', 'updateEventData', 'createShortlink', 'createFormFromTemplate', 'generateFormShortlink'];
     if (stateChangingActions.includes(action)) {
       if (!validateCSRFToken_(body.csrfToken)) {
         // Story 5.1 - Structured error logging with correlation ID
@@ -1010,6 +1013,19 @@ function handleRestApiPost_(e, action, body, brand) {
   const adminKey = body.adminKey || getAdminSecret_(authenticatedBrand.id); // For backward compatibility
 
   // Route to appropriate API function
+
+  // CANONICAL EVENT WRITE API (ZEVENT-003)
+  if (action === 'saveEvent' || action === 'api_saveEvent') {
+    return jsonResponse_(api_saveEvent({
+      brandId,
+      adminKey,
+      event: body.event,
+      scope,
+      templateId: body.templateId
+    }));
+  }
+
+  // Legacy create endpoint (orphaned - kept for backward compatibility)
   if (action === 'create') {
     return jsonResponse_(api_create({
       brandId,
@@ -1020,6 +1036,7 @@ function handleRestApiPost_(e, action, body, brand) {
     }));
   }
 
+  // Legacy update endpoint (orphaned - kept for backward compatibility)
   if (action === 'update') {
     return jsonResponse_(api_updateEventData({
       brandId,

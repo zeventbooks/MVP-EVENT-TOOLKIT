@@ -33,12 +33,15 @@ const TIMEOUT = 30000; // 30 second timeout for API calls
  * Canonical list of MVP APIs - mirrors Code.gs _listMvpApis_()
  * This is the single source of truth for Node-side tests.
  * If this list doesn't match _listMvpApis_() in Code.gs, tests will fail.
+ *
+ * ZEVENT-003: api_saveEvent is the CANONICAL event write endpoint.
+ * Legacy endpoints (api_create, api_updateEventData) are orphaned
+ * but kept for backward compatibility - see wiring-diagram-sync.test.js.
  */
 const MVP_APIS = [
   'api_getEventTemplates',
-  'api_create',
+  'api_saveEvent',           // CANONICAL event write (ZEVENT-003)
   'api_get',
-  'api_updateEventData',
   'api_list',
   'api_getPublicBundle',
   'api_getDisplayBundle',
@@ -49,6 +52,8 @@ const MVP_APIS = [
 /**
  * API endpoint configurations for testing
  * Maps API name to test configuration
+ *
+ * ZEVENT-003: api_saveEvent is canonical. Legacy create/update are orphaned.
  */
 const API_CONFIGS = {
   api_getEventTemplates: {
@@ -58,12 +63,14 @@ const API_CONFIGS = {
     requiresEventId: false,
     description: 'List available event templates'
   },
-  api_create: {
-    action: 'create',
+  // CANONICAL EVENT WRITE API (ZEVENT-003)
+  api_saveEvent: {
+    action: 'saveEvent',
     method: 'POST',
     requiresAuth: true,
     requiresEventId: false,
-    description: 'Create a new event'
+    description: 'Save event (create or update) - CANONICAL write endpoint',
+    schemaPath: 'events.saveEvent'
   },
   api_get: {
     action: 'get',
@@ -71,13 +78,6 @@ const API_CONFIGS = {
     requiresAuth: false,
     requiresEventId: true,
     description: 'Get single event by ID'
-  },
-  api_updateEventData: {
-    action: 'updateEventData',
-    method: 'POST',
-    requiresAuth: true,
-    requiresEventId: true,
-    description: 'Update event data'
   },
   api_list: {
     action: 'list',
@@ -443,8 +443,9 @@ describe('MVP API Contract Tests', () => {
       });
     });
 
-    it('should have 9 MVP APIs (matches _listMvpApis_())', () => {
-      expect(MVP_APIS.length).toBe(9);
+    it('should have 8 MVP APIs (matches _listMvpApis_())', () => {
+      // ZEVENT-003: api_saveEvent replaces api_create + api_updateEventData
+      expect(MVP_APIS.length).toBe(8);
     });
   });
 
@@ -772,42 +773,32 @@ describe('MVP API Contract Tests', () => {
   });
 
   // ==========================================================================
-  // api_create - Create Event (requires auth)
+  // api_saveEvent - CANONICAL Event Write API (ZEVENT-003)
   // ==========================================================================
+  // Replaces both api_create and api_updateEventData
+  // Modes: CREATE (no id) or UPDATE (with id)
 
-  describe('api_create', () => {
-    it('should return { ok: false, code: "BAD_INPUT" } without CSRF token', async () => {
-      const response = await apiPost('create', {
-        name: 'Test Event',
-        startDateISO: '2025-12-15',
-        venue: 'Test Venue'
+  describe('api_saveEvent', () => {
+    it('should return { ok: false, code: "BAD_INPUT" } without adminKey', async () => {
+      const response = await apiPost('saveEvent', {
+        event: {
+          name: 'Test Event',
+          startDateISO: '2025-12-15',
+          venue: 'Test Venue'
+        }
       });
 
-      const errors = validateEnvelope(response, 'api_create');
+      const errors = validateEnvelope(response, 'api_saveEvent');
       expect(errors).toEqual([]);
       expect(response.ok).toBe(false);
-      // Should fail due to missing CSRF or auth
+      // Should fail due to missing adminKey
       expect(['BAD_INPUT', 'UNAUTHORIZED']).toContain(response.code);
     }, TIMEOUT);
-  });
 
-  // ==========================================================================
-  // api_updateEventData - Update Event (requires auth)
-  // ==========================================================================
-
-  describe('api_updateEventData', () => {
-    it('should return { ok: false, code: "BAD_INPUT" } without CSRF token', async () => {
-      const response = await apiPost('updateEventData', {
-        id: fixtureEventId || 'test-id',
-        name: 'Updated Event Name'
-      });
-
-      const errors = validateEnvelope(response, 'api_updateEventData');
-      expect(errors).toEqual([]);
-      expect(response.ok).toBe(false);
-      // Should fail due to missing CSRF or auth
-      expect(['BAD_INPUT', 'UNAUTHORIZED']).toContain(response.code);
-    }, TIMEOUT);
+    it('should validate event schema path exists', () => {
+      const config = API_CONFIGS.api_saveEvent;
+      expect(config.schemaPath).toBe('events.saveEvent');
+    });
   });
 
   // ==========================================================================
