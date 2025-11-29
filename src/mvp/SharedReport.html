@@ -788,6 +788,10 @@ DO NOT modify contracts without updating:
       <button id="filterBtn" class="btn btn-secondary" onclick="showFilters()" style="display:none;">
         <span class="btn-text">🔍 Filter</span>
       </button>
+      <!-- V2 FEATURE: Portfolio Mode Toggle (only shown for parent orgs with adminKey) -->
+      <button id="portfolioToggleBtn" class="btn btn-secondary" onclick="togglePortfolioMode()" style="display:none;">
+        <span class="btn-text">📈 Portfolio View</span>
+      </button>
     </div>
 
     <!-- Loading State -->
@@ -856,13 +860,33 @@ DO NOT modify contracts without updating:
     const SPONSOR_ID = urlParams.get('sponsorId') || '';
     const EVENT_ID = urlParams.get('eventId') || '';
 
+    // V2 Portfolio Mode: 'single-brand' (default) or 'multi-event-portfolio'
+    // Multi-event portfolio mode aggregates metrics across child brands
+    // Only available for parent organization brands with adminKey
+    const PORTFOLIO_MODE = urlParams.get('portfolioMode') || 'single-brand';
+    const ADMIN_KEY = urlParams.get('adminKey') || '';
+    const IS_PORTFOLIO_MODE = PORTFOLIO_MODE === 'multi-event-portfolio' && !IS_SPONSOR_VIEW;
+
     // Update header based on view type
-    function updateHeaderForView(sponsorName) {
+    function updateHeaderForView(sponsorName, portfolioData) {
       const titleEl = document.getElementById('reportTitle');
       const subtitleEl = document.getElementById('reportSubtitle');
       const contextEl = document.getElementById('reportContext');
 
-      if (IS_SPONSOR_VIEW) {
+      if (IS_PORTFOLIO_MODE && portfolioData) {
+        // V2 Multi-event portfolio view: cross-brand aggregation
+        if (titleEl) {
+          titleEl.textContent = '📊 Portfolio Analytics Dashboard';
+        }
+        if (subtitleEl) {
+          const childCount = portfolioData.portfolio?.children?.length || 0;
+          const parentName = portfolioData.portfolio?.parent?.name || BRAND_ID;
+          subtitleEl.textContent = `Cross-brand analytics for ${parentName} (${childCount + 1} brands)`;
+        }
+        if (contextEl) {
+          contextEl.textContent = 'Multi-event portfolio view: aggregated sponsor performance across all your brands. Use this to demonstrate total ROI to sponsors.';
+        }
+      } else if (IS_SPONSOR_VIEW) {
         // Sponsor-specific view: personalized and welcoming
         if (titleEl) {
           titleEl.textContent = '📊 Your Sponsorship Report';
@@ -932,18 +956,39 @@ DO NOT modify contracts without updating:
      *
      * Sponsor view:
      * - Same shape, but summary/surfaces are scoped to that sponsor.
+     *
+     * V2 Portfolio mode (multi-event-portfolio):
+     * {
+     *   mode: 'multi-event-portfolio',
+     *   lastUpdatedISO: string,
+     *   portfolio: { parent: {...}, children: [...] },
+     *   summary: { totalEvents, totalImpressions, totalClicks, ... },
+     *   byBrand: { brandId: { events, impressions, clicks, ... } },
+     *   sponsors: [...],
+     *   topPerformingEvents: [...]
+     * }
      */
     async function loadReport() {
       try {
         toggleLoading(true);
 
-        const rpcName = IS_SPONSOR_VIEW && SPONSOR_ID
-          ? 'api_getSponsorAnalytics'
-          : 'api_getSharedAnalytics';
+        let rpcName, payload;
 
-        const payload = IS_SPONSOR_VIEW && SPONSOR_ID
-          ? { brandId: BRAND_ID, sponsorId: SPONSOR_ID, eventId: EVENT_ID || null }
-          : { brandId: BRAND_ID };
+        if (IS_PORTFOLIO_MODE && ADMIN_KEY) {
+          // V2 Portfolio mode: cross-brand aggregation
+          rpcName = 'api_getPortfolioAnalyticsV2';
+          payload = {
+            brandId: BRAND_ID,
+            mode: 'multi-event-portfolio',
+            adminKey: ADMIN_KEY
+          };
+        } else if (IS_SPONSOR_VIEW && SPONSOR_ID) {
+          rpcName = 'api_getSponsorAnalytics';
+          payload = { brandId: BRAND_ID, sponsorId: SPONSOR_ID, eventId: EVENT_ID || null };
+        } else {
+          rpcName = 'api_getSharedAnalytics';
+          payload = { brandId: BRAND_ID };
+        }
 
         const result = await NU.rpc(rpcName, payload);
 
@@ -951,12 +996,186 @@ DO NOT modify contracts without updating:
           throw new Error(result && result.message || 'Failed to load analytics');
         }
 
-        renderReport(result.value || {});
+        // Handle V2 portfolio mode response
+        if (IS_PORTFOLIO_MODE && result.value && result.value.mode === 'multi-event-portfolio') {
+          renderPortfolioReport(result.value);
+        } else {
+          renderReport(result.value || {});
+        }
         toggleLoading(false);
       } catch (err) {
         console.error('SharedReport load error', err);
         showError(err && err.message);
       }
+    }
+
+    /**
+     * Render V2 portfolio report (multi-event mode)
+     *
+     * @param {Object} data - Portfolio analytics response
+     */
+    function renderPortfolioReport(data) {
+      // Update header for portfolio mode
+      updateHeaderForView(null, data);
+
+      // Convert portfolio format to SharedAnalytics-compatible format for reuse
+      const summary = {
+        totalImpressions: data.summary?.totalImpressions || 0,
+        totalClicks: data.summary?.totalClicks || 0,
+        totalQrScans: data.summary?.totalQrScans || 0,
+        totalSignups: data.summary?.totalSignups || 0,
+        uniqueEvents: data.summary?.totalEvents || 0,
+        uniqueSponsors: data.summary?.totalSponsors || 0
+      };
+
+      // Render summary metrics
+      renderSummaryMetrics(summary);
+
+      // Render portfolio-specific brand breakdown
+      if (data.byBrand) {
+        renderBrandBreakdown(data.byBrand, data.portfolio);
+      }
+
+      // Render top sponsors (convert from portfolio format)
+      const topSponsors = (data.sponsors || []).slice(0, 3).map(s => ({
+        id: s.id,
+        name: s.name || s.id,
+        impressions: s.metrics?.impressions || 0,
+        clicks: s.metrics?.clicks || 0,
+        ctr: s.metrics?.ctr || 0
+      }));
+      if (topSponsors.length > 0) {
+        renderTopSponsorsCard(topSponsors);
+      }
+
+      // Build surfaces from portfolio data (aggregate across brands)
+      const surfaces = data.bySurface ? Object.values(data.bySurface).map(s => ({
+        id: s.id,
+        label: s.label || s.id,
+        impressions: s.impressions || 0,
+        clicks: s.clicks || 0,
+        qrScans: s.qrScans || 0,
+        engagementRate: s.impressions > 0 ? ((s.clicks + s.qrScans) / s.impressions * 100) : 0
+      })) : [];
+
+      if (surfaces.length > 0) {
+        renderSurfacePerformance(surfaces);
+      }
+
+      // Render top callouts from portfolio events and sponsors
+      const events = (data.topPerformingEvents || []).map(e => ({
+        id: e.id,
+        name: e.name,
+        impressions: e.impressions || 0,
+        clicks: e.clicks || 0,
+        ctr: e.ctr || 0,
+        signupsCount: e.signupsCount || 0
+      }));
+      const sponsors = (data.sponsors || []).map(s => ({
+        id: s.id,
+        name: s.name || s.id,
+        impressions: s.metrics?.impressions || 0,
+        clicks: s.metrics?.clicks || 0,
+        ctr: s.metrics?.ctr || 0
+      }));
+
+      renderTopCallouts(events, sponsors);
+
+      // Render sponsor performance
+      if (sponsors.length > 0) {
+        renderSponsorPerformance(sponsors);
+      }
+
+      // Render top performing events
+      if (events.length > 0) {
+        document.getElementById('eventPerformanceCard').style.display = 'block';
+        renderEventPerformance(events);
+      }
+
+      // Last updated label
+      const lastUpdated = data.lastUpdatedISO || data.generatedAt || null;
+      if (lastUpdated) {
+        document.getElementById('lastUpdated').textContent =
+          'Last updated: ' + new Date(lastUpdated).toLocaleString();
+      } else {
+        document.getElementById('lastUpdated').textContent = 'Last updated: not available';
+      }
+    }
+
+    /**
+     * Render brand breakdown section (V2 portfolio mode only)
+     *
+     * @param {Object} byBrand - Metrics by brand ID
+     * @param {Object} portfolio - Portfolio structure (parent/children)
+     */
+    function renderBrandBreakdown(byBrand, portfolio) {
+      // Create brand breakdown section if it doesn't exist
+      let container = document.getElementById('brandBreakdownCard');
+      if (!container) {
+        container = document.createElement('div');
+        container.id = 'brandBreakdownCard';
+        container.className = 'section-card';
+        container.innerHTML = `
+          <h2>🏢 Performance by Brand</h2>
+          <p class="section-help">Compare sponsor engagement across your portfolio of brands.</p>
+          <div id="brandBreakdown"></div>
+        `;
+        // Insert after metrics grid
+        const metricsGrid = document.getElementById('metricsGrid');
+        if (metricsGrid && metricsGrid.parentNode) {
+          metricsGrid.parentNode.insertBefore(container, metricsGrid.nextSibling);
+        }
+      }
+
+      const breakdown = document.getElementById('brandBreakdown');
+      if (!breakdown) return;
+
+      const brands = Object.values(byBrand).sort((a, b) => b.impressions - a.impressions);
+
+      if (!brands.length) {
+        breakdown.innerHTML = '<p class="muted">No brand data available.</p>';
+        return;
+      }
+
+      const rows = brands.map(brand => {
+        const ctr = brand.ctr || 0;
+        const badgeClass = ctr >= 2 ? 'success' : ctr >= 1 ? 'info' : 'warning';
+        const isParent = portfolio?.parent?.id === brand.brandId;
+
+        return `
+          <tr>
+            <td data-label="Brand">
+              <strong>${escapeHtml(brand.brandName || brand.brandId)}</strong>
+              ${isParent ? '<span class="badge info" style="margin-left:8px;font-size:0.6rem;">Parent</span>' : ''}
+            </td>
+            <td data-label="Events">${brand.events || 0}</td>
+            <td data-label="Impressions">${(brand.impressions || 0).toLocaleString()}</td>
+            <td data-label="Clicks">${(brand.clicks || 0).toLocaleString()}</td>
+            <td data-label="Signups">${(brand.signups || 0).toLocaleString()}</td>
+            <td data-label="CTR">
+              <span class="badge ${badgeClass}">${ctr.toFixed(2)}%</span>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      breakdown.innerHTML = `
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Brand</th>
+              <th class="th-with-tooltip" data-tooltip="Number of events for this brand">Events</th>
+              <th class="th-with-tooltip" data-tooltip="Total impressions">Impressions</th>
+              <th class="th-with-tooltip" data-tooltip="Total clicks">Clicks</th>
+              <th class="th-with-tooltip" data-tooltip="Form signups">Signups</th>
+              <th class="th-with-tooltip" data-tooltip="Click-through rate">CTR</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows}
+          </tbody>
+        </table>
+      `;
     }
 
     function toggleLoading(isLoading) {
@@ -1483,7 +1702,68 @@ DO NOT modify contracts without updating:
       }, 1500);
     }
 
-    window.addEventListener('load', loadReport);
+    /**
+     * V2 FEATURE: Toggle between single-brand and portfolio mode
+     *
+     * This function switches the report between standard single-brand view
+     * and multi-event portfolio view (cross-brand aggregation).
+     *
+     * Portfolio mode is activated via URL parameters:
+     *   ?portfolioMode=multi-event-portfolio&adminKey=<admin-key>
+     *
+     * Once sponsor adoption warrants it, this toggle can be shown to
+     * parent organization administrators.
+     */
+    function togglePortfolioMode() {
+      const currentUrl = new URL(window.location.href);
+      const currentMode = currentUrl.searchParams.get('portfolioMode');
+
+      if (currentMode === 'multi-event-portfolio') {
+        // Switch to single-brand mode
+        currentUrl.searchParams.delete('portfolioMode');
+        currentUrl.searchParams.delete('adminKey');
+      } else {
+        // Switch to portfolio mode - prompt for admin key if not present
+        const adminKey = currentUrl.searchParams.get('adminKey');
+        if (!adminKey) {
+          const key = prompt('Enter admin key for portfolio access:');
+          if (!key) return;
+          currentUrl.searchParams.set('adminKey', key);
+        }
+        currentUrl.searchParams.set('portfolioMode', 'multi-event-portfolio');
+      }
+
+      window.location.href = currentUrl.toString();
+    }
+
+    /**
+     * Check if portfolio toggle should be visible
+     * Only show for non-sponsor views when adminKey is present
+     */
+    function checkPortfolioToggleVisibility() {
+      const toggleBtn = document.getElementById('portfolioToggleBtn');
+      if (!toggleBtn) return;
+
+      // Show toggle if:
+      // 1. Not in sponsor view
+      // 2. adminKey is present OR already in portfolio mode
+      if (!IS_SPONSOR_VIEW && (ADMIN_KEY || IS_PORTFOLIO_MODE)) {
+        toggleBtn.style.display = 'inline-flex';
+
+        // Update button text based on current mode
+        const btnText = toggleBtn.querySelector('.btn-text');
+        if (btnText) {
+          btnText.textContent = IS_PORTFOLIO_MODE
+            ? '📉 Single Brand View'
+            : '📈 Portfolio View';
+        }
+      }
+    }
+
+    window.addEventListener('load', function() {
+      loadReport();
+      checkPortfolioToggleVisibility();
+    });
   </script>
 </body>
 </html>
