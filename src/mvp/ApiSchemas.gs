@@ -51,32 +51,34 @@
  * - Error: res.ok === false, error in res.code + res.message + res.corrId?
  *
  * ═══════════════════════════════════════════════════════════════════════════
- * RPC ENDPOINT INVENTORY (11 endpoints used by surfaces)
+ * RPC ENDPOINT INVENTORY (13 unique endpoints, 14 surface bindings)
  * ═══════════════════════════════════════════════════════════════════════════
+ * Validated by: scripts/check-rpc-inventory.js
  *
- * Admin.html:
- *   - api_getEventTemplates   → templates.getEventTemplates
- *   - api_saveEvent           → events.saveEvent   [CANONICAL write endpoint - ZEVENT-003]
- *   - api_get                 → events.get
+ * Admin.html (5 endpoints):
+ *   - api_getEventTemplates      → templates.getEventTemplates
+ *   - api_saveEvent              → events.saveEvent   [CANONICAL write - ZEVENT-003]
+ *   - api_get                    → events.get
  *   - api_createFormFromTemplate → forms.createFromTemplate
  *   - api_generateFormShortlink  → forms.generateShortlink
  *
- * Public.html:
+ * Public.html (3 endpoints):
  *   - api_getPublicBundle     → bundles.public
  *   - api_list                → events.list
  *   - api_logExternalClick    → analytics.logExternalClick
  *
- * Display.html:
+ * Display.html (2 endpoints):
  *   - api_getDisplayBundle    → bundles.display
- *   - api_logExternalClick    → analytics.logExternalClick
+ *   - api_logExternalClick    → analytics.logExternalClick  [shared with Public]
  *
- * Poster.html:
+ * Poster.html (1 endpoint):
  *   - api_getPosterBundle     → bundles.poster
  *
- * SharedReport.html:
+ * SharedReport.html (3 MVP endpoints):
  *   - api_getSharedAnalytics  → analytics.getSharedReport
- *   - api_getSponsorAnalytics → sponsors.getAnalytics
- *   - api_exportSharedReport  → analytics.exportReport
+ *   - api_getSponsorAnalytics → analytics.getSponsorAnalytics
+ *   - api_getSponsorReportQr  → analytics.getSponsorReportQr
+ *   [V2] api_getPortfolioAnalyticsV2 → (portfolio feature, not yet schema'd)
  *
  * ═══════════════════════════════════════════════════════════════════════════
  *
