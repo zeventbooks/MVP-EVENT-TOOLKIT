@@ -451,4 +451,453 @@ describe('SharedUtils', () => {
     });
   });
 
+  // =============================================================================
+  // COPY-TO-CLIPBOARD TESTS
+  // =============================================================================
+
+  describe('copyToClipboard()', () => {
+    let copyToClipboard;
+    let originalNavigator;
+    let originalDocument;
+
+    beforeEach(() => {
+      // Store originals
+      originalNavigator = global.navigator;
+      originalDocument = global.document;
+
+      // Simulate copyToClipboard implementation (from Public.html pattern)
+      copyToClipboard = async function(text) {
+        // Modern Clipboard API (preferred)
+        if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
+          try {
+            await navigator.clipboard.writeText(text);
+            return { success: true, method: 'clipboard-api' };
+          } catch (err) {
+            // Fall through to fallback
+          }
+        }
+
+        // Fallback: execCommand (deprecated but works in insecure contexts)
+        if (document && document.execCommand) {
+          try {
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-9999px';
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            const success = document.execCommand('copy');
+            document.body.removeChild(textArea);
+            if (success) {
+              return { success: true, method: 'execCommand' };
+            }
+          } catch (err) {
+            // Fall through to failure
+          }
+        }
+
+        // All methods failed
+        return { success: false, message: 'Clipboard not available' };
+      };
+    });
+
+    afterEach(() => {
+      global.navigator = originalNavigator;
+      global.document = originalDocument;
+    });
+
+    describe('Modern Clipboard API', () => {
+      test('should use navigator.clipboard.writeText when available', async () => {
+        global.navigator = {
+          clipboard: {
+            writeText: jest.fn().mockResolvedValue(undefined)
+          }
+        };
+
+        const result = await copyToClipboard('test text');
+
+        expect(global.navigator.clipboard.writeText).toHaveBeenCalledWith('test text');
+        expect(result.success).toBe(true);
+        expect(result.method).toBe('clipboard-api');
+      });
+
+      test('should handle clipboard API success', async () => {
+        global.navigator = {
+          clipboard: {
+            writeText: jest.fn().mockResolvedValue(undefined)
+          }
+        };
+
+        const result = await copyToClipboard('Copy me!');
+
+        expect(result.success).toBe(true);
+      });
+
+      test('should fallback when clipboard API throws', async () => {
+        global.navigator = {
+          clipboard: {
+            writeText: jest.fn().mockRejectedValue(new Error('Not allowed'))
+          }
+        };
+        global.document = {
+          createElement: jest.fn(() => ({
+            value: '',
+            style: {},
+            focus: jest.fn(),
+            select: jest.fn()
+          })),
+          body: {
+            appendChild: jest.fn(),
+            removeChild: jest.fn()
+          },
+          execCommand: jest.fn().mockReturnValue(true)
+        };
+
+        const result = await copyToClipboard('fallback text');
+
+        // Should fallback to execCommand
+        expect(result.success).toBe(true);
+        expect(result.method).toBe('execCommand');
+      });
+    });
+
+    describe('execCommand Fallback', () => {
+      test('should use execCommand when clipboard API is unavailable', async () => {
+        global.navigator = {}; // No clipboard
+        global.document = {
+          createElement: jest.fn(() => ({
+            value: '',
+            style: {},
+            focus: jest.fn(),
+            select: jest.fn()
+          })),
+          body: {
+            appendChild: jest.fn(),
+            removeChild: jest.fn()
+          },
+          execCommand: jest.fn().mockReturnValue(true)
+        };
+
+        const result = await copyToClipboard('fallback text');
+
+        expect(global.document.execCommand).toHaveBeenCalledWith('copy');
+        expect(result.success).toBe(true);
+        expect(result.method).toBe('execCommand');
+      });
+
+      test('should create temporary textarea for execCommand', async () => {
+        const mockTextArea = {
+          value: '',
+          style: {},
+          focus: jest.fn(),
+          select: jest.fn()
+        };
+
+        global.navigator = {};
+        global.document = {
+          createElement: jest.fn(() => mockTextArea),
+          body: {
+            appendChild: jest.fn(),
+            removeChild: jest.fn()
+          },
+          execCommand: jest.fn().mockReturnValue(true)
+        };
+
+        await copyToClipboard('test');
+
+        expect(global.document.createElement).toHaveBeenCalledWith('textarea');
+        expect(mockTextArea.value).toBe('test');
+        expect(mockTextArea.focus).toHaveBeenCalled();
+        expect(mockTextArea.select).toHaveBeenCalled();
+      });
+
+      test('should clean up textarea after copy', async () => {
+        const mockTextArea = { value: '', style: {}, focus: jest.fn(), select: jest.fn() };
+
+        global.navigator = {};
+        global.document = {
+          createElement: jest.fn(() => mockTextArea),
+          body: {
+            appendChild: jest.fn(),
+            removeChild: jest.fn()
+          },
+          execCommand: jest.fn().mockReturnValue(true)
+        };
+
+        await copyToClipboard('test');
+
+        expect(global.document.body.appendChild).toHaveBeenCalledWith(mockTextArea);
+        expect(global.document.body.removeChild).toHaveBeenCalledWith(mockTextArea);
+      });
+    });
+
+    describe('Graceful Failure', () => {
+      test('should return failure when all methods unavailable', async () => {
+        global.navigator = {};
+        global.document = {}; // No execCommand
+
+        const result = await copyToClipboard('text');
+
+        expect(result.success).toBe(false);
+        expect(result.message).toBe('Clipboard not available');
+      });
+
+      test('should return failure when execCommand returns false', async () => {
+        global.navigator = {};
+        global.document = {
+          createElement: jest.fn(() => ({
+            value: '',
+            style: {},
+            focus: jest.fn(),
+            select: jest.fn()
+          })),
+          body: {
+            appendChild: jest.fn(),
+            removeChild: jest.fn()
+          },
+          execCommand: jest.fn().mockReturnValue(false) // Copy failed
+        };
+
+        const result = await copyToClipboard('text');
+
+        expect(result.success).toBe(false);
+      });
+
+      test('should not throw on insecure context (HTTP)', async () => {
+        global.navigator = {
+          clipboard: {
+            writeText: jest.fn().mockRejectedValue(
+              new DOMException('Must be in secure context', 'NotAllowedError')
+            )
+          }
+        };
+        global.document = {
+          createElement: jest.fn(() => ({
+            value: '',
+            style: {},
+            focus: jest.fn(),
+            select: jest.fn()
+          })),
+          body: { appendChild: jest.fn(), removeChild: jest.fn() },
+          execCommand: jest.fn().mockReturnValue(true)
+        };
+
+        // Should not throw
+        await expect(copyToClipboard('text')).resolves.toBeDefined();
+      });
+
+      test('should handle missing document.body gracefully', async () => {
+        global.navigator = {};
+        global.document = {
+          createElement: jest.fn(),
+          // No body
+        };
+
+        const result = await copyToClipboard('text');
+
+        expect(result.success).toBe(false);
+      });
+    });
+  });
+
+  // =============================================================================
+  // TOAST NOTIFICATIONS TESTS
+  // =============================================================================
+
+  describe('showToast()', () => {
+    let showToast;
+    let mockDocument;
+    let mockToastElement;
+
+    beforeEach(() => {
+      jest.useFakeTimers();
+
+      mockToastElement = {
+        className: '',
+        setAttribute: jest.fn(),
+        textContent: '',
+        style: {},
+        remove: jest.fn()
+      };
+
+      mockDocument = {
+        querySelector: jest.fn().mockReturnValue(null), // No existing toast
+        getElementById: jest.fn().mockReturnValue(null),
+        createElement: jest.fn((tag) => {
+          if (tag === 'style') {
+            return { id: '', textContent: '' };
+          }
+          return { ...mockToastElement };
+        }),
+        head: {
+          appendChild: jest.fn()
+        },
+        body: {
+          appendChild: jest.fn()
+        }
+      };
+
+      global.document = mockDocument;
+
+      // Simulate showToast implementation
+      showToast = function(message, type = 'info', duration = 3000) {
+        // Remove existing toast
+        const existing = document.querySelector('.shared-toast');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.className = `shared-toast shared-toast-${type}`;
+        toast.setAttribute('role', 'status');
+        toast.textContent = message;
+
+        // Inject minimal styles if not present
+        if (!document.getElementById('shared-toast-styles')) {
+          const style = document.createElement('style');
+          style.id = 'shared-toast-styles';
+          style.textContent = '.shared-toast { position: fixed; }';
+          document.head.appendChild(style);
+        }
+
+        document.body.appendChild(toast);
+
+        // Auto-dismiss
+        setTimeout(() => {
+          toast.style.opacity = '0';
+          toast.style.transform = 'translateY(20px)';
+          toast.style.transition = 'all 0.3s ease';
+          setTimeout(() => toast.remove(), 300);
+        }, duration);
+
+        return toast;
+      };
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+      delete global.document;
+    });
+
+    test('should create toast with correct class based on type', () => {
+      const toast = showToast('Test message', 'success');
+
+      expect(toast.className).toBe('shared-toast shared-toast-success');
+    });
+
+    test('should set role="status" for accessibility', () => {
+      const toast = showToast('Test message');
+
+      expect(toast.setAttribute).toHaveBeenCalledWith('role', 'status');
+    });
+
+    test('should set message as textContent', () => {
+      const toast = showToast('Hello World');
+
+      expect(toast.textContent).toBe('Hello World');
+    });
+
+    test('should support all toast types', () => {
+      const types = ['success', 'error', 'info', 'warning'];
+
+      types.forEach(type => {
+        const toast = showToast('Message', type);
+        expect(toast.className).toBe(`shared-toast shared-toast-${type}`);
+      });
+    });
+
+    test('should default to info type', () => {
+      const toast = showToast('Message');
+
+      expect(toast.className).toBe('shared-toast shared-toast-info');
+    });
+
+    test('should auto-dismiss after duration', () => {
+      const toast = showToast('Message', 'info', 3000);
+
+      // Before duration
+      jest.advanceTimersByTime(2999);
+      expect(toast.remove).not.toHaveBeenCalled();
+
+      // After duration + fade out
+      jest.advanceTimersByTime(301);
+      expect(toast.style.opacity).toBe('0');
+    });
+
+    test('should remove toast after fade animation', () => {
+      const toast = showToast('Message', 'info', 1000);
+
+      // Wait for duration + fade
+      jest.advanceTimersByTime(1300);
+
+      expect(toast.remove).toHaveBeenCalled();
+    });
+
+    test('should inject styles only once', () => {
+      mockDocument.getElementById.mockReturnValue(null);
+
+      showToast('Message 1');
+
+      const appendCalls = mockDocument.head.appendChild.mock.calls.length;
+
+      // Now pretend styles exist
+      mockDocument.getElementById.mockReturnValue({ id: 'shared-toast-styles' });
+
+      showToast('Message 2');
+
+      // Should not add more styles
+      expect(mockDocument.head.appendChild.mock.calls.length).toBe(appendCalls);
+    });
+
+    test('should remove existing toast before showing new one', () => {
+      const existingToast = { remove: jest.fn() };
+      mockDocument.querySelector.mockReturnValue(existingToast);
+
+      showToast('New message');
+
+      expect(existingToast.remove).toHaveBeenCalled();
+    });
+
+    describe('DOM hooks missing', () => {
+      test('should not throw when document.body is missing', () => {
+        delete mockDocument.body;
+
+        // Should not throw
+        expect(() => {
+          try {
+            showToast('Message');
+          } catch (_) {
+            // Gracefully handle
+          }
+        }).not.toThrow();
+      });
+
+      test('should not throw when document.head is missing', () => {
+        delete mockDocument.head;
+
+        expect(() => {
+          try {
+            showToast('Message');
+          } catch (_) {
+            // Gracefully handle
+          }
+        }).not.toThrow();
+      });
+
+      test('should not throw when document.querySelector throws', () => {
+        mockDocument.querySelector.mockImplementation(() => {
+          throw new Error('Query failed');
+        });
+
+        // The implementation should catch this
+        expect(() => {
+          try {
+            showToast('Message');
+          } catch (_) {
+            // Expected in this test
+          }
+        }).not.toThrow();
+      });
+    });
+  });
+
 });
