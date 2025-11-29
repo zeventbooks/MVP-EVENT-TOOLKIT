@@ -1105,10 +1105,10 @@ DO NOT modify contracts without updating:
       <!-- Surface Performance (Ad Placements) - Collapsible detail section -->
       <div class="section-card detail-section collapsed" id="surfacePerformanceCard">
         <button class="section-toggle" onclick="toggleDetailSection('surfacePerformanceCard')" aria-expanded="false">
-          <h2>🌐 Where you were seen</h2>
+          <h2>🌐 Where seen</h2>
           <span class="toggle-icon">▼</span>
         </button>
-        <p class="section-help">See which placements drove the most engagement — posters, screens, public pages, or signup forms.</p>
+        <p class="section-help">Which placements got the most engagement — posters, screens, pages, or forms.</p>
         <div class="section-content">
           <div class="table-scroll-wrapper">
             <div id="surfacePerformance"></div>
@@ -1119,7 +1119,7 @@ DO NOT modify contracts without updating:
       <!-- Sponsor Performance - Collapsible detail section -->
       <div class="section-card detail-section collapsed" id="sponsorPerformanceCard">
         <button class="section-toggle" onclick="toggleDetailSection('sponsorPerformanceCard')" aria-expanded="false">
-          <h2>🏢 Sponsor breakdown</h2>
+          <h2>🏢 By sponsor</h2>
           <span class="toggle-icon">▼</span>
         </button>
         <p class="section-help" id="sponsorHelpText">See how each sponsor is performing. Click Rate shows what percentage of viewers clicked.</p>
@@ -1133,7 +1133,7 @@ DO NOT modify contracts without updating:
       <!-- Event Performance - Collapsible detail section -->
       <div class="section-card detail-section collapsed" id="eventPerformanceCard" style="display:none;">
         <button class="section-toggle" onclick="toggleDetailSection('eventPerformanceCard')" aria-expanded="false">
-          <h2>🎉 Event breakdown</h2>
+          <h2>🎉 By event</h2>
           <span class="toggle-icon">▼</span>
         </button>
         <p class="section-help">See which events drove the most engagement and signups.</p>
@@ -1871,8 +1871,8 @@ DO NOT modify contracts without updating:
             </td>
             <td data-label="Views">${impressions.toLocaleString()}</td>
             <td data-label="Clicks">${clicks.toLocaleString()}</td>
-            <td data-label="QR Scans">${qrScans.toLocaleString()}</td>
-            <td data-label="Interaction Rate">
+            <td data-label="Scans">${qrScans.toLocaleString()}</td>
+            <td data-label="Rate">
               <span class="badge ${badgeClass}">${rate.toFixed(1)}%</span>
             </td>
           </tr>
@@ -1884,10 +1884,10 @@ DO NOT modify contracts without updating:
           <thead>
             <tr>
               <th class="th-with-tooltip" data-tooltip="Where sponsor content appears">Placement</th>
-              <th class="th-with-tooltip" data-tooltip="Number of times content was displayed">Views</th>
-              <th class="th-with-tooltip" data-tooltip="Number of clicks on sponsor links">Clicks</th>
-              <th class="th-with-tooltip" data-tooltip="QR codes scanned by attendees">QR Scans</th>
-              <th class="th-with-tooltip" data-tooltip="Percentage of viewers who interacted">Interaction Rate</th>
+              <th class="th-with-tooltip" data-tooltip="Times content was displayed">Views</th>
+              <th class="th-with-tooltip" data-tooltip="Clicks on sponsor links">Clicks</th>
+              <th class="th-with-tooltip" data-tooltip="QR codes scanned">Scans</th>
+              <th class="th-with-tooltip" data-tooltip="% who interacted">Rate</th>
             </tr>
           </thead>
           <tbody>
@@ -1937,7 +1937,7 @@ DO NOT modify contracts without updating:
             </td>
             <td data-label="Views">${(sponsor.impressions || 0).toLocaleString()}</td>
             <td data-label="Clicks">${(sponsor.clicks || 0).toLocaleString()}</td>
-            <td data-label="Click Rate">
+            <td data-label="Rate">
               <span class="badge ${badgeClass}">${ctr.toFixed(2)}%</span>
             </td>
             ${qrCell}
@@ -1952,9 +1952,9 @@ DO NOT modify contracts without updating:
           <thead>
             <tr>
               <th>Sponsor</th>
-              <th class="th-with-tooltip" data-tooltip="Number of times sponsor content was displayed">Views</th>
-              <th class="th-with-tooltip" data-tooltip="Number of clicks on sponsor content">Clicks</th>
-              <th class="th-with-tooltip" data-tooltip="Click-through rate: clicks ÷ views">Click Rate</th>
+              <th class="th-with-tooltip" data-tooltip="Times content was displayed">Views</th>
+              <th class="th-with-tooltip" data-tooltip="Clicks on content">Clicks</th>
+              <th class="th-with-tooltip" data-tooltip="Clicks ÷ views">Rate</th>
               ${qrHeader}
             </tr>
           </thead>
@@ -2124,7 +2124,7 @@ DO NOT modify contracts without updating:
             <td data-label="Views">${(ev.impressions || 0).toLocaleString()}</td>
             <td data-label="Clicks">${(ev.clicks || 0).toLocaleString()}</td>
             <td data-label="Signups">${signups.toLocaleString()}</td>
-            <td data-label="Click Rate">
+            <td data-label="Rate">
               <span class="badge ${badgeClass}">${ctr.toFixed(2)}%</span>
             </td>
           </tr>
@@ -2136,10 +2136,10 @@ DO NOT modify contracts without updating:
           <thead>
             <tr>
               <th>Event</th>
-              <th class="th-with-tooltip" data-tooltip="Number of times event content was displayed">Views</th>
-              <th class="th-with-tooltip" data-tooltip="Number of clicks on event content">Clicks</th>
-              <th class="th-with-tooltip" data-tooltip="Form submissions for this event">Signups</th>
-              <th class="th-with-tooltip" data-tooltip="Click-through rate: clicks ÷ views">Click Rate</th>
+              <th class="th-with-tooltip" data-tooltip="Times content was displayed">Views</th>
+              <th class="th-with-tooltip" data-tooltip="Clicks on content">Clicks</th>
+              <th class="th-with-tooltip" data-tooltip="Form submissions">Signups</th>
+              <th class="th-with-tooltip" data-tooltip="Clicks ÷ views">Rate</th>
             </tr>
           </thead>
           <tbody>
@@ -2228,9 +2228,28 @@ DO NOT modify contracts without updating:
       }
     }
 
+    /**
+     * Expand first detail section on desktop for better UX
+     * On mobile (<=640px), keep all sections collapsed to reduce scroll
+     */
+    function initMobileCollapse() {
+      const isMobile = window.innerWidth <= 640;
+      if (!isMobile) {
+        // On desktop/tablet, expand the first detail section by default
+        const firstSection = document.getElementById('surfacePerformanceCard');
+        if (firstSection && firstSection.classList.contains('collapsed')) {
+          firstSection.classList.remove('collapsed');
+          const toggleBtn = firstSection.querySelector('.section-toggle');
+          if (toggleBtn) toggleBtn.setAttribute('aria-expanded', 'true');
+        }
+      }
+      // On mobile, all sections stay collapsed (already set in HTML)
+    }
+
     window.addEventListener('load', function() {
       loadReport();
       checkPortfolioToggleVisibility();
+      initMobileCollapse();
     });
   </script>
 </body>
