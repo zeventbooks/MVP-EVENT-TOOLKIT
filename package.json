@@ -14,6 +14,7 @@
     "test:status-contract": "jest tests/contract/status-contract.test.js --runInBand",
     "test:schemas": "jest tests/contract/schema-sync.test.js --runInBand",
     "test:schemas:event": "node scripts/test-event-schema.js",
+    "test:schemas:analytics": "node scripts/test-analytics-schema.js",
     "test:story7": "jest tests/contract/schema-sync.test.js --runInBand",
     "test:story8": "jest tests/contract/bundles.contract.test.js --runInBand",
     "test:story7-8": "jest tests/contract/schema-sync.test.js tests/contract/bundles.contract.test.js --runInBand",
