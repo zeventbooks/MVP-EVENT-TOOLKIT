@@ -17,8 +17,8 @@
  */
 
 const { test, expect } = require('@playwright/test');
-const { getBaseUrl, getCurrentEnvironment } = require('../../config/environments');
-const { generateTestId, retryWithBackoff } = require('../../shared/helpers/api.helpers');
+const { randomUUID } = require('crypto');
+const { getBaseUrl } = require('../../config/environments');
 
 // Environment configuration
 const BASE_URL = getBaseUrl();
@@ -39,16 +39,18 @@ function buildApiUrl(action) {
 
 /**
  * Generate a unique session ID for click attribution
+ * Uses crypto.randomUUID() for secure randomness
  */
 function generateSessionId() {
-  return `sess-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+  return `sess-${randomUUID()}`;
 }
 
 /**
  * Generate a unique sponsor ID for testing
+ * Uses crypto.randomUUID() for secure randomness
  */
 function generateSponsorId() {
-  return `sp-test-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+  return `sp-test-${randomUUID().substring(0, 8)}`;
 }
 
 test.describe('Integration: Admin -> Surface -> SharedReport', () => {
