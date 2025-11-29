@@ -36,6 +36,11 @@ const REDIRECT_PAGES = ['r', 'redirect'];
 // Analytics alias for report
 const SURFACE_ALIASES = { 'analytics': 'report' };
 
+// V2 surfaces (feature-gated, not exposed in early bar pilots)
+// These are valid surfaces that are gated by feature flags in Config.gs
+// The check-surfaces script should allow references to these surfaces
+const V2_FEATURE_GATED_SURFACES = ['templates-v2'];
+
 // ============================================================================
 // Extract MVP surfaces from Code.gs
 // ============================================================================
@@ -162,6 +167,11 @@ function isValidPageValue(value, mvpSurfaces) {
 
   // Check if it's a redirect page
   if (REDIRECT_PAGES.includes(value)) {
+    return { valid: true };
+  }
+
+  // Check if it's a V2 feature-gated surface
+  if (V2_FEATURE_GATED_SURFACES.includes(value)) {
     return { valid: true };
   }
 
@@ -297,6 +307,7 @@ function main() {
     console.log('Valid aliases:', Object.keys(SURFACE_ALIASES).join(', '));
     console.log('Valid API endpoints:', API_ENDPOINTS.join(', '));
     console.log('Valid redirects:', REDIRECT_PAGES.join(', '));
+    console.log('Valid V2 surfaces (feature-gated):', V2_FEATURE_GATED_SURFACES.join(', '));
 
     console.log('\n❌ FAILED: Found invalid surface references. Please fix before proceeding.');
     process.exit(1);
