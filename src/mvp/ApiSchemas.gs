@@ -313,7 +313,16 @@ const SCHEMAS = {
         showSponsorBanner: { type: 'boolean' },
         showSponsorStrip: { type: 'boolean' },
         showLeagueStrip: { type: 'boolean' },
-        showQRSection: { type: 'boolean' }
+        showQRSection: { type: 'boolean' },
+        // V2 Optional - Display rotation configuration
+        displayRotation: {
+          type: ['object', 'null'],
+          properties: {
+            enabled: { type: 'boolean' },
+            panes: { type: 'array' },
+            defaultDwellMs: { type: 'integer' }
+          }
+        }
       }
     },
 

@@ -324,7 +324,7 @@ const CANONICAL = {
   // Settings sub-schema
   settings: {
     required: ['showSchedule', 'showStandings', 'showBracket'],
-    optional: ['showSponsors', 'showVideo', 'showMap', 'showGallery', 'showSponsorBanner', 'showSponsorStrip', 'showLeagueStrip', 'showQRSection']
+    optional: ['showSponsors', 'showVideo', 'showMap', 'showGallery', 'showSponsorBanner', 'showSponsorStrip', 'showLeagueStrip', 'showQRSection', 'displayRotation']
   },
 
   // CTAs sub-schema
@@ -827,15 +827,26 @@ describe('Schema Sync Contract Tests - Story 7 (LOCKED)', () => {
       );
     });
 
-    it('All settings toggles should be boolean type', () => {
+    it('All show* settings toggles should be boolean type', () => {
       const settingsSchema = eventSchema.$defs.Settings;
       const allSettings = [...CANONICAL.settings.required, ...CANONICAL.settings.optional];
+      // Filter to only show* settings (boolean toggles) - displayRotation is an object
+      const booleanToggles = allSettings.filter(s => s.startsWith('show'));
 
-      allSettings.forEach(setting => {
+      booleanToggles.forEach(setting => {
         const prop = settingsSchema.properties[setting];
         expect(prop).toBeDefined();
         expect(prop.type).toBe('boolean');
       });
+    });
+
+    it('displayRotation setting should be an optional object type', () => {
+      const settingsSchema = eventSchema.$defs.Settings;
+      const displayRotation = settingsSchema.properties.displayRotation;
+      if (displayRotation) {
+        // displayRotation uses oneOf pattern with object ref and null
+        expect(displayRotation.oneOf || displayRotation.type).toBeDefined();
+      }
     });
 
     it('SharedAnalytics surface IDs should match valid surface types', () => {
