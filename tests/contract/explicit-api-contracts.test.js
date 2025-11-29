@@ -13,16 +13,19 @@
  * - api_getAdminBundle - Admin.html with full config
  * - api_getSharedAnalytics - Organizer analytics view
  * - api_getSponsorAnalytics - Sponsor-scoped analytics view
+ * - api_getSponsorReportQr - Sponsor QR code generation (SharedReport/Admin)
  * - api_saveEvent - Create/Update event (Admin)
  * - api_updateEventData - Update event data (Admin)
  *
  * ACCEPTANCE CRITERIA:
  * - npm run test:api-contracts passes
  * - Breaks loudly if someone changes backend response shapes without updating schemas
+ * - STRICT mode validation fails on any extra or missing fields (additionalProperties: false)
  *
  * SCHEMA REFERENCES:
  * - /schemas/event.schema.json (MVP-frozen v2.2)
  * - /schemas/shared-analytics.schema.json (MVP-frozen v1.1)
+ * - /schemas/sponsor-report-qr.schema.json (v1.0)
  * - /schemas/sponsor.schema.json
  */
 
@@ -310,6 +313,157 @@ const validateSponsorSchema = (sponsor) => {
   if (typeof sponsor.logoUrl !== 'string' || !sponsor.logoUrl.match(/^https?:\/\/.+/)) errors.push('logoUrl: must be valid URL');
   if (typeof sponsor.placement !== 'string' || !['poster', 'display', 'public', 'tv-banner'].includes(sponsor.placement)) {
     errors.push('placement: must be one of poster, display, public, tv-banner');
+  }
+
+  return errors.length === 0 ? true : errors;
+};
+
+/**
+ * Validates SponsorReportQr shape per /schemas/sponsor-report-qr.schema.json v1.0
+ * MVP REQUIRED: url, qrB64, verified
+ * STRICT: additionalProperties: false - extra fields will fail validation
+ */
+const validateSponsorReportQrSchema = (qrData, strict = false) => {
+  const errors = [];
+  const ALLOWED_FIELDS = ['url', 'qrB64', 'verified'];
+
+  // MVP REQUIRED - url
+  if (typeof qrData.url !== 'string') {
+    errors.push('url: must be string');
+  }
+
+  // MVP REQUIRED - qrB64
+  if (typeof qrData.qrB64 !== 'string') {
+    errors.push('qrB64: must be string');
+  }
+
+  // MVP REQUIRED - verified
+  if (typeof qrData.verified !== 'boolean') {
+    errors.push('verified: must be boolean');
+  }
+
+  // STRICT MODE: Check for extra fields (additionalProperties: false)
+  if (strict) {
+    const extraFields = Object.keys(qrData).filter(k => !ALLOWED_FIELDS.includes(k));
+    if (extraFields.length > 0) {
+      errors.push(`extraFields: [${extraFields.join(', ')}] - additionalProperties not allowed`);
+    }
+  }
+
+  return errors.length === 0 ? true : errors;
+};
+
+/**
+ * Validates SharedAnalytics with STRICT mode option
+ * When strict=true, fails on extra fields per additionalProperties: false
+ */
+const validateSharedAnalyticsSchemaStrict = (analytics, strict = false) => {
+  const errors = [];
+  const ALLOWED_ROOT_FIELDS = ['lastUpdatedISO', 'summary', 'surfaces', 'sponsors', 'events', 'topSponsors'];
+  const ALLOWED_SUMMARY_FIELDS = ['totalImpressions', 'totalClicks', 'totalQrScans', 'totalSignups', 'uniqueEvents', 'uniqueSponsors'];
+  const ALLOWED_SURFACE_FIELDS = ['id', 'label', 'impressions', 'clicks', 'qrScans', 'engagementRate'];
+  const ALLOWED_SPONSOR_FIELDS = ['id', 'name', 'impressions', 'clicks', 'ctr'];
+  const ALLOWED_EVENT_FIELDS = ['id', 'name', 'impressions', 'clicks', 'ctr', 'signupsCount'];
+
+  // MVP REQUIRED - lastUpdatedISO
+  if (typeof analytics.lastUpdatedISO !== 'string') {
+    errors.push('lastUpdatedISO: must be string');
+  }
+
+  // MVP REQUIRED - summary
+  if (!analytics.summary || typeof analytics.summary !== 'object') {
+    errors.push('summary: must be object');
+  } else {
+    if (typeof analytics.summary.totalImpressions !== 'number') errors.push('summary.totalImpressions: must be number');
+    if (typeof analytics.summary.totalClicks !== 'number') errors.push('summary.totalClicks: must be number');
+    if (typeof analytics.summary.totalQrScans !== 'number') errors.push('summary.totalQrScans: must be number');
+    if (typeof analytics.summary.totalSignups !== 'number') errors.push('summary.totalSignups: must be number');
+    if (typeof analytics.summary.uniqueEvents !== 'number') errors.push('summary.uniqueEvents: must be number');
+    if (typeof analytics.summary.uniqueSponsors !== 'number') errors.push('summary.uniqueSponsors: must be number');
+
+    // STRICT: Check for extra summary fields
+    if (strict) {
+      const extraSummaryFields = Object.keys(analytics.summary).filter(k => !ALLOWED_SUMMARY_FIELDS.includes(k));
+      if (extraSummaryFields.length > 0) {
+        errors.push(`summary.extraFields: [${extraSummaryFields.join(', ')}] - not allowed`);
+      }
+    }
+  }
+
+  // MVP REQUIRED - surfaces (array)
+  if (!Array.isArray(analytics.surfaces)) {
+    errors.push('surfaces: must be array');
+  } else {
+    analytics.surfaces.forEach((surface, i) => {
+      if (typeof surface.id !== 'string') errors.push(`surfaces[${i}].id: must be string`);
+      if (typeof surface.label !== 'string') errors.push(`surfaces[${i}].label: must be string`);
+      if (typeof surface.impressions !== 'number') errors.push(`surfaces[${i}].impressions: must be number`);
+      if (typeof surface.clicks !== 'number') errors.push(`surfaces[${i}].clicks: must be number`);
+      if (typeof surface.qrScans !== 'number') errors.push(`surfaces[${i}].qrScans: must be number`);
+
+      // STRICT: Check for extra surface fields
+      if (strict) {
+        const extraSurfaceFields = Object.keys(surface).filter(k => !ALLOWED_SURFACE_FIELDS.includes(k));
+        if (extraSurfaceFields.length > 0) {
+          errors.push(`surfaces[${i}].extraFields: [${extraSurfaceFields.join(', ')}] - not allowed`);
+        }
+      }
+    });
+  }
+
+  // MVP OPTIONAL - sponsors
+  if (analytics.sponsors !== null && analytics.sponsors !== undefined) {
+    if (!Array.isArray(analytics.sponsors)) {
+      errors.push('sponsors: must be array or null');
+    } else {
+      analytics.sponsors.forEach((sponsor, i) => {
+        if (typeof sponsor.id !== 'string') errors.push(`sponsors[${i}].id: must be string`);
+        if (typeof sponsor.name !== 'string') errors.push(`sponsors[${i}].name: must be string`);
+        if (typeof sponsor.impressions !== 'number') errors.push(`sponsors[${i}].impressions: must be number`);
+        if (typeof sponsor.clicks !== 'number') errors.push(`sponsors[${i}].clicks: must be number`);
+        if (typeof sponsor.ctr !== 'number') errors.push(`sponsors[${i}].ctr: must be number`);
+
+        // STRICT: Check for extra sponsor fields
+        if (strict) {
+          const extraSponsorFields = Object.keys(sponsor).filter(k => !ALLOWED_SPONSOR_FIELDS.includes(k));
+          if (extraSponsorFields.length > 0) {
+            errors.push(`sponsors[${i}].extraFields: [${extraSponsorFields.join(', ')}] - not allowed`);
+          }
+        }
+      });
+    }
+  }
+
+  // MVP OPTIONAL - events
+  if (analytics.events !== null && analytics.events !== undefined) {
+    if (!Array.isArray(analytics.events)) {
+      errors.push('events: must be array or null');
+    } else {
+      analytics.events.forEach((event, i) => {
+        if (typeof event.id !== 'string') errors.push(`events[${i}].id: must be string`);
+        if (typeof event.name !== 'string') errors.push(`events[${i}].name: must be string`);
+        if (typeof event.impressions !== 'number') errors.push(`events[${i}].impressions: must be number`);
+        if (typeof event.clicks !== 'number') errors.push(`events[${i}].clicks: must be number`);
+        if (typeof event.ctr !== 'number') errors.push(`events[${i}].ctr: must be number`);
+        if (typeof event.signupsCount !== 'number') errors.push(`events[${i}].signupsCount: must be number`);
+
+        // STRICT: Check for extra event fields
+        if (strict) {
+          const extraEventFields = Object.keys(event).filter(k => !ALLOWED_EVENT_FIELDS.includes(k));
+          if (extraEventFields.length > 0) {
+            errors.push(`events[${i}].extraFields: [${extraEventFields.join(', ')}] - not allowed`);
+          }
+        }
+      });
+    }
+  }
+
+  // STRICT: Check for extra root fields
+  if (strict) {
+    const extraRootFields = Object.keys(analytics).filter(k => !ALLOWED_ROOT_FIELDS.includes(k));
+    if (extraRootFields.length > 0) {
+      errors.push(`extraFields: [${extraRootFields.join(', ')}] - not allowed at root`);
+    }
   }
 
   return errors.length === 0 ? true : errors;
@@ -1082,6 +1236,152 @@ describe('Explicit API Response Contracts', () => {
   });
 
   // ==========================================================================
+  // api_getSponsorReportQr
+  // ==========================================================================
+
+  describe('api_getSponsorReportQr', () => {
+    /**
+     * CONTRACT: api_getSponsorReportQr
+     *
+     * Request: { action: 'api_getSponsorReportQr', sponsorId: string, brandId?: string, adminKey?: string }
+     *
+     * Success Response (per /schemas/sponsor-report-qr.schema.json v1.0):
+     * {
+     *   ok: true,
+     *   value: {
+     *     url: string,      // Sponsor report URL with sponsorId parameter
+     *     qrB64: string,    // Base64-encoded PNG QR code
+     *     verified: boolean // True if URL was verified
+     *   }
+     * }
+     *
+     * Error Response:
+     * { ok: false, code: 'BAD_INPUT', message: string }
+     */
+
+    it('should return valid SponsorReportQr structure', () => {
+      const mockResponse = {
+        ok: true,
+        value: {
+          url: 'https://script.google.com/exec?page=report&sponsor=true&sponsorId=sponsor-001',
+          qrB64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+          verified: true
+        }
+      };
+
+      validateSuccessEnvelope(mockResponse);
+      const validation = validateSponsorReportQrSchema(mockResponse.value);
+      expect(validation).toBe(true);
+    });
+
+    it('should include URL with sponsorId parameter', () => {
+      const mockResponse = {
+        ok: true,
+        value: {
+          url: 'https://script.google.com/exec?page=report&sponsor=true&sponsorId=gold-sponsor-123',
+          qrB64: 'base64data...',
+          verified: true
+        }
+      };
+
+      expect(mockResponse.value.url).toContain('sponsorId=');
+      expect(mockResponse.value.url).toContain('page=report');
+      expect(mockResponse.value.url).toContain('sponsor=true');
+    });
+
+    it('should return base64-encoded QR code without data URI prefix', () => {
+      const mockResponse = {
+        ok: true,
+        value: {
+          url: 'https://script.google.com/exec?page=report&sponsor=true&sponsorId=sponsor-001',
+          qrB64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+          verified: true
+        }
+      };
+
+      // Should NOT contain data URI prefix
+      expect(mockResponse.value.qrB64).not.toMatch(/^data:image\/png;base64,/);
+      // Should be valid base64 (no spaces, valid chars)
+      expect(mockResponse.value.qrB64).toMatch(/^[A-Za-z0-9+/=]+$/);
+    });
+
+    it('should set verified=true when QR code is generated', () => {
+      const mockResponse = {
+        ok: true,
+        value: {
+          url: 'https://script.google.com/exec?page=report&sponsor=true&sponsorId=sponsor-001',
+          qrB64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+          verified: true
+        }
+      };
+
+      expect(mockResponse.value.verified).toBe(true);
+      expect(mockResponse.value.qrB64.length).toBeGreaterThan(0);
+    });
+
+    it('should return empty QR with verified=false when URL cannot be verified', () => {
+      const mockResponse = {
+        ok: true,
+        value: {
+          url: '',
+          qrB64: '',
+          verified: false
+        }
+      };
+
+      validateSuccessEnvelope(mockResponse);
+      const validation = validateSponsorReportQrSchema(mockResponse.value);
+      expect(validation).toBe(true);
+      expect(mockResponse.value.verified).toBe(false);
+      expect(mockResponse.value.qrB64).toBe('');
+    });
+
+    it('should return BAD_INPUT for missing sponsorId', () => {
+      const mockResponse = {
+        ok: false,
+        code: 'BAD_INPUT',
+        message: 'Missing sponsorId'
+      };
+
+      validateErrorEnvelope(mockResponse, 'BAD_INPUT');
+    });
+
+    it('should return BAD_INPUT for invalid sponsorId format', () => {
+      const mockResponse = {
+        ok: false,
+        code: 'BAD_INPUT',
+        message: 'Invalid sponsorId format'
+      };
+
+      validateErrorEnvelope(mockResponse, 'BAD_INPUT');
+    });
+
+    it('should validate STRICT mode fails on extra fields (additionalProperties: false)', () => {
+      const responseWithExtraField = {
+        url: 'https://example.com?sponsorId=test',
+        qrB64: 'base64data',
+        verified: true,
+        extraField: 'should fail'  // This should fail strict validation
+      };
+
+      const strictValidation = validateSponsorReportQrSchema(responseWithExtraField, true);
+      expect(strictValidation).not.toBe(true);
+      expect(strictValidation).toContain('extraFields: [extraField] - additionalProperties not allowed');
+    });
+
+    it('should validate STRICT mode passes for exact shape', () => {
+      const exactShapeResponse = {
+        url: 'https://script.google.com/exec?page=report&sponsor=true&sponsorId=test',
+        qrB64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ',
+        verified: true
+      };
+
+      const strictValidation = validateSponsorReportQrSchema(exactShapeResponse, true);
+      expect(strictValidation).toBe(true);
+    });
+  });
+
+  // ==========================================================================
   // api_saveEvent
   // ==========================================================================
 
@@ -1523,6 +1823,281 @@ describe('Explicit API Response Contracts', () => {
     });
   });
 
+  // ==========================================================================
+  // SharedReport STRICT Shape Validation (additionalProperties: false)
+  // ==========================================================================
+
+  describe('SharedReport STRICT Shape Validation', () => {
+    /**
+     * These tests enforce STRICT shape validation per shared-analytics.schema.json
+     * and sponsor-report-qr.schema.json with additionalProperties: false.
+     *
+     * Contract tests MUST fail on:
+     * - Extra fields not in schema
+     * - Missing required fields
+     */
+
+    describe('api_getSharedAnalytics STRICT validation', () => {
+      it('should FAIL on extra root field in SharedAnalytics', () => {
+        const analyticsWithExtraField = {
+          lastUpdatedISO: '2025-11-27T10:00:00.000Z',
+          summary: {
+            totalImpressions: 100,
+            totalClicks: 10,
+            totalQrScans: 5,
+            totalSignups: 3,
+            uniqueEvents: 2,
+            uniqueSponsors: 1
+          },
+          surfaces: [],
+          sponsors: null,
+          events: null,
+          extraRootField: 'should fail'  // NOT ALLOWED
+        };
+
+        const strictValidation = validateSharedAnalyticsSchemaStrict(analyticsWithExtraField, true);
+        expect(strictValidation).not.toBe(true);
+        expect(strictValidation).toContain('extraFields: [extraRootField] - not allowed at root');
+      });
+
+      it('should FAIL on extra summary field', () => {
+        const analyticsWithExtraSummaryField = {
+          lastUpdatedISO: '2025-11-27T10:00:00.000Z',
+          summary: {
+            totalImpressions: 100,
+            totalClicks: 10,
+            totalQrScans: 5,
+            totalSignups: 3,
+            uniqueEvents: 2,
+            uniqueSponsors: 1,
+            avgDwellTime: 45.5  // NOT ALLOWED - extra field
+          },
+          surfaces: [],
+          sponsors: null,
+          events: null
+        };
+
+        const strictValidation = validateSharedAnalyticsSchemaStrict(analyticsWithExtraSummaryField, true);
+        expect(strictValidation).not.toBe(true);
+        expect(strictValidation).toContain('summary.extraFields: [avgDwellTime] - not allowed');
+      });
+
+      it('should FAIL on extra surface field', () => {
+        const analyticsWithExtraSurfaceField = {
+          lastUpdatedISO: '2025-11-27T10:00:00.000Z',
+          summary: {
+            totalImpressions: 100,
+            totalClicks: 10,
+            totalQrScans: 5,
+            totalSignups: 3,
+            uniqueEvents: 2,
+            uniqueSponsors: 1
+          },
+          surfaces: [
+            {
+              id: 'poster',
+              label: 'Poster',
+              impressions: 50,
+              clicks: 5,
+              qrScans: 2,
+              engagementRate: 10.0,
+              dwellTime: 30  // NOT ALLOWED - extra field
+            }
+          ],
+          sponsors: null,
+          events: null
+        };
+
+        const strictValidation = validateSharedAnalyticsSchemaStrict(analyticsWithExtraSurfaceField, true);
+        expect(strictValidation).not.toBe(true);
+        expect(strictValidation).toContain('surfaces[0].extraFields: [dwellTime] - not allowed');
+      });
+
+      it('should FAIL on extra sponsor field', () => {
+        const analyticsWithExtraSponsorField = {
+          lastUpdatedISO: '2025-11-27T10:00:00.000Z',
+          summary: {
+            totalImpressions: 100,
+            totalClicks: 10,
+            totalQrScans: 5,
+            totalSignups: 3,
+            uniqueEvents: 2,
+            uniqueSponsors: 1
+          },
+          surfaces: [],
+          sponsors: [
+            {
+              id: 'sponsor-001',
+              name: 'Gold Sponsor',
+              impressions: 100,
+              clicks: 10,
+              ctr: 10.0,
+              logoUrl: 'https://example.com/logo.png'  // NOT ALLOWED - extra field
+            }
+          ],
+          events: null
+        };
+
+        const strictValidation = validateSharedAnalyticsSchemaStrict(analyticsWithExtraSponsorField, true);
+        expect(strictValidation).not.toBe(true);
+        expect(strictValidation).toContain('sponsors[0].extraFields: [logoUrl] - not allowed');
+      });
+
+      it('should FAIL on extra event field', () => {
+        const analyticsWithExtraEventField = {
+          lastUpdatedISO: '2025-11-27T10:00:00.000Z',
+          summary: {
+            totalImpressions: 100,
+            totalClicks: 10,
+            totalQrScans: 5,
+            totalSignups: 3,
+            uniqueEvents: 1,
+            uniqueSponsors: 0
+          },
+          surfaces: [],
+          sponsors: null,
+          events: [
+            {
+              id: 'event-001',
+              name: 'Test Event',
+              impressions: 100,
+              clicks: 10,
+              ctr: 10.0,
+              signupsCount: 5,
+              venue: 'Test Venue'  // NOT ALLOWED - extra field
+            }
+          ]
+        };
+
+        const strictValidation = validateSharedAnalyticsSchemaStrict(analyticsWithExtraEventField, true);
+        expect(strictValidation).not.toBe(true);
+        expect(strictValidation).toContain('events[0].extraFields: [venue] - not allowed');
+      });
+
+      it('should PASS for exact SharedAnalytics shape (no extra fields)', () => {
+        const exactShapeAnalytics = {
+          lastUpdatedISO: '2025-11-27T10:00:00.000Z',
+          summary: {
+            totalImpressions: 1500,
+            totalClicks: 150,
+            totalQrScans: 75,
+            totalSignups: 45,
+            uniqueEvents: 5,
+            uniqueSponsors: 3
+          },
+          surfaces: [
+            { id: 'public', label: 'Public', impressions: 800, clicks: 80, qrScans: 40, engagementRate: 15.0 },
+            { id: 'poster', label: 'Poster', impressions: 500, clicks: 50, qrScans: 25, engagementRate: 15.0 }
+          ],
+          sponsors: [
+            { id: 'sponsor-001', name: 'Gold Sponsor', impressions: 500, clicks: 50, ctr: 10.0 }
+          ],
+          events: [
+            { id: 'event-001', name: 'Test Event', impressions: 1000, clicks: 100, ctr: 10.0, signupsCount: 45 }
+          ],
+          topSponsors: [
+            { id: 'sponsor-001', name: 'Gold Sponsor', impressions: 500, clicks: 50, ctr: 10.0 }
+          ]
+        };
+
+        const strictValidation = validateSharedAnalyticsSchemaStrict(exactShapeAnalytics, true);
+        expect(strictValidation).toBe(true);
+      });
+
+      it('should FAIL on missing required summary field', () => {
+        const analyticsMissingSummaryField = {
+          lastUpdatedISO: '2025-11-27T10:00:00.000Z',
+          summary: {
+            totalImpressions: 100,
+            totalClicks: 10,
+            // Missing: totalQrScans, totalSignups, uniqueEvents, uniqueSponsors
+          },
+          surfaces: []
+        };
+
+        const validation = validateSharedAnalyticsSchemaStrict(analyticsMissingSummaryField, true);
+        expect(validation).not.toBe(true);
+        expect(validation).toContain('summary.totalQrScans: must be number');
+      });
+    });
+
+    describe('api_getSponsorReportQr STRICT validation', () => {
+      it('should FAIL on extra field in SponsorReportQr', () => {
+        const qrWithExtraField = {
+          url: 'https://example.com?sponsorId=test',
+          qrB64: 'base64data',
+          verified: true,
+          label: 'Sponsor QR'  // NOT ALLOWED - extra field
+        };
+
+        const strictValidation = validateSponsorReportQrSchema(qrWithExtraField, true);
+        expect(strictValidation).not.toBe(true);
+        expect(strictValidation).toContain('extraFields: [label] - additionalProperties not allowed');
+      });
+
+      it('should FAIL on multiple extra fields', () => {
+        const qrWithMultipleExtraFields = {
+          url: 'https://example.com?sponsorId=test',
+          qrB64: 'base64data',
+          verified: true,
+          label: 'Sponsor QR',
+          expiresAt: '2025-12-31'
+        };
+
+        const strictValidation = validateSponsorReportQrSchema(qrWithMultipleExtraFields, true);
+        expect(strictValidation).not.toBe(true);
+        // Error message contains both fields in the array
+        const errorString = strictValidation.join(', ');
+        expect(errorString).toContain('label');
+        expect(errorString).toContain('expiresAt');
+      });
+
+      it('should PASS for exact SponsorReportQr shape', () => {
+        const exactQrShape = {
+          url: 'https://script.google.com/exec?page=report&sponsor=true&sponsorId=sponsor-001',
+          qrB64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ',
+          verified: true
+        };
+
+        const strictValidation = validateSponsorReportQrSchema(exactQrShape, true);
+        expect(strictValidation).toBe(true);
+      });
+
+      it('should FAIL on missing required field (url)', () => {
+        const qrMissingUrl = {
+          qrB64: 'base64data',
+          verified: true
+        };
+
+        const validation = validateSponsorReportQrSchema(qrMissingUrl, true);
+        expect(validation).not.toBe(true);
+        expect(validation).toContain('url: must be string');
+      });
+
+      it('should FAIL on missing required field (qrB64)', () => {
+        const qrMissingQrB64 = {
+          url: 'https://example.com?sponsorId=test',
+          verified: true
+        };
+
+        const validation = validateSponsorReportQrSchema(qrMissingQrB64, true);
+        expect(validation).not.toBe(true);
+        expect(validation).toContain('qrB64: must be string');
+      });
+
+      it('should FAIL on missing required field (verified)', () => {
+        const qrMissingVerified = {
+          url: 'https://example.com?sponsorId=test',
+          qrB64: 'base64data'
+        };
+
+        const validation = validateSponsorReportQrSchema(qrMissingVerified, true);
+        expect(validation).not.toBe(true);
+        expect(validation).toContain('verified: must be boolean');
+      });
+    });
+  });
+
 });
 
 // ============================================================================
@@ -1537,7 +2112,9 @@ module.exports = {
   // Validators
   validateEventSchema,
   validateSharedAnalyticsSchema,
+  validateSharedAnalyticsSchemaStrict,
   validateBundleSchema,
   validateSponsorSchema,
+  validateSponsorReportQrSchema,
   validatePaginationSchema
 };
