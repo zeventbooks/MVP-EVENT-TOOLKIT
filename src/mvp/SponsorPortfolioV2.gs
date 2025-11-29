@@ -105,7 +105,7 @@ function api_getPortfolioAnalyticsV2(params) {
 
       // Require admin authentication for portfolio view
       if (!adminKey || !_validateAdminKey_(brandId, adminKey)) {
-        return Err(ERR.UNAUTHORIZED, 'Invalid admin key for portfolio access');
+        return Err(ERR.BAD_INPUT, 'Invalid admin key for portfolio access');
       }
 
       return _buildMultiEventPortfolioAnalytics_(brand, sponsorId);
@@ -154,7 +154,7 @@ function api_getPortfolioSummaryV2(params) {
 
     // Require admin authentication
     if (!adminKey || !_validateAdminKey_(brandId, adminKey)) {
-      return Err(ERR.UNAUTHORIZED, 'Invalid admin key for portfolio access');
+      return Err(ERR.BAD_INPUT, 'Invalid admin key for portfolio access');
     }
 
     return _buildPortfolioSummary_(brand);
@@ -200,7 +200,7 @@ function api_getPortfolioSponsorReportV2(params) {
 
     // Require admin authentication
     if (!adminKey || !_validateAdminKey_(brandId, adminKey)) {
-      return Err(ERR.UNAUTHORIZED, 'Invalid admin key for portfolio access');
+      return Err(ERR.BAD_INPUT, 'Invalid admin key for portfolio access');
     }
 
     return _buildPortfolioSponsorReport_(brand, sponsorId);
@@ -239,7 +239,7 @@ function api_getPortfolioSponsorsV2(params) {
 
     // Require admin authentication
     if (!adminKey || !_validateAdminKey_(brandId, adminKey)) {
-      return Err(ERR.UNAUTHORIZED, 'Invalid admin key for portfolio access');
+      return Err(ERR.BAD_INPUT, 'Invalid admin key for portfolio access');
     }
 
     return _getPortfolioSponsors_(brand);

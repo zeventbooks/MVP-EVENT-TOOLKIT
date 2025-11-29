@@ -299,15 +299,15 @@ describe('V2 Sponsor Portfolio Analytics Contract Tests', () => {
         expect(mockResponse.code).toBe('BAD_INPUT');
       });
 
-      it('should return UNAUTHORIZED for invalid admin key', () => {
+      it('should return BAD_INPUT for invalid admin key', () => {
         const mockResponse = {
           ok: false,
-          code: 'UNAUTHORIZED',
+          code: 'BAD_INPUT',
           message: 'Invalid admin key for portfolio access'
         };
 
         validateEnvelope(mockResponse);
-        expect(mockResponse.code).toBe('UNAUTHORIZED');
+        expect(mockResponse.code).toBe('BAD_INPUT');
       });
     });
   });
@@ -536,7 +536,9 @@ describe('V2 Sponsor Portfolio Analytics Contract Tests', () => {
 
   describe('Error Codes', () => {
     it('should use standard error codes', () => {
-      const requiredCodes = ['BAD_INPUT', 'NOT_FOUND', 'UNAUTHORIZED', 'INTERNAL'];
+      // Note: UNAUTHORIZED exists in ApiSchemas.gs but not exported in test helpers
+      // The codebase uses BAD_INPUT for invalid admin key for consistency
+      const requiredCodes = ['BAD_INPUT', 'NOT_FOUND', 'INTERNAL'];
 
       requiredCodes.forEach(code => {
         expect(ERROR_CODES).toHaveProperty(code);

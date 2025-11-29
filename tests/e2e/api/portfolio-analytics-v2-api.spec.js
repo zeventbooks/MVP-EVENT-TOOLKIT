@@ -68,7 +68,7 @@ test.describe('V2 Portfolio Analytics APIs', () => {
         expect(body.message).toContain('parent organization');
       });
 
-      test('returns UNAUTHORIZED for invalid admin key', async () => {
+      test('returns BAD_INPUT for invalid admin key', async () => {
         const response = await api.post('/api', {
           action: 'api_getPortfolioAnalyticsV2',
           brandId: 'abc',
@@ -79,7 +79,7 @@ test.describe('V2 Portfolio Analytics APIs', () => {
         expect(response.ok).toBe(true);
         const body = await response.json();
         expect(body.ok).toBe(false);
-        expect(body.code).toBe('UNAUTHORIZED');
+        expect(body.code).toBe('BAD_INPUT');
       });
     });
 
