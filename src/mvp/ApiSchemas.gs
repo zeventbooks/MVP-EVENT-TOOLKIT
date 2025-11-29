@@ -901,6 +901,48 @@ const SCHEMAS = {
       }
     },
 
+    // api_getSponsorReportQr - SharedReport.html / Admin.html (sponsor QR code generation)
+    getSponsorReportQr: {
+      request: {
+        type: 'object',
+        required: ['sponsorId'],
+        properties: {
+          sponsorId: { type: 'string', minLength: 1 },
+          brandId: { $ref: '#/common/brandId' },  // Optional: admin context
+          adminKey: { type: 'string' }             // Optional: admin authentication
+        }
+      },
+      response: {
+        type: 'object',
+        required: ['ok', 'value'],
+        properties: {
+          ok: { type: 'boolean' },
+          value: { $ref: '#/analytics/_sponsorReportQr' }
+        }
+      }
+    },
+
+    // Internal: SponsorReportQr response shape
+    _sponsorReportQr: {
+      type: 'object',
+      required: ['url', 'qrB64', 'verified'],
+      additionalProperties: false,
+      properties: {
+        url: {
+          type: 'string',
+          description: 'Sponsor report URL with sponsorId parameter'
+        },
+        qrB64: {
+          type: 'string',
+          description: 'Base64-encoded PNG QR code image (without data URI prefix)'
+        },
+        verified: {
+          type: 'boolean',
+          description: 'True if QR was generated for a verified deployment URL'
+        }
+      }
+    },
+
     logEvents: {
       request: {
         type: 'object',
