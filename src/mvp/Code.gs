@@ -3847,6 +3847,14 @@ function api_getDisplayBundle(payload){
     // Get display config computed from Config + Template
     const displayConfig = getDisplayConfig_(event.templateId, brandId);
 
+    // Get event-level rotation override from settings (schema: settings.displayRotation)
+    const eventRotation = event.settings?.displayRotation || {};
+
+    // Determine effective panes: event override > template default
+    const effectivePanes = (eventRotation.panes && eventRotation.panes.length > 0)
+      ? eventRotation.panes
+      : displayConfig.panes;
+
     // Build bundled response matching DisplayBundle interface
     const value = {
       // Full canonical event shape
@@ -3862,6 +3870,19 @@ function api_getDisplayBundle(payload){
       layout: {
         hasSidePane: displayConfig.layout.hasSidePane,
         emphasis: displayConfig.layout.emphasis
+      },
+
+      // V2: Display rotation engine configuration
+      // Schema: settings.displayRotation in /schemas/event.schema.json
+      displayRotation: {
+        // Rotation is enabled if explicitly set on event OR template has panes
+        enabled: eventRotation.enabled === true || effectivePanes.length > 0,
+        // Default dwell time: event override > 15000ms
+        defaultDwellMs: eventRotation.defaultDwellMs || 15000,
+        // Panes to rotate through
+        panes: effectivePanes,
+        // Pane type metadata for frontend rendering
+        paneTypes: displayConfig.paneTypes
       }
     };
 
@@ -3877,7 +3898,7 @@ function api_getDisplayBundle(payload){
  *
  * @param {string} templateId - Event template ID
  * @param {string} brandId - Brand ID (for future brand-specific overrides)
- * @returns {object} Display config { rotation, layout }
+ * @returns {object} Display config { rotation, layout, panes, paneTypes }
  * @private
  */
 function getDisplayConfig_(templateId, brandId) {
@@ -3886,7 +3907,9 @@ function getDisplayConfig_(templateId, brandId) {
   // Start with global defaults
   const config = {
     rotation: { ...defaults.rotation },
-    layout: { ...defaults.layout }
+    layout: { ...defaults.layout },
+    panes: defaults.defaultPanes ? [...defaults.defaultPanes] : [],
+    paneTypes: defaults.paneTypes || {}
   };
 
   // Apply template-specific overrides
@@ -3897,6 +3920,10 @@ function getDisplayConfig_(templateId, brandId) {
     }
     if (templateOverrides.layout) {
       Object.assign(config.layout, templateOverrides.layout);
+    }
+    // V2: Template-specific panes override defaults
+    if (templateOverrides.defaultPanes) {
+      config.panes = [...templateOverrides.defaultPanes];
     }
   }
 

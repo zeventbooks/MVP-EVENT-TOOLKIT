@@ -487,6 +487,64 @@
         "showQRSection": {
           "type": "boolean",
           "description": "MVP OPTIONAL - Show QR code section on public page (default: true)"
+        },
+        "displayRotation": {
+          "oneOf": [
+            { "$ref": "#/$defs/DisplayRotation" },
+            { "type": "null" }
+          ],
+          "description": "V2 OPTIONAL - Display rotation configuration for TV mode panes"
+        }
+      }
+    },
+    "DisplayRotation": {
+      "type": "object",
+      "description": "V2 OPTIONAL - Configuration for rotating display panes on TV surface",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether rotation mode is active (default: false, uses public embed)"
+        },
+        "panes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/DisplayPane" },
+          "description": "Ordered list of panes to rotate through"
+        },
+        "defaultDwellMs": {
+          "type": "integer",
+          "minimum": 3000,
+          "maximum": 120000,
+          "description": "Default time (ms) each pane displays before rotating (3s-120s)"
+        }
+      }
+    },
+    "DisplayPane": {
+      "type": "object",
+      "description": "V2 OPTIONAL - A single pane in the display rotation",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["public", "schedule", "standings", "sponsors", "custom"],
+          "description": "Pane type: public (embed), schedule, standings, sponsors (carousel), custom (URL)"
+        },
+        "dwellMs": {
+          "type": ["integer", "null"],
+          "minimum": 3000,
+          "maximum": 120000,
+          "description": "Override dwell time for this pane (ms)"
+        },
+        "url": {
+          "type": ["string", "null"],
+          "pattern": "^https?://.+",
+          "description": "Custom URL for 'custom' pane type"
+        },
+        "title": {
+          "type": ["string", "null"],
+          "maxLength": 100,
+          "description": "Optional title overlay for the pane"
         }
       }
     }

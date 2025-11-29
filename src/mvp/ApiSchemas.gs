@@ -313,7 +313,16 @@ const SCHEMAS = {
         showSponsorBanner: { type: 'boolean' },
         showSponsorStrip: { type: 'boolean' },
         showLeagueStrip: { type: 'boolean' },
-        showQRSection: { type: 'boolean' }
+        showQRSection: { type: 'boolean' },
+        // V2 Optional - Display rotation configuration
+        displayRotation: {
+          type: ['object', 'null'],
+          properties: {
+            enabled: { type: 'boolean' },
+            panes: { type: 'array' },
+            defaultDwellMs: { type: 'integer' }
+          }
+        }
       }
     },
 
@@ -619,6 +628,39 @@ const SCHEMAS = {
                 properties: {
                   hasSidePane: { type: 'boolean' },
                   emphasis: { type: 'string', enum: ['hero', 'scores', 'sponsors'] }
+                }
+              },
+              // V2: Display rotation engine configuration
+              displayRotation: {
+                type: 'object',
+                properties: {
+                  enabled: { type: 'boolean', description: 'Whether rotation mode is active' },
+                  defaultDwellMs: { type: 'number', description: 'Default dwell time per pane (ms)' },
+                  panes: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      required: ['type'],
+                      properties: {
+                        type: { type: 'string', enum: ['public', 'schedule', 'standings', 'sponsors', 'custom'] },
+                        dwellMs: { type: 'number', description: 'Override dwell time for this pane' },
+                        url: { type: 'string', description: 'Custom URL for custom pane type' },
+                        title: { type: 'string', description: 'Optional title overlay' }
+                      }
+                    }
+                  },
+                  paneTypes: {
+                    type: 'object',
+                    description: 'Pane type metadata for frontend rendering',
+                    additionalProperties: {
+                      type: 'object',
+                      properties: {
+                        label: { type: 'string' },
+                        description: { type: 'string' },
+                        defaultDwellMs: { type: 'number' }
+                      }
+                    }
+                  }
                 }
               }
             }

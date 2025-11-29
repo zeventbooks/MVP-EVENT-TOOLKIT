@@ -129,10 +129,22 @@ describe('Schema Consistency Contract Tests', () => {
       });
     });
 
-    it('should have boolean type for all settings', () => {
+    it('should have boolean type for all show* toggle settings', () => {
+      // Boolean toggles follow the pattern "show*"
+      // Non-boolean settings like displayRotation are V2 objects
       Object.entries(settingsSchema.properties).forEach(([key, value]) => {
-        expect(value.type).toBe('boolean');
+        if (key.startsWith('show')) {
+          expect(value.type).toBe('boolean');
+        }
       });
+    });
+
+    it('should have displayRotation as optional object (V2 rotation engine)', () => {
+      const displayRotation = settingsSchema.properties.displayRotation;
+      if (displayRotation) {
+        // displayRotation can be object or null (oneOf pattern)
+        expect(displayRotation.oneOf || displayRotation.type).toBeDefined();
+      }
     });
   });
 
