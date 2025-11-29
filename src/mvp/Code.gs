@@ -45,6 +45,29 @@
 //
 // =============================================================================
 
+/**
+ * Returns the canonical list of all supported MVP API endpoints.
+ * Used for:
+ *   - Routing assertions
+ *   - Test harness generation
+ *   - API contract validation
+ *
+ * @returns {string[]} Array of MVP API endpoint names
+ */
+function _listMvpApis_() {
+  return [
+    'api_getEventTemplates',
+    'api_create',
+    'api_get',
+    'api_updateEventData',
+    'api_list',
+    'api_getPublicBundle',
+    'api_getDisplayBundle',
+    'api_getPosterBundle',
+    'api_getSharedAnalytics'
+  ];
+}
+
 // === Constants / Envelopes / Errors =======================================
 const ERR = Object.freeze({
   BAD_INPUT:   'BAD_INPUT',
