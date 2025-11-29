@@ -4195,12 +4195,21 @@ function getSponsorMetricsForEvent_(brand, eventId) {
 }
 
 /**
- * api_getSharedReportBundle - Optimized bundle for shared analytics reports
- * Returns thin event view + aggregated metrics from ANALYTICS sheet
+ * [LEGACY] api_getSharedReportBundle - Optimized bundle for shared analytics reports
+ *
+ * NOT CANONICAL (Story 6): This endpoint is NOT used by SharedReport.html MVP surface.
+ * SharedReport.html uses the canonical 3-endpoint set:
+ *   - api_getSharedAnalytics
+ *   - api_getSponsorAnalytics
+ *   - api_getSponsorReportQr
+ *
+ * Kept for backward compatibility with direct action-based URL access.
+ * Consider removing in future cleanup.
  *
  * @param {object} payload - { brandId, scope, id, ifNoneMatch }
  * @returns {object} { ok, value: SharedReportBundle, etag }
- * @tier mvp
+ * @tier legacy
+ * @deprecated Use api_getSharedAnalytics instead
  */
 function api_getSharedReportBundle(payload){
   return runSafe('api_getSharedReportBundle', () => {
