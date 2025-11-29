@@ -129,15 +129,21 @@ describe('Wiring Diagram Sync Contract', () => {
     });
 
     test('no orphaned APIs in the diagram', () => {
+      // ZEVENT-003: These APIs are intentionally orphaned - kept for backward compatibility
+      // but no longer called by Admin (migrated to api_saveEvent)
+      const allowedOrphanedApis = ['api_create', 'api_updateEventData'];
+
       const orphanedApis = diagram.orphanedApis || [];
-      if (orphanedApis.length > 0) {
+      const unexpectedOrphans = orphanedApis.filter(api => !allowedOrphanedApis.includes(api));
+
+      if (unexpectedOrphans.length > 0) {
         throw new Error(
-          `Orphaned APIs found (in _listMvpApis_ but not called by any surface): ${orphanedApis.join(', ')}\n` +
+          `Orphaned APIs found (in _listMvpApis_ but not called by any surface): ${unexpectedOrphans.join(', ')}\n` +
           `Either the API is unused and should be removed from _listMvpApis_(), ` +
           `or the wiring diagram needs to be regenerated.`
         );
       }
-      expect(orphanedApis).toHaveLength(0);
+      expect(unexpectedOrphans).toHaveLength(0);
     });
   });
 
@@ -225,6 +231,10 @@ describe('Wiring Diagram Sync Contract', () => {
 
   describe('API usage coverage', () => {
     test('all MVP APIs are used by at least one surface', () => {
+      // ZEVENT-003: These APIs are intentionally orphaned - kept for backward compatibility
+      // but no longer called by Admin (migrated to api_saveEvent)
+      const allowedOrphanedApis = ['api_create', 'api_updateEventData'];
+
       const mvpApis = diagram.mvpApis;
       const orphaned = [];
 
@@ -235,14 +245,17 @@ describe('Wiring Diagram Sync Contract', () => {
         }
       });
 
-      if (orphaned.length > 0) {
+      // Filter out allowed orphaned APIs
+      const unexpectedOrphans = orphaned.filter(api => !allowedOrphanedApis.includes(api));
+
+      if (unexpectedOrphans.length > 0) {
         throw new Error(
-          `MVP APIs with no surface usage: ${orphaned.join(', ')}\n` +
+          `MVP APIs with no surface usage: ${unexpectedOrphans.join(', ')}\n` +
           `These APIs should either be used by a surface or removed from _listMvpApis_()`
         );
       }
 
-      expect(orphaned).toHaveLength(0);
+      expect(unexpectedOrphans).toHaveLength(0);
     });
 
     test('each surface uses appropriate bundle API', () => {
