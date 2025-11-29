@@ -55,6 +55,8 @@ READS FROM SHAREDANALYTICS SCHEMA (via api_getSharedAnalytics):
 ═══════════════════════════════════════════════════════════════════════════════
 SECTION GATES (schema-backed visibility):
 ═══════════════════════════════════════════════════════════════════════════════
+  Sponsor Funnel:     Always shown (summary is required) → renderSponsorFunnelCard()
+                      Shows empty state if no data (Story 11)
   Metrics Grid:       Always shown (summary is required)
   Surface Table:      Always shown (surfaces[] is required)
   Sponsor Table:      if (sponsors?.length) → renderSponsorPerformance()
@@ -768,6 +770,203 @@ DO NOT modify contracts without updating:
         justify-content: flex-end;
       }
     }
+
+    /* Sponsor Funnel Card - Story 11: At-a-glance funnel metrics for sponsors */
+    .sponsor-funnel-card {
+      background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+      border: 2px solid var(--color-primary, #2563eb);
+      border-radius: var(--radius-md, 12px);
+      padding: 20px;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);
+    }
+    .sponsor-funnel-card h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #1e40af;
+      margin: 0 0 16px 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .sponsor-funnel-card .funnel-subtitle {
+      font-size: 0.75rem;
+      color: #3b82f6;
+      font-weight: normal;
+      margin-left: auto;
+    }
+    .funnel-stages {
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+      position: relative;
+    }
+    .funnel-stage {
+      flex: 1;
+      background: white;
+      padding: 16px 12px;
+      text-align: center;
+      position: relative;
+      border: 1px solid #e2e8f0;
+      min-width: 0;
+    }
+    .funnel-stage:first-child {
+      border-radius: 8px 0 0 8px;
+    }
+    .funnel-stage:last-child {
+      border-radius: 0 8px 8px 0;
+    }
+    .funnel-stage:not(:last-child)::after {
+      content: '→';
+      position: absolute;
+      right: -12px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 1.25rem;
+      color: #3b82f6;
+      z-index: 1;
+      background: white;
+      width: 24px;
+      text-align: center;
+    }
+    .funnel-stage .stage-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #64748b;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .funnel-stage .stage-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #1e293b;
+      line-height: 1.2;
+    }
+    .funnel-stage .stage-rate {
+      font-size: 0.7rem;
+      color: #10b981;
+      font-weight: 600;
+      margin-top: 4px;
+    }
+    .funnel-stage .stage-rate.neutral {
+      color: #64748b;
+    }
+    /* Funnel summary row */
+    .funnel-summary {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px dashed #bfdbfe;
+    }
+    .funnel-summary-item {
+      text-align: center;
+    }
+    .funnel-summary-item .summary-label {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #64748b;
+      margin-bottom: 2px;
+    }
+    .funnel-summary-item .summary-value {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #1e40af;
+    }
+    /* Funnel empty state */
+    .funnel-empty-state {
+      text-align: center;
+      padding: 24px 16px;
+      color: #64748b;
+    }
+    .funnel-empty-state .empty-icon {
+      font-size: 2rem;
+      margin-bottom: 8px;
+      opacity: 0.5;
+    }
+    .funnel-empty-state p {
+      margin: 0;
+      font-size: 0.875rem;
+    }
+    /* Funnel card mobile responsive */
+    @media (max-width: 640px) {
+      .sponsor-funnel-card {
+        padding: 14px;
+        border-radius: 10px;
+        margin-bottom: 1rem;
+      }
+      .sponsor-funnel-card h3 {
+        font-size: 0.9rem;
+        margin-bottom: 12px;
+        flex-wrap: wrap;
+      }
+      .sponsor-funnel-card .funnel-subtitle {
+        width: 100%;
+        margin-left: 0;
+        margin-top: 4px;
+      }
+      .funnel-stages {
+        flex-direction: column;
+        gap: 8px;
+      }
+      .funnel-stage {
+        border-radius: 8px !important;
+        padding: 12px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        text-align: left;
+      }
+      .funnel-stage:not(:last-child)::after {
+        content: '↓';
+        position: static;
+        transform: none;
+        order: -1;
+        display: none;
+      }
+      .funnel-stage .stage-label {
+        margin-bottom: 0;
+        font-size: 0.75rem;
+      }
+      .funnel-stage .stage-value {
+        font-size: 1.25rem;
+      }
+      .funnel-stage .stage-rate {
+        margin-top: 0;
+        margin-left: 8px;
+        font-size: 0.75rem;
+      }
+      .funnel-stage .mobile-right {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .funnel-summary {
+        flex-wrap: wrap;
+        gap: 16px;
+      }
+      .funnel-summary-item .summary-value {
+        font-size: 0.9rem;
+      }
+    }
+    /* Very small screens */
+    @media (max-width: 375px) {
+      .sponsor-funnel-card {
+        padding: 12px;
+      }
+      .funnel-stage {
+        padding: 10px;
+      }
+      .funnel-stage .stage-value {
+        font-size: 1.1rem;
+      }
+      .funnel-summary {
+        gap: 12px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -807,6 +1006,9 @@ DO NOT modify contracts without updating:
 
     <!-- Key Metrics -->
     <div id="metrics" style="display:none;">
+      <!-- Sponsor Funnel Card - Story 11: At-a-glance funnel for sponsors -->
+      <div id="sponsorFunnelCard"></div>
+
       <div class="metrics-grid" id="metricsGrid"></div>
 
       <!-- Top Sponsors Card - Highlights top 3 sponsors by clicks -->
@@ -1048,6 +1250,9 @@ DO NOT modify contracts without updating:
         uniqueSponsors: data.summary?.totalSponsors || 0
       };
 
+      // Story 11: Render funnel card at the top (V2 portfolio mode)
+      renderSponsorFunnelCard(summary);
+
       // Render summary metrics
       renderSummaryMetrics(summary);
 
@@ -1279,6 +1484,109 @@ DO NOT modify contracts without updating:
       container.style.display = 'block';
     }
 
+    /**
+     * Story 11: Render Sponsor Funnel Card
+     * Shows at-a-glance funnel metrics: Impressions → QR Scans → Clicks → Signups
+     * with conversion rates between stages.
+     *
+     * @param {Object} summary - The summary object from SharedAnalytics
+     */
+    function renderSponsorFunnelCard(summary) {
+      const container = document.getElementById('sponsorFunnelCard');
+      if (!container) return;
+
+      // Extract values with safe defaults
+      const impressions = summary.totalImpressions || 0;
+      const qrScans = summary.totalQrScans || 0;
+      const clicks = summary.totalClicks || 0;
+      const signups = summary.totalSignups || 0;
+
+      // Check if there's any data at all
+      const hasData = impressions > 0 || qrScans > 0 || clicks > 0 || signups > 0;
+
+      if (!hasData) {
+        // Empty state - clear message, not blanks or NaN
+        container.innerHTML = `
+          <div class="sponsor-funnel-card">
+            <h3>📊 Engagement Funnel</h3>
+            <div class="funnel-empty-state">
+              <div class="empty-icon">📭</div>
+              <p>No engagement data yet. Once attendees start interacting with your content, you'll see your funnel metrics here.</p>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      // Calculate conversion rates (safe division - avoid NaN)
+      // Scan Rate: QR scans as % of impressions
+      const scanRate = impressions > 0 ? (qrScans / impressions * 100) : 0;
+      // Click Rate (CTR): clicks as % of impressions
+      const clickRate = impressions > 0 ? (clicks / impressions * 100) : 0;
+      // Total interactions for conversion calc
+      const totalInteractions = qrScans + clicks;
+      // Conversion Rate: signups as % of total interactions (people who engaged)
+      const conversionRate = totalInteractions > 0 ? (signups / totalInteractions * 100) : 0;
+      // Overall funnel rate: signups as % of impressions
+      const overallRate = impressions > 0 ? (signups / impressions * 100) : 0;
+
+      // Format rate display - show % or "—" if zero impressions
+      function formatRate(rate, label) {
+        if (impressions === 0) return '<span class="stage-rate neutral">—</span>';
+        return '<span class="stage-rate">' + rate.toFixed(1) + '% ' + label + '</span>';
+      }
+
+      // Determine subtitle based on view
+      const subtitle = IS_SPONSOR_VIEW
+        ? 'Your engagement journey'
+        : 'Sponsor engagement overview';
+
+      container.innerHTML = `
+        <div class="sponsor-funnel-card">
+          <h3>
+            📊 Engagement Funnel
+            <span class="funnel-subtitle">${subtitle}</span>
+          </h3>
+          <div class="funnel-stages">
+            <div class="funnel-stage">
+              <div class="stage-label">Impressions</div>
+              <div class="stage-value">${impressions.toLocaleString()}</div>
+              <div class="stage-rate neutral">Top of funnel</div>
+            </div>
+            <div class="funnel-stage">
+              <div class="stage-label">QR Scans</div>
+              <div class="stage-value">${qrScans.toLocaleString()}</div>
+              ${formatRate(scanRate, 'scan rate')}
+            </div>
+            <div class="funnel-stage">
+              <div class="stage-label">Clicks</div>
+              <div class="stage-value">${clicks.toLocaleString()}</div>
+              ${formatRate(clickRate, 'CTR')}
+            </div>
+            <div class="funnel-stage">
+              <div class="stage-label">Signups</div>
+              <div class="stage-value">${signups.toLocaleString()}</div>
+              ${totalInteractions > 0 ? '<span class="stage-rate">' + conversionRate.toFixed(1) + '% conversion</span>' : '<span class="stage-rate neutral">—</span>'}
+            </div>
+          </div>
+          <div class="funnel-summary">
+            <div class="funnel-summary-item">
+              <div class="summary-label">Overall CTR</div>
+              <div class="summary-value">${impressions > 0 ? clickRate.toFixed(2) : '0.00'}%</div>
+            </div>
+            <div class="funnel-summary-item">
+              <div class="summary-label">Total Interactions</div>
+              <div class="summary-value">${totalInteractions.toLocaleString()}</div>
+            </div>
+            <div class="funnel-summary-item">
+              <div class="summary-label">Funnel Rate</div>
+              <div class="summary-value">${impressions > 0 ? overallRate.toFixed(2) : '0.00'}%</div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
     function renderReport(data) {
       // Defensive defaults
       const summary = data.summary || {};
@@ -1292,6 +1600,9 @@ DO NOT modify contracts without updating:
         const sponsorName = sponsors[0].name || SPONSOR_ID;
         updateHeaderForSponsorView(sponsorName);
       }
+
+      // Story 11: Render funnel card at the top for sponsor-first view
+      renderSponsorFunnelCard(summary);
 
       renderSummaryMetrics(summary);
 
