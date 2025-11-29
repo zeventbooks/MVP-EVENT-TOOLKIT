@@ -414,6 +414,94 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
     .sections-modified-notice.visible {
       display: block;
     }
+
+    /* ===== Mobile Collapsible Cards ===== */
+    /* Cards that can collapse on mobile for better UX */
+    .card-mobile-collapsible {
+      position: relative;
+    }
+
+    .card-mobile-collapsible .card-collapse-toggle {
+      display: none; /* Hidden on desktop */
+    }
+
+    .card-mobile-collapsible .card-collapsible-body {
+      overflow: hidden;
+      transition: max-height 0.3s ease, opacity 0.2s ease;
+      max-height: 2000px;
+      opacity: 1;
+    }
+
+    .card-mobile-collapsible.mobile-collapsed .card-collapsible-body {
+      max-height: 0;
+      opacity: 0;
+      padding-top: 0 !important;
+      margin-top: 0 !important;
+    }
+
+    @media (max-width: 640px) {
+      /* Show collapse toggle on mobile */
+      .card-mobile-collapsible .card-collapse-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        cursor: pointer;
+        padding: 4px 0;
+        margin-top: -8px;
+        min-height: 44px; /* iOS tap target */
+      }
+
+      .card-mobile-collapsible .card-collapse-toggle .collapse-hint {
+        font-size: 0.75rem;
+        color: var(--color-gray-400, #94a3b8);
+        margin-right: 4px;
+      }
+
+      .card-mobile-collapsible .card-collapse-toggle .collapse-icon {
+        font-size: 1.2rem;
+        color: var(--color-gray-400, #94a3b8);
+        transition: transform 0.3s ease;
+      }
+
+      .card-mobile-collapsible.mobile-collapsed .card-collapse-toggle .collapse-icon {
+        transform: rotate(-90deg);
+      }
+
+      /* Collapsed card header styling */
+      .card-mobile-collapsible.mobile-collapsed {
+        padding-bottom: 12px !important;
+      }
+
+      /* Primary actions quick-access row on mobile */
+      .mobile-primary-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid var(--color-gray-200, #e2e8f0);
+        flex-wrap: wrap;
+      }
+
+      .mobile-primary-actions .btn-primary,
+      .mobile-primary-actions .btn-secondary {
+        flex: 1;
+        min-width: 0;
+        padding: 12px 8px;
+        font-size: 0.8rem;
+        text-align: center;
+      }
+
+      /* Hide mobile actions row on desktop */
+      .mobile-primary-actions {
+        display: flex;
+      }
+    }
+
+    @media (min-width: 641px) {
+      .mobile-primary-actions {
+        display: none !important;
+      }
+    }
   </style>
 </head>
 <body>
@@ -792,27 +880,34 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
 
       <!-- ═══════════════════════════════════════════════════════════════════ -->
       <!-- CARD 2: SPONSORS - They're paying, so they come first               -->
+      <!-- Mobile: Collapsed by default (expand for sponsor management)        -->
       <!-- ═══════════════════════════════════════════════════════════════════ -->
-      <section class="card" id="card2Sponsors" style="border-left: 4px solid #c026d3;">
+      <section class="card card-mobile-collapsible" id="card2Sponsors" style="border-left: 4px solid #c026d3;" data-mobile-collapse="true">
         <div style="display: flex; align-items: flex-start; gap: 16px;">
           <div style="font-size: 2rem; line-height: 1;">🤝</div>
           <div style="flex: 1;">
             <h3 style="margin: 0 0 4px 0; color: var(--color-gray-800, #1e293b);">Sponsors</h3>
-            <p style="margin: 0 0 16px 0; font-size: 0.9rem; color: var(--color-gray-500, #64748b);">
-              Give each sponsor their own analytics link to show how their logo performed.
-            </p>
+            <div class="card-collapse-toggle" onclick="toggleMobileCard(this.closest('.card-mobile-collapsible'))">
+              <span class="collapse-hint">Tap to expand</span>
+              <span class="collapse-icon">▼</span>
+            </div>
+            <div class="card-collapsible-body">
+              <p style="margin: 0 0 16px 0; font-size: 0.9rem; color: var(--color-gray-500, #64748b);">
+                Give each sponsor their own analytics link to show how their logo performed.
+              </p>
 
-            <div id="sponsorPerformanceCard" style="background: linear-gradient(135deg, #fdf4ff 0%, #f5d0fe 100%); border-radius: 8px; padding: 16px;">
-              <div id="sponsorReportsList" style="margin-bottom: 12px;"></div>
-              <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-                <input type="text" id="customSponsorId" placeholder="Enter sponsor name" style="flex: 1; min-width: 150px; padding: 10px 12px; border-radius: 6px; border: 1px solid #e879f9;">
-                <button class="btn-primary" onclick="generateSponsorReportLink()" style="background: #c026d3;">Generate Link</button>
-              </div>
-              <div id="customSponsorLinkOutput" style="margin-top: 12px; display: none;">
-                <div style="background: white; border-radius: 8px; padding: 12px; margin-bottom: 8px;">
-                  <input type="text" id="customSponsorLinkField" readonly style="width: 100%; font-size: 0.8rem; border: none; background: transparent; font-family: monospace;">
+              <div id="sponsorPerformanceCard" style="background: linear-gradient(135deg, #fdf4ff 0%, #f5d0fe 100%); border-radius: 8px; padding: 16px;">
+                <div id="sponsorReportsList" style="margin-bottom: 12px;"></div>
+                <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                  <input type="text" id="customSponsorId" placeholder="Enter sponsor name" style="flex: 1; min-width: 150px; padding: 10px 12px; border-radius: 6px; border: 1px solid #e879f9;">
+                  <button class="btn-primary" onclick="generateSponsorReportLink()" style="background: #c026d3;">Generate Link</button>
                 </div>
-                <button class="btn-secondary" onclick="copyCustomSponsorLink()">Copy Sponsor Link</button>
+                <div id="customSponsorLinkOutput" style="margin-top: 12px; display: none;">
+                  <div style="background: white; border-radius: 8px; padding: 12px; margin-bottom: 8px;">
+                    <input type="text" id="customSponsorLinkField" readonly style="width: 100%; font-size: 0.8rem; border: none; background: transparent; font-family: monospace;">
+                  </div>
+                  <button class="btn-secondary" onclick="copyCustomSponsorLink()">Copy Sponsor Link</button>
+                </div>
               </div>
             </div>
           </div>
@@ -850,27 +945,34 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
 
       <!-- ═══════════════════════════════════════════════════════════════════ -->
       <!-- CARD 4: POSTER PAGE - Print and display                             -->
+      <!-- Mobile: Collapsed by default (expand to get poster link)            -->
       <!-- ═══════════════════════════════════════════════════════════════════ -->
-      <section class="card" id="card4Poster" style="border-left: 4px solid #d97706;">
+      <section class="card card-mobile-collapsible" id="card4Poster" style="border-left: 4px solid #d97706;" data-mobile-collapse="true">
         <div style="display: flex; align-items: flex-start; gap: 16px;">
           <div style="font-size: 2rem; line-height: 1;">🖼️</div>
           <div style="flex: 1;">
             <h3 style="margin: 0 0 4px 0; color: var(--color-gray-800, #1e293b);">Poster Page</h3>
-            <p style="margin: 0 0 16px 0; font-size: 0.9rem; color: var(--color-gray-500, #64748b);">
-              Print-ready page with QR code. Great for flyers, table tents, or window displays.
-            </p>
-
-            <div style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-radius: 8px; padding: 16px; margin-bottom: 12px;">
-              <div style="display: flex; align-items: center; gap: 12px;">
-                <a id="lnkPoster" target="_blank" rel="noopener" style="flex: 1; font-size: 0.85rem; word-break: break-all; color: #92400e; font-family: monospace;"></a>
-                <div id="qrPosterPreview" style="flex-shrink: 0;"></div>
-              </div>
+            <div class="card-collapse-toggle" onclick="toggleMobileCard(this.closest('.card-mobile-collapsible'))">
+              <span class="collapse-hint">Tap to expand</span>
+              <span class="collapse-icon">▼</span>
             </div>
+            <div class="card-collapsible-body">
+              <p style="margin: 0 0 16px 0; font-size: 0.9rem; color: var(--color-gray-500, #64748b);">
+                Print-ready page with QR code. Great for flyers, table tents, or window displays.
+              </p>
 
-            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-              <button class="btn-primary" onclick="copy('lnkPoster')" style="background: #d97706;">Copy Link</button>
-              <button class="btn-secondary" onclick="window.open(document.getElementById('lnkPoster').href)">Open Poster</button>
-              <button class="btn-secondary" onclick="showPosterQR()">Show QR Code</button>
+              <div style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-radius: 8px; padding: 16px; margin-bottom: 12px;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <a id="lnkPoster" target="_blank" rel="noopener" style="flex: 1; font-size: 0.85rem; word-break: break-all; color: #92400e; font-family: monospace;"></a>
+                  <div id="qrPosterPreview" style="flex-shrink: 0;"></div>
+                </div>
+              </div>
+
+              <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <button class="btn-primary" onclick="copy('lnkPoster')" style="background: #d97706;">Copy Link</button>
+                <button class="btn-secondary" onclick="window.open(document.getElementById('lnkPoster').href)">Open Poster</button>
+                <button class="btn-secondary" onclick="showPosterQR()">Show QR Code</button>
+              </div>
             </div>
           </div>
         </div>
@@ -878,31 +980,38 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
 
       <!-- ═══════════════════════════════════════════════════════════════════ -->
       <!-- CARD 5: TV DISPLAY - Put it on your bar screens                     -->
+      <!-- Mobile: Collapsed by default (expand for TV link)                   -->
       <!-- ═══════════════════════════════════════════════════════════════════ -->
-      <section class="card" id="card5Display" style="border-left: 4px solid #2563eb;">
+      <section class="card card-mobile-collapsible" id="card5Display" style="border-left: 4px solid #2563eb;" data-mobile-collapse="true">
         <div style="display: flex; align-items: flex-start; gap: 16px;">
           <div style="font-size: 2rem; line-height: 1;">📺</div>
           <div style="flex: 1;">
             <h3 style="margin: 0 0 4px 0; color: var(--color-gray-800, #1e293b);">TV Display</h3>
-            <p style="margin: 0 0 16px 0; font-size: 0.9rem; color: var(--color-gray-500, #64748b);">
-              Open this on your bar TV or tablet. It auto-rotates sponsor logos and keeps the event info visible.
-            </p>
-
-            <div style="background: var(--color-gray-50, #f8fafc); border-radius: 8px; padding: 12px; margin-bottom: 12px;">
-              <a id="lnkDisplay" target="_blank" rel="noopener" style="font-size: 0.85rem; word-break: break-all; color: #2563eb; font-family: monospace;"></a>
+            <div class="card-collapse-toggle" onclick="toggleMobileCard(this.closest('.card-mobile-collapsible'))">
+              <span class="collapse-hint">Tap to expand</span>
+              <span class="collapse-icon">▼</span>
             </div>
-
-            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-              <button class="btn-primary" onclick="copy('lnkDisplay')" style="background: #2563eb;">Copy Link</button>
-              <button class="btn-secondary" onclick="window.open(document.getElementById('lnkDisplay').href)">Open on TV</button>
-              <button class="btn-secondary" onclick="configureDisplay()">Settings</button>
-            </div>
-
-            <!-- TV Tips -->
-            <div style="margin-top: 16px; padding: 12px; background: #eff6ff; border-radius: 8px; border: 1px solid #bfdbfe;">
-              <p style="margin: 0; font-size: 0.8rem; color: #1e40af;">
-                <strong>Tip:</strong> Use your browser's fullscreen mode (F11) for the best look. The display will auto-refresh every few minutes.
+            <div class="card-collapsible-body">
+              <p style="margin: 0 0 16px 0; font-size: 0.9rem; color: var(--color-gray-500, #64748b);">
+                Open this on your bar TV or tablet. It auto-rotates sponsor logos and keeps the event info visible.
               </p>
+
+              <div style="background: var(--color-gray-50, #f8fafc); border-radius: 8px; padding: 12px; margin-bottom: 12px;">
+                <a id="lnkDisplay" target="_blank" rel="noopener" style="font-size: 0.85rem; word-break: break-all; color: #2563eb; font-family: monospace;"></a>
+              </div>
+
+              <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <button class="btn-primary" onclick="copy('lnkDisplay')" style="background: #2563eb;">Copy Link</button>
+                <button class="btn-secondary" onclick="window.open(document.getElementById('lnkDisplay').href)">Open on TV</button>
+                <button class="btn-secondary" onclick="configureDisplay()">Settings</button>
+              </div>
+
+              <!-- TV Tips -->
+              <div style="margin-top: 16px; padding: 12px; background: #eff6ff; border-radius: 8px; border: 1px solid #bfdbfe;">
+                <p style="margin: 0; font-size: 0.8rem; color: #1e40af;">
+                  <strong>Tip:</strong> Use your browser's fullscreen mode (F11) for the best look. The display will auto-refresh every few minutes.
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -936,25 +1045,32 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
 
       <!-- ═══════════════════════════════════════════════════════════════════ -->
       <!-- CARD 7: SHARED REPORT - Post-event analytics                        -->
+      <!-- Mobile: Collapsed by default (expand for report link)               -->
       <!-- ═══════════════════════════════════════════════════════════════════ -->
-      <section class="card" id="card7Report" style="border-left: 4px solid #7c3aed;">
+      <section class="card card-mobile-collapsible" id="card7Report" style="border-left: 4px solid #7c3aed;" data-mobile-collapse="true">
         <div style="display: flex; align-items: flex-start; gap: 16px;">
           <div style="font-size: 2rem; line-height: 1;">📊</div>
           <div style="flex: 1;">
             <h3 style="margin: 0 0 4px 0; color: var(--color-gray-800, #1e293b);">Shared Report</h3>
-            <p style="margin: 0 0 16px 0; font-size: 0.9rem; color: var(--color-gray-500, #64748b);">
-              Share this after your event. Shows views, impressions, and engagement metrics for sponsors.
-            </p>
-
-            <div style="background: var(--color-gray-50, #f8fafc); border-radius: 8px; padding: 12px; margin-bottom: 12px;">
-              <a id="lnkReport" target="_blank" rel="noopener" style="font-size: 0.85rem; word-break: break-all; color: #7c3aed; font-family: monospace;"></a>
+            <div class="card-collapse-toggle" onclick="toggleMobileCard(this.closest('.card-mobile-collapsible'))">
+              <span class="collapse-hint">Tap to expand</span>
+              <span class="collapse-icon">▼</span>
             </div>
+            <div class="card-collapsible-body">
+              <p style="margin: 0 0 16px 0; font-size: 0.9rem; color: var(--color-gray-500, #64748b);">
+                Share this after your event. Shows views, impressions, and engagement metrics for sponsors.
+              </p>
 
-            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-              <button class="btn-primary" onclick="copy('lnkReport')" style="background: #7c3aed;">Copy Report Link</button>
-              <button class="btn-secondary" onclick="window.open(document.getElementById('lnkReport').href)">View Report</button>
+              <div style="background: var(--color-gray-50, #f8fafc); border-radius: 8px; padding: 12px; margin-bottom: 12px;">
+                <a id="lnkReport" target="_blank" rel="noopener" style="font-size: 0.85rem; word-break: break-all; color: #7c3aed; font-family: monospace;"></a>
+              </div>
+
+              <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <button class="btn-primary" onclick="copy('lnkReport')" style="background: #7c3aed;">Copy Report Link</button>
+                <button class="btn-secondary" onclick="window.open(document.getElementById('lnkReport').href)">View Report</button>
+              </div>
+              <div id="qrSharedReport" style="text-align:center;margin-top:12px;display:none;"></div>
             </div>
-            <div id="qrSharedReport" style="text-align:center;margin-top:12px;display:none;"></div>
           </div>
         </div>
       </section>
@@ -1945,6 +2061,70 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
       const k = sessionStorage.getItem('ADMIN_KEY:' + BRAND) || prompt('Admin key for ' + BRAND);
       if (k) sessionStorage.setItem('ADMIN_KEY:' + BRAND, k);
       return k || '';
+    }
+
+    // === MOBILE-FIRST CARD COLLAPSE ===
+    // Collapse non-essential cards on mobile for better UX
+    const MOBILE_BREAKPOINT = 640;
+
+    /**
+     * Toggle a mobile-collapsible card
+     * @param {HTMLElement} card - The card element to toggle
+     */
+    function toggleMobileCard(card) {
+      if (!card) return;
+      card.classList.toggle('mobile-collapsed');
+      const toggle = card.querySelector('.card-collapse-toggle');
+      if (toggle) {
+        const hint = toggle.querySelector('.collapse-hint');
+        if (hint) {
+          hint.textContent = card.classList.contains('mobile-collapsed') ? 'Tap to expand' : 'Tap to collapse';
+        }
+      }
+    }
+
+    /**
+     * Initialize mobile card collapse on page load
+     * Collapses cards marked with data-mobile-collapse="true" on mobile viewports
+     */
+    function initMobileCardCollapse() {
+      if (window.innerWidth > MOBILE_BREAKPOINT) return;
+
+      document.querySelectorAll('[data-mobile-collapse="true"]').forEach(card => {
+        card.classList.add('mobile-collapsed');
+      });
+    }
+
+    /**
+     * Re-check mobile collapse on resize (e.g., orientation change)
+     */
+    function handleMobileResize() {
+      const isMobile = window.innerWidth <= MOBILE_BREAKPOINT;
+      document.querySelectorAll('[data-mobile-collapse="true"]').forEach(card => {
+        if (isMobile && !card.classList.contains('mobile-collapsed')) {
+          // Don't auto-collapse if user has interacted
+          // card.classList.add('mobile-collapsed');
+        } else if (!isMobile) {
+          // Expand all on desktop
+          card.classList.remove('mobile-collapsed');
+        }
+      });
+    }
+
+    // Initialize on DOM ready
+    document.addEventListener('DOMContentLoaded', initMobileCardCollapse);
+    // Handle orientation changes
+    window.addEventListener('resize', debounce(handleMobileResize, 250));
+
+    /**
+     * Simple debounce helper
+     */
+    function debounce(fn, delay) {
+      let timer;
+      return function(...args) {
+        clearTimeout(timer);
+        timer = setTimeout(() => fn.apply(this, args), delay);
+      };
     }
 
     // === SPONSOR PERFORMANCE LINKS (Feature 1) ===
