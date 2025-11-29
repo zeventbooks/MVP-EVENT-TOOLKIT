@@ -415,6 +415,174 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
       display: block;
     }
 
+    /* ===== Happy Path Checklist ===== */
+    /* Visible checklist for first-time bar owners */
+    .happy-path-checklist {
+      background: linear-gradient(135deg, var(--color-gray-50, #f8fafc) 0%, #fff 100%);
+      border: 1px solid var(--color-gray-200, #e2e8f0);
+      border-radius: var(--radius-lg, 16px);
+      padding: 16px 20px;
+      margin-bottom: 20px;
+    }
+
+    .happy-path-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--color-gray-200, #e2e8f0);
+    }
+
+    .happy-path-header h3 {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--color-gray-700, #334155);
+    }
+
+    .happy-path-header .progress-text {
+      margin-left: auto;
+      font-size: 0.8rem;
+      color: var(--color-gray-500, #64748b);
+    }
+
+    .checklist-items {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .checklist-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: white;
+      border: 1px solid var(--color-gray-200, #e2e8f0);
+      border-radius: var(--radius-base, 8px);
+      font-size: 0.85rem;
+      color: var(--color-gray-600, #475569);
+      cursor: pointer;
+      transition: all var(--transition-fast, 0.15s ease);
+      flex: 0 0 auto;
+    }
+
+    .checklist-item:hover {
+      background: var(--color-gray-50, #f8fafc);
+      border-color: var(--color-gray-300, #cbd5e1);
+      transform: translateY(-1px);
+    }
+
+    .checklist-item:active {
+      transform: translateY(0);
+    }
+
+    .checklist-item .check-indicator {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      flex-shrink: 0;
+      transition: all var(--transition-fast, 0.15s ease);
+    }
+
+    .checklist-item .check-indicator.pending {
+      background: var(--color-gray-100, #f1f5f9);
+      border: 2px solid var(--color-gray-300, #cbd5e1);
+      color: transparent;
+    }
+
+    .checklist-item .check-indicator.done {
+      background: #10b981;
+      border: 2px solid #10b981;
+      color: white;
+    }
+
+    .checklist-item .check-indicator.optional {
+      background: var(--color-gray-100, #f1f5f9);
+      border: 2px dashed var(--color-gray-300, #cbd5e1);
+      color: var(--color-gray-400, #94a3b8);
+      font-size: 0.65rem;
+    }
+
+    .checklist-item.done {
+      background: #f0fdf4;
+      border-color: #86efac;
+    }
+
+    .checklist-item.done .item-label {
+      color: #166534;
+    }
+
+    .checklist-item.optional-pending {
+      border-style: dashed;
+    }
+
+    .checklist-item .item-label {
+      white-space: nowrap;
+    }
+
+    .checklist-item .item-label .optional-tag {
+      font-size: 0.7rem;
+      color: var(--color-gray-400, #94a3b8);
+      font-weight: normal;
+    }
+
+    .checklist-item .goto-arrow {
+      margin-left: 4px;
+      color: var(--color-gray-400, #94a3b8);
+      font-size: 0.75rem;
+    }
+
+    /* Mobile: Stack checklist items vertically */
+    @media (max-width: 640px) {
+      .happy-path-checklist {
+        padding: 14px 16px;
+        margin-bottom: 16px;
+      }
+
+      .happy-path-header {
+        flex-wrap: wrap;
+      }
+
+      .happy-path-header .progress-text {
+        width: 100%;
+        margin-left: 28px;
+        margin-top: 4px;
+      }
+
+      .checklist-items {
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .checklist-item {
+        width: 100%;
+        padding: 12px 14px;
+        justify-content: flex-start;
+      }
+
+      .checklist-item .goto-arrow {
+        margin-left: auto;
+      }
+    }
+
+    /* Very small screens */
+    @media (max-width: 375px) {
+      .happy-path-checklist {
+        padding: 12px;
+      }
+
+      .checklist-item {
+        padding: 10px 12px;
+        font-size: 0.8rem;
+      }
+    }
+
     /* ===== Mobile Collapsible Cards ===== */
     /* Cards that can collapse on mobile for better UX */
     .card-mobile-collapsible {
@@ -861,6 +1029,49 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
     <!-- Card 7: Shared Report                                                   -->
     <!-- ═══════════════════════════════════════════════════════════════════════ -->
     <div id="eventCard" style="display:none;">
+
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- HAPPY PATH CHECKLIST - Quick guide for first-time bar owners        -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <div class="happy-path-checklist" id="happyPathChecklist">
+        <div class="happy-path-header">
+          <span style="font-size: 1.2rem;">📋</span>
+          <h3>Quick Setup Guide</h3>
+          <span class="progress-text" id="checklistProgress">0 of 6 done</span>
+        </div>
+        <div class="checklist-items">
+          <div class="checklist-item done" id="checklist-event" onclick="scrollToCard('card1EventBasics')">
+            <span class="check-indicator done">✓</span>
+            <span class="item-label">Name &amp; date</span>
+            <span class="goto-arrow">→</span>
+          </div>
+          <div class="checklist-item optional-pending" id="checklist-sponsors" onclick="scrollToCard('card2Sponsors')">
+            <span class="check-indicator optional">~</span>
+            <span class="item-label">Add sponsors <span class="optional-tag">(optional)</span></span>
+            <span class="goto-arrow">→</span>
+          </div>
+          <div class="checklist-item" id="checklist-signup" onclick="scrollToCard('card3SignUp')">
+            <span class="check-indicator pending"></span>
+            <span class="item-label">Create signup form</span>
+            <span class="goto-arrow">→</span>
+          </div>
+          <div class="checklist-item" id="checklist-poster" onclick="scrollToCard('card4Poster')">
+            <span class="check-indicator pending"></span>
+            <span class="item-label">Print poster</span>
+            <span class="goto-arrow">→</span>
+          </div>
+          <div class="checklist-item" id="checklist-display" onclick="scrollToCard('card5Display')">
+            <span class="check-indicator pending"></span>
+            <span class="item-label">Open TV display</span>
+            <span class="goto-arrow">→</span>
+          </div>
+          <div class="checklist-item" id="checklist-public" onclick="scrollToCard('card6PublicPage')">
+            <span class="check-indicator pending"></span>
+            <span class="item-label">Share public link</span>
+            <span class="goto-arrow">→</span>
+          </div>
+        </div>
+      </div>
 
       <!-- ═══════════════════════════════════════════════════════════════════ -->
       <!-- CARD 1: EVENT BASICS - What you just created                        -->
@@ -1676,8 +1887,11 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
       // Feature 1: Render Sponsor Performance Links
       renderSponsorReports(event);
 
-      // Scroll to the first card in the Five-Card layout
-      document.getElementById('card1EventBasics').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // Update Happy Path checklist status based on event data
+      updateChecklistStatus(event);
+
+      // Scroll to the checklist at the top of the Seven-Card layout
+      document.getElementById('happyPathChecklist').scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
     function setLink(id, url) {
@@ -1729,6 +1943,127 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
       document.getElementById('createCard').style.display = '';
     }
 
+    // ===== Happy Path Checklist Functions =====
+
+    // Store current event data for checklist status checks
+    let currentEventData = null;
+
+    // Scroll to a specific card section
+    function scrollToCard(cardId) {
+      const card = document.getElementById(cardId);
+      if (!card) return;
+
+      // If it's a collapsed mobile card, expand it first
+      if (card.classList.contains('mobile-collapsed')) {
+        toggleMobileCard(card);
+      }
+
+      // Smooth scroll to the card with offset for fixed header
+      const headerOffset = 20;
+      const elementPosition = card.getBoundingClientRect().top;
+      const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: 'smooth'
+      });
+
+      // Brief highlight effect
+      card.style.transition = 'box-shadow 0.3s ease';
+      card.style.boxShadow = '0 0 0 3px rgba(37, 99, 235, 0.3)';
+      setTimeout(() => {
+        card.style.boxShadow = '';
+      }, 1500);
+    }
+
+    // Update a single checklist item's visual state
+    function setChecklistItemStatus(itemId, status, isOptional = false) {
+      const item = document.getElementById(itemId);
+      if (!item) return;
+
+      const indicator = item.querySelector('.check-indicator');
+
+      // Remove all state classes
+      item.classList.remove('done', 'optional-pending');
+      indicator.classList.remove('done', 'pending', 'optional');
+
+      if (status === 'done') {
+        item.classList.add('done');
+        indicator.classList.add('done');
+        indicator.textContent = '✓';
+      } else if (isOptional) {
+        item.classList.add('optional-pending');
+        indicator.classList.add('optional');
+        indicator.textContent = '~';
+      } else {
+        indicator.classList.add('pending');
+        indicator.textContent = '';
+      }
+    }
+
+    // Update all checklist items based on event data
+    function updateChecklistStatus(event) {
+      currentEventData = event;
+      const links = event.links || {};
+      const data = event.data || {};
+      const sponsors = event.sponsors || [];
+
+      // Track completed count
+      let completed = 0;
+      const total = 6;
+
+      // 1. Event name & date - always done if we're showing the event card
+      setChecklistItemStatus('checklist-event', 'done');
+      completed++;
+
+      // 2. Sponsors - optional, done if sponsors array has items
+      if (sponsors.length > 0) {
+        setChecklistItemStatus('checklist-sponsors', 'done');
+        completed++;
+      } else {
+        setChecklistItemStatus('checklist-sponsors', 'pending', true);
+      }
+
+      // 3. Signup form - done if at least one form URL is configured
+      const hasFormUrl = data.registerUrl || data.checkinUrl || data.walkinUrl || data.surveyUrl;
+      if (hasFormUrl) {
+        setChecklistItemStatus('checklist-signup', 'done');
+        completed++;
+      } else {
+        setChecklistItemStatus('checklist-signup', 'pending');
+      }
+
+      // 4. Poster - done if posterUrl exists (generated on event creation)
+      if (links.posterUrl) {
+        setChecklistItemStatus('checklist-poster', 'done');
+        completed++;
+      } else {
+        setChecklistItemStatus('checklist-poster', 'pending');
+      }
+
+      // 5. TV Display - done if displayUrl exists
+      if (links.displayUrl) {
+        setChecklistItemStatus('checklist-display', 'done');
+        completed++;
+      } else {
+        setChecklistItemStatus('checklist-display', 'pending');
+      }
+
+      // 6. Public link - done if publicUrl exists
+      if (links.publicUrl) {
+        setChecklistItemStatus('checklist-public', 'done');
+        completed++;
+      } else {
+        setChecklistItemStatus('checklist-public', 'pending');
+      }
+
+      // Update progress text
+      const progressEl = document.getElementById('checklistProgress');
+      if (progressEl) {
+        progressEl.textContent = `${completed} of ${total} done`;
+      }
+    }
+
     // Configure Sign-Up Forms
     function configureSignup() {
       document.getElementById('signupCard').style.display = '';
@@ -1769,6 +2104,12 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
       if (res.ok) {
         SharedUtils.showToast('Sign-up forms saved!', 'success');
         closeSignupConfig();
+        // Update checklist status with new form URLs
+        if (currentEventData) {
+          currentEventData.data = currentEventData.data || {};
+          Object.assign(currentEventData.data, data);
+          updateChecklistStatus(currentEventData);
+        }
       } else {
         SharedUtils.showToast(`Error: ${res.message}`, 'error');
       }
