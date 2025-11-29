@@ -123,6 +123,8 @@
     "test:load:spike": "k6 run tests/load/spike-load.js",
     "test:load:all": "npm run test:load:smoke && npm run test:load:average",
     "test:health": "node scripts/health-check.js",
+    "test:url-routing": "node scripts/test-url-routing.js",
+    "test:url-sync": "jest tests/contract/url-routing-sync.test.js --runInBand",
     "qa:seed": "node tests/shared/test-data-manager.js seed",
     "qa:seed:comprehensive": "node tests/shared/test-data-manager.js seed comprehensive",
     "qa:seed:triangle:before": "node tests/shared/test-data-manager.js seed triangleBefore",
