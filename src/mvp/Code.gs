@@ -4422,9 +4422,47 @@ function api_create(payload){
   });
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+ * CANONICAL EVENT WRITE API DECISION (ZEVENT-003)
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * Canonical event write API: api_saveEvent
+ *
+ * ARCHITECTURE:
+ *   api_saveEvent (canonical)     - Contract-First pattern: accepts full Event
+ *                                   object per EVENT_CONTRACT.md. Supports both
+ *                                   create (no id) and update (has id) modes.
+ *                                   This is the V2 canonical write endpoint.
+ *
+ *   api_updateEventData (alias)   - Load-Merge-Save convenience wrapper for MVP.
+ *                                   Loads existing event, merges partial data,
+ *                                   delegates to saveEvent_. Kept for backward
+ *                                   compatibility with MVP Admin forms.
+ *
+ * INTERNAL FLOW:
+ *   api_saveEvent      → saveEvent_() → Sheet persistence
+ *   api_updateEventData → getEventById_() → mergeEventUpdate_() → saveEvent_()
+ *
+ * WHY api_saveEvent IS CANONICAL:
+ *   1. Maps directly to EVENT_CONTRACT.md schema
+ *   2. Single source of truth for event shape
+ *   3. Cleaner validation (full object vs partial merge)
+ *   4. Enables contract-first development in Admin V2
+ *
+ * MIGRATION PATH:
+ *   - MVP Admin continues using api_updateEventData for partial form saves
+ *   - V2 Admin will use api_saveEvent with full Event objects
+ *   - Both APIs remain supported; neither is deprecated
+ *
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
 /**
  * Update event data (ZEVENT-003: Load-Merge-Save pattern)
  * Loads existing event via _buildEventContract_, merges update data, saves via saveEvent_
+ *
+ * NOTE: This is a convenience wrapper over the canonical api_saveEvent.
+ * Use for partial field updates in MVP Admin. For full event saves, prefer api_saveEvent.
+ *
  * @tier mvp
  */
 function api_updateEventData(req){
@@ -4473,12 +4511,14 @@ function api_updateEventData(req){
 }
 
 /**
- * Save full Event object (ZEVENT-003: V2 Contract-First API)
- * Accepts a complete Event from the frontend and persists via saveEvent_().
+ * CANONICAL EVENT WRITE API (ZEVENT-003: Contract-First)
  *
- * This is the V2 "contract-first" endpoint where the frontend posts a full
- * Event object that conforms to EVENT_CONTRACT.md. The backend validates
- * and saves without needing to understand field-by-field updates.
+ * Save full Event object. Accepts a complete Event from the frontend and
+ * persists via saveEvent_(). This is the canonical write endpoint.
+ *
+ * Modes:
+ *   - CREATE: When event.id is absent, generates new ID/slug/links/QR
+ *   - UPDATE: When event.id is present, updates existing event
  *
  * @param {Object} req - Request payload
  * @param {string} req.brandId - Brand ID (required)
@@ -4488,7 +4528,7 @@ function api_updateEventData(req){
  * @param {string} [req.templateId] - Template ID for create (default: 'custom')
  * @returns {Object} { ok: true, etag, value: Event } or error
  * @tier v2
- * @undocumented - Reserved for V2 Admin, not yet exposed in API docs
+ * @canonical - This is the canonical event write endpoint
  */
 function api_saveEvent(req) {
   return runSafe('api_saveEvent', () => {
