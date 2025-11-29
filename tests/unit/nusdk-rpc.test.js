@@ -43,13 +43,13 @@ describe('NUSDK', () => {
             }
 
             try {
-              global.google.script.run
+              const runner = global.google.script.run
                 .withSuccessHandler(res => resolve(res))
                 .withFailureHandler(err => {
                   console.error('[NUSDK] Server error for', method, ':', err);
                   resolve({ ok: false, code: 'INTERNAL', message: String(err) });
-                })
-                [method](payload);
+                });
+              runner[method](payload);
             } catch (e) {
               console.error('[NUSDK] Exception calling', method, ':', e);
               resolve({ ok: false, code: 'INTERNAL', message: String(e) });
