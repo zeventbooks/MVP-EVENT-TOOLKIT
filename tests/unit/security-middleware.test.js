@@ -179,6 +179,7 @@ describe('SecurityMiddleware', () => {
       if (!input || typeof input !== 'string') return '';
 
       let sanitized = String(input)
+        // eslint-disable-next-line no-control-regex
         .replace(/[\x00-\x1F\x7F]/g, '')
         .replace(/[\u200B-\u200D\uFEFF]/g, '')
         .trim();
