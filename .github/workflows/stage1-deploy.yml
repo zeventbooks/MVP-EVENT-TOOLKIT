@@ -212,10 +212,27 @@ jobs:
             exit 1
           fi
 
-          # Check if refresh_token exists
+          # Check if refresh_token exists (required for token refresh)
           if ! echo "$CLASPRC_JSON" | jq -e '.token.refresh_token' > /dev/null 2>&1; then
-            echo "⚠️  WARNING: No refresh_token found in OAUTH_CREDENTIALS"
-            echo "Token may expire and fail future deployments"
+            echo "❌ ERROR: No refresh_token found in OAUTH_CREDENTIALS"
+            echo "The refresh_token is required for clasp to refresh expired access tokens."
+            echo ""
+            echo "📖 To fix this, regenerate credentials with full scopes:"
+            echo "   npx clasp login --no-localhost"
+            echo "   cat ~/.clasprc.json"
+            echo "   Then update the OAUTH_CREDENTIALS secret in GitHub"
+            exit 1
+          fi
+
+          # Check token expiry if expiry_date is present
+          EXPIRY_DATE=$(echo "$CLASPRC_JSON" | jq -r '.token.expiry_date // empty' 2>/dev/null)
+          if [ -n "$EXPIRY_DATE" ]; then
+            CURRENT_TIME=$(date +%s)000  # Current time in milliseconds
+            if [ "$EXPIRY_DATE" -lt "$CURRENT_TIME" ]; then
+              echo "⚠️  WARNING: Access token appears to be expired"
+              echo "   Expiry: $EXPIRY_DATE, Current: $CURRENT_TIME"
+              echo "   clasp should refresh the token using the refresh_token"
+            fi
           fi
 
           echo "✅ Secrets validation passed"
@@ -228,21 +245,74 @@ jobs:
         run: |
           echo "🔐 Setting up clasp credentials..."
           echo "$CLASPRC_JSON" > ~/.clasprc.json
+          chmod 600 ~/.clasprc.json
+
+          echo "🔍 Pre-flight check: Verifying script access..."
+          # Try to get script status to verify credentials work
+          if ! npx clasp status 2>&1; then
+            echo "❌ ERROR: Cannot access Apps Script project"
+            echo ""
+            echo "📋 Diagnostic information:"
+            echo "   Script ID from .clasp.json: $(cat .clasp.json | jq -r '.scriptId' 2>/dev/null || echo 'could not read')"
+            echo ""
+            echo "🔧 Possible fixes:"
+            echo "   1. OAuth token may have expired - regenerate OAUTH_CREDENTIALS secret"
+            echo "   2. Script access may have been revoked - check Google Apps Script permissions"
+            echo "   3. Script ID may be invalid - verify .clasp.json scriptId"
+            echo ""
+            echo "📖 To regenerate credentials locally:"
+            echo "   npx clasp login"
+            echo "   cat ~/.clasprc.json"
+            echo "   Then update the OAUTH_CREDENTIALS secret in GitHub"
+            exit 1
+          fi
+          echo "✅ Script access verified"
 
           echo "🚀 Deploying to Apps Script..."
-          npx clasp push --force
+          # Capture both stdout and stderr for better error reporting
+          if ! PUSH_OUTPUT=$(npx clasp push --force 2>&1); then
+            echo "❌ ERROR: clasp push failed"
+            echo ""
+            echo "📋 clasp push output:"
+            echo "$PUSH_OUTPUT"
+            echo ""
+            echo "🔧 Common causes:"
+            echo "   1. Syntax error in .gs or .html files"
+            echo "   2. File size exceeds Apps Script limits"
+            echo "   3. OAuth token expired mid-operation"
+            echo "   4. Google Apps Script API rate limiting"
+            exit 1
+          fi
+          echo "$PUSH_OUTPUT"
+          echo "✅ Push successful"
 
           echo "📦 Updating deployment..."
           # Check if we have a deployment ID to update
+          DEPLOY_FAILED=false
           if [ -n "$DEPLOYMENT_ID" ]; then
             echo "Updating existing deployment: $DEPLOYMENT_ID"
-            DEPLOY_OUTPUT=$(npx clasp deploy -i "$DEPLOYMENT_ID" -d "Stage 1 Deploy $(date -Iseconds)" 2>&1)
+            if ! DEPLOY_OUTPUT=$(npx clasp deploy -i "$DEPLOYMENT_ID" -d "Stage 1 Deploy $(date -Iseconds)" 2>&1); then
+              DEPLOY_FAILED=true
+            fi
           else
             echo "Creating new deployment (no DEPLOYMENT_ID secret set)"
-            DEPLOY_OUTPUT=$(npx clasp deploy -d "Stage 1 Deploy $(date -Iseconds)" 2>&1)
+            if ! DEPLOY_OUTPUT=$(npx clasp deploy -d "Stage 1 Deploy $(date -Iseconds)" 2>&1); then
+              DEPLOY_FAILED=true
+            fi
           fi
 
           echo "$DEPLOY_OUTPUT"
+
+          if [ "$DEPLOY_FAILED" = true ]; then
+            echo "❌ ERROR: clasp deploy failed"
+            echo ""
+            echo "🔧 Possible causes:"
+            echo "   1. Invalid deployment ID - check DEPLOYMENT_ID secret"
+            echo "   2. Deployment quota exceeded"
+            echo "   3. OAuth token issues"
+            exit 1
+          fi
+
           VERSION_ID=$(echo "$DEPLOY_OUTPUT" | grep -oP 'Created version \K\d+' || echo "$DEPLOY_OUTPUT" | grep -oP 'Updated deployment \K\w+' || echo "unknown")
 
           # Get the deployment ID and construct the web app URL
