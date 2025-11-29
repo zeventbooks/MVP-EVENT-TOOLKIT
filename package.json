@@ -4,7 +4,7 @@
   "description": "Multi-brand event management system with sponsor tracking and analytics (Zeventbook)",
   "main": "Code.gs",
   "scripts": {
-    "test": "jest --runInBand",
+    "test": "jest --runInBand && npm run check:guards",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:unit": "jest --testMatch='**/tests/unit/**/*.test.js' --runInBand",
@@ -24,6 +24,9 @@
     "test:wiring": "jest tests/contract/wiring-diagram-sync.test.js --runInBand",
     "generate:wiring": "node scripts/generate-wiring-diagram.js",
     "check:wiring": "node scripts/generate-wiring-diagram.js --check",
+    "check:surfaces": "node scripts/check-surfaces.js",
+    "check:dead-code": "node scripts/check-dead-code.js --fail-on-dead",
+    "check:guards": "node scripts/check-surfaces.js && node scripts/check-dead-code.js --fail-on-dead",
     "test:schemas:event": "node scripts/test-event-schema.js",
     "test:schemas:analytics": "node scripts/test-analytics-schema.js",
     "test:story7": "jest tests/contract/schema-sync.test.js --runInBand",
