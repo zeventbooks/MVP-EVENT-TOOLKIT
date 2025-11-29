@@ -111,6 +111,13 @@ DO NOT modify contracts without updating:
       font-size: var(--font-size-sm, 0.875rem); /* D-AUDIT: Using design token */
     }
 
+    .report-header .report-context {
+      opacity: 0.85;
+      font-size: var(--font-size-xs, 0.75rem);
+      margin-top: 0.5rem;
+      max-width: 500px;
+    }
+
     /* Override metrics-grid for 6-column layout (3x2) on desktop */
     @media (min-width: 1024px) {
       .metrics-grid {
@@ -131,9 +138,16 @@ DO NOT modify contracts without updating:
 
     .section-card h2 {
       font-size: 1.25rem;
-      margin-bottom: 1rem;
+      margin-bottom: 0.5rem;
       color: var(--color-gray-800, #1e293b);
       font-weight: 600;
+    }
+
+    .section-card .section-help {
+      font-size: var(--font-size-sm, 0.875rem);
+      color: var(--color-gray-500, #64748b);
+      margin-bottom: 1rem;
+      line-height: 1.5;
     }
 
     /* Data Table - extends base table styles */
@@ -165,6 +179,78 @@ DO NOT modify contracts without updating:
 
     .data-table tbody tr:hover {
       background: var(--color-gray-50, #f8fafc);
+    }
+
+    /* Surface/Placement description in table */
+    .surface-desc {
+      display: block;
+      font-size: var(--font-size-xs, 0.75rem);
+      color: var(--color-gray-500, #64748b);
+      font-weight: normal;
+      margin-top: 2px;
+    }
+
+    /* Sponsor table enhancements for tablet/laptop readability */
+    .data-table.sponsor-table td {
+      padding: 1rem 1.25rem;
+    }
+
+    .data-table.sponsor-table th {
+      padding: 0.875rem 1.25rem;
+    }
+
+    /* Tablet-specific table improvements */
+    @media (min-width: 641px) and (max-width: 1024px) {
+      .data-table th,
+      .data-table td {
+        padding: 0.875rem;
+        font-size: 0.9rem;
+      }
+
+      .data-table.sponsor-table td,
+      .data-table.sponsor-table th {
+        padding: 1rem;
+      }
+    }
+
+    /* Tooltip styles for column headers */
+    .th-with-tooltip {
+      position: relative;
+      cursor: help;
+    }
+
+    .th-with-tooltip::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--color-gray-800, #1e293b);
+      color: white;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 0.7rem;
+      font-weight: normal;
+      text-transform: none;
+      letter-spacing: normal;
+      white-space: nowrap;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.2s, visibility 0.2s;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    .th-with-tooltip:hover::after {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    /* Hide tooltips on mobile (touch devices) */
+    @media (max-width: 640px) {
+      .th-with-tooltip::after {
+        display: none;
+      }
     }
 
     /* Mobile: Stack table */
@@ -309,6 +395,12 @@ DO NOT modify contracts without updating:
       color: var(--color-danger, #ef4444);
     }
 
+    .metrics-grid .metric-card .sublabel {
+      font-size: var(--font-size-xs, 0.75rem);
+      color: var(--color-gray-400, #94a3b8);
+      margin-top: 0.25rem;
+    }
+
     /* === MVP Essential: Empty/Error States === */
     .empty-state, .error-state {
       text-align: center;
@@ -415,6 +507,12 @@ DO NOT modify contracts without updating:
         line-height: 1.4;
       }
 
+      .report-header .report-context {
+        font-size: 0.7rem;
+        margin-top: 0.5rem;
+        line-height: 1.5;
+      }
+
       /* Action bar mobile */
       .action-bar {
         flex-direction: column;
@@ -456,7 +554,24 @@ DO NOT modify contracts without updating:
 
       .section-card h2 {
         font-size: 1.1rem;
+        margin-bottom: 0.5rem;
+      }
+
+      .section-card .section-help {
+        font-size: 0.75rem;
         margin-bottom: 0.75rem;
+        line-height: 1.4;
+      }
+
+      /* Metric sublabels mobile */
+      .metrics-grid .metric-card .sublabel {
+        font-size: 0.65rem;
+      }
+
+      /* Surface descriptions mobile */
+      .surface-desc {
+        font-size: 0.65rem;
+        margin-top: 4px;
       }
 
       /* Top callouts mobile */
@@ -654,8 +769,9 @@ DO NOT modify contracts without updating:
   <div class="container">
     <!-- Header -->
     <div class="report-header">
-      <h1 id="reportTitle">📊 Shared Event-Sponsor Analytics</h1>
-      <p class="subtitle" id="reportSubtitle">Single source of truth for Event Managers & Sponsors</p>
+      <h1 id="reportTitle">📊 Your Sponsorship Performance</h1>
+      <p class="subtitle" id="reportSubtitle">See how your brand is performing across events</p>
+      <p class="subtitle report-context" id="reportContext">Track impressions, clicks, and engagement from all your sponsored placements in one place.</p>
       <p class="subtitle" id="lastUpdated">Loading...</p>
     </div>
 
@@ -690,21 +806,24 @@ DO NOT modify contracts without updating:
       <!-- Feature 5: Top Event / Top Sponsor Callouts -->
       <div id="topCallouts" class="metrics-grid" style="grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 24px;"></div>
 
-      <!-- Surface Performance -->
+      <!-- Surface Performance (Ad Placements) -->
       <div class="section-card">
-        <h2>🌐 Performance by Surface</h2>
+        <h2>🌐 Performance by Placement</h2>
+        <p class="section-help">Where your sponsor content appears: posters, digital displays, public pages, and signup forms.</p>
         <div id="surfacePerformance"></div>
       </div>
 
       <!-- Sponsor Performance -->
       <div class="section-card">
         <h2>🏢 Sponsor Performance</h2>
+        <p class="section-help" id="sponsorHelpText">How each sponsor's content is performing. CTR (Click-Through Rate) shows the percentage of viewers who clicked.</p>
         <div id="sponsorPerformance"></div>
       </div>
 
       <!-- Event Performance -->
       <div class="section-card" id="eventPerformanceCard" style="display:none;">
         <h2>🎉 Event Performance</h2>
+        <p class="section-help">Performance breakdown by event. See which events are driving the most engagement.</p>
         <div id="eventPerformance"></div>
       </div>
 
@@ -737,37 +856,54 @@ DO NOT modify contracts without updating:
     const SPONSOR_ID = urlParams.get('sponsorId') || '';
     const EVENT_ID = urlParams.get('eventId') || '';
 
-    // Update header for sponsor view
-    function updateHeaderForSponsorView(sponsorName) {
-      if (!IS_SPONSOR_VIEW) return;
-
+    // Update header based on view type
+    function updateHeaderForView(sponsorName) {
       const titleEl = document.getElementById('reportTitle');
       const subtitleEl = document.getElementById('reportSubtitle');
+      const contextEl = document.getElementById('reportContext');
 
-      if (titleEl) {
-        titleEl.textContent = '📊 Sponsor Report';
-      }
-      if (subtitleEl) {
-        // Clear existing content safely
-        subtitleEl.textContent = '';
-        if (sponsorName) {
-          // Build DOM safely to avoid XSS - don't use innerHTML with user data
-          subtitleEl.appendChild(document.createTextNode('Performance metrics for '));
-          const strong = document.createElement('strong');
-          strong.textContent = sponsorName;
-          subtitleEl.appendChild(strong);
-        } else if (SPONSOR_ID) {
-          subtitleEl.textContent = 'Performance metrics for ' + SPONSOR_ID;
-        } else {
-          subtitleEl.textContent = 'Your sponsor performance metrics';
+      if (IS_SPONSOR_VIEW) {
+        // Sponsor-specific view: personalized and welcoming
+        if (titleEl) {
+          titleEl.textContent = '📊 Your Sponsorship Report';
+        }
+        if (subtitleEl) {
+          subtitleEl.textContent = '';
+          if (sponsorName) {
+            subtitleEl.appendChild(document.createTextNode('Performance metrics for '));
+            const strong = document.createElement('strong');
+            strong.textContent = sponsorName;
+            subtitleEl.appendChild(strong);
+          } else if (SPONSOR_ID) {
+            subtitleEl.textContent = 'Performance metrics for ' + SPONSOR_ID;
+          } else {
+            subtitleEl.textContent = 'See how your brand is performing';
+          }
+        }
+        if (contextEl) {
+          contextEl.textContent = 'This report shows how attendees are engaging with your sponsored content across all event touchpoints.';
+        }
+      } else {
+        // Organizer view: overview of all sponsors
+        if (titleEl) {
+          titleEl.textContent = '📊 Sponsor Performance Dashboard';
+        }
+        if (subtitleEl) {
+          subtitleEl.textContent = 'Track how sponsors are performing across your events';
+        }
+        if (contextEl) {
+          contextEl.textContent = 'Monitor impressions, clicks, and engagement for all sponsor placements. Share individual reports with sponsors via QR code.';
         }
       }
     }
 
-    // Initialize header on page load if sponsor view
-    if (IS_SPONSOR_VIEW) {
-      updateHeaderForSponsorView(null);
+    // Backwards compatibility alias
+    function updateHeaderForSponsorView(sponsorName) {
+      updateHeaderForView(sponsorName);
     }
+
+    // Initialize header on page load
+    updateHeaderForView(null);
 
     /**
      * Expected API contract (envelope omitted):
@@ -964,29 +1100,36 @@ DO NOT modify contracts without updating:
       const grid = document.getElementById('metricsGrid');
       grid.innerHTML = '';
 
+      // Use sponsor-friendly labels with helpful subtitles
       const metricCards = [
         {
-          label: 'Total Impressions',
+          label: 'Total Views',
+          sublabel: 'Times your content was seen',
           value: (summary.totalImpressions || 0).toLocaleString()
         },
         {
           label: 'Total Clicks',
+          sublabel: 'Clicks on sponsor links',
           value: (summary.totalClicks || 0).toLocaleString()
         },
         {
           label: 'QR Scans',
+          sublabel: 'QR codes scanned',
           value: (summary.totalQrScans || 0).toLocaleString()
         },
         {
           label: 'Signups',
+          sublabel: 'Form submissions',
           value: (summary.totalSignups || 0).toLocaleString()
         },
         {
-          label: 'Active Events',
+          label: 'Events',
+          sublabel: 'Active events',
           value: summary.uniqueEvents || 0
         },
         {
-          label: 'Active Sponsors',
+          label: 'Sponsors',
+          sublabel: 'Active sponsors',
           value: summary.uniqueSponsors || 0
         }
       ];
@@ -997,16 +1140,25 @@ DO NOT modify contracts without updating:
         card.innerHTML = `
           <div class="label">${metric.label}</div>
           <div class="value">${metric.value}</div>
+          ${metric.sublabel ? '<div class="sublabel">' + metric.sublabel + '</div>' : ''}
         `;
         grid.appendChild(card);
       });
     }
 
+    // Map surface IDs to user-friendly descriptions
+    const SURFACE_DESCRIPTIONS = {
+      'poster': 'Physical posters at the event venue',
+      'display': 'Digital screens and displays',
+      'public': 'Public event pages online',
+      'signup': 'Registration and signup forms'
+    };
+
     function renderSurfacePerformance(surfaces) {
       const container = document.getElementById('surfacePerformance');
 
       if (!surfaces.length) {
-        container.innerHTML = '<p class="muted">No surface data available yet.</p>';
+        container.innerHTML = '<p class="muted">No placement data available yet.</p>';
         return;
       }
 
@@ -1018,6 +1170,7 @@ DO NOT modify contracts without updating:
           ? surface.engagementRate
           : (impressions > 0 ? (clicks + qrScans) * 100 / impressions : 0);
         const label = surface.label || surface.id || 'Unknown';
+        const description = SURFACE_DESCRIPTIONS[surface.id] || '';
 
         const badgeClass =
           rate >= 5 ? 'success' :
@@ -1025,11 +1178,14 @@ DO NOT modify contracts without updating:
 
         return `
           <tr>
-            <td data-label="Surface"><strong>${label}</strong></td>
-            <td data-label="Impressions">${impressions.toLocaleString()}</td>
+            <td data-label="Placement">
+              <strong>${escapeHtml(label)}</strong>
+              ${description ? '<span class="surface-desc">' + escapeHtml(description) + '</span>' : ''}
+            </td>
+            <td data-label="Views">${impressions.toLocaleString()}</td>
             <td data-label="Clicks">${clicks.toLocaleString()}</td>
             <td data-label="QR Scans">${qrScans.toLocaleString()}</td>
-            <td data-label="Engagement">
+            <td data-label="Interaction Rate">
               <span class="badge ${badgeClass}">${rate.toFixed(1)}%</span>
             </td>
           </tr>
@@ -1040,11 +1196,11 @@ DO NOT modify contracts without updating:
         <table class="data-table">
           <thead>
             <tr>
-              <th>Surface</th>
-              <th>Impressions</th>
-              <th>Clicks</th>
-              <th>QR Scans</th>
-              <th>Engagement Rate</th>
+              <th class="th-with-tooltip" data-tooltip="Where sponsor content appears">Placement</th>
+              <th class="th-with-tooltip" data-tooltip="Number of times content was displayed">Views</th>
+              <th class="th-with-tooltip" data-tooltip="Number of clicks on sponsor links">Clicks</th>
+              <th class="th-with-tooltip" data-tooltip="QR codes scanned by attendees">QR Scans</th>
+              <th class="th-with-tooltip" data-tooltip="Percentage of viewers who interacted">Interaction Rate</th>
             </tr>
           </thead>
           <tbody>
@@ -1056,6 +1212,16 @@ DO NOT modify contracts without updating:
 
     function renderSponsorPerformance(sponsors) {
       const container = document.getElementById('sponsorPerformance');
+
+      // Update help text based on view
+      const helpText = document.getElementById('sponsorHelpText');
+      if (helpText) {
+        if (IS_SPONSOR_VIEW) {
+          helpText.textContent = 'Your sponsorship performance across all placements. CTR shows what percentage of viewers clicked your content.';
+        } else {
+          helpText.textContent = 'Performance for each sponsor. Click "Share Report" to give sponsors access to their own analytics.';
+        }
+      }
 
       if (!sponsors.length) {
         container.innerHTML = '<p class="muted">No sponsor activity recorded yet.</p>';
@@ -1072,19 +1238,19 @@ DO NOT modify contracts without updating:
           ctr >= 1 ? 'info' : 'warning';
 
         const qrCell = showQrColumn
-          ? `<td data-label="QR" style="text-align:center;">
-               <button class="btn-secondary sponsor-qr-btn" data-sponsor-id="${escapeHtml(sponsor.id || '')}" data-sponsor-name="${escapeHtml(sponsor.name || sponsor.id || 'Sponsor')}" style="padding:4px 8px;font-size:0.75rem;">Show QR</button>
+          ? `<td data-label="Share" style="text-align:center;">
+               <button class="btn-secondary sponsor-qr-btn" data-sponsor-id="${escapeHtml(sponsor.id || '')}" data-sponsor-name="${escapeHtml(sponsor.name || sponsor.id || 'Sponsor')}" style="padding:6px 12px;font-size:0.75rem;">Share Report</button>
              </td>`
           : '';
 
         return `
           <tr>
             <td data-label="Sponsor">
-              <strong>${sponsor.name || sponsor.id || ('Sponsor #' + (index + 1))}</strong>
+              <strong>${escapeHtml(sponsor.name || sponsor.id || ('Sponsor #' + (index + 1)))}</strong>
             </td>
-            <td data-label="Impressions">${(sponsor.impressions || 0).toLocaleString()}</td>
+            <td data-label="Views">${(sponsor.impressions || 0).toLocaleString()}</td>
             <td data-label="Clicks">${(sponsor.clicks || 0).toLocaleString()}</td>
-            <td data-label="CTR">
+            <td data-label="Click Rate">
               <span class="badge ${badgeClass}">${ctr.toFixed(2)}%</span>
             </td>
             ${qrCell}
@@ -1092,16 +1258,16 @@ DO NOT modify contracts without updating:
         `;
       }).join('');
 
-      const qrHeader = showQrColumn ? '<th>QR</th>' : '';
+      const qrHeader = showQrColumn ? '<th class="th-with-tooltip" data-tooltip="Generate QR code to share report with sponsor">Share</th>' : '';
 
       container.innerHTML = `
-        <table class="data-table">
+        <table class="data-table sponsor-table">
           <thead>
             <tr>
               <th>Sponsor</th>
-              <th>Impressions</th>
-              <th>Clicks</th>
-              <th>CTR</th>
+              <th class="th-with-tooltip" data-tooltip="Number of times sponsor content was displayed">Views</th>
+              <th class="th-with-tooltip" data-tooltip="Number of clicks on sponsor content">Clicks</th>
+              <th class="th-with-tooltip" data-tooltip="Click-through rate: clicks ÷ views">Click Rate</th>
               ${qrHeader}
             </tr>
           </thead>
@@ -1265,13 +1431,13 @@ DO NOT modify contracts without updating:
             <td data-label="Event">
               <div style="display:flex;align-items:center;gap:8px;">
                 <span style="font-size:1.1rem;">${rank}</span>
-                <strong>${ev.name || ev.id}</strong>
+                <strong>${escapeHtml(ev.name || ev.id)}</strong>
               </div>
             </td>
-            <td data-label="Impressions">${(ev.impressions || 0).toLocaleString()}</td>
+            <td data-label="Views">${(ev.impressions || 0).toLocaleString()}</td>
             <td data-label="Clicks">${(ev.clicks || 0).toLocaleString()}</td>
             <td data-label="Signups">${signups.toLocaleString()}</td>
-            <td data-label="CTR">
+            <td data-label="Click Rate">
               <span class="badge ${badgeClass}">${ctr.toFixed(2)}%</span>
             </td>
           </tr>
@@ -1283,10 +1449,10 @@ DO NOT modify contracts without updating:
           <thead>
             <tr>
               <th>Event</th>
-              <th>Impressions</th>
-              <th>Clicks</th>
-              <th>Signups</th>
-              <th>CTR</th>
+              <th class="th-with-tooltip" data-tooltip="Number of times event content was displayed">Views</th>
+              <th class="th-with-tooltip" data-tooltip="Number of clicks on event content">Clicks</th>
+              <th class="th-with-tooltip" data-tooltip="Form submissions for this event">Signups</th>
+              <th class="th-with-tooltip" data-tooltip="Click-through rate: clicks ÷ views">Click Rate</th>
             </tr>
           </thead>
           <tbody>
