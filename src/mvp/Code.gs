@@ -725,6 +725,13 @@ function doGet(e){
             .setMimeType(ContentService.MimeType.JSON);
         }
 
+        if (resolvedPage === 'statusmvp' || resolvedPage === 'status-mvp') {
+          const brandParam = (e?.parameter?.brand || brand.id || 'root').toString();
+          const status = api_statusMvp(brandParam);
+          return ContentService.createTextOutput(JSON.stringify(status, null, 2))
+            .setMimeType(ContentService.MimeType.JSON);
+        }
+
         if (resolvedPage === 'setup' || resolvedPage === 'setupcheck') {
           const brandParam = (e?.parameter?.brand || brand.id || 'root').toString();
           const setupResult = api_setupCheck(brandParam);
@@ -779,6 +786,14 @@ function doGet(e){
   if (pageParam === 'status') {
     const brandParam = (e?.parameter?.brand || 'root').toString();
     const status = api_statusPure(brandParam);
+    return ContentService.createTextOutput(JSON.stringify(status, null, 2))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  // MVP Status endpoint with analytics health checks
+  if (pageParam === 'statusmvp' || pageParam === 'status-mvp') {
+    const brandParam = (e?.parameter?.brand || 'root').toString();
+    const status = api_statusMvp(brandParam);
     return ContentService.createTextOutput(JSON.stringify(status, null, 2))
       .setMimeType(ContentService.MimeType.JSON);
   }
@@ -2084,6 +2099,165 @@ function api_statusPure(brandId) {
     brandId: brand.id,
     time: new Date().toISOString()
   };
+}
+
+/**
+ * MVP Status endpoint with analytics health checks
+ * Extends api_statusPure with analytics system health verification.
+ * Returns "green" status only if all analytics systems are operational.
+ *
+ * @tier mvp
+ * @param {string} brandId - Brand identifier (defaults to 'root')
+ * @returns {Object} Status object with analytics health fields:
+ *   { ok, buildId, brandId, time, analyticsSheetHealthy, sharedAnalyticsContractOk, [message] }
+ */
+function api_statusMvp(brandId) {
+  const brand = brandId ? findBrand_(brandId) : findBrand_('root');
+
+  if (!brand) {
+    return {
+      ok: false,
+      buildId: ZEB.BUILD_ID,
+      brandId: brandId || 'unknown',
+      time: new Date().toISOString(),
+      analyticsSheetHealthy: false,
+      sharedAnalyticsContractOk: false,
+      message: `Brand not found: ${brandId || 'undefined'}`
+    };
+  }
+
+  // Check analytics sheet health
+  const analyticsHealth = checkAnalyticsSheetHealth_(brand);
+
+  // Check shared analytics contract
+  const contractHealth = checkSharedAnalyticsContract_();
+
+  // Overall status is only OK if all checks pass
+  const allHealthy = analyticsHealth.healthy && contractHealth.ok;
+
+  const result = {
+    ok: allHealthy,
+    buildId: ZEB.BUILD_ID,
+    brandId: brand.id,
+    time: new Date().toISOString(),
+    analyticsSheetHealthy: analyticsHealth.healthy,
+    sharedAnalyticsContractOk: contractHealth.ok
+  };
+
+  // Add message if any health check failed
+  if (!allHealthy) {
+    const issues = [];
+    if (!analyticsHealth.healthy) {
+      issues.push(`Analytics: ${analyticsHealth.reason}`);
+    }
+    if (!contractHealth.ok) {
+      issues.push(`Contract: ${contractHealth.reason}`);
+    }
+    result.message = issues.join('; ');
+  }
+
+  return result;
+}
+
+/**
+ * Check analytics sheet health
+ * Verifies the ANALYTICS sheet exists and is accessible.
+ *
+ * @param {Object} brand - Brand configuration object
+ * @returns {Object} { healthy: boolean, reason: string }
+ */
+function checkAnalyticsSheetHealth_(brand) {
+  try {
+    // Verify spreadsheet ID exists
+    if (!brand.store || !brand.store.spreadsheetId) {
+      return { healthy: false, reason: 'No spreadsheetId configured for brand' };
+    }
+
+    // Try to open the spreadsheet
+    const ss = SpreadsheetApp.openById(brand.store.spreadsheetId);
+    if (!ss) {
+      return { healthy: false, reason: 'Could not open spreadsheet' };
+    }
+
+    // Check for ANALYTICS sheet
+    const analyticsSheet = ss.getSheetByName('ANALYTICS');
+    if (!analyticsSheet) {
+      // Sheet doesn't exist yet - this is OK for fresh installs
+      // The sheet will be created on first analytics write
+      return { healthy: true, reason: 'Sheet not yet created (fresh install)' };
+    }
+
+    // Verify sheet has the expected header structure
+    const headerRow = analyticsSheet.getRange(1, 1, 1, 10).getValues()[0];
+    const expectedHeaders = ['timestamp', 'eventId', 'surface', 'metric', 'sponsorId', 'value', 'token', 'userAgent'];
+
+    // Check that at least the required headers are present (in order)
+    const hasRequiredHeaders = expectedHeaders.every((h, i) =>
+      headerRow[i] && headerRow[i].toString().toLowerCase() === h.toLowerCase()
+    );
+
+    if (!hasRequiredHeaders) {
+      return { healthy: false, reason: 'ANALYTICS sheet has invalid header structure' };
+    }
+
+    return { healthy: true, reason: 'OK' };
+
+  } catch (e) {
+    return { healthy: false, reason: `Error checking analytics sheet: ${e.message}` };
+  }
+}
+
+/**
+ * Check shared analytics contract validity
+ * Performs a quick schema check to verify the SharedAnalytics contract is properly configured.
+ *
+ * @returns {Object} { ok: boolean, reason: string }
+ */
+function checkSharedAnalyticsContract_() {
+  try {
+    // Verify the SC_SHARED_ANALYTICS schema constant exists and has required structure
+    if (typeof SC_SHARED_ANALYTICS === 'undefined') {
+      return { ok: false, reason: 'SC_SHARED_ANALYTICS schema not defined' };
+    }
+
+    // Verify required top-level properties exist in schema
+    const requiredProps = ['lastUpdatedISO', 'summary', 'surfaces'];
+    const schemaProps = SC_SHARED_ANALYTICS.properties || {};
+
+    for (const prop of requiredProps) {
+      if (!schemaProps[prop]) {
+        return { ok: false, reason: `Missing required schema property: ${prop}` };
+      }
+    }
+
+    // Verify summary sub-schema has required fields
+    const summarySchema = schemaProps.summary;
+    if (!summarySchema || !summarySchema.properties) {
+      return { ok: false, reason: 'Summary schema not properly defined' };
+    }
+
+    const requiredSummaryFields = [
+      'totalImpressions', 'totalClicks', 'totalQrScans',
+      'totalSignups', 'uniqueEvents', 'uniqueSponsors'
+    ];
+
+    for (const field of requiredSummaryFields) {
+      if (!summarySchema.properties[field]) {
+        return { ok: false, reason: `Missing required summary field: ${field}` };
+      }
+    }
+
+    // Verify surfaces array schema
+    const surfacesSchema = schemaProps.surfaces;
+    if (!surfacesSchema || surfacesSchema.type !== 'array') {
+      return { ok: false, reason: 'Surfaces schema not properly defined as array' };
+    }
+
+    return { ok: true, reason: 'Contract schema validated' };
+
+  } catch (e) {
+    return { ok: false, reason: `Error validating contract: ${e.message}` };
+  }
 }
 
 /**

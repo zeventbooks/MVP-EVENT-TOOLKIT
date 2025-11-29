@@ -10,12 +10,26 @@
  *   BASE_URL="https://www.eventangle.com/events" npm run test:health
  *   BASE_URL="https://script.google.com/macros/s/<DEPLOYMENT_ID>/exec" npm run test:health
  *
- * Expected response:
+ * For MVP analytics health check (recommended before events):
+ *   BASE_URL="https://www.eventangle.com/events" npm run test:health -- --mvp
+ *   CHECK_ANALYTICS=true BASE_URL="https://www.eventangle.com/events" npm run test:health
+ *
+ * Expected response (basic):
  *   {
  *     "ok": true,
- *     "buildId": "triangle-extended-v1.5",
+ *     "buildId": "mvp-v19",
  *     "brandId": "root",
- *     "timestamp": "2025-11-25T00:00:00Z"
+ *     "time": "2025-11-25T00:00:00Z"
+ *   }
+ *
+ * Expected response (MVP with analytics):
+ *   {
+ *     "ok": true,
+ *     "buildId": "mvp-v19",
+ *     "brandId": "root",
+ *     "time": "2025-11-25T00:00:00Z",
+ *     "analyticsSheetHealthy": true,
+ *     "sharedAnalyticsContractOk": true
  *   }
  */
 
@@ -72,23 +86,36 @@ async function runHealthCheck() {
   const baseUrl = process.env.BASE_URL;
   const brand = process.env.BRAND || 'root';
 
+  // Check for MVP mode (analytics health checks)
+  const checkAnalytics = process.env.CHECK_ANALYTICS === 'true' ||
+    process.argv.includes('--mvp') ||
+    process.argv.includes('--analytics');
+
   if (!baseUrl) {
     console.error('❌ ERROR: BASE_URL environment variable is required');
     console.error('');
     console.error('Usage:');
     console.error('  BASE_URL="https://www.eventangle.com/events" npm run test:health');
     console.error('  BASE_URL="https://script.google.com/macros/s/<ID>/exec" npm run test:health');
+    console.error('');
+    console.error('For MVP analytics health check (recommended before events):');
+    console.error('  BASE_URL="https://www.eventangle.com/events" npm run test:health -- --mvp');
+    console.error('  CHECK_ANALYTICS=true BASE_URL="https://www.eventangle.com/events" npm run test:health');
     process.exit(1);
   }
 
   const expectedBuildId = getBuildIdFromConfig();
-  const statusUrl = `${baseUrl}?page=status&brand=${brand}`;
+  const statusPage = checkAnalytics ? 'statusmvp' : 'status';
+  const statusUrl = `${baseUrl}?page=${statusPage}&brand=${brand}`;
 
   console.log('');
-  console.log('🏥 Health Check');
+  console.log('🏥 Health Check' + (checkAnalytics ? ' (MVP Analytics Mode)' : ''));
   console.log('═'.repeat(60));
   console.log(`📍 URL: ${statusUrl}`);
   console.log(`📦 Expected Build ID: ${expectedBuildId}`);
+  if (checkAnalytics) {
+    console.log('📊 Analytics Health: ENABLED');
+  }
   console.log('');
 
   try {
@@ -140,13 +167,30 @@ async function runHealthCheck() {
       errors.push(`"brandId" mismatch: expected "${brand}", got "${json.brandId}"`);
     }
 
-    if (!json.timestamp) {
-      errors.push('Missing "timestamp" field');
+    // Check for time field (canonical) or timestamp (legacy)
+    const timeValue = json.time || json.timestamp;
+    if (!timeValue) {
+      errors.push('Missing "time" field');
     } else {
       // Validate timestamp is ISO 8601 format
-      const timestampDate = new Date(json.timestamp);
+      const timestampDate = new Date(timeValue);
       if (isNaN(timestampDate.getTime())) {
-        errors.push(`"timestamp" is not a valid ISO 8601 date: ${json.timestamp}`);
+        errors.push(`"time" is not a valid ISO 8601 date: ${timeValue}`);
+      }
+    }
+
+    // MVP Analytics Health Checks (only in analytics mode)
+    if (checkAnalytics) {
+      if (typeof json.analyticsSheetHealthy !== 'boolean') {
+        errors.push('Missing or invalid "analyticsSheetHealthy" field (expected boolean)');
+      } else if (json.analyticsSheetHealthy !== true) {
+        errors.push(`"analyticsSheetHealthy" is not true: ${json.analyticsSheetHealthy}`);
+      }
+
+      if (typeof json.sharedAnalyticsContractOk !== 'boolean') {
+        errors.push('Missing or invalid "sharedAnalyticsContractOk" field (expected boolean)');
+      } else if (json.sharedAnalyticsContractOk !== true) {
+        errors.push(`"sharedAnalyticsContractOk" is not true: ${json.sharedAnalyticsContractOk}`);
       }
     }
 
@@ -164,7 +208,11 @@ async function runHealthCheck() {
     console.log(`   ✓ ok: ${json.ok}`);
     console.log(`   ✓ buildId: ${json.buildId}`);
     console.log(`   ✓ brandId: ${json.brandId}`);
-    console.log(`   ✓ timestamp: ${json.timestamp}`);
+    console.log(`   ✓ time: ${json.time || json.timestamp}`);
+    if (checkAnalytics) {
+      console.log(`   ✓ analyticsSheetHealthy: ${json.analyticsSheetHealthy}`);
+      console.log(`   ✓ sharedAnalyticsContractOk: ${json.sharedAnalyticsContractOk}`);
+    }
     console.log(`   ✓ Response time: ${duration}ms`);
     console.log('');
     process.exit(0);

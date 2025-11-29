@@ -189,6 +189,20 @@ describe('Unified Status/Setup/Permissions Contract Tests', () => {
       expect(schema.required).toContain('time');
     });
 
+    it('should have valid status-mvp.schema.json (for api_statusMvp)', () => {
+      const schema = loadSchema('status-mvp.schema.json');
+      expect(schema).toHaveProperty('$schema');
+      expect(schema).toHaveProperty('title', 'MVP Status Response');
+      expect(schema.required).toContain('ok');
+      expect(schema.required).toContain('buildId');
+      expect(schema.required).toContain('brandId');
+      expect(schema.required).toContain('time');
+      expect(schema.required).toContain('analyticsSheetHealthy');
+      expect(schema.required).toContain('sharedAnalyticsContractOk');
+      expect(schema.properties.analyticsSheetHealthy.type).toBe('boolean');
+      expect(schema.properties.sharedAnalyticsContractOk.type).toBe('boolean');
+    });
+
     it('should have valid status-envelope.schema.json (for api_status)', () => {
       const schema = loadSchema('status-envelope.schema.json');
       expect(schema).toHaveProperty('$schema');
@@ -319,6 +333,111 @@ describe('Unified Status/Setup/Permissions Contract Tests', () => {
         expect(data.ok).toBe(false);
         expect(data).toHaveProperty('message');
         expect(data.message).toMatch(/not found/i);
+      }
+      // 404 is also acceptable
+    }, TIMEOUT_MS);
+  });
+
+  // ============================================================================
+  // api_statusMvp (?page=statusmvp) Contract Tests - Analytics Health Checks
+  // ============================================================================
+
+  describeNetwork('api_statusMvp Contract (/statusmvp)', () => {
+    it('should return flat format with analytics health fields', async () => {
+      const data = await fetchEndpoint('statusmvp', 'root');
+
+      expect(data).toHaveProperty('ok');
+      expect(typeof data.ok).toBe('boolean');
+      expect(data).not.toHaveProperty('value'); // Flat format, no envelope
+    }, TIMEOUT_MS);
+
+    it('should return analyticsSheetHealthy boolean field', async () => {
+      const data = await fetchEndpoint('statusmvp', 'root');
+
+      expect(data).toHaveProperty('analyticsSheetHealthy');
+      expect(typeof data.analyticsSheetHealthy).toBe('boolean');
+    }, TIMEOUT_MS);
+
+    it('should return sharedAnalyticsContractOk boolean field', async () => {
+      const data = await fetchEndpoint('statusmvp', 'root');
+
+      expect(data).toHaveProperty('sharedAnalyticsContractOk');
+      expect(typeof data.sharedAnalyticsContractOk).toBe('boolean');
+    }, TIMEOUT_MS);
+
+    it('should return buildId matching Config.gs BUILD_ID', async () => {
+      const data = await fetchEndpoint('statusmvp', 'root');
+
+      expect(data).toHaveProperty('buildId');
+      expect(data.buildId).toBe(CANONICAL_BUILD_ID);
+    }, TIMEOUT_MS);
+
+    it('should return time in ISO 8601 format', async () => {
+      const data = await fetchEndpoint('statusmvp', 'root');
+
+      expect(data).toHaveProperty('time');
+      const parsed = new Date(data.time);
+      expect(parsed.toISOString()).toBe(data.time);
+    }, TIMEOUT_MS);
+
+    it('should validate against status-mvp.schema.json', async () => {
+      const data = await fetchEndpoint('statusmvp', 'root');
+      const schema = loadSchema('status-mvp.schema.json');
+      const validate = ajv.compile(schema);
+      const valid = validate(data);
+
+      if (!valid) {
+        console.error('Schema validation errors:', validate.errors);
+      }
+      expect(valid).toBe(true);
+    }, TIMEOUT_MS);
+
+    it('should have ok: true only when both analytics checks pass', async () => {
+      const data = await fetchEndpoint('statusmvp', 'root');
+
+      // ok should be true only if both analytics checks pass
+      if (data.ok === true) {
+        expect(data.analyticsSheetHealthy).toBe(true);
+        expect(data.sharedAnalyticsContractOk).toBe(true);
+        expect(data.message).toBeUndefined();
+      } else {
+        // If ok is false, at least one check failed and message should explain
+        expect(data).toHaveProperty('message');
+        expect(
+          data.analyticsSheetHealthy === false ||
+          data.sharedAnalyticsContractOk === false
+        ).toBe(true);
+      }
+    }, TIMEOUT_MS);
+
+    it.each(['root', 'abc', 'cbc', 'cbl'])(
+      'should return consistent buildId for brand: %s',
+      async (brandId) => {
+        const data = await fetchEndpoint('statusmvp', brandId);
+
+        expect(data.buildId).toBe(CANONICAL_BUILD_ID);
+        expect(data.brandId).toBe(brandId);
+        expect(data).toHaveProperty('analyticsSheetHealthy');
+        expect(data).toHaveProperty('sharedAnalyticsContractOk');
+      },
+      TIMEOUT_MS
+    );
+
+    it('should return ok: false with analytics fields for invalid brand', async () => {
+      const url = buildUrl('statusmvp', 'nonexistent-brand-xyz');
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        expect(data.ok).toBe(false);
+        expect(data).toHaveProperty('message');
+        expect(data.message).toMatch(/not found/i);
+        expect(data.analyticsSheetHealthy).toBe(false);
+        expect(data.sharedAnalyticsContractOk).toBe(false);
       }
       // 404 is also acceptable
     }, TIMEOUT_MS);
