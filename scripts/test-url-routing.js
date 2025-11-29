@@ -297,10 +297,11 @@ async function testRoute(surface, config) {
       if (body.includes('Error') && body.includes('Script function not found')) {
         result.errors.push('Got Apps Script error page');
       }
-      // Check for Google login redirect by looking for accounts.google.com URLs
-      // Using regex with word boundary to ensure we match the exact hostname
-      const googleLoginPattern = /https:\/\/accounts\.google\.com\//;
-      if (googleLoginPattern.test(body)) {
+      // Check for Google login redirect by detecting Google Sign-In page HTML markers
+      // These markers are specific to Google's login page and unlikely to appear elsewhere
+      const isGoogleLoginPage = body.includes('id="identifierId"') ||
+                                (body.includes('signin/v2') && body.includes('accounts'));
+      if (isGoogleLoginPage) {
         result.errors.push('Got Google login redirect (check executeAs settings)');
       }
     }
