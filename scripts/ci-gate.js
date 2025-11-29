@@ -270,7 +270,7 @@ async function main() {
   // ═══════════════════════════════════════════════════════════════
   // GATE 1: Code Quality (ESLint)
   // ═══════════════════════════════════════════════════════════════
-  log(`\n${c.bold}[1/5] Code Quality${c.reset}`, c.cyan);
+  log(`\n${c.bold}[1/6] Code Quality${c.reset}`, c.cyan);
   if (!runCheck('ESLint', 'npm run lint', { critical: true })) {
     allCriticalPassed = false;
     if (!fastMode) {
@@ -281,7 +281,7 @@ async function main() {
   // ═══════════════════════════════════════════════════════════════
   // GATE 2: Unit Tests
   // ═══════════════════════════════════════════════════════════════
-  log(`\n${c.bold}[2/5] Unit Tests${c.reset}`, c.cyan);
+  log(`\n${c.bold}[2/6] Unit Tests${c.reset}`, c.cyan);
   if (!runCheck('Jest Unit Tests', 'npm run test:unit', { critical: true })) {
     allCriticalPassed = false;
   }
@@ -289,7 +289,7 @@ async function main() {
   // ═══════════════════════════════════════════════════════════════
   // GATE 3: Contract Tests
   // ═══════════════════════════════════════════════════════════════
-  log(`\n${c.bold}[3/5] Contract Tests${c.reset}`, c.cyan);
+  log(`\n${c.bold}[3/6] Contract Tests${c.reset}`, c.cyan);
   if (!runCheck('API Contract Tests', 'npm run test:contract', { critical: true })) {
     allCriticalPassed = false;
   }
@@ -297,7 +297,7 @@ async function main() {
   // ═══════════════════════════════════════════════════════════════
   // GATE 4: Schema Validation
   // ═══════════════════════════════════════════════════════════════
-  log(`\n${c.bold}[4/5] Schema Validation${c.reset}`, c.cyan);
+  log(`\n${c.bold}[4/6] Schema Validation${c.reset}`, c.cyan);
 
   // Schema sync test (validates ApiSchemas.gs matches test schemas)
   if (!runCheck('Schema Sync', 'npm run test:schemas', { critical: true })) {
@@ -313,7 +313,7 @@ async function main() {
   // GATE 5: MVP Surface & Dead Export Guards
   // Prevents zombie APIs and non-MVP surfaces from creeping in
   // ═══════════════════════════════════════════════════════════════
-  log(`\n${c.bold}[5/5] MVP Guards${c.reset}`, c.cyan);
+  log(`\n${c.bold}[5/6] MVP Guards${c.reset}`, c.cyan);
 
   // Surface check - validates only 5 MVP surfaces are referenced
   if (!runCheck('MVP Surfaces', 'node scripts/check-surfaces.js', { critical: true })) {
@@ -322,6 +322,17 @@ async function main() {
 
   // Dead export check - detects unused api_* functions in Code.gs
   if (!runCheck('Dead Exports', 'node scripts/check-dead-code.js --fail-on-dead', { critical: true })) {
+    allCriticalPassed = false;
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // GATE 6: Surface → Schema Fields Linter
+  // Prevents schema drift - surfaces only read fields in JSON schema
+  // ═══════════════════════════════════════════════════════════════
+  log(`\n${c.bold}[6/6] Schema Fields${c.reset}`, c.cyan);
+
+  // Schema fields check - validates HTML surfaces only reference schema-defined fields
+  if (!runCheck('Schema Fields', 'node scripts/check-schema-fields.js', { critical: true })) {
     allCriticalPassed = false;
   }
 
