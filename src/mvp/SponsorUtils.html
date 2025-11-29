@@ -285,16 +285,35 @@ window.SponsorUtils = (function() {
    * { id, name, logoUrl, linkUrl?, placement }
    *
    * Legacy formats (img, url, placements) are auto-converted via normalizeSponsor().
+   *
+   * CENTRALIZED PLACEMENT FILTERING:
+   * All methods accept optional `placement` parameter to filter sponsors.
+   * Supported placements: 'poster' | 'public' | 'display' | 'tv-banner'
+   * For Display surface, use placement: ['display', 'tv-banner'] to match either.
    */
   const SponsorRenderer = {
+    /**
+     * Filter sponsors by placement(s)
+     * @param {Array} sponsors - Normalized sponsor array
+     * @param {string|string[]} placement - Single placement or array of placements to match
+     * @returns {Array} - Filtered sponsors
+     */
+    _filterByPlacement(sponsors, placement) {
+      if (!placement) return sponsors;
+      const placements = Array.isArray(placement) ? placement : [placement];
+      return sponsors.filter(s => placements.includes(s.placement));
+    },
+
     /**
      * Render sponsors as horizontal strip (top bar, banner)
      * @param {Object} options
      * @param {HTMLElement} options.container - Target element
      * @param {Array} options.sponsors - Sponsor array (schema or legacy format)
+     * @param {string|string[]} options.placement - Filter by placement(s): 'poster'|'public'|'display'|'tv-banner'
      * @param {string} options.eventId - For analytics
      * @param {string} options.surface - Surface name (display, public, poster)
      * @param {boolean} options.showLinks - Wrap in anchor tags (default: true)
+     * @param {boolean} options.showTier - Show PRIMARY badge for primary sponsors (default: false)
      * @param {Function} options.onRender - Callback with rendered sponsor IDs
      * @returns {Array} - Normalized sponsors that were rendered
      */
@@ -302,6 +321,7 @@ window.SponsorUtils = (function() {
       const {
         container,
         sponsors = [],
+        placement = null,
         eventId = '',
         surface = 'unknown',
         showLinks = true,
@@ -310,9 +330,11 @@ window.SponsorUtils = (function() {
       } = options;
 
       if (!container) return [];
+      // Normalize all sponsors, then filter by placement if specified
+      const normalized = sponsors.map(normalizeSponsor).filter(s => s && s.name);
+      const filtered = this._filterByPlacement(normalized, placement);
       // Sort primary sponsors first
-      const picks = sponsors.map(normalizeSponsor).filter(s => s && s.name)
-        .sort((a, b) => (b.isPrimary ? 1 : 0) - (a.isPrimary ? 1 : 0));
+      const picks = filtered.sort((a, b) => (b.isPrimary ? 1 : 0) - (a.isPrimary ? 1 : 0));
       if (!picks.length) return [];
 
       container.innerHTML = picks.map(s => {
@@ -351,6 +373,7 @@ window.SponsorUtils = (function() {
     /**
      * Render sponsors as card grid (side panel, TV mode)
      * @param {Object} options - Same as renderStrip plus:
+     * @param {string|string[]} options.placement - Filter by placement(s): 'poster'|'public'|'display'|'tv-banner'
      * @param {HTMLElement} options.mainEl - Optional main element to add 'has-side' class
      * @returns {Array} - Normalized sponsors that were rendered
      */
@@ -358,6 +381,7 @@ window.SponsorUtils = (function() {
       const {
         container,
         sponsors = [],
+        placement = null,
         eventId = '',
         surface = 'unknown',
         showLinks = true,
@@ -366,7 +390,9 @@ window.SponsorUtils = (function() {
       } = options;
 
       if (!container) return [];
-      const picks = sponsors.map(normalizeSponsor).filter(s => s && s.name);
+      // Normalize all sponsors, then filter by placement if specified
+      const normalized = sponsors.map(normalizeSponsor).filter(s => s && s.name);
+      const picks = this._filterByPlacement(normalized, placement);
       if (!picks.length) return [];
 
       container.innerHTML = picks.map(s => {
@@ -407,6 +433,7 @@ window.SponsorUtils = (function() {
     /**
      * Render sponsors as rotating carousel (one at a time)
      * @param {Object} options - Same as renderStrip plus:
+     * @param {string|string[]} options.placement - Filter by placement(s): 'poster'|'public'|'display'|'tv-banner'
      * @param {number} options.rotationMs - Rotation interval (default: 5000)
      * @returns {Object} - { sponsors: Array, stop: Function }
      */
@@ -414,15 +441,19 @@ window.SponsorUtils = (function() {
       const {
         container,
         sponsors = [],
+        placement = null,
         eventId = '',
         surface = 'unknown',
         showLinks = true,
+        showTier = false,
         rotationMs = 5000,
         onRender = null
       } = options;
 
       if (!container) return { sponsors: [], stop: () => {} };
-      const picks = sponsors.map(normalizeSponsor).filter(s => s && s.name);
+      // Normalize all sponsors, then filter by placement if specified
+      const normalized = sponsors.map(normalizeSponsor).filter(s => s && s.name);
+      const picks = this._filterByPlacement(normalized, placement);
       if (!picks.length) return { sponsors: [], stop: () => {} };
 
       let currentIndex = 0;

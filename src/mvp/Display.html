@@ -915,32 +915,29 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
       // Schema: event.sponsors[].placement MUST be 'display' or 'tv-banner' - no fallback
       // Feature 4: Respect showSponsorStrip toggle
       if (settings.showSponsors && (settings.showSponsorStrip !== false) && sponsors.length > 0) {
-        // STRICT: Only sponsors with placement === 'display' or 'tv-banner' (schema-required field)
-        const displaySponsors = sponsors.filter(s =>
-          s.placement === 'display' || s.placement === 'tv-banner'
-        );
-        if (displaySponsors.length > 0) {
-          // Use unified SponsorRenderer from SponsorUtils
-          const { SponsorRenderer } = window.SponsorUtils;
-          SponsorRenderer.renderStrip({
-            container: topEl,
-            sponsors: displaySponsors,
+        // Use centralized SponsorRenderer with placement filter (E-003 centralization)
+        const { SponsorRenderer } = window.SponsorUtils;
+        const displayPlacements = ['display', 'tv-banner'];  // Accept either placement
+        const renderedSponsors = SponsorRenderer.renderStrip({
+          container: topEl,
+          sponsors: sponsors,
+          placement: displayPlacements,  // Filter to display/tv-banner placements
+          eventId: ev.id,
+          surface: 'display',
+          showTier: true,
+          onRender: ids => { currentRenderedSponsorIds = [...new Set([...currentRenderedSponsorIds, ...ids])]; }
+        });
+        // Use layout.hasSidePane from DisplayBundle to show side panel
+        if (renderedSponsors.length > 0 && layout.hasSidePane) {
+          SponsorRenderer.renderGrid({
+            container: sideEl,
+            sponsors: sponsors,
+            placement: displayPlacements,  // Same filter for side panel
             eventId: ev.id,
             surface: 'display',
-            showTier: true,
+            mainEl: mainEl,
             onRender: ids => { currentRenderedSponsorIds = [...new Set([...currentRenderedSponsorIds, ...ids])]; }
           });
-          // Use layout.hasSidePane from DisplayBundle to show side panel
-          if (layout.hasSidePane) {
-            SponsorRenderer.renderGrid({
-              container: sideEl,
-              sponsors: displaySponsors,
-              eventId: ev.id,
-              surface: 'display',
-              mainEl: mainEl,
-              onRender: ids => { currentRenderedSponsorIds = [...new Set([...currentRenderedSponsorIds, ...ids])]; }
-            });
-          }
         }
       }
 

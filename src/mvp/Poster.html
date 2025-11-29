@@ -700,19 +700,19 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
       // Schema: event.sponsors[].placement MUST be 'poster' - no fallback
       const sponsorStrip = document.getElementById('sponsorStrip');
       if (settings.showSponsors && sponsors.length > 0) {
-        // STRICT: Only sponsors with placement === 'poster' (schema-required field)
-        const posterSponsors = sponsors.filter(s => s.placement === 'poster');
-        if (posterSponsors.length > 0) {
-          const { SponsorRenderer } = window.SponsorUtils;
-          SponsorRenderer.renderStrip({
-            container: sponsorStrip,
-            sponsors: posterSponsors,
-            eventId: event.id,
-            surface: 'poster',
-            showLinks: false, // Poster is print-friendly, no clickable links
-            showTier: false
-          });
-        } else {
+        // Use centralized SponsorRenderer with placement filter (E-003 centralization)
+        const { SponsorRenderer } = window.SponsorUtils;
+        const renderedSponsors = SponsorRenderer.renderStrip({
+          container: sponsorStrip,
+          sponsors: sponsors,
+          placement: 'poster',  // Filter to poster placement only
+          eventId: event.id,
+          surface: 'poster',
+          showLinks: false, // Poster is print-friendly, no clickable links
+          showTier: false
+        });
+        // Hide if no sponsors matched placement filter
+        if (!renderedSponsors.length) {
           sponsorStrip.innerHTML = '';
           sponsorStrip.hidden = true;
         }
