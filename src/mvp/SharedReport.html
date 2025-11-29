@@ -64,9 +64,14 @@ SECTION GATES (schema-backed visibility):
 
   NO freelancing: JS only accesses fields defined in shared-analytics.schema.json
 
-API ENDPOINTS:
+API ENDPOINTS (3 MVP canonical - Story 6):
   - api_getSharedAnalytics({ brandId }) → SharedAnalytics
-  - api_getSponsorAnalytics({ brandId, sponsorId }) → SharedAnalytics (scoped)
+  - api_getSponsorAnalytics({ brandId, sponsorId, eventId? }) → SharedAnalytics (scoped)
+  - api_getSponsorReportQr({ sponsorId, brandId? }) → { url, qrB64, verified }
+
+V2-ONLY ENDPOINTS (not called by MVP surface):
+  - api_getPortfolioAnalyticsV2 - Multi-event portfolio mode (hidden behind URL params)
+  - api_exportSharedReport - Export feature (button display:none)
 
 DO NOT modify contracts without updating:
   - /schemas/shared-analytics.schema.json (source of truth)
@@ -974,17 +979,27 @@ DO NOT modify contracts without updating:
 
         let rpcName, payload;
 
+        // ═══════════════════════════════════════════════════════════════════════
+        // [V2-ONLY] Portfolio mode - NOT MVP, requires URL params to activate
+        // Access: ?portfolioMode=multi-event-portfolio&adminKey=<key>
+        // This code path is NOT part of the canonical 3 MVP endpoints (Story 6)
+        // ═══════════════════════════════════════════════════════════════════════
         if (IS_PORTFOLIO_MODE && ADMIN_KEY) {
-          // V2 Portfolio mode: cross-brand aggregation
           rpcName = 'api_getPortfolioAnalyticsV2';
           payload = {
             brandId: BRAND_ID,
             mode: 'multi-event-portfolio',
             adminKey: ADMIN_KEY
           };
+        // ═══════════════════════════════════════════════════════════════════════
+        // [MVP CANONICAL] Sponsor view - api_getSponsorAnalytics (Story 6)
+        // ═══════════════════════════════════════════════════════════════════════
         } else if (IS_SPONSOR_VIEW && SPONSOR_ID) {
           rpcName = 'api_getSponsorAnalytics';
           payload = { brandId: BRAND_ID, sponsorId: SPONSOR_ID, eventId: EVENT_ID || null };
+        // ═══════════════════════════════════════════════════════════════════════
+        // [MVP CANONICAL] Organizer view - api_getSharedAnalytics (Story 6)
+        // ═══════════════════════════════════════════════════════════════════════
         } else {
           rpcName = 'api_getSharedAnalytics';
           payload = { brandId: BRAND_ID };
@@ -996,9 +1011,10 @@ DO NOT modify contracts without updating:
           throw new Error(result && result.message || 'Failed to load analytics');
         }
 
-        // Handle V2 portfolio mode response
+        // [V2-ONLY] Handle V2 portfolio mode response (not MVP)
         if (IS_PORTFOLIO_MODE && result.value && result.value.mode === 'multi-event-portfolio') {
           renderPortfolioReport(result.value);
+        // [MVP] Standard organizer/sponsor view response
         } else {
           renderReport(result.value || {});
         }
@@ -1010,9 +1026,13 @@ DO NOT modify contracts without updating:
     }
 
     /**
-     * Render V2 portfolio report (multi-event mode)
+     * [V2-ONLY] Render V2 portfolio report (multi-event mode)
      *
-     * @param {Object} data - Portfolio analytics response
+     * NOT MVP - This function is only called when the V2 portfolio mode is
+     * activated via URL params (?portfolioMode=multi-event-portfolio&adminKey=KEY).
+     * The portfolio toggle button is hidden (display:none) for MVP release.
+     *
+     * @param {Object} data - Portfolio analytics response from api_getPortfolioAnalyticsV2
      */
     function renderPortfolioReport(data) {
       // Update header for portfolio mode
