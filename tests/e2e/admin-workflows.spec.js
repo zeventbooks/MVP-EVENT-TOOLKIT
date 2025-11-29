@@ -40,10 +40,15 @@ test.describe('Admin Workflows - Complete Event Setup', () => {
       await page.fill('#venue', 'Grand Ballroom');
       await page.fill('#entity', 'Tech Conference 2025');
 
-      // Optional fields
-      const summaryField = page.locator('#summary');
-      if (await summaryField.count() > 0) {
-        await summaryField.fill('Annual technology conference with keynote speakers');
+      // Optional fields - expand advanced section first
+      const advancedHeader = page.locator('#advancedEventDetailsHeader');
+      if (await advancedHeader.count() > 0) {
+        await advancedHeader.click();
+        await page.waitForTimeout(300);
+        const summaryField = page.locator('#summary');
+        if (await summaryField.isVisible()) {
+          await summaryField.fill('Annual technology conference with keynote speakers');
+        }
       }
 
       await page.click('button[type="submit"]');

@@ -776,10 +776,13 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
               </div>
             </div>
 
-            <!-- Advanced Display Toggles - Hidden by Default -->
-            <details style="margin-top: 16px;">
-              <summary style="cursor: pointer; color: var(--color-gray-500, #64748b); font-size: 0.85rem;">Advanced display options</summary>
-              <div style="padding-top: 12px;">
+            <!-- Advanced Display Toggles - Collapsed by Default -->
+            <div class="subsection" data-testid="advanced-display-toggles">
+              <div class="collapsible-header collapsed" onclick="toggleSection(this)" id="advancedDisplayTogglesHeader" style="background: transparent; padding: 8px 0; margin-bottom: 8px;">
+                <span style="color: var(--color-gray-500, #64748b); font-size: 0.85rem;">Advanced display options</span>
+                <span class="collapsible-icon" style="color: var(--color-gray-400, #94a3b8); font-size: 0.7rem;">▼</span>
+              </div>
+              <div class="collapsible-content" id="advancedDisplayTogglesContent" style="display: none; padding-top: 4px;">
                 <div class="checkbox-group">
                   <label class="checkbox-label">
                     <input type="checkbox" id="showSponsorBanner" checked>
@@ -799,11 +802,11 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
                   </label>
                 </div>
               </div>
-            </details>
+            </div>
           </div>
         </div>
 
-        <!-- V2 LEGACY UI - Hidden -->
+        <!-- V2 LEGACY UI - Hidden (internal use only) -->
         <div class="subsection" id="v2SectionsTogglePanel" style="display:none;">
           <div class="sections-grid" id="sectionsGrid">
             <label class="section-toggle"><input type="checkbox" id="sectionVideo" checked><span class="section-label">Video</span></label>
@@ -816,73 +819,69 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
           <div id="sectionsModifiedNotice" class="sections-modified-notice">Sections modified from template defaults</div>
         </div>
 
-        <!-- V2 FIELDS: Hidden but preserved in event object -->
-        <!-- Summary Section (V2 - Hidden) -->
-        <div class="subsection" id="v2SummarySection" style="display:none;">
-          <div class="collapsible-header" onclick="toggleSection(this)">
-            <h3>Summary</h3>
-            <span class="collapsible-icon">▼</span>
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- ADVANCED EVENT DETAILS - Collapsed by default for MVP flow      -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <div class="subsection" id="advancedEventDetails" data-testid="advanced-event-details" style="margin-top: 16px;">
+          <div class="collapsible-header collapsed" onclick="toggleSection(this)" id="advancedEventDetailsHeader" style="background: var(--color-gray-50, #f8fafc); border-radius: 8px; padding: 12px 16px;">
+            <span style="color: var(--color-gray-600, #475569); font-size: 0.9rem;">Advanced event details (description, media, bio)</span>
+            <span class="collapsible-icon" style="color: var(--color-gray-400, #94a3b8);">▼</span>
           </div>
-          <div class="collapsible-content">
-            <div class="form-group">
-              <label>Summary</label>
-              <textarea id="summary" placeholder="Brief event description"></textarea>
-            </div>
-            <div class="form-group">
-              <label>Summary Link</label>
-              <input id="summaryLink" type="url" placeholder="https://...">
-            </div>
-          </div>
-        </div>
+          <div class="collapsible-content" id="advancedEventDetailsContent" style="display: none; padding-top: 16px;">
 
-        <!-- Media Section (V2 - Hidden) -->
-        <div class="subsection" id="v2MediaSection" style="display:none;">
-          <div class="collapsible-header" onclick="toggleSection(this)">
-            <h3>Media</h3>
-            <span class="collapsible-icon">▼</span>
-          </div>
-          <div class="collapsible-content">
-            <div class="form-group">
-              <label>Event Image URL</label>
-              <input id="imageUrl" type="url" placeholder="https://...">
+            <!-- Summary Section -->
+            <div class="form-group" id="v2SummarySection" data-testid="summary-section">
+              <label style="font-weight: 500; margin-bottom: 8px; display: block;">Event Description</label>
+              <textarea id="summary" placeholder="Brief event description (shown on public page)" rows="3" style="width: 100%; resize: vertical;"></textarea>
+              <small class="muted">A short description that appears on your public event page</small>
             </div>
-            <div class="form-group">
-              <label>Video URL</label>
-              <input id="videoUrl" type="url" placeholder="YouTube, Vimeo, etc.">
-            </div>
-            <div class="form-group">
-              <label>Gallery URLs</label>
-              <textarea id="galleryUrls" placeholder="Comma-separated image URLs"></textarea>
-            </div>
-          </div>
-        </div>
 
-        <!-- Bio Section (V2 - Hidden) -->
-        <div class="subsection" id="v2BioSection" style="display:none;">
-          <div class="collapsible-header" onclick="toggleSection(this)">
-            <h3>Bio</h3>
-            <span class="collapsible-icon">▼</span>
-          </div>
-          <div class="collapsible-content">
-            <div class="form-group">
-              <label>Bio</label>
-              <textarea id="bio" placeholder="Detailed event or organizer bio"></textarea>
+            <div class="form-group" style="margin-top: 12px;">
+              <label>Description Link</label>
+              <input id="summaryLink" type="url" placeholder="https://... (optional link for more info)">
             </div>
-            <div class="form-group">
-              <label>Bio Link</label>
-              <input id="bioLink" type="url" placeholder="https://...">
+
+            <!-- Media Section -->
+            <div style="border-top: 1px solid var(--color-gray-200, #e2e8f0); padding-top: 16px; margin-top: 16px;" id="v2MediaSection" data-testid="media-section">
+              <label style="font-weight: 500; margin-bottom: 12px; display: block;">Media</label>
+              <div class="form-group">
+                <label>Event Image URL</label>
+                <input id="imageUrl" type="url" placeholder="https://... (main event image)">
+              </div>
+              <div class="form-group" style="margin-top: 12px;">
+                <label>Video URL</label>
+                <input id="videoUrl" type="url" placeholder="YouTube, Vimeo, or direct video link">
+              </div>
+              <div class="form-group" style="margin-top: 12px;">
+                <label>Gallery URLs</label>
+                <textarea id="galleryUrls" placeholder="Comma-separated image URLs for gallery" rows="2" style="width: 100%; resize: vertical;"></textarea>
+              </div>
             </div>
+
+            <!-- Bio Section -->
+            <div style="border-top: 1px solid var(--color-gray-200, #e2e8f0); padding-top: 16px; margin-top: 16px;" id="v2BioSection" data-testid="bio-section">
+              <label style="font-weight: 500; margin-bottom: 12px; display: block;">Organizer Bio</label>
+              <div class="form-group">
+                <label>Bio</label>
+                <textarea id="bio" placeholder="About the organizer or host" rows="3" style="width: 100%; resize: vertical;"></textarea>
+              </div>
+              <div class="form-group" style="margin-top: 12px;">
+                <label>Bio Link</label>
+                <input id="bioLink" type="url" placeholder="https://... (organizer website)">
+              </div>
+            </div>
+
           </div>
         </div>
 
         <!-- External Links Section (MVP Optional per externalData schema) -->
         <!-- V2 fields (statsUrl, scoreboardUrl, streamUrl, provider) are hidden within -->
-        <div class="subsection" id="leagueBroadcastPanel" data-template-filter="rec_league,custom">
-          <div class="collapsible-header" onclick="toggleSection(this)">
-            <h3>External Links</h3>
-            <span class="collapsible-icon">▼</span>
+        <div class="subsection" id="leagueBroadcastPanel" data-template-filter="rec_league,custom" data-testid="external-links-section">
+          <div class="collapsible-header collapsed" onclick="toggleSection(this)" id="externalLinksHeader" style="background: var(--color-gray-50, #f8fafc); border-radius: 8px; padding: 12px 16px;">
+            <span style="color: var(--color-gray-600, #475569); font-size: 0.9rem;">External links (schedule, standings, bracket)</span>
+            <span class="collapsible-icon" style="color: var(--color-gray-400, #94a3b8);">▼</span>
           </div>
-          <div class="collapsible-content">
+          <div class="collapsible-content" id="externalLinksContent" style="display: none; padding-top: 16px;">
             <p class="muted" style="margin-bottom: 12px;">Link to schedules, standings, brackets, or other resources</p>
 
             <!-- Core League Links -->

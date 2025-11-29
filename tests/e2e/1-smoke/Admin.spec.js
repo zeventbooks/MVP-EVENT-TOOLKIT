@@ -67,6 +67,10 @@ test.describe('Admin Surface Smoke Test', () => {
     await page.fill('#startDateISO', TEST_EVENT.date);
     await page.fill('#timeISO', TEST_EVENT.time);
     await page.fill('#venue', TEST_EVENT.venue);
+
+    // Expand advanced event details section to fill summary (optional field)
+    await page.click('#advancedEventDetailsHeader');
+    await page.waitForTimeout(300);
     await page.fill('#summary', TEST_EVENT.summary);
 
     // Step 3: Handle admin key prompt and submit

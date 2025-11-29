@@ -80,6 +80,10 @@ test.describe.serial('Full Triangle Smoke Test', () => {
     await page.fill('#name', DEMO_EVENT.name);
     await page.fill('#startDateISO', DEMO_EVENT.date);
     await page.fill('#venue', DEMO_EVENT.venue);
+
+    // Expand advanced event details section to fill summary (optional field)
+    await page.click('#advancedEventDetailsHeader');
+    await page.waitForTimeout(300);
     await page.fill('#summary', DEMO_EVENT.summary);
 
     // Submit

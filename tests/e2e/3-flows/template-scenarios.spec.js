@@ -93,6 +93,13 @@ test.describe('⚾ Rec League Template Flow', () => {
       await templatePicker.click();
     }
 
+    // Expand external links section (collapsed by default in MVP flow)
+    const externalLinksHeader = page.locator('#externalLinksHeader');
+    if (await externalLinksHeader.count() > 0) {
+      await externalLinksHeader.click();
+      await page.waitForTimeout(300);
+    }
+
     // Rec league template should show external data URL fields
     // scheduleUrl, standingsUrl, bracketUrl
     const scheduleUrlField = page.locator('#scheduleUrl, input[name="scheduleUrl"]');
