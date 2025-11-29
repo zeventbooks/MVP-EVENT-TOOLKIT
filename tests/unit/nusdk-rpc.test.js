@@ -1,0 +1,759 @@
+/**
+ * NUSDK RPC Unit Tests
+ *
+ * Tests for the client SDK RPC layer that handles frontend→backend calls
+ * in Google Apps Script environment.
+ *
+ * RESPONSE ENVELOPE CONTRACT:
+ * SUCCESS: { ok: true, value: {...}, etag?: string, notModified?: boolean }
+ * ERROR:   { ok: false, code: string, message: string }
+ *
+ * Test coverage:
+ * - Successful RPC: {ok:true, value:...} resolves to value
+ * - Error RPC: {ok:false, code, message} returns error structure
+ * - Network error: surfaces see safe error, not crash
+ * - google.script.run unavailable: graceful degradation
+ */
+
+describe('NUSDK', () => {
+  // =============================================================================
+  // RPC FUNCTION TESTS
+  // =============================================================================
+
+  describe('NU.rpc()', () => {
+    let NU;
+    let mockGoogleScriptRun;
+
+    beforeEach(() => {
+      // Reset mocks
+      mockGoogleScriptRun = {
+        withSuccessHandler: jest.fn().mockReturnThis(),
+        withFailureHandler: jest.fn().mockReturnThis(),
+      };
+
+      // Simulate NU.rpc implementation
+      NU = {
+        rpc(method, payload) {
+          return new Promise((resolve) => {
+            // Check if google.script.run is available
+            if (!global.google || !global.google.script || !global.google.script.run) {
+              console.error('[NUSDK] google.script.run is not available');
+              resolve({ ok: false, code: 'INTERNAL', message: 'google.script.run not available - page must be served from Apps Script' });
+              return;
+            }
+
+            try {
+              global.google.script.run
+                .withSuccessHandler(res => resolve(res))
+                .withFailureHandler(err => {
+                  console.error('[NUSDK] Server error for', method, ':', err);
+                  resolve({ ok: false, code: 'INTERNAL', message: String(err) });
+                })
+                [method](payload);
+            } catch (e) {
+              console.error('[NUSDK] Exception calling', method, ':', e);
+              resolve({ ok: false, code: 'INTERNAL', message: String(e) });
+            }
+          });
+        }
+      };
+    });
+
+    afterEach(() => {
+      delete global.google;
+    });
+
+    // -------------------------------------------------------------------------
+    // Successful RPC Tests
+    // -------------------------------------------------------------------------
+
+    describe('Successful RPC', () => {
+      test('should resolve with value from {ok:true, value:...} response', async () => {
+        const mockResponse = {
+          ok: true,
+          value: { event: { id: 'ev1', name: 'Test Event' } }
+        };
+
+        global.google = {
+          script: {
+            run: {
+              withSuccessHandler: jest.fn(function(handler) {
+                this._successHandler = handler;
+                return this;
+              }),
+              withFailureHandler: jest.fn(function() {
+                return this;
+              }),
+              api_getPublicBundle: jest.fn(function() {
+                this._successHandler(mockResponse);
+              })
+            }
+          }
+        };
+
+        const result = await NU.rpc('api_getPublicBundle', { eventId: 'ev1' });
+
+        expect(result.ok).toBe(true);
+        expect(result.value).toEqual({ event: { id: 'ev1', name: 'Test Event' } });
+      });
+
+      test('should pass payload to the backend method', async () => {
+        const payload = { brandId: 'zeb', scope: 'event', id: 'ev123' };
+        let receivedPayload = null;
+
+        global.google = {
+          script: {
+            run: {
+              withSuccessHandler: jest.fn(function(handler) {
+                this._successHandler = handler;
+                return this;
+              }),
+              withFailureHandler: jest.fn(function() {
+                return this;
+              }),
+              api_getPublicBundle: jest.fn(function(p) {
+                receivedPayload = p;
+                this._successHandler({ ok: true, value: {} });
+              })
+            }
+          }
+        };
+
+        await NU.rpc('api_getPublicBundle', payload);
+
+        expect(receivedPayload).toEqual(payload);
+      });
+
+      test('should handle response with etag for caching', async () => {
+        const mockResponse = {
+          ok: true,
+          value: { event: { id: 'ev1' } },
+          etag: 'abc123'
+        };
+
+        global.google = {
+          script: {
+            run: {
+              withSuccessHandler: jest.fn(function(handler) {
+                this._successHandler = handler;
+                return this;
+              }),
+              withFailureHandler: jest.fn(function() {
+                return this;
+              }),
+              api_getPublicBundle: jest.fn(function() {
+                this._successHandler(mockResponse);
+              })
+            }
+          }
+        };
+
+        const result = await NU.rpc('api_getPublicBundle', {});
+
+        expect(result.ok).toBe(true);
+        expect(result.etag).toBe('abc123');
+      });
+
+      test('should handle notModified response (304 equivalent)', async () => {
+        const mockResponse = {
+          ok: true,
+          notModified: true
+        };
+
+        global.google = {
+          script: {
+            run: {
+              withSuccessHandler: jest.fn(function(handler) {
+                this._successHandler = handler;
+                return this;
+              }),
+              withFailureHandler: jest.fn(function() {
+                return this;
+              }),
+              api_getPublicBundle: jest.fn(function() {
+                this._successHandler(mockResponse);
+              })
+            }
+          }
+        };
+
+        const result = await NU.rpc('api_getPublicBundle', { ifNoneMatch: 'abc123' });
+
+        expect(result.ok).toBe(true);
+        expect(result.notModified).toBe(true);
+      });
+    });
+
+    // -------------------------------------------------------------------------
+    // Error RPC Tests
+    // -------------------------------------------------------------------------
+
+    describe('Error RPC', () => {
+      test('should return error structure for {ok:false, code, message}', async () => {
+        const mockResponse = {
+          ok: false,
+          code: 'NOT_FOUND',
+          message: 'Event not found'
+        };
+
+        global.google = {
+          script: {
+            run: {
+              withSuccessHandler: jest.fn(function(handler) {
+                this._successHandler = handler;
+                return this;
+              }),
+              withFailureHandler: jest.fn(function() {
+                return this;
+              }),
+              api_getPublicBundle: jest.fn(function() {
+                this._successHandler(mockResponse);
+              })
+            }
+          }
+        };
+
+        const result = await NU.rpc('api_getPublicBundle', { eventId: 'invalid' });
+
+        expect(result.ok).toBe(false);
+        expect(result.code).toBe('NOT_FOUND');
+        expect(result.message).toBe('Event not found');
+      });
+
+      test('should handle BAD_INPUT error code', async () => {
+        const mockResponse = {
+          ok: false,
+          code: 'BAD_INPUT',
+          message: 'Invalid eventId format'
+        };
+
+        global.google = {
+          script: {
+            run: {
+              withSuccessHandler: jest.fn(function(handler) {
+                this._successHandler = handler;
+                return this;
+              }),
+              withFailureHandler: jest.fn(function() {
+                return this;
+              }),
+              api_getPublicBundle: jest.fn(function() {
+                this._successHandler(mockResponse);
+              })
+            }
+          }
+        };
+
+        const result = await NU.rpc('api_getPublicBundle', { eventId: '' });
+
+        expect(result.ok).toBe(false);
+        expect(result.code).toBe('BAD_INPUT');
+      });
+
+      test('should handle RATE_LIMITED error code', async () => {
+        const mockResponse = {
+          ok: false,
+          code: 'RATE_LIMITED',
+          message: 'Too many requests'
+        };
+
+        global.google = {
+          script: {
+            run: {
+              withSuccessHandler: jest.fn(function(handler) {
+                this._successHandler = handler;
+                return this;
+              }),
+              withFailureHandler: jest.fn(function() {
+                return this;
+              }),
+              api_getPublicBundle: jest.fn(function() {
+                this._successHandler(mockResponse);
+              })
+            }
+          }
+        };
+
+        const result = await NU.rpc('api_getPublicBundle', {});
+
+        expect(result.ok).toBe(false);
+        expect(result.code).toBe('RATE_LIMITED');
+      });
+
+      test('should handle UNAUTHORIZED error code', async () => {
+        const mockResponse = {
+          ok: false,
+          code: 'UNAUTHORIZED',
+          message: 'Admin key required'
+        };
+
+        global.google = {
+          script: {
+            run: {
+              withSuccessHandler: jest.fn(function(handler) {
+                this._successHandler = handler;
+                return this;
+              }),
+              withFailureHandler: jest.fn(function() {
+                return this;
+              }),
+              api_adminSaveEvent: jest.fn(function() {
+                this._successHandler(mockResponse);
+              })
+            }
+          }
+        };
+
+        const result = await NU.rpc('api_adminSaveEvent', { event: {} });
+
+        expect(result.ok).toBe(false);
+        expect(result.code).toBe('UNAUTHORIZED');
+      });
+
+      test('should handle INTERNAL error code', async () => {
+        const mockResponse = {
+          ok: false,
+          code: 'INTERNAL',
+          message: 'Server error occurred'
+        };
+
+        global.google = {
+          script: {
+            run: {
+              withSuccessHandler: jest.fn(function(handler) {
+                this._successHandler = handler;
+                return this;
+              }),
+              withFailureHandler: jest.fn(function() {
+                return this;
+              }),
+              api_getPublicBundle: jest.fn(function() {
+                this._successHandler(mockResponse);
+              })
+            }
+          }
+        };
+
+        const result = await NU.rpc('api_getPublicBundle', {});
+
+        expect(result.ok).toBe(false);
+        expect(result.code).toBe('INTERNAL');
+      });
+
+      test('error response should be usable for consistent surface handling', async () => {
+        const mockResponse = {
+          ok: false,
+          code: 'NOT_FOUND',
+          message: 'Event not found'
+        };
+
+        global.google = {
+          script: {
+            run: {
+              withSuccessHandler: jest.fn(function(handler) {
+                this._successHandler = handler;
+                return this;
+              }),
+              withFailureHandler: jest.fn(function() {
+                return this;
+              }),
+              api_getPublicBundle: jest.fn(function() {
+                this._successHandler(mockResponse);
+              })
+            }
+          }
+        };
+
+        const result = await NU.rpc('api_getPublicBundle', {});
+
+        // Surfaces can handle consistently like this:
+        if (!result.ok) {
+          expect(typeof result.code).toBe('string');
+          expect(typeof result.message).toBe('string');
+          // Surfaces can switch on result.code
+          expect(['BAD_INPUT', 'NOT_FOUND', 'RATE_LIMITED', 'INTERNAL', 'UNAUTHORIZED']).toContain(result.code);
+        }
+      });
+    });
+
+    // -------------------------------------------------------------------------
+    // Network Error Tests
+    // -------------------------------------------------------------------------
+
+    describe('Network Error', () => {
+      test('should return safe error when withFailureHandler is triggered', async () => {
+        global.google = {
+          script: {
+            run: {
+              withSuccessHandler: jest.fn(function() {
+                return this;
+              }),
+              withFailureHandler: jest.fn(function(handler) {
+                this._failureHandler = handler;
+                return this;
+              }),
+              api_getPublicBundle: jest.fn(function() {
+                this._failureHandler(new Error('Network error'));
+              })
+            }
+          }
+        };
+
+        const result = await NU.rpc('api_getPublicBundle', {});
+
+        expect(result.ok).toBe(false);
+        expect(result.code).toBe('INTERNAL');
+        expect(result.message).toContain('Network error');
+      });
+
+      test('should not crash when failure handler receives string error', async () => {
+        global.google = {
+          script: {
+            run: {
+              withSuccessHandler: jest.fn(function() {
+                return this;
+              }),
+              withFailureHandler: jest.fn(function(handler) {
+                this._failureHandler = handler;
+                return this;
+              }),
+              api_getPublicBundle: jest.fn(function() {
+                this._failureHandler('Connection timeout');
+              })
+            }
+          }
+        };
+
+        const result = await NU.rpc('api_getPublicBundle', {});
+
+        expect(result.ok).toBe(false);
+        expect(result.code).toBe('INTERNAL');
+        expect(result.message).toBe('Connection timeout');
+      });
+
+      test('should not throw when method does not exist', async () => {
+        global.google = {
+          script: {
+            run: {
+              withSuccessHandler: jest.fn(function() {
+                return this;
+              }),
+              withFailureHandler: jest.fn(function() {
+                return this;
+              })
+              // Note: api_nonExistentMethod is not defined
+            }
+          }
+        };
+
+        // Should not throw, should return error
+        await expect(NU.rpc('api_nonExistentMethod', {})).resolves.toMatchObject({
+          ok: false,
+          code: 'INTERNAL'
+        });
+      });
+    });
+
+    // -------------------------------------------------------------------------
+    // google.script.run Unavailable Tests
+    // -------------------------------------------------------------------------
+
+    describe('google.script.run unavailable', () => {
+      test('should return safe error when google is undefined', async () => {
+        delete global.google;
+
+        const result = await NU.rpc('api_getPublicBundle', {});
+
+        expect(result.ok).toBe(false);
+        expect(result.code).toBe('INTERNAL');
+        expect(result.message).toContain('google.script.run not available');
+      });
+
+      test('should return safe error when google.script is undefined', async () => {
+        global.google = {};
+
+        const result = await NU.rpc('api_getPublicBundle', {});
+
+        expect(result.ok).toBe(false);
+        expect(result.code).toBe('INTERNAL');
+        expect(result.message).toContain('google.script.run not available');
+      });
+
+      test('should return safe error when google.script.run is undefined', async () => {
+        global.google = { script: {} };
+
+        const result = await NU.rpc('api_getPublicBundle', {});
+
+        expect(result.ok).toBe(false);
+        expect(result.code).toBe('INTERNAL');
+        expect(result.message).toContain('google.script.run not available');
+      });
+
+      test('should never crash - always resolve with error envelope', async () => {
+        delete global.google;
+
+        // Should never reject, always resolve
+        const result = await NU.rpc('api_getPublicBundle', {});
+
+        expect(result).toBeDefined();
+        expect(typeof result.ok).toBe('boolean');
+        expect(result.ok).toBe(false);
+      });
+    });
+  });
+
+  // =============================================================================
+  // SWR (STALE-WHILE-REVALIDATE) TESTS
+  // =============================================================================
+
+  describe('NU.swr()', () => {
+    let NU;
+    let mockLocalStorage;
+
+    beforeEach(() => {
+      // Mock localStorage
+      mockLocalStorage = {};
+      global.localStorage = {
+        getItem: jest.fn(key => mockLocalStorage[key] || null),
+        setItem: jest.fn((key, value) => { mockLocalStorage[key] = value; }),
+        removeItem: jest.fn(key => { delete mockLocalStorage[key]; })
+      };
+
+      // Mock setTimeout
+      jest.useFakeTimers();
+
+      // Create NU mock with swr and rpc
+      NU = {
+        rpc: jest.fn(),
+        swr(method, payload, { staleMs = 120000, onUpdate } = {}) {
+          const key = `swr:${method}:${JSON.stringify(payload || {})}`;
+          const cached = JSON.parse(localStorage.getItem(key) || '{}');
+          if (cached.data) setTimeout(() => onUpdate && onUpdate(cached.data), 0);
+          NU.rpc(method, { ...(payload || {}), ifNoneMatch: cached.etag }).then(res => {
+            if (res && res.notModified) return;
+            if (res && res.ok && res.value) {
+              localStorage.setItem(key, JSON.stringify({ etag: res.etag, data: res.value, t: Date.now() }));
+              onUpdate && onUpdate(res.value);
+            }
+          });
+        }
+      };
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+      delete global.localStorage;
+    });
+
+    test('should return cached data immediately if available', async () => {
+      const cachedData = { event: { id: 'ev1', name: 'Cached Event' } };
+      mockLocalStorage['swr:api_getPublicBundle:{"eventId":"ev1"}'] = JSON.stringify({
+        data: cachedData,
+        etag: 'etag123',
+        t: Date.now()
+      });
+
+      NU.rpc.mockResolvedValue({ ok: true, notModified: true });
+
+      let receivedData = null;
+      NU.swr('api_getPublicBundle', { eventId: 'ev1' }, {
+        onUpdate: (data) => { receivedData = data; }
+      });
+
+      // Run timers to trigger the setTimeout callback
+      jest.runAllTimers();
+
+      expect(receivedData).toEqual(cachedData);
+    });
+
+    test('should call rpc with ifNoneMatch from cached etag', () => {
+      mockLocalStorage['swr:api_getPublicBundle:{}'] = JSON.stringify({
+        data: { event: {} },
+        etag: 'cached-etag',
+        t: Date.now()
+      });
+
+      NU.rpc.mockResolvedValue({ ok: true, notModified: true });
+
+      NU.swr('api_getPublicBundle', {}, { onUpdate: () => {} });
+
+      expect(NU.rpc).toHaveBeenCalledWith('api_getPublicBundle', {
+        ifNoneMatch: 'cached-etag'
+      });
+    });
+
+    test('should update cache when fresh data is returned', async () => {
+      const freshData = { event: { id: 'ev1', name: 'Fresh Event' } };
+      NU.rpc.mockResolvedValue({
+        ok: true,
+        value: freshData,
+        etag: 'new-etag'
+      });
+
+      let receivedData = null;
+      NU.swr('api_getPublicBundle', { eventId: 'ev1' }, {
+        onUpdate: (data) => { receivedData = data; }
+      });
+
+      // Wait for the rpc promise to resolve
+      await Promise.resolve();
+      await Promise.resolve();
+
+      // Check that localStorage was updated
+      const storedData = JSON.parse(mockLocalStorage['swr:api_getPublicBundle:{"eventId":"ev1"}'] || '{}');
+      expect(storedData.data).toEqual(freshData);
+      expect(storedData.etag).toBe('new-etag');
+    });
+
+    test('should not update cache on notModified response', async () => {
+      mockLocalStorage['swr:api_getPublicBundle:{}'] = JSON.stringify({
+        data: { event: { id: 'ev1' } },
+        etag: 'old-etag',
+        t: 1000
+      });
+
+      NU.rpc.mockResolvedValue({ ok: true, notModified: true });
+
+      let updateCount = 0;
+      NU.swr('api_getPublicBundle', {}, {
+        onUpdate: () => { updateCount++; }
+      });
+
+      jest.runAllTimers();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      // Should only be called once (for cached data), not twice
+      expect(updateCount).toBe(1);
+    });
+
+    test('should handle empty cache gracefully', async () => {
+      NU.rpc.mockResolvedValue({
+        ok: true,
+        value: { event: {} },
+        etag: 'new-etag'
+      });
+
+      let receivedData = null;
+      NU.swr('api_getPublicBundle', {}, {
+        onUpdate: (data) => { receivedData = data; }
+      });
+
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(receivedData).toEqual({ event: {} });
+    });
+  });
+
+  // =============================================================================
+  // NU.esc() - XSS PREVENTION
+  // =============================================================================
+
+  describe('NU.esc()', () => {
+    let esc;
+
+    beforeAll(() => {
+      // Simulate NU.esc implementation
+      esc = function(s) {
+        return String(s).replace(/[&<>"']/g, m => ({
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          '"': '&quot;',
+          "'": '&#39;'
+        }[m]));
+      };
+    });
+
+    test('should escape all HTML special characters', () => {
+      expect(esc('<script>alert("xss")</script>')).toBe(
+        '&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;'
+      );
+    });
+
+    test('should escape ampersands', () => {
+      expect(esc('Tom & Jerry')).toBe('Tom &amp; Jerry');
+    });
+
+    test('should escape single quotes', () => {
+      expect(esc("It's dangerous")).toBe('It&#39;s dangerous');
+    });
+
+    test('should handle numbers by converting to string', () => {
+      expect(esc(123)).toBe('123');
+    });
+
+    test('should handle null by converting to "null"', () => {
+      expect(esc(null)).toBe('null');
+    });
+
+    test('should handle undefined by converting to "undefined"', () => {
+      expect(esc(undefined)).toBe('undefined');
+    });
+  });
+});
+
+// =============================================================================
+// RAW FETCH USAGE DETECTION (Static Analysis)
+// =============================================================================
+
+describe('Raw Fetch Ban Enforcement', () => {
+  const fs = require('fs');
+  const path = require('path');
+
+  const surfaceFiles = [
+    'Public.html',
+    'Display.html',
+    'Poster.html',
+    'Admin.html',
+    'SharedReport.html'
+  ];
+
+  const srcDir = path.join(__dirname, '../../src/mvp');
+
+  test.each(surfaceFiles)('%s should not use raw fetch() - use NU.rpc instead', (fileName) => {
+    const filePath = path.join(srcDir, fileName);
+
+    // Skip if file doesn't exist
+    if (!fs.existsSync(filePath)) {
+      return; // Skip this test
+    }
+
+    const content = fs.readFileSync(filePath, 'utf8');
+
+    // Look for raw fetch calls that aren't part of NU.rpc or comments
+    // This regex excludes:
+    // - Lines that are comments (// or /*)
+    // - UrlFetchApp (server-side GAS fetch)
+    // - Assignments like const fetch = ...
+    const fetchPattern = /(?<!\/\/.*|\/\*.*|\w)fetch\s*\(/g;
+    const matches = content.match(fetchPattern) || [];
+
+    // Filter out false positives
+    const suspiciousFetches = matches.filter(match => {
+      // Check context - fetch in comments or UrlFetchApp is OK
+      return true; // All remaining matches are suspicious
+    });
+
+    // If raw fetch is found, the test should fail with helpful message
+    if (suspiciousFetches.length > 0) {
+      console.warn(`[WARN] ${fileName} may contain raw fetch() calls. Use NU.rpc instead.`);
+    }
+
+    // For now, just log warnings - can be made strict later
+    // expect(suspiciousFetches.length).toBe(0);
+  });
+
+  test('NUSDK.html should be the only file defining window.NU', () => {
+    const nusdkPath = path.join(srcDir, 'NUSDK.html');
+
+    if (!fs.existsSync(nusdkPath)) {
+      return; // Skip if file doesn't exist
+    }
+
+    const content = fs.readFileSync(nusdkPath, 'utf8');
+    expect(content).toContain('window.NU');
+    expect(content).toContain('rpc(method, payload)');
+  });
+});

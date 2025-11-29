@@ -9,6 +9,7 @@
     "test:coverage": "jest --coverage",
     "test:unit": "jest --testMatch='**/tests/unit/**/*.test.js' --runInBand",
     "test:services": "jest --testMatch='**/tests/unit/{form-service,sponsor-service,security-middleware}.test.js' --runInBand",
+    "test:sdk": "jest --testMatch='**/tests/unit/{nusdk-rpc,shared-utils,sponsor-utils}.test.js' --runInBand",
     "test:contract": "jest --testMatch='**/tests/contract/**/*.test.js' --runInBand",
     "test:api-contracts": "jest tests/api/mvp-bundle-contracts.test.js --runInBand",
     "test:api-contracts:mock": "jest tests/contract/explicit-api-contracts.test.js --runInBand",

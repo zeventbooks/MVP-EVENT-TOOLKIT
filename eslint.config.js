@@ -150,6 +150,33 @@ module.exports = [
     ],
   },
 
+  // HTML surface files - ban raw fetch (use NU.rpc instead)
+  {
+    files: ['src/mvp/*.html'],
+    languageOptions: {
+      ecmaVersion: 2021,
+      sourceType: 'script',
+      globals: {
+        ...globals.browser,
+        NU: 'readonly',
+        SharedUtils: 'readonly',
+        SponsorUtils: 'readonly',
+        google: 'readonly',
+      },
+    },
+    rules: {
+      'no-undef': 'off',
+      // Ban raw fetch() calls - surfaces must use NU.rpc for consistency
+      'no-restricted-syntax': [
+        'warn',
+        {
+          selector: 'CallExpression[callee.name="fetch"]',
+          message: 'Use NU.rpc() instead of raw fetch() for backend calls. This ensures consistent error handling and response envelope processing.',
+        },
+      ],
+    },
+  },
+
   // Default config for all JS files
   {
     files: ['**/*.js'],

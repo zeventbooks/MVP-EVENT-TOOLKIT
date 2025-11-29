@@ -280,4 +280,533 @@ describe('SponsorUtils', () => {
       expect(impressionEvent.sponsorId).toBe('sp1');
     });
   });
+
+  // =============================================================================
+  // EDGE CASES - Long Sponsor Names
+  // =============================================================================
+
+  describe('Long Sponsor Names', () => {
+    let normalizeSponsor;
+    let renderInline;
+    let renderCard;
+    let renderBanner;
+    let esc;
+
+    beforeAll(() => {
+      // Simulate esc function
+      esc = function(s) {
+        return String(s).replace(/[&<>"']/g, m => ({
+          '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[m]));
+      };
+
+      // Simulate normalizeSponsor
+      normalizeSponsor = function(s) {
+        if (!s) return null;
+        let placement = s.placement || '';
+        if (!placement && s.placements && typeof s.placements === 'object') {
+          placement = Object.keys(s.placements).find(k => s.placements[k]) || '';
+        }
+        return {
+          id: s.id || '',
+          name: s.name || '',
+          logoUrl: s.logoUrl || s.img || '',
+          linkUrl: s.linkUrl || s.website || s.url || '',
+          placement: placement,
+          isPrimary: !!s.isPrimary
+        };
+      };
+
+      // Simulate renderInline
+      renderInline = function(s, wrapLinks) {
+        const content = s.img
+          ? `<img src="${esc(s.img)}" alt="${esc(s.name || '')}">`
+          : `<strong>${esc(s.name || '')}</strong>`;
+
+        if (wrapLinks && s.url) {
+          return `<a href="${esc(s.url)}" target="_blank" rel="noopener sponsored" data-sponsor-id="${esc(s.id || '')}">${content}</a>`;
+        }
+        return content;
+      };
+
+      // Simulate renderCard
+      renderCard = function(s, wrapLinks) {
+        const card = `
+          <div class="sp-card" data-id="${esc(s.id || '')}">
+            ${s.img ? `<img src="${esc(s.img)}" alt="${esc(s.name || '')}">` : ''}
+            <div class="sp-name">${esc(s.name || '')}</div>
+          </div>
+        `;
+
+        if (wrapLinks && s.url) {
+          return `<a href="${esc(s.url)}" target="_blank" rel="noopener sponsored" data-sponsor-id="${esc(s.id || '')}" style="text-decoration:none;color:inherit;">${card}</a>`;
+        }
+        return card;
+      };
+
+      // Simulate renderBanner
+      renderBanner = function(s, wrapLinks) {
+        const content = `
+          ${s.img ? `<img src="${esc(s.img)}" alt="${esc(s.name || '')}">` : ''}
+          <strong>${esc(s.name || '')}</strong>
+        `;
+
+        if (wrapLinks && s.url) {
+          return `<a href="${esc(s.url)}" target="_blank" rel="noopener sponsored" data-sponsor-id="${esc(s.id || '')}">${content}</a>`;
+        }
+        return `<span>${content}</span>`;
+      };
+    });
+
+    const longName = 'A'.repeat(250); // 250 character name
+    const veryLongName = 'B'.repeat(500); // 500 character name
+    const unicodeLongName = '\u2603'.repeat(100); // 100 snowman characters
+
+    test('normalizeSponsor should handle very long names without truncation', () => {
+      const sponsor = { id: 'sp1', name: longName };
+      const normalized = normalizeSponsor(sponsor);
+
+      // Should preserve full name (truncation is UI's responsibility)
+      expect(normalized.name).toBe(longName);
+      expect(normalized.name.length).toBe(250);
+    });
+
+    test('normalizeSponsor should handle 500+ character names', () => {
+      const sponsor = { id: 'sp1', name: veryLongName };
+      const normalized = normalizeSponsor(sponsor);
+
+      expect(normalized.name.length).toBe(500);
+    });
+
+    test('normalizeSponsor should handle unicode long names', () => {
+      const sponsor = { id: 'sp1', name: unicodeLongName };
+      const normalized = normalizeSponsor(sponsor);
+
+      expect(normalized.name).toBe(unicodeLongName);
+    });
+
+    test('renderInline should escape long names and not break HTML', () => {
+      const sponsor = { id: 'sp1', name: longName };
+      const html = renderInline(sponsor, false);
+
+      expect(html).toContain('<strong>');
+      expect(html).toContain('</strong>');
+      expect(html).not.toContain('<script>'); // No XSS
+    });
+
+    test('renderCard should handle long names in sp-name div', () => {
+      const sponsor = { id: 'sp1', name: longName };
+      const html = renderCard(sponsor, false);
+
+      expect(html).toContain('class="sp-name"');
+      expect(html).toContain(longName);
+    });
+
+    test('renderBanner should not break with very long names', () => {
+      const sponsor = { id: 'sp1', name: veryLongName };
+      const html = renderBanner(sponsor, false);
+
+      expect(html).toContain('<strong>');
+      // Should not crash or throw
+      expect(html.length).toBeGreaterThan(500);
+    });
+
+    test('long name with special characters should be escaped', () => {
+      const specialLongName = '<script>'.repeat(30) + 'Test';
+      const sponsor = { id: 'sp1', name: specialLongName };
+      const html = renderInline(sponsor, false);
+
+      expect(html).not.toContain('<script>');
+      expect(html).toContain('&lt;script&gt;');
+    });
+  });
+
+  // =============================================================================
+  // EDGE CASES - Missing logoUrl or linkUrl
+  // =============================================================================
+
+  describe('Missing logoUrl or linkUrl', () => {
+    let normalizeSponsor;
+    let renderInline;
+    let renderCard;
+    let renderBanner;
+    let esc;
+
+    beforeAll(() => {
+      esc = function(s) {
+        return String(s).replace(/[&<>"']/g, m => ({
+          '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[m]));
+      };
+
+      normalizeSponsor = function(s) {
+        if (!s) return null;
+        let placement = s.placement || '';
+        if (!placement && s.placements && typeof s.placements === 'object') {
+          placement = Object.keys(s.placements).find(k => s.placements[k]) || '';
+        }
+        return {
+          id: s.id || '',
+          name: s.name || '',
+          logoUrl: s.logoUrl || s.img || '',
+          linkUrl: s.linkUrl || s.website || s.url || '',
+          placement: placement,
+          isPrimary: !!s.isPrimary
+        };
+      };
+
+      renderInline = function(s, wrapLinks) {
+        const content = s.img
+          ? `<img src="${esc(s.img)}" alt="${esc(s.name || '')}">`
+          : `<strong>${esc(s.name || '')}</strong>`;
+
+        if (wrapLinks && s.url) {
+          return `<a href="${esc(s.url)}" target="_blank" rel="noopener sponsored" data-sponsor-id="${esc(s.id || '')}">${content}</a>`;
+        }
+        return content;
+      };
+
+      renderCard = function(s, wrapLinks) {
+        const card = `
+          <div class="sp-card" data-id="${esc(s.id || '')}">
+            ${s.img ? `<img src="${esc(s.img)}" alt="${esc(s.name || '')}">` : ''}
+            <div class="sp-name">${esc(s.name || '')}</div>
+          </div>
+        `;
+
+        if (wrapLinks && s.url) {
+          return `<a href="${esc(s.url)}" target="_blank" rel="noopener sponsored" data-sponsor-id="${esc(s.id || '')}" style="text-decoration:none;color:inherit;">${card}</a>`;
+        }
+        return card;
+      };
+
+      renderBanner = function(s, wrapLinks) {
+        const content = `
+          ${s.img ? `<img src="${esc(s.img)}" alt="${esc(s.name || '')}">` : ''}
+          <strong>${esc(s.name || '')}</strong>
+        `;
+
+        if (wrapLinks && s.url) {
+          return `<a href="${esc(s.url)}" target="_blank" rel="noopener sponsored" data-sponsor-id="${esc(s.id || '')}">${content}</a>`;
+        }
+        return `<span>${content}</span>`;
+      };
+    });
+
+    describe('Missing logoUrl', () => {
+      test('normalizeSponsor should return empty string for missing logoUrl', () => {
+        const sponsor = { id: 'sp1', name: 'Test Sponsor' };
+        const normalized = normalizeSponsor(sponsor);
+
+        expect(normalized.logoUrl).toBe('');
+      });
+
+      test('renderInline should show name when logoUrl is missing', () => {
+        const sponsor = { id: 'sp1', name: 'Test Sponsor' };
+        const html = renderInline(sponsor, false);
+
+        expect(html).toContain('<strong>Test Sponsor</strong>');
+        expect(html).not.toContain('<img');
+      });
+
+      test('renderCard should render without img when logoUrl is missing', () => {
+        const sponsor = { id: 'sp1', name: 'Test Sponsor' };
+        const html = renderCard(sponsor, false);
+
+        expect(html).toContain('class="sp-name"');
+        expect(html).toContain('Test Sponsor');
+        expect(html).not.toContain('src=');
+      });
+
+      test('renderBanner should show name without img when logoUrl is missing', () => {
+        const sponsor = { id: 'sp1', name: 'Test Sponsor' };
+        const html = renderBanner(sponsor, false);
+
+        expect(html).toContain('<strong>Test Sponsor</strong>');
+        expect(html).not.toContain('<img');
+      });
+    });
+
+    describe('Missing linkUrl', () => {
+      test('normalizeSponsor should return empty string for missing linkUrl', () => {
+        const sponsor = { id: 'sp1', name: 'Test', logoUrl: 'https://img.test/logo.png' };
+        const normalized = normalizeSponsor(sponsor);
+
+        expect(normalized.linkUrl).toBe('');
+      });
+
+      test('renderInline should not wrap in anchor when linkUrl is missing', () => {
+        const sponsor = { id: 'sp1', name: 'Test', img: 'https://img.test/logo.png' };
+        const html = renderInline(sponsor, true); // wrapLinks = true
+
+        expect(html).toContain('<img');
+        expect(html).not.toContain('<a href');
+      });
+
+      test('renderCard should not wrap in anchor when linkUrl is missing', () => {
+        const sponsor = { id: 'sp1', name: 'Test', img: 'https://img.test/logo.png' };
+        const html = renderCard(sponsor, true);
+
+        expect(html).toContain('class="sp-card"');
+        expect(html).not.toContain('<a href');
+      });
+
+      test('renderBanner should use span instead of anchor when linkUrl is missing', () => {
+        const sponsor = { id: 'sp1', name: 'Test' };
+        const html = renderBanner(sponsor, true);
+
+        expect(html).toContain('<span>');
+        expect(html).not.toContain('<a href');
+      });
+    });
+
+    describe('Both logoUrl and linkUrl missing', () => {
+      test('should render name-only sponsor without crashing', () => {
+        const sponsor = { id: 'sp1', name: 'Name Only Sponsor' };
+
+        expect(() => renderInline(sponsor, true)).not.toThrow();
+        expect(() => renderCard(sponsor, true)).not.toThrow();
+        expect(() => renderBanner(sponsor, true)).not.toThrow();
+      });
+
+      test('renderInline should show name in strong tag', () => {
+        const sponsor = { id: 'sp1', name: 'Name Only' };
+        const html = renderInline(sponsor, true);
+
+        expect(html).toBe('<strong>Name Only</strong>');
+      });
+    });
+  });
+
+  // =============================================================================
+  // EDGE CASES - Partial Sponsor Objects (Never Throw)
+  // =============================================================================
+
+  describe('Partial Sponsor Objects - Never Throw', () => {
+    let normalizeSponsor;
+    let renderInline;
+    let renderCard;
+    let renderBanner;
+    let esc;
+
+    beforeAll(() => {
+      esc = function(s) {
+        return String(s).replace(/[&<>"']/g, m => ({
+          '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[m]));
+      };
+
+      normalizeSponsor = function(s) {
+        if (!s) return null;
+        let placement = s.placement || '';
+        if (!placement && s.placements && typeof s.placements === 'object') {
+          placement = Object.keys(s.placements).find(k => s.placements[k]) || '';
+        }
+        return {
+          id: s.id || '',
+          name: s.name || '',
+          logoUrl: s.logoUrl || s.img || '',
+          linkUrl: s.linkUrl || s.website || s.url || '',
+          placement: placement,
+          isPrimary: !!s.isPrimary
+        };
+      };
+
+      renderInline = function(s, wrapLinks) {
+        const content = s.img
+          ? `<img src="${esc(s.img)}" alt="${esc(s.name || '')}">`
+          : `<strong>${esc(s.name || '')}</strong>`;
+
+        if (wrapLinks && s.url) {
+          return `<a href="${esc(s.url)}" target="_blank" rel="noopener sponsored" data-sponsor-id="${esc(s.id || '')}">${content}</a>`;
+        }
+        return content;
+      };
+
+      renderCard = function(s, wrapLinks) {
+        const card = `
+          <div class="sp-card" data-id="${esc(s.id || '')}">
+            ${s.img ? `<img src="${esc(s.img)}" alt="${esc(s.name || '')}">` : ''}
+            <div class="sp-name">${esc(s.name || '')}</div>
+          </div>
+        `;
+
+        if (wrapLinks && s.url) {
+          return `<a href="${esc(s.url)}" target="_blank" rel="noopener sponsored" data-sponsor-id="${esc(s.id || '')}" style="text-decoration:none;color:inherit;">${card}</a>`;
+        }
+        return card;
+      };
+
+      renderBanner = function(s, wrapLinks) {
+        const content = `
+          ${s.img ? `<img src="${esc(s.img)}" alt="${esc(s.name || '')}">` : ''}
+          <strong>${esc(s.name || '')}</strong>
+        `;
+
+        if (wrapLinks && s.url) {
+          return `<a href="${esc(s.url)}" target="_blank" rel="noopener sponsored" data-sponsor-id="${esc(s.id || '')}">${content}</a>`;
+        }
+        return `<span>${content}</span>`;
+      };
+    });
+
+    test('normalizeSponsor should return null for null input', () => {
+      expect(normalizeSponsor(null)).toBeNull();
+    });
+
+    test('normalizeSponsor should return null for undefined input', () => {
+      expect(normalizeSponsor(undefined)).toBeNull();
+    });
+
+    test('normalizeSponsor should handle empty object', () => {
+      const normalized = normalizeSponsor({});
+
+      expect(normalized).toEqual({
+        id: '',
+        name: '',
+        logoUrl: '',
+        linkUrl: '',
+        placement: '',
+        isPrimary: false
+      });
+    });
+
+    test('normalizeSponsor should handle sponsor with only id', () => {
+      const normalized = normalizeSponsor({ id: 'sp1' });
+
+      expect(normalized.id).toBe('sp1');
+      expect(normalized.name).toBe('');
+      expect(normalized.logoUrl).toBe('');
+    });
+
+    test('normalizeSponsor should handle sponsor with only name', () => {
+      const normalized = normalizeSponsor({ name: 'Test' });
+
+      expect(normalized.id).toBe('');
+      expect(normalized.name).toBe('Test');
+    });
+
+    describe('Render helpers never throw', () => {
+      test('renderInline should not throw on empty object', () => {
+        expect(() => renderInline({}, true)).not.toThrow();
+        expect(() => renderInline({}, false)).not.toThrow();
+      });
+
+      test('renderCard should not throw on empty object', () => {
+        expect(() => renderCard({}, true)).not.toThrow();
+        expect(() => renderCard({}, false)).not.toThrow();
+      });
+
+      test('renderBanner should not throw on empty object', () => {
+        expect(() => renderBanner({}, true)).not.toThrow();
+        expect(() => renderBanner({}, false)).not.toThrow();
+      });
+
+      test('renderInline should not throw with undefined properties', () => {
+        const sponsor = { id: undefined, name: undefined, img: undefined, url: undefined };
+        expect(() => renderInline(sponsor, true)).not.toThrow();
+      });
+
+      test('renderCard should not throw with null properties', () => {
+        const sponsor = { id: null, name: null, img: null, url: null };
+        expect(() => renderCard(sponsor, true)).not.toThrow();
+      });
+
+      test('renderBanner should produce valid HTML with minimal sponsor', () => {
+        const sponsor = {};
+        const html = renderBanner(sponsor, true);
+
+        // Should be a valid span with empty content
+        expect(html).toContain('<span>');
+        expect(html).toContain('</span>');
+        expect(html).toContain('<strong>');
+      });
+    });
+
+    describe('Legacy format handling', () => {
+      test('should normalize sponsor with legacy img field', () => {
+        const sponsor = { id: 'sp1', name: 'Test', img: 'https://img.test/logo.png' };
+        const normalized = normalizeSponsor(sponsor);
+
+        expect(normalized.logoUrl).toBe('https://img.test/logo.png');
+      });
+
+      test('should normalize sponsor with legacy url field', () => {
+        const sponsor = { id: 'sp1', name: 'Test', url: 'https://sponsor.com' };
+        const normalized = normalizeSponsor(sponsor);
+
+        expect(normalized.linkUrl).toBe('https://sponsor.com');
+      });
+
+      test('should normalize sponsor with legacy website field', () => {
+        const sponsor = { id: 'sp1', name: 'Test', website: 'https://website.com' };
+        const normalized = normalizeSponsor(sponsor);
+
+        expect(normalized.linkUrl).toBe('https://website.com');
+      });
+
+      test('should prefer linkUrl over legacy fields', () => {
+        const sponsor = {
+          id: 'sp1',
+          name: 'Test',
+          linkUrl: 'https://primary.com',
+          url: 'https://legacy-url.com',
+          website: 'https://legacy-website.com'
+        };
+        const normalized = normalizeSponsor(sponsor);
+
+        expect(normalized.linkUrl).toBe('https://primary.com');
+      });
+
+      test('should normalize sponsor with legacy placements object', () => {
+        const sponsor = {
+          id: 'sp1',
+          name: 'Test',
+          placements: { tvTop: true, mobileBanner: false }
+        };
+        const normalized = normalizeSponsor(sponsor);
+
+        expect(normalized.placement).toBe('tvTop');
+      });
+
+      test('should prefer placement string over placements object', () => {
+        const sponsor = {
+          id: 'sp1',
+          name: 'Test',
+          placement: 'poster',
+          placements: { tvTop: true }
+        };
+        const normalized = normalizeSponsor(sponsor);
+
+        expect(normalized.placement).toBe('poster');
+      });
+    });
+
+    describe('isPrimary flag', () => {
+      test('should default isPrimary to false', () => {
+        const normalized = normalizeSponsor({ id: 'sp1', name: 'Test' });
+        expect(normalized.isPrimary).toBe(false);
+      });
+
+      test('should preserve isPrimary when true', () => {
+        const normalized = normalizeSponsor({ id: 'sp1', name: 'Test', isPrimary: true });
+        expect(normalized.isPrimary).toBe(true);
+      });
+
+      test('should coerce truthy values to boolean', () => {
+        const normalized = normalizeSponsor({ id: 'sp1', name: 'Test', isPrimary: 1 });
+        expect(normalized.isPrimary).toBe(true);
+      });
+
+      test('should coerce falsy values to false', () => {
+        const normalized1 = normalizeSponsor({ id: 'sp1', name: 'Test', isPrimary: 0 });
+        const normalized2 = normalizeSponsor({ id: 'sp1', name: 'Test', isPrimary: '' });
+        const normalized3 = normalizeSponsor({ id: 'sp1', name: 'Test', isPrimary: null });
+
+        expect(normalized1.isPrimary).toBe(false);
+        expect(normalized2.isPrimary).toBe(false);
+        expect(normalized3.isPrimary).toBe(false);
+      });
+    });
+  });
 });
