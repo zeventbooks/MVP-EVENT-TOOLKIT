@@ -1291,7 +1291,12 @@ function _listMvpSurfaces_() {
 function _isMvpSurface_(page) {
   const surfaces = _listMvpSurfaces_();
   // 'analytics' is an alias for 'report'
-  return surfaces.includes(page) || page === 'analytics';
+  if (surfaces.includes(page) || page === 'analytics') return true;
+
+  // [V2] Template Management UI - gated by feature flag
+  if (page === 'templates-v2' && isFeatureEnabled_('TEMPLATE_MANAGEMENT_V2')) return true;
+
+  return false;
 }
 
 /**
@@ -1304,6 +1309,9 @@ function _isMvpSurface_(page) {
  *   poster → Poster.html
  *   display → Display.html
  *   report/analytics → SharedReport.html
+ *
+ * V2 surfaces (feature-gated):
+ *   templates-v2 → AdminTemplateV2.html (TEMPLATE_MANAGEMENT_V2 flag)
  *
  * Story 16: Removed V2+ surfaces (test, diagnostics, sponsor, sponsor-roi,
  * signup, planner, config) - files not in deployment (src/mvp only).
@@ -1318,6 +1326,10 @@ function pageFile_(page){
   if (page==='poster') return 'Poster';
   if (page==='display') return 'Display';
   if (page==='report' || page==='analytics') return 'SharedReport';
+
+  // === V2 SURFACES (feature-gated) ===
+  if (page==='templates-v2') return 'AdminTemplateV2';
+
   // Default to Public for any unknown page
   return 'Public';
 }

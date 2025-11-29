@@ -29,6 +29,11 @@ const ZEB = Object.freeze({
     // [MVP] Portfolio Features (enabled for parent organizations)
     PORTFOLIO_ANALYTICS: true,  // [MVP] Parent org portfolio reporting
 
+    // [V2] Template Management UI (hidden from early bar pilots)
+    // Allows SEM staff and bar owners to tweak templates themselves
+    // Gate: Must be explicitly enabled per brand or deployment
+    TEMPLATE_MANAGEMENT_V2: false,  // [V2] Hidden template editor - disabled by default
+
     // Story 16: V2 features archived - code moved to archive/v2-code/
     // WEBHOOKS, I18N, ADVANCED_ANALYTICS, SPONSOR_SELF_SERVICE removed
   },
