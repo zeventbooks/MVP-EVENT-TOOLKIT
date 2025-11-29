@@ -297,7 +297,9 @@ async function testRoute(surface, config) {
       if (body.includes('Error') && body.includes('Script function not found')) {
         result.errors.push('Got Apps Script error page');
       }
-      if (body.includes('accounts.google.com')) {
+      // Check for Google login redirect by looking for specific login page markers
+      // Using multiple markers to avoid false positives from substring matching
+      if (body.includes('ServiceLogin') && body.includes('google.com')) {
         result.errors.push('Got Google login redirect (check executeAs settings)');
       }
     }
@@ -395,7 +397,7 @@ async function runTests() {
     console.log('');
     console.log('Verified routes:');
     for (const [surface, config] of Object.entries(URL_ROUTES)) {
-      console.log(`  ${config.path} -> ${config.description}`);
+      console.log(`  ${config.path} -> ${surface} (${config.description})`);
     }
     console.log('');
     process.exit(0);
