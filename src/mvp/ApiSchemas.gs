@@ -78,6 +78,7 @@
  *   - api_getSharedAnalytics  → analytics.getSharedReport
  *   - api_getSponsorAnalytics → analytics.getSponsorAnalytics
  *   - api_getSponsorReportQr  → analytics.getSponsorReportQr
+ *   [V2] api_exportSharedReport → analytics.exportReport (button hidden, not MVP)
  *   [V2] api_getPortfolioAnalyticsV2 → (portfolio feature, not yet schema'd)
  *
  * ═══════════════════════════════════════════════════════════════════════════
@@ -820,6 +821,41 @@ const SCHEMAS = {
   // === Analytics Schemas ===================================================
 
   analytics: {
+    // ═══════════════════════════════════════════════════════════════════════════
+    // [MVP] CANONICAL SHAREDREPORT API SET (Story 6 Decision)
+    // ═══════════════════════════════════════════════════════════════════════════
+    //
+    // SharedReport.html uses exactly 3 MVP APIs:
+    //
+    // 1. api_getSharedAnalytics({ brandId }) → SharedAnalytics
+    //    - Event-level analytics bundle for organizer dashboard
+    //    - Returns: summary, surfaces[], sponsors[], events[], topSponsors[]
+    //    - Schema: analytics.getSharedReport
+    //
+    // 2. api_getSponsorAnalytics({ brandId, sponsorId, eventId? }) → SharedAnalytics
+    //    - Focused sponsor-scoped analytics for sponsor-specific reports
+    //    - Same response shape, scoped to single sponsor
+    //    - Schema: analytics.getSponsorAnalytics
+    //
+    // 3. api_getSponsorReportQr({ sponsorId, brandId? }) → { url, qrB64, verified }
+    //    - Generates QR code for sharing sponsor report link
+    //    - Returns base64 PNG QR code image
+    //    - Schema: analytics.getSponsorReportQr
+    //
+    // V2-ONLY (not used by SharedReport.html MVP):
+    //
+    // 4. api_exportSharedReport({ brandId, eventId?, format }) → { data, filename }
+    //    - Export analytics to CSV/JSON/PDF (button hidden in UI)
+    //    - Implementation exists in SharedReporting.gs but MVP unused
+    //    - Schema: analytics.exportReport
+    //    - Status: Documented as V2, button display:none in SharedReport.html
+    //
+    // 5. api_getPortfolioAnalyticsV2({ brandId, mode, sponsorId?, adminKey })
+    //    - Multi-event portfolio mode for cross-brand aggregation
+    //    - V2 feature in SponsorPortfolioV2.gs (not schema'd yet)
+    //
+    // ═══════════════════════════════════════════════════════════════════════════
+
     // api_logExternalClick - Public.html, Display.html
     logExternalClick: {
       request: {
@@ -975,7 +1011,9 @@ const SCHEMAS = {
       }
     },
 
-    // api_exportSharedReport - SharedReport.html
+    // api_exportSharedReport - [V2-ONLY] Export feature (button hidden in SharedReport.html MVP)
+    // Implementation exists in SharedReporting.gs but not wired to UI for MVP release.
+    // Keep schema for V2 when export functionality is enabled.
     exportReport: {
       request: {
         type: 'object',
