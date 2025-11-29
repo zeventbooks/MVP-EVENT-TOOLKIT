@@ -103,6 +103,17 @@ const ADMIN_PAGE = {
   CARD_DIAGNOSTICS: '#cardDiagnostics',
   EVENT_ID_DISPLAY: '#eventIdDisplay',
 
+  // Advanced Sections (collapsed by default)
+  ADVANCED_DISPLAY_TOGGLES: '[data-testid="advanced-display-toggles"]',
+  ADVANCED_DISPLAY_TOGGLES_HEADER: '#advancedDisplayTogglesHeader',
+  ADVANCED_EVENT_DETAILS: '[data-testid="advanced-event-details"]',
+  ADVANCED_EVENT_DETAILS_HEADER: '#advancedEventDetailsHeader',
+  EXTERNAL_LINKS_SECTION: '[data-testid="external-links-section"]',
+  EXTERNAL_LINKS_HEADER: '#externalLinksHeader',
+  SUMMARY_SECTION: '[data-testid="summary-section"]',
+  MEDIA_SECTION: '[data-testid="media-section"]',
+  BIO_SECTION: '[data-testid="bio-section"]',
+
   // Create Another Event
   CREATE_ANOTHER_BUTTON: 'button:has-text("Create Another Event")',
 

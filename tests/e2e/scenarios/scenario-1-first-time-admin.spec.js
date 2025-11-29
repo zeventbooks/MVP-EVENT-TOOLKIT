@@ -160,6 +160,10 @@ test.describe('SCENARIO 1: First-Time Admin', () => {
     await page.fill('#startDateISO', eventDate);
     // Note: #timeISO doesn't exist in current Admin.html - skipping time field
     await page.fill('#venue', eventLocation);
+
+    // Expand advanced event details section to fill summary (optional field)
+    await page.click('#advancedEventDetailsHeader');
+    await page.waitForTimeout(300);
     await page.fill('#summary', eventSummary);
 
     // Submit form
@@ -364,6 +368,10 @@ test.describe('SCENARIO 1: Complete Admin Workflow (Integration)', () => {
     await page.fill('#startDateISO', '2025-12-31');
     // Note: #timeISO doesn't exist in current Admin.html - skipping time field
     await page.fill('#venue', 'Test Venue');
+
+    // Expand advanced event details section to fill summary (optional field)
+    await page.click('#advancedEventDetailsHeader');
+    await page.waitForTimeout(300);
     await page.fill('#summary', 'Complete integration test');
     await page.click('button[type="submit"]');
 

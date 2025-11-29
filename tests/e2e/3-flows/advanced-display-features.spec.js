@@ -209,6 +209,13 @@ test.describe('📺 DISPLAY: Video Streaming Support', () => {
     await page.fill('#name', eventName);
     await page.fill('#startDateISO', '2025-12-31');
 
+    // Expand advanced event details section to access video URL field
+    const advancedHeader = page.locator('#advancedEventDetailsHeader');
+    if (await advancedHeader.count() > 0) {
+      await advancedHeader.click();
+      await page.waitForTimeout(300);
+    }
+
     // Look for video URL field
     const videoField = page.locator('#videoUrl, input[name="videoUrl"], .video-input');
     const hasVideoField = await videoField.count() > 0;
@@ -284,6 +291,13 @@ test.describe('📺 DISPLAY: Video Streaming Support', () => {
     const eventName = `Vimeo Test ${Date.now()}`;
     await page.fill('#name', eventName);
     await page.fill('#startDateISO', '2025-12-31');
+
+    // Expand advanced event details section to access video URL field
+    const advancedHeader = page.locator('#advancedEventDetailsHeader');
+    if (await advancedHeader.count() > 0) {
+      await advancedHeader.click();
+      await page.waitForTimeout(300);
+    }
 
     const videoField = page.locator('#videoUrl, input[name="videoUrl"], .video-input');
     const hasVideoField = await videoField.count() > 0;

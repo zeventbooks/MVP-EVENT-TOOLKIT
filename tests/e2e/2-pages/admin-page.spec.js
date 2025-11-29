@@ -362,6 +362,10 @@ test.describe('📄 PAGE: Admin - Form Validation', () => {
     await page.fill('#startDateISO', '2025-12-31');
     await page.fill('#timeISO', '19:00');
     await page.fill('#venue', 'Test Venue');
+
+    // Expand advanced event details section to fill summary (optional field)
+    await page.click('#advancedEventDetailsHeader');
+    await page.waitForTimeout(300);
     await page.fill('#summary', 'Event description');
     await page.fill('#tags', 'test, event');
 
@@ -464,106 +468,109 @@ test.describe('📄 PAGE: Admin - Collapsible Sections', () => {
       timeout: 20000,
     });
 
-    // Verify all collapsible section headers exist
-    await expect(page.locator('.collapsible-header:has-text("Core Event Details")')).toBeVisible();
-    await expect(page.locator('.collapsible-header:has-text("Summary")')).toBeVisible();
-    await expect(page.locator('.collapsible-header:has-text("Media")')).toBeVisible();
-    await expect(page.locator('.collapsible-header:has-text("Bio")')).toBeVisible();
+    // Verify main collapsible section headers exist
+    await expect(page.locator('.collapsible-header:has-text("More options")')).toBeVisible();
+    await expect(page.locator('.collapsible-header:has-text("Advanced event details")')).toBeVisible();
+    await expect(page.locator('.collapsible-header:has-text("External links")')).toBeVisible();
   });
 
-  test('All sections start expanded by default', async ({ page }) => {
+  test('Advanced sections start collapsed by default for MVP flow', async ({ page }) => {
     await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
 
-    // Verify all sections are expanded (not collapsed)
-    const collapsedHeaders = await page.locator('.collapsible-header.collapsed').count();
-    expect(collapsedHeaders).toBe(0);
+    // MVP essential fields should be visible (not in collapsed sections)
+    await expect(page.locator('#name')).toBeVisible(); // Event name
+    await expect(page.locator('#startDateISO')).toBeVisible(); // Date
+    await expect(page.locator('#venue')).toBeVisible(); // Venue
 
-    // Verify content is visible
-    await expect(page.locator('#name')).toBeVisible(); // Core Event Details
-    await expect(page.locator('#summary')).toBeVisible(); // Summary
-    await expect(page.locator('#imageUrl')).toBeVisible(); // Media
-    await expect(page.locator('#bio')).toBeVisible(); // Bio
+    // Advanced sections should be collapsed by default
+    const advancedDetailsHeader = page.locator('#advancedEventDetailsHeader');
+    await expect(advancedDetailsHeader).toHaveClass(/collapsed/);
+
+    const externalLinksHeader = page.locator('#externalLinksHeader');
+    await expect(externalLinksHeader).toHaveClass(/collapsed/);
   });
 
-  test('Clicking section header collapses/expands section', async ({ page }) => {
+  test('Clicking advanced section header expands/collapses section', async ({ page }) => {
     await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
 
-    const summaryHeader = page.locator('.collapsible-header:has-text("Summary")');
+    const advancedHeader = page.locator('#advancedEventDetailsHeader');
 
-    // Initially expanded - content should be visible
-    await expect(page.locator('#summary')).toBeVisible();
+    // Initially collapsed - content should be hidden
+    const advancedContent = page.locator('#advancedEventDetailsContent');
+    await expect(advancedContent).not.toBeVisible();
 
-    // Click to collapse
-    await summaryHeader.click();
-
-    // Wait for animation and verify section is collapsed
+    // Click to expand
+    await advancedHeader.click();
     await page.waitForTimeout(500);
-    const isCollapsed = await summaryHeader.evaluate(el => el.classList.contains('collapsed'));
-    expect(isCollapsed).toBe(true);
-
-    // Click again to expand
-    await summaryHeader.click();
 
     // Wait for animation and verify section is expanded
-    await page.waitForTimeout(500);
-    const isExpanded = await summaryHeader.evaluate(el => !el.classList.contains('collapsed'));
+    const isExpanded = await advancedHeader.evaluate(el => !el.classList.contains('collapsed'));
     expect(isExpanded).toBe(true);
+
+    // Content should now be visible
+    await expect(page.locator('#summary')).toBeVisible();
+
+    // Click again to collapse
+    await advancedHeader.click();
+    await page.waitForTimeout(500);
+
+    const isCollapsed = await advancedHeader.evaluate(el => el.classList.contains('collapsed'));
+    expect(isCollapsed).toBe(true);
   });
 
-  test('Chevron icon rotates when section is collapsed', async ({ page }) => {
+  test('Chevron icon rotates when section is expanded', async ({ page }) => {
     await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
 
-    const mediaHeader = page.locator('.collapsible-header:has-text("Media")');
-    const chevron = mediaHeader.locator('.collapsible-icon');
+    const advancedHeader = page.locator('#advancedEventDetailsHeader');
+    const chevron = advancedHeader.locator('.collapsible-icon');
 
-    // Get initial transform
-    const initialTransform = await chevron.evaluate(el =>
-      window.getComputedStyle(el).transform
-    );
-
-    // Collapse section
-    await mediaHeader.click();
-    await page.waitForTimeout(500);
-
-    // Get transform after collapse
+    // Get initial transform (collapsed state)
     const collapsedTransform = await chevron.evaluate(el =>
       window.getComputedStyle(el).transform
     );
 
+    // Expand section
+    await advancedHeader.click();
+    await page.waitForTimeout(500);
+
+    // Get transform after expand
+    const expandedTransform = await chevron.evaluate(el =>
+      window.getComputedStyle(el).transform
+    );
+
     // Transform should have changed (rotation applied)
-    expect(collapsedTransform).not.toBe(initialTransform);
+    expect(expandedTransform).not.toBe(collapsedTransform);
   });
 
-  test('Multiple sections can be collapsed independently', async ({ page }) => {
+  test('Advanced sections can be expanded independently', async ({ page }) => {
     await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`, {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
 
-    // Collapse Summary section
-    await page.locator('.collapsible-header:has-text("Summary")').click();
+    // Expand Advanced Event Details section
+    await page.locator('#advancedEventDetailsHeader').click();
     await page.waitForTimeout(300);
 
-    // Collapse Bio section
-    await page.locator('.collapsible-header:has-text("Bio")').click();
-    await page.waitForTimeout(300);
+    // Verify it's expanded
+    await expect(page.locator('#summary')).toBeVisible();
 
-    // Verify both are collapsed
-    const collapsedCount = await page.locator('.collapsible-header.collapsed').count();
-    expect(collapsedCount).toBe(2);
+    // External Links should still be collapsed
+    const externalLinksHeader = page.locator('#externalLinksHeader');
+    await expect(externalLinksHeader).toHaveClass(/collapsed/);
 
-    // Verify other sections remain expanded
-    await expect(page.locator('#name')).toBeVisible(); // Core Event Details
-    await expect(page.locator('#imageUrl')).toBeVisible(); // Media
+    // Core MVP fields should remain visible
+    await expect(page.locator('#name')).toBeVisible();
+    await expect(page.locator('#startDateISO')).toBeVisible();
   });
 
   test('Event Dashboard has collapsible sections', async ({ page }) => {

@@ -35,6 +35,10 @@ test.describe('Critical User Flows - E2E', () => {
     await page.fill('#startDateISO', '2025-12-31');
     await page.fill('#timeISO', '19:00');
     await page.fill('#venue', 'Test Venue');
+
+    // Expand advanced event details section to fill summary (optional field)
+    await page.click('#advancedEventDetailsHeader');
+    await page.waitForTimeout(300);
     await page.fill('#summary', 'This is a test event for E2E validation');
 
     // Step 3: Submit form (will prompt for admin key)
