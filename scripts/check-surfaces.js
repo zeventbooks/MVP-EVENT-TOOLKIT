@@ -39,7 +39,7 @@ const SURFACE_ALIASES = { 'analytics': 'report' };
 // V2 surfaces (feature-gated, not exposed in early bar pilots)
 // These are valid surfaces that are gated by feature flags in Config.gs
 // The check-surfaces script should allow references to these surfaces
-const V2_FEATURE_GATED_SURFACES = ['templates-v2', 'randomizer', 'teams', 'picker'];
+const V2_FEATURE_GATED_SURFACES = ['templates-v2', 'randomizer', 'teams', 'picker', 'portfolio', 'portfolio-dashboard'];
 
 // ============================================================================
 // Extract MVP surfaces from Code.gs
