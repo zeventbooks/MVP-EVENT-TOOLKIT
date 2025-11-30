@@ -1365,6 +1365,7 @@ function pageFile_(page){
   // === V2 SURFACES (feature-gated) ===
   if (page==='templates-v2') return 'AdminTemplateV2';
   if (page==='randomizer' || page==='teams' || page==='picker') return 'Randomizer';
+  if (page==='portfolio' || page==='portfolio-dashboard') return 'PortfolioDashboard';
 
   // Default to Public for any unknown page
   return 'Public';
