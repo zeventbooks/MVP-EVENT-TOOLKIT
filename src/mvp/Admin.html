@@ -941,6 +941,483 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
         margin-top: 4px;
       }
     }
+
+    /* ===== Create & Launch Wizard - S08 Guided Flow ===== */
+    .launch-wizard {
+      background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 50%, #f0fdf4 100%);
+      border: 2px solid #0ea5e9;
+      border-radius: var(--radius-lg, 16px);
+      margin-bottom: 24px;
+      overflow: hidden;
+    }
+
+    .wizard-header {
+      background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
+      padding: 20px 24px;
+      color: white;
+    }
+
+    .wizard-header h2 {
+      margin: 0 0 4px 0;
+      font-size: 1.4rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .wizard-header .wizard-subtitle {
+      margin: 0;
+      opacity: 0.9;
+      font-size: 0.95rem;
+    }
+
+    /* Step Progress Indicator */
+    .wizard-progress {
+      display: flex;
+      justify-content: space-between;
+      padding: 16px 24px;
+      background: white;
+      border-bottom: 1px solid var(--color-gray-200, #e2e8f0);
+      gap: 8px;
+      overflow-x: auto;
+    }
+
+    .wizard-progress-step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex: 1;
+      min-width: 60px;
+      position: relative;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .wizard-progress-step:hover:not(.disabled) {
+      transform: translateY(-2px);
+    }
+
+    .wizard-progress-step.disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .wizard-progress-step::after {
+      content: '';
+      position: absolute;
+      top: 14px;
+      left: 60%;
+      width: calc(100% - 20px);
+      height: 2px;
+      background: var(--color-gray-200, #e2e8f0);
+    }
+
+    .wizard-progress-step:last-child::after {
+      display: none;
+    }
+
+    .wizard-progress-step.completed::after {
+      background: #10b981;
+    }
+
+    .wizard-progress-step .step-dot {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--color-gray-200, #e2e8f0);
+      color: var(--color-gray-500, #64748b);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 0.85rem;
+      position: relative;
+      z-index: 1;
+      transition: all 0.3s ease;
+    }
+
+    .wizard-progress-step.active .step-dot {
+      background: #2563eb;
+      color: white;
+      box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.2);
+    }
+
+    .wizard-progress-step.completed .step-dot {
+      background: #10b981;
+      color: white;
+    }
+
+    .wizard-progress-step .step-label {
+      font-size: 0.7rem;
+      color: var(--color-gray-500, #64748b);
+      margin-top: 6px;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .wizard-progress-step.active .step-label {
+      color: #2563eb;
+      font-weight: 600;
+    }
+
+    .wizard-progress-step.completed .step-label {
+      color: #10b981;
+    }
+
+    /* Wizard Content Area */
+    .wizard-content {
+      padding: 24px;
+      background: white;
+    }
+
+    .wizard-step {
+      display: none;
+      animation: wizardFadeIn 0.3s ease;
+    }
+
+    .wizard-step.active {
+      display: block;
+    }
+
+    @keyframes wizardFadeIn {
+      from { opacity: 0; transform: translateX(10px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    .wizard-step-header {
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--color-gray-100, #f1f5f9);
+    }
+
+    .wizard-step-header h3 {
+      margin: 0 0 4px 0;
+      font-size: 1.2rem;
+      color: var(--color-gray-800, #1e293b);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .wizard-step-header .step-description {
+      margin: 0;
+      color: var(--color-gray-500, #64748b);
+      font-size: 0.9rem;
+    }
+
+    /* Wizard Template Grid - Larger for visibility */
+    .wizard-template-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    .wizard-template-card {
+      padding: 20px 16px;
+      background: var(--color-gray-50, #f8fafc);
+      border: 2px solid var(--color-gray-200, #e2e8f0);
+      border-radius: var(--radius-md, 12px);
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .wizard-template-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+      border-color: var(--color-primary-light, #bfdbfe);
+    }
+
+    .wizard-template-card.selected {
+      border-color: #2563eb;
+      background: #eff6ff;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+    }
+
+    .wizard-template-card .template-icon {
+      font-size: 2.5rem;
+      margin-bottom: 10px;
+    }
+
+    .wizard-template-card .template-name {
+      font-weight: 600;
+      font-size: 1rem;
+      color: var(--color-gray-800, #1e293b);
+      margin-bottom: 4px;
+    }
+
+    .wizard-template-card .template-desc {
+      font-size: 0.8rem;
+      color: var(--color-gray-500, #64748b);
+      line-height: 1.3;
+    }
+
+    /* Wizard Sign-Up Options */
+    .wizard-signup-options {
+      display: grid;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .wizard-signup-option {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 16px;
+      background: var(--color-gray-50, #f8fafc);
+      border: 1px solid var(--color-gray-200, #e2e8f0);
+      border-radius: var(--radius-md, 12px);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .wizard-signup-option:hover {
+      background: white;
+      border-color: var(--color-primary-light, #bfdbfe);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .wizard-signup-option.selected {
+      border-color: #2563eb;
+      background: #eff6ff;
+    }
+
+    .wizard-signup-option .option-icon {
+      font-size: 1.8rem;
+      flex-shrink: 0;
+    }
+
+    .wizard-signup-option .option-content {
+      flex: 1;
+    }
+
+    .wizard-signup-option .option-title {
+      font-weight: 600;
+      color: var(--color-gray-800, #1e293b);
+      margin-bottom: 2px;
+    }
+
+    .wizard-signup-option .option-desc {
+      font-size: 0.85rem;
+      color: var(--color-gray-500, #64748b);
+    }
+
+    /* Wizard Links Preview */
+    .wizard-links-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    .wizard-link-card {
+      background: white;
+      border: 1px solid var(--color-gray-200, #e2e8f0);
+      border-radius: var(--radius-md, 12px);
+      padding: 16px;
+      text-align: center;
+    }
+
+    .wizard-link-card .link-icon {
+      font-size: 2rem;
+      margin-bottom: 8px;
+    }
+
+    .wizard-link-card .link-title {
+      font-weight: 600;
+      color: var(--color-gray-800, #1e293b);
+      margin-bottom: 4px;
+    }
+
+    .wizard-link-card .link-desc {
+      font-size: 0.8rem;
+      color: var(--color-gray-500, #64748b);
+      margin-bottom: 12px;
+    }
+
+    .wizard-link-card .link-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .wizard-link-card .link-actions .btn-sm {
+      padding: 6px 12px;
+      font-size: 0.8rem;
+    }
+
+    .wizard-qr-preview {
+      background: white;
+      padding: 8px;
+      border-radius: 8px;
+      display: inline-block;
+      margin-bottom: 8px;
+      border: 1px solid var(--color-gray-100, #f1f5f9);
+    }
+
+    /* Wizard Navigation */
+    .wizard-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 24px;
+      background: var(--color-gray-50, #f8fafc);
+      border-top: 1px solid var(--color-gray-200, #e2e8f0);
+    }
+
+    .wizard-nav .nav-left,
+    .wizard-nav .nav-right {
+      display: flex;
+      gap: 12px;
+    }
+
+    .wizard-nav .btn-wizard-back {
+      background: white;
+      border: 1px solid var(--color-gray-300, #cbd5e1);
+      color: var(--color-gray-600, #475569);
+      padding: 10px 20px;
+      border-radius: var(--radius-base, 8px);
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .wizard-nav .btn-wizard-back:hover {
+      background: var(--color-gray-100, #f1f5f9);
+      border-color: var(--color-gray-400, #94a3b8);
+    }
+
+    .wizard-nav .btn-wizard-skip {
+      background: transparent;
+      border: none;
+      color: var(--color-gray-500, #64748b);
+      padding: 10px 16px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      text-decoration: underline;
+    }
+
+    .wizard-nav .btn-wizard-skip:hover {
+      color: var(--color-gray-700, #334155);
+    }
+
+    .wizard-nav .btn-wizard-next {
+      background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+      border: none;
+      color: white;
+      padding: 10px 24px;
+      border-radius: var(--radius-base, 8px);
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .wizard-nav .btn-wizard-next:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    }
+
+    .wizard-nav .btn-wizard-next:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .wizard-nav .btn-wizard-launch {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    }
+
+    .wizard-nav .btn-wizard-launch:hover {
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    }
+
+    /* Wizard Success State */
+    .wizard-success {
+      text-align: center;
+      padding: 32px 24px;
+    }
+
+    .wizard-success .success-icon {
+      font-size: 4rem;
+      margin-bottom: 16px;
+    }
+
+    .wizard-success h3 {
+      margin: 0 0 8px 0;
+      font-size: 1.5rem;
+      color: #10b981;
+    }
+
+    .wizard-success p {
+      margin: 0 0 24px 0;
+      color: var(--color-gray-600, #475569);
+    }
+
+    /* Wizard Mobile Responsive */
+    @media (max-width: 640px) {
+      .launch-wizard {
+        margin: 0 -16px 16px -16px;
+        border-radius: 0;
+        border-left: none;
+        border-right: none;
+      }
+
+      .wizard-header {
+        padding: 16px;
+      }
+
+      .wizard-header h2 {
+        font-size: 1.2rem;
+      }
+
+      .wizard-progress {
+        padding: 12px 16px;
+      }
+
+      .wizard-progress-step .step-label {
+        font-size: 0.65rem;
+      }
+
+      .wizard-content {
+        padding: 16px;
+      }
+
+      .wizard-template-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+      }
+
+      .wizard-template-card {
+        padding: 14px 10px;
+      }
+
+      .wizard-template-card .template-icon {
+        font-size: 2rem;
+      }
+
+      .wizard-links-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .wizard-nav {
+        flex-wrap: wrap;
+        gap: 12px;
+        padding: 12px 16px;
+      }
+
+      .wizard-nav .nav-left,
+      .wizard-nav .nav-right {
+        width: 100%;
+        justify-content: center;
+      }
+    }
   </style>
 </head>
 <body>
@@ -963,10 +1440,275 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
     </div>
 
     <!-- ═══════════════════════════════════════════════════════════════════════ -->
-    <!-- QUICK START GUIDE - "10 Minutes to Launch" Overview                     -->
+    <!-- S08: CREATE & LAUNCH WIZARD - Guided "10-Minute Event" Flow             -->
+    <!-- Walks bar owners through: Create → Template → Sign-ups → Links → Launch -->
+    <!-- Uses existing RPCs: api_saveEvent, api_getEventTemplates                -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <section class="launch-wizard" id="launchWizard" data-testid="launch-wizard">
+      <div class="wizard-header">
+        <h2>
+          <span>🚀</span>
+          Create & Launch Your Event
+        </h2>
+        <p class="wizard-subtitle">Ready in 10 minutes—we'll walk you through every step.</p>
+      </div>
+
+      <!-- Step Progress Indicator -->
+      <div class="wizard-progress">
+        <div class="wizard-progress-step active" data-step="1" onclick="wizardGoToStep(1)">
+          <div class="step-dot">1</div>
+          <div class="step-label">Basic Info</div>
+        </div>
+        <div class="wizard-progress-step disabled" data-step="2" onclick="wizardGoToStep(2)">
+          <div class="step-dot">2</div>
+          <div class="step-label">Template</div>
+        </div>
+        <div class="wizard-progress-step disabled" data-step="3" onclick="wizardGoToStep(3)">
+          <div class="step-dot">3</div>
+          <div class="step-label">Sign-Ups</div>
+        </div>
+        <div class="wizard-progress-step disabled" data-step="4" onclick="wizardGoToStep(4)">
+          <div class="step-dot">4</div>
+          <div class="step-label">Your Links</div>
+        </div>
+        <div class="wizard-progress-step disabled" data-step="5" onclick="wizardGoToStep(5)">
+          <div class="step-dot">5</div>
+          <div class="step-label">Launch</div>
+        </div>
+      </div>
+
+      <div class="wizard-content">
+        <!-- Step 1: Basic Info -->
+        <div class="wizard-step active" id="wizardStep1" data-testid="wizard-step-1">
+          <div class="wizard-step-header">
+            <h3><span>📝</span> What's your event?</h3>
+            <p class="step-description">Just 3 fields—name, date, and where it's happening.</p>
+          </div>
+
+          <div class="form-group">
+            <label>Event Name *</label>
+            <input type="text" id="wizardEventName" required placeholder="e.g., Friday Night Trivia, Summer Cookout" data-testid="wizard-event-name">
+          </div>
+
+          <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+            <div class="form-group">
+              <label>Event Date *</label>
+              <input type="date" id="wizardEventDate" required data-testid="wizard-event-date">
+            </div>
+            <div class="form-group">
+              <label>Venue / Location *</label>
+              <input type="text" id="wizardEventVenue" required placeholder="e.g., The Local Pub" data-testid="wizard-event-venue">
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 2: Choose Template -->
+        <div class="wizard-step" id="wizardStep2" data-testid="wizard-step-2">
+          <div class="wizard-step-header">
+            <h3><span>🎨</span> What type of event is it?</h3>
+            <p class="step-description">Pick a template to get the right setup—you can customize later.</p>
+          </div>
+
+          <div id="wizardTemplatePicker" class="wizard-template-grid">
+            <div class="template-loading">Loading templates...</div>
+          </div>
+          <input type="hidden" id="wizardTemplateId" value="bar_night">
+        </div>
+
+        <!-- Step 3: Sign-Ups (Optional) -->
+        <div class="wizard-step" id="wizardStep3" data-testid="wizard-step-3">
+          <div class="wizard-step-header">
+            <h3><span>📋</span> How will people sign up?</h3>
+            <p class="step-description">Optional—you can skip this and add it later.</p>
+          </div>
+
+          <div class="wizard-signup-options">
+            <div class="wizard-signup-option" data-option="existing" onclick="selectWizardSignupOption('existing')">
+              <div class="option-icon">🔗</div>
+              <div class="option-content">
+                <div class="option-title">I have a form already</div>
+                <div class="option-desc">Paste a link to your Google Form, Eventbrite, etc.</div>
+              </div>
+            </div>
+
+            <div class="wizard-signup-option" data-option="create" onclick="selectWizardSignupOption('create')">
+              <div class="option-icon">✨</div>
+              <div class="option-content">
+                <div class="option-title">Create a form for me</div>
+                <div class="option-desc">We'll generate a simple Google Form you can customize.</div>
+              </div>
+            </div>
+
+            <div class="wizard-signup-option" data-option="none" onclick="selectWizardSignupOption('none')">
+              <div class="option-icon">⏭️</div>
+              <div class="option-content">
+                <div class="option-title">No sign-ups needed</div>
+                <div class="option-desc">Walk-ins only, or you'll handle it another way.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Existing Form URL Input (shown when 'existing' selected) -->
+          <div id="wizardExistingFormInput" style="display: none; margin-top: 16px;">
+            <div class="form-group">
+              <label>Your Sign-Up Form URL</label>
+              <input type="url" id="wizardSignupUrl" placeholder="https://forms.google.com/..." data-testid="wizard-signup-url">
+              <small class="muted">Paste the link where people can sign up</small>
+            </div>
+          </div>
+
+          <!-- Create Form Status (shown when 'create' selected) -->
+          <div id="wizardCreateFormStatus" style="display: none; margin-top: 16px; padding: 16px; background: var(--color-gray-50, #f8fafc); border-radius: 8px;">
+            <p style="margin: 0; color: var(--color-gray-600, #475569);">
+              <span id="wizardCreateFormIcon">📝</span>
+              <span id="wizardCreateFormText">We'll create your form when you proceed to the next step.</span>
+            </p>
+          </div>
+        </div>
+
+        <!-- Step 4: Your Links -->
+        <div class="wizard-step" id="wizardStep4" data-testid="wizard-step-4">
+          <div class="wizard-step-header">
+            <h3><span>🔗</span> Your event is ready!</h3>
+            <p class="step-description">Here are all the links and QR codes you need.</p>
+          </div>
+
+          <div class="wizard-links-grid">
+            <!-- Public Page -->
+            <div class="wizard-link-card" data-testid="wizard-link-public">
+              <div class="link-icon">🌐</div>
+              <div class="link-title">Public Page</div>
+              <div class="link-desc">Share this with your customers</div>
+              <div class="wizard-qr-preview" id="wizardQrPublic"></div>
+              <div class="link-actions">
+                <button class="btn-secondary btn-sm" onclick="copyWizardLink('public')">Copy Link</button>
+                <button class="btn-secondary btn-sm" onclick="openWizardLink('public')">Open</button>
+              </div>
+            </div>
+
+            <!-- Poster -->
+            <div class="wizard-link-card" data-testid="wizard-link-poster">
+              <div class="link-icon">🖼️</div>
+              <div class="link-title">Print Poster</div>
+              <div class="link-desc">Ready to print with QR code</div>
+              <div class="wizard-qr-preview" id="wizardQrPoster"></div>
+              <div class="link-actions">
+                <button class="btn-secondary btn-sm" onclick="copyWizardLink('poster')">Copy Link</button>
+                <button class="btn-secondary btn-sm" onclick="openWizardLink('poster')">Open</button>
+              </div>
+            </div>
+
+            <!-- TV Display -->
+            <div class="wizard-link-card" data-testid="wizard-link-display">
+              <div class="link-icon">📺</div>
+              <div class="link-title">TV Display</div>
+              <div class="link-desc">Put this on your bar screens</div>
+              <div class="wizard-qr-preview" id="wizardQrDisplay"></div>
+              <div class="link-actions">
+                <button class="btn-secondary btn-sm" onclick="copyWizardLink('display')">Copy Link</button>
+                <button class="btn-secondary btn-sm" onclick="openWizardLink('display')">Open</button>
+              </div>
+            </div>
+
+            <!-- Shared Report -->
+            <div class="wizard-link-card" data-testid="wizard-link-report">
+              <div class="link-icon">📊</div>
+              <div class="link-title">Analytics Report</div>
+              <div class="link-desc">Track views and engagement</div>
+              <div class="wizard-qr-preview" id="wizardQrReport"></div>
+              <div class="link-actions">
+                <button class="btn-secondary btn-sm" onclick="copyWizardLink('report')">Copy Link</button>
+                <button class="btn-secondary btn-sm" onclick="openWizardLink('report')">Open</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 5: Launch Checklist -->
+        <div class="wizard-step" id="wizardStep5" data-testid="wizard-step-5">
+          <div class="wizard-step-header">
+            <h3><span>✅</span> Launch Checklist</h3>
+            <p class="step-description">Verify everything works, then you're all set!</p>
+          </div>
+
+          <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+              <span style="font-size: 2rem;">🎉</span>
+              <div>
+                <h4 style="margin: 0 0 4px 0; color: #166534;">Your event is live!</h4>
+                <p style="margin: 0; color: #15803d; font-size: 0.9rem;" id="wizardEventSummary">Event name • Date • Venue</p>
+              </div>
+            </div>
+          </div>
+
+          <div style="display: grid; gap: 12px;">
+            <div class="wizard-checklist-item" style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: white; border: 1px solid var(--color-gray-200, #e2e8f0); border-radius: 8px;">
+              <input type="checkbox" id="wizardCheckPublic" style="width: 20px; height: 20px; accent-color: #10b981;">
+              <label for="wizardCheckPublic" style="flex: 1; cursor: pointer;">
+                <strong>Public Page</strong> looks good
+              </label>
+              <button class="btn-secondary btn-sm" onclick="openWizardLink('public')">Open & Check</button>
+            </div>
+
+            <div class="wizard-checklist-item" style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: white; border: 1px solid var(--color-gray-200, #e2e8f0); border-radius: 8px;">
+              <input type="checkbox" id="wizardCheckPoster" style="width: 20px; height: 20px; accent-color: #10b981;">
+              <label for="wizardCheckPoster" style="flex: 1; cursor: pointer;">
+                <strong>Poster</strong> is print-ready
+              </label>
+              <button class="btn-secondary btn-sm" onclick="openWizardLink('poster')">Open & Check</button>
+            </div>
+
+            <div class="wizard-checklist-item" style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: white; border: 1px solid var(--color-gray-200, #e2e8f0); border-radius: 8px;">
+              <input type="checkbox" id="wizardCheckDisplay" style="width: 20px; height: 20px; accent-color: #10b981;">
+              <label for="wizardCheckDisplay" style="flex: 1; cursor: pointer;">
+                <strong>TV Display</strong> shows correctly
+              </label>
+              <button class="btn-secondary btn-sm" onclick="openWizardLink('display')">Open & Check</button>
+            </div>
+
+            <div class="wizard-checklist-item" style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: white; border: 1px solid var(--color-gray-200, #e2e8f0); border-radius: 8px;">
+              <input type="checkbox" id="wizardCheckReport" style="width: 20px; height: 20px; accent-color: #10b981;">
+              <label for="wizardCheckReport" style="flex: 1; cursor: pointer;">
+                <strong>Analytics Report</strong> is accessible
+              </label>
+              <button class="btn-secondary btn-sm" onclick="openWizardLink('report')">Open & Check</button>
+            </div>
+          </div>
+
+          <div style="margin-top: 24px; text-align: center; padding: 20px; background: var(--color-gray-50, #f8fafc); border-radius: 12px;">
+            <p style="margin: 0 0 12px 0; color: var(--color-gray-600, #475569);">
+              All set? You can close this wizard and manage your event from the dashboard below.
+            </p>
+            <button class="btn-primary" onclick="finishWizard()" data-testid="wizard-finish-btn">
+              Done - Go to Dashboard
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Wizard Navigation -->
+      <div class="wizard-nav" id="wizardNav">
+        <div class="nav-left">
+          <button class="btn-wizard-back" id="wizardBackBtn" onclick="wizardPrevStep()" style="display: none;">
+            ← Back
+          </button>
+        </div>
+        <div class="nav-right">
+          <button class="btn-wizard-skip" id="wizardSkipBtn" onclick="wizardSkipStep()" style="display: none;">
+            Skip for now
+          </button>
+          <button class="btn-wizard-next" id="wizardNextBtn" onclick="wizardNextStep()" disabled data-testid="wizard-next-btn">
+            Next →
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- QUICK START GUIDE - "10 Minutes to Launch" Overview (HIDDEN - replaced by wizard) -->
     <!-- Shows bar owners the complete flow before they start                    -->
     <!-- ═══════════════════════════════════════════════════════════════════════ -->
-    <section class="card quick-start-guide" id="quickStartGuide" data-testid="quick-start-guide">
+    <section class="card quick-start-guide" id="quickStartGuide" data-testid="quick-start-guide" style="display: none;">
       <div class="quick-start-header">
         <span class="quick-start-icon">🚀</span>
         <div class="quick-start-title">
@@ -3416,6 +4158,529 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
       const modal = document.getElementById('publicQrModal');
       if (modal) modal.remove();
     }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // S08: CREATE & LAUNCH WIZARD - Guided "10-Minute Event" Flow
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    // Wizard State
+    const WIZARD = {
+      currentStep: 1,
+      totalSteps: 5,
+      event: null,
+      links: {},
+      selectedTemplate: 'bar_night',
+      signupOption: 'none',
+      signupUrl: ''
+    };
+
+    /**
+     * Initialize wizard when page loads
+     */
+    function initWizard() {
+      // Set default date to today
+      const today = new Date().toISOString().split('T')[0];
+      const dateInput = document.getElementById('wizardEventDate');
+      if (dateInput) dateInput.value = today;
+
+      // Add input listeners for validation
+      const nameInput = document.getElementById('wizardEventName');
+      const venueInput = document.getElementById('wizardEventVenue');
+
+      [nameInput, dateInput, venueInput].forEach(input => {
+        if (input) {
+          input.addEventListener('input', validateWizardStep1);
+          input.addEventListener('change', validateWizardStep1);
+        }
+      });
+
+      // Initial validation
+      validateWizardStep1();
+
+      // Load templates for wizard
+      loadWizardTemplates();
+    }
+
+    /**
+     * Load templates into wizard picker
+     */
+    async function loadWizardTemplates() {
+      try {
+        const res = await NU.rpc('api_getEventTemplates', { brandId: BRAND });
+        if (res.ok && res.value) {
+          const templates = res.value.items || [];
+          renderWizardTemplatePicker(templates, res.value.defaultTemplateId || 'bar_night');
+        }
+      } catch (e) {
+        console.error('[Wizard] Failed to load templates:', e);
+        document.getElementById('wizardTemplatePicker').innerHTML =
+          '<p class="muted">Could not load templates. Using default.</p>';
+      }
+    }
+
+    /**
+     * Render templates in wizard picker
+     */
+    function renderWizardTemplatePicker(templates, defaultId) {
+      const picker = document.getElementById('wizardTemplatePicker');
+      if (!templates.length) {
+        picker.innerHTML = '<p class="muted">No templates available.</p>';
+        return;
+      }
+
+      // Group templates by group for display
+      picker.innerHTML = templates.map(t => `
+        <div class="wizard-template-card ${t.id === defaultId ? 'selected' : ''}"
+             data-template-id="${NU.esc(t.id)}"
+             onclick="selectWizardTemplate('${NU.esc(t.id)}')">
+          <div class="template-icon">${t.icon || '📋'}</div>
+          <div class="template-name">${NU.esc(t.label || t.id)}</div>
+          <div class="template-desc">${NU.esc(t.description || '')}</div>
+        </div>
+      `).join('');
+
+      // Set default selection
+      WIZARD.selectedTemplate = defaultId;
+      document.getElementById('wizardTemplateId').value = defaultId;
+    }
+
+    /**
+     * Select a template in wizard
+     */
+    function selectWizardTemplate(templateId) {
+      WIZARD.selectedTemplate = templateId;
+      document.getElementById('wizardTemplateId').value = templateId;
+
+      // Update visual selection
+      document.querySelectorAll('#wizardTemplatePicker .wizard-template-card').forEach(card => {
+        card.classList.toggle('selected', card.dataset.templateId === templateId);
+      });
+
+      // Enable next button
+      updateWizardNavButtons();
+    }
+
+    /**
+     * Validate Step 1 inputs
+     */
+    function validateWizardStep1() {
+      const name = document.getElementById('wizardEventName')?.value.trim();
+      const date = document.getElementById('wizardEventDate')?.value;
+      const venue = document.getElementById('wizardEventVenue')?.value.trim();
+
+      const isValid = name && date && venue;
+      const nextBtn = document.getElementById('wizardNextBtn');
+      if (nextBtn) nextBtn.disabled = !isValid;
+
+      return isValid;
+    }
+
+    /**
+     * Select sign-up option in wizard
+     */
+    function selectWizardSignupOption(option) {
+      WIZARD.signupOption = option;
+
+      // Update visual selection
+      document.querySelectorAll('.wizard-signup-option').forEach(opt => {
+        opt.classList.toggle('selected', opt.dataset.option === option);
+      });
+
+      // Show/hide additional inputs
+      document.getElementById('wizardExistingFormInput').style.display =
+        option === 'existing' ? '' : 'none';
+      document.getElementById('wizardCreateFormStatus').style.display =
+        option === 'create' ? '' : 'none';
+
+      // Update nav buttons
+      updateWizardNavButtons();
+    }
+
+    /**
+     * Navigate to next wizard step
+     */
+    async function wizardNextStep() {
+      const currentStep = WIZARD.currentStep;
+
+      // Step-specific actions before advancing
+      if (currentStep === 1) {
+        // Validate Step 1
+        if (!validateWizardStep1()) {
+          SharedUtils.showToast('Please fill in all required fields', 'warning');
+          return;
+        }
+      } else if (currentStep === 2) {
+        // Step 2 → 3: Template selected, nothing extra needed
+      } else if (currentStep === 3) {
+        // Step 3 → 4: Create event and get links
+        const success = await createWizardEvent();
+        if (!success) return;
+      }
+
+      // Advance step
+      if (currentStep < WIZARD.totalSteps) {
+        setWizardStep(currentStep + 1);
+      }
+    }
+
+    /**
+     * Navigate to previous wizard step
+     */
+    function wizardPrevStep() {
+      if (WIZARD.currentStep > 1) {
+        setWizardStep(WIZARD.currentStep - 1);
+      }
+    }
+
+    /**
+     * Skip current step (for optional steps)
+     */
+    function wizardSkipStep() {
+      // Only Step 3 (Sign-ups) is skippable
+      if (WIZARD.currentStep === 3) {
+        WIZARD.signupOption = 'none';
+        wizardNextStep();
+      }
+    }
+
+    /**
+     * Go directly to a step (if allowed)
+     */
+    function wizardGoToStep(stepNum) {
+      // Can only go to completed steps or current step
+      const stepEl = document.querySelector(`.wizard-progress-step[data-step="${stepNum}"]`);
+      if (!stepEl || stepEl.classList.contains('disabled')) return;
+
+      setWizardStep(stepNum);
+    }
+
+    /**
+     * Set wizard to a specific step
+     */
+    function setWizardStep(stepNum) {
+      WIZARD.currentStep = stepNum;
+
+      // Update step content visibility
+      document.querySelectorAll('.wizard-step').forEach((step, idx) => {
+        step.classList.toggle('active', idx + 1 === stepNum);
+      });
+
+      // Update progress indicators
+      document.querySelectorAll('.wizard-progress-step').forEach(step => {
+        const num = parseInt(step.dataset.step);
+        step.classList.remove('active', 'completed', 'disabled');
+        if (num === stepNum) {
+          step.classList.add('active');
+        } else if (num < stepNum) {
+          step.classList.add('completed');
+        } else {
+          step.classList.add('disabled');
+        }
+      });
+
+      // Update navigation buttons
+      updateWizardNavButtons();
+
+      // Scroll to top of wizard
+      document.getElementById('launchWizard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    /**
+     * Update wizard navigation buttons based on current step
+     */
+    function updateWizardNavButtons() {
+      const backBtn = document.getElementById('wizardBackBtn');
+      const skipBtn = document.getElementById('wizardSkipBtn');
+      const nextBtn = document.getElementById('wizardNextBtn');
+
+      // Back button: visible for steps 2+
+      backBtn.style.display = WIZARD.currentStep > 1 ? '' : 'none';
+
+      // Skip button: only on Step 3 (Sign-ups)
+      skipBtn.style.display = WIZARD.currentStep === 3 ? '' : 'none';
+
+      // Next button: varies by step
+      if (WIZARD.currentStep === 1) {
+        nextBtn.textContent = 'Next →';
+        nextBtn.className = 'btn-wizard-next';
+        nextBtn.disabled = !validateWizardStep1();
+      } else if (WIZARD.currentStep === 2) {
+        nextBtn.textContent = 'Next →';
+        nextBtn.className = 'btn-wizard-next';
+        nextBtn.disabled = false;
+      } else if (WIZARD.currentStep === 3) {
+        nextBtn.textContent = 'Create Event →';
+        nextBtn.className = 'btn-wizard-next btn-wizard-launch';
+        nextBtn.disabled = false;
+      } else if (WIZARD.currentStep === 4) {
+        nextBtn.textContent = 'Continue to Checklist →';
+        nextBtn.className = 'btn-wizard-next';
+        nextBtn.disabled = false;
+      } else if (WIZARD.currentStep === 5) {
+        // Hide Next button on final step (use "Done" button instead)
+        nextBtn.style.display = 'none';
+        return;
+      }
+
+      nextBtn.style.display = '';
+    }
+
+    /**
+     * Create event via wizard (Step 3 → 4 transition)
+     * Uses existing api_saveEvent RPC
+     */
+    async function createWizardEvent() {
+      overlay(true);
+
+      try {
+        // Gather form data
+        const name = document.getElementById('wizardEventName').value.trim();
+        const startDateISO = document.getElementById('wizardEventDate').value;
+        const venue = document.getElementById('wizardEventVenue').value.trim();
+        const templateId = WIZARD.selectedTemplate;
+
+        // Get signup URL if provided
+        let signupUrl = '';
+        if (WIZARD.signupOption === 'existing') {
+          signupUrl = document.getElementById('wizardSignupUrl')?.value.trim() || '';
+        }
+
+        // Build event object (minimal required fields)
+        const eventId = generateId();
+        const slug = slugify(name);
+
+        const event = {
+          id: eventId,
+          slug: slug,
+          name: name,
+          startDateISO: startDateISO,
+          venue: venue,
+          ctas: {
+            primary: {
+              label: 'Sign Up',
+              url: signupUrl
+            }
+          },
+          settings: {
+            showSchedule: false,
+            showStandings: false,
+            showBracket: false,
+            showVideo: true,
+            showMap: true,
+            showGallery: true,
+            showSponsors: true,
+            showSponsorBanner: true,
+            showSponsorStrip: true,
+            showLeagueStrip: true,
+            showQRSection: true
+          }
+        };
+
+        // Add signup URL if provided
+        if (signupUrl) {
+          event.registerUrl = signupUrl;
+        }
+
+        // Get admin key
+        const adminKey = getAdminKey();
+        if (!adminKey) {
+          SharedUtils.showToast('Admin key required', 'error');
+          return false;
+        }
+
+        // Call api_saveEvent (existing RPC)
+        console.log('[Wizard] Creating event:', eventId);
+        const res = await NU.rpc('api_saveEvent', {
+          brandId: BRAND,
+          adminKey: adminKey,
+          event: event,
+          scope: SCOPE,
+          templateId: templateId
+        });
+
+        if (!res.ok) {
+          SharedUtils.showToast(`Error: ${res.message}`, 'error');
+          return false;
+        }
+
+        // Store created event data
+        WIZARD.event = res.value;
+        WIZARD.links = res.value.links || {};
+
+        // If user wanted a form created, do that now
+        if (WIZARD.signupOption === 'create') {
+          await createWizardSignupForm(eventId, name);
+        }
+
+        // Populate Step 4 (Links) with generated URLs
+        populateWizardLinks();
+
+        // Update Step 5 summary
+        updateWizardSummary();
+
+        console.log('[Wizard] Event created successfully:', eventId);
+        SharedUtils.showToast('Event created!', 'success');
+
+        return true;
+      } catch (err) {
+        console.error('[Wizard] Error creating event:', err);
+        SharedUtils.showToast(`Error: ${err.message}`, 'error');
+        return false;
+      } finally {
+        overlay(false);
+      }
+    }
+
+    /**
+     * Create a signup form via existing api_createFormFromTemplate RPC
+     */
+    async function createWizardSignupForm(eventId, eventName) {
+      try {
+        const adminKey = getAdminKey();
+        const res = await NU.rpc('api_createFormFromTemplate', {
+          brandId: BRAND,
+          adminKey: adminKey,
+          templateType: 'registration',
+          eventName: eventName,
+          eventId: eventId
+        });
+
+        if (res.ok && res.publishedUrl) {
+          WIZARD.signupUrl = res.publishedUrl;
+          // Update the event with the form URL
+          await NU.rpc('api_saveEvent', {
+            brandId: BRAND,
+            adminKey: adminKey,
+            event: {
+              id: eventId,
+              registerUrl: res.publishedUrl,
+              ctas: { primary: { label: 'Sign Up', url: res.publishedUrl } }
+            },
+            scope: SCOPE
+          });
+          console.log('[Wizard] Created signup form:', res.publishedUrl);
+        }
+      } catch (e) {
+        console.warn('[Wizard] Could not create signup form:', e);
+        // Non-fatal - continue without form
+      }
+    }
+
+    /**
+     * Populate Step 4 links display
+     */
+    function populateWizardLinks() {
+      const links = WIZARD.links;
+
+      // Generate QR codes for each link
+      const qrSize = 80;
+      const surfaces = [
+        { id: 'public', url: links.publicUrl, container: 'wizardQrPublic' },
+        { id: 'poster', url: links.posterUrl, container: 'wizardQrPoster' },
+        { id: 'display', url: links.displayUrl, container: 'wizardQrDisplay' },
+        { id: 'report', url: links.sharedReportUrl || buildSharedReportUrlFromEvent(WIZARD.event), container: 'wizardQrReport' }
+      ];
+
+      surfaces.forEach(({ url, container }) => {
+        const el = document.getElementById(container);
+        if (el && url) {
+          const qrUrl = `https://chart.googleapis.com/chart?cht=qr&chs=${qrSize}x${qrSize}&chl=${encodeURIComponent(url)}`;
+          el.innerHTML = `<img src="${qrUrl}" alt="QR Code" style="width:${qrSize}px;height:${qrSize}px;">`;
+        }
+      });
+    }
+
+    /**
+     * Build shared report URL from event data
+     */
+    function buildSharedReportUrlFromEvent(event) {
+      if (!event || !event.links || !event.links.publicUrl) return '';
+      // Report URL is typically publicUrl with page=report
+      const publicUrl = event.links.publicUrl;
+      return publicUrl.includes('?')
+        ? publicUrl.replace(/page=[^&]+/, 'page=report')
+        : publicUrl + '&page=report';
+    }
+
+    /**
+     * Update Step 5 event summary
+     */
+    function updateWizardSummary() {
+      const event = WIZARD.event;
+      if (!event) return;
+
+      const dateStr = event.startDateISO || '';
+      const eventDate = new Date(dateStr + 'T00:00:00');
+      let dateDisplay = dateStr;
+      if (dateStr && !isNaN(eventDate.getTime())) {
+        dateDisplay = eventDate.toLocaleDateString('en-US', {
+          weekday: 'short', month: 'short', day: 'numeric'
+        });
+      }
+
+      const summary = document.getElementById('wizardEventSummary');
+      if (summary) {
+        summary.textContent = `${event.name || 'Your Event'} • ${dateDisplay} • ${event.venue || ''}`;
+      }
+    }
+
+    /**
+     * Copy wizard link to clipboard
+     */
+    async function copyWizardLink(type) {
+      const links = WIZARD.links;
+      let url = '';
+
+      switch (type) {
+        case 'public': url = links.publicUrl; break;
+        case 'poster': url = links.posterUrl; break;
+        case 'display': url = links.displayUrl; break;
+        case 'report': url = links.sharedReportUrl || buildSharedReportUrlFromEvent(WIZARD.event); break;
+      }
+
+      if (url) {
+        await navigator.clipboard.writeText(url);
+        SharedUtils.showToast('Link copied!', 'success');
+      }
+    }
+
+    /**
+     * Open wizard link in new tab
+     */
+    function openWizardLink(type) {
+      const links = WIZARD.links;
+      let url = '';
+
+      switch (type) {
+        case 'public': url = links.publicUrl; break;
+        case 'poster': url = links.posterUrl; break;
+        case 'display': url = links.displayUrl; break;
+        case 'report': url = links.sharedReportUrl || buildSharedReportUrlFromEvent(WIZARD.event); break;
+      }
+
+      if (url) {
+        window.open(url, '_blank');
+      }
+    }
+
+    /**
+     * Finish wizard and transition to main dashboard
+     */
+    function finishWizard() {
+      // Hide wizard
+      document.getElementById('launchWizard').style.display = 'none';
+
+      // Show the event card with created event
+      if (WIZARD.event) {
+        currentEventId = WIZARD.event.id;
+        showEventCard(WIZARD.event);
+      }
+
+      SharedUtils.showToast('Welcome to your event dashboard!', 'success');
+    }
+
+    // Initialize wizard when DOM is ready
+    document.addEventListener('DOMContentLoaded', initWizard);
   </script>
 </body>
 </html>
