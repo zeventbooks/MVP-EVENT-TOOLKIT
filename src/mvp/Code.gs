@@ -954,7 +954,17 @@ function doGet(e){
     );
   }
 
-  let page = _isMvpSurface_(pageParam) ? pageParam : 'public';
+  // Router is LOCKED: any non-MVP page returns error (no silent fallback to public)
+  // Only default to 'public' when no page parameter is provided at all
+  if (pageParam && !_isMvpSurface_(pageParam)) {
+    return HtmlErrorWithCorrId_(
+      'Surface Not Available',
+      `Surface "${pageParam}" is not enabled in this build`,
+      { endpoint: 'doGet', extra: { requestedPage: pageParam, brand: brand.id } }
+    );
+  }
+
+  let page = pageParam || 'public';
 
   // Route using helper function
   return routePage_(e, page, brand, demoMode, { mode: e?.parameter?.mode });
