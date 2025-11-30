@@ -78,7 +78,7 @@ jobs:
           files: ./coverage/lcov.info
 
   mvp-guards:
-    name: 🛡️ MVP Guards (Surface + Dead Export)
+    name: 🛡️ MVP Guards (Surface + Dead Export + V2 Files)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -105,6 +105,13 @@ jobs:
           echo "   Unused api_* functions will fail the build"
           echo ""
           node scripts/check-dead-code.js --fail-on-dead
+
+      - name: Run V2 File Check
+        run: |
+          echo "🔍 Checking for V2 files in src/mvp..."
+          echo "   No V2 files allowed in MVP directory"
+          echo ""
+          node scripts/check-v2-files.js
 
   contract-tests:
     name: 📋 Contract Tests (Schema Gate)
@@ -471,7 +478,7 @@ jobs:
           echo "- Code Quality (ESLint)" >> $GITHUB_STEP_SUMMARY
           echo "- Unit Tests (Jest)" >> $GITHUB_STEP_SUMMARY
           echo "- Contract Tests" >> $GITHUB_STEP_SUMMARY
-          echo "- MVP Guards (Surfaces + Dead Exports)" >> $GITHUB_STEP_SUMMARY
+          echo "- MVP Guards (Surfaces + Dead Exports + V2 Files)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "---" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
