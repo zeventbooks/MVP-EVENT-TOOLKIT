@@ -19,12 +19,15 @@
 
 /**
  * MVP Templates (focus group ready)
+ * Stage-gated: Only these templates are exposed in Admin UI
  */
 const MVP_TEMPLATES = {
   bar_night: {
     id: 'bar_night',
     label: 'Bar / Tavern Event',
     icon: '🍺',
+    tier: 'mvp',
+    group: 'bar_events',
     sections: {
       video: true,
       map: true,
@@ -37,6 +40,8 @@ const MVP_TEMPLATES = {
     id: 'rec_league',
     label: 'Rec League / Season',
     icon: '⚾',
+    tier: 'mvp',
+    group: 'leagues',
     sections: {
       video: false,
       map: true,
@@ -45,10 +50,26 @@ const MVP_TEMPLATES = {
       gallery: true
     }
   },
+  bocce: {
+    id: 'bocce',
+    label: 'Bocce League',
+    icon: '🎱',
+    tier: 'mvp',
+    group: 'leagues',
+    sections: {
+      video: false,
+      map: true,
+      schedule: true,
+      sponsors: true,
+      gallery: false
+    }
+  },
   custom: {
     id: 'custom',
     label: 'Custom Event',
     icon: '✨',
+    tier: 'mvp',
+    group: 'general',
     sections: {
       video: true,
       map: true,
@@ -61,12 +82,15 @@ const MVP_TEMPLATES = {
 
 /**
  * V2+ Templates (post-MVP)
+ * Stage-gated: Hidden from Admin UI until V2 features ship
  */
 const V2_TEMPLATES = {
   school: {
     id: 'school',
     label: 'School / Youth Event',
     icon: '🎓',
+    tier: 'v2',
+    group: 'professional',
     sections: {
       video: true,
       map: true,
@@ -79,6 +103,8 @@ const V2_TEMPLATES = {
     id: 'fundraiser',
     label: 'Fundraiser / Charity',
     icon: '💝',
+    tier: 'v2',
+    group: 'professional',
     sections: {
       video: true,
       map: true,
@@ -91,6 +117,8 @@ const V2_TEMPLATES = {
     id: 'corporate',
     label: 'Corporate / Professional',
     icon: '💼',
+    tier: 'v2',
+    group: 'professional',
     sections: {
       video: true,
       map: true,
@@ -103,6 +131,8 @@ const V2_TEMPLATES = {
     id: 'wedding',
     label: 'Wedding',
     icon: '💒',
+    tier: 'v2',
+    group: 'social',
     sections: {
       video: true,
       map: true,
@@ -115,6 +145,8 @@ const V2_TEMPLATES = {
     id: 'trivia',
     label: 'Trivia Night',
     icon: '🧠',
+    tier: 'v2',
+    group: 'leagues',
     sections: {
       video: false,
       map: true,
@@ -172,12 +204,12 @@ function getExpectedSettingsForTemplate(templateId) {
   };
 
   // League templates enable standings
-  if (['rec_league', 'darts', 'bags', 'pinball'].includes(templateId)) {
+  if (['rec_league', 'bocce', 'darts', 'bags', 'pinball'].includes(templateId)) {
     settings.showStandings = true;
   }
 
   // Tournament templates enable bracket
-  if (['rec_league'].includes(templateId)) {
+  if (['rec_league', 'bocce', 'bags'].includes(templateId)) {
     settings.showBracket = true;
   }
 

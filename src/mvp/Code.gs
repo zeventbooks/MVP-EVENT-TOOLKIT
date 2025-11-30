@@ -1972,23 +1972,95 @@ function generateJWTSignature_(data, secret) {
 /**
  * Get available event templates for a brand
  * Admin calls this to populate template picker dropdown/tiles
+ *
+ * STAGE-GATE: Only returns MVP-tier templates by default.
+ * V2 templates are filtered out until V2 features ship.
+ *
  * @tier mvp
+ * @param {Object} payload - Request payload
+ * @param {string} payload.brandId - Brand ID
+ * @param {boolean} payload.includeV2 - Include V2 templates (admin override, default false)
+ * @param {boolean} payload.grouped - Return templates grouped by category (default true)
+ * @param {Object} ctx - Request context
  */
 function api_getEventTemplates(payload, ctx) {
   return runSafe('api_getEventTemplates', () => {
     const brandId = (ctx && ctx.brandId) || (payload && payload.brandId) || 'root';
+    const includeV2 = payload && payload.includeV2 === true;
+    const grouped = payload && payload.grouped !== false;  // Default to grouped
     const cfg = getBrandTemplateConfig_(brandId);
-    const templates = getTemplatesForBrand_(brandId);
+
+    // Stage-gate: Filter to MVP tier only (unless includeV2 is explicitly true)
+    const tier = includeV2 ? null : TEMPLATE_TIER.MVP;
+
+    // Get templates for this brand, filtered by tier
+    const brandTemplates = cfg.templates || [];
+    let templates;
+
+    if (tier) {
+      // Filter by both brand config AND tier
+      templates = getTemplatesByTier_(tier).filter(function(t) {
+        return brandTemplates.indexOf(t.id) !== -1;
+      });
+    } else {
+      // Only filter by brand config
+      templates = getEventTemplates_().filter(function(t) {
+        return brandTemplates.indexOf(t.id) !== -1;
+      });
+    }
+
+    // Sort templates by displayOrder
+    templates.sort(function(a, b) {
+      return (a.displayOrder || 99) - (b.displayOrder || 99);
+    });
+
+    // Calculate default template (prefer brand default if in available templates)
+    let defaultTemplateId = cfg.defaultTemplateId || 'custom';
+    const templateIds = templates.map(function(t) { return t.id; });
+    if (templateIds.indexOf(defaultTemplateId) === -1) {
+      // Brand default not available after tier filtering, fall back to first available
+      defaultTemplateId = templates.length > 0 ? templates[0].id : 'custom';
+    }
 
     diag_('info', 'api_getEventTemplates', 'loaded templates', {
-      brandId,
+      brandId: brandId,
+      tier: tier || 'all',
       templateCount: templates.length,
-      defaultTemplateId: cfg.defaultTemplateId
+      defaultTemplateId: defaultTemplateId,
+      grouped: grouped
     });
+
+    // Return grouped or flat based on request
+    if (grouped) {
+      // Group templates by category
+      const groups = getGroupedTemplates_(tier);
+      // Filter groups to only include templates available for this brand
+      const filteredGroups = groups.map(function(group) {
+        return {
+          id: group.id,
+          label: group.label,
+          description: group.description,
+          icon: group.icon,
+          templates: group.templates.filter(function(t) {
+            return brandTemplates.indexOf(t.id) !== -1;
+          })
+        };
+      }).filter(function(group) {
+        return group.templates.length > 0;
+      });
+
+      return Ok({
+        groups: filteredGroups,
+        items: templates,  // Also include flat list for backward compatibility
+        defaultTemplateId: defaultTemplateId,
+        tier: tier || 'all'
+      });
+    }
 
     return Ok({
       items: templates,
-      defaultTemplateId: cfg.defaultTemplateId
+      defaultTemplateId: defaultTemplateId,
+      tier: tier || 'all'
     });
   });
 }

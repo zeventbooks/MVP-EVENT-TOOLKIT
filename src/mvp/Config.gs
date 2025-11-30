@@ -232,6 +232,17 @@ const ZEB = Object.freeze({
           { type: 'public', dwellMs: 30000 }
         ]
       },
+      'bocce': {
+        layout: { emphasis: 'scores', hasSidePane: true },
+        rotation: { sponsorSlots: 3, rotationMs: 6000 },
+        // Bocce league display - emphasize standings and schedule
+        defaultPanes: [
+          { type: 'standings', dwellMs: 20000, title: 'Bocce Standings' },
+          { type: 'schedule', dwellMs: 15000, title: 'Upcoming Matches' },
+          { type: 'sponsors', dwellMs: 15000 },
+          { type: 'public', dwellMs: 30000 }
+        ]
+      },
       'bar_night': {
         layout: { emphasis: 'sponsors', hasSidePane: true },
         rotation: { sponsorSlots: 4, rotationMs: 10000 },
@@ -464,35 +475,36 @@ var BRAND_TEMPLATE_CONFIG = {
   // Root brand sees ALL templates
   root: {
     templates: [
-      // Core
-      'bar_night', 'rec_league', 'school', 'fundraiser', 'corporate',
-      // Social & Celebration
+      // [MVP] Core templates
+      'bar_night', 'rec_league', 'bocce', 'custom',
+      // [V2] Professional & Corporate
+      'school', 'fundraiser', 'corporate',
+      // [V2] Social & Celebration
       'wedding', 'photo_gallery', 'shower', 'bachelor_party',
-      // Market & Arts
-      'farmers_market', 'art_show', 'carnival',
-      // Bar Games & Leagues
-      'trivia', 'darts', 'bags', 'pinball',
-      // Faith & Community
-      'church', 'church_club',
-      // Always last
-      'custom'
+      // [V2] Community & Faith
+      'farmers_market', 'art_show', 'carnival', 'church', 'church_club',
+      // [V2] Bar Games & Leagues
+      'trivia', 'darts', 'bags', 'pinball'
     ],
     defaultTemplateId: 'custom'
   },
-  // ABC - Rec/bar-focused brand
+  // ABC - American Bocce Co. (Rec/bar-focused brand)
+  // MVP templates: bocce, rec_league, bar_night, custom
   abc: {
-    templates: ['rec_league', 'trivia', 'darts', 'bags', 'pinball', 'fundraiser', 'corporate', 'custom'],
-    defaultTemplateId: 'rec_league'
+    templates: ['bocce', 'rec_league', 'bar_night', 'custom', 'trivia', 'darts', 'bags', 'pinball', 'fundraiser', 'corporate'],
+    defaultTemplateId: 'bocce'
   },
-  // CBC - Community-focused brand
+  // CBC - Chicago Bocce Club (Community-focused brand)
+  // MVP templates: bocce, rec_league, custom
   cbc: {
-    templates: ['rec_league', 'fundraiser', 'church', 'church_club', 'farmers_market', 'carnival', 'custom'],
-    defaultTemplateId: 'rec_league'
+    templates: ['bocce', 'rec_league', 'bar_night', 'custom', 'fundraiser', 'church', 'church_club', 'farmers_market', 'carnival'],
+    defaultTemplateId: 'bocce'
   },
-  // CBL - League-only brand
+  // CBL - Chicago Bocce League (League-only brand)
+  // MVP templates: bocce, rec_league, custom
   cbl: {
-    templates: ['rec_league', 'darts', 'bags', 'pinball', 'custom'],
-    defaultTemplateId: 'rec_league'
+    templates: ['bocce', 'rec_league', 'custom', 'darts', 'bags', 'pinball'],
+    defaultTemplateId: 'bocce'
   }
 };
 
