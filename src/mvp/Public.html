@@ -1907,7 +1907,7 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       }
     }
 
-    // Error state renderer
+    // Error state renderer - handles all error scenarios gracefully
     function showError(type = 'load') {
       const root = document.getElementById('list');
       if (type === 'notfound') {
@@ -1915,7 +1915,17 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
           <div class="empty-state">
             <div class="empty-state-icon">🔍</div>
             <h3>Event Not Found</h3>
-            <p>This event link may be outdated or incorrect.<br>Please check the URL or return to the events list.</p>
+            <p>We couldn't find this event. The link may be outdated, the event ID might be incorrect, or the event may have been removed.</p>
+            <p style="font-size: 0.85rem; color: #94a3b8; margin-top: 12px;">Double-check the URL or return to the events list to find what you're looking for.</p>
+            <a class="btn-secondary" href="${EXEC_URL}?p=events&brand=${BRAND}">← View All Events</a>
+          </div>
+        `;
+      } else if (type === 'nodata') {
+        root.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">📭</div>
+            <h3>No Data Yet</h3>
+            <p>This event exists but doesn't have any content to display yet. Check back soon!</p>
             <a class="btn-secondary" href="${EXEC_URL}?p=events&brand=${BRAND}">← View All Events</a>
           </div>
         `;
@@ -1923,8 +1933,9 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
         root.innerHTML = `
           <div class="error-state">
             <div class="error-state-icon">⚠️</div>
-            <h3>Trouble Loading</h3>
-            <p>We couldn't load the events right now. Please try again.</p>
+            <h3>Something Went Wrong</h3>
+            <p>We couldn't load the events right now. This might be a temporary issue.</p>
+            <p style="font-size: 0.85rem; color: #991b1b; margin-top: 8px;">Please try again in a moment.</p>
             <button class="btn-retry" onclick="location.reload()">🔄 Try Again</button>
           </div>
         `;
@@ -1934,29 +1945,57 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
     // Load event data
     // SCHEMA: /schemas/event.schema.json via api_getPublicBundle
     if (ID) {
-      NU.rpc('api_getPublicBundle', { brandId: BRAND, scope: SCOPE, id: ID }).then(res => {
-        if (res.ok && res.value && res.value.event) {
-          // getPublicBundle returns { event: Event, config: { brandId, brandName, appTitle } }
-          const bundle = res.value;
-
-          // === LOG PUBLIC VIEW METRIC ===
+      NU.rpc('api_getPublicBundle', { brandId: BRAND, scope: SCOPE, id: ID })
+        .then(res => {
           try {
-            logEvent({ eventId: bundle.event.id, surface: 'public', metric: 'view', value: 1 });
-          } catch (e) {
-            // ignore
-          }
+            if (res.ok && res.value && res.value.event) {
+              // getPublicBundle returns { event: Event, config: { brandId, brandName, appTitle } }
+              const bundle = res.value;
 
-          renderDetail(bundle.event, bundle.config);
-        } else {
-          showError('notfound');
-        }
-      });
+              // === LOG PUBLIC VIEW METRIC ===
+              try {
+                logEvent({ eventId: bundle.event.id, surface: 'public', metric: 'view', value: 1 });
+              } catch (e) {
+                // ignore logging errors
+              }
+
+              renderDetail(bundle.event, bundle.config);
+            } else if (res.ok && res.value && !res.value.event) {
+              // API returned ok but no event data
+              showError('nodata');
+            } else {
+              showError('notfound');
+            }
+          } catch (renderErr) {
+            console.error('Render error:', renderErr);
+            showError('load');
+          }
+        })
+        .catch(err => {
+          // Network or unexpected error - show friendly message, don't leak details
+          console.error('API error:', err);
+          showError('load');
+        });
     } else {
       // List view uses api_list which returns canonical Event shapes
-      NU.rpc('api_list', { brandId: BRAND, scope: SCOPE }).then(res => {
-        if (res.ok && res.value) renderList(res.value.items || []);
-        else showError('load');
-      });
+      NU.rpc('api_list', { brandId: BRAND, scope: SCOPE })
+        .then(res => {
+          try {
+            if (res.ok && res.value) {
+              renderList(res.value.items || []);
+            } else {
+              showError('load');
+            }
+          } catch (renderErr) {
+            console.error('Render error:', renderErr);
+            showError('load');
+          }
+        })
+        .catch(err => {
+          // Network or unexpected error - show friendly message, don't leak details
+          console.error('API error:', err);
+          showError('load');
+        });
     }
   </script>
 </body>
