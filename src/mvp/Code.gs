@@ -6099,6 +6099,12 @@ function api_generateFormShortlink(req){
 // Multi-brand portfolio analytics for parent organizations.
 // These APIs work but are NOT MVP focus - don't design around them for v1.
 //
+// ═══════════════════════════════════════════════════════════════════════════════
+// [V2-ONLY] FEATURE FLAG GUARD: PORTFOLIO_V2
+// ═══════════════════════════════════════════════════════════════════════════════
+// All portfolio APIs below require FEATURE_FLAGS.PORTFOLIO_V2 = true
+// With PORTFOLIO_V2 = false (MVP default), these APIs return a "feature disabled" error.
+//
 // Key exports:
 //   api_getPortfolioSponsorReport(req) - Cross-brand sponsor report
 //   api_getPortfolioSummary(req)       - Portfolio summary metrics
@@ -6114,9 +6120,14 @@ function api_generateFormShortlink(req){
  * @param {object} req - Request with brandId, adminKey, sponsorId, options
  * @returns {object} - Portfolio-wide sponsor analytics
  * @tier v2 - Multi-event portfolio analytics
+ * @feature PORTFOLIO_V2
  */
 function api_getPortfolioSponsorReport(req) {
   return runSafe('api_getPortfolioSponsorReport', () => {
+    // [V2-ONLY] Guard: Require PORTFOLIO_V2 feature flag
+    const featureCheck = requireFeature_('PORTFOLIO_V2');
+    if (featureCheck) return featureCheck;
+
     const { brandId, adminKey, sponsorId, options } = req;
 
     // Validate parent brand
@@ -6150,9 +6161,14 @@ function api_getPortfolioSponsorReport(req) {
  * @param {object} req - Request with brandId, adminKey
  * @returns {object} - Portfolio summary
  * @tier v2 - Multi-event portfolio analytics
+ * @feature PORTFOLIO_V2
  */
 function api_getPortfolioSummary(req) {
   return runSafe('api_getPortfolioSummary', () => {
+    // [V2-ONLY] Guard: Require PORTFOLIO_V2 feature flag
+    const featureCheck = requireFeature_('PORTFOLIO_V2');
+    if (featureCheck) return featureCheck;
+
     const { brandId, adminKey } = req;
 
     // Validate parent brand
@@ -6186,9 +6202,14 @@ function api_getPortfolioSummary(req) {
  * @param {object} req - Request with brandId, adminKey
  * @returns {object} - Portfolio sponsors list
  * @tier v2 - Multi-event portfolio analytics
+ * @feature PORTFOLIO_V2
  */
 function api_getPortfolioSponsors(req) {
   return runSafe('api_getPortfolioSponsors', () => {
+    // [V2-ONLY] Guard: Require PORTFOLIO_V2 feature flag
+    const featureCheck = requireFeature_('PORTFOLIO_V2');
+    if (featureCheck) return featureCheck;
+
     const { brandId, adminKey } = req;
 
     // Validate parent brand

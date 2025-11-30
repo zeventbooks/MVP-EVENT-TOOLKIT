@@ -679,9 +679,19 @@ function calculateDailyTrends_(analytics) {
   return trends;
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// [V2-ONLY] MULTI-EVENT HELPER FUNCTIONS
+// ═══════════════════════════════════════════════════════════════════════════════
+// These helpers support V2 features (portfolio, exports, recommendations).
+// They are NOT called in MVP paths but preserved for future enablement.
+// ═══════════════════════════════════════════════════════════════════════════════
+
 /**
  * Get top event-sponsor pairs (most engaged combinations)
  * Uses shared MetricsUtils_calculateCTR for DRY compliance
+ *
+ * [V2-ONLY] Used by report generation with recommendations.
+ * Not called in MVP paths.
  */
 function getTopEventSponsorPairs_(analytics, limit = 10) {
   const pairs = {};
@@ -720,6 +730,13 @@ function getTopEventSponsorPairs_(analytics, limit = 10) {
   return sorted;
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// [V2-ONLY] BLOCKED API ENDPOINTS
+// ═══════════════════════════════════════════════════════════════════════════════
+// These endpoints require FEATURE_FLAGS.PORTFOLIO_V2 = true
+// With PORTFOLIO_V2 = false (MVP default), they return "feature disabled" errors.
+// ═══════════════════════════════════════════════════════════════════════════════
+
 /**
  * Generate Shared Report Template
  *
@@ -731,14 +748,18 @@ function getTopEventSponsorPairs_(analytics, limit = 10) {
  * @param {string} brandId - Brand ID
  * @param {Object} [filters] - Report filters
  * @returns {Object} Report object with formatted data
+ * @feature PORTFOLIO_V2
  */
 function api_generateSharedReport(brandId, filters = {}) {
-  // ═══════════════════════════════════════════════════════════════════════════════
-  // [MVP GUARD] Report generation with recommendations is V2-only
-  // MVP uses api_getSharedAnalytics directly for raw analytics data
+  // [V2-ONLY] Guard: Require PORTFOLIO_V2 feature flag
+  // Note: Using inline check since this function doesn't use runSafe pattern
+  if (!isFeatureEnabled_('PORTFOLIO_V2')) {
+    return Err(ERR.BAD_INPUT, 'Report generation not enabled - use api_getSharedAnalytics for MVP');
+  }
+
+  // V2 implementation would go here when enabled
   // V2 implementation preserved in git history (commit before 554db7a)
-  // ═══════════════════════════════════════════════════════════════════════════════
-  return Err(ERR.BAD_INPUT, 'Report generation not enabled - use api_getSharedAnalytics for MVP');
+  return Err(ERR.BAD_INPUT, 'Report generation not implemented - V2 feature');
 }
 
 /**
@@ -806,12 +827,16 @@ function generateRecommendations_(metrics) {
  * @param {string} brandId - Brand ID
  * @param {Object} [filters] - Report filters
  * @returns {Object} Result with sheet URL
+ * @feature PORTFOLIO_V2
  */
 function api_exportSharedReport(brandId, filters = {}) {
-  // ═══════════════════════════════════════════════════════════════════════════════
-  // [MVP GUARD] Export feature is V2-only
+  // [V2-ONLY] Guard: Require PORTFOLIO_V2 feature flag
   // Button is hidden in SharedReport.html but API also guards against direct calls
+  if (!isFeatureEnabled_('PORTFOLIO_V2')) {
+    return Err(ERR.BAD_INPUT, 'Export not enabled - feature available in V2');
+  }
+
+  // V2 implementation would go here when enabled
   // V2 implementation preserved in git history (commit before 554db7a)
-  // ═══════════════════════════════════════════════════════════════════════════════
-  return Err(ERR.BAD_INPUT, 'Export not enabled - feature available in V2');
+  return Err(ERR.BAD_INPUT, 'Export not implemented - V2 feature');
 }

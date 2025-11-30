@@ -531,6 +531,10 @@ function AnalyticsService_calculateDailyTrends(analytics) {
   return MetricsUtils_finalizeTimeline(timeline);
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// [MVP] TOP SPONSORS HELPER (used by SharedReporting.gs)
+// ═══════════════════════════════════════════════════════════════════════════════
+
 /**
  * Get top sponsors by clicks (for Top Sponsors card)
  *
@@ -575,3 +579,28 @@ function AnalyticsService_getTopSponsorsByClicks(analytics, sponsorNameMap, limi
     .sort(function(a, b) { return b.clicks - a.clicks; })
     .slice(0, limit);
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// [V2-ONLY] MULTI-EVENT AGGREGATION PATHS
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// The following operations are V2-only features NOT part of MVP:
+//
+// 1. Portfolio Analytics (api_getPortfolioAnalyticsV2) - archived in v2-code/
+//    Multi-event cross-brand aggregation for parent organizations.
+//    Requires: FEATURE_FLAGS.PORTFOLIO_V2 = true
+//
+// 2. Export Report (api_exportSharedReport) - guarded in SharedReporting.gs
+//    Export analytics to CSV/JSON/PDF formats.
+//    Requires: FEATURE_FLAGS.PORTFOLIO_V2 = true
+//
+// 3. Report Generation (api_generateSharedReport) - guarded in SharedReporting.gs
+//    Generate formatted reports with recommendations.
+//    Requires: FEATURE_FLAGS.PORTFOLIO_V2 = true
+//
+// MVP uses ONLY:
+//   - api_getSharedAnalytics (single-event/brand analytics)
+//   - api_getSponsorAnalytics (sponsor-scoped analytics)
+//   - api_getSponsorReportQr (QR code generation)
+//
+// ═══════════════════════════════════════════════════════════════════════════════
