@@ -194,6 +194,37 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
       color: var(--color-gray-500, #64748b);
     }
 
+    /* Template Groups (Stage-Gate UI) */
+    .template-group {
+      margin-bottom: 20px;
+    }
+    .template-group-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--color-gray-200, #e2e8f0);
+    }
+    .template-group-icon {
+      font-size: 1.25rem;
+    }
+    .template-group-label {
+      font-weight: var(--font-weight-semibold, 600);
+      font-size: 0.95rem;
+      color: var(--color-gray-700, #334155);
+    }
+    .template-group-desc {
+      font-size: 0.8rem;
+      color: var(--color-gray-500, #64748b);
+      margin-left: auto;
+    }
+    .template-group-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 12px;
+    }
+
     /* ===== Mobile-First Admin Enhancements ===== */
 
     /* Mobile card padding adjustments */
@@ -1200,7 +1231,7 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
 
         <!-- External Links Section (MVP Optional per externalData schema) -->
         <!-- V2 fields (statsUrl, scoreboardUrl, streamUrl, provider) are hidden within -->
-        <div class="subsection" id="leagueBroadcastPanel" data-template-filter="rec_league,custom" data-testid="external-links-section">
+        <div class="subsection" id="leagueBroadcastPanel" data-template-filter="rec_league,bocce,custom" data-testid="external-links-section">
           <div class="collapsible-header collapsed" onclick="toggleSection(this)" id="externalLinksHeader" style="background: var(--color-gray-50, #f8fafc); border-radius: 8px; padding: 12px 16px;">
             <span style="color: var(--color-gray-600, #475569); font-size: 0.9rem;">External links (schedule, standings, bracket)</span>
             <span class="collapsible-icon" style="color: var(--color-gray-400, #94a3b8);">▼</span>
@@ -1825,7 +1856,11 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
         .substring(0, 50);
     }
 
-    // === MVP Template System ===
+    // === MVP Template System (Stage-Gate) ===
+    // Templates are grouped by category and filtered by tier
+    // Only MVP-tier templates are shown until V2 features ship
+    let templateGroups = [];
+
     async function loadTemplates() {
       try {
         console.log('[Templates] Loading templates for brand:', BRAND);
@@ -1834,8 +1869,10 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
 
         if (res.ok && res.value) {
           availableTemplates = res.value.items || [];
+          templateGroups = res.value.groups || [];
           defaultTemplateId = res.value.defaultTemplateId || 'custom';
-          console.log('[Templates] Loaded', availableTemplates.length, 'templates, default:', defaultTemplateId);
+          console.log('[Templates] Loaded', availableTemplates.length, 'templates in', templateGroups.length, 'groups, default:', defaultTemplateId);
+          console.log('[Templates] Tier filter:', res.value.tier || 'none');
           renderTemplatePicker();
           // Select default template
           selectTemplate(defaultTemplateId);
@@ -1862,23 +1899,43 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
 
       const sectionIcons = { video: '🎬', map: '📍', schedule: '📅', sponsors: '🤝', notes: '📝', gallery: '🖼️' };
 
-      picker.innerHTML = availableTemplates.map(t => {
-        const isRecommended = t.id === defaultTemplateId;
-        const sectionPreview = Object.keys(sectionIcons).map(key => {
-          const on = t.sections && t.sections[key];
-          return `<span class="${on ? '' : 'off'}">${sectionIcons[key]}</span>`;
+      // Render grouped templates if groups are available
+      if (templateGroups.length > 0) {
+        picker.innerHTML = templateGroups.map(group => {
+          const groupTemplates = group.templates.map(t => renderTemplateCard(t, sectionIcons)).join('');
+          return `
+            <div class="template-group" data-group-id="${NU.esc(group.id)}">
+              <div class="template-group-header">
+                <span class="template-group-icon">${group.icon || '📁'}</span>
+                <span class="template-group-label">${NU.esc(group.label || group.id)}</span>
+                <span class="template-group-desc">${NU.esc(group.description || '')}</span>
+              </div>
+              <div class="template-group-grid">${groupTemplates}</div>
+            </div>
+          `;
         }).join('');
+      } else {
+        // Fallback to flat grid (backward compatibility)
+        picker.innerHTML = `<div class="template-grid">${availableTemplates.map(t => renderTemplateCard(t, sectionIcons)).join('')}</div>`;
+      }
+    }
 
-        return `
-          <div class="template-card" data-template-id="${NU.esc(t.id)}" onclick="selectTemplate('${NU.esc(t.id)}')">
-            ${isRecommended ? '<span class="recommended-badge">Recommended</span>' : ''}
-            <div class="template-icon">${t.icon || '📋'}</div>
-            <div class="template-name">${NU.esc(t.label || t.id)}</div>
-            <div class="template-desc">${NU.esc(t.description || '')}</div>
-            <div class="template-sections">${sectionPreview}</div>
-          </div>
-        `;
+    function renderTemplateCard(t, sectionIcons) {
+      const isRecommended = t.id === defaultTemplateId;
+      const sectionPreview = Object.keys(sectionIcons).map(key => {
+        const on = t.sections && t.sections[key];
+        return `<span class="${on ? '' : 'off'}">${sectionIcons[key]}</span>`;
       }).join('');
+
+      return `
+        <div class="template-card" data-template-id="${NU.esc(t.id)}" onclick="selectTemplate('${NU.esc(t.id)}')">
+          ${isRecommended ? '<span class="recommended-badge">Recommended</span>' : ''}
+          <div class="template-icon">${t.icon || '📋'}</div>
+          <div class="template-name">${NU.esc(t.label || t.id)}</div>
+          <div class="template-desc">${NU.esc(t.description || '')}</div>
+          <div class="template-sections">${sectionPreview}</div>
+        </div>
+      `;
     }
 
     let currentTemplateSections = null; // Track for modification detection

@@ -43,14 +43,16 @@
  *   - sections.notes     → NOT IN SCHEMA (legacy, ignored in MVP)
  *
  * [MVP] Templates (focus-group ready):
- *   - rec_league  → Sports leagues, standings, schedule-heavy
  *   - bar_night   → Bar events, trivia, casual
+ *   - rec_league  → Sports leagues, standings, schedule-heavy
+ *   - bocce       → Bocce ball leagues, tournaments
  *   - custom      → Blank slate, all options available
  *
  * [V2+] Templates (require V2 media/gallery features):
- *   - school, fundraiser, corporate, wedding, photo_gallery, shower,
- *     bachelor_party, farmers_market, art_show, carnival, trivia,
- *     darts, bags, pinball, church, church_club
+ *   - school, fundraiser, corporate (Professional)
+ *   - wedding, photo_gallery, shower, bachelor_party (Social)
+ *   - farmers_market, art_show, carnival, church, church_club (Community)
+ *   - trivia, darts, bags, pinball (Bar Games - covered by rec_league in MVP)
  *
  * @version 1.3.0
  * @since 2025-11-18
@@ -60,8 +62,18 @@
 // [MVP] EVENT TEMPLATE CATALOG - Triangle Live Demo
 // ============================================================================
 //
-// [MVP] rec_league, bar_night, custom - Core templates for focus group
-// [V2+] All other templates - Require media.* or gallery features
+// STAGE-GATE: Templates are tiered for controlled rollout
+//
+// [MVP] bar_night, rec_league, bocce, custom - Core templates for focus group
+// [V2+] All other templates - Require V2 media/gallery features
+//
+// Templates are grouped by category for UI organization:
+//   - bar_events: Bar & Tavern events
+//   - leagues: Leagues & Sports
+//   - general: General Purpose (custom)
+//   - social: Social & Celebration (V2)
+//   - community: Community & Faith (V2)
+//   - professional: Professional & Corporate (V2)
 //
 // ============================================================================
 
@@ -70,14 +82,94 @@
  * Templates = reusable patterns (sections, CTAs, defaults)
  * Config = brand-level wiring (which templates each brand sees)
  */
+// ============================================================================
+// [MVP] TEMPLATE TIER DEFINITIONS
+// ============================================================================
+// Templates are gated by tier to control rollout:
+//   - 'mvp': Core templates for focus group (bar_night, rec_league, bocce, custom)
+//   - 'v2': Deferred templates requiring V2 features (weddings, galleries, etc.)
+//
+// Admin UI only shows MVP tier templates until V2 features ship.
+// ============================================================================
+
+/**
+ * Template tiers for stage-gating
+ * @enum {string}
+ */
+var TEMPLATE_TIER = {
+  MVP: 'mvp',   // Focus group ready - ship now
+  V2: 'v2'      // Deferred - requires V2 features
+};
+
+/**
+ * Template groups for UI organization
+ * Groups are displayed in order, templates within groups sorted by displayOrder
+ */
+var TEMPLATE_GROUPS = [
+  {
+    id: 'bar_events',
+    label: 'Bar & Tavern',
+    description: 'Events at bars, taverns, and restaurants',
+    icon: '🍺',
+    tier: TEMPLATE_TIER.MVP,
+    displayOrder: 1
+  },
+  {
+    id: 'leagues',
+    label: 'Leagues & Sports',
+    description: 'Recreational leagues, tournaments, and competitions',
+    icon: '🏆',
+    tier: TEMPLATE_TIER.MVP,
+    displayOrder: 2
+  },
+  {
+    id: 'general',
+    label: 'General Purpose',
+    description: 'Flexible templates for any event type',
+    icon: '✨',
+    tier: TEMPLATE_TIER.MVP,
+    displayOrder: 3
+  },
+  {
+    id: 'social',
+    label: 'Social & Celebration',
+    description: 'Weddings, parties, and personal celebrations',
+    icon: '🎉',
+    tier: TEMPLATE_TIER.V2,
+    displayOrder: 4
+  },
+  {
+    id: 'community',
+    label: 'Community & Faith',
+    description: 'Churches, markets, and community gatherings',
+    icon: '🏛️',
+    tier: TEMPLATE_TIER.V2,
+    displayOrder: 5
+  },
+  {
+    id: 'professional',
+    label: 'Professional & Corporate',
+    description: 'Business events, conferences, and fundraisers',
+    icon: '💼',
+    tier: TEMPLATE_TIER.V2,
+    displayOrder: 6
+  }
+];
+
 var EVENT_TEMPLATES = {
-  // [MVP] Bar/tavern template - focus group ready
+  // ============================================================================
+  // [MVP] BAR & TAVERN TEMPLATES - Group: bar_events
+  // ============================================================================
+
   bar_night: {
     id: 'bar_night',
     label: 'Bar / Tavern Event',
     description: 'Trivia nights, live music, happy hours',
     exampleName: 'Thursday Trivia Night',
     icon: '🍺',
+    tier: TEMPLATE_TIER.MVP,
+    group: 'bar_events',
+    displayOrder: 1,
     sections: {
       video: true,
       map: true,
@@ -94,13 +186,19 @@ var EVENT_TEMPLATES = {
     }
   },
 
-  // [MVP] Rec league template - focus group ready (schedule/standings heavy)
+  // ============================================================================
+  // [MVP] LEAGUE & SPORTS TEMPLATES - Group: leagues
+  // ============================================================================
+
   rec_league: {
     id: 'rec_league',
     label: 'Rec League / Season',
     description: 'Sports leagues, tournaments, team registrations',
     exampleName: 'Summer Softball League',
     icon: '⚾',
+    tier: TEMPLATE_TIER.MVP,
+    group: 'leagues',
+    displayOrder: 1,
     sections: {
       video: false,
       map: true,
@@ -119,13 +217,70 @@ var EVENT_TEMPLATES = {
     defaultExternalProvider: 'Custom'
   },
 
-  // [V2+] School template - requires gallery features (sections.gallery = true)
-  school: {  // [V2+]
+  bocce: {
+    id: 'bocce',
+    label: 'Bocce League',
+    description: 'Bocce ball leagues, tournaments, and social play',
+    exampleName: 'Thursday Night Bocce',
+    icon: '🎱',
+    tier: TEMPLATE_TIER.MVP,
+    group: 'leagues',
+    displayOrder: 2,
+    sections: {
+      video: false,
+      map: true,
+      schedule: true,
+      sponsors: true,
+      notes: true,
+      gallery: false
+    },
+    defaultCtas: ['Register Team', 'View Standings'],
+    defaults: {
+      audience: 'Players & Teams',
+      notesLabel: 'League Rules',
+      sponsorStripLabel: 'League Sponsors'
+    },
+    defaultExternalProvider: 'Custom'
+  },
+
+  // ============================================================================
+  // [MVP] GENERAL PURPOSE TEMPLATES - Group: general
+  // ============================================================================
+
+  custom: {
+    id: 'custom',
+    label: 'Custom Event',
+    description: 'Start from scratch with all options available',
+    exampleName: 'My Custom Event',
+    icon: '✨',
+    tier: TEMPLATE_TIER.MVP,
+    group: 'general',
+    displayOrder: 99,  // Always last
+    sections: {
+      video: true,
+      map: true,
+      schedule: true,
+      sponsors: true,
+      notes: true,
+      gallery: true
+    },
+    defaultCtas: ['Register', 'Add to Calendar'],
+    defaults: {}
+  },
+
+  // ============================================================================
+  // [V2+] PROFESSIONAL & CORPORATE TEMPLATES - Group: professional
+  // ============================================================================
+
+  school: {
     id: 'school',
     label: 'School / Youth Event',
     description: 'School fundraisers, band boosters, sports events',
     exampleName: 'Band Booster Fundraiser',
     icon: '🎓',
+    tier: TEMPLATE_TIER.V2,
+    group: 'professional',
+    displayOrder: 1,
     sections: {
       video: true,
       map: true,
@@ -142,12 +297,15 @@ var EVENT_TEMPLATES = {
     }
   },
 
-  fundraiser: {  // [V2+] - requires video/gallery features
+  fundraiser: {
     id: 'fundraiser',
     label: 'Fundraiser / Charity',
     description: 'Charity events, donation drives, benefit nights',
     exampleName: 'Trivia Night for a Cause',
     icon: '💝',
+    tier: TEMPLATE_TIER.V2,
+    group: 'professional',
+    displayOrder: 2,
     sections: {
       video: true,
       map: true,
@@ -164,12 +322,15 @@ var EVENT_TEMPLATES = {
     }
   },
 
-  corporate: {  // [V2+] - requires video features
+  corporate: {
     id: 'corporate',
     label: 'Corporate / Professional',
     description: 'Conferences, networking, company events',
     exampleName: 'Q4 Sales Kickoff',
     icon: '💼',
+    tier: TEMPLATE_TIER.V2,
+    group: 'professional',
+    displayOrder: 3,
     sections: {
       video: true,
       map: true,
@@ -186,14 +347,19 @@ var EVENT_TEMPLATES = {
     }
   },
 
-  // === Social & Celebration Templates === [V2+]
+  // ============================================================================
+  // [V2+] SOCIAL & CELEBRATION TEMPLATES - Group: social
+  // ============================================================================
 
-  wedding: {  // [V2+] - requires video/gallery features
+  wedding: {
     id: 'wedding',
     label: 'Wedding',
     description: 'Wedding celebrations, ceremonies, receptions',
     exampleName: 'Sarah & John Wedding',
     icon: '💒',
+    tier: TEMPLATE_TIER.V2,
+    group: 'social',
+    displayOrder: 1,
     sections: {
       video: true,
       map: true,
@@ -210,12 +376,15 @@ var EVENT_TEMPLATES = {
     }
   },
 
-  photo_gallery: {  // [V2+] - requires video/gallery features
+  photo_gallery: {
     id: 'photo_gallery',
     label: 'Photo Gallery / Sharing',
     description: 'Weddings, birthdays, anniversaries - share photos',
     exampleName: 'Johnson Family Reunion Photos',
     icon: '📸',
+    tier: TEMPLATE_TIER.V2,
+    group: 'social',
+    displayOrder: 2,
     sections: {
       video: true,
       map: false,
@@ -232,12 +401,15 @@ var EVENT_TEMPLATES = {
     }
   },
 
-  shower: {  // [V2+] - requires gallery features
+  shower: {
     id: 'shower',
     label: 'Shower (Baby/Bridal)',
     description: 'Baby showers, bridal showers, gift registries',
     exampleName: "Sarah's Baby Shower",
     icon: '🎀',
+    tier: TEMPLATE_TIER.V2,
+    group: 'social',
+    displayOrder: 3,
     sections: {
       video: false,
       map: true,
@@ -254,12 +426,15 @@ var EVENT_TEMPLATES = {
     }
   },
 
-  bachelor_party: {  // [V2+] - requires gallery features
+  bachelor_party: {
     id: 'bachelor_party',
     label: 'Bachelor / Bachelorette',
     description: 'Bachelor parties, bachelorette weekends, stag nights',
     exampleName: "Jake's Bachelor Party",
     icon: '🥳',
+    tier: TEMPLATE_TIER.V2,
+    group: 'social',
+    displayOrder: 4,
     sections: {
       video: false,
       map: true,
@@ -276,14 +451,19 @@ var EVENT_TEMPLATES = {
     }
   },
 
-  // === Market & Arts Templates === [V2+]
+  // ============================================================================
+  // [V2+] COMMUNITY & FAITH TEMPLATES - Group: community
+  // ============================================================================
 
-  farmers_market: {  // [V2+] - requires gallery features
+  farmers_market: {
     id: 'farmers_market',
     label: 'Farmers Market',
     description: 'Local markets, vendor fairs, craft shows',
     exampleName: 'Saturday Farmers Market',
     icon: '🥕',
+    tier: TEMPLATE_TIER.V2,
+    group: 'community',
+    displayOrder: 1,
     sections: {
       video: false,
       map: true,
@@ -300,12 +480,15 @@ var EVENT_TEMPLATES = {
     }
   },
 
-  art_show: {  // [V2+] - requires video/gallery features
+  art_show: {
     id: 'art_show',
     label: 'Art Show / Exhibition',
     description: 'Art exhibits, gallery shows, artist showcases',
     exampleName: 'Spring Art Walk',
     icon: '🎨',
+    tier: TEMPLATE_TIER.V2,
+    group: 'community',
+    displayOrder: 2,
     sections: {
       video: true,
       map: true,
@@ -322,12 +505,15 @@ var EVENT_TEMPLATES = {
     }
   },
 
-  carnival: {  // [V2+] - requires video/gallery features
+  carnival: {
     id: 'carnival',
     label: 'Carnival / Fair',
     description: 'Carnivals, county fairs, community festivals',
     exampleName: 'Summer Carnival',
     icon: '🎡',
+    tier: TEMPLATE_TIER.V2,
+    group: 'community',
+    displayOrder: 3,
     sections: {
       video: true,
       map: true,
@@ -344,14 +530,69 @@ var EVENT_TEMPLATES = {
     }
   },
 
-  // === Bar Games & League Templates === [V2+]
+  church: {
+    id: 'church',
+    label: 'Church Event',
+    description: 'Services, potlucks, community gatherings',
+    exampleName: 'Easter Service',
+    icon: '⛪',
+    tier: TEMPLATE_TIER.V2,
+    group: 'community',
+    displayOrder: 4,
+    sections: {
+      video: true,
+      map: true,
+      schedule: true,
+      sponsors: false,
+      notes: true,
+      gallery: true
+    },
+    defaultCtas: ['RSVP', 'Get Directions'],
+    defaults: {
+      audience: 'Congregation & Guests',
+      notesLabel: 'Event Details',
+      sponsorStripLabel: ''
+    }
+  },
 
-  trivia: {  // [V2+] - bar_night covers MVP trivia use case
+  church_club: {
+    id: 'church_club',
+    label: "Church Group / Club",
+    description: "Men's, women's, youth groups and ministries",
+    exampleName: "Women's Bible Study",
+    icon: '✝️',
+    tier: TEMPLATE_TIER.V2,
+    group: 'community',
+    displayOrder: 5,
+    sections: {
+      video: false,
+      map: true,
+      schedule: true,
+      sponsors: false,
+      notes: true,
+      gallery: true
+    },
+    defaultCtas: ['Join Group', 'Contact Leader'],
+    defaults: {
+      audience: 'Group Members',
+      notesLabel: 'Group Info',
+      sponsorStripLabel: ''
+    }
+  },
+
+  // ============================================================================
+  // [V2+] BAR GAMES TEMPLATES - Group: leagues (V2 tier)
+  // ============================================================================
+
+  trivia: {
     id: 'trivia',
     label: 'Trivia Night',
     description: 'Pub trivia, quiz nights, team competitions',
     exampleName: 'Wednesday Trivia',
     icon: '🧠',
+    tier: TEMPLATE_TIER.V2,
+    group: 'leagues',
+    displayOrder: 10,
     sections: {
       video: false,
       map: true,
@@ -368,12 +609,15 @@ var EVENT_TEMPLATES = {
     }
   },
 
-  darts: {  // [V2+] - rec_league covers MVP league use case
+  darts: {
     id: 'darts',
     label: 'Darts League',
     description: 'Dart leagues, tournaments, competitions',
     exampleName: 'Tuesday Darts League',
     icon: '🎯',
+    tier: TEMPLATE_TIER.V2,
+    group: 'leagues',
+    displayOrder: 11,
     sections: {
       video: false,
       map: true,
@@ -391,12 +635,15 @@ var EVENT_TEMPLATES = {
     defaultExternalProvider: 'Custom'
   },
 
-  bags: {  // [V2+] - rec_league covers MVP league use case
+  bags: {
     id: 'bags',
     label: 'Bags / Cornhole',
     description: 'Cornhole leagues, bags tournaments',
     exampleName: 'Summer Bags League',
     icon: '🥏',
+    tier: TEMPLATE_TIER.V2,
+    group: 'leagues',
+    displayOrder: 12,
     sections: {
       video: false,
       map: true,
@@ -414,12 +661,15 @@ var EVENT_TEMPLATES = {
     defaultExternalProvider: 'Custom'
   },
 
-  pinball: {  // [V2+] - rec_league covers MVP league use case
+  pinball: {
     id: 'pinball',
     label: 'Pinball League',
     description: 'Pinball leagues, arcade tournaments',
     exampleName: 'Monday Pinball League',
     icon: '🕹️',
+    tier: TEMPLATE_TIER.V2,
+    group: 'leagues',
+    displayOrder: 13,
     sections: {
       video: false,
       map: true,
@@ -435,71 +685,6 @@ var EVENT_TEMPLATES = {
       sponsorStripLabel: 'League Sponsors'
     },
     defaultExternalProvider: 'Custom'
-  },
-
-  // === Faith & Community Templates === [V2+]
-
-  church: {  // [V2+] - requires video/gallery features
-    id: 'church',
-    label: 'Church Event',
-    description: 'Services, potlucks, community gatherings',
-    exampleName: 'Easter Service',
-    icon: '⛪',
-    sections: {
-      video: true,
-      map: true,
-      schedule: true,
-      sponsors: false,
-      notes: true,
-      gallery: true
-    },
-    defaultCtas: ['RSVP', 'Get Directions'],
-    defaults: {
-      audience: 'Congregation & Guests',
-      notesLabel: 'Event Details',
-      sponsorStripLabel: ''
-    }
-  },
-
-  church_club: {  // [V2+] - requires gallery features
-    id: 'church_club',
-    label: "Church Group / Club",
-    description: "Men's, women's, youth groups and ministries",
-    exampleName: "Women's Bible Study",
-    icon: '✝️',
-    sections: {
-      video: false,
-      map: true,
-      schedule: true,
-      sponsors: false,
-      notes: true,
-      gallery: true
-    },
-    defaultCtas: ['Join Group', 'Contact Leader'],
-    defaults: {
-      audience: 'Group Members',
-      notesLabel: 'Group Info',
-      sponsorStripLabel: ''
-    }
-  },
-
-  // [MVP] Custom template - blank slate, all options available
-  custom: {
-    id: 'custom',
-    label: 'Custom Event',
-    description: 'Start from scratch with all options available',
-    exampleName: 'My Custom Event',
-    icon: '✨',
-    sections: {
-      video: true,
-      map: true,
-      schedule: true,
-      sponsors: true,
-      notes: true,
-      gallery: true
-    },
-    defaultCtas: ['Register', 'Add to Calendar'],
-    defaults: {}
   }
 };
 
@@ -522,6 +707,73 @@ function getEventTemplates_() {
  */
 function getEventTemplate_(templateId) {
   return EVENT_TEMPLATES[templateId] || EVENT_TEMPLATES.custom;
+}
+
+/**
+ * Get templates filtered by tier
+ * @param {string} tier - Template tier ('mvp' or 'v2')
+ * @returns {Array} Array of template objects matching the tier
+ */
+function getTemplatesByTier_(tier) {
+  return Object.values(EVENT_TEMPLATES).filter(function(t) {
+    return t.tier === tier;
+  });
+}
+
+/**
+ * Get MVP-tier templates only (stage-gate filter)
+ * @returns {Array} Array of MVP template objects
+ */
+function getMvpTemplates_() {
+  return getTemplatesByTier_(TEMPLATE_TIER.MVP);
+}
+
+/**
+ * Get template groups filtered by tier
+ * @param {string} tier - Optional tier filter ('mvp' or 'v2')
+ * @returns {Array} Array of group objects
+ */
+function getTemplateGroups_(tier) {
+  if (!tier) {
+    return TEMPLATE_GROUPS.slice().sort(function(a, b) {
+      return a.displayOrder - b.displayOrder;
+    });
+  }
+  return TEMPLATE_GROUPS.filter(function(g) {
+    return g.tier === tier;
+  }).sort(function(a, b) {
+    return a.displayOrder - b.displayOrder;
+  });
+}
+
+/**
+ * Get templates grouped by category for UI display
+ * @param {string} tier - Optional tier filter ('mvp' to only show MVP templates)
+ * @returns {Array} Array of groups with their templates
+ */
+function getGroupedTemplates_(tier) {
+  var groups = getTemplateGroups_(tier);
+  var templates = tier ? getTemplatesByTier_(tier) : getEventTemplates_();
+
+  return groups.map(function(group) {
+    var groupTemplates = templates.filter(function(t) {
+      return t.group === group.id;
+    }).sort(function(a, b) {
+      return (a.displayOrder || 99) - (b.displayOrder || 99);
+    });
+
+    return {
+      id: group.id,
+      label: group.label,
+      description: group.description,
+      icon: group.icon,
+      tier: group.tier,
+      templates: groupTemplates
+    };
+  }).filter(function(group) {
+    // Only return groups that have templates
+    return group.templates.length > 0;
+  });
 }
 
 /**
@@ -575,13 +827,13 @@ function applyTemplateToEvent_(event, templateId) {
   }
   // showStandings and showBracket - default false unless template has specific support
   if (event.settings.showStandings == null) {
-    // Only rec_league and league-type templates default to true
-    var leagueTemplates = ['rec_league', 'darts', 'bags', 'pinball'];
+    // Only league-type templates default to showStandings=true
+    var leagueTemplates = ['rec_league', 'bocce', 'darts', 'bags', 'pinball'];
     event.settings.showStandings = leagueTemplates.includes(tpl.id);
   }
   if (event.settings.showBracket == null) {
-    // Only tournament-style templates default to true
-    var bracketTemplates = ['rec_league', 'bags'];
+    // Only tournament-style templates default to showBracket=true
+    var bracketTemplates = ['rec_league', 'bocce', 'bags'];
     event.settings.showBracket = bracketTemplates.includes(tpl.id);
   }
 
