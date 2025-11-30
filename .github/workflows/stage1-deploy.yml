@@ -260,9 +260,14 @@ jobs:
           chmod 600 ~/.clasprc.json
 
           echo "🔍 Pre-flight check: Verifying script access..."
-          # Try to get script status to verify credentials work
-          if ! npx clasp status 2>&1; then
-            echo "❌ ERROR: Cannot access Apps Script project"
+          # Use 'clasp list' to verify authentication - this actually calls the API
+          # Unlike 'clasp status' which only checks local files
+          echo "   Testing API authentication with 'clasp list'..."
+          if ! LIST_OUTPUT=$(npx clasp list 2>&1); then
+            echo "❌ ERROR: Cannot authenticate with Google Apps Script API"
+            echo ""
+            echo "📋 clasp list output:"
+            echo "$LIST_OUTPUT"
             echo ""
             echo "📋 Diagnostic information:"
             echo "   Script ID from .clasp.json: $(cat .clasp.json | jq -r '.scriptId' 2>/dev/null || echo 'could not read')"
@@ -270,7 +275,7 @@ jobs:
             echo "🔧 Possible fixes:"
             echo "   1. OAuth token may have expired - regenerate OAUTH_CREDENTIALS secret"
             echo "   2. Script access may have been revoked - check Google Apps Script permissions"
-            echo "   3. Script ID may be invalid - verify .clasp.json scriptId"
+            echo "   3. The refresh_token may have been invalidated"
             echo ""
             echo "📖 To regenerate credentials locally:"
             echo "   npx clasp login"
@@ -278,6 +283,22 @@ jobs:
             echo "   Then update the OAUTH_CREDENTIALS secret in GitHub"
             exit 1
           fi
+
+          # Also check for error messages in the output (clasp sometimes exits 0 but shows errors)
+          if echo "$LIST_OUTPUT" | grep -qiE "(error|unauthorized|invalid.*token|access.*denied)"; then
+            echo "❌ ERROR: Authentication issue detected in clasp output"
+            echo ""
+            echo "📋 clasp list output:"
+            echo "$LIST_OUTPUT"
+            echo ""
+            echo "📖 To regenerate credentials:"
+            echo "   npx clasp login"
+            echo "   cat ~/.clasprc.json"
+            echo "   Then update the OAUTH_CREDENTIALS secret in GitHub"
+            exit 1
+          fi
+
+          echo "   Found $(echo "$LIST_OUTPUT" | wc -l) scripts accessible"
           echo "✅ Script access verified"
 
           echo "🚀 Deploying to Apps Script..."
@@ -288,11 +309,20 @@ jobs:
             echo "📋 clasp push output:"
             echo "$PUSH_OUTPUT"
             echo ""
+            echo "📋 Additional diagnostics:"
+            echo "   Checking .clasp.json configuration..."
+            cat .clasp.json 2>/dev/null || echo "   Could not read .clasp.json"
+            echo ""
+            echo "   Files being pushed:"
+            ls -la src/mvp/*.gs src/mvp/*.html 2>/dev/null | head -20 || echo "   Could not list files"
+            echo ""
             echo "🔧 Common causes:"
             echo "   1. Syntax error in .gs or .html files"
-            echo "   2. File size exceeds Apps Script limits"
+            echo "   2. File size exceeds Apps Script limits (50KB per file)"
             echo "   3. OAuth token expired mid-operation"
             echo "   4. Google Apps Script API rate limiting"
+            echo "   5. Invalid scriptId in .clasp.json"
+            echo "   6. Missing spreadsheetId for bound scripts"
             exit 1
           fi
           echo "$PUSH_OUTPUT"
@@ -318,10 +348,17 @@ jobs:
           if [ "$DEPLOY_FAILED" = true ]; then
             echo "❌ ERROR: clasp deploy failed"
             echo ""
+            echo "📋 Deploy output:"
+            echo "$DEPLOY_OUTPUT"
+            echo ""
+            echo "📋 Listing current deployments for diagnostics..."
+            npx clasp deployments 2>&1 || echo "   Could not list deployments"
+            echo ""
             echo "🔧 Possible causes:"
             echo "   1. Invalid deployment ID - check DEPLOYMENT_ID secret"
-            echo "   2. Deployment quota exceeded"
+            echo "   2. Deployment quota exceeded (max 20 deployments)"
             echo "   3. OAuth token issues"
+            echo "   4. Version limit reached (max 200 versions)"
             exit 1
           fi
 
