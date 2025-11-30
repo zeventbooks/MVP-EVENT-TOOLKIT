@@ -1190,6 +1190,56 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
       logEvent({ eventId, surface: 'display', metric: 'blocked_embed', value: 1 });
     }
 
+    /**
+     * Show error state for TV display - user-friendly messaging
+     * @param {string} type - Error type: 'notfound', 'nodata', or 'load'
+     */
+    function showDisplayError(type = 'load') {
+      // Hide all content panes and stage
+      stage.hidden = true;
+      fallback.hidden = true;
+      Object.values(paneElements).forEach(pane => {
+        if (pane.el) pane.el.hidden = true;
+      });
+
+      // Create error content in the stage area
+      const stageContainer = stage.parentElement;
+      let existingError = document.getElementById('displayError');
+      if (existingError) existingError.remove();
+
+      const errorDiv = document.createElement('div');
+      errorDiv.id = 'displayError';
+      errorDiv.className = 'error-state-tv';
+
+      if (type === 'notfound') {
+        errorDiv.innerHTML = `
+          <div class="error-icon">🔍</div>
+          <h2>Event Not Found</h2>
+          <p>We couldn't find this event. The link may be outdated or the event ID might be incorrect.</p>
+          <p>Please check the URL and try again.</p>
+          <button class="btn-retry" onclick="location.reload()">🔄 Try Again</button>
+        `;
+      } else if (type === 'nodata') {
+        errorDiv.innerHTML = `
+          <div class="error-icon">📭</div>
+          <h2>No Content Available</h2>
+          <p>This event exists but doesn't have any display content configured yet.</p>
+          <p>Check back soon or contact the event organizer.</p>
+          <button class="btn-retry" onclick="location.reload()">🔄 Refresh</button>
+        `;
+      } else {
+        errorDiv.innerHTML = `
+          <div class="error-icon">⚠️</div>
+          <h2>Unable to Load Display</h2>
+          <p>We're having trouble loading the display content right now.</p>
+          <p>This might be a temporary issue. Please try again.</p>
+          <button class="btn-retry" onclick="location.reload()">🔄 Try Again</button>
+        `;
+      }
+
+      stageContainer.appendChild(errorDiv);
+    }
+
     function startDynamicMode(urls) {
       if (!urls || !urls.length) return startPublicMode();
       let idx = -1;
@@ -1256,7 +1306,7 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
     function renderSchedulePane(schedule) {
       const container = document.getElementById('scheduleContent');
       if (!schedule || !schedule.length) {
-        container.innerHTML = '<div class="schedule-empty">No schedule available</div>';
+        container.innerHTML = '<div class="schedule-empty">📅 No schedule available yet.<br><span style="font-size:0.8em;opacity:0.7;">The event schedule will appear here once it\'s been added.</span></div>';
         return;
       }
 
@@ -1278,7 +1328,7 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
     function renderStandingsPane(standings) {
       const container = document.getElementById('standingsContent');
       if (!standings || !standings.length) {
-        container.innerHTML = '<div class="standings-empty">No standings available</div>';
+        container.innerHTML = '<div class="standings-empty">🏆 No standings available yet.<br><span style="font-size:0.8em;opacity:0.7;">Team rankings will appear here once games have been played.</span></div>';
         return;
       }
 
@@ -1320,7 +1370,7 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
       );
 
       if (!displaySponsors.length) {
-        container.innerHTML = '<div class="sponsors-empty">No sponsors to display</div>';
+        container.innerHTML = '<div class="sponsors-empty">🤝 No sponsors to display yet.<br><span style="font-size:0.8em;opacity:0.7;">Sponsor logos will appear here once they\'ve been added.</span></div>';
         return;
       }
 
@@ -1552,10 +1602,32 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
      * SCHEMA: /schemas/event.schema.json
      */
     async function boot() {
-      if (!eventId) return startPublicMode();
+      if (!eventId) {
+        // No event ID in URL - show friendly error instead of blank screen
+        showDisplayError('notfound');
+        return;
+      }
 
-      const res = await NU.rpc('api_getDisplayBundle', { brandId, scope: 'events', id: eventId });
-      if (!res?.ok || !res?.value) return startPublicMode();
+      let res;
+      try {
+        res = await NU.rpc('api_getDisplayBundle', { brandId, scope: 'events', id: eventId });
+      } catch (err) {
+        // Network or unexpected error - show friendly error, don't leak details
+        console.error('Display API error:', err);
+        showDisplayError('load');
+        return;
+      }
+
+      // Check for API failure or missing data
+      if (!res?.ok) {
+        showDisplayError('notfound');
+        return;
+      }
+
+      if (!res?.value || !res?.value?.event) {
+        showDisplayError('nodata');
+        return;
+      }
 
       const bundle = res.value;
       const ev = bundle.event || {};

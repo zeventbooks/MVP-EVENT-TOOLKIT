@@ -1152,8 +1152,9 @@ DO NOT modify contracts without updating:
     <div id="errorState" style="display:none;">
       <div class="error-state">
         <div class="error-state-icon">⚠️</div>
-        <h3>Trouble Loading Analytics</h3>
-        <p id="errorMessage">We couldn't load the report data. Please try again.</p>
+        <h3>Unable to Load Report</h3>
+        <p id="errorMessage">We couldn't load the analytics data right now. This might be a temporary issue.</p>
+        <p style="font-size: 0.85rem; color: #991b1b; margin-top: 8px;">Please try again in a moment.</p>
         <button class="btn-retry" onclick="loadReport()">🔄 Try Again</button>
       </div>
     </div>
@@ -1515,8 +1516,26 @@ DO NOT modify contracts without updating:
     function showError(message) {
       document.getElementById('loading').style.display = 'none';
       document.getElementById('metrics').style.display = 'none';
-      document.getElementById('errorMessage').textContent =
-        message || 'We couldn\'t load the report data. Please try again.';
+
+      // Provide user-friendly error messages, don't expose technical details
+      let displayMessage = 'We couldn\'t load the analytics data right now. This might be a temporary issue.';
+
+      if (message) {
+        // Map technical errors to friendly messages
+        const lowerMsg = String(message).toLowerCase();
+        if (lowerMsg.includes('not found') || lowerMsg.includes('404')) {
+          displayMessage = 'This report could not be found. The link may be outdated or the report may have been removed.';
+        } else if (lowerMsg.includes('unauthorized') || lowerMsg.includes('403') || lowerMsg.includes('permission')) {
+          displayMessage = 'You don\'t have permission to view this report. Please contact the event organizer.';
+        } else if (lowerMsg.includes('network') || lowerMsg.includes('timeout') || lowerMsg.includes('connection')) {
+          displayMessage = 'We\'re having trouble connecting. Please check your internet connection and try again.';
+        } else if (lowerMsg.includes('portfolio')) {
+          displayMessage = message; // Portfolio messages are already user-friendly
+        }
+        // Otherwise use the default message - don't leak technical details
+      }
+
+      document.getElementById('errorMessage').textContent = displayMessage;
       document.getElementById('errorState').style.display = 'block';
     }
 
@@ -1842,7 +1861,13 @@ DO NOT modify contracts without updating:
       const container = document.getElementById('surfacePerformance');
 
       if (!surfaces.length) {
-        container.innerHTML = '<p class="muted">No placement data available yet.</p>';
+        container.innerHTML = `
+          <div style="text-align: center; padding: 24px; color: #64748b;">
+            <div style="font-size: 1.5rem; margin-bottom: 8px; opacity: 0.5;">📊</div>
+            <p style="margin: 0; font-weight: 500; color: #475569;">No Placement Data Yet</p>
+            <p style="margin: 8px 0 0; font-size: 0.85rem;">Placement performance data will appear here once sponsor content has been viewed.</p>
+          </div>
+        `;
         return;
       }
 
@@ -1908,7 +1933,13 @@ DO NOT modify contracts without updating:
       }
 
       if (!sponsors.length) {
-        container.innerHTML = '<p class="muted">No sponsor activity recorded yet.</p>';
+        container.innerHTML = `
+          <div style="text-align: center; padding: 24px; color: #64748b;">
+            <div style="font-size: 1.5rem; margin-bottom: 8px; opacity: 0.5;">🏢</div>
+            <p style="margin: 0; font-weight: 500; color: #475569;">No Sponsor Activity Yet</p>
+            <p style="margin: 8px 0 0; font-size: 0.85rem;">Sponsor performance data will appear here once sponsors have been added and their content has been viewed.</p>
+          </div>
+        `;
         return;
       }
 
@@ -2093,7 +2124,13 @@ DO NOT modify contracts without updating:
       const container = document.getElementById('eventPerformance');
 
       if (!events.length) {
-        container.innerHTML = '<p class="muted">No event-level analytics yet.</p>';
+        container.innerHTML = `
+          <div style="text-align: center; padding: 24px; color: #64748b;">
+            <div style="font-size: 1.5rem; margin-bottom: 8px; opacity: 0.5;">🎉</div>
+            <p style="margin: 0; font-weight: 500; color: #475569;">No Event Analytics Yet</p>
+            <p style="margin: 8px 0 0; font-size: 0.85rem;">Event performance data will appear here once events have been created and attendees have started engaging.</p>
+          </div>
+        `;
         return;
       }
 
