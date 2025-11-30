@@ -755,6 +755,16 @@ function doGet(e){
           brand = brandFromPath;
         }
 
+        // Block V2 surfaces even when accessed via URL aliases (router locked to MVP)
+        const blockedV2Surfaces = ['templates-v2', 'randomizer', 'teams', 'picker', 'portfolio', 'portfolio-dashboard'];
+        if (blockedV2Surfaces.includes(resolvedPage)) {
+          return HtmlErrorWithCorrId_(
+            'Surface Not Available',
+            `V2 surface "${resolvedPage}" is not available in MVP deployment`,
+            { endpoint: 'doGet', extra: { requestedPage: resolvedPage, alias: aliasFromPath, brand: brand.id } }
+          );
+        }
+
         const resolvedMode = aliasConfig.mode;
 
         // Continue routing with resolved values
@@ -823,9 +833,21 @@ function doGet(e){
     return HtmlService.createHtmlOutput(`<meta http-equiv="refresh" content="0;url=?p=${first}&brand=${brand.id}">`);
   }
 
-  // Page routing - MVP surfaces only (5 total): admin, public (default), display, poster, report/analytics
-  // Story 16: Removed non-MVP routes (test, diagnostics, sponsor, sponsor-roi, signup, config, planner)
+  // Page routing - MVP surfaces ONLY (5 total): admin, public (default), display, poster, report/analytics
+  // Router is LOCKED to MVP surfaces - V2 surfaces return hard error to prevent scope creep
   // Uses _isMvpSurface_() to validate against canonical list from _listMvpSurfaces_()
+
+  // Known V2 surfaces that are explicitly blocked (hard error, not silent fallback)
+  const blockedV2Surfaces = ['templates-v2', 'randomizer', 'teams', 'picker', 'portfolio', 'portfolio-dashboard'];
+
+  if (pageParam && blockedV2Surfaces.includes(pageParam)) {
+    return HtmlErrorWithCorrId_(
+      'Surface Not Available',
+      `V2 surface "${pageParam}" is not available in MVP deployment`,
+      { endpoint: 'doGet', extra: { requestedPage: pageParam, brand: brand.id } }
+    );
+  }
+
   let page = _isMvpSurface_(pageParam) ? pageParam : 'public';
 
   // Route using helper function
@@ -1317,57 +1339,46 @@ function _listMvpSurfaces_() {
 
 /**
  * Check if a page identifier is a valid MVP surface
+ *
+ * MVP Surfaces (5 total, locked - no V2 surfaces allowed):
+ *   - admin, public, display, poster, report
+ *   - 'analytics' is an alias for 'report'
+ *
  * @param {string} page - Page identifier to check
  * @returns {boolean} True if page is a valid MVP surface
  */
 function _isMvpSurface_(page) {
   const surfaces = _listMvpSurfaces_();
   // 'analytics' is an alias for 'report'
-  if (surfaces.includes(page) || page === 'analytics') return true;
-
-  // [V2] Template Management UI - gated by feature flag
-  if (page === 'templates-v2' && isFeatureEnabled_('TEMPLATE_MANAGEMENT_V2')) return true;
-
-  // [V2] Team Randomizer - standalone utility (no feature flag needed)
-  if (page === 'randomizer' || page === 'teams' || page === 'picker') return true;
-
-  return false;
+  return surfaces.includes(page) || page === 'analytics';
 }
 
 /**
  * Map page identifiers to HTML template files
  * Page routing: URL param → internal page → HTML file
  *
- * MVP surfaces (5 total):
+ * MVP surfaces (5 total, LOCKED - no V2 surfaces):
  *   public → Public.html (default)
  *   admin → Admin.html
  *   poster → Poster.html
  *   display → Display.html
  *   report/analytics → SharedReport.html
  *
- * V2 surfaces (feature-gated):
- *   templates-v2 → AdminTemplateV2.html (TEMPLATE_MANAGEMENT_V2 flag)
+ * V2 surfaces have been removed from the router to prevent scope creep.
+ * See archive/v2-code/ for V2 implementation files.
  *
- * Story 16: Removed V2+ surfaces (test, diagnostics, sponsor, sponsor-roi,
- * signup, planner, config) - files not in deployment (src/mvp only).
- * V2 code archived in archive/v2-code/
- *
- * @param {string} page - Page identifier from routing
+ * @param {string} page - Page identifier from routing (must be MVP surface)
  * @returns {string} HTML template filename (without .html extension)
  */
 function pageFile_(page){
-  // === MVP SURFACES (5 total) ===
+  // === MVP SURFACES ONLY (5 total) ===
   if (page==='admin') return 'Admin';
   if (page==='poster') return 'Poster';
   if (page==='display') return 'Display';
   if (page==='report' || page==='analytics') return 'SharedReport';
 
-  // === V2 SURFACES (feature-gated) ===
-  if (page==='templates-v2') return 'AdminTemplateV2';
-  if (page==='randomizer' || page==='teams' || page==='picker') return 'Randomizer';
-  if (page==='portfolio' || page==='portfolio-dashboard') return 'PortfolioDashboard';
-
-  // Default to Public for any unknown page
+  // Default to Public for any unknown/missing page
+  // Note: Non-MVP surfaces are blocked earlier in doGet() with hard error
   return 'Public';
 }
 

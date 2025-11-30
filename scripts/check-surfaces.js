@@ -36,10 +36,10 @@ const REDIRECT_PAGES = ['r', 'redirect'];
 // Analytics alias for report
 const SURFACE_ALIASES = { 'analytics': 'report' };
 
-// V2 surfaces (feature-gated, not exposed in early bar pilots)
-// These are valid surfaces that are gated by feature flags in Config.gs
-// The check-surfaces script should allow references to these surfaces
-const V2_FEATURE_GATED_SURFACES = ['templates-v2', 'randomizer', 'teams', 'picker', 'portfolio', 'portfolio-dashboard'];
+// V2 surfaces - BLOCKED in MVP router (no longer whitelisted)
+// These surfaces are explicitly blocked in Code.gs doGet() to prevent scope creep
+// The check-surfaces script should NOT allow references to these surfaces
+const BLOCKED_V2_SURFACES = ['templates-v2', 'randomizer', 'teams', 'picker', 'portfolio', 'portfolio-dashboard'];
 
 // ============================================================================
 // Extract MVP surfaces from Code.gs
@@ -150,6 +150,11 @@ function findPageReferences(filePath, content) {
  * @returns {{valid: boolean, reason?: string}}
  */
 function isValidPageValue(value, mvpSurfaces) {
+  // Check if it's a blocked V2 surface (not allowed in MVP)
+  if (BLOCKED_V2_SURFACES.includes(value)) {
+    return { valid: false, reason: 'Blocked V2 surface (not available in MVP)' };
+  }
+
   // Check if it's a valid MVP surface
   if (mvpSurfaces.includes(value)) {
     return { valid: true };
@@ -167,11 +172,6 @@ function isValidPageValue(value, mvpSurfaces) {
 
   // Check if it's a redirect page
   if (REDIRECT_PAGES.includes(value)) {
-    return { valid: true };
-  }
-
-  // Check if it's a V2 feature-gated surface
-  if (V2_FEATURE_GATED_SURFACES.includes(value)) {
     return { valid: true };
   }
 
@@ -307,7 +307,7 @@ function main() {
     console.log('Valid aliases:', Object.keys(SURFACE_ALIASES).join(', '));
     console.log('Valid API endpoints:', API_ENDPOINTS.join(', '));
     console.log('Valid redirects:', REDIRECT_PAGES.join(', '));
-    console.log('Valid V2 surfaces (feature-gated):', V2_FEATURE_GATED_SURFACES.join(', '));
+    console.log('Blocked V2 surfaces:', BLOCKED_V2_SURFACES.join(', '));
 
     console.log('\n❌ FAILED: Found invalid surface references. Please fix before proceeding.');
     process.exit(1);
