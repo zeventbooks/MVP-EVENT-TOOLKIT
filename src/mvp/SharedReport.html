@@ -71,9 +71,9 @@ API ENDPOINTS (3 MVP canonical - Story 6):
   - api_getSponsorAnalytics({ brandId, sponsorId, eventId? }) → SharedAnalytics (scoped)
   - api_getSponsorReportQr({ sponsorId, brandId? }) → { url, qrB64, verified }
 
-V2-ONLY ENDPOINTS (not called by MVP surface):
-  - api_getPortfolioAnalyticsV2 - Multi-event portfolio mode (hidden behind URL params)
-  - api_exportSharedReport - Export feature (button display:none)
+V2-ONLY ENDPOINTS (not called - features removed from MVP surface):
+  - api_getPortfolioAnalyticsV2 - Multi-event portfolio mode
+  - api_exportSharedReport - Export feature
 
 DO NOT modify contracts without updating:
   - /schemas/shared-analytics.schema.json (source of truth)
@@ -1064,23 +1064,12 @@ DO NOT modify contracts without updating:
       <p class="subtitle" id="lastUpdated">Loading...</p>
     </div>
 
-    <!-- Action Bar -->
+    <!-- Action Bar (MVP: Refresh only) -->
     <div class="action-bar">
       <button id="refreshBtn" class="btn btn-primary" onclick="loadReport()">
         <span class="btn-text">🔄 Refresh Data</span>
       </button>
-      <!-- V2 FEATURE – NOT MVP: Export to Sheets (requires backend export matrix implementation) -->
-      <button id="exportBtn" class="btn btn-secondary" onclick="exportReport()" style="display:none;">
-        <span class="btn-text">📊 Export to Sheets</span>
-      </button>
-      <!-- V2 FEATURE – NOT MVP: Filter by date range, sponsor, event (requires backend filter support) -->
-      <button id="filterBtn" class="btn btn-secondary" onclick="showFilters()" style="display:none;">
-        <span class="btn-text">🔍 Filter</span>
-      </button>
-      <!-- V2 FEATURE: Portfolio Mode Toggle (only shown for parent orgs with adminKey) -->
-      <button id="portfolioToggleBtn" class="btn btn-secondary" onclick="togglePortfolioMode()" style="display:none;">
-        <span class="btn-text">📈 Portfolio View</span>
-      </button>
+      <!-- V2 features removed from MVP: Export, Filters, Portfolio Mode -->
     </div>
 
     <!-- Loading State -->
@@ -1168,39 +1157,19 @@ DO NOT modify contracts without updating:
   <script>
     const BRAND_ID = '<?= brandId ?>';
 
-    // URL parameters control whether this is a sponsor-scoped view
+    // URL parameters control whether this is a sponsor-scoped view (MVP)
     const urlParams = new URLSearchParams(window.location.search);
     const IS_SPONSOR_VIEW = urlParams.get('sponsor') === 'true';
     const SPONSOR_ID = urlParams.get('sponsorId') || '';
     const EVENT_ID = urlParams.get('eventId') || '';
 
-    // V2 Portfolio Mode: 'single-brand' (default) or 'multi-event-portfolio'
-    // Multi-event portfolio mode aggregates metrics across child brands
-    // Only available for parent organization brands with adminKey
-    const PORTFOLIO_MODE = urlParams.get('portfolioMode') || 'single-brand';
-    const ADMIN_KEY = urlParams.get('adminKey') || '';
-    const IS_PORTFOLIO_MODE = PORTFOLIO_MODE === 'multi-event-portfolio' && !IS_SPONSOR_VIEW;
-
-    // Update header based on view type
-    function updateHeaderForView(sponsorName, portfolioData) {
+    // Update header based on view type (MVP: sponsor view or organizer view)
+    function updateHeaderForView(sponsorName) {
       const titleEl = document.getElementById('reportTitle');
       const subtitleEl = document.getElementById('reportSubtitle');
       const contextEl = document.getElementById('reportContext');
 
-      if (IS_PORTFOLIO_MODE && portfolioData) {
-        // V2 Multi-event portfolio view: cross-brand aggregation
-        if (titleEl) {
-          titleEl.textContent = '📊 Portfolio Analytics Dashboard';
-        }
-        if (subtitleEl) {
-          const childCount = portfolioData.portfolio?.children?.length || 0;
-          const parentName = portfolioData.portfolio?.parent?.name || BRAND_ID;
-          subtitleEl.textContent = `Cross-brand analytics for ${parentName} (${childCount + 1} brands)`;
-        }
-        if (contextEl) {
-          contextEl.textContent = 'Multi-event portfolio view: aggregated sponsor performance across all your brands. Use this to demonstrate total ROI to sponsors.';
-        }
-      } else if (IS_SPONSOR_VIEW) {
+      if (IS_SPONSOR_VIEW) {
         // Sponsor-specific view: personalized and welcoming
         if (titleEl) {
           titleEl.textContent = '📊 Your Sponsorship Report';
@@ -1244,7 +1213,7 @@ DO NOT modify contracts without updating:
     updateHeaderForView(null);
 
     /**
-     * Expected API contract (envelope omitted):
+     * Expected API contract (envelope omitted) - MVP SharedAnalytics shape:
      *
      * Shared report (organizer):
      * {
@@ -1270,17 +1239,6 @@ DO NOT modify contracts without updating:
      *
      * Sponsor view:
      * - Same shape, but summary/surfaces are scoped to that sponsor.
-     *
-     * V2 Portfolio mode (multi-event-portfolio):
-     * {
-     *   mode: 'multi-event-portfolio',
-     *   lastUpdatedISO: string,
-     *   portfolio: { parent: {...}, children: [...] },
-     *   summary: { totalEvents, totalImpressions, totalClicks, ... },
-     *   byBrand: { brandId: { events, impressions, clicks, ... } },
-     *   sponsors: [...],
-     *   topPerformingEvents: [...]
-     * }
      */
     async function loadReport() {
       try {
@@ -1288,24 +1246,10 @@ DO NOT modify contracts without updating:
 
         let rpcName, payload;
 
-        // ═══════════════════════════════════════════════════════════════════════
-        // [MVP GUARD] Portfolio mode is V2-only - blocked for MVP release
-        // Access would be: ?portfolioMode=multi-event-portfolio&adminKey=<key>
-        // api_getPortfolioAnalyticsV2 is NOT part of the canonical 3 MVP endpoints
-        // ═══════════════════════════════════════════════════════════════════════
-        if (IS_PORTFOLIO_MODE) {
-          showError('Portfolio analytics not enabled - feature available in V2');
-          return;
-        }
-        // ═══════════════════════════════════════════════════════════════════════
-        // [MVP CANONICAL] Sponsor view - api_getSponsorAnalytics (Story 6)
-        // ═══════════════════════════════════════════════════════════════════════
+        // MVP endpoints: api_getSponsorAnalytics (sponsor view) or api_getSharedAnalytics (organizer view)
         if (IS_SPONSOR_VIEW && SPONSOR_ID) {
           rpcName = 'api_getSponsorAnalytics';
           payload = { brandId: BRAND_ID, sponsorId: SPONSOR_ID, eventId: EVENT_ID || null };
-        // ═══════════════════════════════════════════════════════════════════════
-        // [MVP CANONICAL] Organizer view - api_getSharedAnalytics (Story 6)
-        // ═══════════════════════════════════════════════════════════════════════
         } else {
           rpcName = 'api_getSharedAnalytics';
           payload = { brandId: BRAND_ID };
@@ -1317,194 +1261,12 @@ DO NOT modify contracts without updating:
           throw new Error(result && result.message || 'Failed to load analytics');
         }
 
-        // [MVP] Render standard organizer/sponsor view response
-        // Note: Portfolio mode is blocked by MVP guard above (V2 feature)
         renderReport(result.value || {});
         toggleLoading(false);
       } catch (err) {
         console.error('SharedReport load error', err);
         showError(err && err.message);
       }
-    }
-
-    /**
-     * [V2-ONLY] [MVP DEAD CODE] Render V2 portfolio report (multi-event mode)
-     *
-     * NOT MVP - This function cannot be reached in MVP release.
-     * Portfolio mode is blocked by the MVP guard in loadReport().
-     * Preserved for V2 when portfolio analytics is enabled.
-     *
-     * Was: activated via URL params (?portfolioMode=multi-event-portfolio&adminKey=KEY).
-     *
-     * @param {Object} data - Portfolio analytics response from api_getPortfolioAnalyticsV2
-     */
-    function renderPortfolioReport(data) {
-      // Update header for portfolio mode
-      updateHeaderForView(null, data);
-
-      // Convert portfolio format to SharedAnalytics-compatible format for reuse
-      const summary = {
-        totalImpressions: data.summary?.totalImpressions || 0,
-        totalClicks: data.summary?.totalClicks || 0,
-        totalQrScans: data.summary?.totalQrScans || 0,
-        totalSignups: data.summary?.totalSignups || 0,
-        uniqueEvents: data.summary?.totalEvents || 0,
-        uniqueSponsors: data.summary?.totalSponsors || 0
-      };
-
-      // Story 11: Render funnel card at the top (V2 portfolio mode)
-      renderSponsorFunnelCard(summary);
-
-      // Render summary metrics
-      renderSummaryMetrics(summary);
-
-      // Render portfolio-specific brand breakdown
-      if (data.byBrand) {
-        renderBrandBreakdown(data.byBrand, data.portfolio);
-      }
-
-      // Render top sponsors (convert from portfolio format)
-      const topSponsors = (data.sponsors || []).slice(0, 3).map(s => ({
-        id: s.id,
-        name: s.name || s.id,
-        impressions: s.metrics?.impressions || 0,
-        clicks: s.metrics?.clicks || 0,
-        ctr: s.metrics?.ctr || 0
-      }));
-      if (topSponsors.length > 0) {
-        renderTopSponsorsCard(topSponsors);
-      }
-
-      // Build surfaces from portfolio data (aggregate across brands)
-      const surfaces = data.bySurface ? Object.values(data.bySurface).map(s => ({
-        id: s.id,
-        label: s.label || s.id,
-        impressions: s.impressions || 0,
-        clicks: s.clicks || 0,
-        qrScans: s.qrScans || 0,
-        engagementRate: s.impressions > 0 ? ((s.clicks + s.qrScans) / s.impressions * 100) : 0
-      })) : [];
-
-      if (surfaces.length > 0) {
-        renderSurfacePerformance(surfaces);
-      }
-
-      // Render top callouts from portfolio events and sponsors
-      const events = (data.topPerformingEvents || []).map(e => ({
-        id: e.id,
-        name: e.name,
-        impressions: e.impressions || 0,
-        clicks: e.clicks || 0,
-        ctr: e.ctr || 0,
-        signupsCount: e.signupsCount || 0
-      }));
-      const sponsors = (data.sponsors || []).map(s => ({
-        id: s.id,
-        name: s.name || s.id,
-        impressions: s.metrics?.impressions || 0,
-        clicks: s.metrics?.clicks || 0,
-        ctr: s.metrics?.ctr || 0
-      }));
-
-      renderTopCallouts(events, sponsors);
-
-      // Render sponsor performance
-      if (sponsors.length > 0) {
-        renderSponsorPerformance(sponsors);
-      }
-
-      // Render top performing events
-      if (events.length > 0) {
-        document.getElementById('eventPerformanceCard').style.display = 'block';
-        renderEventPerformance(events);
-      }
-
-      // Last updated label
-      const lastUpdated = data.lastUpdatedISO || data.generatedAt || null;
-      if (lastUpdated) {
-        document.getElementById('lastUpdated').textContent =
-          'Last updated: ' + new Date(lastUpdated).toLocaleString();
-      } else {
-        document.getElementById('lastUpdated').textContent = 'Last updated: not available';
-      }
-    }
-
-    /**
-     * [V2-ONLY] [MVP DEAD CODE] Render brand breakdown section
-     *
-     * NOT MVP - Called only from renderPortfolioReport which is blocked.
-     *
-     * @param {Object} byBrand - Metrics by brand ID
-     * @param {Object} portfolio - Portfolio structure (parent/children)
-     */
-    function renderBrandBreakdown(byBrand, portfolio) {
-      // Create brand breakdown section if it doesn't exist
-      let container = document.getElementById('brandBreakdownCard');
-      if (!container) {
-        container = document.createElement('div');
-        container.id = 'brandBreakdownCard';
-        container.className = 'section-card';
-        container.innerHTML = `
-          <h2>🏢 Performance by Brand</h2>
-          <p class="section-help">Compare sponsor engagement across your portfolio of brands.</p>
-          <div id="brandBreakdown"></div>
-        `;
-        // Insert after metrics grid
-        const metricsGrid = document.getElementById('metricsGrid');
-        if (metricsGrid && metricsGrid.parentNode) {
-          metricsGrid.parentNode.insertBefore(container, metricsGrid.nextSibling);
-        }
-      }
-
-      const breakdown = document.getElementById('brandBreakdown');
-      if (!breakdown) return;
-
-      const brands = Object.values(byBrand).sort((a, b) => b.impressions - a.impressions);
-
-      if (!brands.length) {
-        breakdown.innerHTML = '<p class="muted">No brand data available.</p>';
-        return;
-      }
-
-      const rows = brands.map(brand => {
-        const ctr = brand.ctr || 0;
-        const badgeClass = ctr >= 2 ? 'success' : ctr >= 1 ? 'info' : 'warning';
-        const isParent = portfolio?.parent?.id === brand.brandId;
-
-        return `
-          <tr>
-            <td data-label="Brand">
-              <strong>${escapeHtml(brand.brandName || brand.brandId)}</strong>
-              ${isParent ? '<span class="badge info" style="margin-left:8px;font-size:0.6rem;">Parent</span>' : ''}
-            </td>
-            <td data-label="Events">${brand.events || 0}</td>
-            <td data-label="Impressions">${(brand.impressions || 0).toLocaleString()}</td>
-            <td data-label="Clicks">${(brand.clicks || 0).toLocaleString()}</td>
-            <td data-label="Signups">${(brand.signups || 0).toLocaleString()}</td>
-            <td data-label="CTR">
-              <span class="badge ${badgeClass}">${ctr.toFixed(2)}%</span>
-            </td>
-          </tr>
-        `;
-      }).join('');
-
-      breakdown.innerHTML = `
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Brand</th>
-              <th class="th-with-tooltip" data-tooltip="Number of events for this brand">Events</th>
-              <th class="th-with-tooltip" data-tooltip="Total impressions">Impressions</th>
-              <th class="th-with-tooltip" data-tooltip="Total clicks">Clicks</th>
-              <th class="th-with-tooltip" data-tooltip="Form signups">Signups</th>
-              <th class="th-with-tooltip" data-tooltip="Click-through rate">CTR</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rows}
-          </tbody>
-        </table>
-      `;
     }
 
     function toggleLoading(isLoading) {
@@ -2183,54 +1945,6 @@ DO NOT modify contracts without updating:
       `;
     }
 
-    // V2 FEATURE – NOT MVP: Export and Filter functions (buttons hidden in MVP)
-    // These stubs remain for when V2 features are enabled
-    function exportReport() {
-      showComingSoon(document.getElementById('exportBtn'));
-    }
-
-    function showFilters() {
-      showComingSoon(document.getElementById('filterBtn'));
-    }
-
-    function showComingSoon(btn) {
-      if (!btn) return;
-      const label = btn.querySelector('.btn-text');
-      if (!label) return;
-      const original = label.textContent;
-      label.textContent = '🚧 Coming Soon';
-      setTimeout(() => {
-        label.textContent = original;
-      }, 1500);
-    }
-
-    /**
-     * [V2-ONLY] [MVP DISABLED] Toggle between single-brand and portfolio mode
-     *
-     * NOT MVP - Portfolio mode is blocked. This function is a no-op in MVP.
-     * Button is hidden (display:none) and will never be shown.
-     *
-     * Was: switches report between standard single-brand view and
-     * multi-event portfolio view (cross-brand aggregation).
-     */
-    function togglePortfolioMode() {
-      // [MVP GUARD] Portfolio mode is V2-only - no-op
-      console.warn('Portfolio mode not enabled - feature available in V2');
-      return;
-    }
-
-    /**
-     * [V2-ONLY] [MVP DISABLED] Check if portfolio toggle should be visible
-     *
-     * NOT MVP - Portfolio toggle is never shown in MVP release.
-     * Button remains hidden (display:none) regardless of URL params.
-     */
-    function checkPortfolioToggleVisibility() {
-      // [MVP GUARD] Portfolio toggle is V2-only - always hidden
-      // No-op: button stays display:none as set in HTML
-      return;
-    }
-
     /**
      * Expand first detail section on desktop for better UX
      * On mobile (<=640px), keep all sections collapsed to reduce scroll
@@ -2251,7 +1965,6 @@ DO NOT modify contracts without updating:
 
     window.addEventListener('load', function() {
       loadReport();
-      checkPortfolioToggleVisibility();
       initMobileCollapse();
     });
   </script>
