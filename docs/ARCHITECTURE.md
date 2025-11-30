@@ -1,7 +1,22 @@
 # MVP Architecture
 
-**Last Updated:** 2025-11-22
+**Last Updated:** 2025-11-30
 **Status:** MVP v1.0 - Focus Group Ready
+
+---
+
+## Navigation & Integration Diagram
+
+For a comprehensive visual representation of the integration flow, see:
+
+**[NAVIGATION_DIAGRAM.txt](../NAVIGATION_DIAGRAM.txt)** - Master navigation diagram including:
+- **Section 1**: Master Integration Diagram (Admin → Bundles → Surfaces → Analytics)
+- **Section 2**: Analytics Logging Flow (CTA/scan logging endpoints)
+- **Section 3**: SharedReport Analytics Consumption (api_getSharedAnalytics, api_getSponsorAnalytics, api_getSponsorReportQr)
+- **Section 4**: MVP vs V2 Path Separation (clearly labeled)
+- **Section 5-8**: Entry Points, Router Priority, User Journeys, File Structure
+
+See also: [INTEGRATION-FLOWS.md](./INTEGRATION-FLOWS.md) for detailed API request/response schemas.
 
 ---
 
