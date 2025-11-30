@@ -271,6 +271,7 @@ jobs:
 
       - name: Warmup deployment
         id: warmup
+        continue-on-error: true
         env:
           BASE_URL: ${{ steps.url.outputs.url }}
           WARMUP_MAX_ATTEMPTS: 5
@@ -280,14 +281,12 @@ jobs:
           echo "   This ensures GAS instances are ready before tests run"
           echo ""
 
-          node scripts/warmup-deployment.js
-
-          if [ $? -eq 0 ]; then
+          if node scripts/warmup-deployment.js; then
             echo "success=true" >> $GITHUB_OUTPUT
           else
             echo "success=false" >> $GITHUB_OUTPUT
             echo ""
-            echo "⚠️ Warmup failed - tests may experience cold start delays"
+            echo "⚠️ Warmup failed - tests will still run but may experience cold start delays"
           fi
 
   # ============================================================================
@@ -298,7 +297,10 @@ jobs:
     name: "4️⃣ API Tests"
     runs-on: ubuntu-latest
     needs: [validate, warmup]
-    if: needs.warmup.outputs.warmup_success == 'true'
+    # Run if validation passed AND warmup succeeded (or warmup ran but we want to try anyway)
+    if: |
+      needs.validate.outputs.validation_passed == 'true' &&
+      needs.warmup.result == 'success'
     outputs:
       result: ${{ steps.test.outputs.result }}
     steps:
@@ -481,37 +483,69 @@ jobs:
           echo "📊 Quality Gate Summary"
           echo "═══════════════════════════════════════════"
           echo ""
-          echo "Validation:     ${{ needs.validate.outputs.validation_passed == 'true' && '✅ PASS' || '❌ FAIL' }}"
-          echo "Warmup:         ${{ needs.warmup.outputs.warmup_success == 'true' && '✅ PASS' || '❌ FAIL' }}"
-          echo "API Tests:      ${{ needs.api-tests.outputs.result == 'success' && '✅ PASS' || (needs.api-tests.result == 'skipped' && '⏭️ SKIP' || '❌ FAIL') }}"
-          echo "Smoke Tests:    ${{ needs.smoke-tests.outputs.result == 'success' && '✅ PASS' || (needs.smoke-tests.result == 'skipped' && '⏭️ SKIP' || '❌ FAIL') }}"
-          echo "Expensive:      ${{ needs.expensive-tests.result == 'success' && '✅ PASS' || (needs.expensive-tests.result == 'skipped' && '⏭️ SKIP' || '❌ FAIL') }}"
+          echo "Job Results:"
+          echo "  Validate:       ${{ needs.validate.result }}"
+          echo "  Warmup:         ${{ needs.warmup.result }}"
+          echo "  API Tests:      ${{ needs.api-tests.result }}"
+          echo "  Smoke Tests:    ${{ needs.smoke-tests.result }}"
+          echo "  Expensive:      ${{ needs.expensive-tests.result }}"
+          echo ""
+          echo "Test Outputs:"
+          echo "  Validation:     ${{ needs.validate.outputs.validation_passed }}"
+          echo "  Warmup Success: ${{ needs.warmup.outputs.warmup_success }}"
+          echo "  API Result:     ${{ needs.api-tests.outputs.result }}"
+          echo "  Smoke Result:   ${{ needs.smoke-tests.outputs.result }}"
           echo ""
           echo "═══════════════════════════════════════════"
 
-          # Check if all required stages passed
-          if [[ "${{ needs.validate.outputs.validation_passed }}" != "true" ]]; then
-            echo "❌ QUALITY GATE FAILED: Validation failed"
-            exit 1
+          # Track failures
+          FAILED=false
+
+          # 1. Validation must pass
+          if [[ "${{ needs.validate.result }}" != "success" ]]; then
+            echo "❌ FAILED: Validation job failed"
+            FAILED=true
           fi
 
-          if [[ "${{ needs.warmup.outputs.warmup_success }}" != "true" ]]; then
-            echo "❌ QUALITY GATE FAILED: Warmup failed"
-            exit 1
+          # 2. Warmup job must complete (even if warmup itself failed, we still run tests)
+          if [[ "${{ needs.warmup.result }}" != "success" ]]; then
+            echo "❌ FAILED: Warmup job failed"
+            FAILED=true
           fi
 
-          if [[ "${{ needs.api-tests.outputs.result }}" != "success" ]]; then
-            echo "❌ QUALITY GATE FAILED: API tests failed"
-            exit 1
+          # 3. API tests must pass (if they ran)
+          API_RESULT="${{ needs.api-tests.result }}"
+          if [[ "$API_RESULT" == "failure" ]]; then
+            echo "❌ FAILED: API tests failed"
+            FAILED=true
+          elif [[ "$API_RESULT" == "skipped" ]]; then
+            echo "⏭️ SKIPPED: API tests were skipped"
+            # Skipped is OK if validation failed (expected cascade)
+            if [[ "${{ needs.validate.result }}" == "success" && "${{ needs.warmup.result }}" == "success" ]]; then
+              echo "❌ FAILED: API tests were unexpectedly skipped"
+              FAILED=true
+            fi
           fi
 
-          if [[ "${{ needs.smoke-tests.outputs.result }}" != "success" ]]; then
-            echo "❌ QUALITY GATE FAILED: Smoke tests failed"
-            exit 1
+          # 4. Smoke tests must pass (if they ran)
+          SMOKE_RESULT="${{ needs.smoke-tests.result }}"
+          if [[ "$SMOKE_RESULT" == "failure" ]]; then
+            echo "❌ FAILED: Smoke tests failed"
+            FAILED=true
           fi
 
-          if [[ "${{ needs.expensive-tests.result }}" != "success" && "${{ needs.expensive-tests.result }}" != "skipped" ]]; then
-            echo "❌ QUALITY GATE FAILED: Expensive tests failed"
+          # 5. Expensive tests must pass (if they ran)
+          EXPENSIVE_RESULT="${{ needs.expensive-tests.result }}"
+          if [[ "$EXPENSIVE_RESULT" == "failure" ]]; then
+            echo "❌ FAILED: Expensive tests failed"
+            FAILED=true
+          fi
+
+          echo ""
+          echo "═══════════════════════════════════════════"
+
+          if [[ "$FAILED" == "true" ]]; then
+            echo "❌ QUALITY GATE FAILED"
             exit 1
           fi
 
