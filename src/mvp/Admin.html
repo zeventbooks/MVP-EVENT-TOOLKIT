@@ -350,6 +350,17 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
         width: 100%;
       }
 
+      /* Sponsor Exposure Map mobile layout */
+      #sponsorExposureMap {
+        padding: 12px;
+      }
+      #sponsorPreviewLinks {
+        grid-template-columns: 1fr !important;
+      }
+      #sponsorPreviewLinks a {
+        width: 100%;
+      }
+
       /* Sponsor table mobile layout - stack columns */
       .sponsor-report-table {
         display: block;
@@ -2204,24 +2215,59 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
                 Give each sponsor their own analytics link to show how their logo performed.
               </p>
 
-              <!-- Sponsor Placement Guide -->
-              <div id="sponsorPlacementGuide" style="background: var(--color-gray-50, #f8fafc); border-radius: 8px; padding: 12px; margin-bottom: 12px; display: none;">
-                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                  <span style="font-size: 1rem;">📍</span>
-                  <strong style="font-size: 0.8rem; color: var(--color-gray-700, #334155);">Where Sponsor Logos Appear</strong>
+              <!-- Sponsor Exposure Map & Preview Links -->
+              <div id="sponsorExposureMap" style="background: var(--color-gray-50, #f8fafc); border-radius: 8px; padding: 16px; margin-bottom: 12px; display: none;">
+                <!-- Section: Sponsor Visibility Map -->
+                <div style="margin-bottom: 16px;">
+                  <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                    <span style="font-size: 1.1rem;">🗺️</span>
+                    <strong style="font-size: 0.85rem; color: var(--color-gray-700, #334155);">Sponsor Exposure Map</strong>
+                  </div>
+
+                  <!-- Logos Row -->
+                  <div style="margin-bottom: 10px;">
+                    <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
+                      <span style="font-size: 0.9rem;">🖼️</span>
+                      <span style="font-size: 0.75rem; font-weight: 600; color: var(--color-gray-600, #475569);">Sponsor Logos appear on:</span>
+                    </div>
+                    <div style="display: flex; flex-wrap: wrap; gap: 6px; padding-left: 22px;">
+                      <span style="background: #dbeafe; color: #1e40af; padding: 3px 10px; border-radius: 12px; font-size: 0.7rem;" title="Rotating carousel on mobile/web event page">📱 Public <span style="opacity:0.7">(carousel)</span></span>
+                      <span style="background: #dcfce7; color: #166534; padding: 3px 10px; border-radius: 12px; font-size: 0.7rem;" title="Top strip + side panel on TV/kiosk">📺 Display <span style="opacity:0.7">(strip + panel)</span></span>
+                      <span style="background: #fef3c7; color: #92400e; padding: 3px 10px; border-radius: 12px; font-size: 0.7rem;" title="Top strip on printable poster">🖼️ Poster <span style="opacity:0.7">(strip)</span></span>
+                    </div>
+                  </div>
+
+                  <!-- CTAs/Banners Row -->
+                  <div style="margin-bottom: 10px;">
+                    <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
+                      <span style="font-size: 0.9rem;">📢</span>
+                      <span style="font-size: 0.75rem; font-weight: 600; color: var(--color-gray-600, #475569);">CTAs & Banners appear on:</span>
+                    </div>
+                    <div style="display: flex; flex-wrap: wrap; gap: 6px; padding-left: 22px;">
+                      <span style="background: #dbeafe; color: #1e40af; padding: 3px 10px; border-radius: 12px; font-size: 0.7rem;" title="Sponsor banner with rotation indicator">📱 Public <span style="opacity:0.7">(banner)</span></span>
+                      <span style="background: #f3e8ff; color: #7e22ce; padding: 3px 10px; border-radius: 12px; font-size: 0.7rem;" title="Full-screen rotation pane on TV">📺 Display <span style="opacity:0.7">(rotation pane)</span></span>
+                    </div>
+                  </div>
+
+                  <!-- Analytics Row -->
+                  <div>
+                    <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
+                      <span style="font-size: 0.9rem;">📊</span>
+                      <span style="font-size: 0.75rem; font-weight: 600; color: var(--color-gray-600, #475569);">Sponsor Analytics shown on:</span>
+                    </div>
+                    <div style="display: flex; flex-wrap: wrap; gap: 6px; padding-left: 22px;">
+                      <span style="background: #fce7f3; color: #be185d; padding: 3px 10px; border-radius: 12px; font-size: 0.7rem;" title="Performance metrics, funnel, and CTR data">📊 SharedReport <span style="opacity:0.7">(metrics & funnel)</span></span>
+                    </div>
+                  </div>
                 </div>
-                <div style="display: flex; flex-wrap: wrap; gap: 6px; font-size: 0.75rem; margin-bottom: 12px;">
-                  <span style="background: #dbeafe; color: #1e40af; padding: 3px 8px; border-radius: 12px;" title="Mobile/web event info page">Public</span>
-                  <span style="background: #dcfce7; color: #166534; padding: 3px 8px; border-radius: 12px;" title="TV/kiosk display screen">Display</span>
-                  <span style="background: #fef3c7; color: #92400e; padding: 3px 8px; border-radius: 12px;" title="Printable poster">Poster</span>
-                  <span style="background: #f3e8ff; color: #7e22ce; padding: 3px 8px; border-radius: 12px;" title="Rotating TV banner">TV Banner</span>
-                </div>
-                <div style="font-size: 0.7rem; color: var(--color-gray-500, #64748b); margin-bottom: 12px;">
-                  Each sponsor's logo appears on the surface matching their <em>placement</em> setting.
-                </div>
-                <div style="border-top: 1px solid var(--color-gray-200, #e2e8f0); padding-top: 12px;">
-                  <div style="font-size: 0.75rem; font-weight: 600; color: var(--color-gray-600, #475569); margin-bottom: 8px;">Preview Event Surfaces:</div>
-                  <div id="sponsorPreviewLinks" style="display: flex; flex-wrap: wrap; gap: 6px;"></div>
+
+                <!-- Section: Preview Links -->
+                <div style="border-top: 1px solid var(--color-gray-200, #e2e8f0); padding-top: 14px;">
+                  <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+                    <span style="font-size: 1rem;">👁️</span>
+                    <strong style="font-size: 0.8rem; color: var(--color-gray-600, #475569);">Preview Sponsor Visibility</strong>
+                  </div>
+                  <div id="sponsorPreviewLinks" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px;"></div>
                 </div>
               </div>
 
@@ -3732,35 +3778,41 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
       const sponsors = eventObj.sponsors || [];
       const container = document.getElementById('sponsorReportsList');
       const section = document.getElementById('sponsorPerformanceCard');
-      const placementGuide = document.getElementById('sponsorPlacementGuide');
+      const exposureMap = document.getElementById('sponsorExposureMap');
       const previewLinksContainer = document.getElementById('sponsorPreviewLinks');
 
       // Always show section (for custom sponsor ID entry)
       section.style.display = '';
 
-      // Show placement guide and preview links if we have sponsors or event links
+      // Show exposure map and preview links when we have event links (always show for loaded events)
       const links = eventObj.links || {};
-      if (sponsors.length || links.publicUrl) {
-        placementGuide.style.display = '';
+      if (links.publicUrl) {
+        exposureMap.style.display = '';
 
-        // Build preview links
+        // Build prominent preview links with "Open X view" labels
         const previewLinks = [];
-        if (links.publicUrl) {
-          previewLinks.push('<a href="' + NU.esc(links.publicUrl) + '" target="_blank" rel="noopener" style="background:#dbeafe;color:#1e40af;padding:4px 10px;border-radius:12px;font-size:0.7rem;text-decoration:none;display:inline-flex;align-items:center;gap:4px;" title="Preview Public page"><span style="font-size:0.8rem;">📱</span> Public</a>');
-        }
-        if (links.displayUrl) {
-          previewLinks.push('<a href="' + NU.esc(links.displayUrl) + '" target="_blank" rel="noopener" style="background:#dcfce7;color:#166534;padding:4px 10px;border-radius:12px;font-size:0.7rem;text-decoration:none;display:inline-flex;align-items:center;gap:4px;" title="Preview Display screen"><span style="font-size:0.8rem;">📺</span> Display</a>');
-        }
-        if (links.posterUrl) {
-          previewLinks.push('<a href="' + NU.esc(links.posterUrl) + '" target="_blank" rel="noopener" style="background:#fef3c7;color:#92400e;padding:4px 10px;border-radius:12px;font-size:0.7rem;text-decoration:none;display:inline-flex;align-items:center;gap:4px;" title="Preview Poster"><span style="font-size:0.8rem;">🖼️</span> Poster</a>');
-        }
+
+        // Common button-like styles for preview links
+        const btnBase = 'display:flex;align-items:center;justify-content:center;gap:6px;padding:10px 14px;border-radius:8px;font-size:0.8rem;font-weight:500;text-decoration:none;transition:transform 0.15s ease,box-shadow 0.15s ease;';
+        const btnHover = 'onmouseover="this.style.transform=\'translateY(-1px)\';this.style.boxShadow=\'0 2px 8px rgba(0,0,0,0.15)\';" onmouseout="this.style.transform=\'\';this.style.boxShadow=\'\';"';
+
+        // Links in reverse order: SharedReport, Poster, Display, Public
         const reportUrl = links.sharedReportUrl || (links.publicUrl ? links.publicUrl.replace('page=public', 'page=report') : '');
         if (reportUrl) {
-          previewLinks.push('<a href="' + NU.esc(reportUrl) + '" target="_blank" rel="noopener" style="background:#fce7f3;color:#be185d;padding:4px 10px;border-radius:12px;font-size:0.7rem;text-decoration:none;display:inline-flex;align-items:center;gap:4px;" title="Preview Shared Report"><span style="font-size:0.8rem;">📊</span> Report</a>');
+          previewLinks.push('<a href="' + NU.esc(reportUrl) + '" target="_blank" rel="noopener" style="' + btnBase + 'background:#fce7f3;color:#be185d;border:1px solid #f9a8d4;" ' + btnHover + ' title="See sponsor performance analytics"><span style="font-size:1rem;">📊</span> Open SharedReport</a>');
+        }
+        if (links.posterUrl) {
+          previewLinks.push('<a href="' + NU.esc(links.posterUrl) + '" target="_blank" rel="noopener" style="' + btnBase + 'background:#fef3c7;color:#92400e;border:1px solid #fcd34d;" ' + btnHover + ' title="See how sponsors appear on the printable poster"><span style="font-size:1rem;">🖼️</span> Open Poster view</a>');
+        }
+        if (links.displayUrl) {
+          previewLinks.push('<a href="' + NU.esc(links.displayUrl) + '" target="_blank" rel="noopener" style="' + btnBase + 'background:#dcfce7;color:#166534;border:1px solid #86efac;" ' + btnHover + ' title="See how sponsors appear on the TV/kiosk display"><span style="font-size:1rem;">📺</span> Open Display view</a>');
+        }
+        if (links.publicUrl) {
+          previewLinks.push('<a href="' + NU.esc(links.publicUrl) + '" target="_blank" rel="noopener" style="' + btnBase + 'background:#dbeafe;color:#1e40af;border:1px solid #93c5fd;" ' + btnHover + ' title="See how sponsors appear on the public event page"><span style="font-size:1rem;">📱</span> Open Public view</a>');
         }
         previewLinksContainer.innerHTML = previewLinks.join('');
       } else {
-        placementGuide.style.display = 'none';
+        exposureMap.style.display = 'none';
       }
 
       if (!sponsors.length) {
