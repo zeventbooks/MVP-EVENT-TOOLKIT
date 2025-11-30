@@ -1,70 +1,123 @@
-# Event Contract v1.0 (MVP Frozen)
+# Event Contract
 
-> **Schema Version:** `1.0.0` (Frozen for MVP)
-> **Source of Truth:** `/schemas/event.schema.json`
-> **Last Updated:** 2025-11-30
-> **Migration Policy:** Breaking changes require a new schema version and migration script
+## MVP v1.0 – frozen
 
----
+> **Schema lock date:** 2025-11-30
+> **Source of truth:** `/schemas/event.schema.json`
+> **Breaking changes require migration scripts.**
 
-## Field Reference (One-Page)
-
-| Field | Type | Required | MVP/V2 | Description |
-|-------|------|----------|--------|-------------|
-| **Identity** |
-| `id` | string | **Required** | MVP | UUID, system-generated |
-| `slug` | string | **Required** | MVP | URL-safe identifier |
-| `name` | string | **Required** | MVP | Event display name (max 200) |
-| `startDateISO` | string | **Required** | MVP | Date YYYY-MM-DD |
-| `venue` | string | **Required** | MVP | Venue name (max 200) |
-| `templateId` | string\|null | Optional | MVP | Template used to create event |
-| **Links** (auto-generated) |
-| `links.publicUrl` | string | **Required** | MVP | Public.html URL |
-| `links.displayUrl` | string | **Required** | MVP | Display.html URL |
-| `links.posterUrl` | string | **Required** | MVP | Poster.html URL |
-| `links.signupUrl` | string | **Required** | MVP | Form/signup URL |
-| `links.sharedReportUrl` | string\|null | Optional | V2 | Analytics report URL |
-| **QR Codes** (auto-generated) |
-| `qr.public` | string | **Required** | MVP | Base64 PNG → publicUrl |
-| `qr.signup` | string | **Required** | MVP | Base64 PNG → signupUrl |
-| **CTAs** |
-| `ctas.primary.label` | string | **Required** | MVP | Primary button text |
-| `ctas.primary.url` | string | **Required** | MVP | Primary button link |
-| `ctas.secondary` | CTA\|null | Optional | V2 | Secondary button |
-| **Content** |
-| `schedule` | ScheduleRow[] | Optional | MVP | Schedule items |
-| `standings` | StandingRow[] | Optional | MVP | Team standings |
-| `bracket` | BracketTree\|null | Optional | MVP | Tournament bracket |
-| `sponsors` | Sponsor[] | Optional | V2 | Sponsor logos |
-| `media.videoUrl` | string\|null | Optional | V2 | Video embed URL |
-| `media.mapUrl` | string\|null | Optional | V2 | Map embed URL |
-| `media.gallery` | string[]\|null | Optional | V2 | Gallery images |
-| `externalData.scheduleUrl` | string\|null | Optional | V2 | External schedule source |
-| `externalData.standingsUrl` | string\|null | Optional | V2 | External standings source |
-| `externalData.bracketUrl` | string\|null | Optional | V2 | External bracket source |
-| **Settings** |
-| `settings.showSchedule` | boolean | **Required** | MVP | Show schedule section |
-| `settings.showStandings` | boolean | **Required** | MVP | Show standings section |
-| `settings.showBracket` | boolean | **Required** | MVP | Show bracket section |
-| `settings.showSponsors` | boolean | Optional | MVP | Show sponsors (V2 content) |
-| `settings.showVideo` | boolean | Optional | MVP | Template-aware toggle |
-| `settings.showMap` | boolean | Optional | MVP | Template-aware toggle |
-| `settings.showGallery` | boolean | Optional | MVP | Template-aware toggle |
-| `settings.showSponsorBanner` | boolean | Optional | MVP | Public page banner |
-| `settings.showSponsorStrip` | boolean | Optional | MVP | Display strip |
-| `settings.showLeagueStrip` | boolean | Optional | MVP | Display league links |
-| `settings.showQRSection` | boolean | Optional | MVP | Public QR section |
-| `settings.displayRotation` | object\|null | Optional | V2 | TV rotation config |
-| **Metadata** |
-| `createdAtISO` | string | **Required** | MVP | ISO 8601 datetime |
-| `updatedAtISO` | string | **Required** | MVP | ISO 8601 datetime |
-| **Reserved** (do not use) |
-| `analytics` | object\|null | Reserved | V2 | Event analytics |
-| `payments` | object\|null | Reserved | V2 | Stripe integration |
+This table is the single source of truth for what fields are allowed in MVP v1.0.
+Any field marked V2 cannot be depended on by MVP surfaces without a feature flag.
 
 ---
 
-## Supporting Types
+### Field Matrix
+
+| field | required | used by surfaces | MVP/V2 |
+|-------|:--------:|------------------|:------:|
+| **CORE IDENTITY** ||||
+| `id` | Y | Public, Display, Poster, Admin | MVP |
+| `slug` | Y | Admin | MVP |
+| `name` | Y | Public, Display, Poster, Admin | MVP |
+| `startDateISO` | Y | Public, Display, Poster, Admin | MVP |
+| `venue` | Y | Public, Display, Poster, Admin | MVP |
+| `templateId` | N | Display, Admin | MVP |
+| **LINKS (auto-generated, read-only)** ||||
+| `links.publicUrl` | Y | Public, Display, Poster, Admin | MVP |
+| `links.displayUrl` | Y | Admin | MVP |
+| `links.posterUrl` | Y | Admin | MVP |
+| `links.signupUrl` | Y | Public, Poster, Admin | MVP |
+| `links.sharedReportUrl` | N | Admin | V2 |
+| **QR CODES (auto-generated, read-only)** ||||
+| `qr.public` | Y | Poster, Admin | MVP |
+| `qr.signup` | Y | Poster, Admin | MVP |
+| **CTAs** ||||
+| `ctas.primary.label` | Y | Public, Poster, Admin | MVP |
+| `ctas.primary.url` | Y | Public, Admin | MVP |
+| `ctas.secondary` | N | Public | V2 |
+| **CONTENT** ||||
+| `schedule[]` | N | Public, Display | MVP |
+| `standings[]` | N | Public, Display | MVP |
+| `bracket` | N | Public | MVP |
+| `sponsors[]` | N | Public, Display, Poster | V2 |
+| `media.videoUrl` | N | Public | V2 |
+| `media.mapUrl` | N | Public | V2 |
+| `media.gallery[]` | N | Public | V2 |
+| `externalData.scheduleUrl` | N | Public, Display | V2 |
+| `externalData.standingsUrl` | N | Public, Display | V2 |
+| `externalData.bracketUrl` | N | Public, Display | V2 |
+| **SETTINGS (display toggles)** ||||
+| `settings.showSchedule` | Y | Public, Display, Admin | MVP |
+| `settings.showStandings` | Y | Public, Display, Admin | MVP |
+| `settings.showBracket` | Y | Public, Display, Admin | MVP |
+| `settings.showSponsors` | N | Public, Display, Poster, Admin | MVP |
+| `settings.showVideo` | N | Public, Admin | MVP |
+| `settings.showMap` | N | Public, Admin | MVP |
+| `settings.showGallery` | N | Public, Admin | MVP |
+| `settings.showSponsorBanner` | N | Public | MVP |
+| `settings.showSponsorStrip` | N | Display | MVP |
+| `settings.showLeagueStrip` | N | Display | MVP |
+| `settings.showQRSection` | N | Poster | MVP |
+| `settings.displayRotation` | N | Display | V2 |
+| **METADATA** ||||
+| `createdAtISO` | Y | Admin | MVP |
+| `updatedAtISO` | Y | System | MVP |
+| **RESERVED (do not use)** ||||
+| `analytics` | — | — | V2 |
+| `payments` | — | — | V2 |
+
+---
+
+### SharedAnalytics (read by SharedReport)
+
+SharedReport uses a separate schema: `/schemas/shared-analytics.schema.json`
+
+| field | required | used by surfaces | MVP/V2 |
+|-------|:--------:|------------------|:------:|
+| `summary.totalImpressions` | Y | SharedReport | MVP |
+| `summary.totalClicks` | Y | SharedReport | MVP |
+| `summary.totalQrScans` | Y | SharedReport | MVP |
+| `summary.totalSignups` | Y | SharedReport | MVP |
+| `summary.uniqueEvents` | Y | SharedReport | MVP |
+| `summary.uniqueSponsors` | Y | SharedReport | MVP |
+| `surfaces[].id` | Y | SharedReport | MVP |
+| `surfaces[].impressions` | Y | SharedReport | MVP |
+| `surfaces[].clicks` | Y | SharedReport | MVP |
+| `surfaces[].qrScans` | Y | SharedReport | MVP |
+| `sponsors[].id` | Y | SharedReport | MVP |
+| `sponsors[].impressions` | Y | SharedReport | MVP |
+| `sponsors[].clicks` | Y | SharedReport | MVP |
+| `sponsors[].ctr` | Y | SharedReport | MVP |
+| `events[].id` | Y | SharedReport | MVP |
+| `events[].impressions` | Y | SharedReport | MVP |
+| `events[].clicks` | Y | SharedReport | MVP |
+| `topSponsors[]` | N | SharedReport | MVP |
+| `lastUpdatedISO` | Y | SharedReport | MVP |
+
+---
+
+### Surface Constraints
+
+| Surface | Critical Rules |
+|---------|----------------|
+| **Public** | Must use `links.*` (never rebuild URLs). Gate sections with `setting && data?.length`. |
+| **Display** | Sponsor filter: `placement === 'display' \|\| 'tv-banner'`. QR only from `event.qr.*`. |
+| **Poster** | Print-safe (no links on sponsors). QR must be pre-generated server-side. |
+| **Admin** | Preserve `id`, `slug`, `createdAtISO` on edit. Never overwrite `links.*` or `qr.*`. |
+| **SharedReport** | Read-only. Uses analytics schema, not event schema. |
+
+---
+
+### Change Policy
+
+- **MVP fields**: Cannot remove or change types. Additive changes only.
+- **V2 fields**: Optional with `null` default. MVP surfaces must not depend on them without feature flags.
+- **Breaking changes**: Require new schema version + migration script.
+- **CI enforcement**: `npm run test:schemas` validates all surfaces.
+
+---
+
+### Supporting Types
 
 ```typescript
 // ScheduleRow
@@ -76,10 +129,7 @@
 // BracketTree
 { rounds: [{ name: string, matches: BracketMatch[] }] }
 
-// BracketMatch
-{ id: string, team1?: string, team2?: string, score1?: number, score2?: number, winner?: string }
-
-// Sponsor
+// Sponsor (V2)
 { id: string, name: string, logoUrl: string, linkUrl?: string, placement: "poster"|"display"|"public"|"tv-banner" }
 
 // CTA
@@ -88,38 +138,10 @@
 
 ---
 
-## API Response Envelope
+### Deprecated Fields
 
-```json
-// Success
-{ "ok": true, "etag": "...", "value": { /* Event or Bundle */ } }
-
-// Error
-{ "ok": false, "code": "BAD_INPUT|NOT_FOUND|RATE_LIMITED|INTERNAL|UNAUTHORIZED", "message": "..." }
-```
-
----
-
-## Schema Governance
-
-| Rule | Description |
-|------|-------------|
-| **Frozen Fields** | Required fields cannot be removed or have type changed |
-| **New Fields** | Must be Optional with `null` default |
-| **Breaking Changes** | Require new schema version (v1.1, v2.0) + migration |
-| **CI Guard** | `npm run test:schemas` blocks non-compliant changes |
-
-**Files that MUST stay in sync:**
-- `/schemas/event.schema.json` — Source of truth
-- `src/mvp/ApiSchemas.gs` — Runtime validation
-- Surface HTML headers — Field documentation
-
----
-
-## Deprecated Fields
-
-| Old Field | New Field |
-|-----------|-----------|
+| Old Field | Replaced By |
+|-----------|-------------|
 | `dateTime` | `startDateISO` |
 | `location` | `venue` |
 | `ctaLabels[]` | `ctas.primary/secondary` |
