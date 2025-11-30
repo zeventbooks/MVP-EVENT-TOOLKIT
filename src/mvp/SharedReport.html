@@ -1288,21 +1288,18 @@ DO NOT modify contracts without updating:
         let rpcName, payload;
 
         // ═══════════════════════════════════════════════════════════════════════
-        // [V2-ONLY] Portfolio mode - NOT MVP, requires URL params to activate
-        // Access: ?portfolioMode=multi-event-portfolio&adminKey=<key>
-        // This code path is NOT part of the canonical 3 MVP endpoints (Story 6)
+        // [MVP GUARD] Portfolio mode is V2-only - blocked for MVP release
+        // Access would be: ?portfolioMode=multi-event-portfolio&adminKey=<key>
+        // api_getPortfolioAnalyticsV2 is NOT part of the canonical 3 MVP endpoints
         // ═══════════════════════════════════════════════════════════════════════
-        if (IS_PORTFOLIO_MODE && ADMIN_KEY) {
-          rpcName = 'api_getPortfolioAnalyticsV2';
-          payload = {
-            brandId: BRAND_ID,
-            mode: 'multi-event-portfolio',
-            adminKey: ADMIN_KEY
-          };
+        if (IS_PORTFOLIO_MODE) {
+          showError('Portfolio analytics not enabled - feature available in V2');
+          return;
+        }
         // ═══════════════════════════════════════════════════════════════════════
         // [MVP CANONICAL] Sponsor view - api_getSponsorAnalytics (Story 6)
         // ═══════════════════════════════════════════════════════════════════════
-        } else if (IS_SPONSOR_VIEW && SPONSOR_ID) {
+        if (IS_SPONSOR_VIEW && SPONSOR_ID) {
           rpcName = 'api_getSponsorAnalytics';
           payload = { brandId: BRAND_ID, sponsorId: SPONSOR_ID, eventId: EVENT_ID || null };
         // ═══════════════════════════════════════════════════════════════════════
@@ -1319,13 +1316,9 @@ DO NOT modify contracts without updating:
           throw new Error(result && result.message || 'Failed to load analytics');
         }
 
-        // [V2-ONLY] Handle V2 portfolio mode response (not MVP)
-        if (IS_PORTFOLIO_MODE && result.value && result.value.mode === 'multi-event-portfolio') {
-          renderPortfolioReport(result.value);
-        // [MVP] Standard organizer/sponsor view response
-        } else {
-          renderReport(result.value || {});
-        }
+        // [MVP] Render standard organizer/sponsor view response
+        // Note: Portfolio mode is blocked by MVP guard above (V2 feature)
+        renderReport(result.value || {});
         toggleLoading(false);
       } catch (err) {
         console.error('SharedReport load error', err);
@@ -1334,11 +1327,13 @@ DO NOT modify contracts without updating:
     }
 
     /**
-     * [V2-ONLY] Render V2 portfolio report (multi-event mode)
+     * [V2-ONLY] [MVP DEAD CODE] Render V2 portfolio report (multi-event mode)
      *
-     * NOT MVP - This function is only called when the V2 portfolio mode is
-     * activated via URL params (?portfolioMode=multi-event-portfolio&adminKey=KEY).
-     * The portfolio toggle button is hidden (display:none) for MVP release.
+     * NOT MVP - This function cannot be reached in MVP release.
+     * Portfolio mode is blocked by the MVP guard in loadReport().
+     * Preserved for V2 when portfolio analytics is enabled.
+     *
+     * Was: activated via URL params (?portfolioMode=multi-event-portfolio&adminKey=KEY).
      *
      * @param {Object} data - Portfolio analytics response from api_getPortfolioAnalyticsV2
      */
@@ -1434,7 +1429,9 @@ DO NOT modify contracts without updating:
     }
 
     /**
-     * Render brand breakdown section (V2 portfolio mode only)
+     * [V2-ONLY] [MVP DEAD CODE] Render brand breakdown section
+     *
+     * NOT MVP - Called only from renderPortfolioReport which is blocked.
      *
      * @param {Object} byBrand - Metrics by brand ID
      * @param {Object} portfolio - Portfolio structure (parent/children)
@@ -2171,61 +2168,30 @@ DO NOT modify contracts without updating:
     }
 
     /**
-     * V2 FEATURE: Toggle between single-brand and portfolio mode
+     * [V2-ONLY] [MVP DISABLED] Toggle between single-brand and portfolio mode
      *
-     * This function switches the report between standard single-brand view
-     * and multi-event portfolio view (cross-brand aggregation).
+     * NOT MVP - Portfolio mode is blocked. This function is a no-op in MVP.
+     * Button is hidden (display:none) and will never be shown.
      *
-     * Portfolio mode is activated via URL parameters:
-     *   ?portfolioMode=multi-event-portfolio&adminKey=<admin-key>
-     *
-     * Once sponsor adoption warrants it, this toggle can be shown to
-     * parent organization administrators.
+     * Was: switches report between standard single-brand view and
+     * multi-event portfolio view (cross-brand aggregation).
      */
     function togglePortfolioMode() {
-      const currentUrl = new URL(window.location.href);
-      const currentMode = currentUrl.searchParams.get('portfolioMode');
-
-      if (currentMode === 'multi-event-portfolio') {
-        // Switch to single-brand mode
-        currentUrl.searchParams.delete('portfolioMode');
-        currentUrl.searchParams.delete('adminKey');
-      } else {
-        // Switch to portfolio mode - prompt for admin key if not present
-        const adminKey = currentUrl.searchParams.get('adminKey');
-        if (!adminKey) {
-          const key = prompt('Enter admin key for portfolio access:');
-          if (!key) return;
-          currentUrl.searchParams.set('adminKey', key);
-        }
-        currentUrl.searchParams.set('portfolioMode', 'multi-event-portfolio');
-      }
-
-      window.location.href = currentUrl.toString();
+      // [MVP GUARD] Portfolio mode is V2-only - no-op
+      console.warn('Portfolio mode not enabled - feature available in V2');
+      return;
     }
 
     /**
-     * Check if portfolio toggle should be visible
-     * Only show for non-sponsor views when adminKey is present
+     * [V2-ONLY] [MVP DISABLED] Check if portfolio toggle should be visible
+     *
+     * NOT MVP - Portfolio toggle is never shown in MVP release.
+     * Button remains hidden (display:none) regardless of URL params.
      */
     function checkPortfolioToggleVisibility() {
-      const toggleBtn = document.getElementById('portfolioToggleBtn');
-      if (!toggleBtn) return;
-
-      // Show toggle if:
-      // 1. Not in sponsor view
-      // 2. adminKey is present OR already in portfolio mode
-      if (!IS_SPONSOR_VIEW && (ADMIN_KEY || IS_PORTFOLIO_MODE)) {
-        toggleBtn.style.display = 'inline-flex';
-
-        // Update button text based on current mode
-        const btnText = toggleBtn.querySelector('.btn-text');
-        if (btnText) {
-          btnText.textContent = IS_PORTFOLIO_MODE
-            ? '📉 Single Brand View'
-            : '📈 Portfolio View';
-        }
-      }
+      // [MVP GUARD] Portfolio toggle is V2-only - always hidden
+      // No-op: button stays display:none as set in HTML
+      return;
     }
 
     /**

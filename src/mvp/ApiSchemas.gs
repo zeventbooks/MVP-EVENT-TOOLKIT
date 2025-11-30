@@ -848,17 +848,23 @@ const SCHEMAS = {
     //    - Returns base64 PNG QR code image
     //    - Schema: analytics.getSponsorReportQr
     //
-    // V2-ONLY (not used by SharedReport.html MVP):
+    // V2-ONLY (BLOCKED for MVP release):
     //
-    // 4. api_exportSharedReport({ brandId, eventId?, format }) → { data, filename }
-    //    - Export analytics to CSV/JSON/PDF (button hidden in UI)
-    //    - Implementation exists in SharedReporting.gs but MVP unused
-    //    - Schema: analytics.exportReport
-    //    - Status: Documented as V2, button display:none in SharedReport.html
+    // 4. api_exportSharedReport({ brandId, eventId?, format }) → Err(BAD_INPUT)
+    //    - Export analytics to CSV/JSON/PDF
+    //    - MVP BLOCKED: Returns "Export not enabled" error
+    //    - UI: Button hidden (display:none) in SharedReport.html
     //
-    // 5. api_getPortfolioAnalyticsV2({ brandId, mode, sponsorId?, adminKey })
+    // 5. api_generateSharedReport({ brandId, filters? }) → Err(BAD_INPUT)
+    //    - Generate formatted report with recommendations
+    //    - MVP BLOCKED: Returns "Report generation not enabled" error
+    //    - Was used internally by api_exportSharedReport
+    //
+    // 6. api_getPortfolioAnalyticsV2({ brandId, mode, sponsorId?, adminKey })
     //    - Multi-event portfolio mode for cross-brand aggregation
-    //    - V2 feature in SponsorPortfolioV2.gs (not schema'd yet)
+    //    - MVP BLOCKED: loadReport() returns error before API call
+    //    - UI: Portfolio toggle button hidden (display:none)
+    //    - V2 feature in archive/v2-code/SponsorPortfolioV2.gs
     //
     // ═══════════════════════════════════════════════════════════════════════════
 

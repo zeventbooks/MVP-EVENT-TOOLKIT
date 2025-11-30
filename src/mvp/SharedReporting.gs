@@ -725,66 +725,27 @@ function getTopEventSponsorPairs_(analytics, limit = 10) {
  *
  * Creates a formatted report suitable for both Event Managers and Sponsors
  *
+ * [V2-ONLY] NOT MVP - Report generation with recommendations is a V2 feature.
+ * MVP surfaces use api_getSharedAnalytics directly.
+ *
  * @param {string} brandId - Brand ID
  * @param {Object} [filters] - Report filters
  * @returns {Object} Report object with formatted data
  */
 function api_generateSharedReport(brandId, filters = {}) {
-  try {
-    // Get analytics data
-    const analyticsResult = api_getSharedAnalytics({ brandId, ...filters });
-
-    if (!analyticsResult.ok) {
-      return analyticsResult;
-    }
-
-    const metrics = analyticsResult.value;
-
-    // Format report
-    const report = {
-      reportType: 'shared-event-sponsor',
-      generatedAt: new Date().toISOString(),
-      brand: brandId,
-      filters,
-
-      // Executive Summary (shared key metrics)
-      summary: {
-        totalImpressions: metrics.totalImpressions,
-        totalClicks: metrics.totalClicks,
-        engagementRate: metrics.engagementRate.rate,
-        activeEvents: metrics.uniqueEvents,
-        activeSponsors: metrics.uniqueSponsors
-      },
-
-      // Surface Performance (where engagement happens)
-      surfacePerformance: metrics.bySurface,
-
-      // Event Performance (for event managers)
-      eventPerformance: metrics.byEvent,
-
-      // Sponsor Performance (for both)
-      sponsorPerformance: metrics.bySponsor,
-
-      // Trends over time
-      trends: metrics.dailyTrends,
-
-      // Top combinations (insights for both)
-      topPairings: metrics.topEventSponsorPairs,
-
-      // Recommendations (AI-generated insights)
-      recommendations: generateRecommendations_(metrics)
-    };
-
-    return Ok(report);
-
-  } catch (e) {
-    diag_('error', 'api_generateSharedReport', e.toString());
-    return Err(ERR.INTERNAL, 'Failed to generate report');
-  }
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // [MVP GUARD] Report generation with recommendations is V2-only
+  // MVP uses api_getSharedAnalytics directly for raw analytics data
+  // V2 implementation preserved in git history (commit before 554db7a)
+  // ═══════════════════════════════════════════════════════════════════════════════
+  return Err(ERR.BAD_INPUT, 'Report generation not enabled - use api_getSharedAnalytics for MVP');
 }
 
 /**
  * Generate data-driven recommendations
+ *
+ * [V2-ONLY] NOT MVP - Used by api_generateSharedReport which is blocked.
+ * Preserved for V2 when report generation is enabled.
  */
 function generateRecommendations_(metrics) {
   const recommendations = [];
@@ -839,102 +800,18 @@ function generateRecommendations_(metrics) {
  *
  * Creates a new sheet with formatted report data
  *
+ * [V2-ONLY] NOT MVP - Export feature is disabled for MVP release.
+ * Button is hidden in SharedReport.html (display:none).
+ *
  * @param {string} brandId - Brand ID
  * @param {Object} [filters] - Report filters
  * @returns {Object} Result with sheet URL
  */
 function api_exportSharedReport(brandId, filters = {}) {
-  try {
-    // Generate report
-    const reportResult = api_generateSharedReport(brandId, filters);
-
-    if (!reportResult.ok) {
-      return reportResult;
-    }
-
-    const report = reportResult.value;
-
-    // Get spreadsheet
-    const brand = findBrand_(brandId);
-    if (!brand) {
-      return Err(ERR.NOT_FOUND, 'Brand not found');
-    }
-
-    const ss = SpreadsheetApp.openById(brand.store.spreadsheetId);
-
-    // Create new sheet with timestamp
-    const sheetName = `Report_${new Date().toISOString().split('T')[0]}`;
-    let sheet = ss.getSheetByName(sheetName);
-
-    if (sheet) {
-      ss.deleteSheet(sheet);
-    }
-
-    sheet = ss.insertSheet(sheetName);
-
-    // Write summary
-    sheet.appendRow(['SHARED EVENT-SPONSOR REPORT']);
-    sheet.appendRow(['Generated:', report.generatedAt]);
-    sheet.appendRow(['Brand:', report.brand]);
-    sheet.appendRow([]);
-
-    sheet.appendRow(['EXECUTIVE SUMMARY']);
-    sheet.appendRow(['Total Impressions', report.summary.totalImpressions]);
-    sheet.appendRow(['Total Clicks', report.summary.totalClicks]);
-    sheet.appendRow(['Engagement Rate', report.summary.engagementRate]);
-    sheet.appendRow(['Active Events', report.summary.activeEvents]);
-    sheet.appendRow(['Active Sponsors', report.summary.activeSponsors]);
-    sheet.appendRow([]);
-
-    // Write surface performance
-    sheet.appendRow(['SURFACE PERFORMANCE']);
-    sheet.appendRow(['Surface', 'Impressions', 'Clicks', 'Engagement Rate', 'Unique Events', 'Unique Sponsors']);
-    Object.keys(report.surfacePerformance).forEach(surface => {
-      const data = report.surfacePerformance[surface];
-      sheet.appendRow([
-        surface,
-        data.impressions,
-        data.clicks,
-        data.engagementRate,
-        data.uniqueEvents,
-        data.uniqueSponsors
-      ]);
-    });
-    sheet.appendRow([]);
-
-    // Write sponsor performance
-    if (report.sponsorPerformance) {
-      sheet.appendRow(['SPONSOR PERFORMANCE']);
-      sheet.appendRow(['Sponsor ID', 'Impressions', 'Clicks', 'Engagement Rate', 'Events']);
-      report.sponsorPerformance.forEach(sponsor => {
-        sheet.appendRow([
-          sponsor.sponsorId,
-          sponsor.impressions,
-          sponsor.clicks,
-          sponsor.engagementRate,
-          sponsor.uniqueEvents
-        ]);
-      });
-      sheet.appendRow([]);
-    }
-
-    // Write recommendations
-    sheet.appendRow(['RECOMMENDATIONS']);
-    report.recommendations.forEach(rec => {
-      sheet.appendRow([rec.priority.toUpperCase(), rec.message]);
-    });
-
-    // Format sheet
-    sheet.setFrozenRows(1);
-    sheet.autoResizeColumns(1, sheet.getLastColumn());
-
-    return Ok({
-      sheetName,
-      url: ss.getUrl() + '#gid=' + sheet.getSheetId()
-    });
-
-  } catch (e) {
-    diag_('error', 'api_exportSharedReport', e.toString());
-    return Err(ERR.INTERNAL, 'Failed to export report');
-  }
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // [MVP GUARD] Export feature is V2-only
+  // Button is hidden in SharedReport.html but API also guards against direct calls
+  // V2 implementation preserved in git history (commit before 554db7a)
+  // ═══════════════════════════════════════════════════════════════════════════════
+  return Err(ERR.BAD_INPUT, 'Export not enabled - feature available in V2');
 }
