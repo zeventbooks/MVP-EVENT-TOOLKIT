@@ -1,339 +1,128 @@
-# Event Contract v2.1 (Schema-Driven)
+# Event Contract v1.0 (MVP Frozen)
 
-> **JSON Schema is the Single Source of Truth**
->
-> - `/schemas/event.schema.json` - Canonical Event schema
-> - `/schemas/sponsor.schema.json` - Canonical Sponsor schema
->
-> If a field isn't in the schema, it doesn't exist. If it's in the schema, it's wired.
-
-## Contract Version
-
-| Field | Value |
-|-------|-------|
-| Version | `2.2.0` |
-| Last Updated | 2025-11-25 |
-| Status | **MVP-FROZEN** |
-| Schema | `/schemas/event.schema.json` |
+> **Schema Version:** `1.0.0` (Frozen for MVP)
+> **Source of Truth:** `/schemas/event.schema.json`
+> **Last Updated:** 2025-11-30
+> **Migration Policy:** Breaking changes require a new schema version and migration script
 
 ---
 
-## Schema Files
+## Field Reference (One-Page)
 
-| File | Purpose |
-|------|---------|
-| `/schemas/event.schema.json` | **Source of Truth** - JSON Schema for Event entity |
-| `/schemas/sponsor.schema.json` | **Source of Truth** - JSON Schema for Sponsor entity |
-| `EVENT_CONTRACT.md` | Human-readable version (you're reading it) |
-| `ApiSchemas.gs` | GAS runtime validation (mirrors JSON Schema) |
-
----
-
-## MVP Required Fields
-
-These fields **MUST** be present in every event object:
-
-### Identity
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | `string` | UUID, system-generated |
-| `slug` | `string` | URL-safe identifier |
-| `name` | `string` | Event display name (max 200 chars) |
-| `startDateISO` | `string` | Date in YYYY-MM-DD format |
-| `venue` | `string` | Venue name/location (max 200 chars) |
-| `templateId` | `string\|null` | Template ID used to create event (optional) |
-
-### Links (Generated - never rebuild manually)
-| Field | Type | Description |
-|-------|------|-------------|
-| `links.publicUrl` | `string` | Public.html URL |
-| `links.displayUrl` | `string` | Display.html URL |
-| `links.posterUrl` | `string` | Poster.html URL |
-| `links.signupUrl` | `string` | Form/signup page URL |
-
-### QR Codes (Generated at runtime)
-| Field | Type | Description |
-|-------|------|-------------|
-| `qr.public` | `string` | Base64 PNG linking to publicUrl |
-| `qr.signup` | `string` | Base64 PNG linking to signupUrl |
-
-### CTAs
-| Field | Type | Description |
-|-------|------|-------------|
-| `ctas.primary.label` | `string` | Primary button label |
-| `ctas.primary.url` | `string` | Primary button destination |
-
-### Settings (MVP-frozen)
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `settings.showSchedule` | `boolean` | `false` | MVP Required - Show schedule section |
-| `settings.showStandings` | `boolean` | `false` | MVP Required - Show standings section |
-| `settings.showBracket` | `boolean` | `false` | MVP Optional - Show bracket section |
-| `settings.showSponsors` | `boolean` | `false` | MVP Optional - Show sponsors section (V2 content) |
-| `settings.showSponsorBanner` | `boolean` | `true` | MVP Optional - Show sponsor banner on public page |
-| `settings.showSponsorStrip` | `boolean` | `true` | MVP Optional - Show sponsor strip on display |
-| `settings.showLeagueStrip` | `boolean` | `true` | MVP Optional - Show league/broadcast strip on display |
-| `settings.showQRSection` | `boolean` | `true` | MVP Optional - Show QR code section on public page |
-
-### Metadata
-| Field | Type | Description |
-|-------|------|-------------|
-| `createdAtISO` | `string` | ISO 8601 datetime |
-| `updatedAtISO` | `string` | ISO 8601 datetime |
-
----
-
-## MVP Optional Fields
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `schedule` | `ScheduleRow[]` | Event schedule items |
-| `standings` | `StandingRow[]` | Team/player standings |
-| `bracket` | `BracketTree` | Tournament bracket |
-
----
-
-## V2 Optional Fields
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `sponsors` | `Sponsor[]` | Sponsor logos with placement |
-| `media.videoUrl` | `string` | Video embed URL |
-| `media.mapUrl` | `string` | Map embed URL |
-| `media.gallery` | `string[]` | Gallery image URLs |
-| `externalData.scheduleUrl` | `string` | External schedule source |
-| `externalData.standingsUrl` | `string` | External standings source |
-| `externalData.bracketUrl` | `string` | External bracket source |
-| `ctas.secondary` | `CTA` | Secondary CTA button |
-| `links.sharedReportUrl` | `string` | Shared analytics report URL |
-| `settings.showSponsors` | `boolean` | Show sponsors section |
-
----
-
-## Reserved Fields (Do Not Touch Until Ready)
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `analytics.enabled` | `boolean` | Analytics toggle |
-| `analytics.eventViews` | `integer` | Total event views |
-| `analytics.publicPageViews` | `integer` | Public page views |
-| `analytics.displayViews` | `integer` | Display views |
-| `analytics.signupStarts` | `integer` | Signup form starts |
-| `analytics.signupCompletes` | `integer` | Signup completions |
-| `analytics.qrScans` | `integer` | QR code scans |
-| `payments.enabled` | `boolean` | Payments toggle |
-| `payments.provider` | `"stripe"` | Payment provider |
-| `payments.price` | `number` | Event price |
-| `payments.currency` | `string` | 3-letter currency code |
-| `payments.checkoutUrl` | `string` | Stripe checkout URL |
+| Field | Type | Required | MVP/V2 | Description |
+|-------|------|----------|--------|-------------|
+| **Identity** |
+| `id` | string | **Required** | MVP | UUID, system-generated |
+| `slug` | string | **Required** | MVP | URL-safe identifier |
+| `name` | string | **Required** | MVP | Event display name (max 200) |
+| `startDateISO` | string | **Required** | MVP | Date YYYY-MM-DD |
+| `venue` | string | **Required** | MVP | Venue name (max 200) |
+| `templateId` | string\|null | Optional | MVP | Template used to create event |
+| **Links** (auto-generated) |
+| `links.publicUrl` | string | **Required** | MVP | Public.html URL |
+| `links.displayUrl` | string | **Required** | MVP | Display.html URL |
+| `links.posterUrl` | string | **Required** | MVP | Poster.html URL |
+| `links.signupUrl` | string | **Required** | MVP | Form/signup URL |
+| `links.sharedReportUrl` | string\|null | Optional | V2 | Analytics report URL |
+| **QR Codes** (auto-generated) |
+| `qr.public` | string | **Required** | MVP | Base64 PNG → publicUrl |
+| `qr.signup` | string | **Required** | MVP | Base64 PNG → signupUrl |
+| **CTAs** |
+| `ctas.primary.label` | string | **Required** | MVP | Primary button text |
+| `ctas.primary.url` | string | **Required** | MVP | Primary button link |
+| `ctas.secondary` | CTA\|null | Optional | V2 | Secondary button |
+| **Content** |
+| `schedule` | ScheduleRow[] | Optional | MVP | Schedule items |
+| `standings` | StandingRow[] | Optional | MVP | Team standings |
+| `bracket` | BracketTree\|null | Optional | MVP | Tournament bracket |
+| `sponsors` | Sponsor[] | Optional | V2 | Sponsor logos |
+| `media.videoUrl` | string\|null | Optional | V2 | Video embed URL |
+| `media.mapUrl` | string\|null | Optional | V2 | Map embed URL |
+| `media.gallery` | string[]\|null | Optional | V2 | Gallery images |
+| `externalData.scheduleUrl` | string\|null | Optional | V2 | External schedule source |
+| `externalData.standingsUrl` | string\|null | Optional | V2 | External standings source |
+| `externalData.bracketUrl` | string\|null | Optional | V2 | External bracket source |
+| **Settings** |
+| `settings.showSchedule` | boolean | **Required** | MVP | Show schedule section |
+| `settings.showStandings` | boolean | **Required** | MVP | Show standings section |
+| `settings.showBracket` | boolean | **Required** | MVP | Show bracket section |
+| `settings.showSponsors` | boolean | Optional | MVP | Show sponsors (V2 content) |
+| `settings.showVideo` | boolean | Optional | MVP | Template-aware toggle |
+| `settings.showMap` | boolean | Optional | MVP | Template-aware toggle |
+| `settings.showGallery` | boolean | Optional | MVP | Template-aware toggle |
+| `settings.showSponsorBanner` | boolean | Optional | MVP | Public page banner |
+| `settings.showSponsorStrip` | boolean | Optional | MVP | Display strip |
+| `settings.showLeagueStrip` | boolean | Optional | MVP | Display league links |
+| `settings.showQRSection` | boolean | Optional | MVP | Public QR section |
+| `settings.displayRotation` | object\|null | Optional | V2 | TV rotation config |
+| **Metadata** |
+| `createdAtISO` | string | **Required** | MVP | ISO 8601 datetime |
+| `updatedAtISO` | string | **Required** | MVP | ISO 8601 datetime |
+| **Reserved** (do not use) |
+| `analytics` | object\|null | Reserved | V2 | Event analytics |
+| `payments` | object\|null | Reserved | V2 | Stripe integration |
 
 ---
 
 ## Supporting Types
 
-### ScheduleRow
-```json
-{
-  "time": "10:00 AM",
-  "title": "Registration Opens",
-  "description": "Optional details"
-}
-```
+```typescript
+// ScheduleRow
+{ time: string, title: string, description?: string }
 
-### StandingRow
-```json
-{
-  "rank": 1,
-  "team": "Team Alpha",
-  "wins": 5,
-  "losses": 1,
-  "points": 15
-}
-```
+// StandingRow
+{ rank: number, team: string, wins: number, losses: number, points?: number }
 
-### BracketTree
-```json
-{
-  "rounds": [
-    {
-      "name": "Quarterfinals",
-      "matches": [
-        {
-          "id": "match-1",
-          "team1": "Team A",
-          "team2": "Team B",
-          "score1": 3,
-          "score2": 1,
-          "winner": "Team A"
-        }
-      ]
-    }
-  ]
-}
-```
+// BracketTree
+{ rounds: [{ name: string, matches: BracketMatch[] }] }
 
-### Sponsor
-```json
-{
-  "id": "sponsor-123",
-  "name": "Acme Corp",
-  "logoUrl": "https://example.com/logo.png",
-  "linkUrl": "https://acme.com",
-  "placement": "poster"
-}
-```
+// BracketMatch
+{ id: string, team1?: string, team2?: string, score1?: number, score2?: number, winner?: string }
 
-**Placement values:** `poster` | `display` | `public` | `tv-banner`
+// Sponsor
+{ id: string, name: string, logoUrl: string, linkUrl?: string, placement: "poster"|"display"|"public"|"tv-banner" }
 
-### CTA
-```json
-{
-  "label": "Sign Up Now",
-  "url": "https://forms.google.com/..."
-}
+// CTA
+{ label: string, url: string }
 ```
 
 ---
 
 ## API Response Envelope
 
-### Success (single event)
 ```json
-{
-  "ok": true,
-  "etag": "abc123",
-  "value": { /* Event */ }
-}
-```
+// Success
+{ "ok": true, "etag": "...", "value": { /* Event or Bundle */ } }
 
-### Success (list)
-```json
-{
-  "ok": true,
-  "etag": "abc123",
-  "value": {
-    "items": [ /* Event[] */ ],
-    "pagination": {
-      "total": 100,
-      "limit": 20,
-      "offset": 0,
-      "hasMore": true
-    }
-  }
-}
-```
-
-### Bundle (for surfaces)
-```json
-{
-  "ok": true,
-  "etag": "abc123",
-  "value": {
-    "event": { /* Event */ },
-    "config": {
-      "brandId": "my-brand",
-      "brandName": "My Brand",
-      "appTitle": "Event Toolkit"
-    }
-  }
-}
-```
-
-### Error
-```json
-{
-  "ok": false,
-  "code": "BAD_INPUT | NOT_FOUND | RATE_LIMITED | INTERNAL | UNAUTHORIZED",
-  "message": "Human-readable error message"
-}
+// Error
+{ "ok": false, "code": "BAD_INPUT|NOT_FOUND|RATE_LIMITED|INTERNAL|UNAUTHORIZED", "message": "..." }
 ```
 
 ---
 
-## Default Values
+## Schema Governance
 
-When a field has no stored value:
+| Rule | Description |
+|------|-------------|
+| **Frozen Fields** | Required fields cannot be removed or have type changed |
+| **New Fields** | Must be Optional with `null` default |
+| **Breaking Changes** | Require new schema version (v1.1, v2.0) + migration |
+| **CI Guard** | `npm run test:schemas` blocks non-compliant changes |
 
-```javascript
-// Must match /schemas/event.schema.json (MVP-frozen v2.2)
-const EVENT_DEFAULTS = {
-  // MVP Optional
-  schedule: null,
-  standings: null,
-  bracket: null,
-  // MVP Required
-  ctas: {
-    primary: { label: 'Sign Up', url: '' },
-    secondary: null
-  },
-  // V2 Optional (null per schema)
-  sponsors: null,
-  media: null,
-  externalData: null,
-  // Reserved (null per schema)
-  analytics: null,
-  payments: null,
-  // MVP Required - Settings (MVP-frozen)
-  settings: {
-    // Section visibility
-    showSchedule: false,
-    showStandings: false,
-    showBracket: false,
-    showSponsors: false,
-    // Surface toggles (default true)
-    showSponsorBanner: true,
-    showSponsorStrip: true,
-    showLeagueStrip: true,
-    showQRSection: true
-  }
-};
-```
+**Files that MUST stay in sync:**
+- `/schemas/event.schema.json` — Source of truth
+- `src/mvp/ApiSchemas.gs` — Runtime validation
+- Surface HTML headers — Field documentation
 
 ---
 
-## Deprecated Fields (Remove from codebase)
+## Deprecated Fields
 
-| Deprecated | Replaced By |
-|------------|-------------|
+| Old Field | New Field |
+|-----------|-----------|
 | `dateTime` | `startDateISO` |
-| `location` / `venueName` | `venue` |
-| `ctaLabels[]` | `ctas.primary` / `ctas.secondary` |
+| `location` | `venue` |
+| `ctaLabels[]` | `ctas.primary/secondary` |
 | `sections.*` | `settings.show*` |
-| `checkinUrl` / `feedbackUrl` | `links.signupUrl` |
-| `videoUrl` / `mapEmbedUrl` | `media.*` |
-| `brandId` / `templateId` | Bundle config |
-| `reportUrl` | `links.sharedReportUrl` |
-
----
-
-## Surface Responsibilities
-
-| Surface | Fields Used |
-|---------|-------------|
-| **Admin** | All fields (full edit) |
-| **Public** | `name`, `startDateISO`, `venue`, `links`, `qr`, `ctas`, `schedule`, `standings`, `sponsors`, `media` |
-| **Poster** | `name`, `startDateISO`, `venue`, `qr.*`, `sponsors` (poster placement) |
-| **Display** | `name`, `startDateISO`, `venue`, `schedule`, `standings`, `sponsors` (display/tv-banner), `ctas` |
-
----
-
-## Implementation Checklist (MVP-frozen v2.2)
-
-- [x] `/schemas/event.schema.json` - Source of truth (MVP-frozen v2.2)
-- [x] `/schemas/sponsor.schema.json` - Sponsor schema
-- [x] `EVENT_CONTRACT.md` - Human docs (this file)
-- [x] `ApiSchemas.gs` - GAS runtime validation (mirrors schema)
-- [x] `Code.gs:EVENT_DEFAULTS_` - Defaults per contract
-- [x] `Code.gs:_buildEventContract_()` - Returns canonical shape
-- [x] `Code.gs:api_get()` - Returns full shape with null defaults
-- [x] `Code.gs:api_list()` - Returns full shape for each item
-- [x] `Code.gs:api_getPublicBundle()` - Returns event + config
-- [x] `Code.gs:api_getDisplayBundle()` - Returns event + config
-- [x] `Code.gs:api_getPosterBundle()` - Returns event + config
-- [x] `Admin.html:buildEventFromForm()` - Matches schema (no extras)
-- [x] `Public.html` - Uses canonical shape (no legacy fallbacks)
-- [x] `Display.html` - Uses canonical shape (V2 dynamic mode removed)
-- [x] `Poster.html` - Uses canonical shape
-- [x] `TemplateService.gs` - Only sets schema fields (V2 legacy removed)
-
-**Status**: MVP contract frozen. All surfaces aligned to schema v2.2.
+| `videoUrl` | `media.videoUrl` |
+| `mapEmbedUrl` | `media.mapUrl` |

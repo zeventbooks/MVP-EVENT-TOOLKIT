@@ -2,7 +2,8 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://zeventbook.com/schemas/event.schema.json",
   "title": "Event",
-  "description": "Canonical Event Contract v2.2 - Single Source of Truth for all event data in Zeventbook (MVP-frozen)",
+  "description": "Event Contract v1.0 FROZEN - MVP Single Source of Truth. Breaking changes require migration.",
+  "$comment": "v1.0 frozen 2025-11-30. Treat all changes as migrations, not tweaks. See EVENT_CONTRACT.md.",
   "type": "object",
   "required": [
     "id",

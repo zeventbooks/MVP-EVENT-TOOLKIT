@@ -2,10 +2,11 @@
 /**
  * Event Schema Test Harness
  *
- * Validates event schema consistency across all layers:
+ * Validates event schema consistency and blocks breaking changes:
  * 1. JSON Schema validation (via Ajv)
  * 2. ApiSchemas.gs field alignment
  * 3. Surface header comments consistency
+ * 4. BREAKING CHANGE DETECTION (v1.0 frozen fields)
  *
  * Usage:
  *   node scripts/test-event-schema.js
@@ -13,11 +14,11 @@
  *
  * Exit codes:
  *   0 - All validations passed
- *   1 - One or more validations failed
+ *   1 - One or more validations failed (including breaking changes)
  *
- * @see /schemas/event.schema.json (MVP-frozen v2.2)
+ * @see /schemas/event.schema.json (v1.0 FROZEN - breaking changes require migration)
  * @see src/mvp/ApiSchemas.gs
- * @see src/mvp/TemplateService.gs
+ * @see EVENT_CONTRACT.md
  */
 
 const fs = require('fs');
@@ -497,12 +498,83 @@ function printDetail(message) {
 }
 
 // ============================================================================
+// v1.0 FROZEN Schema - Breaking Change Detection
+// ============================================================================
+
+/**
+ * v1.0 FROZEN - These fields CANNOT be removed or have their types changed.
+ * Adding new optional fields is allowed.
+ * Breaking changes require: new schema version + migration script.
+ */
+const FROZEN_REQUIRED_FIELDS = [
+  'id', 'slug', 'name', 'startDateISO', 'venue',
+  'links', 'qr', 'ctas', 'settings',
+  'createdAtISO', 'updatedAtISO'
+];
+
+const FROZEN_LINKS_FIELDS = ['publicUrl', 'displayUrl', 'posterUrl', 'signupUrl'];
+const FROZEN_QR_FIELDS = ['public', 'signup'];
+const FROZEN_SETTINGS_REQUIRED = ['showSchedule', 'showStandings', 'showBracket'];
+const FROZEN_CTA_FIELDS = ['primary'];
+
+/**
+ * Check for breaking changes to v1.0 frozen schema
+ * @param {object} schema - The loaded event schema
+ * @returns {string[]} Array of breaking change errors
+ */
+function detectBreakingChanges(schema) {
+  const errors = [];
+
+  // Check top-level required fields
+  const schemaRequired = schema.required || [];
+  for (const field of FROZEN_REQUIRED_FIELDS) {
+    if (!schemaRequired.includes(field)) {
+      errors.push(`BREAKING: Required field '${field}' was removed from schema.required`);
+    }
+  }
+
+  // Check links required fields
+  const linksRequired = schema.$defs?.Links?.required || [];
+  for (const field of FROZEN_LINKS_FIELDS) {
+    if (!linksRequired.includes(field)) {
+      errors.push(`BREAKING: Required field 'links.${field}' was removed`);
+    }
+  }
+
+  // Check QR required fields
+  const qrRequired = schema.$defs?.QRCodes?.required || [];
+  for (const field of FROZEN_QR_FIELDS) {
+    if (!qrRequired.includes(field)) {
+      errors.push(`BREAKING: Required field 'qr.${field}' was removed`);
+    }
+  }
+
+  // Check settings required fields
+  const settingsRequired = schema.$defs?.Settings?.required || [];
+  for (const field of FROZEN_SETTINGS_REQUIRED) {
+    if (!settingsRequired.includes(field)) {
+      errors.push(`BREAKING: Required field 'settings.${field}' was removed`);
+    }
+  }
+
+  // Check CTAs required fields
+  const ctasRequired = schema.$defs?.CTAs?.required || [];
+  for (const field of FROZEN_CTA_FIELDS) {
+    if (!ctasRequired.includes(field)) {
+      errors.push(`BREAKING: Required field 'ctas.${field}' was removed`);
+    }
+  }
+
+  return errors;
+}
+
+// ============================================================================
 // Main Test Harness
 // ============================================================================
 
 function main() {
-  console.log(`\n${colors.cyan}Event Schema Test Harness${colors.reset}`);
-  console.log(`${colors.dim}Validating TemplateService + ApiSchemas alignment${colors.reset}`);
+  console.log(`\n${colors.cyan}Event Schema Test Harness (v1.0 FROZEN)${colors.reset}`);
+  console.log(`${colors.dim}Validating schema consistency + blocking breaking changes${colors.reset}`);
 
   let totalErrors = 0;
   let totalWarnings = 0;
@@ -519,6 +591,23 @@ function main() {
   } catch (e) {
     printFailure(`Failed to load event.schema.json: ${e.message}`);
     process.exit(1);
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // 1b. Breaking Change Detection (v1.0 FROZEN)
+  // ─────────────────────────────────────────────────────────────────────────
+  printSection('Checking for breaking changes to v1.0 frozen schema...');
+
+  const breakingChanges = detectBreakingChanges(eventSchema);
+  if (breakingChanges.length === 0) {
+    printSuccess('No breaking changes detected - v1.0 contract intact');
+  } else {
+    for (const error of breakingChanges) {
+      printFailure(error);
+      totalErrors++;
+    }
+    printDetail('Breaking changes require: new schema version + migration script');
+    printDetail('See EVENT_CONTRACT.md for migration policy');
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -711,8 +800,10 @@ if (require.main === module) {
 module.exports = {
   TEMPLATE_SERVICE_FIXTURE,
   MINIMAL_EVENT_FIXTURE,
+  FROZEN_REQUIRED_FIELDS,
   loadJsonSchema,
   parseApiSchemasGs,
   parseSurfaceHeaders,
-  validateWithAjv
+  validateWithAjv,
+  detectBreakingChanges
 };

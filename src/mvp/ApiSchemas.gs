@@ -4,12 +4,17 @@
  * GAS runtime validation that MIRRORS the JSON Schema source of truth.
  *
  * ═══════════════════════════════════════════════════════════════════════════
- * [MVP] CANONICAL SCHEMA FILES (4 total)
+ * [MVP] CANONICAL SCHEMA FILES (4 total) - FROZEN
  * ═══════════════════════════════════════════════════════════════════════════
- *   - /schemas/event.schema.json           [MVP] Event entity (v2.2 frozen)
+ *   - /schemas/event.schema.json           [MVP] Event entity (v1.0 FROZEN)
  *   - /schemas/sponsor.schema.json         [MVP] Sponsor entity (V2 feature)
  *   - /schemas/shared-analytics.schema.json [MVP] SharedAnalytics (v1.1 frozen)
  *   - /schemas/form-config.schema.json     [MVP] FormConfig (v1.0 frozen)
+ *
+ * MIGRATION POLICY: Breaking changes to frozen schemas require:
+ *   1. New schema version (v1.1, v2.0)
+ *   2. Migration script
+ *   3. CI guard update
  *
  * IMPORTANT: If a field isn't in the JSON schema, it doesn't exist.
  *            If it's in the schema, it must be wired here.
@@ -84,8 +89,8 @@
  * ═══════════════════════════════════════════════════════════════════════════
  *
  * @module ApiSchemas
- * @version 2.4.0
- * @see /schemas/event.schema.json           [MVP] Event entity (v2.2 frozen)
+ * @version 2.5.0
+ * @see /schemas/event.schema.json           [MVP] Event entity (v1.0 FROZEN)
  * @see /schemas/sponsor.schema.json         [MVP] Sponsor entity (V2)
  * @see /schemas/shared-analytics.schema.json [MVP] SharedAnalytics (v1.1 frozen)
  * @see /schemas/form-config.schema.json     [MVP] FormConfig (v1.0 frozen)
@@ -162,9 +167,10 @@ const SCHEMAS = {
   },
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // [MVP] EVENT SCHEMA - MIRRORS: /schemas/event.schema.json (v2.2.0 frozen)
+  // [MVP] EVENT SCHEMA - MIRRORS: /schemas/event.schema.json (v1.0 FROZEN)
   // ═══════════════════════════════════════════════════════════════════════════
   // See EVENT_CONTRACT.md for human-readable documentation
+  // MIGRATION POLICY: Breaking changes require new schema version + migration
 
   events: {
     // Shared schema definitions for reuse
