@@ -244,20 +244,10 @@ jobs:
 
           echo "✅ Secrets validation passed"
 
-      - name: Cleanup old versions (prevent 200 version limit)
-        env:
-          CLASPRC_JSON: ${{ secrets.OAUTH_CREDENTIALS }}
-        run: |
-          echo "🧹 Setting up for version cleanup..."
-          echo "$CLASPRC_JSON" > ~/.clasprc.json
-          chmod 600 ~/.clasprc.json
-
-          echo "📋 Checking version count..."
-          # Run cleanup script - keeps 50 most recent versions
-          node scripts/cleanup-versions.js --keep 50 || {
-            echo "⚠️  Version cleanup encountered an issue"
-            echo "   Continuing with deployment..."
-          }
+      # NOTE: Version cleanup removed - Google Apps Script API does not support
+      # deleting versions. The DELETE endpoint does not exist for projects.versions.
+      # Versions can only be deleted manually via the Apps Script UI.
+      # See: https://developers.google.com/apps-script/api/reference/rest/v1/projects.versions
 
       - name: Deploy to Apps Script via clasp
         id: deploy
