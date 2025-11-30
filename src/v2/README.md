@@ -20,6 +20,7 @@ This directory serves as the **documentation hub** for V2 features.
 | File | Location | Purpose |
 |------|----------|---------|
 | `AdminTemplateV2.html` | `src/mvp/` | Template editing UI for SEM staff and bar owners |
+| `PortfolioDashboard.html` | `src/v2/` | Portfolio sponsor dashboard with SEM-level messaging |
 | `Randomizer.html` | `src/mvp/` | Quick team picker utility |
 | `SponsorPortfolioV2.gs` | `src/mvp/` | Multi-event portfolio analytics for cross-brand ROI |
 | `TemplateManagementService.gs` | `src/mvp/` | Backend CRUD for custom templates |
@@ -74,6 +75,39 @@ The Randomizer and SponsorPortfolioV2 modules do not require feature flags:
 
 ---
 
+### PortfolioDashboard.html
+
+**Purpose**: Dedicated portfolio report surface with SEM-level messaging for cross-brand sponsor ROI.
+
+**Why It Matters**: Huge future upsell lever for parent organizations managing multiple brands. Not needed for first pilots.
+
+**Access**: `?page=portfolio` or `?page=portfolio-dashboard` (requires adminKey)
+
+**Features**:
+- Executive summary with hero metrics (Total Reach, Engagements, CTR, Events)
+- Sponsor value highlights with estimated ad value
+- Portfolio reach visualization (brand chips)
+- Performance by brand table
+- Top performing sponsors ranking
+- Top performing events ranking
+- Sponsor filter dropdown for focused analysis
+- Admin key authentication for security
+
+**SEM-Level Messaging**:
+The dashboard uses clear, executive-friendly language designed to:
+- Demonstrate total sponsor ROI across all brands
+- Highlight cross-brand reach and engagement
+- Support upsell conversations with parent organizations
+- Provide exportable metrics for sponsor presentations
+
+**Data Source**: `SponsorPortfolioV2.gs` via `api_getPortfolioAnalyticsV2`
+
+**Schema**: `/schemas/sponsor-portfolio-v2.schema.json`
+
+**Status**: V2 feature, no feature flag required (gated by adminKey authentication).
+
+---
+
 ## V2 Services
 
 ### SponsorPortfolioV2.gs
@@ -90,6 +124,7 @@ The Randomizer and SponsorPortfolioV2 modules do not require feature flags:
 - `api_getPortfolioAnalyticsV2(params)` - Full portfolio analytics
 - `api_getPortfolioSummaryV2(params)` - Summary metrics
 - `api_getPortfolioSponsorReportV2(params)` - Per-sponsor report
+- `api_getPortfolioSponsorsV2(params)` - Deduplicated sponsors list for UI dropdowns
 
 ---
 
@@ -134,5 +169,6 @@ The Randomizer and SponsorPortfolioV2 modules do not require feature flags:
 ## When to Enable V2
 
 - **Template Management**: When bar owners request template customization beyond presets
-- **Portfolio Analytics**: When sponsors need cross-brand ROI dashboards
+- **Portfolio Dashboard**: When parent organizations need SEM-level sponsor ROI presentations
+- **Portfolio Analytics API**: When sponsors need cross-brand ROI data programmatically
 - **Randomizer**: Always available (low-risk standalone utility)
