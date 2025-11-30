@@ -24,6 +24,7 @@ module.exports = {
     '**/tests/unit/**/*.test.js',
     '**/tests/contract/**/*.test.js',
     '**/tests/triangle/**/contract/**/*.test.js',
+    '**/tests/triangle/**/integration/**/*.test.js',
     '**/tests/api/**/*.test.js',
     '**/tests/api-contracts/**/*.test.js'
   ],

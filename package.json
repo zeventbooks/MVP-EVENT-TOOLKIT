@@ -100,6 +100,8 @@
     "test:triangle:all:parallel": "npm run test:triangle:all:contract & npm run test:triangle:all:e2e",
     "test:triangle:all:contract": "jest --testMatch='**/tests/triangle/all-phases/contract/**/*.test.js'",
     "test:triangle:all:e2e": "playwright test tests/e2e/1-smoke tests/e2e/api tests/e2e/test-page.spec.js tests/e2e/diagnostics-page.spec.js tests/e2e/api-docs-page.spec.js tests/e2e/authentication.spec.js --reporter=line",
+    "test:triangle:integration": "jest --testMatch='**/tests/triangle/integration/**/*.test.js' --runInBand --forceExit",
+    "test:triangle:happy-path": "jest tests/triangle/integration/triangle-happy-path.integration.test.js --runInBand --forceExit",
     "test:scenarios": "node tests/e2e/scenarios/run-scenarios.js",
     "test:scenario:1": "playwright test tests/e2e/scenarios/scenario-1-first-time-admin.spec.js",
     "test:scenario:2": "playwright test tests/e2e/scenarios/scenario-2-mobile-user.spec.js",
