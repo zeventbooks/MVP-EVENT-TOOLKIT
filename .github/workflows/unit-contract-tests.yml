@@ -57,13 +57,16 @@ jobs:
         id: mvp-guards
         continue-on-error: true
         run: |
-          echo "🛡️ Running MVP Guards (Surface + Dead Export Checks)..."
+          echo "🛡️ Running MVP Guards (Surface + Dead Export + V2 File Checks)..."
           echo ""
           echo "MVP Surface Check: Only 5 surfaces allowed (admin, public, display, poster, report)"
           node scripts/check-surfaces.js
           echo ""
           echo "Dead Export Check: No unused api_* functions in Code.gs"
           node scripts/check-dead-code.js --fail-on-dead
+          echo ""
+          echo "V2 File Check: No V2 files allowed in src/mvp"
+          node scripts/check-v2-files.js
 
       - name: Generate coverage report
         if: always()
