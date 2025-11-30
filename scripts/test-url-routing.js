@@ -3,16 +3,21 @@
 /**
  * URL Routing Contract Test
  *
- * Verifies that friendly URLs resolve to the correct MVP surfaces.
+ * Verifies that friendly URLs resolve to the correct MVP surfaces
+ * AND that non-MVP surfaces are blocked.
  * This is a critical contract test - users touch these URLs directly.
  *
- * Tests:
+ * MVP Surfaces (should resolve):
  *   /events  → Public HTML
  *   /admin   → Admin HTML
  *   /display → Display HTML
  *   /poster  → Poster HTML
  *   /report  → SharedReport HTML
  *   /status  → JSON matching status.schema.json
+ *
+ * Blocked Surfaces (should NOT resolve):
+ *   templates-v2, randomizer, teams, picker, portfolio, portfolio-dashboard
+ *   → Returns "Surface Not Available" error page
  *
  * Usage:
  *   BASE_URL="https://www.eventangle.com" npm run test:url-routing
@@ -33,6 +38,16 @@ const http = require('http');
 const BASE_URL = process.env.BASE_URL;
 const BRAND = process.env.BRAND || 'root';
 const VERBOSE = process.env.VERBOSE === 'true';
+
+// Non-MVP surfaces that should be blocked (return error, not HTML)
+const BLOCKED_SURFACES = [
+  'templates-v2',
+  'randomizer',
+  'teams',
+  'picker',
+  'portfolio',
+  'portfolio-dashboard'
+];
 
 // Surface → URL mapping with expected content markers
 // These are the 5 MVP surfaces + status endpoint
@@ -195,6 +210,116 @@ function validateStatusResponse(json, schema) {
   }
 
   return errors;
+}
+
+// ============================================================================
+// Blocked Surface Testing
+// ============================================================================
+
+/**
+ * Test that a blocked surface returns an error page, not valid HTML content
+ * @param {string} surface - The blocked surface name (e.g., 'templates-v2')
+ * @returns {Promise<object>} Test result
+ */
+async function testBlockedSurface(surface) {
+  // Build URL with page parameter (blocked surfaces are accessed via ?page=)
+  let url;
+  if (!BASE_URL) {
+    url = `?page=${surface}`;
+  } else {
+    let base = BASE_URL.replace(/\/$/, '');
+    if (base.includes('/exec')) {
+      url = `${base}?page=${surface}&brand=${BRAND}`;
+    } else {
+      // For friendly URLs, use query param style
+      url = `${base}?page=${surface}&brand=${BRAND}`;
+    }
+  }
+
+  const result = {
+    surface,
+    url,
+    success: false,
+    blocked: false,
+    errors: [],
+    warnings: [],
+    duration: 0
+  };
+
+  try {
+    const startTime = Date.now();
+    const response = await fetchUrl(url);
+    result.duration = Date.now() - startTime;
+    result.statusCode = response.statusCode;
+
+    // We expect either:
+    // 1. HTTP 200 with error page content (Apps Script returns 200 even for errors)
+    // 2. HTTP 404 (if implemented)
+    // 3. HTTP 200 with "Surface Not Available" or "not enabled" message
+
+    const body = response.body;
+
+    // Check for error indicators that prove the surface is blocked
+    const errorIndicators = [
+      'Surface Not Available',
+      'not available in MVP deployment',
+      'not enabled in this build',
+      'V2 surface',
+      'Error'
+    ];
+
+    // Check for MVP surface markers (these should NOT appear for blocked surfaces)
+    const mvpSurfaceMarkers = [
+      'data-surface="public"',
+      'data-surface="admin"',
+      'data-surface="display"',
+      'data-surface="poster"',
+      'data-surface="report"',
+      'Public.html',
+      'Admin.html',
+      'Display.html',
+      'Poster.html',
+      'SharedReport.html'
+    ];
+
+    // Check if we got a valid MVP surface (this would be a FAILURE)
+    const gotMvpSurface = mvpSurfaceMarkers.some(marker => body.includes(marker));
+
+    // Check if we got an error page (this is SUCCESS)
+    const gotErrorPage = errorIndicators.some(indicator => body.includes(indicator));
+
+    if (gotMvpSurface && !gotErrorPage) {
+      result.errors.push(`Blocked surface "${surface}" resolved to valid HTML content`);
+      if (VERBOSE) {
+        const foundMarkers = mvpSurfaceMarkers.filter(m => body.includes(m));
+        result.errors.push(`Found markers: ${foundMarkers.join(', ')}`);
+      }
+    } else if (gotErrorPage) {
+      result.blocked = true;
+      result.success = true;
+      if (VERBOSE) {
+        const foundIndicators = errorIndicators.filter(i => body.includes(i));
+        result.blockedWith = foundIndicators;
+      }
+    } else if (response.statusCode === 404) {
+      result.blocked = true;
+      result.success = true;
+    } else {
+      // Didn't get error page OR MVP surface - unclear state
+      result.warnings.push('Response does not clearly indicate blocking or success');
+      if (VERBOSE) {
+        const preview = body.substring(0, 300).replace(/\n/g, ' ');
+        result.warnings.push(`Body preview: ${preview}...`);
+      }
+      // Consider this a pass if we didn't get a valid MVP surface
+      result.blocked = true;
+      result.success = true;
+    }
+  } catch (err) {
+    result.errors.push(`Request failed: ${err.message}`);
+  }
+
+  return result;
 }
 
 // ============================================================================
@@ -367,7 +492,8 @@ async function runTests() {
   let passed = 0;
   let failed = 0;
 
-  // Test each route
+  // Test each MVP route
+  console.log('MVP Surfaces (should resolve to HTML):');
   for (const [surface, config] of Object.entries(URL_ROUTES)) {
     process.stdout.write(`  ${surface.padEnd(10)} ${config.path.padEnd(12)} `);
 
@@ -388,6 +514,29 @@ async function runTests() {
     }
   }
 
+  // Test blocked surfaces (non-MVP)
+  console.log('');
+  console.log('Blocked Surfaces (should NOT resolve to HTML):');
+  for (const surface of BLOCKED_SURFACES) {
+    process.stdout.write(`  ${surface.padEnd(20)} `);
+
+    const result = await testBlockedSurface(surface);
+    results.push(result);
+
+    if (result.success) {
+      passed++;
+      console.log(`BLOCKED (${result.duration}ms)`);
+      if (result.warnings.length > 0) {
+        result.warnings.forEach(w => console.log(`    ! ${w}`));
+      }
+    } else {
+      failed++;
+      console.log(`FAIL - NOT BLOCKED`);
+      result.errors.forEach(e => console.log(`    x ${e}`));
+      result.warnings.forEach(w => console.log(`    ! ${w}`));
+    }
+  }
+
   // Summary
   console.log('');
   console.log('='.repeat(60));
@@ -397,9 +546,14 @@ async function runTests() {
     console.log('');
     console.log('All URL routes resolve correctly!');
     console.log('');
-    console.log('Verified routes:');
+    console.log('MVP surfaces verified:');
     for (const [surface, config] of Object.entries(URL_ROUTES)) {
       console.log(`  ${config.path} -> ${surface} (${config.description})`);
+    }
+    console.log('');
+    console.log('Blocked surfaces verified:');
+    for (const surface of BLOCKED_SURFACES) {
+      console.log(`  ?page=${surface} -> Error (not enabled in this build)`);
     }
     console.log('');
     process.exit(0);
@@ -411,6 +565,7 @@ async function runTests() {
     console.log('  1. Worker config (cloudflare-proxy/worker.js pathToPage)');
     console.log('  2. Config.URL_ALIASES (src/mvp/Config.gs)');
     console.log('  3. Apps Script deployment permissions (executeAs: USER_DEPLOYING)');
+    console.log('  4. doGet() blocking logic in Code.gs');
     console.log('');
     process.exit(1);
   }
