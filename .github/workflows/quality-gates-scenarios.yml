@@ -52,7 +52,7 @@ jobs:
 
       - name: Upload Unit Test Results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: unit-test-results
           path: coverage/
@@ -90,7 +90,7 @@ jobs:
 
       - name: Upload Scenario 1 Results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: scenario-1-results
           path: |
@@ -149,7 +149,7 @@ jobs:
 
       - name: Upload Scenario 2 Results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: scenario-2-results
           path: |
@@ -188,7 +188,7 @@ jobs:
 
       - name: Upload Scenario 3 Results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: scenario-3-results
           path: |
@@ -232,7 +232,7 @@ jobs:
           fi
 
       - name: Upload Bug Report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: bug-discovery-report
           path: bug-report.md
