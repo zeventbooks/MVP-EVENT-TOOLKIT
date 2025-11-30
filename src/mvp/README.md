@@ -4,20 +4,21 @@
 
 ---
 
-## V2 Files (Non-MVP)
+## V2 Files (Archived)
 
-The following files live in `src/mvp/` due to Google Apps Script deployment constraints,
-but are **NOT** part of the MVP. They are feature-flagged or standalone utilities.
+V2 code has been moved out of `src/mvp/` to keep the MVP folder clean and deployable.
 
-| File | Type | Status | Documentation |
-|------|------|--------|---------------|
-| `AdminTemplateV2.html` | UI Surface | Gated by `TEMPLATE_MANAGEMENT_V2` flag | [V2 Docs](../v2/README.md) |
-| `Randomizer.html` | UI Surface | Standalone utility (no flag) | [V2 Docs](../v2/README.md) |
-| `SponsorPortfolioV2.gs` | Service | Post-MVP analytics module | [V2 Docs](../v2/README.md) |
-| `TemplateManagementService.gs` | Service | Gated by `TEMPLATE_MANAGEMENT_V2` flag | [V2 Docs](../v2/README.md) |
+| File | Location | Status |
+|------|----------|--------|
+| `AdminTemplateV2.html` | `archive/v2-code/` | V2 feature, not in MVP |
+| `Randomizer.html` | `archive/v2-code/` | V2 feature, not in MVP |
+| `SponsorPortfolioV2.gs` | `archive/v2-code/` | V2 feature, not in MVP |
 
-> **Why are V2 files here?** Google Apps Script (via `clasp`) requires all `.gs` and `.html`
-> files to be in the same `rootDir` for deployment. See `.clasp.json`.
+**Note:** `TemplateManagementService.gs` remains in `src/mvp/` as it's gated by the
+`TEMPLATE_MANAGEMENT_V2` feature flag and contains no V2 naming.
+
+> **CI enforcement:** `scripts/check-mvp-folder.js` fails if any `*V2*` or `Randomizer.html`
+> files are found in `src/mvp/`.
 
 ---
 
