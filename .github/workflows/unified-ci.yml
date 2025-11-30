@@ -297,10 +297,8 @@ jobs:
     name: "4️⃣ API Tests"
     runs-on: ubuntu-latest
     needs: [validate, warmup]
-    # Run if validation passed AND warmup succeeded (or warmup ran but we want to try anyway)
-    if: |
-      needs.validate.outputs.validation_passed == 'true' &&
-      needs.warmup.result == 'success'
+    # Run if validation passed AND warmup job completed (warmup has continue-on-error so result is always 'success')
+    if: needs.validate.outputs.validation_passed == 'true' && needs.warmup.result == 'success'
     outputs:
       result: ${{ steps.test.outputs.result }}
     steps:
@@ -507,21 +505,31 @@ jobs:
             FAILED=true
           fi
 
-          # 2. Warmup job must complete (even if warmup itself failed, we still run tests)
-          if [[ "${{ needs.warmup.result }}" != "success" ]]; then
-            echo "❌ FAILED: Warmup job failed"
+          # 2. Warmup job must complete (has continue-on-error, so always succeeds)
+          # Note: warmup.outputs.warmup_success indicates if warmup actually worked
+          WARMUP_RESULT="${{ needs.warmup.result }}"
+          WARMUP_SUCCESS="${{ needs.warmup.outputs.warmup_success }}"
+          if [[ "$WARMUP_RESULT" != "success" ]]; then
+            echo "❌ FAILED: Warmup job failed to run"
             FAILED=true
+          elif [[ "$WARMUP_SUCCESS" != "true" ]]; then
+            echo "⚠️ WARNING: Warmup did not succeed (warmup_success=$WARMUP_SUCCESS)"
+            echo "   Tests ran anyway - cold start delays may have occurred"
           fi
 
           # 3. API tests must pass (if they ran)
           API_RESULT="${{ needs.api-tests.result }}"
+          API_OUTPUT="${{ needs.api-tests.outputs.result }}"
           if [[ "$API_RESULT" == "failure" ]]; then
-            echo "❌ FAILED: API tests failed"
+            echo "❌ FAILED: API tests job failed"
+            FAILED=true
+          elif [[ "$API_RESULT" == "success" && "$API_OUTPUT" != "success" ]]; then
+            echo "❌ FAILED: API tests did not pass (output=$API_OUTPUT)"
             FAILED=true
           elif [[ "$API_RESULT" == "skipped" ]]; then
             echo "⏭️ SKIPPED: API tests were skipped"
-            # Skipped is OK if validation failed (expected cascade)
-            if [[ "${{ needs.validate.result }}" == "success" && "${{ needs.warmup.result }}" == "success" ]]; then
+            # Skipped is a failure if validation and warmup both succeeded
+            if [[ "${{ needs.validate.result }}" == "success" && "$WARMUP_RESULT" == "success" ]]; then
               echo "❌ FAILED: API tests were unexpectedly skipped"
               FAILED=true
             fi

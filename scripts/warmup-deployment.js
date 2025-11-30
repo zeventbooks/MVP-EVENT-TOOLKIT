@@ -67,7 +67,18 @@ function fetchWithTimeout(url, timeoutMs) {
     const startTime = Date.now();
     const protocol = url.startsWith('https') ? https : http;
 
-    const request = protocol.get(url, { timeout: timeoutMs }, (response) => {
+    const options = {
+      timeout: timeoutMs,
+      headers: {
+        // Add headers to avoid bot detection
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+        'Accept': 'application/json, text/html, */*',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Cache-Control': 'no-cache',
+      }
+    };
+
+    const request = protocol.get(url, options, (response) => {
       // Handle redirects
       if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
         const redirectUrl = response.headers.location;
