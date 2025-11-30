@@ -736,10 +736,17 @@ SEM-LEVEL MESSAGING:
 
     /**
      * Initialize dashboard on load
+     *
+     * UX optimization: If adminKey is present in URL, attempt to load immediately.
+     * Actual security validation happens server-side in api_getPortfolioAnalyticsV2.
+     * An invalid key will result in an error response, not a security bypass.
      */
     function init() {
-      if (ADMIN_KEY) {
-        loadPortfolio();
+      // Check if adminKey parameter exists in URL (UX decision, not security check)
+      // The actual key value is validated server-side by _validateAdminKey_()
+      const hasKeyInUrl = urlParams.has('adminKey');
+      if (hasKeyInUrl) {
+        loadPortfolio(); // Server validates the key
       } else {
         showAuthRequired();
       }
