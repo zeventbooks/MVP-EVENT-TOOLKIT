@@ -2,6 +2,25 @@
 
 **If it isn't Admin, Public, Display, Poster, or SharedReport, it is not MVP.**
 
+---
+
+## V2 Files (Non-MVP)
+
+The following files live in `src/mvp/` due to Google Apps Script deployment constraints,
+but are **NOT** part of the MVP. They are feature-flagged or standalone utilities.
+
+| File | Type | Status | Documentation |
+|------|------|--------|---------------|
+| `AdminTemplateV2.html` | UI Surface | Gated by `TEMPLATE_MANAGEMENT_V2` flag | [V2 Docs](../v2/README.md) |
+| `Randomizer.html` | UI Surface | Standalone utility (no flag) | [V2 Docs](../v2/README.md) |
+| `SponsorPortfolioV2.gs` | Service | Post-MVP analytics module | [V2 Docs](../v2/README.md) |
+| `TemplateManagementService.gs` | Service | Gated by `TEMPLATE_MANAGEMENT_V2` flag | [V2 Docs](../v2/README.md) |
+
+> **Why are V2 files here?** Google Apps Script (via `clasp`) requires all `.gs` and `.html`
+> files to be in the same `rootDir` for deployment. See `.clasp.json`.
+
+---
+
 ## The 5 Surfaces
 
 | Surface | Purpose |
