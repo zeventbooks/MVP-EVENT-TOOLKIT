@@ -160,6 +160,8 @@
     "deploy:rollback": "node scripts/deploy-cli.js rollback",
     "deploy:fix-permissions": "node scripts/fix-deployment-permissions.js",
     "deploy:fix-permissions:test": "node scripts/fix-deployment-permissions.js --test",
+    "deploy:cleanup-versions": "node scripts/cleanup-versions.js",
+    "deploy:cleanup-versions:dry": "node scripts/cleanup-versions.js --dry-run",
     "pull": "clasp pull",
     "open": "clasp open",
     "logs": "clasp logs",
