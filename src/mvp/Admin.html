@@ -39,6 +39,8 @@ READS FROM EVENT SCHEMA (for display after event creation):
   - event.settings.*        → Enabled sections summary
   - event.createdAtISO      → Edit mode preservation
   - event.sponsors[]        → Sponsor Performance Links section
+  - event.sponsors[].placement → Sponsor placement badges (Public/Display/Poster/TV Banner)
+  - event.links.*           → Preview links (Public/Display/Poster/Report)
 
 ═══════════════════════════════════════════════════════════════════════════════
 WRITES TO EVENT SCHEMA (via buildEventFromForm()):
@@ -315,6 +317,38 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
 
       #sponsorPerformanceCard button {
         width: 100%;
+      }
+
+      /* Sponsor table mobile layout - stack columns */
+      .sponsor-report-table {
+        display: block;
+      }
+      .sponsor-report-table thead {
+        display: none;
+      }
+      .sponsor-report-table tbody {
+        display: block;
+      }
+      .sponsor-report-table tr {
+        display: flex;
+        flex-direction: column;
+        padding: 12px 0;
+        gap: 8px;
+      }
+      .sponsor-report-table td {
+        display: block;
+        padding: 4px 0 !important;
+        text-align: left !important;
+      }
+      .sponsor-report-table td:nth-child(2)::before {
+        content: 'Visible on: ';
+        font-size: 0.7rem;
+        color: #64748b;
+      }
+      .sponsor-report-table td:nth-child(3),
+      .sponsor-report-table td:nth-child(4) {
+        display: inline-block;
+        width: auto;
       }
 
       /* Collapsible headers - better tap target */
@@ -1396,6 +1430,27 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
               <p style="margin: 0 0 16px 0; font-size: 0.9rem; color: var(--color-gray-500, #64748b);">
                 Give each sponsor their own analytics link to show how their logo performed.
               </p>
+
+              <!-- Sponsor Placement Guide -->
+              <div id="sponsorPlacementGuide" style="background: var(--color-gray-50, #f8fafc); border-radius: 8px; padding: 12px; margin-bottom: 12px; display: none;">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                  <span style="font-size: 1rem;">📍</span>
+                  <strong style="font-size: 0.8rem; color: var(--color-gray-700, #334155);">Where Sponsor Logos Appear</strong>
+                </div>
+                <div style="display: flex; flex-wrap: wrap; gap: 6px; font-size: 0.75rem; margin-bottom: 12px;">
+                  <span style="background: #dbeafe; color: #1e40af; padding: 3px 8px; border-radius: 12px;" title="Mobile/web event info page">Public</span>
+                  <span style="background: #dcfce7; color: #166534; padding: 3px 8px; border-radius: 12px;" title="TV/kiosk display screen">Display</span>
+                  <span style="background: #fef3c7; color: #92400e; padding: 3px 8px; border-radius: 12px;" title="Printable poster">Poster</span>
+                  <span style="background: #f3e8ff; color: #7e22ce; padding: 3px 8px; border-radius: 12px;" title="Rotating TV banner">TV Banner</span>
+                </div>
+                <div style="font-size: 0.7rem; color: var(--color-gray-500, #64748b); margin-bottom: 12px;">
+                  Each sponsor's logo appears on the surface matching their <em>placement</em> setting.
+                </div>
+                <div style="border-top: 1px solid var(--color-gray-200, #e2e8f0); padding-top: 12px;">
+                  <div style="font-size: 0.75rem; font-weight: 600; color: var(--color-gray-600, #475569); margin-bottom: 8px;">Preview Event Surfaces:</div>
+                  <div id="sponsorPreviewLinks" style="display: flex; flex-wrap: wrap; gap: 6px;"></div>
+                </div>
+              </div>
 
               <div id="sponsorPerformanceCard" style="background: linear-gradient(135deg, #fdf4ff 0%, #f5d0fe 100%); border-radius: 8px; padding: 16px;">
                 <div id="sponsorReportsList" style="margin-bottom: 12px;"></div>
@@ -2855,6 +2910,21 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
     }
 
     /**
+     * Get placement badge HTML for a sponsor
+     * @param {string} placement - Placement value (public, display, poster, tv-banner)
+     * @returns {string} - HTML badge element
+     */
+    function getSponsorPlacementBadge(placement) {
+      const badges = {
+        'public': '<span style="background:#dbeafe;color:#1e40af;padding:2px 6px;border-radius:8px;font-size:0.65rem;" title="Visible on Public page">Public</span>',
+        'display': '<span style="background:#dcfce7;color:#166534;padding:2px 6px;border-radius:8px;font-size:0.65rem;" title="Visible on Display screen">Display</span>',
+        'poster': '<span style="background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:8px;font-size:0.65rem;" title="Visible on Poster">Poster</span>',
+        'tv-banner': '<span style="background:#f3e8ff;color:#7e22ce;padding:2px 6px;border-radius:8px;font-size:0.65rem;" title="Visible in TV banner rotation">TV Banner</span>'
+      };
+      return badges[placement] || '<span style="background:#e2e8f0;color:#475569;padding:2px 6px;border-radius:8px;font-size:0.65rem;">Unknown</span>';
+    }
+
+    /**
      * Render sponsor performance links in Admin
      * Shows Open/Copy controls for each sponsor tied to the event
      * @param {Object} eventObj - Event object with sponsors[] array
@@ -2863,23 +2933,51 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
       const sponsors = eventObj.sponsors || [];
       const container = document.getElementById('sponsorReportsList');
       const section = document.getElementById('sponsorPerformanceCard');
+      const placementGuide = document.getElementById('sponsorPlacementGuide');
+      const previewLinksContainer = document.getElementById('sponsorPreviewLinks');
 
       // Always show section (for custom sponsor ID entry)
       section.style.display = '';
+
+      // Show placement guide and preview links if we have sponsors or event links
+      const links = eventObj.links || {};
+      if (sponsors.length || links.publicUrl) {
+        placementGuide.style.display = '';
+
+        // Build preview links
+        const previewLinks = [];
+        if (links.publicUrl) {
+          previewLinks.push('<a href="' + NU.esc(links.publicUrl) + '" target="_blank" rel="noopener" style="background:#dbeafe;color:#1e40af;padding:4px 10px;border-radius:12px;font-size:0.7rem;text-decoration:none;display:inline-flex;align-items:center;gap:4px;" title="Preview Public page"><span style="font-size:0.8rem;">📱</span> Public</a>');
+        }
+        if (links.displayUrl) {
+          previewLinks.push('<a href="' + NU.esc(links.displayUrl) + '" target="_blank" rel="noopener" style="background:#dcfce7;color:#166534;padding:4px 10px;border-radius:12px;font-size:0.7rem;text-decoration:none;display:inline-flex;align-items:center;gap:4px;" title="Preview Display screen"><span style="font-size:0.8rem;">📺</span> Display</a>');
+        }
+        if (links.posterUrl) {
+          previewLinks.push('<a href="' + NU.esc(links.posterUrl) + '" target="_blank" rel="noopener" style="background:#fef3c7;color:#92400e;padding:4px 10px;border-radius:12px;font-size:0.7rem;text-decoration:none;display:inline-flex;align-items:center;gap:4px;" title="Preview Poster"><span style="font-size:0.8rem;">🖼️</span> Poster</a>');
+        }
+        const reportUrl = links.sharedReportUrl || (links.publicUrl ? links.publicUrl.replace('page=public', 'page=report') : '');
+        if (reportUrl) {
+          previewLinks.push('<a href="' + NU.esc(reportUrl) + '" target="_blank" rel="noopener" style="background:#fce7f3;color:#be185d;padding:4px 10px;border-radius:12px;font-size:0.7rem;text-decoration:none;display:inline-flex;align-items:center;gap:4px;" title="Preview Shared Report"><span style="font-size:0.8rem;">📊</span> Report</a>');
+        }
+        previewLinksContainer.innerHTML = previewLinks.join('');
+      } else {
+        placementGuide.style.display = 'none';
+      }
 
       if (!sponsors.length) {
         container.innerHTML = '<p class="muted" style="grid-column:1/-1;">No sponsors configured. Use the form below to generate custom sponsor links.</p>';
         return;
       }
 
-      // Render sponsor performance table with Open Report + Copy Link + QR
+      // Render sponsor performance table with Placement + Actions + QR
       container.innerHTML = `
         <table class="sponsor-report-table" style="width:100%;border-collapse:collapse;font-size:0.875rem;">
           <thead style="background:var(--color-gray-100,#f1f5f9);">
             <tr>
               <th style="text-align:left;padding:0.75rem 1rem;font-weight:600;color:var(--color-gray-600,#475569);font-size:0.75rem;text-transform:uppercase;">Sponsor</th>
-              <th style="text-align:center;padding:0.75rem 1rem;font-weight:600;color:var(--color-gray-600,#475569);font-size:0.75rem;text-transform:uppercase;">Actions</th>
-              <th style="text-align:center;padding:0.75rem 1rem;font-weight:600;color:var(--color-gray-600,#475569);font-size:0.75rem;text-transform:uppercase;">QR</th>
+              <th style="text-align:center;padding:0.75rem 0.5rem;font-weight:600;color:var(--color-gray-600,#475569);font-size:0.75rem;text-transform:uppercase;">Visible On</th>
+              <th style="text-align:center;padding:0.75rem 0.5rem;font-weight:600;color:var(--color-gray-600,#475569);font-size:0.75rem;text-transform:uppercase;">Actions</th>
+              <th style="text-align:center;padding:0.75rem 0.5rem;font-weight:600;color:var(--color-gray-600,#475569);font-size:0.75rem;text-transform:uppercase;">QR</th>
             </tr>
           </thead>
           <tbody>
@@ -2888,16 +2986,18 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
               const escapedUrl = NU.esc(sponsorUrl);
               const escapedId = NU.esc(sp.id);
               const primaryBadge = sp.isPrimary ? '<span style="background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:8px;font-size:0.65rem;margin-left:6px;">PRIMARY</span>' : '';
+              const placementBadge = getSponsorPlacementBadge(sp.placement);
               return '<tr style="border-bottom:1px solid var(--color-gray-100,#f1f5f9);" data-sponsor-id="' + escapedId + '">' +
                 '<td style="padding:0.75rem 1rem;">' +
                   '<strong>' + NU.esc(sp.name || sp.id) + '</strong>' + primaryBadge +
                   '<div style="font-size:0.7rem;color:#94a3b8;margin-top:4px;word-break:break-all;">' + escapedUrl.slice(0,60) + '...</div>' +
                 '</td>' +
-                '<td style="padding:0.75rem 1rem;text-align:center;white-space:nowrap;">' +
+                '<td style="padding:0.75rem 0.5rem;text-align:center;">' + placementBadge + '</td>' +
+                '<td style="padding:0.75rem 0.5rem;text-align:center;white-space:nowrap;">' +
                   '<button class="btn-secondary sponsor-open-btn" data-sponsor-url="' + escapedUrl + '" style="padding:6px 10px;font-size:0.75rem;margin-right:6px;">Open Report</button>' +
                   '<button class="btn-secondary sponsor-copy-btn" data-sponsor-url="' + escapedUrl + '" style="padding:6px 10px;font-size:0.75rem;">Copy Link</button>' +
                 '</td>' +
-                '<td style="padding:0.75rem 1rem;text-align:center;">' +
+                '<td style="padding:0.75rem 0.5rem;text-align:center;">' +
                   '<button class="btn-secondary sponsor-qr-btn" data-sponsor-id="' + escapedId + '" data-sponsor-name="' + NU.esc(sp.name || sp.id) + '" style="padding:6px 10px;font-size:0.75rem;">Show QR</button>' +
                 '</td>' +
               '</tr>';
