@@ -21,9 +21,11 @@ on:
         default: ''
 
 # Prevent duplicate runs: only one Stage 2 at a time per branch
+# Note: cancel-in-progress: false ensures runs queue instead of cancelling each other
+# This provides deterministic test results - cancelled runs give no useful feedback
 concurrency:
   group: stage2-${{ github.event.workflow_run.head_branch || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   # ============================================================================
