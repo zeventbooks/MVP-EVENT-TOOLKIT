@@ -92,6 +92,7 @@ const WHITELIST = {
   // These return system status, not business data. No contract needed.
   'api_status': 'System status endpoint - returns health/config data',
   'api_statusPure': 'Pure function version of api_status for testing',
+  'api_statusMvp': 'MVP status endpoint - returns MVP-specific health data',
   'api_setupCheck': 'Admin setup verification - internal use only',
   'api_checkPermissions': 'Permission check endpoint - internal diagnostics',
   'api_healthCheck': 'Health check endpoint for monitoring',

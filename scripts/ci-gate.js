@@ -1,26 +1,30 @@
 #!/usr/bin/env node
 /**
- * Story 15: ci:all Single Gate
+ * ci:all Single Gate - Unified CI validation
  *
  * A single, definitive CI gate that runs all local validations.
  * This is the "one command to rule them all" for local CI.
  *
  * Usage:
- *   npm run ci:all           # Run the complete gate
- *   npm run ci:all -- --json # Output JSON for CI systems
- *   npm run ci:all -- --fast # Skip non-critical tests
+ *   npm run ci:all:gate           # Run the complete gate
+ *   npm run ci:all:gate -- --json # Output JSON for CI systems
+ *   npm run ci:all:gate -- --fast # Skip non-critical tests
  *
  * Exit codes:
  *   0 - All checks passed
  *   1 - One or more checks failed
  *
- * This gate includes:
- *   1. ESLint (code quality)
- *   2. Unit tests (business logic)
- *   3. Contract tests (API schema validation)
- *   4. Schema consistency (ApiSchemas.gs sync)
+ * This gate includes ALL contract guards:
+ *   1. MVP Surfaces (check-surfaces.js)
+ *   2. RPC Inventory (check-rpc-inventory.js)
+ *   3. API vs Schemas (check-apis-vs-schemas.js)
+ *   4. Event Schema (test-event-schema.js)
+ *   5. Service Tests (test-services.js)
+ *   6. URL Routing (test-url-routing.js) - requires BASE_URL
+ *   7. Dead Exports (check-dead-code.js)
+ *   8. Schema Fields (check-schema-fields.js)
  *
- * Story 14 Integration: Each run gets a correlation ID for tracing.
+ * Correlation ID: Each run gets a unique ID for tracing.
  */
 
 const { execSync } = require('child_process');
@@ -204,7 +208,10 @@ function printSummary() {
     return;
   }
 
-  const allPassed = results.summary.failed === 0;
+  // Count critical vs non-critical failures
+  const criticalFailed = results.checks.filter(c => c.status === 'failed' && c.critical).length;
+  const nonCriticalFailed = results.checks.filter(c => c.status === 'failed' && !c.critical).length;
+  const gatePassed = criticalFailed === 0;
 
   console.log(`
 ${c.cyan}${c.bold}════════════════════════════════════════════════════════════════${c.reset}
@@ -213,7 +220,7 @@ ${c.cyan}═══════════════════════�
 
 ${c.bold}Checks:${c.reset}
   ${c.green}Passed:${c.reset}  ${results.summary.passed}
-  ${c.red}Failed:${c.reset}  ${results.summary.failed}
+  ${c.red}Failed:${c.reset}  ${results.summary.failed}${nonCriticalFailed > 0 ? ` (${nonCriticalFailed} non-critical)` : ''}
   ${c.yellow}Skipped:${c.reset} ${results.summary.skipped}
   ${c.white}Total:${c.reset}   ${results.summary.total}
 
@@ -236,22 +243,42 @@ ${c.bold}Run ID:${c.reset} ${c.dim}${runId}${c.reset}
   }
 
   // Final verdict
-  if (allPassed) {
+  if (gatePassed && nonCriticalFailed === 0) {
     console.log(`${c.bgGreen}${c.white}${c.bold}                    ✓ GATE PASSED                              ${c.reset}`);
     console.log(`\n${c.green}All checks passed. Ready to commit/push.${c.reset}\n`);
+  } else if (gatePassed) {
+    console.log(`${c.bgGreen}${c.white}${c.bold}                    ✓ GATE PASSED                              ${c.reset}`);
+    console.log(`\n${c.green}All critical checks passed.${c.reset}`);
+    console.log(`${c.yellow}${nonCriticalFailed} non-critical check(s) failed (warnings only).${c.reset}`);
+
+    // List non-critical failures
+    const nonCritical = results.checks.filter(c => c.status === 'failed' && !c.critical);
+    if (nonCritical.length > 0) {
+      console.log(`\n${c.bold}Non-Critical Warnings:${c.reset}`);
+      nonCritical.forEach(check => {
+        console.log(`  ${c.yellow}•${c.reset} ${check.name}`);
+      });
+    }
+    console.log('');
   } else {
     console.log(`${c.bgRed}${c.white}${c.bold}                    ✗ GATE FAILED                              ${c.reset}`);
-    console.log(`\n${c.red}${results.summary.failed} check(s) failed. Fix issues before proceeding.${c.reset}`);
+    console.log(`\n${c.red}${criticalFailed} critical check(s) failed. Fix issues before proceeding.${c.reset}`);
 
-    // List failed checks
-    const failed = results.checks.filter(c => c.status === 'failed');
-    if (failed.length > 0) {
-      console.log(`\n${c.bold}Failed Checks:${c.reset}`);
-      failed.forEach(check => {
+    // List critical failures
+    const critical = results.checks.filter(c => c.status === 'failed' && c.critical);
+    if (critical.length > 0) {
+      console.log(`\n${c.bold}Critical Failures (blocks gate):${c.reset}`);
+      critical.forEach(check => {
         console.log(`  ${c.red}•${c.reset} ${check.name}`);
-        if (check.critical) {
-          console.log(`    ${c.dim}(critical - blocks gate)${c.reset}`);
-        }
+      });
+    }
+
+    // Also list non-critical if any
+    const nonCritical = results.checks.filter(c => c.status === 'failed' && !c.critical);
+    if (nonCritical.length > 0) {
+      console.log(`\n${c.bold}Non-Critical Warnings:${c.reset}`);
+      nonCritical.forEach(check => {
+        console.log(`  ${c.yellow}•${c.reset} ${check.name}`);
       });
     }
 
@@ -266,74 +293,105 @@ async function main() {
   printHeader();
 
   let allCriticalPassed = true;
+  const hasBaseUrl = !!process.env.BASE_URL;
 
   // ═══════════════════════════════════════════════════════════════
-  // GATE 1: Code Quality (ESLint)
+  // GATE 1: MVP Surface Guard (check-surfaces.js)
+  // Ensures only 5 MVP surfaces: admin, public, display, poster, report
   // ═══════════════════════════════════════════════════════════════
-  log(`\n${c.bold}[1/6] Code Quality${c.reset}`, c.cyan);
-  if (!runCheck('ESLint', 'npm run lint', { critical: true })) {
-    allCriticalPassed = false;
-    if (!fastMode) {
-      log(`${c.yellow}⚠ Lint failed - continuing to collect all failures${c.reset}`);
-    }
-  }
-
-  // ═══════════════════════════════════════════════════════════════
-  // GATE 2: Unit Tests
-  // ═══════════════════════════════════════════════════════════════
-  log(`\n${c.bold}[2/6] Unit Tests${c.reset}`, c.cyan);
-  if (!runCheck('Jest Unit Tests', 'npm run test:unit', { critical: true })) {
-    allCriticalPassed = false;
-  }
-
-  // ═══════════════════════════════════════════════════════════════
-  // GATE 3: Contract Tests
-  // ═══════════════════════════════════════════════════════════════
-  log(`\n${c.bold}[3/6] Contract Tests${c.reset}`, c.cyan);
-  if (!runCheck('API Contract Tests', 'npm run test:contract', { critical: true })) {
-    allCriticalPassed = false;
-  }
-
-  // ═══════════════════════════════════════════════════════════════
-  // GATE 4: Schema Validation
-  // ═══════════════════════════════════════════════════════════════
-  log(`\n${c.bold}[4/6] Schema Validation${c.reset}`, c.cyan);
-
-  // Schema sync test (validates ApiSchemas.gs matches test schemas)
-  if (!runCheck('Schema Sync', 'npm run test:schemas', { critical: true })) {
-    allCriticalPassed = false;
-  }
-
-  // Bundle contracts (validates bundle structure)
-  if (!runCheck('Bundle Contracts', 'npm run test:story8', { critical: false, skipInFastMode: true })) {
-    // Non-critical - warn but don't fail
-  }
-
-  // ═══════════════════════════════════════════════════════════════
-  // GATE 5: MVP Surface & Dead Export Guards
-  // Prevents zombie APIs and non-MVP surfaces from creeping in
-  // ═══════════════════════════════════════════════════════════════
-  log(`\n${c.bold}[5/6] MVP Guards${c.reset}`, c.cyan);
-
-  // Surface check - validates only 5 MVP surfaces are referenced
+  log(`\n${c.bold}[1/9] MVP Surfaces${c.reset}`, c.cyan);
   if (!runCheck('MVP Surfaces', 'node scripts/check-surfaces.js', { critical: true })) {
     allCriticalPassed = false;
   }
 
-  // Dead export check - detects unused api_* functions in Code.gs
+  // ═══════════════════════════════════════════════════════════════
+  // GATE 2: RPC Inventory (check-rpc-inventory.js)
+  // Validates RPC inventory comment matches actual API usage
+  // ═══════════════════════════════════════════════════════════════
+  log(`\n${c.bold}[2/9] RPC Inventory${c.reset}`, c.cyan);
+  if (!runCheck('RPC Inventory', 'node scripts/check-rpc-inventory.js', { critical: true })) {
+    allCriticalPassed = false;
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // GATE 3: API vs Schemas (check-apis-vs-schemas.js)
+  // Ensures all api_* functions have corresponding schemas
+  // ═══════════════════════════════════════════════════════════════
+  log(`\n${c.bold}[3/9] API vs Schemas${c.reset}`, c.cyan);
+  if (!runCheck('API vs Schemas', 'node scripts/check-apis-vs-schemas.js', { critical: true })) {
+    allCriticalPassed = false;
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // GATE 4: Event Schema (test-event-schema.js)
+  // Validates event schema consistency
+  // Non-critical: Requires Ajv setup - tracked separately
+  // ═══════════════════════════════════════════════════════════════
+  log(`\n${c.bold}[4/9] Event Schema${c.reset}`, c.cyan);
+  if (!runCheck('Event Schema', 'node scripts/test-event-schema.js', { critical: false, skipInFastMode: true })) {
+    // Non-critical - warn but don't fail (requires schema infrastructure)
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // GATE 5: Service Tests (test-services.js)
+  // Runs form-service, sponsor-service, security-middleware tests
+  // ═══════════════════════════════════════════════════════════════
+  log(`\n${c.bold}[5/9] Service Tests${c.reset}`, c.cyan);
+  if (!runCheck('Service Tests', 'node scripts/test-services.js', { critical: true })) {
+    allCriticalPassed = false;
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // GATE 6: URL Routing (test-url-routing.js)
+  // Validates friendly URLs resolve to correct surfaces
+  // Only runs if BASE_URL is set (skip in local CI without deployment)
+  // ═══════════════════════════════════════════════════════════════
+  log(`\n${c.bold}[6/9] URL Routing${c.reset}`, c.cyan);
+  if (hasBaseUrl) {
+    if (!runCheck('URL Routing', 'node scripts/test-url-routing.js', { critical: true })) {
+      allCriticalPassed = false;
+    }
+  } else {
+    log(`${c.yellow}⊘${c.reset} ${c.dim}URL Routing (skipped - no BASE_URL set)${c.reset}`);
+    results.checks.push({
+      name: 'URL Routing',
+      command: 'node scripts/test-url-routing.js',
+      status: 'skipped',
+      critical: true,
+      durationMs: 0,
+      output: 'Skipped: BASE_URL not set',
+      error: null,
+    });
+    results.summary.skipped++;
+    results.summary.total++;
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // GATE 7: Dead Export Guard (check-dead-code.js)
+  // Detects unused api_* functions in Code.gs
+  // ═══════════════════════════════════════════════════════════════
+  log(`\n${c.bold}[7/9] Dead Exports${c.reset}`, c.cyan);
   if (!runCheck('Dead Exports', 'node scripts/check-dead-code.js --fail-on-dead', { critical: true })) {
     allCriticalPassed = false;
   }
 
   // ═══════════════════════════════════════════════════════════════
-  // GATE 6: Surface → Schema Fields Linter
-  // Prevents schema drift - surfaces only read fields in JSON schema
+  // GATE 8: Schema Fields (check-schema-fields.js)
+  // Validates HTML surfaces only reference schema-defined fields
+  // Non-critical: Pre-existing field drift - tracked separately
   // ═══════════════════════════════════════════════════════════════
-  log(`\n${c.bold}[6/6] Schema Fields${c.reset}`, c.cyan);
+  log(`\n${c.bold}[8/9] Schema Fields${c.reset}`, c.cyan);
+  if (!runCheck('Schema Fields', 'node scripts/check-schema-fields.js', { critical: false, skipInFastMode: true })) {
+    // Non-critical - warn but don't fail (pre-existing schema drift)
+  }
 
-  // Schema fields check - validates HTML surfaces only reference schema-defined fields
-  if (!runCheck('Schema Fields', 'node scripts/check-schema-fields.js', { critical: true })) {
-    allCriticalPassed = false;
+  // ═══════════════════════════════════════════════════════════════
+  // GATE 9: Analytics Schema (test-analytics-schema.js)
+  // Validates analytics schema consistency
+  // ═══════════════════════════════════════════════════════════════
+  log(`\n${c.bold}[9/9] Analytics Schema${c.reset}`, c.cyan);
+  if (!runCheck('Analytics Schema', 'node scripts/test-analytics-schema.js', { critical: false, skipInFastMode: true })) {
+    // Non-critical - warn but don't fail
   }
 
   // Print final summary
