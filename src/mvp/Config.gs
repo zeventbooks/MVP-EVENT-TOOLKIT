@@ -27,12 +27,21 @@ const ZEB = Object.freeze({
     SHORTLINKS: true,       // [MVP] URL shortening
 
     // [MVP] Portfolio Features (enabled for parent organizations)
-    PORTFOLIO_ANALYTICS: true,  // [MVP] Parent org portfolio reporting
+    PORTFOLIO_ANALYTICS: true,  // [MVP] Basic parent org portfolio reporting (uses MVP endpoints)
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // [V2] DEFERRED FEATURES - NOT ENABLED FOR MVP
+    // ─────────────────────────────────────────────────────────────────────────
+    // These features are blocked by check-rpc-inventory.js V2 quarantine.
+    // Set to true AND update check-rpc-inventory.js to enable.
 
     // [V2] Template Management UI (hidden from early bar pilots)
-    // Allows SEM staff and bar owners to tweak templates themselves
-    // Gate: Must be explicitly enabled per brand or deployment
-    TEMPLATE_MANAGEMENT_V2: false,  // [V2] Hidden template editor - disabled by default
+    TEMPLATE_MANAGEMENT_V2: false,
+
+    // [V2] Portfolio Analytics V2 - Multi-event exports, advanced filtering
+    // Blocked endpoints: api_exportSharedReport, api_getPortfolioAnalyticsV2
+    // UI: Export/Filter/Portfolio buttons hidden (display:none) in SharedReport.html
+    PORTFOLIO_V2: false,
 
     // Story 16: V2 features archived - code moved to archive/v2-code/
     // WEBHOOKS, I18N, ADVANCED_ANALYTICS, SPONSOR_SELF_SERVICE removed
