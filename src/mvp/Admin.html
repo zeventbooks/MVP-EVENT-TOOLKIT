@@ -532,6 +532,21 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
       font-weight: normal;
     }
 
+    .checklist-item .item-label .time-estimate {
+      font-size: 0.7rem;
+      color: var(--color-primary, #2563eb);
+      background: var(--color-primary-bg, #eff6ff);
+      padding: 2px 6px;
+      border-radius: 8px;
+      font-weight: 500;
+      margin-left: 6px;
+    }
+
+    .checklist-item.done .item-label .time-estimate {
+      background: #dcfce7;
+      color: #166534;
+    }
+
     .checklist-item .goto-arrow {
       margin-left: 4px;
       color: var(--color-gray-400, #94a3b8);
@@ -670,6 +685,197 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
         display: none !important;
       }
     }
+
+    /* ===== Quick Start Guide - "10 Minutes to Launch" ===== */
+    .quick-start-guide {
+      background: linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%);
+      border: 1px solid #bfdbfe;
+      border-left: 4px solid #2563eb;
+      margin-bottom: 24px;
+    }
+
+    .quick-start-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid rgba(37, 99, 235, 0.15);
+    }
+
+    .quick-start-icon {
+      font-size: 2.5rem;
+      line-height: 1;
+    }
+
+    .quick-start-title h2 {
+      margin: 0 0 4px 0;
+      font-size: 1.25rem;
+      color: var(--color-gray-800, #1e293b);
+    }
+
+    .quick-start-title .muted {
+      margin: 0;
+      font-size: 0.9rem;
+    }
+
+    .quick-start-steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 12px;
+    }
+
+    .quick-start-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 12px 14px;
+      background: white;
+      border: 1px solid var(--color-gray-200, #e2e8f0);
+      border-radius: var(--radius-base, 8px);
+      transition: all var(--transition-fast, 0.15s ease);
+    }
+
+    .quick-start-step:hover {
+      border-color: var(--color-primary-light, #bfdbfe);
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.08);
+    }
+
+    .quick-start-step.optional {
+      border-style: dashed;
+      background: var(--color-gray-50, #f8fafc);
+    }
+
+    .quick-start-step .step-number {
+      width: 28px;
+      height: 28px;
+      background: var(--color-primary, #2563eb);
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 0.85rem;
+      flex-shrink: 0;
+    }
+
+    .quick-start-step.optional .step-number {
+      background: var(--color-gray-300, #cbd5e1);
+      color: var(--color-gray-600, #475569);
+    }
+
+    .quick-start-step .step-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .quick-start-step .step-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .quick-start-step .step-title {
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: var(--color-gray-800, #1e293b);
+    }
+
+    .quick-start-step .step-time {
+      font-size: 0.75rem;
+      color: var(--color-primary, #2563eb);
+      background: var(--color-primary-bg, #eff6ff);
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .quick-start-step.optional .step-time {
+      background: var(--color-gray-100, #f1f5f9);
+      color: var(--color-gray-500, #64748b);
+    }
+
+    .quick-start-step .step-desc {
+      margin: 0;
+      font-size: 0.8rem;
+      color: var(--color-gray-500, #64748b);
+      line-height: 1.4;
+    }
+
+    .quick-start-footer {
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(37, 99, 235, 0.1);
+      text-align: center;
+    }
+
+    .quick-start-footer .muted {
+      margin: 0;
+      font-size: 0.85rem;
+    }
+
+    /* Mobile: Stack steps vertically */
+    @media (max-width: 640px) {
+      .quick-start-guide {
+        padding: 16px;
+        margin-bottom: 16px;
+      }
+
+      .quick-start-header {
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+
+      .quick-start-icon {
+        font-size: 2rem;
+      }
+
+      .quick-start-title h2 {
+        font-size: 1.1rem;
+      }
+
+      .quick-start-steps {
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+
+      .quick-start-step {
+        padding: 10px 12px;
+      }
+
+      .quick-start-step .step-number {
+        width: 24px;
+        height: 24px;
+        font-size: 0.8rem;
+      }
+
+      .quick-start-step .step-title {
+        font-size: 0.85rem;
+      }
+
+      .quick-start-step .step-desc {
+        font-size: 0.75rem;
+      }
+    }
+
+    /* Very small screens */
+    @media (max-width: 375px) {
+      .quick-start-guide {
+        padding: 12px;
+      }
+
+      .quick-start-step .step-header {
+        flex-wrap: wrap;
+      }
+
+      .quick-start-step .step-time {
+        margin-top: 4px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -691,14 +897,93 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
       <div id="postEventProgress"></div>
     </div>
 
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- QUICK START GUIDE - "10 Minutes to Launch" Overview                     -->
+    <!-- Shows bar owners the complete flow before they start                    -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <section class="card quick-start-guide" id="quickStartGuide" data-testid="quick-start-guide">
+      <div class="quick-start-header">
+        <span class="quick-start-icon">🚀</span>
+        <div class="quick-start-title">
+          <h2>Launch Your Event in 10 Minutes</h2>
+          <p class="muted">Here's everything you'll do—no surprises, no tech headaches.</p>
+        </div>
+      </div>
+      <div class="quick-start-steps">
+        <div class="quick-start-step" data-step="1">
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <div class="step-header">
+              <span class="step-title">Name your event</span>
+              <span class="step-time">~2 min</span>
+            </div>
+            <p class="step-desc">Just 3 fields: event name, date, and venue. That's it.</p>
+          </div>
+        </div>
+        <div class="quick-start-step" data-step="2">
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <div class="step-header">
+              <span class="step-title">Set up sign-ups</span>
+              <span class="step-time">~2 min</span>
+            </div>
+            <p class="step-desc">Add your registration form link, or let us create one for you.</p>
+          </div>
+        </div>
+        <div class="quick-start-step" data-step="3">
+          <div class="step-number">3</div>
+          <div class="step-content">
+            <div class="step-header">
+              <span class="step-title">Print your poster</span>
+              <span class="step-time">~1 min</span>
+            </div>
+            <p class="step-desc">One click, print-ready PDF with QR code. Put it on tables, windows, anywhere.</p>
+          </div>
+        </div>
+        <div class="quick-start-step" data-step="4">
+          <div class="step-number">4</div>
+          <div class="step-content">
+            <div class="step-header">
+              <span class="step-title">Display on your TV</span>
+              <span class="step-time">~1 min</span>
+            </div>
+            <p class="step-desc">Copy the link, open on your bar TV or tablet. Auto-refreshes, no babysitting.</p>
+          </div>
+        </div>
+        <div class="quick-start-step" data-step="5">
+          <div class="step-number">5</div>
+          <div class="step-content">
+            <div class="step-header">
+              <span class="step-title">Share with your crowd</span>
+              <span class="step-time">~2 min</span>
+            </div>
+            <p class="step-desc">Copy the public link or share directly to Facebook, Instagram, etc.</p>
+          </div>
+        </div>
+        <div class="quick-start-step optional" data-step="6">
+          <div class="step-number">~</div>
+          <div class="step-content">
+            <div class="step-header">
+              <span class="step-title">Add sponsors</span>
+              <span class="step-time">optional</span>
+            </div>
+            <p class="step-desc">Give each sponsor their own analytics link to show ROI.</p>
+          </div>
+        </div>
+      </div>
+      <div class="quick-start-footer">
+        <p class="muted">Ready? Let's get started below.</p>
+      </div>
+    </section>
+
     <!-- Create Event Card - Simplified UX -->
     <section class="card" id="createCard">
       <div style="margin-bottom: 20px;">
         <div style="text-align: center; margin-bottom: 24px;">
           <span style="font-size: 3rem;">🍻</span>
-          <h2 style="margin: 12px 0 8px 0;">Create Your First Event</h2>
+          <h2 style="margin: 12px 0 8px 0;">Step 1: Create Your Event</h2>
           <p class="muted" style="margin: 0; max-width: 400px; margin-left: auto; margin-right: auto;">
-            Trivia night? Fundraiser? Whatever you're running, we'll give you posters, sign-up forms, a TV display, and post-event reports—all in about 60 seconds.
+            Just fill in 3 fields and we'll set up everything—posters, sign-up forms, TV display, and post-event reports.
           </p>
         </div>
       </div>
@@ -1036,42 +1321,43 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
 
       <!-- ═══════════════════════════════════════════════════════════════════ -->
       <!-- HAPPY PATH CHECKLIST - Quick guide for first-time bar owners        -->
+      <!-- Time estimates help users understand this is truly a ~10 min process -->
       <!-- ═══════════════════════════════════════════════════════════════════ -->
-      <div class="happy-path-checklist" id="happyPathChecklist">
+      <div class="happy-path-checklist" id="happyPathChecklist" data-testid="happy-path-checklist">
         <div class="happy-path-header">
-          <span style="font-size: 1.2rem;">🍺</span>
-          <h3>Get Your Event Ready</h3>
-          <span class="progress-text" id="checklistProgress">0 of 6 done</span>
+          <span style="font-size: 1.2rem;">🚀</span>
+          <h3>Finish Setup (~8 min left)</h3>
+          <span class="progress-text" id="checklistProgress">1 of 6 done</span>
         </div>
         <div class="checklist-items">
-          <div class="checklist-item done" id="checklist-event" onclick="scrollToCard('card1EventBasics')">
+          <div class="checklist-item done" id="checklist-event" onclick="scrollToCard('card1EventBasics')" data-testid="checklist-event">
             <span class="check-indicator done">✓</span>
-            <span class="item-label">Name your night</span>
+            <span class="item-label">Name your event <span class="time-estimate">~2 min</span></span>
             <span class="goto-arrow">→</span>
           </div>
-          <div class="checklist-item optional-pending" id="checklist-sponsors" onclick="scrollToCard('card2Sponsors')">
+          <div class="checklist-item" id="checklist-signup" onclick="scrollToCard('card3SignUp')" data-testid="checklist-signup">
+            <span class="check-indicator pending"></span>
+            <span class="item-label">Set up sign-ups <span class="time-estimate">~2 min</span></span>
+            <span class="goto-arrow">→</span>
+          </div>
+          <div class="checklist-item" id="checklist-poster" onclick="scrollToCard('card4Poster')" data-testid="checklist-poster">
+            <span class="check-indicator pending"></span>
+            <span class="item-label">Print your poster <span class="time-estimate">~1 min</span></span>
+            <span class="goto-arrow">→</span>
+          </div>
+          <div class="checklist-item" id="checklist-display" onclick="scrollToCard('card5Display')" data-testid="checklist-display">
+            <span class="check-indicator pending"></span>
+            <span class="item-label">Display on TV <span class="time-estimate">~1 min</span></span>
+            <span class="goto-arrow">→</span>
+          </div>
+          <div class="checklist-item" id="checklist-public" onclick="scrollToCard('card6PublicPage')" data-testid="checklist-public">
+            <span class="check-indicator pending"></span>
+            <span class="item-label">Share with crowd <span class="time-estimate">~2 min</span></span>
+            <span class="goto-arrow">→</span>
+          </div>
+          <div class="checklist-item optional-pending" id="checklist-sponsors" onclick="scrollToCard('card2Sponsors')" data-testid="checklist-sponsors">
             <span class="check-indicator optional">~</span>
-            <span class="item-label">Add your sponsors <span class="optional-tag">(optional)</span></span>
-            <span class="goto-arrow">→</span>
-          </div>
-          <div class="checklist-item" id="checklist-signup" onclick="scrollToCard('card3SignUp')">
-            <span class="check-indicator pending"></span>
-            <span class="item-label">Set up sign-ups</span>
-            <span class="goto-arrow">→</span>
-          </div>
-          <div class="checklist-item" id="checklist-poster" onclick="scrollToCard('card4Poster')">
-            <span class="check-indicator pending"></span>
-            <span class="item-label">Print your poster</span>
-            <span class="goto-arrow">→</span>
-          </div>
-          <div class="checklist-item" id="checklist-display" onclick="scrollToCard('card5Display')">
-            <span class="check-indicator pending"></span>
-            <span class="item-label">Put this page on the TV</span>
-            <span class="goto-arrow">→</span>
-          </div>
-          <div class="checklist-item" id="checklist-public" onclick="scrollToCard('card6PublicPage')">
-            <span class="check-indicator pending"></span>
-            <span class="item-label">Share it with your crowd</span>
+            <span class="item-label">Add sponsors <span class="optional-tag">(optional)</span></span>
             <span class="goto-arrow">→</span>
           </div>
         </div>
@@ -1847,8 +2133,10 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
       const reportUrl = links.sharedReportUrl || (links.publicUrl ? links.publicUrl.replace('page=public', 'page=report') : '');
       setLink('lnkReport', reportUrl);
 
-      // Show the event card, hide the dashboard (it's V2 with placeholder stats)
+      // Show the event card, hide the Quick Start Guide and create form
       document.getElementById('eventCard').style.display = '';
+      document.getElementById('quickStartGuide').style.display = 'none';
+      document.getElementById('createCard').style.display = 'none';
       // Dashboard hidden for MVP - stats not implemented
       // document.getElementById('dashboardCard').style.display = '';
 
@@ -2006,21 +2294,69 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
     }
 
     // Update all checklist items based on event data
+    // Time estimates: event=2min, signup=2min, poster=1min, display=1min, public=2min, sponsors=optional
     function updateChecklistStatus(event) {
       currentEventData = event;
       const links = event.links || {};
       const data = event.data || {};
       const sponsors = event.sponsors || [];
 
-      // Track completed count
+      // Track completed count and remaining time
       let completed = 0;
+      let remainingMinutes = 0;
       const total = 6;
+
+      // Time estimates per task (minutes)
+      const timeEstimates = {
+        event: 2,
+        signup: 2,
+        poster: 1,
+        display: 1,
+        public: 2
+      };
 
       // 1. Event name & date - always done if we're showing the event card
       setChecklistItemStatus('checklist-event', 'done');
       completed++;
 
-      // 2. Sponsors - optional, done if sponsors array has items
+      // 2. Signup form - done if at least one form URL is configured
+      const hasFormUrl = data.registerUrl || data.checkinUrl || data.walkinUrl || data.surveyUrl;
+      if (hasFormUrl) {
+        setChecklistItemStatus('checklist-signup', 'done');
+        completed++;
+      } else {
+        setChecklistItemStatus('checklist-signup', 'pending');
+        remainingMinutes += timeEstimates.signup;
+      }
+
+      // 3. Poster - done if posterUrl exists (generated on event creation)
+      if (links.posterUrl) {
+        setChecklistItemStatus('checklist-poster', 'done');
+        completed++;
+      } else {
+        setChecklistItemStatus('checklist-poster', 'pending');
+        remainingMinutes += timeEstimates.poster;
+      }
+
+      // 4. TV Display - done if displayUrl exists
+      if (links.displayUrl) {
+        setChecklistItemStatus('checklist-display', 'done');
+        completed++;
+      } else {
+        setChecklistItemStatus('checklist-display', 'pending');
+        remainingMinutes += timeEstimates.display;
+      }
+
+      // 5. Public link - done if publicUrl exists
+      if (links.publicUrl) {
+        setChecklistItemStatus('checklist-public', 'done');
+        completed++;
+      } else {
+        setChecklistItemStatus('checklist-public', 'pending');
+        remainingMinutes += timeEstimates.public;
+      }
+
+      // 6. Sponsors - optional, done if sponsors array has items (moved to end)
       if (sponsors.length > 0) {
         setChecklistItemStatus('checklist-sponsors', 'done');
         completed++;
@@ -2028,43 +2364,22 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
         setChecklistItemStatus('checklist-sponsors', 'pending', true);
       }
 
-      // 3. Signup form - done if at least one form URL is configured
-      const hasFormUrl = data.registerUrl || data.checkinUrl || data.walkinUrl || data.surveyUrl;
-      if (hasFormUrl) {
-        setChecklistItemStatus('checklist-signup', 'done');
-        completed++;
-      } else {
-        setChecklistItemStatus('checklist-signup', 'pending');
-      }
-
-      // 4. Poster - done if posterUrl exists (generated on event creation)
-      if (links.posterUrl) {
-        setChecklistItemStatus('checklist-poster', 'done');
-        completed++;
-      } else {
-        setChecklistItemStatus('checklist-poster', 'pending');
-      }
-
-      // 5. TV Display - done if displayUrl exists
-      if (links.displayUrl) {
-        setChecklistItemStatus('checklist-display', 'done');
-        completed++;
-      } else {
-        setChecklistItemStatus('checklist-display', 'pending');
-      }
-
-      // 6. Public link - done if publicUrl exists
-      if (links.publicUrl) {
-        setChecklistItemStatus('checklist-public', 'done');
-        completed++;
-      } else {
-        setChecklistItemStatus('checklist-public', 'pending');
-      }
-
       // Update progress text
       const progressEl = document.getElementById('checklistProgress');
       if (progressEl) {
         progressEl.textContent = `${completed} of ${total} done`;
+      }
+
+      // Update header with remaining time
+      const headerH3 = document.querySelector('#happyPathChecklist .happy-path-header h3');
+      if (headerH3) {
+        if (completed >= 5) {
+          headerH3.textContent = 'All Set! 🎉';
+        } else if (remainingMinutes > 0) {
+          headerH3.textContent = `Finish Setup (~${remainingMinutes} min left)`;
+        } else {
+          headerH3.textContent = 'Get Your Event Ready';
+        }
       }
     }
 
