@@ -5,19 +5,27 @@
  * Story 5: Tighten RPC Inventory Comments to Actual APIs
  *
  * This script validates that the RPC ENDPOINT INVENTORY comment block
- * in ApiSchemas.gs matches reality. It cross-references:
+ * in ApiSchemas.gs matches reality and enforces MVP/V2 separation.
+ *
+ * VALIDATION STEPS:
+ *   0. V2 QUARANTINE CHECK - FAIL if V2 blocked endpoints appear in MVP surfaces
  *   1. Endpoints listed in the inventory comment
  *   2. Actual api_* functions in Code.gs
  *   3. Schema definitions in ApiSchemas.gs
  *   4. Actual RPC calls in HTML surface files
+ *
+ * V2 QUARANTINE:
+ *   - V2_BLOCKED_ENDPOINTS defines endpoints NOT allowed in MVP
+ *   - CI fails if any HTML file references blocked endpoints
+ *   - To enable V2 feature: move from V2_BLOCKED to EXPECTED_INVENTORY
  *
  * Usage:
  *   node scripts/check-rpc-inventory.js
  *   node scripts/check-rpc-inventory.js --verbose
  *
  * Exit codes:
- *   0 - Inventory is accurate
- *   1 - Found discrepancies
+ *   0 - Inventory is accurate and V2 quarantine intact
+ *   1 - Found discrepancies or V2 quarantine violations
  */
 
 const fs = require('fs');
@@ -61,6 +69,30 @@ const EXPECTED_INVENTORY = {
   ]
 };
 
+// ============================================================================
+// V2-QUARANTINE: BLOCKED ENDPOINTS - CI FAILS IF THESE APPEAR IN MVP
+// ============================================================================
+// These endpoints are V2 features NOT allowed in MVP surfaces.
+// If HTML files reference these endpoints, CI will FAIL.
+//
+// To enable a V2 feature:
+//   1. Set FEATURE_FLAGS.PORTFOLIO_V2 = true in Config.gs
+//   2. Move endpoint from V2_BLOCKED_ENDPOINTS to EXPECTED_INVENTORY
+//   3. Update API_TO_SCHEMA mapping
+//   4. Wire UI buttons (remove display:none)
+//   5. Redeploy
+
+const V2_BLOCKED_ENDPOINTS = [
+  'api_exportSharedReport',       // Export to CSV/JSON/PDF - V2 feature
+  'api_generateSharedReport',     // Report generation with recommendations
+  'api_getPortfolioAnalyticsV2',  // Multi-event portfolio mode
+  'api_getAdvancedAnalytics',     // V2 advanced analytics
+  'api_webhookRegister',          // V2 webhooks
+  'api_webhookUnregister',        // V2 webhooks
+  'api_webhookList',              // V2 webhooks
+  'api_webhookTest',              // V2 webhooks
+];
+
 // Mapping from api_* to schema path (subset of check-apis-vs-schemas.js)
 const API_TO_SCHEMA = {
   'api_getEventTemplates': 'templates.getEventTemplates',
@@ -84,12 +116,13 @@ const API_TO_SCHEMA = {
 
 /**
  * Extract inventory block from ApiSchemas.gs
+ * Stops at the V2-QUARANTINE section to avoid including blocked endpoints
  */
 function extractInventoryComment() {
   const content = fs.readFileSync(API_SCHEMAS_GS, 'utf8');
 
   // Find the inventory block - look for the full block including all surfaces
-  // The block starts with "RPC ENDPOINT INVENTORY" and ends with double equals line
+  // The block starts with "RPC ENDPOINT INVENTORY" and ends before V2-QUARANTINE
   const startMarker = '* RPC ENDPOINT INVENTORY';
   const startIdx = content.indexOf(startMarker);
 
@@ -97,7 +130,17 @@ function extractInventoryComment() {
     throw new Error('Could not find RPC ENDPOINT INVENTORY block in ApiSchemas.gs');
   }
 
-  // Find the closing equals line after all the content
+  // Find the V2-QUARANTINE section or closing equals line
+  // We want to stop BEFORE the V2 section to avoid parsing blocked endpoints
+  const v2QuarantineMarker = '[V2-QUARANTINE]';
+  const v2Idx = content.indexOf(v2QuarantineMarker, startIdx);
+
+  if (v2Idx !== -1) {
+    // Stop before V2-QUARANTINE section
+    return content.substring(startIdx, v2Idx);
+  }
+
+  // Fallback: find the closing equals line after all the content
   const endPattern = /\n \* ═{50,}\n \*\n \* @module/;
   const endMatch = content.substring(startIdx).match(endPattern);
 
@@ -161,8 +204,10 @@ function extractApiFunctions() {
 
 /**
  * Extract RPC calls from an HTML file
+ * @param {string} htmlPath - Path to HTML file
+ * @param {boolean} includeV2 - If true, also include V2 endpoints (for blocking check)
  */
-function extractRpcCallsFromHtml(htmlPath) {
+function extractRpcCallsFromHtml(htmlPath, includeV2 = false) {
   if (!fs.existsSync(htmlPath)) {
     return [];
   }
@@ -173,13 +218,49 @@ function extractRpcCallsFromHtml(htmlPath) {
 
   let match;
   while ((match = pattern.exec(content)) !== null) {
-    // Only include api_* calls (not V2 endpoints)
-    if (match[1].startsWith('api_') && !match[1].includes('V2')) {
-      calls.add(match[1]);
+    if (match[1].startsWith('api_')) {
+      if (includeV2) {
+        // Include all api_* calls for V2 blocking check
+        calls.add(match[1]);
+      } else {
+        // Only include MVP calls (not V2 endpoints)
+        if (!match[1].includes('V2') && !V2_BLOCKED_ENDPOINTS.includes(match[1])) {
+          calls.add(match[1]);
+        }
+      }
     }
   }
 
   return [...calls].sort();
+}
+
+/**
+ * Check if HTML file contains any V2 blocked endpoints
+ * Returns list of blocked endpoints found
+ */
+function findV2EndpointsInHtml(htmlPath) {
+  if (!fs.existsSync(htmlPath)) {
+    return [];
+  }
+
+  const content = fs.readFileSync(htmlPath, 'utf8');
+  const foundBlocked = [];
+
+  for (const blockedEndpoint of V2_BLOCKED_ENDPOINTS) {
+    // Check for direct calls: NU.rpc('api_exportSharedReport', ...)
+    const directPattern = new RegExp(`NU\\.rpc\\(['"]${blockedEndpoint}['"]`, 'g');
+    if (directPattern.test(content)) {
+      foundBlocked.push({ endpoint: blockedEndpoint, type: 'direct-call' });
+    }
+
+    // Check for dynamic calls: rpcName = 'api_exportSharedReport'
+    const dynamicPattern = new RegExp(`rpcName\\s*=\\s*['"]${blockedEndpoint}['"]`, 'g');
+    if (dynamicPattern.test(content)) {
+      foundBlocked.push({ endpoint: blockedEndpoint, type: 'dynamic-assignment' });
+    }
+  }
+
+  return foundBlocked;
 }
 
 /**
@@ -204,18 +285,59 @@ function validateInventory(verbose = false) {
   const errors = [];
   const warnings = [];
 
-  // Step 1: Parse inventory from ApiSchemas.gs
+  // =========================================================================
+  // STEP 0: V2 QUARANTINE CHECK - Fail fast if V2 endpoints in MVP surfaces
+  // =========================================================================
+  console.log('='.repeat(60));
+  console.log('V2 QUARANTINE CHECK');
+  console.log('='.repeat(60));
+  console.log(`\nBlocked V2 endpoints: ${V2_BLOCKED_ENDPOINTS.length}`);
+  if (verbose) {
+    V2_BLOCKED_ENDPOINTS.forEach(e => console.log(`  - ${e}`));
+  }
+
+  let v2Violations = 0;
+  const htmlFiles = fs.readdirSync(MVP_HTML_DIR).filter(f => f.endsWith('.html'));
+
+  for (const htmlFile of htmlFiles) {
+    const htmlPath = path.join(MVP_HTML_DIR, htmlFile);
+    const v2Found = findV2EndpointsInHtml(htmlPath);
+
+    if (v2Found.length > 0) {
+      console.log(`\n  ERROR: ${htmlFile} contains V2 blocked endpoints!`);
+      for (const violation of v2Found) {
+        console.log(`    - ${violation.endpoint} (${violation.type})`);
+        errors.push(`V2 QUARANTINE: ${htmlFile} uses blocked endpoint ${violation.endpoint}`);
+        v2Violations++;
+      }
+    } else if (verbose) {
+      console.log(`  OK: ${htmlFile} - no V2 endpoints`);
+    }
+  }
+
+  if (v2Violations === 0) {
+    console.log('\n  PASS: No V2 blocked endpoints in MVP surfaces');
+  } else {
+    console.log(`\n  FAIL: Found ${v2Violations} V2 endpoint violation(s)`);
+  }
+
+  // =========================================================================
+  // STEP 1: Parse inventory from ApiSchemas.gs
+  // =========================================================================
   const inventoryBlock = extractInventoryComment();
   const inventoryEndpoints = parseInventoryComment(inventoryBlock);
 
-  console.log('Parsed inventory from ApiSchemas.gs comment:');
+  console.log('\n' + '='.repeat(60));
+  console.log('INVENTORY PARSING');
+  console.log('='.repeat(60));
+  console.log('\nParsed inventory from ApiSchemas.gs comment:');
   for (const [surface, endpoints] of Object.entries(inventoryEndpoints)) {
     console.log(`  ${surface}: ${endpoints.length} endpoints`);
   }
 
   // Step 2: Get all api_* functions from Code.gs
   const apiFunctions = extractApiFunctions();
-  console.log(`\nFound ${apiFunctions.size} api_* functions in Code.gs`);
+  console.log(`\nFound ${apiFunctions.size} api_* functions in src/mvp/*.gs`);
 
   // Step 3: Validate each surface
   console.log('\n' + '='.repeat(60));
@@ -303,17 +425,24 @@ function validateInventory(verbose = false) {
   for (const endpoints of Object.values(EXPECTED_INVENTORY)) {
     endpoints.forEach(e => allEndpoints.add(e));
   }
-  console.log(`\nUnique MVP endpoints: ${allEndpoints.size}`);
+  console.log(`\nMVP Contract:`);
+  console.log(`  - Unique MVP endpoints: ${allEndpoints.size}`);
+  console.log(`  - V2 blocked endpoints: ${V2_BLOCKED_ENDPOINTS.length}`);
+  console.log(`  - V2 quarantine violations: ${v2Violations}`);
 
   if (errors.length === 0) {
-    console.log('\nSUCCESS: RPC inventory is accurate!');
+    console.log('\n' + '='.repeat(60));
+    console.log('SUCCESS: RPC inventory is accurate and V2 quarantine is intact!');
+    console.log('='.repeat(60));
     if (warnings.length > 0) {
       console.log(`\nWarnings (${warnings.length}):`);
       warnings.forEach(w => console.log(`  - ${w}`));
     }
     return 0;
   } else {
-    console.log(`\nFAILED: Found ${errors.length} error(s):`);
+    console.log('\n' + '='.repeat(60));
+    console.log(`FAILED: Found ${errors.length} error(s)`);
+    console.log('='.repeat(60));
     errors.forEach(e => console.log(`  - ${e}`));
     if (warnings.length > 0) {
       console.log(`\nWarnings (${warnings.length}):`);

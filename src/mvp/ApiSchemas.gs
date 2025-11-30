@@ -83,8 +83,25 @@
  *   - api_getSharedAnalytics  → analytics.getSharedReport
  *   - api_getSponsorAnalytics → analytics.getSponsorAnalytics
  *   - api_getSponsorReportQr  → analytics.getSponsorReportQr
- *   [V2] api_exportSharedReport → analytics.exportReport (button hidden, not MVP)
- *   [V2] api_getPortfolioAnalyticsV2 → (portfolio feature, not yet schema'd)
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
+ * [V2-QUARANTINE] BLOCKED ENDPOINTS - NOT ALLOWED IN MVP
+ * ═══════════════════════════════════════════════════════════════════════════
+ * These endpoints are V2 features, NOT part of the MVP contract.
+ * CI will FAIL if these appear in MVP surface bindings.
+ *
+ * V2 BLOCKED ENDPOINTS:
+ *   - api_exportSharedReport       → analytics.exportReport (export to CSV/JSON/PDF)
+ *   - api_generateSharedReport     → (report generation with recommendations)
+ *   - api_getPortfolioAnalyticsV2  → (multi-event portfolio mode)
+ *
+ * TO ENABLE V2 FEATURES:
+ *   1. Set FEATURE_FLAGS.PORTFOLIO_V2 = true in Config.gs
+ *   2. Move endpoint from V2_BLOCKED to EXPECTED_INVENTORY in check-rpc-inventory.js
+ *   3. Wire UI buttons (remove display:none)
+ *   4. Redeploy
  *
  * ═══════════════════════════════════════════════════════════════════════════
  *
@@ -1023,9 +1040,13 @@ const SCHEMAS = {
       }
     },
 
-    // api_exportSharedReport - [V2-ONLY] Export feature (button hidden in SharedReport.html MVP)
-    // Implementation exists in SharedReporting.gs but not wired to UI for MVP release.
-    // Keep schema for V2 when export functionality is enabled.
+    // ═══════════════════════════════════════════════════════════════════════════
+    // [V2-QUARANTINE] EXPORT REPORT - NOT MVP
+    // ═══════════════════════════════════════════════════════════════════════════
+    // api_exportSharedReport - V2 Export feature
+    // BLOCKED: FEATURE_FLAGS.PORTFOLIO_V2 must be true to enable
+    // UI: Button hidden (display:none) in SharedReport.html
+    // Schema kept for V2 when export functionality is enabled.
     exportReport: {
       request: {
         type: 'object',
