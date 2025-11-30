@@ -1566,7 +1566,13 @@ DO NOT modify contracts without updating:
       grid.innerHTML = '';
 
       // Use sponsor-friendly labels with helpful subtitles
+      // Sponsors first - gives immediate context on who's being tracked
       const metricCards = [
+        {
+          label: 'Sponsors',
+          sublabel: 'Active sponsors',
+          value: summary.uniqueSponsors || 0
+        },
         {
           label: 'Total Views',
           sublabel: 'Times your content was seen',
@@ -1591,11 +1597,6 @@ DO NOT modify contracts without updating:
           label: 'Events',
           sublabel: 'Active events',
           value: summary.uniqueEvents || 0
-        },
-        {
-          label: 'Sponsors',
-          sublabel: 'Active sponsors',
-          value: summary.uniqueSponsors || 0
         }
       ];
 
