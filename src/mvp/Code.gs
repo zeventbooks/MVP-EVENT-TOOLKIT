@@ -2,6 +2,45 @@
 // Build: triangle-prod-v1.2
 //
 // =============================================================================
+// TABLE OF CONTENTS - Section Index
+// =============================================================================
+// Navigate this file using [Sxx] section markers:
+//
+// [S00] FILE HEADER & API INVENTORY .......................... (this section)
+// [S01] CONSTANTS & ERROR HANDLING ........................... ERR, Ok, Err, CorrId
+// [S02] SCHEMA VALIDATION .................................... schemaCheck, SC_* contracts
+// [S03] LOGGING & DIAGNOSTICS ................................ diag_, runSafe, _logError_
+// [S04] CSRF PROTECTION ...................................... generateCSRFToken_, validateCSRFToken_
+// [S05] ROUTER (doGet) ....................................... URL routing, page resolution
+// [S06] REST API HANDLERS (doPost) ........................... handleRestApiGet_, handleRestApiPost_
+// [S07] CORS & JSON RESPONSE ................................. jsonResponse_, origin validation
+// [S08] TEMPLATE CONTEXT & INCLUDES .......................... include(), global context
+// [S09] SHORTLINK HANDLER .................................... handleRedirect_, token resolution
+// [S10] AUTHENTICATION ....................................... authenticateRequest_, JWT verification
+// [S11] MVP API CONTRACTS .................................... api_generateToken, api_getEventTemplates
+// [S12] GUARDS & INPUT VALIDATION ............................ gate_, sanitize*, isUrl
+// [S13] SHEET UTILITIES ...................................... getStoreSheet_, _ensure*Sheet_
+// [S14] STATUS & SETUP APIs .................................. api_status, api_setupCheck
+// [S15] HEALTH & CONFIG APIs ................................. api_healthCheck, api_getConfig
+// [S16] EVENT CONTRACT HYDRATION ............................. _buildEventContract_, EVENT_DEFAULTS_
+// [S17] CONTRACT VALIDATION & LOADERS ........................ validateEventContract_, getEventById_
+// [S18] EVENT CRUD ........................................... saveEvent_, generateQRDataUri_
+// [S19] READ APIs ............................................ api_list, api_get, api_getPublicBundle
+// [S20] BUNDLE APIs .......................................... api_getDisplayBundle, api_getPosterBundle
+// [S21] REPORT APIs .......................................... api_getSharedReportBundle, api_getReport
+// [S22] WRITE APIs ........................................... api_create, api_updateEventData, api_saveEvent
+// [S23] TRACKING APIs ........................................ api_logEvents, api_trackEventMetric
+// [S24] SPONSOR ANALYTICS APIs ............................... api_getSponsorAnalytics, api_getSponsorROI
+// [S25] SHORTLINKS & FORMS APIs .............................. api_createShortlink, api_createFormFromTemplate
+// [S26] V2+ PORTFOLIO APIs ................................... api_getPortfolioSponsorReport
+//
+// =============================================================================
+//
+// =============================================================================
+// [S00] FILE HEADER & API INVENTORY
+// =============================================================================
+//
+// =============================================================================
 // MVP SCOPE LOCK - Focus Group Critical
 // =============================================================================
 // MVP Surfaces (5 total):
@@ -70,7 +109,22 @@ function _listMvpApis_() {
   ];
 }
 
-// === Constants / Envelopes / Errors =======================================
+// =============================================================================
+// [S01] CONSTANTS & ERROR HANDLING
+// =============================================================================
+// Core error codes, response envelopes (Ok/Err), correlation ID generation,
+// and structured error logging utilities.
+//
+// Key exports:
+//   ERR                    - Frozen error code constants
+//   Ok(value)              - Success envelope factory
+//   Err(code, message)     - Error envelope factory
+//   generateCorrId_()      - Unique correlation ID for request tracing
+//   ErrWithCorrId_()       - Error with automatic logging & corrId
+//   UserFriendlyErr_()     - Sanitized user-facing error with corrId
+//   HtmlErrorWithCorrId_() - HTML error page with corrId
+// =============================================================================
+
 const ERR = Object.freeze({
   BAD_INPUT:   'BAD_INPUT',
   NOT_FOUND:   'NOT_FOUND',
@@ -237,7 +291,18 @@ function HtmlErrorWithCorrId_(title, internalMessage, options = {}) {
   `).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.DENY);
 }
 
-// === Schema validation (runtime contracts) =================================
+// =============================================================================
+// [S02] SCHEMA VALIDATION
+// =============================================================================
+// Runtime contract validation for API responses. Ensures responses match
+// expected shapes before returning to clients.
+//
+// Key exports:
+//   schemaCheck(schema, obj) - Validate object against schema
+//   SC_OK, SC_LIST, SC_GET   - Common response schemas
+//   _ensureOk_(label, schema, obj) - Validate and return or wrap error
+// =============================================================================
+
 function schemaCheck(schema, obj, where='') {
   if (schema.type === 'object' && obj && typeof obj === 'object') {
     for (const [k, v] of Object.entries(schema.props || {})) {
@@ -285,7 +350,25 @@ function _ensureOk_(label, schema, obj) {
   }
 }
 
-// === Logger (append-only with caps) =======================================
+// =============================================================================
+// [S03] LOGGING & DIAGNOSTICS
+// =============================================================================
+// Append-only logging to DIAG sheet with automatic cleanup.
+// Includes structured error logging to LOG_ERRORS sheet.
+//
+// Key exports:
+//   diag_(level, where, msg, meta)     - Log to DIAG sheet
+//   runSafe(where, fn, eventId)        - Execute with error capture
+//   _logError_(params)                 - Structured error log to LOG_ERRORS
+//   _getErrorLogSheet_(spreadsheetId)  - Get/create LOG_ERRORS sheet
+//   _handleRequestSafe_(method, e, fn) - Wrap request with error handling
+//
+// Configuration:
+//   DIAG_MAX = 3000      - Maximum rows in DIAG sheet
+//   DIAG_PER_DAY = 800   - Maximum rows per day
+//   LOG_ERRORS_MAX = 5000 - Maximum rows in LOG_ERRORS
+// =============================================================================
+
 const DIAG_SHEET='DIAG', DIAG_MAX=3000, DIAG_PER_DAY=800;
 const LOG_ERRORS_SHEET = 'LOG_ERRORS', LOG_ERRORS_MAX = 5000;
 
@@ -615,8 +698,18 @@ function runSafe(where, fn, eventId){
   }
 }
 
-// === CSRF Protection =======================================================
+// =============================================================================
+// [S04] CSRF PROTECTION
+// =============================================================================
+// Cross-Site Request Forgery protection using one-time tokens.
+// Tokens are stored in UserCache with 1-hour expiry.
+//
+// Key exports:
+//   generateCSRFToken_()     - Create new one-time CSRF token
+//   validateCSRFToken_(tok)  - Validate and consume token (atomic)
+//
 // Fixed: Bug #4 - Add CSRF token generation and validation
+// =============================================================================
 
 function generateCSRFToken_() {
   const token = Utilities.getUuid();
@@ -655,13 +748,26 @@ function validateCSRFToken_(token) {
   }
 }
 
-// === Router ================================================================
-// MVP Routes (5 surfaces): admin, public (default), display, poster, report/analytics
-// See docs/MVP_SURFACES.md for scope definition
+// =============================================================================
+// [S05] ROUTER (doGet)
+// =============================================================================
+// Main entry point for GET requests. Routes to HTML surfaces based on:
+//   - page/p parameter (page=admin, page=public, etc.)
+//   - pathInfo (friendly URLs: /events, /manage, /display)
+//   - shortlink tokens (/s/TOKEN)
 //
+// MVP Routes (5 surfaces):
+//   admin, public (default), display, poster, report/analytics
+//
+// Key exports:
+//   doGet(e)                   - Main GET handler
+//   routePage_(e, page, brand) - Render specific page
+//
+// See docs/MVP_SURFACES.md for scope definition
 // Story 16: Removed non-MVP routes (test, diagnostics, signup, config, planner,
 // sponsor, sponsor-roi) - these reference V2 files not in deployment (src/mvp only)
-// ===========================================================================
+// =============================================================================
+
 function doGet(e){
   const pageParam = (e?.parameter?.page || e?.parameter?.p || '').toString();
   const actionParam = (e?.parameter?.action || '').toString();
@@ -914,7 +1020,20 @@ function routePage_(e, page, brand, demoMode, options = {}) {
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
-// === REST API Handler for POST requests ===================================
+// =============================================================================
+// [S06] REST API HANDLERS (doPost)
+// =============================================================================
+// Main entry point for POST requests and REST API routing.
+// Handles both read-only (GET-style) and write operations.
+//
+// Key exports:
+//   doPost(e)                        - Main POST handler
+//   handleRestApiGet_(e, action)     - Read-only API operations
+//   handleRestApiPost_(e, action)    - Write API operations (require auth)
+//
+// Supported actions: See PUBLIC API INVENTORY in [S00] header
+// =============================================================================
+
 function doPost(e){
   // Fixed: Bug #22 - Separate try-catch blocks for better error reporting
   let body;
@@ -1254,7 +1373,19 @@ function handleRestApiPost_(e, action, body, brand) {
   return jsonResponse_(Err(ERR.BAD_INPUT, `Unknown action: ${action}`));
 }
 
-// === Origin Validation =====================================================
+// =============================================================================
+// [S07] CORS & JSON RESPONSE
+// =============================================================================
+// Origin validation and JSON response helpers with CORS headers.
+//
+// Key exports:
+//   isAllowedOrigin_(origin)  - Validate request origin
+//   jsonResponse_(data)       - Create JSON response with CORS headers
+//   _listMvpSurfaces_()       - List of valid MVP surface pages
+//   _isMvpSurface_(page)      - Check if page is MVP surface
+//   pageFile_(page)           - Map page name to HTML file
+// =============================================================================
+
 // Fixed: Bug #16 - Add origin validation to prevent unauthorized API access
 function isAllowedOrigin_(origin, authHeaders) {
   // Fixed: Bug #16 Part 2 - Requests without origin (curl, Postman, server-to-server)
@@ -1382,8 +1513,20 @@ function pageFile_(page){
   return 'Public';
 }
 
-// === Template Context Management ===========================================
-// Global variable to hold template context for include() function
+// =============================================================================
+// [S08] TEMPLATE CONTEXT & INCLUDES
+// =============================================================================
+// Global template context for passing data to HTML templates.
+// Includes the include() function for template composition.
+//
+// Key exports:
+//   global_setTemplateContext_(ctx)  - Set context for current request
+//   global_getTemplateContext_()     - Get context in template
+//   include(filename)                - Include partial HTML files
+//
+// Usage: Set context in routePage_, retrieve in HTML templates via <?!= ?>
+// =============================================================================
+
 var TEMPLATE_CONTEXT_ = null;
 
 /**
@@ -1433,7 +1576,19 @@ function include(filename) {
   return template.evaluate().getContent();
 }
 
-// === Shortlink redirect handler ============================================
+// =============================================================================
+// [S09] SHORTLINK HANDLER
+// =============================================================================
+// Handles /s/TOKEN shortlink redirects with click tracking.
+// Shortlinks are stored in SHORTLINKS sheet with metadata.
+//
+// Key exports:
+//   handleRedirect_(token)  - Resolve and redirect shortlink
+//
+// Shortlink format: /s/{token} → target URL
+// Tracking: Logs clicks to ANALYTICS sheet for reporting
+// =============================================================================
+
 function handleRedirect_(token) {
   // Story 11: All HTML errors include correlation IDs for tracing
   if (!token) {
@@ -1583,14 +1738,23 @@ function handleRedirect_(token) {
   `);
 }
 
-// === Authentication & Authorization ========================================
+// =============================================================================
+// [S10] AUTHENTICATION
+// =============================================================================
+// Multi-method authentication for write operations.
+// Read operations are public; write operations require auth.
+//
+// Supported methods:
+//   1. adminKey (legacy)    - Simple secret key in body/param
+//   2. Bearer token (JWT)   - Authorization: Bearer {token}
+//   3. API Key (header)     - X-API-Key header
+//
+// Key exports:
+//   authenticateRequest_(e, body, brandId) - Validate auth credentials
+//   timingSafeCompare_(a, b)               - Constant-time comparison
+//   verifyJWT_(token, brand)               - Validate JWT token
+// =============================================================================
 
-/**
- * Multi-method authentication support:
- * 1. adminKey (legacy) - Simple secret key
- * 2. Bearer token (JWT) - Stateless token-based auth
- * 3. API Key (header) - X-API-Key header
- */
 function authenticateRequest_(e, body, brandId) {
   const brand= findBrand_(brandId);
   if (!brand) {
@@ -1715,8 +1879,9 @@ function verifyJWT_(token, brand) {
 }
 
 // =============================================================================
-// === MVP API CONTRACTS (Triangle Live Demo) ==================================
+// [S11] MVP API CONTRACTS
 // =============================================================================
+// Core API functions and token generation for Triangle Live Demo.
 // Surfaces: Admin, Poster, Display, Public, Sponsor, SharedReport
 //
 // DO NOT change these contracts without updating:
@@ -1828,8 +1993,27 @@ function api_getEventTemplates(payload, ctx) {
   });
 }
 
-// === Guards / Helpers ======================================================
+// =============================================================================
+// [S12] GUARDS & INPUT VALIDATION
+// =============================================================================
+// Authorization guards, rate limiting, and input sanitization.
+//
+// Key exports:
+//   gate_(brandId, adminKey, ip)   - Auth guard with rate limiting
+//   assertScopeAllowed_(brand, s)  - Check scope permissions
+//   isUrl(s, maxLength)            - URL validation
+//   safeJSONParse_(json, default)  - Safe JSON parsing
+//   sanitizeInput_(input, max)     - Input sanitization
+//   sanitizeId_(id)                - ID sanitization
+//
+// Configuration:
+//   RATE_MAX_PER_MIN = 10          - Max requests per minute
+//   RATE_LOCKOUT_MINS = 15         - Lockout duration
+//   MAX_FAILED_AUTH = 5            - Max failed auth attempts
+//
 // Fixed: Bug #18 - Improved rate limiting with IP tracking and backoff
+// =============================================================================
+
 const RATE_MAX_PER_MIN = 10; // Reduced from 20
 const RATE_LOCKOUT_MINS = 15;
 const MAX_FAILED_AUTH = 5;
@@ -1958,10 +2142,20 @@ function sanitizeSpreadsheetValue_(value) {
   return SecurityMiddleware_sanitizeSpreadsheetValue(value);
 }
 
-// === Sheet Utilities =========================================================
+// =============================================================================
+// [S13] SHEET UTILITIES
+// =============================================================================
+// Spreadsheet access and sheet initialization utilities.
+// Each sheet type has an _ensure* function that creates it if missing.
+//
+// Key exports:
+//   getStoreSheet_(brand, scope)     - Get/create scope sheet (EVENTS, SPONSORS)
+//   _ensureAnalyticsSheet_(ssId)     - Get/create ANALYTICS sheet
+//   _ensureShortlinksSheet_(ssId)    - Get/create SHORTLINKS sheet
+//
 // NOTE: These could be extracted to SheetUtils.gs in the future for better
 // modularity. Keeping here for now to minimize risk during refactoring.
-// Candidates for extraction: getStoreSheet_, _ensureAnalyticsSheet_, _ensureShortlinksSheet_
+// =============================================================================
 
 function getStoreSheet_(brand, scope){
   const ss = SpreadsheetApp.openById(brand.store.spreadsheetId);
@@ -2020,7 +2214,21 @@ function _ensureShortlinksSheet_(spreadsheetId){
   return sh;
 }
 
-// === APIs (uniform envelopes + SWR) =======================================
+// =============================================================================
+// [S14] STATUS & SETUP APIs
+// =============================================================================
+// System status, health checks, and setup verification APIs.
+// Used by Status.html and deployment verification scripts.
+//
+// Key exports:
+//   api_status(brandId)            - Database connectivity check
+//   api_statusPure(brandId)        - Pure status (no side effects)
+//   api_statusMvp(brandId)         - MVP-specific status check
+//   api_setupCheck(brandId)        - Comprehensive setup verification
+//   checkAnalyticsSheetHealth_()   - Analytics sheet validation
+//   checkSharedAnalyticsContract_() - Contract validation
+//   api_checkPermissions(brandId)  - Permission verification
+// =============================================================================
 
 /**
  * System status check - verifies database connectivity and returns build info
@@ -2674,10 +2882,16 @@ function api_checkPermissions(brandId) {
   });
 }
 
-/**
- * Simple health check endpoint
- * @tier mvp
- */
+// =============================================================================
+// [S15] HEALTH & CONFIG APIs
+// =============================================================================
+// Lightweight health check and configuration endpoints.
+//
+// Key exports:
+//   api_healthCheck()  - Simple alive ping
+//   api_getConfig(arg) - Brand/environment configuration (with ETag caching)
+// =============================================================================
+
 function api_healthCheck(){
   return runSafe('api_healthCheck', () => {
     diag_('info','health','ping',{build:ZEB.BUILD_ID});
@@ -2701,8 +2915,19 @@ function api_getConfig(arg){
   });
 }
 
-// === Event Contract Hydration ================================================
-// Transforms raw storage data into canonical Event shape per EVENT_CONTRACT.md v2.0
+// =============================================================================
+// [S16] EVENT CONTRACT HYDRATION
+// =============================================================================
+// Transforms raw spreadsheet data into canonical Event shape.
+// Single source of truth per /schemas/event.schema.json and EVENT_CONTRACT.md.
+//
+// Key exports:
+//   EVENT_DEFAULTS_            - Default values for event fields
+//   _buildEventContract_(row)  - Build canonical Event from row data
+//
+// This is THE contract boundary - if a field isn't in event.schema.json,
+// it doesn't exist in the output. All surfaces get identical Event shapes.
+// =============================================================================
 
 /**
  * Default values for event fields per EVENT_CONTRACT.md v2.0 (MVP + V2-Ready)
@@ -2969,9 +3194,21 @@ function _buildEventContract_(row, options = {}) {
   };
 }
 
-// === Contract Validation & Single Source of Truth Loaders =====================
-// All event read/write operations MUST go through these functions
-// See EVENT_CONTRACT.md for the canonical shape specification
+// =============================================================================
+// [S17] CONTRACT VALIDATION & LOADERS
+// =============================================================================
+// Single source of truth for event data access. All read/write operations
+// MUST go through these functions to ensure contract compliance.
+//
+// Key exports:
+//   validateEventContract_(event, opts) - Validate event against schema
+//   getEventById_(brandId, id, opts)    - Load single event by ID
+//   getEventsByBrand_(brandId, opts)    - Load all events for brand
+//   normalizeCreatePayloadToEvent_(p)   - Normalize create payload
+//   mergeEventUpdate_(existing, data)   - Merge update into event
+//
+// See /schemas/event.schema.json and EVENT_CONTRACT.md for specifications.
+// =============================================================================
 
 /**
  * Validate an event against EVENT_CONTRACT.md v2.0 requirements
@@ -3356,6 +3593,20 @@ function mergeEventUpdate_(existingEvent, updateData) {
 
   return merged;
 }
+
+// =============================================================================
+// [S18] EVENT CRUD
+// =============================================================================
+// Core create/update/save operations for events.
+// All write operations go through saveEvent_() which enforces contract.
+//
+// Key exports:
+//   saveEvent_(brandId, id, data, opts)  - Canonical event save (ZEVENT-003)
+//   generateQRDataUri_(url)              - Generate QR code data URI
+//   hydrateSponsorIds_(brandId, ids)     - Load sponsor data for event
+//
+// QR codes are generated as base64 PNG data URIs for portable embedding.
+// =============================================================================
 
 /**
  * Contract-first save path for events (ZEVENT-003)
@@ -3754,6 +4005,21 @@ function hydrateSponsorIds_(brandId, sponsorIds) {
   }
 }
 
+// =============================================================================
+// [S19] READ APIs
+// =============================================================================
+// Public read-only APIs for listing and fetching events.
+// All use single-source-of-truth loaders from [S17].
+//
+// Key exports:
+//   api_list(payload)          - List events with pagination
+//   api_get(payload)           - Get single event by ID
+//   api_getPublicBundle(p)     - Public surface data bundle
+//   api_getAdminBundle(p)      - Admin surface data bundle
+//   getAllSponsorsForBrand_(b) - Get all sponsors for a brand
+//   getEventDiagnostics_(b,id) - Get event diagnostics
+// =============================================================================
+
 /**
  * List events with pagination
  * Uses getEventsByBrand_() single source of truth loader
@@ -4020,6 +4286,22 @@ function getEventDiagnostics_(brandId, eventId) {
     };
   }
 }
+
+// =============================================================================
+// [S20] BUNDLE APIs
+// =============================================================================
+// Surface-specific data bundles optimized for each HTML surface.
+// Bundles include event data plus surface-specific computed properties.
+//
+// Key exports:
+//   api_getDisplayBundle(p)   - TV/kiosk display bundle
+//   getDisplayConfig_(t, b)   - Compute display config from template
+//   api_getPosterBundle(p)    - Print poster bundle with QR codes
+//   generateQRCodes_(event)   - Generate all QR codes for event
+//   generatePrintStrings_(e)  - Generate print-friendly strings
+//   api_getSponsorBundle(p)   - Sponsor portal bundle
+//   getSponsorMetricsForEvent_(b, id) - Get sponsor metrics
+// =============================================================================
 
 /**
  * Display Bundle - Optimized bundle for Display.html (TV mode)
@@ -4380,6 +4662,21 @@ function getSponsorMetricsForEvent_(brand, eventId) {
   return metrics;
 }
 
+// =============================================================================
+// [S21] REPORT APIs
+// =============================================================================
+// Analytics and reporting APIs for SharedReport.html and exports.
+//
+// Key exports:
+//   api_getSharedReportBundle(p) - [LEGACY] Report bundle
+//   getEventMetricsForReport_(b, id) - Get event metrics from ANALYTICS
+//   api_getReport(req)           - Get report data
+//   api_exportReport(req)        - Export report to spreadsheet
+//
+// Note: SharedReport.html uses the canonical 3-endpoint set from
+// SharedReporting.gs: api_getSharedAnalytics, api_getSponsorAnalytics, etc.
+// =============================================================================
+
 /**
  * [LEGACY] api_getSharedReportBundle - Optimized bundle for shared analytics reports
  *
@@ -4580,6 +4877,21 @@ function getEventMetricsForReport_(brand, eventId) {
 
   return metrics;
 }
+
+// =============================================================================
+// [S22] WRITE APIs
+// =============================================================================
+// Event creation and update APIs requiring authentication.
+// All write operations delegate to saveEvent_() from [S18].
+//
+// Key exports:
+//   api_create(payload)        - [LEGACY] Create new event
+//   api_updateEventData(req)   - [LEGACY] Update existing event
+//   api_saveEvent(req)         - [CANONICAL] Unified create/update (ZEVENT-003)
+//
+// ZEVENT-003: api_saveEvent is the canonical write path; api_create and
+// api_updateEventData are adapters for backward compatibility.
+// =============================================================================
 
 /**
  * Create new event (ZEVENT-003: Adapter using saveEvent_)
@@ -4785,6 +5097,18 @@ function api_saveEvent(req) {
     return _ensureOk_('api_saveEvent', SC_GET, { ok: true, etag, value: savedEvent });
   });
 }
+
+// =============================================================================
+// [S23] TRACKING APIs
+// =============================================================================
+// Analytics event logging and metric tracking. No auth required - public endpoints.
+// Data is written to ANALYTICS sheet for reporting.
+//
+// Key exports:
+//   api_logEvents(req)         - Log impressions, clicks, dwell time
+//   api_trackEventMetric(req)  - Track individual metric
+//   api_logExternalClick(req)  - Log external link clicks with attribution
+// =============================================================================
 
 /**
  * Log analytics events (impressions, clicks, dwell time)
@@ -5104,6 +5428,22 @@ function api_exportReport(req){
     return Ok({sheetUrl: ss.getUrl() + '#gid=' + sh.getSheetId()});
   });
 }
+
+// =============================================================================
+// [S24] SPONSOR ANALYTICS APIs
+// =============================================================================
+// Sponsor-specific analytics, ROI calculation, and settings APIs.
+// Used by Sponsor.html and SharedReport.html surfaces.
+//
+// Key exports:
+//   api_getSponsorAnalytics(req)      - Sponsor-scoped analytics
+//   api_getSponsorROI(req)            - ROI calculation with engagement score
+//   api_getSponsorSettings(req)       - Sponsor placement settings
+//   api_getSponsorReportQr(req)       - Generate sponsor report QR code
+//   api_validateSponsorPlacements(req) - Validate placement configuration
+//   calculateEngagementScore_(...)    - Compute engagement score
+//   generateSponsorInsights_(agg)     - Generate insights from aggregates
+// =============================================================================
 
 /**
  * Get sponsor-specific analytics data
@@ -5481,6 +5821,19 @@ function generateSponsorInsights_(agg) {
   return insights;
 }
 
+// =============================================================================
+// [S25] SHORTLINKS & FORMS APIs
+// =============================================================================
+// Shortlink creation and Google Forms integration.
+// Shortlinks enable CTR tracking; Forms provide registration capabilities.
+//
+// Key exports:
+//   api_createShortlink(req)        - Create trackable shortlink
+//   api_listFormTemplates()         - List available form templates
+//   api_createFormFromTemplate(req) - Create Google Form from template
+//   api_generateFormShortlink(req)  - Create trackable form link
+// =============================================================================
+
 /**
  * Create trackable shortlink for CTR tracking
  * @tier mvp - Core tracking for analytics loop
@@ -5659,13 +6012,20 @@ function api_generateFormShortlink(req){
 }
 
 // =============================================================================
-// === v2+ APIs - Working but NOT MVP focus ====================================
+// [S26] V2+ PORTFOLIO APIs
 // =============================================================================
-// These APIs work but are not critical for focus group testing.
-// Don't delete, but don't design around them for MVP.
+// Multi-brand portfolio analytics for parent organizations.
+// These APIs work but are NOT MVP focus - don't design around them for v1.
+//
+// Key exports:
+//   api_getPortfolioSponsorReport(req) - Cross-brand sponsor report
+//   api_getPortfolioSummary(req)       - Portfolio summary metrics
+//   api_getPortfolioSponsors(req)      - List portfolio sponsors
+//   api_runDiagnostics()               - System diagnostics
+//   getPortfolioSponsorReport_(...)    - Portfolio report implementation
+//   getPortfolioSummary_(brandId)      - Summary implementation
+//   getPortfolioSponsors_(brandId)     - Sponsors list implementation
 // =============================================================================
-
-// === Brand Portfolio Analytics API (Parent Organizations) =================
 
 /**
  * Get consolidated sponsor report across brand portfolio
@@ -5855,9 +6215,6 @@ function api_runDiagnostics(){
     }
   });
 }
-
-// === Brand Portfolio Analytics =============================================
-// Multi-brand sponsorship reporting for parent organizations
 
 /**
  * Get consolidated sponsor report across brand portfolio
