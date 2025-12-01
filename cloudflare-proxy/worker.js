@@ -152,7 +152,7 @@ async function proxyPageRequest(request, appsScriptBase, url) {
     '/events', '/manage', '/admin', '/display', '/tv', '/kiosk',
     '/screen', '/posters', '/poster', '/flyers', '/schedule',
     '/calendar', '/dashboard', '/create', '/analytics', '/reports',
-    '/insights', '/stats', '/status', '/health', '/docs'
+    '/insights', '/stats', '/status', '/health', '/ping', '/docs'
   ];
 
   for (const prefix of knownPrefixes) {
@@ -174,6 +174,7 @@ async function proxyPageRequest(request, appsScriptBase, url) {
       'display': 'display', 'tv': 'display', 'kiosk': 'display',
       'screen': 'display', 'poster': 'poster', 'posters': 'poster',
       'flyers': 'poster', 'status': 'status', 'health': 'status',
+      'ping': 'ping',  // Ultra-simple uptime check endpoint
       'analytics': 'report', 'reports': 'report', 'insights': 'report',
       'stats': 'report', 'schedule': 'public', 'calendar': 'public',
       'dashboard': 'admin', 'create': 'admin', 'docs': 'admin'

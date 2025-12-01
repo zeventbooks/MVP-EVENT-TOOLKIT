@@ -135,6 +135,8 @@ routes = [
   { pattern = "www.eventangle.com/status*", zone_name = "eventangle.com" },
   { pattern = "eventangle.com/health*", zone_name = "eventangle.com" },
   { pattern = "www.eventangle.com/health*", zone_name = "eventangle.com" },
+  { pattern = "eventangle.com/ping*", zone_name = "eventangle.com" },
+  { pattern = "www.eventangle.com/ping*", zone_name = "eventangle.com" },
   { pattern = "eventangle.com/docs*", zone_name = "eventangle.com" },
   { pattern = "www.eventangle.com/docs*", zone_name = "eventangle.com" },
   { pattern = "eventangle.com/api*", zone_name = "eventangle.com" },

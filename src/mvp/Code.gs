@@ -852,6 +852,12 @@ function doGet(e){
             .setMimeType(ContentService.MimeType.JSON);
         }
 
+        // Ultra-simple ping endpoint for uptime monitoring (UptimeRobot, Pingdom, etc.)
+        if (resolvedPage === 'ping') {
+          return ContentService.createTextOutput(JSON.stringify({ status: 'ok' }))
+            .setMimeType(ContentService.MimeType.JSON);
+        }
+
         // Story 16: Removed API docs route - ApiDocs.html not in MVP deployment
         // API docs available in archive/v2-code/ApiDocs.html for future use
 
@@ -927,6 +933,13 @@ function doGet(e){
     const brandParam = (e?.parameter?.brand || 'root').toString();
     const permissionResult = api_checkPermissions(brandParam);
     return ContentService.createTextOutput(JSON.stringify(permissionResult, null, 2))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  // Ultra-simple ping endpoint for uptime monitoring (UptimeRobot, Pingdom, etc.)
+  // Returns minimal JSON for fastest response and simplest text predicate matching
+  if (pageParam === 'ping') {
+    return ContentService.createTextOutput(JSON.stringify({ status: 'ok' }))
       .setMimeType(ContentService.MimeType.JSON);
   }
 
