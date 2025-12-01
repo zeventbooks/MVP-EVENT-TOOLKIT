@@ -120,7 +120,9 @@ See **[tests/README.md](./tests/README.md)** for complete test documentation.
 ## Documentation
 
 ### Core Documentation (MVP)
+- **[NAVIGATION_DIAGRAM.txt](./NAVIGATION_DIAGRAM.txt)** - Master integration flow diagram (Admin → Bundles → Surfaces → Analytics, MVP vs V2 paths)
 - **[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)** - MVP architecture (12 backend services, 5 frontend surfaces, feature flags)
+- **[docs/INTEGRATION-FLOWS.md](./docs/INTEGRATION-FLOWS.md)** - API wiring diagrams with request/response schemas
 - **[docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md)** - Deployment, CI/CD, environments, troubleshooting
 - **[docs/FRIENDLY_URLS.md](./docs/FRIENDLY_URLS.md)** - Customer-friendly URL aliasing system
 - **[docs/SETUP_DIAGNOSTICS.md](./docs/SETUP_DIAGNOSTICS.md)** - Setup verification endpoint
@@ -139,4 +141,4 @@ Historical analysis reports and experimental features are in `docs/archived/`
 - `EVENTS` & `DIAG` sheets are created on-demand in the bound spreadsheet
 - Add brands by extending `BRANDS` in `Config.gs`; later enable more scopes by adding `'leagues'` or `'tournaments'`
 
-# Last updated: 2025-11-22
+# Last updated: 2025-11-30
