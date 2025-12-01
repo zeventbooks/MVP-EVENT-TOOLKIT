@@ -7,10 +7,18 @@
 // [MVP] SERVICE CONTRACT
 // ═══════════════════════════════════════════════════════════════════════════════
 //
-// READS:
-//   ← Analytics sheet (via _ensureAnalyticsSheet_())
+// READS (in priority order):
+//   ← EVENT_ANALYTICS sheet (precomputed rollup - primary, fast)
+//   ← ANALYTICS sheet (raw logs - fallback if rollup unavailable)
 //
 // WRITES: None (read-only reporting service)
+//
+// DATA SOURCE STRATEGY:
+//   1. Try EVENT_ANALYTICS rollup for fast response
+//   2. Fall back to raw ANALYTICS if rollup missing/empty
+//   3. Sponsor filtering always uses raw data (rollup doesn't track per-sponsor per-event)
+//
+// See: AnalyticsRollup.gs for rollup implementation
 //
 // OUTPUT SHAPES:
 //   → SharedAnalytics: /schemas/shared-analytics.schema.json (MVP-frozen v1.1)
@@ -111,55 +119,248 @@
  * SCHEMA CONTRACT: /schemas/analytics.schema.json (MVP-frozen v1.1)
  * Returns the SharedAnalytics shape expected by SharedReport.html
  *
+ * DATA SOURCE PRIORITY:
+ * 1. EVENT_ANALYTICS rollup table (precomputed, fast)
+ * 2. Raw ANALYTICS sheet (fallback if rollup unavailable)
+ *
  * @param {Object} params - Query parameters
  * @param {string} params.brandId - Brand ID
  * @param {string} [params.eventId] - Filter by specific event
  * @param {string} [params.sponsorId] - Filter by specific sponsor (for sponsor view)
  * @param {boolean} [params.isSponsorView=false] - True if sponsor is requesting
+ * @param {boolean} [params.forceRaw=false] - Force raw computation (skip rollup)
  * @returns {Object} SharedAnalytics shape per schema contract
  */
 function api_getSharedAnalytics(params) {
   try {
-    const { brandId, eventId, sponsorId, isSponsorView = false } = params;
+    const { brandId, eventId, sponsorId, isSponsorView = false, forceRaw = false } = params;
 
     if (!brandId) {
       return Err(ERR.BAD_INPUT, 'brandId required');
     }
 
-    // Get analytics sheet
-    const analyticsSheet = _ensureAnalyticsSheet_();
-    const rows = analyticsSheet.getDataRange().getValues();
-
-    // Parse analytics data
-    const analytics = rows.slice(1).map(row => ({
-      timestamp: row[0],
-      eventId: row[1],
-      surface: row[2],
-      metric: row[3],
-      sponsorId: row[4],
-      value: row[5]
-    }));
-
-    // Filter by parameters
-    let filtered = analytics.filter(a => a.eventId);
-
-    if (eventId) {
-      filtered = filtered.filter(a => a.eventId === eventId);
+    // Try to use precomputed rollup first (unless forceRaw or sponsor filtering needed)
+    // Note: Sponsor filtering requires raw data as rollup doesn't track per-sponsor metrics per event
+    if (!forceRaw && !sponsorId && !isSponsorView) {
+      const rollupResult = _tryGetFromRollup_(brandId, eventId);
+      if (rollupResult) {
+        return Ok(rollupResult);
+      }
+      // Rollup unavailable, fall through to raw computation
+      diag_('debug', 'api_getSharedAnalytics', 'Rollup unavailable, using raw computation');
     }
 
-    if (sponsorId || isSponsorView) {
-      filtered = filtered.filter(a => a.sponsorId === (sponsorId || params.sponsorId));
-    }
-
-    // Build SharedAnalytics response per schema contract (pass brandId for name resolution)
-    const response = buildSharedAnalyticsResponse_(filtered, isSponsorView, brandId);
-
-    return Ok(response);
+    // Fallback: Compute from raw ANALYTICS sheet
+    return _computeFromRawAnalytics_(brandId, eventId, sponsorId, isSponsorView);
 
   } catch (e) {
     diag_('error', 'api_getSharedAnalytics', e.toString());
     return Err(ERR.INTERNAL, 'Failed to get analytics');
   }
+}
+
+/**
+ * Try to get analytics from the precomputed EVENT_ANALYTICS rollup.
+ * Returns null if rollup is unavailable, stale, or empty.
+ *
+ * @param {string} brandId - Brand ID
+ * @param {string} [eventId] - Optional event filter
+ * @returns {Object|null} SharedAnalytics response or null if unavailable
+ * @private
+ */
+function _tryGetFromRollup_(brandId, eventId) {
+  try {
+    // Check if rollup function exists (in case AnalyticsRollup.gs not loaded)
+    if (typeof getEventAnalyticsRollup_ !== 'function') {
+      return null;
+    }
+
+    const rollup = getEventAnalyticsRollup_({ brandId, eventId });
+
+    // No rollup data available
+    if (!rollup || !rollup.events || rollup.events.length === 0) {
+      return null;
+    }
+
+    // Build name lookup maps for sponsor resolution
+    const sponsorNameMap = buildSponsorNameMap_(brandId);
+
+    // Build surfaces array from rollup surface aggregations
+    const surfaces = _buildSurfacesFromRollup_(rollup);
+
+    // Build events array from rollup data
+    const events = rollup.events.map(e => ({
+      id: e.eventId,
+      name: e.name || e.eventId,
+      impressions: e.impressions,
+      clicks: e.clicks,
+      ctr: e.ctr,
+      signupsCount: e.signups
+    }));
+
+    // For sponsors, we need raw data (rollup doesn't track per-sponsor metrics)
+    // Return null for sponsors array - will be computed from raw if needed
+    // Or fetch from raw analytics just for sponsor aggregation
+    const sponsors = _getSponsorsFromRawAnalytics_(brandId, eventId, sponsorNameMap);
+
+    // Get top sponsors using raw analytics
+    const topSponsors = sponsors && sponsors.length > 0
+      ? sponsors.slice(0, 3)
+      : null;
+
+    // Build response matching SharedAnalytics schema
+    const response = {
+      lastUpdatedISO: rollup.lastRollupISO || new Date().toISOString(),
+      summary: rollup.summary,
+      surfaces: surfaces,
+      sponsors: sponsors && sponsors.length > 0 ? sponsors : null,
+      events: events.length > 0 ? events : null,
+      topSponsors: topSponsors,
+      _dataSource: 'rollup'  // Debug flag (not in schema, will be filtered by strict validation)
+    };
+
+    return response;
+
+  } catch (e) {
+    diag_('warn', '_tryGetFromRollup_', 'Rollup read failed', { error: e.message });
+    return null;
+  }
+}
+
+/**
+ * Build surfaces array from rollup data.
+ * Since rollup tracks clicks per surface via ctaClicksJson, we can derive surface metrics.
+ *
+ * @param {Object} rollup - Rollup data from getEventAnalyticsRollup_
+ * @returns {Array} Surface metrics array
+ * @private
+ */
+function _buildSurfacesFromRollup_(rollup) {
+  const SURFACE_LABELS = {
+    'poster': 'Poster',
+    'display': 'Display',
+    'public': 'Public',
+    'signup': 'Signup'
+  };
+
+  // Aggregate surface metrics from all events
+  const surfaceMap = {
+    poster: { id: 'poster', label: 'Poster', impressions: 0, clicks: 0, qrScans: 0 },
+    display: { id: 'display', label: 'Display', impressions: 0, clicks: 0, qrScans: 0 },
+    public: { id: 'public', label: 'Public', impressions: 0, clicks: 0, qrScans: 0 },
+    signup: { id: 'signup', label: 'Signup', impressions: 0, clicks: 0, qrScans: 0 }
+  };
+
+  // Distribute metrics from events to surfaces
+  // Note: Rollup tracks total clicks per event and clicks-by-surface in ctaClicksJson
+  // But impressions per surface are not tracked in rollup - would need raw data
+  // For now, estimate using click distribution ratio
+  for (const event of rollup.events) {
+    const ctaClicks = event.ctaClicks || {};
+    for (const surface of ['poster', 'display', 'public', 'signup']) {
+      surfaceMap[surface].clicks += ctaClicks[surface] || 0;
+    }
+  }
+
+  // Total impressions from summary - distribute proportionally to clicks
+  // (This is an approximation; for exact numbers, use raw analytics)
+  const totalClicks = Object.values(surfaceMap).reduce((sum, s) => sum + s.clicks, 0);
+  const totalImpressions = rollup.summary.totalImpressions;
+
+  if (totalClicks > 0) {
+    for (const surface of ['poster', 'display', 'public', 'signup']) {
+      const clickRatio = surfaceMap[surface].clicks / totalClicks;
+      surfaceMap[surface].impressions = Math.round(totalImpressions * clickRatio);
+    }
+  }
+
+  // Calculate engagement rate
+  return Object.values(surfaceMap).map(s => {
+    const totalEngagement = s.clicks + s.qrScans;
+    s.engagementRate = s.impressions > 0
+      ? Number(((totalEngagement / s.impressions) * 100).toFixed(1))
+      : 0;
+    return s;
+  }).filter(s => s.impressions > 0 || s.clicks > 0)
+    .sort((a, b) => b.impressions - a.impressions);
+}
+
+/**
+ * Get sponsor metrics from raw ANALYTICS sheet.
+ * Used when rollup is available but sponsor data is needed.
+ *
+ * @param {string} brandId - Brand ID
+ * @param {string} [eventId] - Optional event filter
+ * @param {Object} sponsorNameMap - Sponsor ID to name mapping
+ * @returns {Array|null} Sponsor metrics array or null
+ * @private
+ */
+function _getSponsorsFromRawAnalytics_(brandId, eventId, sponsorNameMap) {
+  try {
+    const analyticsSheet = _ensureAnalyticsSheet_();
+    const rows = analyticsSheet.getDataRange().getValues();
+
+    // Parse and filter
+    let analytics = rows.slice(1).map(row => ({
+      eventId: row[1],
+      metric: row[3],
+      sponsorId: row[4]
+    })).filter(a => a.eventId && a.sponsorId);
+
+    if (eventId) {
+      analytics = analytics.filter(a => a.eventId === eventId);
+    }
+
+    // Build sponsors array
+    return buildSponsorsArray_(analytics, sponsorNameMap);
+
+  } catch (e) {
+    diag_('warn', '_getSponsorsFromRawAnalytics_', 'Failed to get sponsors', { error: e.message });
+    return null;
+  }
+}
+
+/**
+ * Compute analytics from raw ANALYTICS sheet (original implementation).
+ * Used as fallback when rollup is unavailable.
+ *
+ * @param {string} brandId - Brand ID
+ * @param {string} [eventId] - Optional event filter
+ * @param {string} [sponsorId] - Optional sponsor filter
+ * @param {boolean} isSponsorView - Whether this is sponsor-scoped view
+ * @returns {Object} Result envelope with SharedAnalytics
+ * @private
+ */
+function _computeFromRawAnalytics_(brandId, eventId, sponsorId, isSponsorView) {
+  // Get analytics sheet
+  const analyticsSheet = _ensureAnalyticsSheet_();
+  const rows = analyticsSheet.getDataRange().getValues();
+
+  // Parse analytics data
+  const analytics = rows.slice(1).map(row => ({
+    timestamp: row[0],
+    eventId: row[1],
+    surface: row[2],
+    metric: row[3],
+    sponsorId: row[4],
+    value: row[5]
+  }));
+
+  // Filter by parameters
+  let filtered = analytics.filter(a => a.eventId);
+
+  if (eventId) {
+    filtered = filtered.filter(a => a.eventId === eventId);
+  }
+
+  if (sponsorId || isSponsorView) {
+    filtered = filtered.filter(a => a.sponsorId === (sponsorId || sponsorId));
+  }
+
+  // Build SharedAnalytics response per schema contract (pass brandId for name resolution)
+  const response = buildSharedAnalyticsResponse_(filtered, isSponsorView, brandId);
+
+  return Ok(response);
 }
 
 /**
