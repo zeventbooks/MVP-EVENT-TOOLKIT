@@ -2,6 +2,15 @@
 
 A boring, step-by-step checklist for shipping a release.
 
+> **CI-ONLY PRODUCTION POLICY**
+>
+> Production deployments MUST go through GitHub Actions. The steps in this
+> runbook are for **verification and troubleshooting only** - not for manual
+> production deployments. See [PRODUCTION_DEPLOYMENT_POLICY.md](./PRODUCTION_DEPLOYMENT_POLICY.md).
+>
+> **To deploy to production:** Create a PR to `main`, get it reviewed, merge it.
+> CI will handle the rest.
+
 ---
 
 ## BASE_URL Toggle (Single Toggle: GAS vs EventAngle)
@@ -66,8 +75,11 @@ npm run test:ci:stage2   # E2E: API + frontend tests
 
 ## 2. Deploy to Apps Script
 
+> **For Production:** Do NOT run this manually. Push to `main` and let CI deploy.
+> The commands below are for **Dev/Stage environments only**.
+
 ```bash
-npm run deploy
+npm run deploy  # Dev/Stage only - CI handles production
 ```
 
 Watch for the deployment URL in the output. It looks like:
@@ -95,6 +107,9 @@ Confirm:
 ---
 
 ## 4. Update Cloudflare Worker
+
+> **For Production:** CI automatically updates the Cloudflare Worker when deploying.
+> Manual updates below are for **Dev/Stage or troubleshooting only**.
 
 If the DEPLOYMENT_ID changed (it does on each deploy):
 
@@ -158,13 +173,14 @@ Both should pass. If they fail, check:
 
 ## Quick Reference
 
-| Step | Command |
-|------|---------|
-| **Pre-flight (gate)** | `BASE_URL="https://www.eventangle.com/events" npm run ci:all` |
-| Deploy GAS | `npm run deploy` |
-| Deploy CF Worker | `cd cloudflare-proxy && wrangler deploy --env events` |
-| Health check | `BASE_URL="https://www.eventangle.com/events" npm run test:health` |
-| Smoke test | `BASE_URL="https://www.eventangle.com/events" npm run test:smoke` |
+| Step | Command | Environment |
+|------|---------|-------------|
+| **Deploy to Prod** | `git push origin main` (after PR merge) | **Production (CI only)** |
+| Pre-flight (gate) | `npm run ci:all` | Local verification |
+| Deploy GAS | `npm run deploy` | Dev/Stage only |
+| Deploy CF Worker | `cd cloudflare-proxy && wrangler deploy --env events` | Dev/Stage only |
+| Health check | `npm run test:health` | Any |
+| Smoke test | `npm run test:smoke` | Any |
 
 ---
 
@@ -172,6 +188,19 @@ Both should pass. If they fail, check:
 
 If something goes wrong:
 
+### Option 1: Git Revert (Preferred - Uses CI)
+
+```bash
+git revert HEAD
+git push origin main
+# CI will deploy the reverted version
+```
+
+### Option 2: Manual Rollback (Last Resort)
+
+**Only if CI is completely broken:**
+
 1. In Apps Script: Deploy > Manage deployments > select previous version
 2. Update `DEPLOYMENT_ID` in `cloudflare-proxy/wrangler.toml` to the old ID
 3. Redeploy: `cd cloudflare-proxy && wrangler deploy --env events`
+4. **Document this in a GitHub issue immediately**

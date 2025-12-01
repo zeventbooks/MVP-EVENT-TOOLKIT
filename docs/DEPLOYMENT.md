@@ -91,9 +91,16 @@ curl "DEPLOYMENT_URL?p=status&brand=root" | jq '.value.version'
 
 ## Deployment Options
 
-### Option 1: GitHub Actions (Recommended)
+> **IMPORTANT: CI-Only Production Policy**
+>
+> Production deployments are **exclusively** performed through GitHub Actions.
+> Manual methods are for **Dev/Stage only**. See [PRODUCTION_DEPLOYMENT_POLICY.md](../PRODUCTION_DEPLOYMENT_POLICY.md).
 
-Push to `main` branch - automatic deployment:
+### Production: GitHub Actions (REQUIRED)
+
+**This is the ONLY way to deploy to production.**
+
+Push to `main` branch triggers automatic deployment:
 
 ```bash
 git add .
@@ -101,14 +108,23 @@ git commit -m "feat: your changes"
 git push origin main
 ```
 
-### Option 2: Clasp CLI
+The CI pipeline will:
+1. Run all tests (lint, unit, contract, MVP guards)
+2. **Deploy only if ALL tests pass**
+3. Trigger Stage 2 E2E testing
+
+### Dev/Stage ONLY: Clasp CLI
+
+**For local development and testing only. NOT for production.**
 
 ```bash
-npm run push    # Push code to Apps Script
-npm run deploy  # Create new deployment
+npm run push    # Push code to Apps Script (dev/stage only)
+npm run deploy  # Create new deployment (dev/stage only)
 ```
 
-### Option 3: Manual Deploy
+### Dev/Stage ONLY: Manual Deploy
+
+**For debugging only. NEVER use for production.**
 
 1. Open [Apps Script Editor](https://script.google.com/home/projects/1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l/edit)
 2. Copy/paste all `.gs` and `.html` files
@@ -516,6 +532,8 @@ Expected:
 
 ## Related Documentation
 
+- **[PRODUCTION_DEPLOYMENT_POLICY.md](../PRODUCTION_DEPLOYMENT_POLICY.md)** - CI-only production policy
+- **[APPS_SCRIPT_PROJECT.md](../APPS_SCRIPT_PROJECT.md)** - Apps Script project configuration
 - **[ARCHITECTURE.md](./ARCHITECTURE.md)** - MVP architecture overview
 - **[FRIENDLY_URLS.md](./FRIENDLY_URLS.md)** - URL aliasing system
 - **[SETUP_DIAGNOSTICS.md](./SETUP_DIAGNOSTICS.md)** - Setup verification endpoint
