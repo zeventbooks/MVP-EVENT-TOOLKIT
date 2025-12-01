@@ -955,15 +955,15 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       const linkType = e.currentTarget.dataset.linkType;
       if (!linkType || !currentEventId) return;
 
-      // Fire and forget - don't block the navigation
+      // S13: Use safeLogClick - fire and forget, never throws
       // Include sessionId and visibleSponsorIds for sponsor/BBN attribution
-      NU.rpc('api_logExternalClick', {
+      NU.safeLogClick({
         eventId: currentEventId,
         linkType: linkType,
         surface: 'public',
         sessionId: window.SponsorUtils?.getSessionId?.() || '',
         visibleSponsorIds: currentRenderedSponsorIds
-      }).catch(err => console.warn('Failed to log external click:', err));
+      });
     }
 
     // === Google Sheets "Bring Your Own Data" ===
@@ -1903,14 +1903,22 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       }
     }
 
-    // S12: Error state renderer using shared StateRenderer for consistent UX
-    function showError(type = 'load') {
+    // S12/S13: Error state renderer using shared StateRenderer for consistent UX
+    // Accepts either a type string or error object from safeRpc
+    function showError(typeOrError = 'load') {
       const root = document.getElementById('list');
       const backUrl = `${EXEC_URL}?p=events&brand=${BRAND}`;
 
-      if (type === 'notfound') {
+      // S13: Handle error objects from safeRpc (has code/message properties)
+      if (typeOrError && typeof typeOrError === 'object' && typeOrError.code) {
+        // Use showFromError which handles SERVICE_UNAVAILABLE, TIMEOUT, etc.
+        SharedUtils.StateRenderer.showFromError(root, typeOrError, {
+          onRetry: () => location.reload(),
+          backUrl
+        });
+      } else if (typeOrError === 'notfound') {
         SharedUtils.StateRenderer.showEventNotFound(root, { backUrl });
-      } else if (type === 'nodata') {
+      } else if (typeOrError === 'nodata') {
         SharedUtils.StateRenderer.showNoData(root, { context: 'content', backUrl });
       } else {
         SharedUtils.StateRenderer.showError(root, {
@@ -1924,58 +1932,61 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
 
     // Load event data
     // SCHEMA: /schemas/event.schema.json via api_getPublicBundle
+    // S13: Use safeRpc for graceful error handling
     if (ID) {
-      NU.rpc('api_getPublicBundle', { brandId: BRAND, scope: SCOPE, id: ID })
-        .then(res => {
-          try {
-            if (res.ok && res.value && res.value.event) {
-              // getPublicBundle returns { event: Event, config: { brandId, brandName, appTitle } }
-              const bundle = res.value;
+      (async () => {
+        const res = await NU.safeRpc('api_getPublicBundle', { brandId: BRAND, scope: SCOPE, id: ID });
 
-              // === LOG PUBLIC VIEW METRIC ===
-              try {
-                logEvent({ eventId: bundle.event.id, surface: 'public', metric: 'view', value: 1 });
-              } catch (e) {
-                // ignore logging errors
-              }
+        // S13: Handle API errors with proper classification
+        if (!res.ok) {
+          console.error('API error:', res.code, res.message);
+          showError(res);
+          return;
+        }
 
-              renderDetail(bundle.event, bundle.config);
-            } else if (res.ok && res.value && !res.value.event) {
-              // API returned ok but no event data
-              showError('nodata');
-            } else {
-              showError('notfound');
-            }
-          } catch (renderErr) {
-            console.error('Render error:', renderErr);
-            showError('load');
+        try {
+          if (res.value && res.value.event) {
+            // getPublicBundle returns { event: Event, config: { brandId, brandName, appTitle } }
+            const bundle = res.value;
+
+            // === LOG PUBLIC VIEW METRIC (uses SponsorUtils.logEvent which is fire-and-forget) ===
+            logEvent({ eventId: bundle.event.id, surface: 'public', metric: 'view', value: 1 });
+
+            renderDetail(bundle.event, bundle.config);
+          } else if (res.value && !res.value.event) {
+            // API returned ok but no event data
+            showError('nodata');
+          } else {
+            showError('notfound');
           }
-        })
-        .catch(err => {
-          // Network or unexpected error - show friendly message, don't leak details
-          console.error('API error:', err);
+        } catch (renderErr) {
+          console.error('Render error:', renderErr);
           showError('load');
-        });
+        }
+      })();
     } else {
       // List view uses api_list which returns canonical Event shapes
-      NU.rpc('api_list', { brandId: BRAND, scope: SCOPE })
-        .then(res => {
-          try {
-            if (res.ok && res.value) {
-              renderList(res.value.items || []);
-            } else {
-              showError('load');
-            }
-          } catch (renderErr) {
-            console.error('Render error:', renderErr);
+      (async () => {
+        const res = await NU.safeRpc('api_list', { brandId: BRAND, scope: SCOPE });
+
+        // S13: Handle API errors with proper classification
+        if (!res.ok) {
+          console.error('API error:', res.code, res.message);
+          showError(res);
+          return;
+        }
+
+        try {
+          if (res.value) {
+            renderList(res.value.items || []);
+          } else {
             showError('load');
           }
-        })
-        .catch(err => {
-          // Network or unexpected error - show friendly message, don't leak details
-          console.error('API error:', err);
+        } catch (renderErr) {
+          console.error('Render error:', renderErr);
           showError('load');
-        });
+        }
+      })();
     }
   </script>
 </body>

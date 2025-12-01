@@ -1093,17 +1093,17 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
 
       strip.hidden = false;
 
-      // Analytics: log clicks with sponsor attribution (fire-and-forget)
+      // S13: Analytics - use safeLogClick, never throws
       strip.querySelectorAll('a[data-link-type]').forEach(a => {
         a.addEventListener('click', () => {
           const linkType = a.dataset.linkType;
-          NU.rpc('api_logExternalClick', {
+          NU.safeLogClick({
             eventId,
             linkType,
             surface: 'display',
             sessionId: getSessionId?.() || '',
             visibleSponsorIds: currentRenderedSponsorIds
-          }).catch(() => {});
+          });
         });
       });
     }
@@ -1191,10 +1191,10 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
     }
 
     /**
-     * S12: Show error state for TV display using shared StateRenderer
-     * @param {string} type - Error type: 'notfound', 'nodata', or 'load'
+     * S12/S13: Show error state for TV display using shared StateRenderer
+     * @param {string|Object} typeOrError - Error type string ('notfound', 'nodata', 'load') or error object from safeRpc
      */
-    function showDisplayError(type = 'load') {
+    function showDisplayError(typeOrError = 'load') {
       // Hide all content panes and stage
       stage.hidden = true;
       fallback.hidden = true;
@@ -1210,12 +1210,18 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
       const errorDiv = document.createElement('div');
       errorDiv.id = 'displayError';
 
-      // S12: Use shared StateRenderer with tvMode for consistent styling
       const onRetry = () => location.reload();
 
-      if (type === 'notfound') {
+      // S13: Handle error objects from safeRpc (has code/message properties)
+      if (typeOrError && typeof typeOrError === 'object' && typeOrError.code) {
+        // Use showFromError which handles SERVICE_UNAVAILABLE, TIMEOUT, etc.
+        SharedUtils.StateRenderer.showFromError(errorDiv, typeOrError, {
+          onRetry,
+          tvMode: true
+        });
+      } else if (typeOrError === 'notfound') {
         SharedUtils.StateRenderer.showEventNotFound(errorDiv, { tvMode: true });
-      } else if (type === 'nodata') {
+      } else if (typeOrError === 'nodata') {
         SharedUtils.StateRenderer.showNoData(errorDiv, { context: 'content', tvMode: true });
       } else {
         SharedUtils.StateRenderer.showError(errorDiv, {
@@ -1598,19 +1604,14 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
         return;
       }
 
-      let res;
-      try {
-        res = await NU.rpc('api_getDisplayBundle', { brandId, scope: 'events', id: eventId });
-      } catch (err) {
-        // Network or unexpected error - show friendly error, don't leak details
-        console.error('Display API error:', err);
-        showDisplayError('load');
-        return;
-      }
+      // S13: Use safeRpc for graceful error handling
+      const res = await NU.safeRpc('api_getDisplayBundle', { brandId, scope: 'events', id: eventId });
 
-      // Check for API failure or missing data
+      // S13: Handle API errors - pass error object to showDisplayError
       if (!res?.ok) {
-        showDisplayError('notfound');
+        console.error('Display API error:', res.code, res.message);
+        // Pass the error object to showDisplayError for proper classification
+        showDisplayError(res);
         return;
       }
 
