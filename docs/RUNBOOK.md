@@ -14,6 +14,14 @@ This runbook provides step-by-step procedures for diagnosing and resolving commo
 | Status | `https://www.eventangle.com/status` | `{"ok":true,...}` |
 | Setup | `https://www.eventangle.com/status?p=setup` | 6-point diagnostic |
 
+### Data Health Sheets
+
+| Sheet | Purpose |
+|-------|---------|
+| `DATA_ISSUES` | Issues found by nightly health checker - **check this first if system is acting weird** |
+| `DIAG` | Diagnostic logs |
+| `LOG_ERRORS` | API error logs |
+
 ### Quick Commands
 
 ```bash
@@ -310,12 +318,155 @@ After resolving an incident:
 
 ---
 
+## Data Health Checker
+
+### Overview
+
+The Data Health Checker (`DataHealthChecker.gs`) provides nightly sanity checking for EVENTS and DIAG sheets. It detects data corruption, missing fields, and impossible states before they cause live event issues.
+
+**If the system is acting weird, check the DATA_ISSUES sheet first!**
+
+### Quick Commands
+
+```javascript
+// Run manual health check
+checkDataHealth_()
+
+// Check specific brand
+checkBrandDataHealth_('abc')
+
+// Run with email notification
+checkDataHealthWithEmail_('ops@example.com')
+
+// Get quick summary (no write)
+getDataHealthSummary_()
+```
+
+### Automatic Nightly Checks
+
+The health checker runs automatically every night at 3 AM (after DIAG archiving at 2 AM).
+
+**Install/Manage Trigger:**
+```javascript
+// Install nightly trigger
+installDataHealthTrigger_()
+
+// List active triggers
+listDataHealthTriggers_()
+
+// Remove trigger
+uninstallDataHealthTrigger_()
+```
+
+### What Gets Checked
+
+| Check | Severity | Description |
+|-------|----------|-------------|
+| EVENTS required fields | ERROR | id, slug, brandId, templateId, dataJSON, createdAt |
+| EVENTS contract fields | ERROR | name, startDateISO, venue, links.*, ctas.primary.* |
+| EVENTS settings fields | WARN | settings.showSchedule, showStandings, showBracket |
+| EVENTS metadata | WARN | createdAtISO, updatedAtISO |
+| DIAG required fields | ERROR | ts, level, where, msg |
+| DIAG valid levels | WARN | Must be: info, warn, error, debug |
+| Orphan event references | WARN | DIAG/ANALYTICS rows referencing non-existent events |
+
+### DATA_ISSUES Sheet
+
+Issues are written to the `DATA_ISSUES` sheet with these columns:
+
+| Column | Description |
+|--------|-------------|
+| timestamp | When the check was run |
+| severity | error, warn, or info |
+| category | Issue type (e.g., EVENTS_MISSING_FIELD) |
+| sheet | Source sheet (EVENTS, DIAG, ANALYTICS) |
+| rowNumber | Row number with the issue |
+| field | Field name with the issue |
+| message | Human-readable description |
+| value | Problematic value (if applicable) |
+
+**Severity colors:**
+- Red background = ERROR (needs immediate attention)
+- Yellow background = WARNING (should investigate)
+- Blue background = INFO (informational only)
+
+### Issue: DATA_ISSUES Sheet Has Errors
+
+**Symptoms:**
+- DATA_ISSUES sheet has red (error) rows
+- Nightly email notification received
+
+**Diagnostic Steps:**
+
+1. **Open DATA_ISSUES sheet** in the spreadsheet
+
+2. **Filter by severity = error** to see critical issues
+
+3. **Navigate to problem rows** using the rowNumber column
+
+4. **Fix the data** directly in the source sheet (EVENTS or DIAG)
+
+5. **Re-run health check** to verify:
+   ```javascript
+   checkDataHealth_()
+   ```
+
+**Common Issues and Fixes:**
+
+| Issue | Cause | Fix |
+|-------|-------|-----|
+| Missing id | Row corruption | Delete row or restore from backup |
+| Invalid dataJSON | Malformed JSON | Fix JSON syntax in cell |
+| Missing startDateISO | Incomplete event | Edit event and add date |
+| Missing links.publicUrl | Event not properly saved | Re-save event via Admin |
+| Orphan event reference | Event was deleted | Ignore (historical data) or archive DIAG |
+
+### Issue: Health Check Failing
+
+**Symptoms:**
+- Health check returns errors
+- Cannot access spreadsheet
+
+**Diagnostic Steps:**
+
+1. **Check spreadsheet access:**
+   ```javascript
+   getDataHealthSummary_()
+   ```
+
+2. **Verify spreadsheet exists** and script has access
+
+3. **Check for quota issues** - health check reads many rows
+
+4. **Run with specific spreadsheet ID:**
+   ```javascript
+   checkDataHealth_({ spreadsheetId: '1abc...' })
+   ```
+
+### Environment Selection
+
+Health check supports staging vs production via spreadsheet ID:
+
+```javascript
+// Production (default - uses root brand config)
+checkDataHealth_()
+
+// Staging (specific spreadsheet)
+checkDataHealth_({ spreadsheetId: 'STAGING_SPREADSHEET_ID' })
+
+// Specific brand
+checkDataHealth_({ brandId: 'abc' })
+```
+
+---
+
 ## Related Documentation
 
 - [UPTIME_MONITORING.md](./UPTIME_MONITORING.md) - Setting up external monitoring
 - [SETUP_DIAGNOSTICS.md](./SETUP_DIAGNOSTICS.md) - 6-point setup verification
 - [DEPLOYMENT.md](../DEPLOYMENT.md) - Deployment procedures
 - [PRODUCTION_DEPLOYMENT_POLICY.md](../PRODUCTION_DEPLOYMENT_POLICY.md) - CI-only deployment policy
+- [DATA_POLICY.md](./DATA_POLICY.md) - Data retention and archiving policies
 
 ---
 
