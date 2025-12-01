@@ -23,6 +23,8 @@
  *   6. URL Routing (test-url-routing.js) - requires BASE_URL
  *   7. Dead Exports (check-dead-code.js)
  *   8. Schema Fields (check-schema-fields.js)
+ *   9. Analytics Schema (test-analytics-schema.js)
+ *   10. Triangle Happy-Path (test:triangle:happy-path) - requires BASE_URL + ADMIN_KEY, non-blocking
  *
  * Correlation ID: Each run gets a unique ID for tracing.
  */
@@ -389,9 +391,38 @@ async function main() {
   // GATE 9: Analytics Schema (test-analytics-schema.js)
   // Validates analytics schema consistency
   // ═══════════════════════════════════════════════════════════════
-  log(`\n${c.bold}[9/9] Analytics Schema${c.reset}`, c.cyan);
+  log(`\n${c.bold}[9/10] Analytics Schema${c.reset}`, c.cyan);
   if (!runCheck('Analytics Schema', 'node scripts/test-analytics-schema.js', { critical: false, skipInFastMode: true })) {
     // Non-critical - warn but don't fail
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // GATE 10: Triangle Happy-Path Integration Test
+  // End-to-end smoke test: Admin → Surfaces → SharedReport
+  // Non-blocking (warn-only) for now - intent to make blocking later
+  // Only runs if BASE_URL and ADMIN_KEY are set
+  // ═══════════════════════════════════════════════════════════════
+  log(`\n${c.bold}[10/10] Triangle Happy-Path${c.reset}`, c.cyan);
+  const hasAdminKey = !!process.env.ADMIN_KEY;
+  if (hasBaseUrl && hasAdminKey) {
+    if (!runCheck('Triangle Happy-Path', 'npm run test:triangle:happy-path', { critical: false, skipInFastMode: true })) {
+      // Non-critical - warn but don't fail (integration test, may have timing issues)
+    }
+  } else {
+    const skipReason = !hasBaseUrl && !hasAdminKey ? 'no BASE_URL or ADMIN_KEY set' :
+                       !hasBaseUrl ? 'no BASE_URL set' : 'no ADMIN_KEY set';
+    log(`${c.yellow}⊘${c.reset} ${c.dim}Triangle Happy-Path (skipped - ${skipReason})${c.reset}`);
+    results.checks.push({
+      name: 'Triangle Happy-Path',
+      command: 'npm run test:triangle:happy-path',
+      status: 'skipped',
+      critical: false,
+      durationMs: 0,
+      output: `Skipped: ${skipReason}`,
+      error: null,
+    });
+    results.summary.skipped++;
+    results.summary.total++;
   }
 
   // Print final summary
