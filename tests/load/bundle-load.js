@@ -39,14 +39,17 @@ import {
 const publicBundleLatency = new Trend('public_bundle_latency', true);
 const displayBundleLatency = new Trend('display_bundle_latency', true);
 const posterBundleLatency = new Trend('poster_bundle_latency', true);
+const analyticsLatency = new Trend('analytics_latency', true);
 
 const publicBundleErrors = new Counter('public_bundle_errors');
 const displayBundleErrors = new Counter('display_bundle_errors');
 const posterBundleErrors = new Counter('poster_bundle_errors');
+const analyticsErrors = new Counter('analytics_errors');
 
 const publicBundleSuccess = new Rate('public_bundle_success');
 const displayBundleSuccess = new Rate('display_bundle_success');
 const posterBundleSuccess = new Rate('poster_bundle_success');
+const analyticsSuccess = new Rate('analytics_success');
 
 /**
  * Test configuration
@@ -75,18 +78,21 @@ export const options = {
     }
   },
   thresholds: {
-    // Overall error rate < 1%
+    // Overall error rate < 1% (SLO target)
     http_req_failed: ['rate<0.01'],
 
-    // Bundle-specific thresholds (p95 < 5s for GAS backend)
-    public_bundle_latency: ['p(95)<5000', 'avg<3000'],
-    display_bundle_latency: ['p(95)<5000', 'avg<3000'],
-    poster_bundle_latency: ['p(95)<5000', 'avg<3000'],
+    // Bundle-specific thresholds aligned with SLO targets
+    // SLO: p95 < 2000ms, warning at 1500ms, average < 1500ms
+    public_bundle_latency: ['p(95)<2000', 'avg<1500'],
+    display_bundle_latency: ['p(95)<2000', 'avg<1500'],
+    poster_bundle_latency: ['p(95)<2000', 'avg<1500'],
+    analytics_latency: ['p(95)<2000', 'avg<1500'],
 
-    // Success rates > 99%
+    // Success rates > 99% (SLO target)
     public_bundle_success: ['rate>0.99'],
     display_bundle_success: ['rate>0.99'],
     poster_bundle_success: ['rate>0.99'],
+    analytics_success: ['rate>0.99'],
 
     // Overall checks pass rate
     checks: ['rate>0.95']
@@ -158,6 +164,21 @@ class BundlesAPI {
       payload.ifNoneMatch = ifNoneMatch;
     }
     return http.post(url, JSON.stringify(payload), { headers, tags: { endpoint: 'poster_bundle' } });
+  }
+
+  /**
+   * Get shared analytics for brand (optionally filtered by event)
+   */
+  getSharedAnalytics(eventId = null) {
+    const url = `${this.baseUrl}?p=api`;
+    const payload = {
+      action: 'api_getSharedAnalytics',
+      brandId: this.brandId
+    };
+    if (eventId) {
+      payload.eventId = eventId;
+    }
+    return http.post(url, JSON.stringify(payload), { headers, tags: { endpoint: 'analytics' } });
   }
 
   /**
@@ -304,6 +325,22 @@ export function bundleLoadTest() {
     }
   });
 
+  sleep(0.5);
+
+  // Test Shared Analytics (brand-level, optionally filtered by event)
+  group('Shared Analytics', () => {
+    // Alternate between brand-level and event-filtered analytics
+    const useEventFilter = Math.random() > 0.5;
+    const response = bundlesAPI.getSharedAnalytics(useEventFilter ? eventId : null);
+    const success = checkBundleSuccess(response, 'analytics');
+
+    analyticsLatency.add(response.timings.duration);
+    analyticsSuccess.add(success ? 1 : 0);
+    if (!success) {
+      analyticsErrors.add(1);
+    }
+  });
+
   // Random think time between iterations
   randomSleep(0.5, 1.5);
 }
@@ -351,13 +388,110 @@ export function teardown(data) {
   console.log(`Brand: ${data.brandId}`);
   console.log('');
   console.log('Check the metrics above for:');
-  console.log('  - p95 latency for each bundle endpoint');
+  console.log('  - p95 latency for each endpoint');
   console.log('  - Error rates (should be < 1%)');
   console.log('  - Success rates (should be > 99%)');
   console.log('');
-  console.log('Baseline targets (PERFORMANCE_NOTES.md):');
-  console.log('  - Public Bundle:  p95 < 5000ms, avg < 3000ms');
-  console.log('  - Display Bundle: p95 < 5000ms, avg < 3000ms');
-  console.log('  - Poster Bundle:  p95 < 5000ms, avg < 3000ms');
+  console.log('SLO Targets (PERFORMANCE_NOTES.md):');
+  console.log('  - Public Bundle:    p95 < 2000ms, avg < 1500ms');
+  console.log('  - Display Bundle:   p95 < 2000ms, avg < 1500ms');
+  console.log('  - Poster Bundle:    p95 < 2000ms, avg < 1500ms');
+  console.log('  - Shared Analytics: p95 < 2000ms, avg < 1500ms');
+  console.log('');
+  console.log('Status Interpretation:');
+  console.log('  🟢 PASS: All p95 < 2000ms, error rate < 1%');
+  console.log('  🟡 WARN: p95 between 1500-2000ms');
+  console.log('  🔴 FAIL: p95 > 2000ms or error rate > 1%');
   console.log('='.repeat(60));
+}
+
+// SLO Thresholds for status calculation
+const SLO_P95_PASS = 2000;
+const SLO_P95_WARN = 1500;
+const SLO_ERROR_RATE = 0.01;
+
+/**
+ * Calculate SLO status based on metrics
+ */
+function getSLOStatus(publicP95, displayP95, posterP95, analyticsP95, errorRate) {
+  const maxP95 = Math.max(publicP95, displayP95, posterP95, analyticsP95);
+
+  if (maxP95 > SLO_P95_PASS || errorRate > SLO_ERROR_RATE) {
+    return 'FAIL';
+  } else if (maxP95 > SLO_P95_WARN) {
+    return 'WARN';
+  }
+  return 'PASS';
+}
+
+/**
+ * Handle test summary - exports results to JSON for CSV processing
+ *
+ * This function is called by k6 at the end of the test with all metrics.
+ * Output includes a structured JSON block that can be parsed for CSV logging.
+ */
+export function handleSummary(data) {
+  // Extract p95 values safely
+  const getP95 = (metricName) => {
+    const metric = data.metrics[metricName];
+    if (metric && metric.values && typeof metric.values['p(95)'] === 'number') {
+      return Math.round(metric.values['p(95)']);
+    }
+    return 0;
+  };
+
+  // Extract error rate
+  const getErrorRate = () => {
+    const metric = data.metrics['http_req_failed'];
+    if (metric && metric.values && typeof metric.values.rate === 'number') {
+      return metric.values.rate;
+    }
+    return 0;
+  };
+
+  const publicP95 = getP95('public_bundle_latency');
+  const displayP95 = getP95('display_bundle_latency');
+  const posterP95 = getP95('poster_bundle_latency');
+  const analyticsP95 = getP95('analytics_latency');
+  const errorRate = getErrorRate();
+  const status = getSLOStatus(publicP95, displayP95, posterP95, analyticsP95, errorRate);
+
+  // Build summary object for CSV logging
+  const summary = {
+    timestamp: new Date().toISOString(),
+    environment: __ENV.ENVIRONMENT || 'staging',
+    publicP95,
+    displayP95,
+    posterP95,
+    analyticsP95,
+    errorRate: (errorRate * 100).toFixed(2) + '%',
+    status,
+    sloTargets: {
+      p95: SLO_P95_PASS,
+      errorRate: SLO_ERROR_RATE * 100 + '%'
+    }
+  };
+
+  // Output structured JSON for parsing by run-load-test.sh
+  const jsonOutput = '\n===PERF_RESULTS_JSON_START===\n' +
+    JSON.stringify(summary, null, 2) +
+    '\n===PERF_RESULTS_JSON_END===\n';
+
+  // CSV line for direct append
+  const csvLine = [
+    summary.timestamp.split('T')[0], // Date only
+    summary.environment,
+    summary.publicP95,
+    summary.displayP95,
+    summary.posterP95,
+    summary.analyticsP95,
+    summary.errorRate,
+    summary.status
+  ].join(',');
+
+  const csvOutput = '\n===PERF_RESULTS_CSV===\n' + csvLine + '\n===END_CSV===\n';
+
+  return {
+    stdout: jsonOutput + csvOutput
+  };
 }
