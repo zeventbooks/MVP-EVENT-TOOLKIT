@@ -407,31 +407,62 @@ window.SharedUtils = (function() {
   /**
    * Standard error types for consistent UX across all surfaces
    * S12: Error & Empty State Polish
+   * S13: Graceful Degradation - added SERVICE_UNAVAILABLE, TIMEOUT
    */
   const ERROR_TYPES = {
     EVENT_NOT_FOUND: 'event_not_found',
     NO_DATA: 'no_data',
     NETWORK_ERROR: 'network_error',
     UNAUTHORIZED: 'unauthorized',
+    SERVICE_UNAVAILABLE: 'service_unavailable',
+    TIMEOUT: 'timeout',
     GENERIC: 'generic'
   };
 
   /**
-   * Maps raw error messages to user-friendly messages
+   * Maps raw error messages/codes to user-friendly error types
    * Prevents leaking internal details (JSON, stack traces, etc.)
-   * @param {string|Error} error - Raw error message or Error object
+   * S13: Added SERVICE_UNAVAILABLE, TIMEOUT detection
+   *
+   * @param {string|Error|Object} error - Raw error message, Error object, or {code, message}
    * @returns {string} User-friendly error type from ERROR_TYPES
    */
   function classifyError(error) {
+    // Handle error objects with code property (from NU.safeRpc)
+    const code = String(error?.code || '').toUpperCase();
     const msg = String(error?.message || error || '').toLowerCase();
 
+    // Check error codes first (most reliable)
+    if (code === 'SERVICE_UNAVAILABLE' || code === 'INTERNAL') {
+      return ERROR_TYPES.SERVICE_UNAVAILABLE;
+    }
+    if (code === 'TIMEOUT') {
+      return ERROR_TYPES.TIMEOUT;
+    }
+    if (code === 'NOT_FOUND') {
+      return ERROR_TYPES.EVENT_NOT_FOUND;
+    }
+    if (code === 'UNAUTHORIZED') {
+      return ERROR_TYPES.UNAUTHORIZED;
+    }
+    if (code === 'NETWORK_ERROR') {
+      return ERROR_TYPES.NETWORK_ERROR;
+    }
+
+    // Fallback to message-based detection
     if (msg.includes('not found') || msg.includes('404') || msg.includes('invalid') || msg.includes('no event')) {
       return ERROR_TYPES.EVENT_NOT_FOUND;
     }
     if (msg.includes('unauthorized') || msg.includes('403') || msg.includes('permission')) {
       return ERROR_TYPES.UNAUTHORIZED;
     }
-    if (msg.includes('network') || msg.includes('timeout') || msg.includes('failed to fetch') || msg.includes('connection')) {
+    if (msg.includes('service unavailable') || msg.includes('503') || msg.includes('temporary issue') || msg.includes('temporary problem')) {
+      return ERROR_TYPES.SERVICE_UNAVAILABLE;
+    }
+    if (msg.includes('timeout') || msg.includes('504') || msg.includes('took too long') || msg.includes('timed out')) {
+      return ERROR_TYPES.TIMEOUT;
+    }
+    if (msg.includes('network') || msg.includes('failed to fetch') || msg.includes('connection') || msg.includes('offline')) {
       return ERROR_TYPES.NETWORK_ERROR;
     }
     if (msg.includes('no data') || msg.includes('empty') || msg.includes('nothing')) {
@@ -602,14 +633,53 @@ window.SharedUtils = (function() {
     },
 
     /**
-     * Auto-detect error type and show appropriate state
+     * Show temporary service issue state (S13: Graceful Degradation)
+     * For 5xx errors from upstream, temporary outages, etc.
      * @param {HTMLElement} container - Target container
-     * @param {string|Error} error - Raw error
+     * @param {Object} options - { onRetry, tvMode, corrId }
+     */
+    showTemporaryIssue(container, options = {}) {
+      const { onRetry = null, tvMode = false, corrId = null } = options;
+      this.showError(container, {
+        title: 'Temporary Issue',
+        message: 'We\'re having a temporary issue loading this event.',
+        hint: corrId
+          ? `Please refresh or try again in a minute. (Ref: ${esc(corrId)})`
+          : 'Please refresh or try again in a minute.',
+        onRetry,
+        tvMode
+      });
+    },
+
+    /**
+     * Show timeout error state (S13: Graceful Degradation)
+     * For requests that took too long
+     * @param {HTMLElement} container - Target container
+     * @param {Object} options - { onRetry, tvMode }
+     */
+    showTimeout(container, options = {}) {
+      const { onRetry = null, tvMode = false } = options;
+      this.showError(container, {
+        title: 'Taking Too Long',
+        message: 'The page is taking longer than expected to load.',
+        hint: 'This might be a temporary issue. Please try again.',
+        onRetry,
+        tvMode
+      });
+    },
+
+    /**
+     * Auto-detect error type and show appropriate state
+     * S13: Updated to handle SERVICE_UNAVAILABLE, TIMEOUT
+     *
+     * @param {HTMLElement} container - Target container
+     * @param {string|Error|Object} error - Raw error, Error object, or {code, message, corrId}
      * @param {Object} options - { onRetry, backUrl, tvMode }
      */
     showFromError(container, error, options = {}) {
       const { onRetry = null, backUrl = null, tvMode = false } = options;
       const errorType = classifyError(error);
+      const corrId = error?.corrId || null;
 
       switch (errorType) {
         case ERROR_TYPES.EVENT_NOT_FOUND:
@@ -624,11 +694,19 @@ window.SharedUtils = (function() {
         case ERROR_TYPES.UNAUTHORIZED:
           this.showUnauthorized(container, { backUrl, tvMode });
           break;
+        case ERROR_TYPES.SERVICE_UNAVAILABLE:
+          this.showTemporaryIssue(container, { onRetry, tvMode, corrId });
+          break;
+        case ERROR_TYPES.TIMEOUT:
+          this.showTimeout(container, { onRetry, tvMode });
+          break;
         default:
           this.showError(container, {
             title: 'Something Went Wrong',
             message: 'We couldn\'t load this content right now. This might be a temporary issue.',
-            hint: 'Please try again in a moment.',
+            hint: corrId
+              ? `Please try again in a moment. (Ref: ${esc(corrId)})`
+              : 'Please try again in a moment.',
             onRetry,
             tvMode
           });

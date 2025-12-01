@@ -101,6 +101,129 @@ window.NU = {
       '"': '&quot;',
       "'": '&#39;'
     }[m]));
+  },
+
+  /**
+   * Safe RPC wrapper with graceful error handling for UI display
+   * Normalizes all error types to a consistent format for StateRenderer
+   *
+   * @param {string} method - API method name
+   * @param {object} payload - Request parameters
+   * @param {object} options - { onError, silent }
+   * @returns {Promise<{ok: boolean, value?: any, code?: string, message?: string}>}
+   */
+  async safeRpc(method, payload, options = {}) {
+    const { onError, silent = false } = options;
+
+    try {
+      const res = await NU.rpc(method, payload);
+
+      // Handle backend error responses (ok: false)
+      if (!res.ok) {
+        const errorInfo = {
+          ok: false,
+          code: res.code || 'UNKNOWN',
+          message: res.message || 'An unexpected error occurred',
+          corrId: res.corrId
+        };
+
+        if (!silent) {
+          console.warn(`[NUSDK] API error for ${method}:`, errorInfo.code, errorInfo.message);
+        }
+
+        if (onError) {
+          onError(errorInfo);
+        }
+
+        return errorInfo;
+      }
+
+      return res;
+
+    } catch (e) {
+      // Handle network/runtime errors
+      const errorInfo = {
+        ok: false,
+        code: 'NETWORK_ERROR',
+        message: 'We\'re having trouble connecting. Please check your connection and try again.'
+      };
+
+      if (!silent) {
+        console.error(`[NUSDK] Network/runtime error for ${method}:`, e);
+      }
+
+      if (onError) {
+        onError(errorInfo);
+      }
+
+      return errorInfo;
+    }
+  },
+
+  /**
+   * Fire-and-forget analytics logging that NEVER throws or blocks UI
+   * Analytics failures are silently logged but don't affect page functionality
+   *
+   * Use this for:
+   * - CTA click tracking
+   * - Impression logging
+   * - Dwell time tracking
+   * - Any non-critical telemetry
+   *
+   * @param {string} method - Analytics API method (e.g., 'api_logExternalClick', 'api_logEvents')
+   * @param {object} payload - Analytics data
+   * @returns {void} - Does not return a promise to ensure fire-and-forget behavior
+   */
+  safeAnalytics(method, payload) {
+    // Fire and forget - don't await, don't block
+    (async () => {
+      try {
+        // Check if google.script.run is available
+        if (!window.google || !window.google.script || !window.google.script.run) {
+          // Silently fail - analytics shouldn't break the page
+          console.debug('[NUSDK] Analytics skipped: google.script.run not available');
+          return;
+        }
+
+        google.script.run
+          .withSuccessHandler(() => {
+            // Success - no action needed
+          })
+          .withFailureHandler((err) => {
+            // Log quietly but don't propagate error
+            console.debug(`[NUSDK] Analytics ${method} failed silently:`, err?.message || err);
+          })
+          [method](payload);
+
+      } catch (e) {
+        // Catch any synchronous errors and log quietly
+        console.debug(`[NUSDK] Analytics ${method} exception (suppressed):`, e?.message || e);
+      }
+    })();
+  },
+
+  /**
+   * Safe analytics batch logger - fire-and-forget version of api_logEvents
+   * For bulk logging impressions, clicks, etc.
+   *
+   * @param {Array} items - Array of analytics items [{eventId, surface, metric, sponsorId?, value?}]
+   */
+  safeLogEvents(items) {
+    if (!items || !items.length) return;
+    NU.safeAnalytics('api_logEvents', { items });
+  },
+
+  /**
+   * Safe external click logger - fire-and-forget version
+   * Logs CTA/sponsor clicks without blocking navigation
+   *
+   * @param {object} params - { eventId, sponsorId, surface, linkType?, ua? }
+   */
+  safeLogClick(params) {
+    NU.safeAnalytics('api_logExternalClick', {
+      ...params,
+      ua: params.ua || navigator.userAgent
+    });
   }
 };
 </script>

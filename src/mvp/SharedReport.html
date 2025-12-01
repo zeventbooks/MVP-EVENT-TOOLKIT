@@ -1234,32 +1234,31 @@ DO NOT modify contracts without updating:
      * - Same shape, but summary/surfaces are scoped to that sponsor.
      */
     async function loadReport() {
-      try {
-        toggleLoading(true);
+      toggleLoading(true);
 
-        let rpcName, payload;
+      let rpcName, payload;
 
-        // MVP endpoints: api_getSponsorAnalytics (sponsor view) or api_getSharedAnalytics (organizer view)
-        if (IS_SPONSOR_VIEW && SPONSOR_ID) {
-          rpcName = 'api_getSponsorAnalytics';
-          payload = { brandId: BRAND_ID, sponsorId: SPONSOR_ID, eventId: EVENT_ID || null };
-        } else {
-          rpcName = 'api_getSharedAnalytics';
-          payload = { brandId: BRAND_ID };
-        }
-
-        const result = await NU.rpc(rpcName, payload);
-
-        if (!result || !result.ok) {
-          throw new Error(result && result.message || 'Failed to load analytics');
-        }
-
-        renderReport(result.value || {});
-        toggleLoading(false);
-      } catch (err) {
-        console.error('SharedReport load error', err);
-        showError(err && err.message);
+      // MVP endpoints: api_getSponsorAnalytics (sponsor view) or api_getSharedAnalytics (organizer view)
+      if (IS_SPONSOR_VIEW && SPONSOR_ID) {
+        rpcName = 'api_getSponsorAnalytics';
+        payload = { brandId: BRAND_ID, sponsorId: SPONSOR_ID, eventId: EVENT_ID || null };
+      } else {
+        rpcName = 'api_getSharedAnalytics';
+        payload = { brandId: BRAND_ID };
       }
+
+      // S13: Use safeRpc for graceful error handling
+      const result = await NU.safeRpc(rpcName, payload);
+
+      if (!result || !result.ok) {
+        console.error('SharedReport load error', result.code, result.message);
+        // S13: Pass error object for proper classification (SERVICE_UNAVAILABLE, TIMEOUT, etc.)
+        showError(result);
+        return;
+      }
+
+      renderReport(result.value || {});
+      toggleLoading(false);
     }
 
     function toggleLoading(isLoading) {
@@ -1268,14 +1267,17 @@ DO NOT modify contracts without updating:
       document.getElementById('errorState').style.display = 'none';
     }
 
-    // S12: Use shared StateRenderer for consistent error handling
-    function showError(message) {
+    // S12/S13: Use shared StateRenderer for consistent error handling
+    // Accepts either a message string or an error object from safeRpc
+    function showError(messageOrError) {
       document.getElementById('loading').style.display = 'none';
       document.getElementById('metrics').style.display = 'none';
 
       const errorContainer = document.getElementById('errorState');
-      const errorType = SharedUtils.classifyError(message);
-      const { ERROR_TYPES, StateRenderer } = SharedUtils;
+      const { StateRenderer } = SharedUtils;
+
+      // S13: Handle error objects from safeRpc (has code/message properties)
+      const message = messageOrError?.message || String(messageOrError || '');
 
       // Handle portfolio-specific messages (already user-friendly)
       if (message && String(message).toLowerCase().includes('portfolio')) {
@@ -1286,8 +1288,9 @@ DO NOT modify contracts without updating:
           onRetry: loadReport
         });
       } else {
-        // Use StateRenderer's auto-detection for standard error types
-        StateRenderer.showFromError(errorContainer, message, {
+        // S13: Use StateRenderer's auto-detection which handles SERVICE_UNAVAILABLE, TIMEOUT, etc.
+        // Pass the full error object for proper classification
+        StateRenderer.showFromError(errorContainer, messageOrError, {
           onRetry: loadReport
         });
       }

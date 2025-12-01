@@ -43,10 +43,295 @@
  */
 
 // Worker version - used for transparency headers and debugging
-const WORKER_VERSION = '1.1.0';
+const WORKER_VERSION = '1.2.0';
+
+// Timeout for upstream requests (ms)
+const UPSTREAM_TIMEOUT_MS = 30000;
+
+// Error tracking endpoint (optional - set via env variable)
+// Falls back to console.error if not configured
 
 // Configuration - Updated by CI/CD or set in wrangler.toml
 const DEFAULT_DEPLOYMENT_ID = 'AKfycbyS1cW9VhviR-Jr8AmYY_BAGrb1gzuKkrgEBP2M3bMdqAv4ktqHOZInWV8ogkpz5i8SYQ';
+
+/**
+ * Generate a correlation ID for error tracking
+ * Format: err_YYYYMMDDHHMMSS_RAND
+ */
+function generateCorrId() {
+  const now = new Date();
+  const timestamp = now.toISOString().replace(/[-:T.Z]/g, '').slice(0, 14);
+  const rand = Math.random().toString(36).slice(2, 8);
+  return `err_${timestamp}_${rand}`;
+}
+
+/**
+ * Generate branded HTML error page for graceful degradation
+ * @param {Object} options - Error page options
+ * @param {string} options.title - Error title
+ * @param {string} options.message - User-friendly error message
+ * @param {string} options.hint - Additional hint/instruction
+ * @param {string} options.corrId - Correlation ID for support
+ * @param {string} options.pageType - Page type (admin, public, display, poster)
+ * @param {number} options.statusCode - HTTP status code
+ * @returns {string} HTML string
+ */
+function generateErrorPage(options) {
+  const {
+    title = 'Temporary Issue',
+    message = 'We\'re experiencing a temporary problem loading this page.',
+    hint = 'Please refresh the page or try again in a minute.',
+    corrId = '',
+    pageType = 'public',
+    statusCode = 503
+  } = options;
+
+  // Page-specific styling based on context
+  const isTV = pageType === 'display';
+  const bgColor = isTV ? '#111' : '#f8fafc';
+  const textColor = isTV ? '#f0f0f0' : '#1e293b';
+  const mutedColor = isTV ? '#9ca3af' : '#64748b';
+  const accentColor = '#f59e0b'; // Warning yellow
+  const cardBg = isTV ? '#1a1a1a' : '#ffffff';
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EventAngle - ${title}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: ${bgColor};
+      color: ${textColor};
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    .error-container {
+      background: ${cardBg};
+      border-radius: 16px;
+      padding: 48px;
+      max-width: 520px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 4px 24px rgba(0,0,0,${isTV ? '0.4' : '0.1'});
+      ${isTV ? 'border: 1px solid #333;' : ''}
+    }
+    .error-icon {
+      font-size: ${isTV ? '80px' : '64px'};
+      margin-bottom: 24px;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.8; transform: scale(1.05); }
+    }
+    h1 {
+      font-size: ${isTV ? '2rem' : '1.75rem'};
+      color: ${accentColor};
+      margin-bottom: 16px;
+      font-weight: 600;
+    }
+    .message {
+      font-size: ${isTV ? '1.25rem' : '1.1rem'};
+      color: ${textColor};
+      margin-bottom: 12px;
+    }
+    .hint {
+      font-size: ${isTV ? '1rem' : '0.95rem'};
+      color: ${mutedColor};
+      margin-bottom: 24px;
+    }
+    .btn-retry {
+      display: inline-block;
+      background: ${accentColor};
+      color: #000;
+      padding: 14px 32px;
+      border-radius: 8px;
+      font-size: ${isTV ? '1.1rem' : '1rem'};
+      font-weight: 600;
+      text-decoration: none;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .btn-retry:hover {
+      background: #d97706;
+      transform: translateY(-2px);
+    }
+    .btn-retry:active {
+      transform: translateY(0);
+    }
+    .corr-id {
+      margin-top: 24px;
+      font-size: 0.75rem;
+      color: ${mutedColor};
+      font-family: monospace;
+      opacity: 0.7;
+    }
+    .auto-refresh {
+      margin-top: 16px;
+      font-size: 0.85rem;
+      color: ${mutedColor};
+    }
+    .countdown {
+      font-weight: 600;
+      color: ${accentColor};
+    }
+  </style>
+</head>
+<body>
+  <div class="error-container" role="alert">
+    <div class="error-icon">⚠️</div>
+    <h1>${escapeHtml(title)}</h1>
+    <p class="message">${escapeHtml(message)}</p>
+    <p class="hint">${escapeHtml(hint)}</p>
+    <button class="btn-retry" onclick="location.reload()">🔄 Try Again</button>
+    ${isTV ? '<p class="auto-refresh">Auto-refreshing in <span class="countdown" id="countdown">30</span>s</p>' : ''}
+    ${corrId ? `<p class="corr-id">Reference: ${escapeHtml(corrId)}</p>` : ''}
+  </div>
+  ${isTV ? `
+  <script>
+    // Auto-refresh for TV displays
+    let seconds = 30;
+    const countdownEl = document.getElementById('countdown');
+    setInterval(() => {
+      seconds--;
+      if (countdownEl) countdownEl.textContent = seconds;
+      if (seconds <= 0) location.reload();
+    }, 1000);
+  </script>
+  ` : ''}
+</body>
+</html>`;
+}
+
+/**
+ * Escape HTML special characters
+ */
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
+ * Log error details for diagnostics
+ * @param {Object} env - Worker environment
+ * @param {Object} errorDetails - Error information to log
+ */
+async function logError(env, errorDetails) {
+  // Always log to console for Cloudflare dashboard
+  console.error('[EventAngle Error]', JSON.stringify(errorDetails));
+
+  // If DIAG endpoint is configured, send error there
+  // This allows integration with external monitoring (e.g., logging to GAS DIAG sheet)
+  if (env.ERROR_LOG_ENDPOINT) {
+    try {
+      await fetch(env.ERROR_LOG_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          source: 'cloudflare-worker',
+          version: WORKER_VERSION,
+          ...errorDetails,
+          timestamp: new Date().toISOString()
+        })
+      });
+    } catch (logErr) {
+      console.error('[EventAngle] Failed to send error to logging endpoint:', logErr.message);
+    }
+  }
+}
+
+/**
+ * Determine page type from URL for error page styling
+ */
+function getPageType(url) {
+  const pathname = url.pathname.toLowerCase();
+  const page = url.searchParams.get('page');
+
+  if (page) {
+    if (['display', 'tv', 'kiosk'].includes(page)) return 'display';
+    if (['admin', 'manage'].includes(page)) return 'admin';
+    if (['poster', 'flyer'].includes(page)) return 'poster';
+    if (['report', 'analytics'].includes(page)) return 'report';
+    return 'public';
+  }
+
+  if (pathname.includes('/display') || pathname.includes('/tv') || pathname.includes('/kiosk')) return 'display';
+  if (pathname.includes('/admin') || pathname.includes('/manage')) return 'admin';
+  if (pathname.includes('/poster') || pathname.includes('/flyer')) return 'poster';
+  if (pathname.includes('/report') || pathname.includes('/analytics')) return 'report';
+
+  return 'public';
+}
+
+/**
+ * Create graceful degradation response for upstream failures
+ */
+function createGracefulErrorResponse(error, url, isApiRequest, corrId) {
+  const pageType = getPageType(url);
+  const isTimeout = error.name === 'AbortError' || error.message?.includes('timeout');
+  const is5xx = error.status >= 500;
+
+  if (isApiRequest) {
+    // API requests get JSON error response
+    return new Response(JSON.stringify({
+      ok: false,
+      code: isTimeout ? 'TIMEOUT' : 'SERVICE_UNAVAILABLE',
+      message: isTimeout
+        ? 'The request took too long to complete. Please try again.'
+        : 'We\'re experiencing a temporary issue. Please try again in a moment.',
+      corrId,
+      workerVersion: WORKER_VERSION
+    }), {
+      status: isTimeout ? 504 : 503,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'X-Proxied-By': 'eventangle-worker',
+        'X-Worker-Version': WORKER_VERSION,
+        'X-Error-CorrId': corrId,
+        'Retry-After': '30'
+      }
+    });
+  }
+
+  // HTML page requests get branded error page
+  const html = generateErrorPage({
+    title: isTimeout ? 'Taking Too Long' : 'Temporary Issue',
+    message: isTimeout
+      ? 'The page is taking longer than expected to load.'
+      : 'We\'re experiencing a temporary problem loading this page.',
+    hint: 'Please refresh or try again in a minute. If the problem persists, contact support.',
+    corrId,
+    pageType,
+    statusCode: isTimeout ? 504 : 503
+  });
+
+  return new Response(html, {
+    status: isTimeout ? 504 : 503,
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'X-Proxied-By': 'eventangle-worker',
+      'X-Worker-Version': WORKER_VERSION,
+      'X-Error-CorrId': corrId,
+      'Retry-After': '30',
+      'Cache-Control': 'no-cache, no-store, must-revalidate'
+    }
+  });
+}
 
 export default {
   async fetch(request, env, ctx) {
@@ -108,19 +393,64 @@ export default {
                          url.pathname.startsWith('/api');
 
     try {
+      let response;
+
       if (isApiRequest) {
         // API request: proxy and add CORS headers
-        const response = await proxyToAppsScript(request, appsScriptBase);
-        const corsResponse = addCORSHeaders(response);
-        return addTransparencyHeaders(corsResponse, startTime);
+        response = await proxyToAppsScript(request, appsScriptBase, env);
       } else {
         // HTML page request: proxy directly without CORS wrapping
         // This keeps eventangle.com in the browser address bar
-        const response = await proxyPageRequest(request, appsScriptBase, url);
-        return addTransparencyHeaders(response, startTime);
+        response = await proxyPageRequest(request, appsScriptBase, url, env);
       }
+
+      // Check for upstream 5xx errors and provide graceful degradation
+      if (response.status >= 500) {
+        const corrId = generateCorrId();
+
+        // Log the upstream error
+        ctx.waitUntil(logError(env, {
+          corrId,
+          type: 'upstream_5xx',
+          status: response.status,
+          statusText: response.statusText,
+          url: url.pathname + url.search,
+          isApiRequest,
+          duration: Date.now() - startTime
+        }));
+
+        // Return graceful error response instead of raw 5xx
+        return createGracefulErrorResponse(
+          { status: response.status, message: `Upstream returned ${response.status}` },
+          url,
+          isApiRequest,
+          corrId
+        );
+      }
+
+      // Success path: add CORS headers for API requests and transparency headers
+      if (isApiRequest) {
+        response = addCORSHeaders(response);
+      }
+      return addTransparencyHeaders(response, startTime);
+
     } catch (error) {
-      return errorResponse(error);
+      const corrId = generateCorrId();
+      const isTimeout = error.name === 'AbortError';
+
+      // Log the error with context
+      ctx.waitUntil(logError(env, {
+        corrId,
+        type: isTimeout ? 'timeout' : 'proxy_error',
+        error: error.message,
+        stack: error.stack?.slice(0, 500),
+        url: url.pathname + url.search,
+        isApiRequest,
+        duration: Date.now() - startTime
+      }));
+
+      // Return graceful degradation response
+      return createGracefulErrorResponse(error, url, isApiRequest, corrId);
     }
   },
 };
@@ -145,7 +475,7 @@ export default {
  * - /display, /tv, /kiosk → page=display
  * - /status, /health → page=status
  */
-async function proxyPageRequest(request, appsScriptBase, url) {
+async function proxyPageRequest(request, appsScriptBase, url, env) {
   // Get path and strip known prefixes
   let path = url.pathname;
   const knownPrefixes = [
@@ -194,22 +524,32 @@ async function proxyPageRequest(request, appsScriptBase, url) {
 
   console.log(`[EventAngle] Proxying page to: ${targetUrl}`);
 
-  // Fetch from Apps Script (follow redirects)
-  const response = await fetch(targetUrl, {
-    method: request.method,
-    headers: buildHeaders(request),
-    redirect: 'follow',
-  });
+  // Create AbortController for timeout handling
+  const controller = new AbortController();
+  const timeoutMs = env.UPSTREAM_TIMEOUT_MS ? parseInt(env.UPSTREAM_TIMEOUT_MS) : UPSTREAM_TIMEOUT_MS;
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-  console.log(`[EventAngle] Page response: ${response.status} ${response.statusText}`);
+  try {
+    // Fetch from Apps Script (follow redirects) with timeout
+    const response = await fetch(targetUrl, {
+      method: request.method,
+      headers: buildHeaders(request),
+      redirect: 'follow',
+      signal: controller.signal
+    });
 
-  // Return response with cache headers for HTML pages
-  const newResponse = new Response(response.body, response);
-  if (!newResponse.headers.has('Cache-Control')) {
-    newResponse.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    console.log(`[EventAngle] Page response: ${response.status} ${response.statusText}`);
+
+    // Return response with cache headers for HTML pages
+    const newResponse = new Response(response.body, response);
+    if (!newResponse.headers.has('Cache-Control')) {
+      newResponse.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    }
+
+    return newResponse;
+  } finally {
+    clearTimeout(timeoutId);
   }
-
-  return newResponse;
 }
 
 /**
@@ -234,7 +574,7 @@ async function proxyPageRequest(request, appsScriptBase, url) {
  *   /manage → exec/manage (pathInfo: ['manage'])
  *   /abc/events → exec/abc/events (pathInfo: ['abc', 'events'])
  */
-async function proxyToAppsScript(request, appsScriptBase) {
+async function proxyToAppsScript(request, appsScriptBase, env) {
   const url = new URL(request.url);
 
   // Get path and strip '/events' prefix if present (for env.events route)
@@ -255,24 +595,34 @@ async function proxyToAppsScript(request, appsScriptBase) {
 
   console.log(`[EventAngle] Proxying to: ${targetUrl}`);
 
-  // Build fetch options
-  const fetchOptions = {
-    method: request.method,
-    headers: buildHeaders(request),
-    redirect: 'follow',
-  };
+  // Create AbortController for timeout handling
+  const controller = new AbortController();
+  const timeoutMs = env.UPSTREAM_TIMEOUT_MS ? parseInt(env.UPSTREAM_TIMEOUT_MS) : UPSTREAM_TIMEOUT_MS;
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-  // Add body for POST/PUT requests
-  if (request.method !== 'GET' && request.method !== 'HEAD') {
-    fetchOptions.body = await request.text();
+  try {
+    // Build fetch options
+    const fetchOptions = {
+      method: request.method,
+      headers: buildHeaders(request),
+      redirect: 'follow',
+      signal: controller.signal
+    };
+
+    // Add body for POST/PUT requests
+    if (request.method !== 'GET' && request.method !== 'HEAD') {
+      fetchOptions.body = await request.text();
+    }
+
+    // Make request to Apps Script
+    const response = await fetch(targetUrl, fetchOptions);
+
+    console.log(`[EventAngle] Response: ${response.status} ${response.statusText}`);
+
+    return response;
+  } finally {
+    clearTimeout(timeoutId);
   }
-
-  // Make request to Apps Script
-  const response = await fetch(targetUrl, fetchOptions);
-
-  console.log(`[EventAngle] Response: ${response.status} ${response.statusText}`);
-
-  return response;
 }
 
 /**
@@ -357,24 +707,4 @@ function addTransparencyHeaders(response, startTime) {
   return newResponse;
 }
 
-/**
- * Error response handler
- */
-function errorResponse(error) {
-  console.error('Proxy error:', error);
-
-  return new Response(JSON.stringify({
-    ok: false,
-    error: 'PROXY_ERROR',
-    message: error.message || 'Failed to proxy request to Apps Script',
-    workerVersion: WORKER_VERSION,
-  }), {
-    status: 502,
-    headers: {
-      'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*',
-      'X-Proxied-By': 'eventangle-worker',
-      'X-Worker-Version': WORKER_VERSION,
-    },
-  });
-}
+// Note: errorResponse replaced by createGracefulErrorResponse for better UX

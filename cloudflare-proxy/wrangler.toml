@@ -12,8 +12,16 @@ compatibility_date = "2024-01-01"
 # Environment Variables
 # ============================================
 # The deployment ID is updated by CI/CD after each Apps Script deployment
+#
+# DEPLOYMENT_ID - Apps Script deployment ID (for building exec URL)
+# GAS_DEPLOYMENT_BASE_URL - Full Apps Script exec URL (preferred over DEPLOYMENT_ID)
+# ERROR_LOG_ENDPOINT - (Optional) URL for external error logging (POST JSON)
+# UPSTREAM_TIMEOUT_MS - (Optional) Timeout for upstream requests (default: 30000ms)
+#
 [vars]
 DEPLOYMENT_ID = "AKfycbyS1cW9VhviR-Jr8AmYY_BAGrb1gzuKkrgEBP2M3bMdqAv4ktqHOZInWV8ogkpz5i8SYQ"
+# ERROR_LOG_ENDPOINT = "https://your-logging-endpoint.com/errors"
+# UPSTREAM_TIMEOUT_MS = "30000"
 
 # ============================================
 # Production - FULL SITE (eventangle.com)

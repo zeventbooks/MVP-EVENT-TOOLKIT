@@ -758,31 +758,25 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
         return;
       }
 
-      let res;
-      try {
-        res = await NU.rpc('api_getPosterBundle', { brandId: BRAND, scope: SCOPE, id: ID });
-      } catch (err) {
-        // S12: Network error - use shared StateRenderer
-        console.error('Poster API error:', err);
-        SharedUtils.StateRenderer.showNetworkError(container, { onRetry: () => location.reload() });
+      // S13: Use safeRpc for graceful error handling
+      const res = await NU.safeRpc('api_getPosterBundle', { brandId: BRAND, scope: SCOPE, id: ID });
+
+      // S13: Handle API errors with showFromError (handles SERVICE_UNAVAILABLE, TIMEOUT, etc.)
+      if (!res.ok) {
+        console.error('Poster API error:', res.code, res.message);
+        SharedUtils.StateRenderer.showFromError(container, res, {
+          onRetry: () => location.reload()
+        });
         return;
       }
 
       try {
-        if (res.ok && res.value && res.value.event) {
+        if (res.value && res.value.event) {
           // getPosterBundle returns { event: Event, qrCodes: {...} }
           renderPoster(res.value.event);
-        } else if (res.ok && res.value) {
+        } else if (res.value) {
           // Backward compat: direct event object
           renderPoster(res.value);
-        } else if (!res.ok) {
-          // S12: API error - use shared StateRenderer
-          SharedUtils.StateRenderer.showError(container, {
-            title: 'Something Went Wrong',
-            message: 'We couldn\'t load this poster right now. This might be a temporary issue.',
-            hint: 'Please try again in a moment.',
-            onRetry: () => location.reload()
-          });
         } else {
           renderPoster(null);
         }
