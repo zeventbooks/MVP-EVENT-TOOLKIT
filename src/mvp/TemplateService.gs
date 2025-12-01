@@ -103,12 +103,13 @@ var TEMPLATE_TIER = {
 
 /**
  * Minimum and maximum MVP template count for validation
- * Per S13 acceptance criteria: 3-6 base templates marked as MVP
+ * Per S13 acceptance criteria: 3-10 base templates marked as MVP
+ * Expanded from 3-6 to support full 10-template base set
  * @constant {Object}
  */
 var MVP_TEMPLATE_REQUIREMENTS = {
   MIN_COUNT: 3,
-  MAX_COUNT: 6
+  MAX_COUNT: 10
 };
 
 /**
@@ -141,20 +142,28 @@ var TEMPLATE_GROUPS = [
     displayOrder: 3
   },
   {
-    id: 'social',
-    label: 'Social & Celebration',
-    description: 'Weddings, parties, and personal celebrations',
-    icon: '🎉',
-    tier: TEMPLATE_TIER.V2,
+    id: 'schools',
+    label: 'Schools & Youth',
+    description: 'School events, youth sports, clubs, and activities',
+    icon: '🎓',
+    tier: TEMPLATE_TIER.MVP,
     displayOrder: 4
   },
   {
     id: 'community',
     label: 'Community & Faith',
-    description: 'Churches, markets, and community gatherings',
+    description: 'Fairs, block parties, parish fests, and community gatherings',
     icon: '🏛️',
-    tier: TEMPLATE_TIER.V2,
+    tier: TEMPLATE_TIER.MVP,
     displayOrder: 5
+  },
+  {
+    id: 'social',
+    label: 'Social & Celebration',
+    description: 'Weddings, parties, and personal celebrations',
+    icon: '🎉',
+    tier: TEMPLATE_TIER.V2,
+    displayOrder: 6
   },
   {
     id: 'professional',
@@ -162,7 +171,7 @@ var TEMPLATE_GROUPS = [
     description: 'Business events, conferences, and fundraisers',
     icon: '💼',
     tier: TEMPLATE_TIER.V2,
-    displayOrder: 6
+    displayOrder: 7
   }
 ];
 
@@ -194,6 +203,32 @@ var EVENT_TEMPLATES = {
       audience: 'Adults 21+',
       notesLabel: 'House Rules',
       sponsorStripLabel: "Tonight's Sponsors"
+    }
+  },
+
+  music_event: {
+    id: 'music_event',
+    label: 'Music Night / Live Music',
+    description: 'Live music, acoustic sets, band nights, promoter events',
+    exampleName: 'Friday Night Live Music',
+    icon: '🎵',
+    tier: TEMPLATE_TIER.MVP,
+    mvp: true,  // S13: MVP template flag for stage-gating
+    group: 'bar_events',
+    displayOrder: 2,
+    sections: {
+      video: true,
+      map: true,
+      schedule: true,
+      sponsors: true,
+      notes: true,
+      gallery: true
+    },
+    defaultCtas: ['RSVP', 'View Lineup'],
+    defaults: {
+      audience: 'Music Fans',
+      notesLabel: 'Set Times & Info',
+      sponsorStripLabel: 'Event Sponsors'
     }
   },
 
@@ -256,6 +291,33 @@ var EVENT_TEMPLATES = {
     defaultExternalProvider: 'Custom'
   },
 
+  youth_sports: {
+    id: 'youth_sports',
+    label: 'Youth Sports',
+    description: 'Youth sports events, games, practices, schedules',
+    exampleName: 'EP Youth Football Schedule',
+    icon: '🏈',
+    tier: TEMPLATE_TIER.MVP,
+    mvp: true,  // S13: MVP template flag for stage-gating
+    group: 'leagues',
+    displayOrder: 3,
+    sections: {
+      video: false,
+      map: true,
+      schedule: true,
+      sponsors: true,
+      notes: true,
+      gallery: true
+    },
+    defaultCtas: ['View Schedule', 'Register Player'],
+    defaults: {
+      audience: 'Parents & Players',
+      notesLabel: 'Team Info',
+      sponsorStripLabel: 'Season Sponsors'
+    },
+    defaultExternalProvider: 'Custom'
+  },
+
   // ============================================================================
   // [MVP] GENERAL PURPOSE TEMPLATES - Group: general
   // ============================================================================
@@ -280,6 +342,118 @@ var EVENT_TEMPLATES = {
     },
     defaultCtas: ['Register', 'Add to Calendar'],
     defaults: {}
+  },
+
+  fundraiser: {
+    id: 'fundraiser',
+    label: 'Fundraiser / Charity Event',
+    description: 'Fundraising events, charity nights, benefit events, auctions',
+    exampleName: 'Trivia Night for a Cause',
+    icon: '💝',
+    tier: TEMPLATE_TIER.MVP,
+    mvp: true,  // S13: MVP template flag for stage-gating
+    group: 'general',
+    displayOrder: 2,
+    sections: {
+      video: true,
+      map: true,
+      schedule: true,
+      sponsors: true,
+      notes: true,
+      gallery: true
+    },
+    defaultCtas: ['Donate', 'Buy Tickets'],
+    defaults: {
+      audience: 'Donors & Guests',
+      notesLabel: 'About the Cause',
+      sponsorStripLabel: 'Event Sponsors'
+    }
+  },
+
+  // ============================================================================
+  // [MVP] SCHOOLS & YOUTH TEMPLATES - Group: schools
+  // ============================================================================
+
+  school_event: {
+    id: 'school_event',
+    label: 'School Event',
+    description: 'School calendars, concerts, plays, open houses, assemblies',
+    exampleName: 'Spring Band Concert',
+    icon: '🏫',
+    tier: TEMPLATE_TIER.MVP,
+    mvp: true,  // S13: MVP template flag for stage-gating
+    group: 'schools',
+    displayOrder: 1,
+    sections: {
+      video: true,
+      map: true,
+      schedule: true,
+      sponsors: false,
+      notes: true,
+      gallery: true
+    },
+    defaultCtas: ['RSVP', 'Add to Calendar'],
+    defaults: {
+      audience: 'Parents & Students',
+      notesLabel: 'Event Details',
+      sponsorStripLabel: ''
+    }
+  },
+
+  club_activity: {
+    id: 'club_activity',
+    label: 'Club / Activity',
+    description: 'Clubs, boosters, arts groups, student organizations',
+    exampleName: 'Robotics Club Meeting',
+    icon: '🎭',
+    tier: TEMPLATE_TIER.MVP,
+    mvp: true,  // S13: MVP template flag for stage-gating
+    group: 'schools',
+    displayOrder: 2,
+    sections: {
+      video: false,
+      map: true,
+      schedule: true,
+      sponsors: true,
+      notes: true,
+      gallery: true
+    },
+    defaultCtas: ['Join Club', 'View Schedule'],
+    defaults: {
+      audience: 'Members & Parents',
+      notesLabel: 'Club Info',
+      sponsorStripLabel: 'Club Sponsors'
+    }
+  },
+
+  // ============================================================================
+  // [MVP] COMMUNITY TEMPLATES - Group: community
+  // ============================================================================
+
+  community_day: {
+    id: 'community_day',
+    label: 'Community Day / Festival',
+    description: 'Fairs, block parties, parish fests, rec center events',
+    exampleName: 'Summer Block Party',
+    icon: '🎪',
+    tier: TEMPLATE_TIER.MVP,
+    mvp: true,  // S13: MVP template flag for stage-gating
+    group: 'community',
+    displayOrder: 1,
+    sections: {
+      video: true,
+      map: true,
+      schedule: true,
+      sponsors: true,
+      notes: true,
+      gallery: true
+    },
+    defaultCtas: ['Get Directions', 'View Schedule'],
+    defaults: {
+      audience: 'Community Members',
+      notesLabel: 'Event Info',
+      sponsorStripLabel: 'Event Sponsors'
+    }
   },
 
   // ============================================================================
@@ -312,31 +486,7 @@ var EVENT_TEMPLATES = {
     }
   },
 
-  fundraiser: {
-    id: 'fundraiser',
-    label: 'Fundraiser / Charity',
-    description: 'Charity events, donation drives, benefit nights',
-    exampleName: 'Trivia Night for a Cause',
-    icon: '💝',
-    tier: TEMPLATE_TIER.V2,
-    mvp: false,  // S13: V2 template - not available in MVP build
-    group: 'professional',
-    displayOrder: 2,
-    sections: {
-      video: true,
-      map: true,
-      schedule: false,
-      sponsors: true,
-      notes: true,
-      gallery: true
-    },
-    defaultCtas: ['Donate', 'Buy Tickets', 'Share'],
-    defaults: {
-      audience: 'Donors & Guests',
-      notesLabel: 'About the Cause',
-      sponsorStripLabel: 'Event Sponsors'
-    }
-  },
+  // Note: fundraiser moved to MVP tier in general group
 
   corporate: {
     id: 'corporate',
@@ -902,12 +1052,12 @@ function applyTemplateToEvent_(event, templateId) {
   // showStandings and showBracket - default false unless template has specific support
   if (event.settings.showStandings == null) {
     // Only league-type templates default to showStandings=true
-    var leagueTemplates = ['rec_league', 'bocce', 'darts', 'bags', 'pinball'];
+    var leagueTemplates = ['rec_league', 'bocce', 'youth_sports', 'darts', 'bags', 'pinball'];
     event.settings.showStandings = leagueTemplates.includes(tpl.id);
   }
   if (event.settings.showBracket == null) {
     // Only tournament-style templates default to showBracket=true
-    var bracketTemplates = ['rec_league', 'bocce', 'bags'];
+    var bracketTemplates = ['rec_league', 'bocce', 'youth_sports', 'bags'];
     event.settings.showBracket = bracketTemplates.includes(tpl.id);
   }
 

@@ -39,7 +39,14 @@ describe('S13 - MVP Template Flags', () => {
     });
 
     test('MVP templates include core event types', () => {
-      const coreTemplateIds = ['bar_night', 'rec_league', 'bocce', 'custom'];
+      // Full 10-template base set
+      const coreTemplateIds = [
+        'bar_night', 'music_event',           // Bar & Tavern
+        'rec_league', 'bocce', 'youth_sports', // Leagues
+        'custom', 'fundraiser',                // General
+        'school_event', 'club_activity',       // Schools
+        'community_day'                        // Community
+      ];
 
       coreTemplateIds.forEach(id => {
         expect(MVP_TEMPLATES[id]).toBeDefined();
@@ -66,6 +73,20 @@ describe('S13 - MVP Template Flags', () => {
         t.group === 'general'
       );
       expect(generalTemplates.length).toBeGreaterThanOrEqual(1);
+    });
+
+    test('MVP templates include school/youth templates', () => {
+      const schoolTemplates = Object.values(MVP_TEMPLATES).filter(t =>
+        t.group === 'schools'
+      );
+      expect(schoolTemplates.length).toBeGreaterThanOrEqual(1);
+    });
+
+    test('MVP templates include community templates', () => {
+      const communityTemplates = Object.values(MVP_TEMPLATES).filter(t =>
+        t.group === 'community'
+      );
+      expect(communityTemplates.length).toBeGreaterThanOrEqual(1);
     });
 
   });
@@ -203,8 +224,14 @@ describe('S13 - MVP Template Flags', () => {
 
   describe('Admin UI Filtering Contract', () => {
 
-    test('MVP build should show exactly 4 core templates', () => {
-      const expectedMvpTemplates = ['bar_night', 'rec_league', 'bocce', 'custom'];
+    test('MVP build should show exactly 10 core templates', () => {
+      const expectedMvpTemplates = [
+        'bar_night', 'music_event',           // Bar & Tavern
+        'rec_league', 'bocce', 'youth_sports', // Leagues
+        'custom', 'fundraiser',                // General
+        'school_event', 'club_activity',       // Schools
+        'community_day'                        // Community
+      ];
       const actualMvpTemplates = Object.keys(MVP_TEMPLATES);
 
       expect(actualMvpTemplates.sort()).toEqual(expectedMvpTemplates.sort());

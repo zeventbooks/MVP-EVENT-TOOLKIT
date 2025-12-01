@@ -19,11 +19,12 @@
 
 /**
  * S13 MVP Template Requirements
- * Per acceptance criteria: Must have 3-6 base templates marked as MVP
+ * Per acceptance criteria: Must have 3-10 base templates marked as MVP
+ * Expanded from 3-6 to support full 10-template base set
  */
 const MVP_TEMPLATE_REQUIREMENTS = {
   MIN_COUNT: 3,
-  MAX_COUNT: 6
+  MAX_COUNT: 10
 };
 
 /**
@@ -32,12 +33,13 @@ const MVP_TEMPLATE_REQUIREMENTS = {
  * S13: Each template has mvp: true flag
  */
 const MVP_TEMPLATES = {
+  // Bar & Tavern group
   bar_night: {
     id: 'bar_night',
     label: 'Bar / Tavern Event',
     icon: '🍺',
     tier: 'mvp',
-    mvp: true,  // S13: MVP template flag
+    mvp: true,
     group: 'bar_events',
     sections: {
       video: true,
@@ -47,12 +49,28 @@ const MVP_TEMPLATES = {
       gallery: true
     }
   },
+  music_event: {
+    id: 'music_event',
+    label: 'Music Night / Live Music',
+    icon: '🎵',
+    tier: 'mvp',
+    mvp: true,
+    group: 'bar_events',
+    sections: {
+      video: true,
+      map: true,
+      schedule: true,
+      sponsors: true,
+      gallery: true
+    }
+  },
+  // Leagues & Sports group
   rec_league: {
     id: 'rec_league',
     label: 'Rec League / Season',
     icon: '⚾',
     tier: 'mvp',
-    mvp: true,  // S13: MVP template flag
+    mvp: true,
     group: 'leagues',
     sections: {
       video: false,
@@ -67,7 +85,7 @@ const MVP_TEMPLATES = {
     label: 'Bocce League',
     icon: '🎱',
     tier: 'mvp',
-    mvp: true,  // S13: MVP template flag
+    mvp: true,
     group: 'leagues',
     sections: {
       video: false,
@@ -77,13 +95,91 @@ const MVP_TEMPLATES = {
       gallery: false
     }
   },
+  youth_sports: {
+    id: 'youth_sports',
+    label: 'Youth Sports',
+    icon: '🏈',
+    tier: 'mvp',
+    mvp: true,
+    group: 'leagues',
+    sections: {
+      video: false,
+      map: true,
+      schedule: true,
+      sponsors: true,
+      gallery: true
+    }
+  },
+  // General Purpose group
   custom: {
     id: 'custom',
     label: 'Custom Event',
     icon: '✨',
     tier: 'mvp',
-    mvp: true,  // S13: MVP template flag
+    mvp: true,
     group: 'general',
+    sections: {
+      video: true,
+      map: true,
+      schedule: true,
+      sponsors: true,
+      gallery: true
+    }
+  },
+  fundraiser: {
+    id: 'fundraiser',
+    label: 'Fundraiser / Charity Event',
+    icon: '💝',
+    tier: 'mvp',
+    mvp: true,
+    group: 'general',
+    sections: {
+      video: true,
+      map: true,
+      schedule: true,
+      sponsors: true,
+      gallery: true
+    }
+  },
+  // Schools & Youth group
+  school_event: {
+    id: 'school_event',
+    label: 'School Event',
+    icon: '🏫',
+    tier: 'mvp',
+    mvp: true,
+    group: 'schools',
+    sections: {
+      video: true,
+      map: true,
+      schedule: true,
+      sponsors: false,
+      gallery: true
+    }
+  },
+  club_activity: {
+    id: 'club_activity',
+    label: 'Club / Activity',
+    icon: '🎭',
+    tier: 'mvp',
+    mvp: true,
+    group: 'schools',
+    sections: {
+      video: false,
+      map: true,
+      schedule: true,
+      sponsors: true,
+      gallery: true
+    }
+  },
+  // Community group
+  community_day: {
+    id: 'community_day',
+    label: 'Community Day / Festival',
+    icon: '🎪',
+    tier: 'mvp',
+    mvp: true,
+    group: 'community',
     sections: {
       video: true,
       map: true,
@@ -105,7 +201,7 @@ const V2_TEMPLATES = {
     label: 'School / Youth Event',
     icon: '🎓',
     tier: 'v2',
-    mvp: false,  // S13: V2 template - not available in MVP build
+    mvp: false,
     group: 'professional',
     sections: {
       video: true,
@@ -115,21 +211,7 @@ const V2_TEMPLATES = {
       gallery: true
     }
   },
-  fundraiser: {
-    id: 'fundraiser',
-    label: 'Fundraiser / Charity',
-    icon: '💝',
-    tier: 'v2',
-    mvp: false,  // S13: V2 template - not available in MVP build
-    group: 'professional',
-    sections: {
-      video: true,
-      map: true,
-      schedule: false,
-      sponsors: true,
-      gallery: true
-    }
-  },
+  // Note: fundraiser moved to MVP tier
   corporate: {
     id: 'corporate',
     label: 'Corporate / Professional',
@@ -224,12 +306,12 @@ function getExpectedSettingsForTemplate(templateId) {
   };
 
   // League templates enable standings
-  if (['rec_league', 'bocce', 'darts', 'bags', 'pinball'].includes(templateId)) {
+  if (['rec_league', 'bocce', 'youth_sports', 'darts', 'bags', 'pinball'].includes(templateId)) {
     settings.showStandings = true;
   }
 
   // Tournament templates enable bracket
-  if (['rec_league', 'bocce', 'bags'].includes(templateId)) {
+  if (['rec_league', 'bocce', 'youth_sports', 'bags'].includes(templateId)) {
     settings.showBracket = true;
   }
 
