@@ -25,11 +25,13 @@ npm run test:load:spike      # Traffic spike (~80s)
 
 | File | Description | VUs | Duration | Use Case |
 |------|-------------|-----|----------|----------|
+| `bundle-load.js` | **Bundle endpoints + SLO tracking** | 5 | 60s | Primary SLO verification |
 | `smoke-load.js` | Baseline verification | 1 | 30s | Verify deployment works |
 | `average-load.js` | Normal usage simulation | 10 | 2m | Benchmark typical load |
 | `stress-load.js` | Heavy sustained load | 0→50→0 | 4m | Find system limits |
 | `spike-load.js` | Sudden traffic spike | 1→100→1 | 80s | Test resilience |
 | `helpers.js` | Shared utilities | - | - | API helpers & thresholds |
+| `run-load-test.sh` | SLO test runner | - | - | Run bundle test with CSV logging |
 
 ## What Gets Tested
 
@@ -68,13 +70,48 @@ Run via **Actions** tab → **Load Testing** workflow:
 | `BRAND_ID` | No | `root` | Brand to test |
 | `ENVIRONMENT` | No | `production` | Environment tag |
 
-## Performance Targets
+## SLO Targets (Service Level Objectives)
+
+See [PERFORMANCE_NOTES.md](../../PERFORMANCE_NOTES.md) for full SLO documentation.
+
+| Endpoint | p95 Target | Error Rate |
+|----------|------------|------------|
+| `api_getPublicBundle` | < 2000ms | < 1% |
+| `api_getDisplayBundle` | < 2000ms | < 1% |
+| `api_getPosterBundle` | < 2000ms | < 1% |
+| `api_getSharedAnalytics` | < 2000ms | < 1% |
+
+### SLO Status Levels
+
+| Status | p95 Latency | Error Rate | Action |
+|--------|-------------|------------|--------|
+| PASS | < 1500ms | < 0.5% | No action needed |
+| WARN | 1500-2000ms | 0.5-1% | Investigate before deploy |
+| FAIL | > 2000ms | > 1% | Do not deploy |
+
+## Running Bundle Load Test with SLO Tracking
+
+```bash
+# Using the SLO test runner (recommended)
+./tests/load/run-load-test.sh              # Against staging
+./tests/load/run-load-test.sh staging root # Specify brand
+
+# Using npm
+npm run test:load:bundles
+
+# Direct k6 command
+BASE_URL=https://stg.eventangle.com k6 run tests/load/bundle-load.js
+```
+
+Results are automatically appended to `tests/load/results/perf-results.csv`.
+
+## General Performance Targets
 
 | Metric | Target |
 |--------|--------|
-| Average response | < 2s |
-| p95 response | < 5s |
-| Error rate | < 0.5% |
+| Average response | < 1.5s |
+| p95 response | < 2s |
+| Error rate | < 1% |
 | Concurrent users | 50+ |
 
 ## Example Output
