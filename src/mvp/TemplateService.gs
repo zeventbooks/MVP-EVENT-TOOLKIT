@@ -172,6 +172,14 @@ var TEMPLATE_GROUPS = [
     icon: '💼',
     tier: TEMPLATE_TIER.V2,
     displayOrder: 7
+  },
+  {
+    id: 'travel',
+    label: 'Travel & Lodging',
+    description: 'Lodging guides, local recommendations, and travel hubs',
+    icon: '🏡',
+    tier: TEMPLATE_TIER.V2,
+    displayOrder: 8
   }
 ];
 
@@ -865,6 +873,65 @@ var EVENT_TEMPLATES = {
       sponsorStripLabel: 'League Sponsors'
     },
     defaultExternalProvider: 'Custom'
+  },
+
+  // ============================================================================
+  // [V2+] TRAVEL & LODGING TEMPLATES - Group: travel
+  // ============================================================================
+
+  travel_hub: {
+    id: 'travel_hub',
+    label: 'Travel Hub / Local Guide',
+    description: 'Lodging + local guide with nearby wineries, breweries, food, and activities',
+    exampleName: 'Harbor Country Cabins Guide',
+    icon: '🏡',
+    tier: TEMPLATE_TIER.V2,
+    mvp: false,  // S13: V2 template - post-MVP core growth feature
+    group: 'travel',
+    displayOrder: 1,
+    sections: {
+      video: true,
+      map: true,
+      schedule: false,  // Not event-based, persistent guide
+      sponsors: true,
+      notes: true,
+      gallery: true
+    },
+    defaultCtas: ['View Guide', 'Get Directions'],
+    defaults: {
+      audience: 'Guests & Travelers',
+      notesLabel: 'Stay Info',
+      sponsorStripLabel: 'Local Partners'
+    },
+    // Travel Hub specific structure
+    travelHubConfig: {
+      // Host/Property block
+      host: {
+        name: '',
+        address: '',
+        mapUrl: '',
+        checkIn: '',
+        checkOut: '',
+        houseRules: '',
+        emergencyContact: '',
+        wifi: '',
+        parking: '',
+        specialNotes: ''
+      },
+      // Local "Layers" - categories of nearby recommendations
+      defaultLayers: [
+        { id: 'wine_weekend', label: 'Wineries', icon: '🍷', enabled: true },
+        { id: 'craft_beer', label: 'Breweries', icon: '🍺', enabled: true },
+        { id: 'bocce_bonfire', label: 'Bocce + Bonfires', icon: '🔥', enabled: true },
+        { id: 'foodie', label: 'Foodie', icon: '🍽️', enabled: true },
+        { id: 'outdoors', label: 'Outdoors', icon: '🏕️', enabled: true },
+        { id: 'family_friendly', label: 'Family Friendly', icon: '👨‍👩‍👧‍👦', enabled: true },
+        { id: 'couples_retreat', label: 'Couples', icon: '💑', enabled: true },
+        { id: 'group_trip', label: 'Group Trip', icon: '🎉', enabled: true }
+      ],
+      // Optional curated weekend packs
+      weekendPacks: []
+    }
   }
 };
 

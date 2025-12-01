@@ -256,6 +256,29 @@ const V2_TEMPLATES = {
       sponsors: true,
       gallery: false
     }
+  },
+  // Travel & Lodging group
+  travel_hub: {
+    id: 'travel_hub',
+    label: 'Travel Hub / Local Guide',
+    icon: '🏡',
+    tier: 'v2',
+    mvp: false,  // S13: V2 template - post-MVP core growth feature
+    group: 'travel',
+    sections: {
+      video: true,
+      map: true,
+      schedule: false,  // Persistent guide, not event-based
+      sponsors: true,
+      gallery: true
+    },
+    // Travel Hub has additional config for host/layers structure
+    travelHubConfig: {
+      defaultLayers: [
+        'wine_weekend', 'craft_beer', 'bocce_bonfire', 'foodie',
+        'outdoors', 'family_friendly', 'couples_retreat', 'group_trip'
+      ]
+    }
   }
 };
 
