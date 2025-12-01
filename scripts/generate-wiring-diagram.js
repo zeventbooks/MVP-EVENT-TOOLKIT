@@ -69,8 +69,9 @@ function extractRpcCalls(filePath) {
   const content = fs.readFileSync(filePath, 'utf8');
   const calls = new Set();
 
-  // Match NU.rpc('api_name', ...) patterns
-  const rpcPattern = /NU\.rpc\s*\(\s*['"]([a-zA-Z_]+)['"]/g;
+  // Match NU.rpc('api_name', ...) and NU.safeRpc('api_name', ...) patterns
+  // S13: Added safeRpc for graceful degradation
+  const rpcPattern = /NU\.(?:rpc|safeRpc)\s*\(\s*['"]([a-zA-Z_]+)['"]/g;
   let match;
 
   while ((match = rpcPattern.exec(content)) !== null) {
@@ -87,7 +88,7 @@ function extractRpcCalls(filePath) {
     // Verify it's in a dynamic assignment context (not just a string)
     const idx = match.index;
     const before = content.substring(Math.max(0, idx - 100), idx);
-    if (before.match(/(?:rpcName|apiName|endpoint|method)\s*[=:?]|NU\.rpc\s*\(/)) {
+    if (before.match(/(?:rpcName|apiName|endpoint|method)\s*[=:?]|NU\.(?:rpc|safeRpc)\s*\(/)) {
       calls.add(apiName);
     }
   }
