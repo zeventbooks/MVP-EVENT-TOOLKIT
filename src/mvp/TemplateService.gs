@@ -102,6 +102,17 @@ var TEMPLATE_TIER = {
 };
 
 /**
+ * Minimum and maximum MVP template count for validation
+ * Per S13 acceptance criteria: 3-10 base templates marked as MVP
+ * Expanded from 3-6 to support full 10-template base set
+ * @constant {Object}
+ */
+var MVP_TEMPLATE_REQUIREMENTS = {
+  MIN_COUNT: 3,
+  MAX_COUNT: 10
+};
+
+/**
  * Template groups for UI organization
  * Groups are displayed in order, templates within groups sorted by displayOrder
  */
@@ -131,20 +142,28 @@ var TEMPLATE_GROUPS = [
     displayOrder: 3
   },
   {
-    id: 'social',
-    label: 'Social & Celebration',
-    description: 'Weddings, parties, and personal celebrations',
-    icon: '🎉',
-    tier: TEMPLATE_TIER.V2,
+    id: 'schools',
+    label: 'Schools & Youth',
+    description: 'School events, youth sports, clubs, and activities',
+    icon: '🎓',
+    tier: TEMPLATE_TIER.MVP,
     displayOrder: 4
   },
   {
     id: 'community',
     label: 'Community & Faith',
-    description: 'Churches, markets, and community gatherings',
+    description: 'Fairs, block parties, parish fests, and community gatherings',
     icon: '🏛️',
-    tier: TEMPLATE_TIER.V2,
+    tier: TEMPLATE_TIER.MVP,
     displayOrder: 5
+  },
+  {
+    id: 'social',
+    label: 'Social & Celebration',
+    description: 'Weddings, parties, and personal celebrations',
+    icon: '🎉',
+    tier: TEMPLATE_TIER.V2,
+    displayOrder: 6
   },
   {
     id: 'professional',
@@ -152,7 +171,15 @@ var TEMPLATE_GROUPS = [
     description: 'Business events, conferences, and fundraisers',
     icon: '💼',
     tier: TEMPLATE_TIER.V2,
-    displayOrder: 6
+    displayOrder: 7
+  },
+  {
+    id: 'travel',
+    label: 'Travel & Lodging',
+    description: 'Lodging guides, local recommendations, and travel hubs',
+    icon: '🏡',
+    tier: TEMPLATE_TIER.V2,
+    displayOrder: 8
   }
 ];
 
@@ -168,6 +195,7 @@ var EVENT_TEMPLATES = {
     exampleName: 'Thursday Trivia Night',
     icon: '🍺',
     tier: TEMPLATE_TIER.MVP,
+    mvp: true,  // S13: MVP template flag for stage-gating
     group: 'bar_events',
     displayOrder: 1,
     sections: {
@@ -186,6 +214,32 @@ var EVENT_TEMPLATES = {
     }
   },
 
+  music_event: {
+    id: 'music_event',
+    label: 'Music Night / Live Music',
+    description: 'Live music, acoustic sets, band nights, promoter events',
+    exampleName: 'Friday Night Live Music',
+    icon: '🎵',
+    tier: TEMPLATE_TIER.MVP,
+    mvp: true,  // S13: MVP template flag for stage-gating
+    group: 'bar_events',
+    displayOrder: 2,
+    sections: {
+      video: true,
+      map: true,
+      schedule: true,
+      sponsors: true,
+      notes: true,
+      gallery: true
+    },
+    defaultCtas: ['RSVP', 'View Lineup'],
+    defaults: {
+      audience: 'Music Fans',
+      notesLabel: 'Set Times & Info',
+      sponsorStripLabel: 'Event Sponsors'
+    }
+  },
+
   // ============================================================================
   // [MVP] LEAGUE & SPORTS TEMPLATES - Group: leagues
   // ============================================================================
@@ -197,6 +251,7 @@ var EVENT_TEMPLATES = {
     exampleName: 'Summer Softball League',
     icon: '⚾',
     tier: TEMPLATE_TIER.MVP,
+    mvp: true,  // S13: MVP template flag for stage-gating
     group: 'leagues',
     displayOrder: 1,
     sections: {
@@ -224,6 +279,7 @@ var EVENT_TEMPLATES = {
     exampleName: 'Thursday Night Bocce',
     icon: '🎱',
     tier: TEMPLATE_TIER.MVP,
+    mvp: true,  // S13: MVP template flag for stage-gating
     group: 'leagues',
     displayOrder: 2,
     sections: {
@@ -243,6 +299,33 @@ var EVENT_TEMPLATES = {
     defaultExternalProvider: 'Custom'
   },
 
+  youth_sports: {
+    id: 'youth_sports',
+    label: 'Youth Sports',
+    description: 'Youth sports events, games, practices, schedules',
+    exampleName: 'EP Youth Football Schedule',
+    icon: '🏈',
+    tier: TEMPLATE_TIER.MVP,
+    mvp: true,  // S13: MVP template flag for stage-gating
+    group: 'leagues',
+    displayOrder: 3,
+    sections: {
+      video: false,
+      map: true,
+      schedule: true,
+      sponsors: true,
+      notes: true,
+      gallery: true
+    },
+    defaultCtas: ['View Schedule', 'Register Player'],
+    defaults: {
+      audience: 'Parents & Players',
+      notesLabel: 'Team Info',
+      sponsorStripLabel: 'Season Sponsors'
+    },
+    defaultExternalProvider: 'Custom'
+  },
+
   // ============================================================================
   // [MVP] GENERAL PURPOSE TEMPLATES - Group: general
   // ============================================================================
@@ -254,6 +337,7 @@ var EVENT_TEMPLATES = {
     exampleName: 'My Custom Event',
     icon: '✨',
     tier: TEMPLATE_TIER.MVP,
+    mvp: true,  // S13: MVP template flag for stage-gating
     group: 'general',
     displayOrder: 99,  // Always last
     sections: {
@@ -268,6 +352,118 @@ var EVENT_TEMPLATES = {
     defaults: {}
   },
 
+  fundraiser: {
+    id: 'fundraiser',
+    label: 'Fundraiser / Charity Event',
+    description: 'Fundraising events, charity nights, benefit events, auctions',
+    exampleName: 'Trivia Night for a Cause',
+    icon: '💝',
+    tier: TEMPLATE_TIER.MVP,
+    mvp: true,  // S13: MVP template flag for stage-gating
+    group: 'general',
+    displayOrder: 2,
+    sections: {
+      video: true,
+      map: true,
+      schedule: true,
+      sponsors: true,
+      notes: true,
+      gallery: true
+    },
+    defaultCtas: ['Donate', 'Buy Tickets'],
+    defaults: {
+      audience: 'Donors & Guests',
+      notesLabel: 'About the Cause',
+      sponsorStripLabel: 'Event Sponsors'
+    }
+  },
+
+  // ============================================================================
+  // [MVP] SCHOOLS & YOUTH TEMPLATES - Group: schools
+  // ============================================================================
+
+  school_event: {
+    id: 'school_event',
+    label: 'School Event',
+    description: 'School calendars, concerts, plays, open houses, assemblies',
+    exampleName: 'Spring Band Concert',
+    icon: '🏫',
+    tier: TEMPLATE_TIER.MVP,
+    mvp: true,  // S13: MVP template flag for stage-gating
+    group: 'schools',
+    displayOrder: 1,
+    sections: {
+      video: true,
+      map: true,
+      schedule: true,
+      sponsors: false,
+      notes: true,
+      gallery: true
+    },
+    defaultCtas: ['RSVP', 'Add to Calendar'],
+    defaults: {
+      audience: 'Parents & Students',
+      notesLabel: 'Event Details',
+      sponsorStripLabel: ''
+    }
+  },
+
+  club_activity: {
+    id: 'club_activity',
+    label: 'Club / Activity',
+    description: 'Clubs, boosters, arts groups, student organizations',
+    exampleName: 'Robotics Club Meeting',
+    icon: '🎭',
+    tier: TEMPLATE_TIER.MVP,
+    mvp: true,  // S13: MVP template flag for stage-gating
+    group: 'schools',
+    displayOrder: 2,
+    sections: {
+      video: false,
+      map: true,
+      schedule: true,
+      sponsors: true,
+      notes: true,
+      gallery: true
+    },
+    defaultCtas: ['Join Club', 'View Schedule'],
+    defaults: {
+      audience: 'Members & Parents',
+      notesLabel: 'Club Info',
+      sponsorStripLabel: 'Club Sponsors'
+    }
+  },
+
+  // ============================================================================
+  // [MVP] COMMUNITY TEMPLATES - Group: community
+  // ============================================================================
+
+  community_day: {
+    id: 'community_day',
+    label: 'Community Day / Festival',
+    description: 'Fairs, block parties, parish fests, rec center events',
+    exampleName: 'Summer Block Party',
+    icon: '🎪',
+    tier: TEMPLATE_TIER.MVP,
+    mvp: true,  // S13: MVP template flag for stage-gating
+    group: 'community',
+    displayOrder: 1,
+    sections: {
+      video: true,
+      map: true,
+      schedule: true,
+      sponsors: true,
+      notes: true,
+      gallery: true
+    },
+    defaultCtas: ['Get Directions', 'View Schedule'],
+    defaults: {
+      audience: 'Community Members',
+      notesLabel: 'Event Info',
+      sponsorStripLabel: 'Event Sponsors'
+    }
+  },
+
   // ============================================================================
   // [V2+] PROFESSIONAL & CORPORATE TEMPLATES - Group: professional
   // ============================================================================
@@ -279,6 +475,7 @@ var EVENT_TEMPLATES = {
     exampleName: 'Band Booster Fundraiser',
     icon: '🎓',
     tier: TEMPLATE_TIER.V2,
+    mvp: false,  // S13: V2 template - not available in MVP build
     group: 'professional',
     displayOrder: 1,
     sections: {
@@ -297,30 +494,7 @@ var EVENT_TEMPLATES = {
     }
   },
 
-  fundraiser: {
-    id: 'fundraiser',
-    label: 'Fundraiser / Charity',
-    description: 'Charity events, donation drives, benefit nights',
-    exampleName: 'Trivia Night for a Cause',
-    icon: '💝',
-    tier: TEMPLATE_TIER.V2,
-    group: 'professional',
-    displayOrder: 2,
-    sections: {
-      video: true,
-      map: true,
-      schedule: false,
-      sponsors: true,
-      notes: true,
-      gallery: true
-    },
-    defaultCtas: ['Donate', 'Buy Tickets', 'Share'],
-    defaults: {
-      audience: 'Donors & Guests',
-      notesLabel: 'About the Cause',
-      sponsorStripLabel: 'Event Sponsors'
-    }
-  },
+  // Note: fundraiser moved to MVP tier in general group
 
   corporate: {
     id: 'corporate',
@@ -329,6 +503,7 @@ var EVENT_TEMPLATES = {
     exampleName: 'Q4 Sales Kickoff',
     icon: '💼',
     tier: TEMPLATE_TIER.V2,
+    mvp: false,  // S13: V2 template - not available in MVP build
     group: 'professional',
     displayOrder: 3,
     sections: {
@@ -358,6 +533,7 @@ var EVENT_TEMPLATES = {
     exampleName: 'Sarah & John Wedding',
     icon: '💒',
     tier: TEMPLATE_TIER.V2,
+    mvp: false,  // S13: V2 template - not available in MVP build
     group: 'social',
     displayOrder: 1,
     sections: {
@@ -383,6 +559,7 @@ var EVENT_TEMPLATES = {
     exampleName: 'Johnson Family Reunion Photos',
     icon: '📸',
     tier: TEMPLATE_TIER.V2,
+    mvp: false,  // S13: V2 template - not available in MVP build
     group: 'social',
     displayOrder: 2,
     sections: {
@@ -408,6 +585,7 @@ var EVENT_TEMPLATES = {
     exampleName: "Sarah's Baby Shower",
     icon: '🎀',
     tier: TEMPLATE_TIER.V2,
+    mvp: false,  // S13: V2 template - not available in MVP build
     group: 'social',
     displayOrder: 3,
     sections: {
@@ -433,6 +611,7 @@ var EVENT_TEMPLATES = {
     exampleName: "Jake's Bachelor Party",
     icon: '🥳',
     tier: TEMPLATE_TIER.V2,
+    mvp: false,  // S13: V2 template - not available in MVP build
     group: 'social',
     displayOrder: 4,
     sections: {
@@ -462,6 +641,7 @@ var EVENT_TEMPLATES = {
     exampleName: 'Saturday Farmers Market',
     icon: '🥕',
     tier: TEMPLATE_TIER.V2,
+    mvp: false,  // S13: V2 template - not available in MVP build
     group: 'community',
     displayOrder: 1,
     sections: {
@@ -487,6 +667,7 @@ var EVENT_TEMPLATES = {
     exampleName: 'Spring Art Walk',
     icon: '🎨',
     tier: TEMPLATE_TIER.V2,
+    mvp: false,  // S13: V2 template - not available in MVP build
     group: 'community',
     displayOrder: 2,
     sections: {
@@ -512,6 +693,7 @@ var EVENT_TEMPLATES = {
     exampleName: 'Summer Carnival',
     icon: '🎡',
     tier: TEMPLATE_TIER.V2,
+    mvp: false,  // S13: V2 template - not available in MVP build
     group: 'community',
     displayOrder: 3,
     sections: {
@@ -537,6 +719,7 @@ var EVENT_TEMPLATES = {
     exampleName: 'Easter Service',
     icon: '⛪',
     tier: TEMPLATE_TIER.V2,
+    mvp: false,  // S13: V2 template - not available in MVP build
     group: 'community',
     displayOrder: 4,
     sections: {
@@ -562,6 +745,7 @@ var EVENT_TEMPLATES = {
     exampleName: "Women's Bible Study",
     icon: '✝️',
     tier: TEMPLATE_TIER.V2,
+    mvp: false,  // S13: V2 template - not available in MVP build
     group: 'community',
     displayOrder: 5,
     sections: {
@@ -591,6 +775,7 @@ var EVENT_TEMPLATES = {
     exampleName: 'Wednesday Trivia',
     icon: '🧠',
     tier: TEMPLATE_TIER.V2,
+    mvp: false,  // S13: V2 template - not available in MVP build
     group: 'leagues',
     displayOrder: 10,
     sections: {
@@ -616,6 +801,7 @@ var EVENT_TEMPLATES = {
     exampleName: 'Tuesday Darts League',
     icon: '🎯',
     tier: TEMPLATE_TIER.V2,
+    mvp: false,  // S13: V2 template - not available in MVP build
     group: 'leagues',
     displayOrder: 11,
     sections: {
@@ -642,6 +828,7 @@ var EVENT_TEMPLATES = {
     exampleName: 'Summer Bags League',
     icon: '🥏',
     tier: TEMPLATE_TIER.V2,
+    mvp: false,  // S13: V2 template - not available in MVP build
     group: 'leagues',
     displayOrder: 12,
     sections: {
@@ -668,6 +855,7 @@ var EVENT_TEMPLATES = {
     exampleName: 'Monday Pinball League',
     icon: '🕹️',
     tier: TEMPLATE_TIER.V2,
+    mvp: false,  // S13: V2 template - not available in MVP build
     group: 'leagues',
     displayOrder: 13,
     sections: {
@@ -685,6 +873,65 @@ var EVENT_TEMPLATES = {
       sponsorStripLabel: 'League Sponsors'
     },
     defaultExternalProvider: 'Custom'
+  },
+
+  // ============================================================================
+  // [V2+] TRAVEL & LODGING TEMPLATES - Group: travel
+  // ============================================================================
+
+  travel_hub: {
+    id: 'travel_hub',
+    label: 'Travel Hub / Local Guide',
+    description: 'Lodging + local guide with nearby wineries, breweries, food, and activities',
+    exampleName: 'Harbor Country Cabins Guide',
+    icon: '🏡',
+    tier: TEMPLATE_TIER.V2,
+    mvp: false,  // S13: V2 template - post-MVP core growth feature
+    group: 'travel',
+    displayOrder: 1,
+    sections: {
+      video: true,
+      map: true,
+      schedule: false,  // Not event-based, persistent guide
+      sponsors: true,
+      notes: true,
+      gallery: true
+    },
+    defaultCtas: ['View Guide', 'Get Directions'],
+    defaults: {
+      audience: 'Guests & Travelers',
+      notesLabel: 'Stay Info',
+      sponsorStripLabel: 'Local Partners'
+    },
+    // Travel Hub specific structure
+    travelHubConfig: {
+      // Host/Property block
+      host: {
+        name: '',
+        address: '',
+        mapUrl: '',
+        checkIn: '',
+        checkOut: '',
+        houseRules: '',
+        emergencyContact: '',
+        wifi: '',
+        parking: '',
+        specialNotes: ''
+      },
+      // Local "Layers" - categories of nearby recommendations
+      defaultLayers: [
+        { id: 'wine_weekend', label: 'Wineries', icon: '🍷', enabled: true },
+        { id: 'craft_beer', label: 'Breweries', icon: '🍺', enabled: true },
+        { id: 'bocce_bonfire', label: 'Bocce + Bonfires', icon: '🔥', enabled: true },
+        { id: 'foodie', label: 'Foodie', icon: '🍽️', enabled: true },
+        { id: 'outdoors', label: 'Outdoors', icon: '🏕️', enabled: true },
+        { id: 'family_friendly', label: 'Family Friendly', icon: '👨‍👩‍👧‍👦', enabled: true },
+        { id: 'couples_retreat', label: 'Couples', icon: '💑', enabled: true },
+        { id: 'group_trip', label: 'Group Trip', icon: '🎉', enabled: true }
+      ],
+      // Optional curated weekend packs
+      weekendPacks: []
+    }
   }
 };
 
@@ -726,6 +973,50 @@ function getTemplatesByTier_(tier) {
  */
 function getMvpTemplates_() {
   return getTemplatesByTier_(TEMPLATE_TIER.MVP);
+}
+
+/**
+ * Check if a template is MVP (stage-gate)
+ * @param {string} templateId - Template ID to check
+ * @returns {boolean} True if template is MVP tier
+ */
+function isMvpTemplate_(templateId) {
+  var template = EVENT_TEMPLATES[templateId];
+  return template && template.mvp === true;
+}
+
+/**
+ * Validate MVP template requirements
+ * Per S13 acceptance criteria: Must have 3-6 base templates marked as MVP
+ * @returns {Object} Validation result with ok, count, and message
+ */
+function validateMvpTemplateRequirements_() {
+  var mvpTemplates = getMvpTemplates_();
+  var count = mvpTemplates.length;
+  var min = MVP_TEMPLATE_REQUIREMENTS.MIN_COUNT;
+  var max = MVP_TEMPLATE_REQUIREMENTS.MAX_COUNT;
+
+  if (count < min) {
+    return {
+      ok: false,
+      count: count,
+      message: 'Too few MVP templates: ' + count + ' (minimum ' + min + ' required)'
+    };
+  }
+
+  if (count > max) {
+    return {
+      ok: false,
+      count: count,
+      message: 'Too many MVP templates: ' + count + ' (maximum ' + max + ' allowed for MVP build)'
+    };
+  }
+
+  return {
+    ok: true,
+    count: count,
+    message: 'MVP template count valid: ' + count + ' templates (range ' + min + '-' + max + ')'
+  };
 }
 
 /**
@@ -828,12 +1119,12 @@ function applyTemplateToEvent_(event, templateId) {
   // showStandings and showBracket - default false unless template has specific support
   if (event.settings.showStandings == null) {
     // Only league-type templates default to showStandings=true
-    var leagueTemplates = ['rec_league', 'bocce', 'darts', 'bags', 'pinball'];
+    var leagueTemplates = ['rec_league', 'bocce', 'youth_sports', 'darts', 'bags', 'pinball'];
     event.settings.showStandings = leagueTemplates.includes(tpl.id);
   }
   if (event.settings.showBracket == null) {
     // Only tournament-style templates default to showBracket=true
-    var bracketTemplates = ['rec_league', 'bocce', 'bags'];
+    var bracketTemplates = ['rec_league', 'bocce', 'youth_sports', 'bags'];
     event.settings.showBracket = bracketTemplates.includes(tpl.id);
   }
 

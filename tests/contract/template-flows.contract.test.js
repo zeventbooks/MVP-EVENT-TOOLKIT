@@ -74,7 +74,7 @@ const EVENT_TEMPLATES = {
   fundraiser: {
     id: 'fundraiser',
     label: 'Fundraiser / Charity',
-    sections: { ...V2_TEMPLATES.fundraiser.sections, notes: true },
+    sections: { ...MVP_TEMPLATES.fundraiser.sections, notes: true },
     defaultCtas: ['Donate', 'Buy Tickets', 'Share'],  // Donate is FIRST
     defaults: {
       notesLabel: 'About the Cause',
