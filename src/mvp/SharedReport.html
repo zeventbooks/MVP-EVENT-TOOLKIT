@@ -90,6 +90,7 @@ DO NOT modify contracts without updating:
   <?!= include('NUSDK'); ?>
   <?!= include('DesignTokens'); ?>
   <?!= include('Styles'); ?>
+  <?!= include('SharedUtils'); ?>
   <?!= include('FooterComponent'); ?>
   <?!= include('SpinnerComponent'); ?>
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
@@ -1137,16 +1138,8 @@ DO NOT modify contracts without updating:
       <!-- Sections removed to keep MVP honest -->
     </div>
 
-    <!-- Error State (hidden by default) -->
-    <div id="errorState" style="display:none;">
-      <div class="error-state">
-        <div class="error-state-icon">⚠️</div>
-        <h3>Unable to Load Report</h3>
-        <p id="errorMessage">We couldn't load the analytics data right now. This might be a temporary issue.</p>
-        <p style="font-size: 0.85rem; color: #991b1b; margin-top: 8px;">Please try again in a moment.</p>
-        <button class="btn-retry" onclick="loadReport()">🔄 Try Again</button>
-      </div>
-    </div>
+    <!-- S12: Error State container (dynamically rendered by StateRenderer) -->
+    <div id="errorState" style="display:none;"></div>
   </div>
 
   <!-- Trust Footer -->
@@ -1275,30 +1268,31 @@ DO NOT modify contracts without updating:
       document.getElementById('errorState').style.display = 'none';
     }
 
+    // S12: Use shared StateRenderer for consistent error handling
     function showError(message) {
       document.getElementById('loading').style.display = 'none';
       document.getElementById('metrics').style.display = 'none';
 
-      // Provide user-friendly error messages, don't expose technical details
-      let displayMessage = 'We couldn\'t load the analytics data right now. This might be a temporary issue.';
+      const errorContainer = document.getElementById('errorState');
+      const errorType = SharedUtils.classifyError(message);
+      const { ERROR_TYPES, StateRenderer } = SharedUtils;
 
-      if (message) {
-        // Map technical errors to friendly messages
-        const lowerMsg = String(message).toLowerCase();
-        if (lowerMsg.includes('not found') || lowerMsg.includes('404')) {
-          displayMessage = 'This report could not be found. The link may be outdated or the report may have been removed.';
-        } else if (lowerMsg.includes('unauthorized') || lowerMsg.includes('403') || lowerMsg.includes('permission')) {
-          displayMessage = 'You don\'t have permission to view this report. Please contact the event organizer.';
-        } else if (lowerMsg.includes('network') || lowerMsg.includes('timeout') || lowerMsg.includes('connection')) {
-          displayMessage = 'We\'re having trouble connecting. Please check your internet connection and try again.';
-        } else if (lowerMsg.includes('portfolio')) {
-          displayMessage = message; // Portfolio messages are already user-friendly
-        }
-        // Otherwise use the default message - don't leak technical details
+      // Handle portfolio-specific messages (already user-friendly)
+      if (message && String(message).toLowerCase().includes('portfolio')) {
+        StateRenderer.showError(errorContainer, {
+          title: 'Unable to Load Report',
+          message: message,
+          hint: 'Please try again in a moment.',
+          onRetry: loadReport
+        });
+      } else {
+        // Use StateRenderer's auto-detection for standard error types
+        StateRenderer.showFromError(errorContainer, message, {
+          onRetry: loadReport
+        });
       }
 
-      document.getElementById('errorMessage').textContent = displayMessage;
-      document.getElementById('errorState').style.display = 'block';
+      errorContainer.style.display = 'block';
     }
 
     /**

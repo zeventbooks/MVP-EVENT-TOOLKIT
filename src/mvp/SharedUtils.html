@@ -10,12 +10,13 @@
  * WINDOW ADDITION: window.SharedUtils
  *
  * Dependencies: NUSDK.html (for NU.esc)
- * Used by: Admin.html (MVP surface)
+ * Used by: Public.html, Display.html, Poster.html, SharedReport.html, Admin.html
  *
  * ═══════════════════════════════════════════════════════════════════════════════
  * HELPER INDEX (keep updated when adding/removing functions):
  * ═══════════════════════════════════════════════════════════════════════════════
  *   showAlert(message, type, options)  → Alert notifications (Admin.html)
+ *   showToast(message, type, duration) → Toast notifications (all surfaces)
  *   formatDate(dateInput, options)     → Date formatting (Admin.html)
  *   formatTime(timeStr)                → Time formatting (Admin.html)
  *   debounce(fn, delay)                → Event debouncing (Admin.html)
@@ -23,9 +24,21 @@
  *   validateUrl(url)                   → URL validation (Admin.html)
  *   sectionEnabled(settings, key)      → Section visibility check (Feature 4)
  *     Keys: schedule, standings, bracket, sponsors, video, map, gallery
+ *
+ * S12: StateRenderer - Unified error/empty/loading states (all surfaces)
+ *   StateRenderer.showError(container, options)      → Error state
+ *   StateRenderer.showEmpty(container, options)      → Empty state
+ *   StateRenderer.showLoading(container, options)    → Loading state
+ *   StateRenderer.showEventNotFound(container, opts) → Event not found
+ *   StateRenderer.showNoData(container, opts)        → No data yet
+ *   StateRenderer.showNetworkError(container, opts)  → Connection error
+ *   StateRenderer.showUnauthorized(container, opts)  → Access denied
+ *   StateRenderer.showFromError(container, err, opts)→ Auto-detect type
+ *   ERROR_TYPES                                      → Standard error types
+ *   classifyError(error)                             → Map error to type
  * ═══════════════════════════════════════════════════════════════════════════════
  *
- * @version 1.2.0
+ * @version 1.3.0
  */
 window.SharedUtils = (function() {
   'use strict';
@@ -391,19 +404,74 @@ window.SharedUtils = (function() {
 
   // === StateRenderer (unified error/empty/loading states) ===
 
+  /**
+   * Standard error types for consistent UX across all surfaces
+   * S12: Error & Empty State Polish
+   */
+  const ERROR_TYPES = {
+    EVENT_NOT_FOUND: 'event_not_found',
+    NO_DATA: 'no_data',
+    NETWORK_ERROR: 'network_error',
+    UNAUTHORIZED: 'unauthorized',
+    GENERIC: 'generic'
+  };
+
+  /**
+   * Maps raw error messages to user-friendly messages
+   * Prevents leaking internal details (JSON, stack traces, etc.)
+   * @param {string|Error} error - Raw error message or Error object
+   * @returns {string} User-friendly error type from ERROR_TYPES
+   */
+  function classifyError(error) {
+    const msg = String(error?.message || error || '').toLowerCase();
+
+    if (msg.includes('not found') || msg.includes('404') || msg.includes('invalid') || msg.includes('no event')) {
+      return ERROR_TYPES.EVENT_NOT_FOUND;
+    }
+    if (msg.includes('unauthorized') || msg.includes('403') || msg.includes('permission')) {
+      return ERROR_TYPES.UNAUTHORIZED;
+    }
+    if (msg.includes('network') || msg.includes('timeout') || msg.includes('failed to fetch') || msg.includes('connection')) {
+      return ERROR_TYPES.NETWORK_ERROR;
+    }
+    if (msg.includes('no data') || msg.includes('empty') || msg.includes('nothing')) {
+      return ERROR_TYPES.NO_DATA;
+    }
+    return ERROR_TYPES.GENERIC;
+  }
+
+  /**
+   * StateRenderer - Unified error/empty/loading state rendering
+   * S12: Consistent UX across Public, Display, Poster, SharedReport, Admin
+   */
   const StateRenderer = {
+    // Expose error types for external use
+    ERROR_TYPES,
+    classifyError,
+
     /**
      * Render error state into a container
      * @param {HTMLElement} container - Target container
-     * @param {Object} options - { title, message, onRetry }
+     * @param {Object} options - { title, message, onRetry, hint, tvMode }
      */
     showError(container, options = {}) {
-      const { title = 'Something went wrong', message = 'Please try again.', onRetry = null } = options;
+      const {
+        title = 'Something Went Wrong',
+        message = 'Please try again.',
+        onRetry = null,
+        hint = null,
+        tvMode = false
+      } = options;
+
+      const stateClass = tvMode ? 'error-state-tv' : 'error-state';
+      const iconClass = tvMode ? 'error-icon' : 'error-state-icon';
+
       container.innerHTML = `
-        <div class="error-state">
-          <div class="error-state-icon">⚠️</div>
+        <div class="${stateClass}">
+          <div class="${iconClass}">⚠️</div>
           <h3>${esc(title)}</h3>
           <p>${esc(message)}</p>
+          ${hint ? `<p style="font-size: 0.85rem; color: ${tvMode ? '#9ca3af' : '#991b1b'}; margin-top: 8px;">${esc(hint)}</p>` : ''}
           ${onRetry ? '<button class="btn-retry">🔄 Try Again</button>' : ''}
         </div>
       `;
@@ -415,16 +483,29 @@ window.SharedUtils = (function() {
     /**
      * Render empty state into a container
      * @param {HTMLElement} container - Target container
-     * @param {Object} options - { icon, title, message, backUrl }
+     * @param {Object} options - { icon, title, message, hint, backUrl, backLabel, tvMode }
      */
     showEmpty(container, options = {}) {
-      const { icon = '📭', title = 'Nothing here', message = '', backUrl = null } = options;
+      const {
+        icon = '📭',
+        title = 'Nothing Here',
+        message = '',
+        hint = null,
+        backUrl = null,
+        backLabel = '← Go Back',
+        tvMode = false
+      } = options;
+
+      const stateClass = tvMode ? 'error-state-tv' : 'empty-state';
+      const iconClass = tvMode ? 'error-icon' : 'empty-state-icon';
+
       container.innerHTML = `
-        <div class="empty-state">
-          <div class="empty-state-icon">${icon}</div>
+        <div class="${stateClass}">
+          <div class="${iconClass}">${icon}</div>
           <h3>${esc(title)}</h3>
           ${message ? `<p>${esc(message)}</p>` : ''}
-          ${backUrl ? `<a href="${esc(backUrl)}" class="btn-secondary">← Go Back</a>` : ''}
+          ${hint ? `<p style="font-size: 0.85rem; color: #94a3b8; margin-top: 12px;">${esc(hint)}</p>` : ''}
+          ${backUrl ? `<a href="${esc(backUrl)}" class="btn-secondary">${esc(backLabel)}</a>` : ''}
         </div>
       `;
     },
@@ -442,6 +523,116 @@ window.SharedUtils = (function() {
           <p>${esc(message)}</p>
         </div>
       `;
+    },
+
+    // === Convenience Methods for Common Scenarios (S12) ===
+
+    /**
+     * Show "Event Not Found" state
+     * @param {HTMLElement} container - Target container
+     * @param {Object} options - { backUrl, tvMode }
+     */
+    showEventNotFound(container, options = {}) {
+      const { backUrl = null, tvMode = false } = options;
+      this.showEmpty(container, {
+        icon: '🔍',
+        title: 'Event Not Found',
+        message: 'We couldn\'t find this event. The link may be outdated, the event ID might be incorrect, or the event may have been removed.',
+        hint: 'Double-check the URL or return to the events list to find what you\'re looking for.',
+        backUrl,
+        backLabel: '← View All Events',
+        tvMode
+      });
+    },
+
+    /**
+     * Show "No Data Yet" state
+     * @param {HTMLElement} container - Target container
+     * @param {Object} options - { context, backUrl, tvMode }
+     */
+    showNoData(container, options = {}) {
+      const { context = 'content', backUrl = null, tvMode = false } = options;
+      const contextMessages = {
+        events: 'Check back soon for new events, or contact the organizer for more information.',
+        sponsors: 'No sponsors to display yet. Sponsor information will appear here once configured.',
+        schedule: 'The event schedule will appear here once it\'s available.',
+        standings: 'Standings will appear here once the competition begins.',
+        analytics: 'Once attendees start interacting with your content, you\'ll see engagement data here.',
+        content: 'This event exists but doesn\'t have any content to display yet. Check back soon!'
+      };
+      this.showEmpty(container, {
+        icon: '📭',
+        title: 'No Data Yet',
+        message: contextMessages[context] || contextMessages.content,
+        backUrl,
+        tvMode
+      });
+    },
+
+    /**
+     * Show network/connection error state
+     * @param {HTMLElement} container - Target container
+     * @param {Object} options - { onRetry, tvMode }
+     */
+    showNetworkError(container, options = {}) {
+      const { onRetry = null, tvMode = false } = options;
+      this.showError(container, {
+        title: 'Connection Problem',
+        message: 'We\'re having trouble connecting right now. This might be a temporary issue.',
+        hint: 'Please check your internet connection and try again.',
+        onRetry,
+        tvMode
+      });
+    },
+
+    /**
+     * Show unauthorized/permission error state
+     * @param {HTMLElement} container - Target container
+     * @param {Object} options - { backUrl, tvMode }
+     */
+    showUnauthorized(container, options = {}) {
+      const { backUrl = null, tvMode = false } = options;
+      this.showError(container, {
+        title: 'Access Denied',
+        message: 'You don\'t have permission to view this content.',
+        hint: 'Please check that you have the correct access link.',
+        onRetry: null,
+        tvMode
+      });
+    },
+
+    /**
+     * Auto-detect error type and show appropriate state
+     * @param {HTMLElement} container - Target container
+     * @param {string|Error} error - Raw error
+     * @param {Object} options - { onRetry, backUrl, tvMode }
+     */
+    showFromError(container, error, options = {}) {
+      const { onRetry = null, backUrl = null, tvMode = false } = options;
+      const errorType = classifyError(error);
+
+      switch (errorType) {
+        case ERROR_TYPES.EVENT_NOT_FOUND:
+          this.showEventNotFound(container, { backUrl, tvMode });
+          break;
+        case ERROR_TYPES.NO_DATA:
+          this.showNoData(container, { backUrl, tvMode });
+          break;
+        case ERROR_TYPES.NETWORK_ERROR:
+          this.showNetworkError(container, { onRetry, tvMode });
+          break;
+        case ERROR_TYPES.UNAUTHORIZED:
+          this.showUnauthorized(container, { backUrl, tvMode });
+          break;
+        default:
+          this.showError(container, {
+            title: 'Something Went Wrong',
+            message: 'We couldn\'t load this content right now. This might be a temporary issue.',
+            hint: 'Please try again in a moment.',
+            onRetry,
+            tvMode
+          });
+      }
     }
   };
 
@@ -482,8 +673,10 @@ window.SharedUtils = (function() {
     // Toast (non-blocking)
     showToast,
 
-    // State rendering
+    // State rendering (S12: Enhanced with convenience methods)
     StateRenderer,
+    ERROR_TYPES,
+    classifyError,
 
     // Date formatting
     formatDate,

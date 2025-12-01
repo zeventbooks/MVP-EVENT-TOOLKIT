@@ -1191,7 +1191,7 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
     }
 
     /**
-     * Show error state for TV display - user-friendly messaging
+     * S12: Show error state for TV display using shared StateRenderer
      * @param {string} type - Error type: 'notfound', 'nodata', or 'load'
      */
     function showDisplayError(type = 'load') {
@@ -1202,39 +1202,29 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
         if (pane.el) pane.el.hidden = true;
       });
 
-      // Create error content in the stage area
+      // Create error container in the stage area
       const stageContainer = stage.parentElement;
       let existingError = document.getElementById('displayError');
       if (existingError) existingError.remove();
 
       const errorDiv = document.createElement('div');
       errorDiv.id = 'displayError';
-      errorDiv.className = 'error-state-tv';
+
+      // S12: Use shared StateRenderer with tvMode for consistent styling
+      const onRetry = () => location.reload();
 
       if (type === 'notfound') {
-        errorDiv.innerHTML = `
-          <div class="error-icon">🔍</div>
-          <h2>Event Not Found</h2>
-          <p>We couldn't find this event. The link may be outdated or the event ID might be incorrect.</p>
-          <p>Please check the URL and try again.</p>
-          <button class="btn-retry" onclick="location.reload()">🔄 Try Again</button>
-        `;
+        SharedUtils.StateRenderer.showEventNotFound(errorDiv, { tvMode: true });
       } else if (type === 'nodata') {
-        errorDiv.innerHTML = `
-          <div class="error-icon">📭</div>
-          <h2>No Content Available</h2>
-          <p>This event exists but doesn't have any display content configured yet.</p>
-          <p>Check back soon or contact the event organizer.</p>
-          <button class="btn-retry" onclick="location.reload()">🔄 Refresh</button>
-        `;
+        SharedUtils.StateRenderer.showNoData(errorDiv, { context: 'content', tvMode: true });
       } else {
-        errorDiv.innerHTML = `
-          <div class="error-icon">⚠️</div>
-          <h2>Unable to Load Display</h2>
-          <p>We're having trouble loading the display content right now.</p>
-          <p>This might be a temporary issue. Please try again.</p>
-          <button class="btn-retry" onclick="location.reload()">🔄 Try Again</button>
-        `;
+        SharedUtils.StateRenderer.showError(errorDiv, {
+          title: 'Unable to Load Display',
+          message: 'We\'re having trouble loading the display content right now.',
+          hint: 'This might be a temporary issue. Please try again.',
+          onRetry,
+          tvMode: true
+        });
       }
 
       stageContainer.appendChild(errorDiv);
