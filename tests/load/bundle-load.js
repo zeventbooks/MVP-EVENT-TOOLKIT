@@ -316,7 +316,15 @@ export function setup() {
   const brandId = getBrandId();
 
   // Validate we're not accidentally hitting production
-  if (baseUrl.includes('www.eventangle.com') && !__ENV.CONFIRM_PRODUCTION) {
+  // Use URL parsing to check hostname (not substring) to avoid security issues
+  let isProduction = false;
+  try {
+    const url = new URL(baseUrl);
+    isProduction = url.hostname === 'www.eventangle.com' || url.hostname === 'eventangle.com';
+  } catch (e) {
+    // Invalid URL, not production
+  }
+  if (isProduction && !__ENV.CONFIRM_PRODUCTION) {
     console.error('');
     console.error('!'.repeat(60));
     console.error('WARNING: You are about to run load tests against PRODUCTION!');
