@@ -28,7 +28,7 @@ const SRC_MVP = path.join(ROOT, 'src', 'mvp');
 const CODE_GS = path.join(SRC_MVP, 'Code.gs');
 
 // Known API endpoints that use page= but are NOT surfaces (JSON responses)
-const API_ENDPOINTS = ['status', 'statusmvp', 'status-mvp', 'setup', 'setupcheck', 'permissions', 'checkpermissions'];
+const API_ENDPOINTS = ['status', 'statusmvp', 'status-mvp', 'setup', 'setupcheck', 'permissions', 'checkpermissions', 'ping'];
 
 // Redirect handlers (not surfaces)
 const REDIRECT_PAGES = ['r', 'redirect'];
