@@ -18,8 +18,18 @@
  */
 
 /**
+ * S13 MVP Template Requirements
+ * Per acceptance criteria: Must have 3-6 base templates marked as MVP
+ */
+const MVP_TEMPLATE_REQUIREMENTS = {
+  MIN_COUNT: 3,
+  MAX_COUNT: 6
+};
+
+/**
  * MVP Templates (focus group ready)
  * Stage-gated: Only these templates are exposed in Admin UI
+ * S13: Each template has mvp: true flag
  */
 const MVP_TEMPLATES = {
   bar_night: {
@@ -27,6 +37,7 @@ const MVP_TEMPLATES = {
     label: 'Bar / Tavern Event',
     icon: '🍺',
     tier: 'mvp',
+    mvp: true,  // S13: MVP template flag
     group: 'bar_events',
     sections: {
       video: true,
@@ -41,6 +52,7 @@ const MVP_TEMPLATES = {
     label: 'Rec League / Season',
     icon: '⚾',
     tier: 'mvp',
+    mvp: true,  // S13: MVP template flag
     group: 'leagues',
     sections: {
       video: false,
@@ -55,6 +67,7 @@ const MVP_TEMPLATES = {
     label: 'Bocce League',
     icon: '🎱',
     tier: 'mvp',
+    mvp: true,  // S13: MVP template flag
     group: 'leagues',
     sections: {
       video: false,
@@ -69,6 +82,7 @@ const MVP_TEMPLATES = {
     label: 'Custom Event',
     icon: '✨',
     tier: 'mvp',
+    mvp: true,  // S13: MVP template flag
     group: 'general',
     sections: {
       video: true,
@@ -83,6 +97,7 @@ const MVP_TEMPLATES = {
 /**
  * V2+ Templates (post-MVP)
  * Stage-gated: Hidden from Admin UI until V2 features ship
+ * S13: Each template has mvp: false flag
  */
 const V2_TEMPLATES = {
   school: {
@@ -90,6 +105,7 @@ const V2_TEMPLATES = {
     label: 'School / Youth Event',
     icon: '🎓',
     tier: 'v2',
+    mvp: false,  // S13: V2 template - not available in MVP build
     group: 'professional',
     sections: {
       video: true,
@@ -104,6 +120,7 @@ const V2_TEMPLATES = {
     label: 'Fundraiser / Charity',
     icon: '💝',
     tier: 'v2',
+    mvp: false,  // S13: V2 template - not available in MVP build
     group: 'professional',
     sections: {
       video: true,
@@ -118,6 +135,7 @@ const V2_TEMPLATES = {
     label: 'Corporate / Professional',
     icon: '💼',
     tier: 'v2',
+    mvp: false,  // S13: V2 template - not available in MVP build
     group: 'professional',
     sections: {
       video: true,
@@ -132,6 +150,7 @@ const V2_TEMPLATES = {
     label: 'Wedding',
     icon: '💒',
     tier: 'v2',
+    mvp: false,  // S13: V2 template - not available in MVP build
     group: 'social',
     sections: {
       video: true,
@@ -146,6 +165,7 @@ const V2_TEMPLATES = {
     label: 'Trivia Night',
     icon: '🧠',
     tier: 'v2',
+    mvp: false,  // S13: V2 template - not available in MVP build
     group: 'leagues',
     sections: {
       video: false,
@@ -251,6 +271,7 @@ const ALL_SETTING_KEYS = [
 ];
 
 module.exports = {
+  MVP_TEMPLATE_REQUIREMENTS,
   MVP_TEMPLATES,
   V2_TEMPLATES,
   ALL_TEMPLATES,

@@ -102,6 +102,16 @@ var TEMPLATE_TIER = {
 };
 
 /**
+ * Minimum and maximum MVP template count for validation
+ * Per S13 acceptance criteria: 3-6 base templates marked as MVP
+ * @constant {Object}
+ */
+var MVP_TEMPLATE_REQUIREMENTS = {
+  MIN_COUNT: 3,
+  MAX_COUNT: 6
+};
+
+/**
  * Template groups for UI organization
  * Groups are displayed in order, templates within groups sorted by displayOrder
  */
@@ -168,6 +178,7 @@ var EVENT_TEMPLATES = {
     exampleName: 'Thursday Trivia Night',
     icon: '🍺',
     tier: TEMPLATE_TIER.MVP,
+    mvp: true,  // S13: MVP template flag for stage-gating
     group: 'bar_events',
     displayOrder: 1,
     sections: {
@@ -197,6 +208,7 @@ var EVENT_TEMPLATES = {
     exampleName: 'Summer Softball League',
     icon: '⚾',
     tier: TEMPLATE_TIER.MVP,
+    mvp: true,  // S13: MVP template flag for stage-gating
     group: 'leagues',
     displayOrder: 1,
     sections: {
@@ -224,6 +236,7 @@ var EVENT_TEMPLATES = {
     exampleName: 'Thursday Night Bocce',
     icon: '🎱',
     tier: TEMPLATE_TIER.MVP,
+    mvp: true,  // S13: MVP template flag for stage-gating
     group: 'leagues',
     displayOrder: 2,
     sections: {
@@ -254,6 +267,7 @@ var EVENT_TEMPLATES = {
     exampleName: 'My Custom Event',
     icon: '✨',
     tier: TEMPLATE_TIER.MVP,
+    mvp: true,  // S13: MVP template flag for stage-gating
     group: 'general',
     displayOrder: 99,  // Always last
     sections: {
@@ -279,6 +293,7 @@ var EVENT_TEMPLATES = {
     exampleName: 'Band Booster Fundraiser',
     icon: '🎓',
     tier: TEMPLATE_TIER.V2,
+    mvp: false,  // S13: V2 template - not available in MVP build
     group: 'professional',
     displayOrder: 1,
     sections: {
@@ -304,6 +319,7 @@ var EVENT_TEMPLATES = {
     exampleName: 'Trivia Night for a Cause',
     icon: '💝',
     tier: TEMPLATE_TIER.V2,
+    mvp: false,  // S13: V2 template - not available in MVP build
     group: 'professional',
     displayOrder: 2,
     sections: {
@@ -329,6 +345,7 @@ var EVENT_TEMPLATES = {
     exampleName: 'Q4 Sales Kickoff',
     icon: '💼',
     tier: TEMPLATE_TIER.V2,
+    mvp: false,  // S13: V2 template - not available in MVP build
     group: 'professional',
     displayOrder: 3,
     sections: {
@@ -358,6 +375,7 @@ var EVENT_TEMPLATES = {
     exampleName: 'Sarah & John Wedding',
     icon: '💒',
     tier: TEMPLATE_TIER.V2,
+    mvp: false,  // S13: V2 template - not available in MVP build
     group: 'social',
     displayOrder: 1,
     sections: {
@@ -383,6 +401,7 @@ var EVENT_TEMPLATES = {
     exampleName: 'Johnson Family Reunion Photos',
     icon: '📸',
     tier: TEMPLATE_TIER.V2,
+    mvp: false,  // S13: V2 template - not available in MVP build
     group: 'social',
     displayOrder: 2,
     sections: {
@@ -408,6 +427,7 @@ var EVENT_TEMPLATES = {
     exampleName: "Sarah's Baby Shower",
     icon: '🎀',
     tier: TEMPLATE_TIER.V2,
+    mvp: false,  // S13: V2 template - not available in MVP build
     group: 'social',
     displayOrder: 3,
     sections: {
@@ -433,6 +453,7 @@ var EVENT_TEMPLATES = {
     exampleName: "Jake's Bachelor Party",
     icon: '🥳',
     tier: TEMPLATE_TIER.V2,
+    mvp: false,  // S13: V2 template - not available in MVP build
     group: 'social',
     displayOrder: 4,
     sections: {
@@ -462,6 +483,7 @@ var EVENT_TEMPLATES = {
     exampleName: 'Saturday Farmers Market',
     icon: '🥕',
     tier: TEMPLATE_TIER.V2,
+    mvp: false,  // S13: V2 template - not available in MVP build
     group: 'community',
     displayOrder: 1,
     sections: {
@@ -487,6 +509,7 @@ var EVENT_TEMPLATES = {
     exampleName: 'Spring Art Walk',
     icon: '🎨',
     tier: TEMPLATE_TIER.V2,
+    mvp: false,  // S13: V2 template - not available in MVP build
     group: 'community',
     displayOrder: 2,
     sections: {
@@ -512,6 +535,7 @@ var EVENT_TEMPLATES = {
     exampleName: 'Summer Carnival',
     icon: '🎡',
     tier: TEMPLATE_TIER.V2,
+    mvp: false,  // S13: V2 template - not available in MVP build
     group: 'community',
     displayOrder: 3,
     sections: {
@@ -537,6 +561,7 @@ var EVENT_TEMPLATES = {
     exampleName: 'Easter Service',
     icon: '⛪',
     tier: TEMPLATE_TIER.V2,
+    mvp: false,  // S13: V2 template - not available in MVP build
     group: 'community',
     displayOrder: 4,
     sections: {
@@ -562,6 +587,7 @@ var EVENT_TEMPLATES = {
     exampleName: "Women's Bible Study",
     icon: '✝️',
     tier: TEMPLATE_TIER.V2,
+    mvp: false,  // S13: V2 template - not available in MVP build
     group: 'community',
     displayOrder: 5,
     sections: {
@@ -591,6 +617,7 @@ var EVENT_TEMPLATES = {
     exampleName: 'Wednesday Trivia',
     icon: '🧠',
     tier: TEMPLATE_TIER.V2,
+    mvp: false,  // S13: V2 template - not available in MVP build
     group: 'leagues',
     displayOrder: 10,
     sections: {
@@ -616,6 +643,7 @@ var EVENT_TEMPLATES = {
     exampleName: 'Tuesday Darts League',
     icon: '🎯',
     tier: TEMPLATE_TIER.V2,
+    mvp: false,  // S13: V2 template - not available in MVP build
     group: 'leagues',
     displayOrder: 11,
     sections: {
@@ -642,6 +670,7 @@ var EVENT_TEMPLATES = {
     exampleName: 'Summer Bags League',
     icon: '🥏',
     tier: TEMPLATE_TIER.V2,
+    mvp: false,  // S13: V2 template - not available in MVP build
     group: 'leagues',
     displayOrder: 12,
     sections: {
@@ -668,6 +697,7 @@ var EVENT_TEMPLATES = {
     exampleName: 'Monday Pinball League',
     icon: '🕹️',
     tier: TEMPLATE_TIER.V2,
+    mvp: false,  // S13: V2 template - not available in MVP build
     group: 'leagues',
     displayOrder: 13,
     sections: {
@@ -726,6 +756,50 @@ function getTemplatesByTier_(tier) {
  */
 function getMvpTemplates_() {
   return getTemplatesByTier_(TEMPLATE_TIER.MVP);
+}
+
+/**
+ * Check if a template is MVP (stage-gate)
+ * @param {string} templateId - Template ID to check
+ * @returns {boolean} True if template is MVP tier
+ */
+function isMvpTemplate_(templateId) {
+  var template = EVENT_TEMPLATES[templateId];
+  return template && template.mvp === true;
+}
+
+/**
+ * Validate MVP template requirements
+ * Per S13 acceptance criteria: Must have 3-6 base templates marked as MVP
+ * @returns {Object} Validation result with ok, count, and message
+ */
+function validateMvpTemplateRequirements_() {
+  var mvpTemplates = getMvpTemplates_();
+  var count = mvpTemplates.length;
+  var min = MVP_TEMPLATE_REQUIREMENTS.MIN_COUNT;
+  var max = MVP_TEMPLATE_REQUIREMENTS.MAX_COUNT;
+
+  if (count < min) {
+    return {
+      ok: false,
+      count: count,
+      message: 'Too few MVP templates: ' + count + ' (minimum ' + min + ' required)'
+    };
+  }
+
+  if (count > max) {
+    return {
+      ok: false,
+      count: count,
+      message: 'Too many MVP templates: ' + count + ' (maximum ' + max + ' allowed for MVP build)'
+    };
+  }
+
+  return {
+    ok: true,
+    count: count,
+    message: 'MVP template count valid: ' + count + ' templates (range ' + min + '-' + max + ')'
+  };
 }
 
 /**
