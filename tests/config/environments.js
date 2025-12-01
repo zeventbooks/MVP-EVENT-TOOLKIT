@@ -5,44 +5,60 @@
  * =================================
  * Tests can run against different environments without code changes:
  *
- * Production (eventangle.com) - DEFAULT:
+ * Staging (stg.eventangle.com) - DEFAULT for tests:
  *   npm run test:smoke
+ *   BASE_URL="https://stg.eventangle.com" npm run test:smoke
+ *
+ * Production (eventangle.com) - ONLY via explicit test:prod or deploy-validation:
+ *   npm run test:prod:smoke
  *   BASE_URL="https://www.eventangle.com" npm run test:smoke
  *
  * GAS Webapp (direct - for debugging):
  *   BASE_URL="https://script.google.com/macros/s/<DEPLOYMENT_ID>/exec" npm run test:smoke
  *
  * Default (no BASE_URL set):
- *   Uses EventAngle production URL (via Cloudflare Workers)
+ *   Uses STAGING URL (stg.eventangle.com) for safe testing
  *
  * Environment Variables:
  *   - BASE_URL: Primary URL override (recommended)
  *   - APP_URL: Alias for BASE_URL (deprecated, use BASE_URL)
  *   - TEST_ENV: Environment name (production, googleAppsScript, qa, staging, local)
  *   - GOOGLE_SCRIPT_URL: Direct GAS URL override
+ *   - USE_PRODUCTION: Set to 'true' to explicitly use production URL
  */
 
-// Apps Script deployment ID (sync with cloudflare-proxy/wrangler.toml)
+// Apps Script deployment IDs (sync with cloudflare-proxy/wrangler.toml)
 const DEFAULT_DEPLOYMENT_ID = 'AKfycbyS1cW9VhviR-Jr8AmYY_BAGrb1gzuKkrgEBP2M3bMdqAv4ktqHOZInWV8ogkpz5i8SYQ';
+const STAGING_DEPLOYMENT_ID = process.env.STAGING_DEPLOYMENT_ID || 'STAGING_DEPLOYMENT_ID_PLACEHOLDER';
 
 // Default GAS URL (for direct debugging)
 const DEFAULT_GAS_URL = `https://script.google.com/macros/s/${DEFAULT_DEPLOYMENT_ID}/exec`;
+const STAGING_GAS_URL = `https://script.google.com/macros/s/${STAGING_DEPLOYMENT_ID}/exec`;
 
 // =============================================================================
-// Canonical Base URL (Single Source of Truth)
+// Environment URLs (Single Source of Truth)
 // =============================================================================
-// This mirrors the getBaseUrl() function in Config.gs
-// All user-facing URLs use this base: https://www.eventangle.com/events
+// STAGING is the DEFAULT for all test commands (safe sandbox)
+// PRODUCTION is only used by explicit test:prod commands or deploy-validation
 //
 // Note: Tests use BASE_URL without path suffix - they append their own paths
 // like /status, /{brand}/status, /manage, etc.
+const DEFAULT_STAGING_URL = 'https://stg.eventangle.com';
 const DEFAULT_PRODUCTION_URL = 'https://www.eventangle.com';
 
-// Canonical events URL (for CI logs and documentation)
+// Canonical events URLs (for CI logs and documentation)
+const CANONICAL_STAGING_URL = `${DEFAULT_STAGING_URL}/events`;
 const CANONICAL_EVENTS_URL = `${DEFAULT_PRODUCTION_URL}/events`;
 
-// Priority: BASE_URL > APP_URL > default (EventAngle production)
-const APP_URL = process.env.BASE_URL || process.env.APP_URL || DEFAULT_PRODUCTION_URL;
+// Determine default URL based on USE_PRODUCTION flag
+// Default behavior: use staging (safe sandbox)
+// Production: only when USE_PRODUCTION=true or explicit BASE_URL pointing to prod
+const DEFAULT_TEST_URL = process.env.USE_PRODUCTION === 'true'
+  ? DEFAULT_PRODUCTION_URL
+  : DEFAULT_STAGING_URL;
+
+// Priority: BASE_URL > APP_URL > default (staging for safety)
+const APP_URL = process.env.BASE_URL || process.env.APP_URL || DEFAULT_TEST_URL;
 
 const ENVIRONMENTS = {
   // Cloudflare / eventangle.com - Production (DEFAULT)
@@ -84,11 +100,11 @@ const ENVIRONMENTS = {
     }
   },
 
-  // Staging environment
+  // Staging environment (DEFAULT for tests)
   staging: {
     name: 'Staging',
-    baseUrl: process.env.STAGING_URL || 'https://staging.zeventbooks.com',
-    description: 'Staging environment via Cloudflare Workers',
+    baseUrl: process.env.STAGING_URL || DEFAULT_STAGING_URL,
+    description: 'Staging environment via Cloudflare Workers (stg.eventangle.com)',
     brands: {
       root: 'root',
       abc: 'abc',
@@ -143,14 +159,26 @@ function getCurrentEnvironment() {
 
   // Auto-detect based on BASE_URL
   if (!baseUrl) {
-    // Default to production (zeventbooks.com via Cloudflare)
-    return { ...ENVIRONMENTS.production };
+    // Default to STAGING for safe testing (not production)
+    // Use USE_PRODUCTION=true to explicitly target production
+    if (process.env.USE_PRODUCTION === 'true') {
+      return { ...ENVIRONMENTS.production };
+    }
+    return { ...ENVIRONMENTS.staging };
   }
 
   // Parse URL securely to prevent substring injection attacks
   try {
     const url = new URL(baseUrl);
     const hostname = url.hostname;
+
+    // Check for staging domain (stg.eventangle.com)
+    if (hostname === 'stg.eventangle.com' || hostname === 'api-stg.eventangle.com') {
+      return {
+        ...ENVIRONMENTS.staging,
+        baseUrl: baseUrl // Use actual BASE_URL
+      };
+    }
 
     // Check for production domain (eventangle.com)
     if (hostname === 'eventangle.com' || hostname === 'www.eventangle.com') {
@@ -349,6 +377,11 @@ module.exports = {
   DEFAULT_GAS_URL,
   DEFAULT_DEPLOYMENT_ID,
   DEFAULT_PRODUCTION_URL,
+  // Staging environment exports
+  DEFAULT_STAGING_URL,
+  STAGING_DEPLOYMENT_ID,
+  STAGING_GAS_URL,
+  CANONICAL_STAGING_URL,
   // Canonical events URL (mirrors Config.gs getEventsBaseUrl())
   CANONICAL_EVENTS_URL
 };
