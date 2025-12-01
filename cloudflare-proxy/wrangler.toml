@@ -36,17 +36,31 @@ routes = [
 DEPLOYMENT_ID = "AKfycbyS1cW9VhviR-Jr8AmYY_BAGrb1gzuKkrgEBP2M3bMdqAv4ktqHOZInWV8ogkpz5i8SYQ"
 
 # ============================================
-# Staging/QA Environment
+# Staging Environment (stg.eventangle.com)
+# ============================================
+# Dedicated staging environment for:
+# - Destructive tests, schema experiments, load tests
+# - Pre-production validation
+# - Safe sandbox for development testing
+#
+# Deploy: wrangler deploy --env staging
 # ============================================
 [env.staging]
 name = "eventangle-staging"
 routes = [
-  { pattern = "staging.eventangle.com/*", zone_name = "eventangle.com" },
-  { pattern = "api-staging.eventangle.com/*", zone_name = "eventangle.com" }
+  # Main staging domain
+  { pattern = "stg.eventangle.com/*", zone_name = "eventangle.com" },
+  # API staging subdomain
+  { pattern = "api-stg.eventangle.com/*", zone_name = "eventangle.com" }
 ]
 
 [env.staging.vars]
-DEPLOYMENT_ID = "AKfycbyS1cW9VhviR-Jr8AmYY_BAGrb1gzuKkrgEBP2M3bMdqAv4ktqHOZInWV8ogkpz5i8SYQ"
+# IMPORTANT: This must point to the STAGING GAS deployment, NOT production
+# Update this after deploying to the staging Apps Script project
+# See STAGING_SETUP.md for configuration instructions
+STAGING_DEPLOYMENT_ID = "STAGING_DEPLOYMENT_ID_PLACEHOLDER"
+GAS_DEPLOYMENT_BASE_URL = "https://script.google.com/macros/s/STAGING_DEPLOYMENT_ID_PLACEHOLDER/exec"
+DEPLOYMENT_ID = "STAGING_DEPLOYMENT_ID_PLACEHOLDER"
 
 # ============================================
 # API Only (subdomain only, no main site)

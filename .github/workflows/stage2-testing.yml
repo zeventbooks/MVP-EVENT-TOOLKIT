@@ -88,10 +88,11 @@ jobs:
             echo "url=$DEPLOYMENT_URL" >> $GITHUB_OUTPUT
           else
             echo "⚠️ No deployment URL found from Stage 1"
-            echo "Using default Cloudflare friendly URL (www.eventangle.com)"
-            # Use www.eventangle.com to match Cloudflare Worker routes and DNS config
-            # Note: The base URL should NOT include /events path - tests append paths like /status, /{brand}/status
-            echo "url=https://www.eventangle.com" >> $GITHUB_OUTPUT
+            # Default to STAGING for safe testing (not production)
+            # This ensures CI tests don't accidentally stress production
+            # Use USE_PRODUCTION=true in workflow_dispatch to explicitly test production
+            echo "Using default STAGING URL (stg.eventangle.com)"
+            echo "url=https://stg.eventangle.com" >> $GITHUB_OUTPUT
           fi
         env:
           GH_TOKEN: ${{ github.token }}
@@ -103,6 +104,13 @@ jobs:
           echo ""
           echo "🎯 Canonical Events URL: ${{ steps.get-url.outputs.url }}/events"
           echo "   All user-facing links use this base URL pattern"
+          echo ""
+          # Check if this is staging or production
+          if [[ "${{ steps.get-url.outputs.url }}" == *"stg."* ]]; then
+            echo "🧪 Environment: STAGING (safe sandbox for testing)"
+          else
+            echo "🚀 Environment: PRODUCTION (live site)"
+          fi
 
   # ============================================================================
   # WARMUP: Eliminate Cold Start Flakiness

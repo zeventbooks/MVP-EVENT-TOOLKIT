@@ -13,54 +13,103 @@ A boring, step-by-step checklist for shipping a release.
 
 ---
 
-## BASE_URL Toggle (Single Toggle: GAS vs EventAngle)
+## Environment Matrix: Dev → Staging → Prod
 
-The same test suite runs against either GAS exec URL or eventangle.com by changing `BASE_URL`.
+| Environment | URL | GAS Project | Cloudflare Env | Who Can Deploy |
+|-------------|-----|-------------|----------------|----------------|
+| **Dev** | `localhost` / GAS exec URL | Production (read-only) | N/A | Developers |
+| **Staging** | `https://stg.eventangle.com` | Staging Script | `--env staging` | Developers, CI |
+| **Production** | `https://www.eventangle.com` | Production Script | `--env events` | **CI ONLY** |
+
+### Key Principles
+
+1. **All `npm run test:*` commands default to STAGING** - Safe sandbox for destructive tests
+2. **Production testing requires explicit `test:prod:*`** - Prevents accidental prod load
+3. **Only CI deploys to production** - Human error prevention
+4. **Staging mirrors production** - Same routes, different GAS backend
+
+### How to Deploy to Each Environment
+
+| Environment | Deploy Command | Notes |
+|-------------|----------------|-------|
+| **Staging GAS** | `npm run deploy:staging` | Uses `.clasp-staging.json` |
+| **Staging Worker** | `npm run deploy:staging:worker` | `wrangler deploy --env staging` |
+| **Production** | `git push origin main` (after PR) | **CI only - no manual deploy** |
+
+---
+
+## BASE_URL Configuration
+
+The same test suite runs against different environments by changing `BASE_URL`.
 
 ### Quick Reference
 
 ```bash
-# Test against GAS directly (default in .env.example)
-BASE_URL="https://script.google.com/macros/s/XXX/exec" npm run test:smoke
+# Test against STAGING (default - safe sandbox)
+npm run test:smoke                    # Uses stg.eventangle.com by default
+npm run test:staging:smoke            # Explicit staging
 
-# Test against EventAngle (production via Cloudflare)
-BASE_URL="https://www.eventangle.com/events" npm run test:smoke
+# Test against PRODUCTION (explicit only)
+npm run test:prod:smoke               # Uses www.eventangle.com
+USE_PRODUCTION=true npm run test:smoke
+
+# Test against GAS directly (debugging)
+BASE_URL="https://script.google.com/macros/s/XXX/exec" npm run test:smoke
 ```
 
 ### How It Works
 
 - All API/E2E tests use `process.env.BASE_URL` (or config equivalent)
-- Default `BASE_URL` in `.env.example` → Apps Script exec URL
-- Tests auto-detect environment type (GAS vs Cloudflare)
+- **Default** `BASE_URL` → **Staging** (`stg.eventangle.com`) for safety
+- `USE_PRODUCTION=true` or `test:prod:*` → Production (`www.eventangle.com`)
+- Tests auto-detect environment type (GAS vs Cloudflare vs Staging)
 - No code changes needed to switch targets
 
 ### Configuration
 
 | File | Purpose |
 |------|---------|
-| `.env.example` | Template with GAS default |
+| `.clasp.json` | Production GAS project (CI only) |
+| `.clasp-staging.json` | Staging GAS project |
+| `cloudflare-proxy/wrangler.toml` | Worker routes for all environments |
 | `tests/config/environments.js` | Environment detection logic |
 | `tests/shared/config/test.config.js` | Test configuration using BASE_URL |
 
+### Environment-Specific URLs
+
+| Environment | Status Endpoint | Manage Endpoint |
+|-------------|-----------------|-----------------|
+| Staging | `https://stg.eventangle.com/status` | `https://stg.eventangle.com/manage` |
+| Production | `https://www.eventangle.com/status` | `https://www.eventangle.com/manage` |
+
 ---
 
-## 1. Pre-flight (Production Gate)
+## 1. Pre-flight (Staging Gate)
 
-**Before any production deployment, run:**
+**Before any deployment, run tests against STAGING:**
 
 ```bash
-BASE_URL="https://www.eventangle.com/events" npm run ci:all
+npm run ci:all  # Tests against stg.eventangle.com by default
 ```
 
-**No green, no deploy.**
+**No green on staging, no deploy to prod.**
 
-This unified gate runs all tests required for a production release:
+This unified gate runs all tests required for a release:
 1. `test:schemas` — schema synchronization validation
 2. `test:api-contracts` — explicit API contract validation
 3. `test:smoke` — smoke tests (requires Playwright)
 4. `test:negative` — negative/edge-case tests
 
 If any test fails, the chain stops immediately.
+
+### Production Validation (Post-Deploy)
+
+After CI deploys to production, validate with explicit prod tests:
+
+```bash
+npm run test:prod:smoke   # Validates www.eventangle.com
+npm run test:prod:health  # Quick health check
+```
 
 ### Legacy Commands
 
@@ -176,11 +225,14 @@ Both should pass. If they fail, check:
 | Step | Command | Environment |
 |------|---------|-------------|
 | **Deploy to Prod** | `git push origin main` (after PR merge) | **Production (CI only)** |
-| Pre-flight (gate) | `npm run ci:all` | Local verification |
-| Deploy GAS | `npm run deploy` | Dev/Stage only |
-| Deploy CF Worker | `cd cloudflare-proxy && wrangler deploy --env events` | Dev/Stage only |
-| Health check | `npm run test:health` | Any |
-| Smoke test | `npm run test:smoke` | Any |
+| Pre-flight (gate) | `npm run ci:all` | Staging (default) |
+| Deploy GAS (staging) | `npm run deploy:staging` | Staging |
+| Deploy CF Worker (staging) | `npm run deploy:staging:worker` | Staging |
+| Deploy CF Worker (prod) | `npm run deploy:prod:worker` | Dev/Stage only |
+| Health check (staging) | `npm run test:health` | Staging (default) |
+| Health check (prod) | `npm run test:prod:health` | Production |
+| Smoke test (staging) | `npm run test:smoke` | Staging (default) |
+| Smoke test (prod) | `npm run test:prod:smoke` | Production |
 
 ---
 
