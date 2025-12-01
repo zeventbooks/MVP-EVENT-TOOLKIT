@@ -1,9 +1,12 @@
 name: CI All Gate
 
 on:
-  # Run on all PRs to main
+  # Run on all PRs to main or release branches
   pull_request:
-    branches: [ main ]
+    branches:
+      - main
+      - 'release/**'
+      - 'release/*'
 
   # Run on push to feature branches (fast feedback)
   push:

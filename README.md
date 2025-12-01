@@ -83,6 +83,30 @@ npm run deploy # Create new deployment
 4. Open `/exec?page=test` → all ✅
 5. Open `/exec?page=admin&p=events&brand=root` → create an event → get Public/Poster links
 
+## CI Gate (Required Before Pushing)
+
+**You must be able to run `npm run ci:all` locally before pushing.**
+
+This is the mandatory pre-deploy gate that runs all contract guards:
+
+```bash
+npm run ci:all          # Run full CI gate
+npm run ci:all:verbose  # Run with detailed output
+npm run ci:all:fast     # Run critical checks only
+```
+
+The CI gate validates:
+- MVP Surfaces (only 5 allowed: admin, public, display, poster, report)
+- RPC Inventory (API inventory matches actual usage)
+- API vs Schemas (all api_* functions have schemas)
+- Event Schema consistency
+- Service Tests (form, sponsor, security)
+- Dead Exports (no zombie api_* functions)
+- Schema Fields (surfaces only use schema-defined fields)
+- Analytics Schema consistency
+
+**If `ci:all` fails locally, it will also fail in CI and block deployment.**
+
 ## Testing
 
 ### BASE_URL Toggle (GAS vs EventAngle)
@@ -100,6 +124,9 @@ BASE_URL="https://www.eventangle.com/events" npm run test:smoke
 ### Quick Test Commands
 
 ```bash
+# CI Gate (REQUIRED before pushing)
+npm run ci:all
+
 # Stage 1: Lint + Unit + Contract (must pass before deploy)
 npm run test:ci:stage1
 

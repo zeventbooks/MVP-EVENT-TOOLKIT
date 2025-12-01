@@ -176,10 +176,65 @@ jobs:
           echo "✅ Schema consistency tests verified"
           echo "✅ Template fixtures verified"
 
+  # ============================================================================
+  # CI:ALL GATE - Mandatory pre-deploy validation
+  # ============================================================================
+  # This job runs npm run ci:all which executes all contract guards:
+  #   1. MVP Surfaces (check-surfaces.js)
+  #   2. RPC Inventory (check-rpc-inventory.js)
+  #   3. API vs Schemas (check-apis-vs-schemas.js)
+  #   4. Event Schema (test-event-schema.js)
+  #   5. Service Tests (test-services.js)
+  #   6. Dead Exports (check-dead-code.js)
+  #   7. Schema Fields (check-schema-fields.js)
+  #   8. Analytics Schema (test-analytics-schema.js)
+  # ============================================================================
+
+  ci-all-gate:
+    name: 🚦 CI:ALL Gate (Pre-Deploy)
+    runs-on: ubuntu-latest
+    needs: [lint, unit-tests, contract-tests, mvp-guards]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run CI:ALL Gate
+        run: |
+          echo "🚦 Running ci:all - Mandatory pre-deploy gate"
+          echo ""
+          echo "This gate runs ALL contract guards. Deployment is blocked if any fail."
+          echo ""
+          npm run ci:all
+
+      - name: Create gate summary
+        if: always()
+        run: |
+          echo "## 🚦 CI:ALL Gate Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "### ✅ GATE PASSED" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "All contract guards passed. Deployment may proceed." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ GATE FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "One or more contract guards failed. **Deployment blocked.**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Run locally: \`npm run ci:all:verbose\`" >> $GITHUB_STEP_SUMMARY
+          fi
+
   deploy-to-apps-script:
     name: 🚀 Deploy to Apps Script API
     runs-on: ubuntu-latest
-    needs: [lint, unit-tests, contract-tests, mvp-guards]
+    needs: [lint, unit-tests, contract-tests, mvp-guards, ci-all-gate]
     # MVP SRE Policy: Deploy only if Stage 1 passes AND push to main/release branches
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/'))
     outputs:
