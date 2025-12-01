@@ -3389,7 +3389,8 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
 
       if (!formRes.ok) {
         overlay(false);
-        displayDiv.innerHTML = `<p style="color: #ef4444;">Error: ${formRes.message}</p>`;
+        // S12: Use consistent inline error styling
+        displayDiv.innerHTML = `<div class="error-card"><p>${SharedUtils.esc(formRes.message || 'Failed to create form')}</p></div>`;
         return;
       }
 

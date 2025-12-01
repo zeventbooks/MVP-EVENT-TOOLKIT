@@ -73,6 +73,7 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
   <?!= include('Styles'); ?>
   <?!= include('SponsorUtils'); ?>
   <?!= include('FooterComponent'); ?>
+  <?!= include('SharedUtils'); ?>
   <?!= include('NUSDK'); ?>
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <meta name="referrer" content="no-referrer"/>
@@ -1361,13 +1362,8 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       const root = document.getElementById('list');
       root.innerHTML = '';
       if (!items || !items.length) {
-        root.innerHTML = `
-          <div class="empty-state">
-            <div class="empty-state-icon">📅</div>
-            <h3>No Upcoming Events</h3>
-            <p>Check back soon for new events, or contact the organizer for more information.</p>
-          </div>
-        `;
+        // S12: Use shared StateRenderer for consistent empty state
+        SharedUtils.StateRenderer.showNoData(root, { context: 'events' });
         return;
       }
       for (const event of items) {
@@ -1907,38 +1903,22 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       }
     }
 
-    // Error state renderer - handles all error scenarios gracefully
+    // S12: Error state renderer using shared StateRenderer for consistent UX
     function showError(type = 'load') {
       const root = document.getElementById('list');
+      const backUrl = `${EXEC_URL}?p=events&brand=${BRAND}`;
+
       if (type === 'notfound') {
-        root.innerHTML = `
-          <div class="empty-state">
-            <div class="empty-state-icon">🔍</div>
-            <h3>Event Not Found</h3>
-            <p>We couldn't find this event. The link may be outdated, the event ID might be incorrect, or the event may have been removed.</p>
-            <p style="font-size: 0.85rem; color: #94a3b8; margin-top: 12px;">Double-check the URL or return to the events list to find what you're looking for.</p>
-            <a class="btn-secondary" href="${EXEC_URL}?p=events&brand=${BRAND}">← View All Events</a>
-          </div>
-        `;
+        SharedUtils.StateRenderer.showEventNotFound(root, { backUrl });
       } else if (type === 'nodata') {
-        root.innerHTML = `
-          <div class="empty-state">
-            <div class="empty-state-icon">📭</div>
-            <h3>No Data Yet</h3>
-            <p>This event exists but doesn't have any content to display yet. Check back soon!</p>
-            <a class="btn-secondary" href="${EXEC_URL}?p=events&brand=${BRAND}">← View All Events</a>
-          </div>
-        `;
+        SharedUtils.StateRenderer.showNoData(root, { context: 'content', backUrl });
       } else {
-        root.innerHTML = `
-          <div class="error-state">
-            <div class="error-state-icon">⚠️</div>
-            <h3>Something Went Wrong</h3>
-            <p>We couldn't load the events right now. This might be a temporary issue.</p>
-            <p style="font-size: 0.85rem; color: #991b1b; margin-top: 8px;">Please try again in a moment.</p>
-            <button class="btn-retry" onclick="location.reload()">🔄 Try Again</button>
-          </div>
-        `;
+        SharedUtils.StateRenderer.showError(root, {
+          title: 'Something Went Wrong',
+          message: 'We couldn\'t load the events right now. This might be a temporary issue.',
+          hint: 'Please try again in a moment.',
+          onRetry: () => location.reload()
+        });
       }
     }
 

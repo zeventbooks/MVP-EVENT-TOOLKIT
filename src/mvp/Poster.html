@@ -684,15 +684,8 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
      */
     function renderPoster(event) {
       if (!event) {
-        document.querySelector('.poster-container').innerHTML = `
-          <div class="empty-state">
-            <div class="empty-state-icon">🔍</div>
-            <h3>Event Not Found</h3>
-            <p>We couldn't find this event. The poster link may be outdated, the event ID might be incorrect, or the event may have been removed.</p>
-            <p style="font-size: 0.85rem; color: #94a3b8; margin-top: 12px;">Please check the URL and try again.</p>
-            <a class="btn-retry" href="javascript:history.back()">← Go Back</a>
-          </div>
-        `;
+        // S12: Use shared StateRenderer for consistent empty state
+        SharedUtils.StateRenderer.showEventNotFound(document.querySelector('.poster-container'));
         return;
       }
 
@@ -753,16 +746,15 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
      * SCHEMA: /schemas/event.schema.json
      */
     async function boot() {
-      // Check for missing event ID
+      const container = document.querySelector('.poster-container');
+
+      // S12: Check for missing event ID
       if (!ID) {
-        document.querySelector('.poster-container').innerHTML = `
-          <div class="empty-state">
-            <div class="empty-state-icon">🔍</div>
-            <h3>No Event Specified</h3>
-            <p>This poster link is missing an event ID. Please check the URL and try again.</p>
-            <a class="btn-retry" href="javascript:history.back()">← Go Back</a>
-          </div>
-        `;
+        SharedUtils.StateRenderer.showEmpty(container, {
+          icon: '🔍',
+          title: 'No Event Specified',
+          message: 'This poster link is missing an event ID. Please check the URL and try again.'
+        });
         return;
       }
 
@@ -770,17 +762,9 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
       try {
         res = await NU.rpc('api_getPosterBundle', { brandId: BRAND, scope: SCOPE, id: ID });
       } catch (err) {
-        // Network or unexpected error - show friendly message, don't leak details
+        // S12: Network error - use shared StateRenderer
         console.error('Poster API error:', err);
-        document.querySelector('.poster-container').innerHTML = `
-          <div class="error-state">
-            <div class="error-state-icon">⚠️</div>
-            <h3>Unable to Load Poster</h3>
-            <p>We're having trouble connecting right now. This might be a temporary issue.</p>
-            <p style="font-size: 0.85rem; color: #991b1b; margin-top: 8px;">Please try again in a moment.</p>
-            <button class="btn-retry" onclick="location.reload()">🔄 Try Again</button>
-          </div>
-        `;
+        SharedUtils.StateRenderer.showNetworkError(container, { onRetry: () => location.reload() });
         return;
       }
 
@@ -792,29 +776,24 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
           // Backward compat: direct event object
           renderPoster(res.value);
         } else if (!res.ok) {
-          // API error - show error state
-          document.querySelector('.poster-container').innerHTML = `
-            <div class="error-state">
-              <div class="error-state-icon">⚠️</div>
-              <h3>Something Went Wrong</h3>
-              <p>We couldn't load this poster right now. This might be a temporary issue.</p>
-              <p style="font-size: 0.85rem; color: #991b1b; margin-top: 8px;">Please try again in a moment.</p>
-              <button class="btn-retry" onclick="location.reload()">🔄 Try Again</button>
-            </div>
-          `;
+          // S12: API error - use shared StateRenderer
+          SharedUtils.StateRenderer.showError(container, {
+            title: 'Something Went Wrong',
+            message: 'We couldn\'t load this poster right now. This might be a temporary issue.',
+            hint: 'Please try again in a moment.',
+            onRetry: () => location.reload()
+          });
         } else {
           renderPoster(null);
         }
       } catch (renderErr) {
+        // S12: Render error - use shared StateRenderer
         console.error('Poster render error:', renderErr);
-        document.querySelector('.poster-container').innerHTML = `
-          <div class="error-state">
-            <div class="error-state-icon">⚠️</div>
-            <h3>Display Error</h3>
-            <p>We encountered an issue displaying this poster.</p>
-            <button class="btn-retry" onclick="location.reload()">🔄 Try Again</button>
-          </div>
-        `;
+        SharedUtils.StateRenderer.showError(container, {
+          title: 'Display Error',
+          message: 'We encountered an issue displaying this poster.',
+          onRetry: () => location.reload()
+        });
       }
     }
 
