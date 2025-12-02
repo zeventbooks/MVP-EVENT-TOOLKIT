@@ -2644,6 +2644,45 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
         .substring(0, 50);
     }
 
+    /**
+     * Compute lifecycle phase from startDateISO
+     * Mirrors backend computeLifecyclePhase_() for parity across surfaces.
+     * Same labels used by Admin, Public, Display, Poster, SharedReport.
+     *
+     * @param {string} startDateISO - Event start date in ISO format (YYYY-MM-DD)
+     * @returns {Object} { phase: string, label: string, isLive: boolean }
+     */
+    function computeLifecyclePhase(startDateISO) {
+      const LIFECYCLE_LABELS = {
+        'pre-event': 'Pre-Event Preparation',
+        'event-day': 'Event Day - Live',
+        'post-event': 'Post-Event Analytics'
+      };
+
+      if (!startDateISO) {
+        return { phase: 'pre-event', label: LIFECYCLE_LABELS['pre-event'], isLive: false };
+      }
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const eventDate = new Date(startDateISO);
+      eventDate.setHours(0, 0, 0, 0);
+
+      let phase = 'pre-event';
+      if (eventDate.getTime() === today.getTime()) {
+        phase = 'event-day';
+      } else if (eventDate < today) {
+        phase = 'post-event';
+      }
+
+      return {
+        phase: phase,
+        label: LIFECYCLE_LABELS[phase],
+        isLive: phase === 'event-day'
+      };
+    }
+
     // === MVP Template System (Stage-Gate) ===
     // Templates are grouped by category and filtered by tier
     // Only MVP-tier templates are shown until V2 features ship
@@ -3050,15 +3089,23 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
         });
       }
 
-      // Clean, simple event summary
+      // Compute lifecycle phase for consistent display across surfaces
+      const lifecycle = computeLifecyclePhase(event.startDateISO);
+
+      // Clean, simple event summary with lifecycle phase indicator
       const info = `
-        <p style="font-size: 1.1rem; color: var(--color-gray-700, #334155); margin: 0;">
+        <p style="font-size: 1.1rem; color: var(--color-gray-700, #334155); margin: 0 0 8px 0;">
           <strong>${NU.esc(event.name || 'Your Event')}</strong>
           <span style="color: var(--color-gray-400, #94a3b8); margin: 0 8px;">|</span>
           ${NU.esc(dateDisplay)}
           <span style="color: var(--color-gray-400, #94a3b8); margin: 0 8px;">|</span>
           ${NU.esc(event.venue || '')}
         </p>
+        <div style="margin-top: 8px;">
+          <span class="phase-indicator ${lifecycle.phase}" data-testid="lifecycle-indicator" data-phase="${lifecycle.phase}">
+            ${NU.esc(lifecycle.label)}
+          </span>
+        </div>
       `;
 
       document.getElementById('eventInfo').innerHTML = info;
@@ -3198,7 +3245,7 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
     function updateChecklistStatus(event) {
       currentEventData = event;
       const links = event.links || {};
-      const data = event.data || {};
+      const ctas = event.ctas || {};
       const sponsors = event.sponsors || [];
 
       // Track completed count and remaining time
@@ -3219,8 +3266,8 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
       setChecklistItemStatus('checklist-event', 'done');
       completed++;
 
-      // 2. Signup form - done if at least one form URL is configured
-      const hasFormUrl = data.registerUrl || data.checkinUrl || data.walkinUrl || data.surveyUrl;
+      // 2. Signup form - done if signupUrl is configured (schema: links.signupUrl or ctas.primary.url)
+      const hasFormUrl = links.signupUrl || ctas.primary?.url;
       if (hasFormUrl) {
         setChecklistItemStatus('checklist-signup', 'done');
         completed++;
@@ -4528,11 +4575,6 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
             showQRSection: true
           }
         };
-
-        // Add signup URL if provided
-        if (signupUrl) {
-          event.registerUrl = signupUrl;
-        }
 
         // Get admin key
         const adminKey = getAdminKey();

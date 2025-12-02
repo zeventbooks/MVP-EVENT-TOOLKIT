@@ -3,6 +3,7 @@
  *
  * Deep component validation:
  * - Event lifecycle phases (pre-event, event-day, post-event)
+ * - Lifecycle parity check: Same phase/label on Admin and Display
  * - Sign-up form card interactions
  * - Sponsor banner rendering
  * - TV display carousel functionality
@@ -74,6 +75,51 @@ test.describe('Component Smoke - Event Lifecycle Dashboard', () => {
     await expect(page.locator('text=Sponsor Impressions')).toBeVisible();
     await expect(page.locator('text=Click-Through Rate')).toBeVisible();
     await expect(page.locator('text=Engagement Score')).toBeVisible();
+  });
+
+  test('Lifecycle indicator shows same phase on Admin and Display (Parity Check)', async ({ page, context }) => {
+    // Create an event on Admin
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`);
+
+    page.on('dialog', async dialog => await dialog.accept(ADMIN_KEY));
+
+    // Use a future date to ensure consistent 'pre-event' phase
+    await page.fill('#name', 'Lifecycle Parity Test Event');
+    await page.fill('#startDateISO', '2099-12-31');
+    await page.click('button[type="submit"]');
+
+    // Wait for event card to be visible
+    await expect(page.locator('#eventCard')).toBeVisible({ timeout: 10000 });
+
+    // Get lifecycle indicator from Admin
+    const adminIndicator = page.locator('[data-testid="lifecycle-indicator"]');
+    await expect(adminIndicator).toBeVisible();
+    const adminPhase = await adminIndicator.getAttribute('data-phase');
+    const adminLabel = await adminIndicator.textContent();
+
+    // Verify Admin shows the phase indicator with correct phase class
+    expect(adminPhase).toBe('pre-event');
+    expect(adminLabel).toContain('Pre-Event');
+
+    // Get the display URL from the event card
+    const displayUrl = await page.locator('#lnkDisplay').getAttribute('href');
+    expect(displayUrl).toBeTruthy();
+
+    // Open Display page in a new context to verify same lifecycle indicator
+    const displayPage = await context.newPage();
+    await displayPage.goto(displayUrl);
+
+    // Wait for the lifecycle indicator to appear on Display
+    const displayIndicator = displayPage.locator('[data-testid="lifecycle-indicator"]');
+    await expect(displayIndicator).toBeVisible({ timeout: 10000 });
+    const displayPhase = await displayIndicator.getAttribute('data-phase');
+    const displayLabel = await displayIndicator.textContent();
+
+    // PARITY ASSERTION: Same phase on Admin and Display
+    expect(displayPhase).toBe(adminPhase);
+    expect(displayLabel).toBe(adminLabel);
+
+    await displayPage.close();
   });
 });
 

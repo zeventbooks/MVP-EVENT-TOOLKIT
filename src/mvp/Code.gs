@@ -3203,6 +3203,72 @@ const EVENT_DEFAULTS_ = {
 };
 
 /**
+ * Lifecycle phase enum constants
+ * Used by all surfaces (Admin, Public, Display, Poster, SharedReport)
+ * for consistent event state interpretation.
+ *
+ * @constant {Object}
+ * @property {string} PRE_EVENT - Before event date
+ * @property {string} EVENT_DAY - On event date
+ * @property {string} POST_EVENT - After event date
+ */
+const LIFECYCLE_PHASE = {
+  PRE_EVENT: 'pre-event',
+  EVENT_DAY: 'event-day',
+  POST_EVENT: 'post-event'
+};
+
+/**
+ * Lifecycle phase labels for UI display
+ * Matches LIFECYCLE_PHASE keys
+ */
+const LIFECYCLE_LABELS = {
+  'pre-event': 'Pre-Event Preparation',
+  'event-day': 'Event Day - Live',
+  'post-event': 'Post-Event Analytics'
+};
+
+/**
+ * Compute event lifecycle phase from startDateISO
+ * Single source of truth for lifecycle state interpretation.
+ * All bundles use this helper to ensure parity across surfaces.
+ *
+ * @param {string} startDateISO - Event start date in ISO format (YYYY-MM-DD)
+ * @returns {Object} { phase: string, label: string, isLive: boolean }
+ * @private
+ */
+function computeLifecyclePhase_(startDateISO) {
+  if (!startDateISO) {
+    return {
+      phase: LIFECYCLE_PHASE.PRE_EVENT,
+      label: LIFECYCLE_LABELS[LIFECYCLE_PHASE.PRE_EVENT],
+      isLive: false
+    };
+  }
+
+  // Parse dates without time component for date-only comparison
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const eventDate = new Date(startDateISO);
+  eventDate.setHours(0, 0, 0, 0);
+
+  let phase = LIFECYCLE_PHASE.PRE_EVENT;
+
+  if (eventDate.getTime() === today.getTime()) {
+    phase = LIFECYCLE_PHASE.EVENT_DAY;
+  } else if (eventDate < today) {
+    phase = LIFECYCLE_PHASE.POST_EVENT;
+  }
+
+  return {
+    phase: phase,
+    label: LIFECYCLE_LABELS[phase],
+    isLive: phase === LIFECYCLE_PHASE.EVENT_DAY
+  };
+}
+
+/**
  * Build canonical Event object matching /schemas/event.schema.json
  *
  * THIS IS THE SINGLE SOURCE OF TRUTH FOR EVENT SHAPE.
@@ -4343,6 +4409,9 @@ function api_getPublicBundle(payload){
     const event = result.value;
     const brand = findBrand_(brandId);
 
+    // Compute lifecycle phase from startDateISO (single source of truth)
+    const lifecyclePhase = computeLifecyclePhase_(event.startDateISO);
+
     // Build bundled response - derive public DTO from canonical event
     const value = {
       // Full canonical event shape
@@ -4352,7 +4421,9 @@ function api_getPublicBundle(payload){
         appTitle: brand.appTitle || brand.name || 'Events',
         brandId: brand.id,
         brandName: brand.name
-      }
+      },
+      // Lifecycle phase for consistent state interpretation across surfaces
+      lifecyclePhase: lifecyclePhase
     };
 
     const etag = Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(value)));
@@ -4414,6 +4485,9 @@ function api_getAdminBundle(payload){
     // Build diagnostics - check for forms and shortlinks
     const diagnostics = getEventDiagnostics_(brandId, sanitizedId);
 
+    // Compute lifecycle phase from startDateISO (single source of truth)
+    const lifecyclePhase = computeLifecyclePhase_(event.startDateISO);
+
     // Build bundled response matching AdminEventBundle interface
     const value = {
       // Full canonical event shape
@@ -4433,7 +4507,10 @@ function api_getAdminBundle(payload){
       diagnostics: diagnostics,
 
       // All sponsors for dropdown/linking
-      allSponsors: allSponsors
+      allSponsors: allSponsors,
+
+      // Lifecycle phase for consistent state interpretation across surfaces
+      lifecyclePhase: lifecyclePhase
     };
 
     const etag = Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(value)));
@@ -4592,6 +4669,9 @@ function api_getDisplayBundle(payload){
       ? eventRotation.panes
       : displayConfig.panes;
 
+    // Compute lifecycle phase from startDateISO (single source of truth)
+    const lifecyclePhase = computeLifecyclePhase_(event.startDateISO);
+
     // Build bundled response matching DisplayBundle interface
     const value = {
       // Full canonical event shape
@@ -4620,7 +4700,10 @@ function api_getDisplayBundle(payload){
         panes: effectivePanes,
         // Pane type metadata for frontend rendering
         paneTypes: displayConfig.paneTypes
-      }
+      },
+
+      // Lifecycle phase for consistent state interpretation across surfaces
+      lifecyclePhase: lifecyclePhase
     };
 
     const etag = Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(value)));
@@ -4707,6 +4790,9 @@ function api_getPosterBundle(payload){
     // Generate print-friendly formatted strings
     const printStrings = generatePrintStrings_(event);
 
+    // Compute lifecycle phase from startDateISO (single source of truth)
+    const lifecyclePhase = computeLifecyclePhase_(event.startDateISO);
+
     // Build bundled response matching PosterBundle interface
     const value = {
       // Full canonical event shape (includes links for tracking)
@@ -4716,7 +4802,10 @@ function api_getPosterBundle(payload){
       qrCodes: qrCodes,
 
       // Print-friendly formatted strings
-      print: printStrings
+      print: printStrings,
+
+      // Lifecycle phase for consistent state interpretation across surfaces
+      lifecyclePhase: lifecyclePhase
     };
 
     const etag = Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(value)));
@@ -4963,13 +5052,18 @@ function api_getSharedReportBundle(payload){
     // Get event metrics from ANALYTICS sheet
     const metrics = getEventMetricsForReport_(brand, sanitizedId);
 
+    // Compute lifecycle phase from startDateISO (single source of truth)
+    const lifecyclePhase = computeLifecyclePhase_(event.startDateISO);
+
     // Story 6: Return FULL canonical event (passes validateEventContractV2)
     // Previously returned thin event subset - now v2 compliant like other bundles
     const value = {
       // Full canonical event shape per EVENT_CONTRACT.md v2.0
       event: event,
       // Aggregated metrics from ANALYTICS sheet
-      metrics: metrics
+      metrics: metrics,
+      // Lifecycle phase for consistent state interpretation across surfaces
+      lifecyclePhase: lifecyclePhase
     };
 
     const etag = Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(value)));
