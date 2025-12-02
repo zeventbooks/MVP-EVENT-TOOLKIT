@@ -61,6 +61,188 @@ const validateErrorEnvelope = (response, expectedCode = null) => {
   }
 };
 
+// ============================================================================
+// ENVELOPE BOUNDARY VALIDATORS (API_CONTRACT.md compliance)
+// ============================================================================
+
+/**
+ * List of endpoints that return FLAT responses (no envelope wrapper)
+ * All other endpoints must return envelope-wrapped responses.
+ * @see API_CONTRACT.md
+ */
+const FLAT_ENDPOINTS = Object.freeze(['status', 'statusmvp']);
+
+/**
+ * Validates flat response structure (for status/health endpoints)
+ * Flat responses have `ok` field but NO `value` wrapper.
+ *
+ * @see API_CONTRACT.md - Flat Endpoints section
+ * @param {Object} response - API response object
+ * @param {Object} options - Validation options
+ * @param {string[]} options.requiredFields - Additional required fields beyond ok
+ */
+const validateFlatResponse = (response, options = {}) => {
+  // Must have ok field
+  expect(response).toHaveProperty('ok');
+  expect(typeof response.ok).toBe('boolean');
+
+  // Must NOT have value wrapper (that would make it an envelope)
+  expect(response).not.toHaveProperty('value');
+
+  // For success flat responses, must NOT have code/message (error envelope fields)
+  if (response.ok) {
+    expect(response).not.toHaveProperty('code');
+  }
+
+  // Check additional required fields if specified
+  if (options.requiredFields) {
+    for (const field of options.requiredFields) {
+      expect(response).toHaveProperty(field);
+    }
+  }
+};
+
+/**
+ * Validates flat status response structure
+ * For api_statusPure endpoint.
+ *
+ * @see API_CONTRACT.md - status.schema.json
+ * @param {Object} response - Status response object
+ */
+const validateFlatStatusResponse = (response) => {
+  validateFlatResponse(response, {
+    requiredFields: ['buildId', 'brandId', 'time']
+  });
+
+  // Validate field types
+  expect(typeof response.buildId).toBe('string');
+  expect(typeof response.brandId).toBe('string');
+  expect(typeof response.time).toBe('string');
+
+  // Optional db field if present
+  if (response.db) {
+    expect(response.db).toHaveProperty('ok');
+    expect(typeof response.db.ok).toBe('boolean');
+  }
+};
+
+/**
+ * Validates flat MVP status response structure
+ * For api_statusMvp endpoint.
+ *
+ * @see API_CONTRACT.md - status-mvp.schema.json
+ * @param {Object} response - MVP status response object
+ */
+const validateFlatMvpStatusResponse = (response) => {
+  validateFlatResponse(response, {
+    requiredFields: ['buildId', 'brandId', 'time', 'analyticsSheetHealthy', 'sharedAnalyticsContractOk']
+  });
+
+  // Validate field types
+  expect(typeof response.buildId).toBe('string');
+  expect(typeof response.brandId).toBe('string');
+  expect(typeof response.time).toBe('string');
+  expect(typeof response.analyticsSheetHealthy).toBe('boolean');
+  expect(typeof response.sharedAnalyticsContractOk).toBe('boolean');
+};
+
+/**
+ * Asserts that a response IS an envelope (has value wrapper when ok=true)
+ * Use this to enforce envelope boundary for non-flat endpoints.
+ *
+ * @see API_CONTRACT.md - Rule 2
+ * @param {Object} response - API response object
+ * @throws {Error} If response is flat (no value wrapper)
+ */
+const assertIsEnvelope = (response) => {
+  expect(response).toHaveProperty('ok');
+
+  if (response.ok === true) {
+    // Success envelopes MUST have value (unless notModified)
+    if (!response.notModified) {
+      expect(response).toHaveProperty('value');
+      // Additional check: response should not have flat endpoint fields at root
+      expect(response).not.toHaveProperty('buildId');
+      expect(response).not.toHaveProperty('brandId');
+    }
+  } else if (response.ok === false) {
+    // Error envelopes MUST have code and message
+    expect(response).toHaveProperty('code');
+    expect(response).toHaveProperty('message');
+  }
+};
+
+/**
+ * Asserts that a response is NOT an envelope (flat format)
+ * Use this to enforce flat boundary for status/health endpoints.
+ *
+ * @see API_CONTRACT.md - Rule 1
+ * @param {Object} response - API response object
+ * @throws {Error} If response has envelope wrapper
+ */
+const assertNotEnvelope = (response) => {
+  expect(response).toHaveProperty('ok');
+
+  // Flat responses must NOT have value wrapper
+  expect(response).not.toHaveProperty('value');
+
+  // If it's a success, should have flat status fields at root
+  if (response.ok === true) {
+    // These fields should be at root level, not wrapped
+    expect(response).toHaveProperty('buildId');
+    expect(response).toHaveProperty('brandId');
+    expect(response).toHaveProperty('time');
+  }
+};
+
+/**
+ * Checks if a response looks like an envelope (has value wrapper)
+ * Non-throwing version for conditional logic.
+ *
+ * @param {Object} response - API response object
+ * @returns {boolean} True if response appears to be envelope-wrapped
+ */
+const isEnvelope = (response) => {
+  if (!response || typeof response !== 'object') return false;
+  if (typeof response.ok !== 'boolean') return false;
+
+  // If ok=true and has value, it's an envelope
+  if (response.ok === true && response.hasOwnProperty('value')) return true;
+
+  // If ok=false and has code+message, it's an envelope error
+  if (response.ok === false && response.hasOwnProperty('code') && response.hasOwnProperty('message')) {
+    // But flat errors also have message - check for 'code' which is envelope-specific
+    return true;
+  }
+
+  return false;
+};
+
+/**
+ * Checks if a response looks like a flat status response
+ * Non-throwing version for conditional logic.
+ *
+ * @param {Object} response - API response object
+ * @returns {boolean} True if response appears to be flat status format
+ */
+const isFlatResponse = (response) => {
+  if (!response || typeof response !== 'object') return false;
+  if (typeof response.ok !== 'boolean') return false;
+
+  // Flat responses don't have value wrapper
+  if (response.hasOwnProperty('value')) return false;
+
+  // Flat success responses have buildId, brandId, time at root
+  if (response.ok === true) {
+    return response.hasOwnProperty('buildId') &&
+           response.hasOwnProperty('brandId') &&
+           response.hasOwnProperty('time');
+  }
+
+  // Flat error responses have message but no code (or code is different pattern)
+  return response.hasOwnProperty('message') && response.hasOwnProperty('buildId');
+};
+
 /**
  * Validates event object structure (legacy format)
  *
@@ -381,6 +563,16 @@ module.exports = {
   validateEnvelope,
   validateSuccessEnvelope,
   validateErrorEnvelope,
+
+  // Envelope boundary validators (API_CONTRACT.md compliance)
+  FLAT_ENDPOINTS,
+  validateFlatResponse,
+  validateFlatStatusResponse,
+  validateFlatMvpStatusResponse,
+  assertIsEnvelope,
+  assertNotEnvelope,
+  isEnvelope,
+  isFlatResponse,
 
   // Structure validation (legacy)
   validateEventStructure,
