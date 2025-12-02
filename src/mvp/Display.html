@@ -287,6 +287,49 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
       background: rgba(239, 68, 68, 0.5);
     }
 
+    /* Lifecycle Phase Indicator (TV mode) - matches Admin/Public styling */
+    .lifecycle-indicator-tv {
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      z-index: 100;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: clamp(14px, 1.5vw, 18px);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+    .lifecycle-indicator-tv::before {
+      content: '';
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+    .lifecycle-indicator-tv[data-phase="pre-event"] {
+      background: rgba(219, 234, 254, 0.9);
+      color: #1e40af;
+    }
+    .lifecycle-indicator-tv[data-phase="event-day"] {
+      background: rgba(209, 250, 229, 0.9);
+      color: #065f46;
+      animation: pulse-live 2s ease-in-out infinite;
+    }
+    .lifecycle-indicator-tv[data-phase="post-event"] {
+      background: rgba(252, 231, 243, 0.9);
+      color: #9f1239;
+    }
+    @keyframes pulse-live {
+      0%, 100% { box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); }
+      50% { box-shadow: 0 4px 20px rgba(16, 185, 129, 0.5); }
+    }
+
     /* Legacy overlay support (fallback/side column option) */
     .league-info-overlay {
       position: fixed;
@@ -919,6 +962,8 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
 <body data-tv="1">
   <main id="tv">
     <div class="sponsor-top" id="sponsorTop" hidden></div>
+    <!-- Lifecycle Phase Indicator (same labels as Admin/Public for parity) -->
+    <div id="lifecycleIndicator" class="lifecycle-indicator-tv" data-testid="lifecycle-indicator" hidden></div>
     <div class="stage">
       <!-- V1: Public embed mode (default) -->
       <iframe id="stage" allow="autoplay; fullscreen" sandbox="allow-scripts allow-same-origin allow-popups allow-forms"></iframe>
@@ -1106,6 +1151,20 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
           });
         });
       });
+    }
+
+    /**
+     * Render lifecycle phase indicator
+     * Uses same labels as Admin/Public for consistent parity across surfaces.
+     * @param {Object} lifecyclePhase - { phase: string, label: string, isLive: boolean } from bundle
+     */
+    function renderLifecycleIndicator(lifecyclePhase) {
+      const indicator = document.getElementById('lifecycleIndicator');
+      if (!indicator || !lifecyclePhase) return;
+
+      indicator.textContent = lifecyclePhase.label;
+      indicator.setAttribute('data-phase', lifecyclePhase.phase);
+      indicator.hidden = false;
     }
 
     // Legacy: Render league info overlay for rec_league template (side column fallback)
@@ -1625,9 +1684,16 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
       const rotation = bundle.rotation || {};
       const layout = bundle.layout || {};
       const displayRotation = bundle.displayRotation || {};
+      const lifecyclePhase = bundle.lifecyclePhase || null;
 
       // === LOG DISPLAY VIEW METRIC ===
       logEvent({ eventId: ev.id, surface: 'display', metric: 'view', value: 1 });
+
+      // === RENDER LIFECYCLE PHASE INDICATOR ===
+      // Uses same labels as Admin/Public for consistent parity across surfaces
+      if (lifecyclePhase) {
+        renderLifecycleIndicator(lifecyclePhase);
+      }
 
       // === CONTRACT FIELDS (MVP REQUIRED) ===
       const settings = ev.settings || { showSchedule: false, showStandings: false, showBracket: false, showSponsors: false };

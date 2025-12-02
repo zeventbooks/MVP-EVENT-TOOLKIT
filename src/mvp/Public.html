@@ -1409,12 +1409,13 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
 
     /**
      * Render event detail view
-     * API: api_getPublicBundle → { event, config }
+     * API: api_getPublicBundle → { event, config, lifecyclePhase }
      * SCHEMA: /schemas/event.schema.json
      *
      * See file header for complete field mapping.
+     * @param {Object} lifecyclePhase - { phase: string, label: string, isLive: boolean } from bundle
      */
-    async function renderDetail(event, config = {}) {
+    async function renderDetail(event, config = {}, lifecyclePhase = null) {
       const root = document.getElementById('list');
 
       // === SCHEMA FIELDS (MVP REQUIRED) ===
@@ -1506,9 +1507,11 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       // Header with name and meta
       html += '<div class="event-header">';
 
-      // Determine event status from startDateISO
-      let statusBadge = '';
-      if (startDateISO) {
+      // Use lifecycle phase from bundle (single source of truth) for consistent display
+      // Falls back to local computation if bundle doesn't include lifecyclePhase
+      let phase = lifecyclePhase;
+      if (!phase && startDateISO) {
+        // Fallback: compute locally (same algorithm as backend)
         const eventDate = new Date(startDateISO + 'T00:00:00');
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -1516,15 +1519,21 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
         eventDay.setHours(0, 0, 0, 0);
 
         if (eventDay.getTime() === today.getTime()) {
-          statusBadge = '<span class="status-badge active">Today</span>';
+          phase = { phase: 'event-day', label: 'Event Day - Live', isLive: true };
         } else if (eventDay > today) {
-          statusBadge = '<span class="status-badge upcoming">Upcoming</span>';
+          phase = { phase: 'pre-event', label: 'Pre-Event Preparation', isLive: false };
         } else {
-          statusBadge = '<span class="status-badge ended">Past Event</span>';
+          phase = { phase: 'post-event', label: 'Post-Event Analytics', isLive: false };
         }
       }
 
-      html += `<div style="margin-bottom: 12px;">${statusBadge}</div>`;
+      // Display lifecycle phase indicator (same style as Admin and Display)
+      let lifecycleIndicator = '';
+      if (phase) {
+        lifecycleIndicator = `<span class="phase-indicator ${esc(phase.phase)}" data-testid="lifecycle-indicator" data-phase="${esc(phase.phase)}">${esc(phase.label)}</span>`;
+      }
+
+      html += `<div style="margin-bottom: 12px;">${lifecycleIndicator}</div>`;
 
       // EVENT_CONTRACT.md v2.0: event.name (MVP Required)
       html += `<h1>${esc(eventName || '(untitled)')}</h1>`;
@@ -1946,13 +1955,13 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
 
         try {
           if (res.value && res.value.event) {
-            // getPublicBundle returns { event: Event, config: { brandId, brandName, appTitle } }
+            // getPublicBundle returns { event: Event, config: { ... }, lifecyclePhase: { phase, label, isLive } }
             const bundle = res.value;
 
             // === LOG PUBLIC VIEW METRIC (uses SponsorUtils.logEvent which is fire-and-forget) ===
             logEvent({ eventId: bundle.event.id, surface: 'public', metric: 'view', value: 1 });
 
-            renderDetail(bundle.event, bundle.config);
+            renderDetail(bundle.event, bundle.config, bundle.lifecyclePhase);
           } else if (res.value && !res.value.event) {
             // API returned ok but no event data
             showError('nodata');
