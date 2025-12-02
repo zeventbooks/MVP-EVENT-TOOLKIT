@@ -68,8 +68,9 @@ const BRAND_METADATA = Object.freeze({
 /**
  * All valid brand IDs - derived from BRAND_METADATA
  * This is THE canonical list used throughout the application.
+ * Note: Named VALID_BRANDS internally to avoid ESLint global conflict
  */
-const BRANDS = Object.freeze(Object.keys(BRAND_METADATA));
+const VALID_BRANDS = Object.freeze(Object.keys(BRAND_METADATA));
 
 /**
  * Default brand for the platform
@@ -114,7 +115,7 @@ function getSpreadsheetIdEnvVar(brandId) {
  * @returns {boolean} True if brand exists in BRAND_METADATA
  */
 function isValidBrand(brandId) {
-  return Boolean(brandId && BRANDS.includes(brandId));
+  return Boolean(brandId && VALID_BRANDS.includes(brandId));
 }
 
 /**
@@ -145,7 +146,7 @@ function getBrandName(brandId) {
  */
 function getAllBrandMetadata() {
   const result = {};
-  BRANDS.forEach(brandId => {
+  VALID_BRANDS.forEach(brandId => {
     result[brandId] = getBrandMetadata(brandId);
   });
   return result;
@@ -177,7 +178,7 @@ function getParentBrand(childBrandId) {
  * @returns {string[]} Array of brand IDs matching the type
  */
 function getBrandsByType(type) {
-  return BRANDS.filter(brandId => BRAND_METADATA[brandId].type === type);
+  return VALID_BRANDS.filter(brandId => BRAND_METADATA[brandId].type === type);
 }
 
 // =============================================================================
@@ -238,7 +239,7 @@ function getBrandConfig(brandId) {
  */
 function getAllBrandConfigs() {
   const configs = {};
-  BRANDS.forEach(brandId => {
+  VALID_BRANDS.forEach(brandId => {
     configs[brandId] = getBrandConfig(brandId);
   });
   return configs;
@@ -249,7 +250,7 @@ function getAllBrandConfigs() {
  * @returns {string[]} Array of configured brand IDs
  */
 function getConfiguredBrands() {
-  return BRANDS.filter(brandId => getBrandConfig(brandId).hasAdminKey);
+  return VALID_BRANDS.filter(brandId => getBrandConfig(brandId).hasAdminKey);
 }
 
 /**
@@ -257,7 +258,7 @@ function getConfiguredBrands() {
  * @returns {string[]} Array of brand IDs with dedicated spreadsheets
  */
 function getBrandsWithDedicatedSpreadsheets() {
-  return BRANDS.filter(brandId => getBrandConfig(brandId).hasDedicatedSpreadsheet);
+  return VALID_BRANDS.filter(brandId => getBrandConfig(brandId).hasDedicatedSpreadsheet);
 }
 
 /**
@@ -282,7 +283,7 @@ function isBrandConfigured(brandId) {
 function createBrandTestMatrix(options = {}) {
   const { onlyConfigured = false } = options;
 
-  let brandsToTest = [...BRANDS];
+  let brandsToTest = [...VALID_BRANDS];
 
   if (onlyConfigured) {
     brandsToTest = brandsToTest.filter(brandId =>
@@ -304,7 +305,7 @@ function createBrandTestMatrix(options = {}) {
 function forEachBrand(testFn, options = {}) {
   const { onlyConfigured = false, brands = null } = options;
 
-  let brandsToTest = brands || [...BRANDS];
+  let brandsToTest = brands || [...VALID_BRANDS];
 
   if (onlyConfigured) {
     brandsToTest = brandsToTest.filter(brandId =>
@@ -330,7 +331,7 @@ function printBrandConfigSummary() {
   console.log('\n=== Brand Configuration Summary ===\n');
 
   console.log('Registered Brands:');
-  BRANDS.forEach(brandId => {
+  VALID_BRANDS.forEach(brandId => {
     const metadata = getBrandMetadata(brandId);
     const config = getBrandConfig(brandId);
     const typeLabel = metadata.type === 'child'
@@ -358,7 +359,8 @@ function printBrandConfigSummary() {
 
 module.exports = {
   // Core constants - Single Source of Truth
-  BRANDS,
+  // Note: VALID_BRANDS exported as BRANDS for backward compatibility
+  BRANDS: VALID_BRANDS,
   BRAND_METADATA,
   DEFAULT_BRAND,
   DEFAULT_SPREADSHEET_ID,
