@@ -70,15 +70,10 @@ const GAS_STAGING_URL = `https://script.google.com/macros/s/${STAGING_DEPLOYMENT
 // =============================================================================
 
 /**
- * All valid brand IDs
- * Must match BRANDS array in src/mvp/Config.gs
+ * Import brand constants from centralized source of truth
+ * @see config/brand-config.js
  */
-const VALID_BRANDS = Object.freeze(['root', 'abc', 'cbc', 'cbl']);
-
-/**
- * Default brand for testing
- */
-const DEFAULT_BRAND = 'root';
+const { BRANDS: VALID_BRANDS, DEFAULT_BRAND } = require('./brand-config');
 
 // =============================================================================
 // Environment Definitions
