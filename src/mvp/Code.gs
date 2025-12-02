@@ -139,6 +139,107 @@ const Err = (code, message, corrId) => {
   return envelope;
 };
 
+// =============================================================================
+// ENVELOPE BOUNDARY HELPERS (API_CONTRACT.md compliance)
+// =============================================================================
+// Flat endpoints (status, statusmvp) return data at root level.
+// All other endpoints must wrap data in Ok(value) or Err(code, message).
+// See API_CONTRACT.md for the canonical contract.
+// =============================================================================
+
+/**
+ * List of endpoints that return FLAT responses (no envelope wrapper).
+ * These endpoints return { ok, buildId, brandId, time, ... } directly.
+ * All other endpoints must return envelope format: Ok(value) or Err(code, msg)
+ * @constant {string[]}
+ * @see API_CONTRACT.md
+ */
+const FLAT_ENDPOINTS = Object.freeze(['status', 'statusmvp', 'statusPure']);
+
+// Helper to safely check if object has own property (ESLint no-prototype-builtins)
+const _hasOwn_ = (obj, prop) => Object.prototype.hasOwnProperty.call(obj, prop);
+
+/**
+ * Checks if a response object is envelope-wrapped.
+ * Used to detect contract violations where flat endpoints return envelopes.
+ * @param {object} response - The response object to check
+ * @returns {boolean} True if response has envelope structure (value wrapper)
+ */
+function isEnvelope_(response) {
+  if (!response || typeof response !== 'object') return false;
+  if (typeof response.ok !== 'boolean') return false;
+  // Success envelope has value property
+  if (response.ok === true && _hasOwn_(response, 'value')) return true;
+  // Error envelope has code property (flat errors don't have code)
+  if (response.ok === false && _hasOwn_(response, 'code')) return true;
+  return false;
+}
+
+/**
+ * Checks if a response object is flat format (for status endpoints).
+ * Flat responses have ok, buildId, brandId, time at root level.
+ * @param {object} response - The response object to check
+ * @returns {boolean} True if response is flat format
+ */
+function isFlatResponse_(response) {
+  if (!response || typeof response !== 'object') return false;
+  if (typeof response.ok !== 'boolean') return false;
+  // Must NOT have value wrapper
+  if (_hasOwn_(response, 'value')) return false;
+  // Success flat responses have buildId, brandId, time at root
+  if (response.ok === true) {
+    return _hasOwn_(response, 'buildId') &&
+           _hasOwn_(response, 'brandId') &&
+           _hasOwn_(response, 'time');
+  }
+  // Flat error responses have message and buildId but no code
+  return _hasOwn_(response, 'message') && _hasOwn_(response, 'buildId');
+}
+
+/**
+ * Validates that a flat endpoint response does NOT have envelope wrapper.
+ * Throws if the response accidentally wraps data in { ok, value }.
+ * @param {string} endpointName - Name of the endpoint (for error message)
+ * @param {object} response - The response to validate
+ * @throws {Error} If response has envelope structure
+ * @see API_CONTRACT.md Rule 1
+ */
+function assertFlatBoundary_(endpointName, response) {
+  if (response && _hasOwn_(response, 'value')) {
+    throw new Error(
+      `CONTRACT VIOLATION: Flat endpoint '${endpointName}' returned envelope format. ` +
+      'Flat endpoints must return data at root level (no value wrapper). ' +
+      'See API_CONTRACT.md Rule 1.'
+    );
+  }
+}
+
+/**
+ * Validates that an envelope endpoint response HAS the value wrapper.
+ * Throws if the response accidentally returns flat data.
+ * @param {string} endpointName - Name of the endpoint (for error message)
+ * @param {object} response - The response to validate
+ * @throws {Error} If response is flat when it should be envelope
+ * @see API_CONTRACT.md Rule 2
+ */
+function assertEnvelopeBoundary_(endpointName, response) {
+  if (response && response.ok === true && !response.notModified) {
+    if (!_hasOwn_(response, 'value')) {
+      throw new Error(
+        `CONTRACT VIOLATION: Envelope endpoint '${endpointName}' returned flat data. ` +
+        'Use Ok(value) to wrap the response. See API_CONTRACT.md Rule 2.'
+      );
+    }
+    // Additional check: should not have flat endpoint fields at root
+    if (_hasOwn_(response, 'buildId') || _hasOwn_(response, 'brandId')) {
+      throw new Error(
+        `CONTRACT VIOLATION: Envelope endpoint '${endpointName}' has flat fields at root. ` +
+        'buildId/brandId should be inside value. See API_CONTRACT.md.'
+      );
+    }
+  }
+}
+
 /**
  * Generate a correlation ID for request tracing
  * Format: {endpoint}_{timestamp}_{random}

@@ -12,12 +12,21 @@
 
 const {
   validateEnvelope,
-  validateSuccessEnvelope,
-  validateErrorEnvelope,
+  validateFlatResponse,
+  validateFlatStatusResponse,
+  validateFlatMvpStatusResponse,
+  assertIsEnvelope,
+  assertNotEnvelope,
+  isEnvelope,
+  isFlatResponse,
+  FLAT_ENDPOINTS,
   ERROR_CODES,
   dateHelpers,
   generateTestId
 } = require('./test.helpers.js');
+
+// Helper to safely check if object has own property
+const hasOwn = (obj, prop) => Object.prototype.hasOwnProperty.call(obj, prop);
 
 /**
  * Test case definition for matrix testing
@@ -39,6 +48,7 @@ const {
  * @property {string} endpoint - API endpoint/action name
  * @property {string} description - What this endpoint does
  * @property {TestCase[]} cases - Array of test cases
+ * @property {'envelope'|'flat'} [responseFormat='envelope'] - Expected response format (API_CONTRACT.md compliance)
  */
 
 /**
@@ -109,10 +119,13 @@ class TestRunner {
    * Run a single test case
    * @param {string} endpoint - API endpoint
    * @param {TestCase} testCase - Test case definition
+   * @param {Object} [options] - Additional options
+   * @param {'envelope'|'flat'} [options.responseFormat='envelope'] - Expected response format
    * @returns {Promise<TestResult>}
    */
-  async runTestCase(endpoint, testCase) {
+  async runTestCase(endpoint, testCase, options = {}) {
     const startTime = Date.now();
+    const responseFormat = options.responseFormat || 'envelope';
     const result = {
       name: testCase.name,
       endpoint,
@@ -120,7 +133,8 @@ class TestRunner {
       duration: 0,
       error: null,
       response: null,
-      expected: testCase.expected
+      expected: testCase.expected,
+      responseFormat
     };
 
     try {
@@ -145,8 +159,17 @@ class TestRunner {
       const response = await this.request(payload);
       result.response = response;
 
-      // Validate envelope structure
-      validateEnvelope(response);
+      // ========================================
+      // ENVELOPE BOUNDARY VALIDATION (API_CONTRACT.md)
+      // ========================================
+      if (responseFormat === 'flat') {
+        // Flat endpoints (status, statusmvp) must NOT return envelope
+        this._validateFlatBoundary(response, endpoint);
+      } else {
+        // Envelope endpoints must return proper envelope structure
+        validateEnvelope(response);
+        this._validateEnvelopeBoundary(response);
+      }
 
       // Check expected outcome
       if (testCase.expected.ok !== undefined) {
@@ -158,8 +181,8 @@ class TestRunner {
         }
       }
 
-      // Check error code
-      if (!response.ok && testCase.expected.code) {
+      // Check error code (only for envelope responses)
+      if (!response.ok && testCase.expected.code && responseFormat === 'envelope') {
         if (response.code !== testCase.expected.code) {
           throw new Error(
             `Expected code=${testCase.expected.code}, got code=${response.code}`
@@ -167,10 +190,11 @@ class TestRunner {
         }
       }
 
-      // Check required fields
+      // Check required fields (in value for envelope, at root for flat)
       if (response.ok && testCase.expected.requiredFields) {
+        const target = responseFormat === 'flat' ? response : response.value;
         for (const field of testCase.expected.requiredFields) {
-          if (!this._hasNestedProperty(response.value, field)) {
+          if (!this._hasNestedProperty(target, field)) {
             throw new Error(`Missing required field: ${field}`);
           }
         }
@@ -193,6 +217,55 @@ class TestRunner {
 
     result.duration = Date.now() - startTime;
     return result;
+  }
+
+  /**
+   * Validate that response follows envelope format (API_CONTRACT.md Rule 2)
+   * @private
+   */
+  _validateEnvelopeBoundary(response) {
+    if (response.ok === true && !response.notModified) {
+      if (!hasOwn(response, 'value')) {
+        throw new Error(
+          'CONTRACT VIOLATION: Envelope endpoint returned data without value wrapper. ' +
+          'See API_CONTRACT.md Rule 2.'
+        );
+      }
+      // Should not have flat status fields at root
+      if (hasOwn(response, 'buildId') || hasOwn(response, 'brandId')) {
+        throw new Error(
+          'CONTRACT VIOLATION: Envelope endpoint has flat fields (buildId/brandId) at root. ' +
+          'These should be inside value. See API_CONTRACT.md.'
+        );
+      }
+    }
+  }
+
+  /**
+   * Validate that response follows flat format (API_CONTRACT.md Rule 1)
+   * @private
+   */
+  _validateFlatBoundary(response, endpoint) {
+    // Flat responses must NOT have value wrapper
+    if (hasOwn(response, 'value')) {
+      throw new Error(
+        `CONTRACT VIOLATION: Flat endpoint '${endpoint}' returned envelope format with value wrapper. ` +
+        'Flat endpoints must return data at root level. See API_CONTRACT.md Rule 1.'
+      );
+    }
+
+    // Success flat responses should have required flat fields
+    if (response.ok === true) {
+      if (!hasOwn(response, 'buildId')) {
+        throw new Error(`Flat response missing buildId at root level`);
+      }
+      if (!hasOwn(response, 'brandId')) {
+        throw new Error(`Flat response missing brandId at root level`);
+      }
+      if (!hasOwn(response, 'time')) {
+        throw new Error(`Flat response missing time at root level`);
+      }
+    }
   }
 
   /**
@@ -220,10 +293,12 @@ class TestRunner {
    */
   async runTestMatrix(matrix, options = {}) {
     const results = [];
+    const responseFormat = matrix.responseFormat || 'envelope';
 
     console.log(`\n📋 Testing: ${matrix.endpoint}`);
     console.log(`   ${matrix.description}`);
-    console.log(`   ${matrix.cases.length} test cases\n`);
+    console.log(`   ${matrix.cases.length} test cases`);
+    console.log(`   Response format: ${responseFormat}\n`);
 
     for (const testCase of matrix.cases) {
       // Apply filters
@@ -236,7 +311,7 @@ class TestRunner {
         continue;
       }
 
-      const result = await this.runTestCase(matrix.endpoint, testCase);
+      const result = await this.runTestCase(matrix.endpoint, testCase, { responseFormat });
       results.push(result);
 
       // Print result
@@ -503,11 +578,12 @@ const validateSponsorContract = (sponsor) => {
 // ============================================================================
 
 /**
- * Build test matrix for success cases
+ * Build test matrix for success cases (envelope format by default)
  */
-const buildSuccessMatrix = (endpoint, description, cases) => ({
+const buildSuccessMatrix = (endpoint, description, cases, options = {}) => ({
   endpoint,
   description,
+  responseFormat: options.responseFormat || 'envelope',
   cases: cases.map(c => ({
     ...c,
     expected: { ok: true, ...c.expected }
@@ -515,14 +591,43 @@ const buildSuccessMatrix = (endpoint, description, cases) => ({
 });
 
 /**
- * Build test matrix for error cases
+ * Build test matrix for error cases (envelope format by default)
  */
-const buildErrorMatrix = (endpoint, description, cases) => ({
+const buildErrorMatrix = (endpoint, description, cases, options = {}) => ({
   endpoint,
   description,
+  responseFormat: options.responseFormat || 'envelope',
   cases: cases.map(c => ({
     ...c,
     expected: { ok: false, ...c.expected }
+  }))
+});
+
+/**
+ * Build test matrix for flat endpoints (status, statusmvp)
+ * @see API_CONTRACT.md - Flat Endpoints section
+ */
+const buildFlatMatrix = (endpoint, description, cases) => ({
+  endpoint,
+  description,
+  responseFormat: 'flat',
+  cases: cases.map(c => ({
+    ...c,
+    expected: { ...c.expected }
+  }))
+});
+
+/**
+ * Build test matrix for envelope endpoints (most endpoints)
+ * @see API_CONTRACT.md - Envelope Endpoints section
+ */
+const buildEnvelopeMatrix = (endpoint, description, cases) => ({
+  endpoint,
+  description,
+  responseFormat: 'envelope',
+  cases: cases.map(c => ({
+    ...c,
+    expected: { ...c.expected }
   }))
 });
 
@@ -543,6 +648,18 @@ module.exports = {
   // Matrix builders
   buildSuccessMatrix,
   buildErrorMatrix,
+  buildFlatMatrix,
+  buildEnvelopeMatrix,
+
+  // Envelope boundary validators (re-exported from test.helpers.js)
+  FLAT_ENDPOINTS,
+  validateFlatResponse,
+  validateFlatStatusResponse,
+  validateFlatMvpStatusResponse,
+  assertIsEnvelope,
+  assertNotEnvelope,
+  isEnvelope,
+  isFlatResponse,
 
   // Re-export helpers
   ERROR_CODES,
