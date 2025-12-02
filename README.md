@@ -208,6 +208,40 @@ const BASE_URL = getBaseUrl(); // Returns current environment URL
 
 ## Testing
 
+### Stage 1: Smoke Packs (Hard Blocker)
+
+The **Smoke Packs** are the Stage 1 CI gate. If any smoke pack fails, deployment is blocked.
+
+**4 Core Smoke Packs:**
+| Pack | File | Purpose |
+|------|------|---------|
+| Pages | `pages.smoke.test.js` | MVP surface health (Admin, Public, Display, Poster) |
+| Integration | `integration.smoke.test.js` | Cross-component flows (Admin → Public → Display) |
+| Components | `components.smoke.test.js` | Deep component validation (lifecycle, sponsors, QR) |
+| API | `api.smoke.test.js` | Backend endpoint health (status, errors, multi-brand) |
+
+```bash
+# Run all 4 smoke packs (Stage 1 gate)
+npm run test:smoke:packs
+
+# Run individual smoke packs
+npm run test:smoke:packs:pages
+npm run test:smoke:packs:integration
+npm run test:smoke:packs:components
+npm run test:smoke:packs:api
+
+# Run with custom environment
+BASE_URL=https://www.eventangle.com npm run test:smoke:packs      # Production
+BASE_URL=https://stg.eventangle.com npm run test:smoke:packs      # Staging (default)
+BASE_URL="https://script.google.com/macros/s/XXX/exec" npm run test:smoke:packs  # GAS direct
+
+# Run with specific brand
+BRAND_ID=abc npm run test:smoke:packs
+BRAND_ID=cbc BASE_URL=https://stg.eventangle.com npm run test:smoke:packs
+```
+
+**CI Behavior:** The `smoke-packs-gate.yml` workflow runs on PRs to main and feature branch pushes. All 4 packs must pass or deployment is blocked.
+
 ### BASE_URL Toggle (GAS vs EventAngle)
 
 The same test suite runs against any environment by changing `BASE_URL`:
@@ -230,14 +264,20 @@ BASE_URL="https://script.google.com/macros/s/XXX/exec" npm run test:smoke
 # CI Gate (REQUIRED before pushing)
 npm run ci:all
 
+# Stage 1: Smoke Packs (must pass before deploy)
+npm run test:smoke:packs
+
 # Stage 1: Lint + Unit + Contract (must pass before deploy)
 npm run test:ci:stage1
 
 # Stage 2: API + E2E tests
 npm run test:ci:stage2
 
-# Smoke tests only
+# E2E smoke tests (separate from smoke packs)
 npm run test:smoke
+
+# All smoke tests combined
+npm run test:smoke:all
 
 # All tests
 npm run test:all

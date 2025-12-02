@@ -1,0 +1,299 @@
+name: Stage 1 - Smoke Packs Gate
+
+# =============================================================================
+# SMOKE PACKS CI GATE (Stage 1 Hard Blocker)
+# =============================================================================
+# This workflow runs the 4 core smoke packs as a Stage 1 gate:
+#   - pages.smoke.test.js    (MVP surface health)
+#   - integration.smoke.test.js (cross-component flows)
+#   - components.smoke.test.js (deep component validation)
+#   - api.smoke.test.js      (backend endpoint health)
+#
+# If ANY smoke pack fails, the pipeline is blocked.
+# Nothing deploys until all smoke packs pass.
+#
+# Local equivalent: BASE_URL=<url> npm run test:smoke:packs
+# =============================================================================
+
+on:
+  # Run on PRs to main (validation before merge)
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.github/ISSUE_TEMPLATE/**'
+
+  # Run on feature branch pushes (developer feedback)
+  push:
+    branches:
+      - 'feature/**'
+      - 'fix/**'
+      - 'claude/**'
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+
+  # Manual trigger with environment selection
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment for smoke tests'
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+          - gas-direct
+        default: 'staging'
+      base_url:
+        description: 'Custom BASE_URL (optional, overrides environment)'
+        required: false
+        type: string
+        default: ''
+      brand:
+        description: 'Brand to test (root, abc, cbc, cbl)'
+        required: false
+        type: choice
+        options:
+          - root
+          - abc
+          - cbc
+          - cbl
+        default: 'root'
+
+# Prevent duplicate runs
+concurrency:
+  group: smoke-gate-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Default to staging for safe testing
+  DEFAULT_BASE_URL: 'https://stg.eventangle.com'
+  STAGING_URL: 'https://stg.eventangle.com'
+  PRODUCTION_URL: 'https://www.eventangle.com'
+
+jobs:
+  # ==========================================================================
+  # SMOKE PACKS GATE - Stage 1 Hard Blocker
+  # ==========================================================================
+  smoke-packs-gate:
+    name: "Smoke Packs Gate"
+    runs-on: ubuntu-latest
+    outputs:
+      smoke_passed: ${{ steps.gate-result.outputs.passed }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Determine BASE_URL
+        id: env-setup
+        run: |
+          echo "Determining target BASE_URL..."
+          echo ""
+
+          # Priority: Custom URL > Environment Selection > Default (staging)
+          if [[ -n "${{ inputs.base_url }}" ]]; then
+            BASE_URL="${{ inputs.base_url }}"
+            echo "Using custom BASE_URL: $BASE_URL"
+          elif [[ "${{ inputs.environment }}" == "production" ]]; then
+            BASE_URL="${{ env.PRODUCTION_URL }}"
+            echo "Using PRODUCTION: $BASE_URL"
+          elif [[ "${{ inputs.environment }}" == "staging" ]]; then
+            BASE_URL="${{ env.STAGING_URL }}"
+            echo "Using STAGING: $BASE_URL"
+          else
+            BASE_URL="${{ env.DEFAULT_BASE_URL }}"
+            echo "Using DEFAULT (staging): $BASE_URL"
+          fi
+
+          # Set brand
+          BRAND="${{ inputs.brand || 'root' }}"
+
+          echo "base_url=$BASE_URL" >> $GITHUB_OUTPUT
+          echo "brand=$BRAND" >> $GITHUB_OUTPUT
+          echo ""
+          echo "Configuration:"
+          echo "  BASE_URL: $BASE_URL"
+          echo "  BRAND: $BRAND"
+
+      - name: Run Smoke Pack - Pages
+        id: smoke-pages
+        continue-on-error: true
+        env:
+          BASE_URL: ${{ steps.env-setup.outputs.base_url }}
+          BRAND_ID: ${{ steps.env-setup.outputs.brand }}
+          CI: true
+          ADMIN_KEY: ${{ secrets.ADMIN_KEY_ROOT }}
+          ADMIN_KEY_ROOT: ${{ secrets.ADMIN_KEY_ROOT }}
+          ADMIN_KEY_ABC: ${{ secrets.ADMIN_KEY_ABC }}
+          ADMIN_KEY_CBC: ${{ secrets.ADMIN_KEY_CBC }}
+          ADMIN_KEY_CBL: ${{ secrets.ADMIN_KEY_CBL }}
+        run: |
+          echo "Running pages.smoke.test.js..."
+          echo "BASE_URL: $BASE_URL"
+          npm run test:smoke:packs:pages
+
+      - name: Run Smoke Pack - Integration
+        id: smoke-integration
+        continue-on-error: true
+        env:
+          BASE_URL: ${{ steps.env-setup.outputs.base_url }}
+          BRAND_ID: ${{ steps.env-setup.outputs.brand }}
+          CI: true
+          ADMIN_KEY: ${{ secrets.ADMIN_KEY_ROOT }}
+          ADMIN_KEY_ROOT: ${{ secrets.ADMIN_KEY_ROOT }}
+          ADMIN_KEY_ABC: ${{ secrets.ADMIN_KEY_ABC }}
+          ADMIN_KEY_CBC: ${{ secrets.ADMIN_KEY_CBC }}
+          ADMIN_KEY_CBL: ${{ secrets.ADMIN_KEY_CBL }}
+        run: |
+          echo "Running integration.smoke.test.js..."
+          npm run test:smoke:packs:integration
+
+      - name: Run Smoke Pack - Components
+        id: smoke-components
+        continue-on-error: true
+        env:
+          BASE_URL: ${{ steps.env-setup.outputs.base_url }}
+          BRAND_ID: ${{ steps.env-setup.outputs.brand }}
+          CI: true
+          ADMIN_KEY: ${{ secrets.ADMIN_KEY_ROOT }}
+          ADMIN_KEY_ROOT: ${{ secrets.ADMIN_KEY_ROOT }}
+          ADMIN_KEY_ABC: ${{ secrets.ADMIN_KEY_ABC }}
+          ADMIN_KEY_CBC: ${{ secrets.ADMIN_KEY_CBC }}
+          ADMIN_KEY_CBL: ${{ secrets.ADMIN_KEY_CBL }}
+        run: |
+          echo "Running components.smoke.test.js..."
+          npm run test:smoke:packs:components
+
+      - name: Run Smoke Pack - API
+        id: smoke-api
+        continue-on-error: true
+        env:
+          BASE_URL: ${{ steps.env-setup.outputs.base_url }}
+          BRAND_ID: ${{ steps.env-setup.outputs.brand }}
+          CI: true
+          ADMIN_KEY: ${{ secrets.ADMIN_KEY_ROOT }}
+          ADMIN_KEY_ROOT: ${{ secrets.ADMIN_KEY_ROOT }}
+          ADMIN_KEY_ABC: ${{ secrets.ADMIN_KEY_ABC }}
+          ADMIN_KEY_CBC: ${{ secrets.ADMIN_KEY_CBC }}
+          ADMIN_KEY_CBL: ${{ secrets.ADMIN_KEY_CBL }}
+        run: |
+          echo "Running api.smoke.test.js..."
+          npm run test:smoke:packs:api
+
+      - name: Evaluate Gate Results
+        id: gate-result
+        run: |
+          echo "=========================================="
+          echo "SMOKE PACKS GATE - RESULTS"
+          echo "=========================================="
+          echo ""
+
+          PAGES_RESULT="${{ steps.smoke-pages.outcome }}"
+          INTEGRATION_RESULT="${{ steps.smoke-integration.outcome }}"
+          COMPONENTS_RESULT="${{ steps.smoke-components.outcome }}"
+          API_RESULT="${{ steps.smoke-api.outcome }}"
+
+          echo "  pages.smoke.test.js:       $PAGES_RESULT"
+          echo "  integration.smoke.test.js: $INTEGRATION_RESULT"
+          echo "  components.smoke.test.js:  $COMPONENTS_RESULT"
+          echo "  api.smoke.test.js:         $API_RESULT"
+          echo ""
+
+          # Count failures
+          FAILURES=0
+          if [[ "$PAGES_RESULT" != "success" ]]; then ((FAILURES++)); fi
+          if [[ "$INTEGRATION_RESULT" != "success" ]]; then ((FAILURES++)); fi
+          if [[ "$COMPONENTS_RESULT" != "success" ]]; then ((FAILURES++)); fi
+          if [[ "$API_RESULT" != "success" ]]; then ((FAILURES++)); fi
+
+          if [[ $FAILURES -eq 0 ]]; then
+            echo "=========================================="
+            echo "STAGE 1 SMOKE GATE: PASSED"
+            echo "=========================================="
+            echo "All 4 smoke packs passed. Deployment may proceed."
+            echo "passed=true" >> $GITHUB_OUTPUT
+          else
+            echo "=========================================="
+            echo "STAGE 1 SMOKE GATE: FAILED"
+            echo "=========================================="
+            echo "$FAILURES smoke pack(s) failed. DEPLOYMENT BLOCKED."
+            echo ""
+            echo "Fix smoke test failures before deployment."
+            echo "Run locally: BASE_URL=${{ steps.env-setup.outputs.base_url }} npm run test:smoke:packs"
+            echo "passed=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+      - name: Upload Playwright Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-packs-report
+          path: playwright-report/
+          retention-days: 7
+
+      - name: Create Gate Summary
+        if: always()
+        run: |
+          echo "## Stage 1 - Smoke Packs Gate" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Target:** \`${{ steps.env-setup.outputs.base_url }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Brand:** \`${{ steps.env-setup.outputs.brand }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Smoke Pack Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Smoke Pack | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| pages.smoke.test.js | ${{ steps.smoke-pages.outcome == 'success' && '✅ PASS' || '❌ FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| integration.smoke.test.js | ${{ steps.smoke-integration.outcome == 'success' && '✅ PASS' || '❌ FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| components.smoke.test.js | ${{ steps.smoke-components.outcome == 'success' && '✅ PASS' || '❌ FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| api.smoke.test.js | ${{ steps.smoke-api.outcome == 'success' && '✅ PASS' || '❌ FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [[ "${{ steps.gate-result.outputs.passed }}" == "true" ]]; then
+            echo "### ✅ GATE PASSED" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "All smoke packs passed. Deployment is allowed." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ GATE FAILED - DEPLOYMENT BLOCKED" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "One or more smoke packs failed. **Deployment is blocked.**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Run locally to debug:**" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+            echo "BASE_URL=${{ steps.env-setup.outputs.base_url }} npm run test:smoke:packs" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Running Locally" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "# Run all smoke packs (staging - default)" >> $GITHUB_STEP_SUMMARY
+          echo "npm run test:smoke:packs" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "# Run against production" >> $GITHUB_STEP_SUMMARY
+          echo "BASE_URL=https://www.eventangle.com npm run test:smoke:packs" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "# Run specific brand" >> $GITHUB_STEP_SUMMARY
+          echo "BASE_URL=https://stg.eventangle.com BRAND_ID=abc npm run test:smoke:packs" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "# Run individual pack" >> $GITHUB_STEP_SUMMARY
+          echo "npm run test:smoke:packs:pages" >> $GITHUB_STEP_SUMMARY
+          echo "npm run test:smoke:packs:api" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
