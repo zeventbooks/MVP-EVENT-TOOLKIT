@@ -10,6 +10,9 @@
 // Import brand configuration from centralized source
 const { BRANDS } = require('../../../config/brand-config');
 
+// Helper to safely check if object has own property (ESLint no-prototype-builtins)
+const hasOwn = (obj, prop) => Object.prototype.hasOwnProperty.call(obj, prop);
+
 /**
  * Validates API response envelope structure
  * Ensures all responses follow Ok/Err pattern
@@ -207,10 +210,10 @@ const isEnvelope = (response) => {
   if (typeof response.ok !== 'boolean') return false;
 
   // If ok=true and has value, it's an envelope
-  if (response.ok === true && response.hasOwnProperty('value')) return true;
+  if (response.ok === true && hasOwn(response, 'value')) return true;
 
   // If ok=false and has code+message, it's an envelope error
-  if (response.ok === false && response.hasOwnProperty('code') && response.hasOwnProperty('message')) {
+  if (response.ok === false && hasOwn(response, 'code') && hasOwn(response, 'message')) {
     // But flat errors also have message - check for 'code' which is envelope-specific
     return true;
   }
@@ -230,17 +233,17 @@ const isFlatResponse = (response) => {
   if (typeof response.ok !== 'boolean') return false;
 
   // Flat responses don't have value wrapper
-  if (response.hasOwnProperty('value')) return false;
+  if (hasOwn(response, 'value')) return false;
 
   // Flat success responses have buildId, brandId, time at root
   if (response.ok === true) {
-    return response.hasOwnProperty('buildId') &&
-           response.hasOwnProperty('brandId') &&
-           response.hasOwnProperty('time');
+    return hasOwn(response, 'buildId') &&
+           hasOwn(response, 'brandId') &&
+           hasOwn(response, 'time');
   }
 
   // Flat error responses have message but no code (or code is different pattern)
-  return response.hasOwnProperty('message') && response.hasOwnProperty('buildId');
+  return hasOwn(response, 'message') && hasOwn(response, 'buildId');
 };
 
 /**

@@ -12,8 +12,6 @@
 
 const {
   validateEnvelope,
-  validateSuccessEnvelope,
-  validateErrorEnvelope,
   validateFlatResponse,
   validateFlatStatusResponse,
   validateFlatMvpStatusResponse,
@@ -26,6 +24,9 @@ const {
   dateHelpers,
   generateTestId
 } = require('./test.helpers.js');
+
+// Helper to safely check if object has own property
+const hasOwn = (obj, prop) => Object.prototype.hasOwnProperty.call(obj, prop);
 
 /**
  * Test case definition for matrix testing
@@ -224,14 +225,14 @@ class TestRunner {
    */
   _validateEnvelopeBoundary(response) {
     if (response.ok === true && !response.notModified) {
-      if (!response.hasOwnProperty('value')) {
+      if (!hasOwn(response, 'value')) {
         throw new Error(
           'CONTRACT VIOLATION: Envelope endpoint returned data without value wrapper. ' +
           'See API_CONTRACT.md Rule 2.'
         );
       }
       // Should not have flat status fields at root
-      if (response.hasOwnProperty('buildId') || response.hasOwnProperty('brandId')) {
+      if (hasOwn(response, 'buildId') || hasOwn(response, 'brandId')) {
         throw new Error(
           'CONTRACT VIOLATION: Envelope endpoint has flat fields (buildId/brandId) at root. ' +
           'These should be inside value. See API_CONTRACT.md.'
@@ -246,7 +247,7 @@ class TestRunner {
    */
   _validateFlatBoundary(response, endpoint) {
     // Flat responses must NOT have value wrapper
-    if (response.hasOwnProperty('value')) {
+    if (hasOwn(response, 'value')) {
       throw new Error(
         `CONTRACT VIOLATION: Flat endpoint '${endpoint}' returned envelope format with value wrapper. ` +
         'Flat endpoints must return data at root level. See API_CONTRACT.md Rule 1.'
@@ -255,13 +256,13 @@ class TestRunner {
 
     // Success flat responses should have required flat fields
     if (response.ok === true) {
-      if (!response.hasOwnProperty('buildId')) {
+      if (!hasOwn(response, 'buildId')) {
         throw new Error(`Flat response missing buildId at root level`);
       }
-      if (!response.hasOwnProperty('brandId')) {
+      if (!hasOwn(response, 'brandId')) {
         throw new Error(`Flat response missing brandId at root level`);
       }
-      if (!response.hasOwnProperty('time')) {
+      if (!hasOwn(response, 'time')) {
         throw new Error(`Flat response missing time at root level`);
       }
     }
