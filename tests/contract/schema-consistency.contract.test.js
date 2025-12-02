@@ -158,10 +158,20 @@ describe('Schema Consistency Contract Tests', () => {
   });
 
   describe('Sponsor Schema Consistency', () => {
-    it('should have required fields: id, name, logoUrl, placement', () => {
+    it('should have required fields: id, name, logoUrl', () => {
       expect(sponsorSchema.required).toEqual(
-        expect.arrayContaining(['id', 'name', 'logoUrl', 'placement'])
+        expect.arrayContaining(['id', 'name', 'logoUrl'])
       );
+      // placement is no longer base-required - it's via anyOf
+      expect(sponsorSchema.required).not.toContain('placement');
+    });
+
+    it('should require either placement OR placements via anyOf', () => {
+      expect(sponsorSchema.anyOf).toBeDefined();
+      expect(sponsorSchema.anyOf).toEqual([
+        { required: ['placement'] },
+        { required: ['placements'] }
+      ]);
     });
 
     it('should have linkUrl as optional', () => {
@@ -169,11 +179,27 @@ describe('Schema Consistency Contract Tests', () => {
       expect(sponsorSchema.properties.linkUrl.type).toContain('null');
     });
 
+    it('should have placements object with surface booleans', () => {
+      expect(sponsorSchema.properties.placements).toBeDefined();
+      expect(sponsorSchema.properties.placements.properties).toHaveProperty('posterTop');
+      expect(sponsorSchema.properties.placements.properties).toHaveProperty('tvTop');
+      expect(sponsorSchema.properties.placements.properties).toHaveProperty('tvSide');
+      expect(sponsorSchema.properties.placements.properties).toHaveProperty('mobileBanner');
+    });
+
+    it('should have tracking token fields', () => {
+      expect(sponsorSchema.properties.clickToken).toBeDefined();
+      expect(sponsorSchema.properties.impressionToken).toBeDefined();
+    });
+
     it('should match Event Schema embedded Sponsor definition', () => {
       const embeddedSponsor = eventSchema.$defs.Sponsor;
 
       // Required fields should match
       expect(embeddedSponsor.required).toEqual(sponsorSchema.required);
+
+      // anyOf constraint should match
+      expect(embeddedSponsor.anyOf).toEqual(sponsorSchema.anyOf);
 
       // Placement enum should match
       expect(embeddedSponsor.properties.placement.enum).toEqual(

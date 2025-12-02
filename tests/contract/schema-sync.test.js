@@ -340,9 +340,10 @@ const CANONICAL = {
   },
 
   // Sponsor schema
+  // Note: 'placement' OR 'placements' is required via anyOf, but neither is in base required
   sponsor: {
-    required: ['id', 'name', 'logoUrl', 'placement'],
-    optional: ['linkUrl']
+    required: ['id', 'name', 'logoUrl'],
+    optional: ['linkUrl', 'placement', 'placements', 'clickToken', 'impressionToken', 'tier']
   },
 
   // FormConfig schema
