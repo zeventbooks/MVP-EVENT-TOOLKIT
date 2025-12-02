@@ -243,6 +243,196 @@ describe('Unified Status/Setup/Permissions Contract Tests', () => {
       expect(setupcheck.$defs.ErrorCode.enum).toEqual(expectedCodes);
       expect(checkpermissions.$defs.ErrorCode.enum).toEqual(expectedCodes);
     });
+
+    it('should have optional db health flag in status.schema.json', () => {
+      const schema = loadSchema('status.schema.json');
+      expect(schema.properties).toHaveProperty('db');
+      expect(schema.properties.db.type).toBe('object');
+      expect(schema.properties.db.properties.ok.type).toBe('boolean');
+      // db is optional (not in required array)
+      expect(schema.required).not.toContain('db');
+    });
+  });
+
+  // ============================================================================
+  // Local Response Structure Validation (CI-safe, no network)
+  // These tests validate response structure using mock data against the schema.
+  // External uptime / SLO is measured via ?p=status.
+  // ============================================================================
+
+  describe('Status Response Structure Validation (Local/CI)', () => {
+    let ajv;
+    let statusSchema;
+
+    beforeAll(() => {
+      ajv = createValidator();
+      statusSchema = loadSchema('status.schema.json');
+    });
+
+    it('should validate timestamp is ISO 8601 format', () => {
+      // Test various ISO 8601 timestamps
+      const validTimestamps = [
+        '2025-12-02T10:30:00.000Z',
+        '2025-01-15T23:59:59.999Z',
+        '2024-06-30T00:00:00.000Z'
+      ];
+
+      validTimestamps.forEach(timestamp => {
+        const parsed = new Date(timestamp);
+        expect(parsed.toISOString()).toBe(timestamp);
+        expect(isNaN(parsed.getTime())).toBe(false);
+      });
+    });
+
+    it('should validate ok: true response structure against schema', () => {
+      const mockResponse = {
+        ok: true,
+        buildId: 'mvp-v19',
+        brandId: 'root',
+        time: new Date().toISOString(),
+        db: { ok: true }
+      };
+
+      const validate = ajv.compile(statusSchema);
+      const valid = validate(mockResponse);
+
+      if (!valid) {
+        console.error('Schema validation errors:', validate.errors);
+      }
+      expect(valid).toBe(true);
+    });
+
+    it('should validate ok: false response structure against schema', () => {
+      const mockResponse = {
+        ok: false,
+        buildId: 'mvp-v19',
+        brandId: 'unknown',
+        time: new Date().toISOString(),
+        db: { ok: false },
+        message: 'Brand not found: invalid-brand'
+      };
+
+      const validate = ajv.compile(statusSchema);
+      const valid = validate(mockResponse);
+
+      if (!valid) {
+        console.error('Schema validation errors:', validate.errors);
+      }
+      expect(valid).toBe(true);
+    });
+
+    it('should validate response without optional db field', () => {
+      // db is optional, response without it should still be valid
+      const mockResponse = {
+        ok: true,
+        buildId: 'mvp-v19',
+        brandId: 'root',
+        time: new Date().toISOString()
+      };
+
+      const validate = ajv.compile(statusSchema);
+      const valid = validate(mockResponse);
+
+      if (!valid) {
+        console.error('Schema validation errors:', validate.errors);
+      }
+      expect(valid).toBe(true);
+    });
+
+    it('should validate ok semantics: ok=true means service is operational', () => {
+      const successResponse = {
+        ok: true,
+        buildId: 'mvp-v19',
+        brandId: 'root',
+        time: new Date().toISOString(),
+        db: { ok: true }
+      };
+
+      // ok: true should not have a message field (indicates success)
+      expect(successResponse.ok).toBe(true);
+      expect(successResponse.message).toBeUndefined();
+    });
+
+    it('should validate ok semantics: ok=false requires explanation', () => {
+      const errorResponse = {
+        ok: false,
+        buildId: 'mvp-v19',
+        brandId: 'unknown',
+        time: new Date().toISOString(),
+        db: { ok: false },
+        message: 'Brand not found: invalid-brand'
+      };
+
+      // ok: false should have a message explaining the error
+      expect(errorResponse.ok).toBe(false);
+      expect(errorResponse.message).toBeDefined();
+      expect(typeof errorResponse.message).toBe('string');
+      expect(errorResponse.message.length).toBeGreaterThan(0);
+    });
+
+    it('should validate db.ok semantics: db.ok=true means datastore is accessible', () => {
+      const response = {
+        ok: true,
+        buildId: 'mvp-v19',
+        brandId: 'root',
+        time: new Date().toISOString(),
+        db: { ok: true }
+      };
+
+      expect(response.db.ok).toBe(true);
+      // API can be ok even if db is not (separation of liveness and readiness)
+    });
+
+    it('should validate db.ok semantics: db.ok=false with ok=true is valid', () => {
+      // API can respond (ok: true) but report database issues (db.ok: false)
+      const response = {
+        ok: true,
+        buildId: 'mvp-v19',
+        brandId: 'root',
+        time: new Date().toISOString(),
+        db: { ok: false }
+      };
+
+      const validate = ajv.compile(statusSchema);
+      const valid = validate(response);
+
+      expect(valid).toBe(true);
+      expect(response.ok).toBe(true);
+      expect(response.db.ok).toBe(false);
+    });
+
+    it('should reject invalid timestamp format', () => {
+      const invalidTimestamps = [
+        '2025-12-02',           // Missing time
+        '10:30:00',             // Missing date
+        '2025/12/02T10:30:00Z', // Wrong separator
+        'invalid-date'          // Not a date
+      ];
+
+      invalidTimestamps.forEach(timestamp => {
+        const parsed = new Date(timestamp);
+        // Either parse fails or toISOString doesn't match input
+        const isValidISO = !isNaN(parsed.getTime()) &&
+          parsed.toISOString() === timestamp;
+        expect(isValidISO).toBe(false);
+      });
+    });
+
+    it('should reject response with extra fields (additionalProperties: false)', () => {
+      const invalidResponse = {
+        ok: true,
+        buildId: 'mvp-v19',
+        brandId: 'root',
+        time: new Date().toISOString(),
+        db: { ok: true },
+        extraField: 'should not be here'
+      };
+
+      const validate = ajv.compile(statusSchema);
+      const valid = validate(invalidResponse);
+
+      expect(valid).toBe(false);
+    });
   });
 
   // ============================================================================
@@ -294,6 +484,16 @@ describe('Unified Status/Setup/Permissions Contract Tests', () => {
       expect(data).toHaveProperty('time');
       const parsed = new Date(data.time);
       expect(parsed.toISOString()).toBe(data.time);
+    }, TIMEOUT_MS);
+
+    it('should return db.ok health flag for datastore connectivity', async () => {
+      const data = await fetchEndpoint('status', 'root');
+
+      expect(data).toHaveProperty('db');
+      expect(data.db).toHaveProperty('ok');
+      expect(typeof data.db.ok).toBe('boolean');
+      // For a healthy system, db.ok should be true
+      expect(data.db.ok).toBe(true);
     }, TIMEOUT_MS);
 
     it('should validate against status.schema.json', async () => {

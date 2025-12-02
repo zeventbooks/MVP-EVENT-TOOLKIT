@@ -18,12 +18,14 @@ This document is your single source of truth for production incidents. Read it b
 
 ## 1. System Health Checks
 
+**External uptime / SLO is measured via `?p=status`.**
+
 ### 1.1 URLs to Verify System Status
 
 | Check | URL | What You're Looking For |
 |-------|-----|------------------------|
 | **Ping** (fastest) | `https://www.eventangle.com/ping` | `{"status":"ok"}` |
-| **Status** (detailed) | `https://www.eventangle.com/status` | `{"ok":true,"buildId":"mvp-v19",...}` |
+| **Status** (SLO anchor) | `https://www.eventangle.com/status` | `{"ok":true,"buildId":"mvp-v19","db":{"ok":true},...}` |
 | **Setup Diagnostics** | `https://www.eventangle.com/status?p=setup` | 6-point diagnostic check |
 | **Staging** | `https://stg.eventangle.com/ping` | Verify staging is separate from prod |
 
