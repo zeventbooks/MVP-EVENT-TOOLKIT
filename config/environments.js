@@ -73,7 +73,7 @@ const GAS_STAGING_URL = `https://script.google.com/macros/s/${STAGING_DEPLOYMENT
  * All valid brand IDs
  * Must match BRANDS array in src/mvp/Config.gs
  */
-const BRANDS = Object.freeze(['root', 'abc', 'cbc', 'cbl']);
+const VALID_BRANDS = Object.freeze(['root', 'abc', 'cbc', 'cbl']);
 
 /**
  * Default brand for testing
@@ -100,7 +100,7 @@ const ENVIRONMENTS = Object.freeze({
     description: 'Production via Cloudflare Workers (eventangle.com)',
     gasUrl: GAS_PRODUCTION_URL,
     deploymentId: PRODUCTION_DEPLOYMENT_ID,
-    brands: BRANDS,
+    brands: VALID_BRANDS,
     isDefault: false
   },
 
@@ -115,7 +115,7 @@ const ENVIRONMENTS = Object.freeze({
     description: 'Staging via Cloudflare Workers (stg.eventangle.com)',
     gasUrl: GAS_STAGING_URL,
     deploymentId: STAGING_DEPLOYMENT_ID,
-    brands: BRANDS,
+    brands: VALID_BRANDS,
     isDefault: true
   },
 
@@ -127,7 +127,7 @@ const ENVIRONMENTS = Object.freeze({
     name: 'QA',
     baseUrl: QA_URL,
     description: 'QA environment via Cloudflare Workers (zeventbooks.com)',
-    brands: BRANDS,
+    brands: VALID_BRANDS,
     isDefault: false
   },
 
@@ -139,7 +139,7 @@ const ENVIRONMENTS = Object.freeze({
     name: 'Local Development',
     baseUrl: LOCAL_URL,
     description: 'Local development server',
-    brands: BRANDS,
+    brands: VALID_BRANDS,
     isDefault: false
   },
 
@@ -152,7 +152,7 @@ const ENVIRONMENTS = Object.freeze({
     baseUrl: GAS_PRODUCTION_URL,
     description: 'Direct Google Apps Script (bypasses Cloudflare proxy)',
     deploymentId: PRODUCTION_DEPLOYMENT_ID,
-    brands: BRANDS,
+    brands: VALID_BRANDS,
     isDefault: false
   }
 });
@@ -208,7 +208,7 @@ function detectEnvironmentFromUrl(url) {
       name: 'Custom',
       baseUrl: url,
       description: 'Custom environment',
-      brands: BRANDS,
+      brands: VALID_BRANDS,
       isDefault: false
     };
   } catch (error) {
@@ -290,7 +290,7 @@ function getBrandUrl(brand = 'root', page = 'status') {
  */
 function getAllBrandUrls(page = 'status') {
   const urls = {};
-  BRANDS.forEach(brand => {
+  VALID_BRANDS.forEach(brand => {
     urls[brand] = getBrandUrl(brand, page);
   });
   return urls;
@@ -371,7 +371,7 @@ function printEnvironmentInfo() {
   console.log(`Is Default: ${env.isDefault}`);
   console.log(`Brands: ${env.brands.join(', ')}`);
   console.log('\nBrand URLs (status page):');
-  BRANDS.forEach(brand => {
+  VALID_BRANDS.forEach(brand => {
     console.log(`  ${brand}: ${getBrandUrl(brand, 'status')}`);
   });
   console.log('==============================================\n');
@@ -385,8 +385,8 @@ module.exports = {
   // Environment map
   ENVIRONMENTS,
 
-  // Brand constants
-  BRANDS,
+  // Brand constants (VALID_BRANDS exported as BRANDS for backward compatibility)
+  BRANDS: VALID_BRANDS,
   DEFAULT_BRAND,
 
   // URL constants
