@@ -290,10 +290,11 @@ See **[tests/README.md](./tests/README.md)** for complete test documentation.
 ## Documentation
 
 ### Core Documentation (MVP)
+- **[RUNBOOK.md](./RUNBOOK.md)** - Release checklist, SEV ladder, and incident response
+- **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Deployment mechanics, environment matrix, rollback
 - **[NAVIGATION_DIAGRAM.txt](./NAVIGATION_DIAGRAM.txt)** - Master integration flow diagram (Admin → Bundles → Surfaces → Analytics, MVP vs V2 paths)
 - **[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)** - MVP architecture (12 backend services, 5 frontend surfaces, feature flags)
 - **[docs/INTEGRATION-FLOWS.md](./docs/INTEGRATION-FLOWS.md)** - API wiring diagrams with request/response schemas
-- **[docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md)** - Deployment, CI/CD, environments, troubleshooting
 - **[docs/FRIENDLY_URLS.md](./docs/FRIENDLY_URLS.md)** - Customer-friendly URL aliasing system
 - **[docs/SETUP_DIAGNOSTICS.md](./docs/SETUP_DIAGNOSTICS.md)** - Setup verification endpoint
 
@@ -306,10 +307,51 @@ See **[tests/README.md](./tests/README.md)** for complete test documentation.
 ### Archived Documentation
 Historical analysis reports and experimental features are in `docs/archived/`
 
+---
+
+## Production Readiness
+
+**A release is production-ready when ALL of the following pass:**
+
+### Required CI Tests
+
+| Stage | Tests | Command |
+|-------|-------|---------|
+| Lint | ESLint code quality | `npm run lint` |
+| Unit | Jest unit tests | `npm run test:unit` |
+| Contract | Schema + API contracts | `npm run test:contract` |
+| MVP Guards | Surface + dead export checks | (via `npm run ci:all`) |
+| Smoke Packs | 4 core smoke tests | `npm run test:smoke:packs` |
+| E2E Smoke | End-to-end smoke | `npm run test:smoke` |
+| API Tests | API endpoint validation | `npm run test:api` |
+
+### Required Status Checks
+
+All brands must return `ok: true`:
+
+```bash
+curl -s https://www.eventangle.com/status | jq '.ok'       # root
+curl -s https://www.eventangle.com/abc/status | jq '.ok'   # ABC
+curl -s https://www.eventangle.com/cbc/status | jq '.ok'   # CBC
+curl -s https://www.eventangle.com/cbl/status | jq '.ok'   # CBL
+```
+
+### CI Gates
+
+| Gate | What Must Pass |
+|------|---------------|
+| **Stage 1** | Lint + Unit + Contract + MVP Guards + CI:ALL |
+| **Stage 2** | API Tests → Smoke Packs → E2E Smoke → Expensive Tests |
+| **Production Gate** | Quality Gate + CI:ALL |
+
+See **[RUNBOOK.md](./RUNBOOK.md)** for the complete release checklist and SEV response procedures.
+
+---
+
 ## Notes
 - Poster shows a QR only when the server returns a verified `posterUrl`
 - `EVENTS` & `DIAG` sheets are created on-demand in the bound spreadsheet
 - Add brands via `config/brand-config.js` (see [Brand Configuration](#brand-configuration) section above)
 - Enable more scopes per brand by adding `'leagues'` or `'tournaments'` to `scopesAllowed` in `Config.gs`
 
-# Last updated: 2025-11-30
+# Last updated: 2025-12-02

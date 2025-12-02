@@ -1,26 +1,241 @@
-# RUNBOOK: Operational Playbook
+# RUNBOOK: Releases, Incidents & SEV Response
 
 **When something breaks, you don't want to think. You want steps.**
 
-This document is your single source of truth for production incidents. Read it before you need it.
+This document is your single source of truth for:
+- How to cut a release
+- SEV definitions and response procedures
+- Production incident handling
+
+Read it before you need it.
 
 ---
 
 ## Table of Contents
 
-1. [System Health Checks](#1-system-health-checks)
-2. [Common Failure Scenarios](#2-common-failure-scenarios)
-3. [Rollback Procedures](#3-rollback-procedures)
-4. [Escalation Guide](#4-escalation-guide)
-5. [Quick Reference](#5-quick-reference)
+1. [How to Cut a Release](#1-how-to-cut-a-release)
+2. [SEV Ladder](#2-sev-ladder)
+3. [System Health Checks](#3-system-health-checks)
+4. [Common Failure Scenarios](#4-common-failure-scenarios)
+5. [Rollback Procedures](#5-rollback-procedures)
+6. [Escalation Guide](#6-escalation-guide)
+7. [Quick Reference](#7-quick-reference)
 
 ---
 
-## 1. System Health Checks
+## 1. How to Cut a Release
+
+### Pre-Release Checklist
+
+Before starting a release:
+
+- [ ] `npm run ci:all` passes locally
+- [ ] No open SEV1 or SEV2 incidents
+- [ ] Avoid releasing on Fridays, holidays, or during peak traffic
+
+### Release Pipeline
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    RELEASE PIPELINE                              │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  1. CREATE PR TO MAIN                                            │
+│     git push -u origin feature/my-feature                        │
+│                                                                  │
+│  2. STAGE 1 CI (Automatic)                                       │
+│     ├── Lint (ESLint)                                            │
+│     ├── Unit Tests (Jest)                                        │
+│     ├── Contract Tests (schema consistency)                      │
+│     ├── MVP Guards (surfaces, dead exports)                      │
+│     └── CI:ALL Gate                                              │
+│                                                                  │
+│  3. MERGE PR → Triggers Stage 1 Deploy                           │
+│     ├── Deploy to Apps Script                                    │
+│     └── Update Cloudflare Worker                                 │
+│                                                                  │
+│  4. STAGE 2 TESTS (Automatic)                                    │
+│     ├── API Tests (critical path)                                │
+│     ├── Smoke Packs (4 core tests)                               │
+│     │   ├── pages.smoke.test.js                                  │
+│     │   ├── integration.smoke.test.js                            │
+│     │   ├── components.smoke.test.js                             │
+│     │   └── api.smoke.test.js                                    │
+│     ├── E2E Smoke Tests                                          │
+│     └── Expensive Tests (flows, pages)                           │
+│                                                                  │
+│  5. VERIFY PRODUCTION                                            │
+│     npm run test:prod:smoke                                      │
+│                                                                  │
+│  6. MONITOR (30 min post-deploy)                                 │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Step-by-Step Commands
+
+```bash
+# 1. Ensure local tests pass
+npm run ci:all
+
+# 2. Create PR
+git push -u origin feature/my-feature
+# Open PR to main in GitHub
+
+# 3. Wait for Stage 1 CI (watch Actions tab)
+
+# 4. Merge PR
+# Stage 1 deploy + Stage 2 tests run automatically
+
+# 5. Verify production after Stage 2
+npm run test:prod:smoke
+npm run test:prod:health
+
+# 6. Spot check all brands
+curl -s https://www.eventangle.com/status | jq '.ok'
+curl -s https://www.eventangle.com/abc/status | jq '.ok'
+curl -s https://www.eventangle.com/cbc/status | jq '.ok'
+curl -s https://www.eventangle.com/cbl/status | jq '.ok'
+```
+
+### Release Gates Summary
+
+| Gate | Tests | Blocks |
+|------|-------|--------|
+| **Stage 1 CI** | lint, unit, contract, MVP guards | Deploy to Apps Script |
+| **Stage 2 API** | api.contract, api.smoke | Smoke Packs |
+| **Stage 2 Smoke Packs** | 4 core smoke tests | E2E smoke tests |
+| **Stage 2 E2E** | smoke, flows, pages | Production approval |
+| **Production Gate** | Quality Gate + CI:ALL | Production deployment |
+
+---
+
+## 2. SEV Ladder
+
+### SEV Definitions
+
+| SEV | Definition | Response Time | Who |
+|-----|------------|---------------|-----|
+| **SEV1** | Complete outage or data loss risk | **< 15 min** | All hands |
+| **SEV2** | Major feature broken, single brand affected | **< 1 hour** | On-call |
+| **SEV3** | Minor feature degraded, workaround exists | **< 4 hours** | Next available |
+| **SEV4** | Cosmetic or low-impact | **Next sprint** | Backlog |
+
+### SEV1 Triggers (Immediate Action)
+
+| Trigger | Detection | Example |
+|---------|-----------|---------|
+| **Status endpoint 500** | `/status` returns error | `curl https://www.eventangle.com/status` fails |
+| **All brands unreachable** | All `/events` return 5xx | Complete public outage |
+| **Cloudflare Worker down** | 522/523 errors | Proxy layer broken |
+| **Apps Script quota exceeded** | 403 with quota message | Backend unreachable |
+| **Data corruption** | Events missing/malformed | DATA_ISSUES sheet has RED rows |
+| **Auth system broken** | Admin operations fail globally | Cannot manage events |
+
+**SEV1 Immediate Actions:**
+
+```bash
+# 1. Confirm outage
+curl -s https://www.eventangle.com/status | jq '.ok'
+
+# 2. If false or error → check if recent deploy
+gh run list --workflow="Stage 1 - Build & Deploy" --limit 5
+
+# 3. ROLLBACK immediately if recent deploy caused it
+git revert HEAD && git push origin main
+# OR manual rollback (see Section 5)
+
+# 4. Verify recovery
+npm run test:prod:health
+
+# 5. Communicate to stakeholders
+# 6. Create incident issue within 24 hours
+```
+
+### SEV2 Triggers (Urgent Response)
+
+| Trigger | Detection | Example |
+|---------|-----------|---------|
+| **Single brand broken** | `/abc/status` fails, others work | ABC organization affected |
+| **Sponsor display broken** | Sponsors not rendering | Partner visibility issue |
+| **Bundle contract failure** | `bundles.contract.test.js` fails | API structure broke |
+| **Admin panel unusable** | Cannot create/edit events | Event management blocked |
+| **Display page broken** | `/display` not rendering | TV/kiosk displays affected |
+| **Contract test failure in CI** | Schema drift detected | API breaking changes |
+
+**SEV2 Immediate Actions:**
+
+```bash
+# 1. Identify affected brand/feature
+for brand in root abc cbc cbl; do
+  echo "$brand: $(curl -s https://www.eventangle.com/$brand/status | jq -r '.ok')"
+done
+
+# 2. Isolate: Is it brand-specific or code?
+# Single brand → likely config/data issue
+# All brands → likely code issue
+
+# 3. (Optional) Disable affected brand if needed
+# Edit cloudflare-proxy/worker.js VALID_BRANDS
+
+# 4. Investigate with contract tests
+npm run test:contract
+
+# 5. Fix via hotfix branch
+git checkout -b hotfix/fix-issue
+# ... fix ...
+npm run ci:all
+# Create PR and merge
+```
+
+### SEV3 Triggers (Standard Response)
+
+| Trigger | Detection | Example |
+|---------|-----------|---------|
+| **Slow responses** | > 5s page loads | Degraded experience |
+| **Single smoke test failing** | One test in pack fails | Partial feature issue |
+| **Poster QR broken** | QR not generating | Poster feature degraded |
+| **Minor UI issues** | CSS/layout problems | Visual only |
+| **Analytics drift** | Reporting inconsistencies | Data accuracy reduced |
+
+### Contract Test Failure Response
+
+When contract tests fail, API structure has changed unexpectedly:
+
+```bash
+# 1. Identify which contract failed
+npm run test:contract 2>&1 | grep -A5 "FAIL"
+
+# 2. Key contract files:
+#    bundles.contract.test.js     → Event bundle structure
+#    sponsor-contract.test.js     → Sponsor data format
+#    schema-consistency.contract  → JSON schemas match ApiSchemas.gs
+#    envelope-boundary.contract   → API envelope structure
+
+# 3. If intentional → update contract + schemas
+# 4. If unintentional → rollback the code change
+```
+
+### Sponsor Display Broken Response
+
+```bash
+# 1. Check sponsor endpoint
+curl -s "https://www.eventangle.com/events?action=api_listSponsors&brand=root" | jq
+
+# 2. Verify sponsor contract
+npm test -- tests/contract/sponsor-contract.test.js
+
+# 3. Check multi-brand isolation
+npm test -- tests/contract/sponsor-brand-isolation.smoke.test.js
+```
+
+---
+
+## 3. System Health Checks
 
 **External uptime / SLO is measured via `?p=status`.**
 
-### 1.1 URLs to Verify System Status
+### 3.1 URLs to Verify System Status
 
 | Check | URL | What You're Looking For |
 |-------|-----|------------------------|
@@ -29,7 +244,7 @@ This document is your single source of truth for production incidents. Read it b
 | **Setup Diagnostics** | `https://www.eventangle.com/status?p=setup` | 6-point diagnostic check |
 | **Staging** | `https://stg.eventangle.com/ping` | Verify staging is separate from prod |
 
-### 1.2 External Uptime Dashboard
+### 3.2 External Uptime Dashboard
 
 | Service | Dashboard URL | What to Check |
 |---------|---------------|---------------|
@@ -39,7 +254,7 @@ This document is your single source of truth for production incidents. Read it b
 | **Google Status** | https://www.google.com/appsstatus | Apps Script service status |
 | **Cloudflare Status** | https://www.cloudflarestatus.com/ | Workers outages |
 
-### 1.3 Critical Sheets to Check
+### 3.3 Critical Sheets to Check
 
 Open the production spreadsheet and check these sheets:
 
@@ -59,7 +274,7 @@ DIAG growing normally? → Good, logging is working
 DIAG stale (>24hr)?    → Bad, something stopped logging
 ```
 
-### 1.4 Quick Health Commands
+### 3.4 Quick Health Commands
 
 ```bash
 # Quick ping - should return instantly
@@ -81,9 +296,9 @@ curl -s https://www.eventangle.com/status | jq '.buildId'
 
 ---
 
-## 2. Common Failure Scenarios
+## 4. Common Failure Scenarios
 
-### 2.1 GAS Errors / Deployment Issues
+### 4.1 GAS Errors / Deployment Issues
 
 **Symptoms:**
 - 500 errors from eventangle.com
@@ -109,7 +324,7 @@ curl -s https://www.eventangle.com/status | jq '.buildId'
 
 ---
 
-### 2.2 Worker Misrouting
+### 4.2 Worker Misrouting
 
 **Symptoms:**
 - Requests go to wrong backend or return 404
@@ -134,11 +349,11 @@ curl -s https://www.eventangle.com/status | jq '.buildId'
 **Resolution:**
 - **Wrong DEPLOYMENT_ID:** Update `cloudflare-proxy/wrangler.toml` and redeploy worker
 - **Route pattern issue:** Check `wrangler.toml` route patterns, redeploy
-- **Worker crashed:** Check Cloudflare dashboard for errors, may need to **Rollback Worker** (see 3.2)
+- **Worker crashed:** Check Cloudflare dashboard for errors, may need to **Rollback Worker** (see 5.2)
 
 ---
 
-### 2.3 Broken SharedReport / Analytics
+### 4.3 Broken SharedReport / Analytics
 
 **Symptoms:**
 - SharedReport page shows no data or errors
@@ -166,7 +381,7 @@ curl -s https://www.eventangle.com/status | jq '.buildId'
 
 ---
 
-### 2.4 DIAG Sheet Full or Archiving Failure
+### 4.4 DIAG Sheet Full or Archiving Failure
 
 **Symptoms:**
 - DIAG sheet has 3000+ rows (max is 3000)
@@ -216,9 +431,9 @@ installDiagArchiveTrigger_();
 
 ---
 
-## 3. Rollback Procedures
+## 5. Rollback Procedures
 
-### 3.1 Roll Back Apps Script Deployment
+### 5.1 Roll Back Apps Script Deployment
 
 **When to use:** GAS code is broken, need to restore previous version.
 
@@ -261,7 +476,7 @@ Use this ONLY if CI is completely broken:
 
 ---
 
-### 3.2 Roll Back Cloudflare Worker
+### 5.2 Roll Back Cloudflare Worker
 
 **When to use:** Worker code is broken, routing is wrong, or wrong DEPLOYMENT_ID.
 
@@ -309,9 +524,9 @@ If the Worker is pointing to wrong GAS deployment:
 
 ---
 
-## 4. Escalation Guide
+## 6. Escalation Guide
 
-### 4.1 If Harbor Calls During a Failure
+### 6.1 If Harbor Calls During a Failure
 
 Harbor is likely your operations partner or client. They're calling because something is broken and customers are affected.
 
@@ -338,7 +553,7 @@ curl -s "https://www.eventangle.com/status?p=setup" | jq '.value.checks[] | sele
 
 ---
 
-### 4.2 If a Bar Can't See Their Event
+### 6.2 If a Bar Can't See Their Event
 
 **What they're probably experiencing:**
 - "My event isn't showing up"
@@ -383,7 +598,7 @@ curl -s "https://www.eventangle.com/api?action=getPublicBundle&slug=their-event-
 
 ---
 
-### 4.3 What to Check First, Second, Third
+### 6.3 What to Check First, Second, Third
 
 When something's broken and you don't know why:
 
@@ -425,7 +640,7 @@ Check each diagnostic point:
 
 ---
 
-### 4.4 Escalation Contacts
+### 6.4 Escalation Contacts
 
 | Situation | First Contact | Escalate To |
 |-----------|---------------|-------------|
@@ -444,9 +659,9 @@ Team Lead:       [Name] - [Phone] - [Slack]
 
 ---
 
-## 5. Quick Reference
+## 7. Quick Reference
 
-### 5.1 Key URLs
+### 7.1 Key URLs
 
 | Resource | URL |
 |----------|-----|
@@ -459,7 +674,7 @@ Team Lead:       [Name] - [Phone] - [Slack]
 | Google Status | https://www.google.com/appsstatus |
 | Cloudflare Status | https://www.cloudflarestatus.com/ |
 
-### 5.2 Key IDs
+### 7.2 Key IDs
 
 | ID | Value | Purpose |
 |----|-------|---------|
@@ -468,7 +683,7 @@ Team Lead:       [Name] - [Phone] - [Slack]
 | Build ID | `mvp-v19` | Current version (check Config.gs) |
 | Contract Version | `1.0.0` | API contract version |
 
-### 5.3 Emergency Commands
+### 7.3 Emergency Commands
 
 ```bash
 # Is it alive?
@@ -490,7 +705,7 @@ git revert HEAD && git push origin main
 cd cloudflare-proxy && wrangler deploy --env events
 ```
 
-### 5.4 Post-Incident Checklist
+### 7.4 Post-Incident Checklist
 
 After any incident:
 
@@ -516,6 +731,6 @@ After any incident:
 
 ---
 
-**Last Updated:** 2025-12-01
+**Last Updated:** 2025-12-02
 
 **Remember:** When you're under pressure, don't think. Follow the steps. That's what this document is for.
