@@ -38,14 +38,23 @@ const BRAND_METADATA = Object.freeze({
     id: 'root',
     name: 'Zeventbook',
     type: 'standalone',
-    description: 'Default platform brand'
+    description: 'Default platform brand',
+    // Feature flags - Dark Launch / Kill Switch for non-critical features
+    features: {
+      sharedReportEnabled: true,     // SharedReport analytics page
+      sponsorAnalyticsEnabled: true  // Sponsor-specific analytics APIs
+    }
   },
   abc: {
     id: 'abc',
     name: 'American Bocce Co.',
     type: 'parent',
     childBrands: ['cbc', 'cbl'],
-    description: 'Parent organization for bocce brands'
+    description: 'Parent organization for bocce brands',
+    features: {
+      sharedReportEnabled: true,
+      sponsorAnalyticsEnabled: true
+    }
   },
   cbc: {
     id: 'cbc',
@@ -53,7 +62,11 @@ const BRAND_METADATA = Object.freeze({
     type: 'child',
     parentBrand: 'abc',
     includeInPortfolioReports: true,
-    description: 'Community bocce club in Chicago'
+    description: 'Community bocce club in Chicago',
+    features: {
+      sharedReportEnabled: true,
+      sponsorAnalyticsEnabled: true
+    }
   },
   cbl: {
     id: 'cbl',
@@ -61,7 +74,11 @@ const BRAND_METADATA = Object.freeze({
     type: 'child',
     parentBrand: 'abc',
     includeInPortfolioReports: true,
-    description: 'Competitive bocce league in Chicago'
+    description: 'Competitive bocce league in Chicago',
+    features: {
+      sharedReportEnabled: true,
+      sponsorAnalyticsEnabled: true
+    }
   }
 });
 
@@ -182,6 +199,47 @@ function getBrandsByType(type) {
 }
 
 // =============================================================================
+// Feature Flag Helpers (Dark Launch / Kill Switch)
+// =============================================================================
+
+/**
+ * Default feature flags - used when brand doesn't specify a feature
+ * All features enabled by default for backward compatibility
+ */
+const DEFAULT_FEATURES = Object.freeze({
+  sharedReportEnabled: true,
+  sponsorAnalyticsEnabled: true
+});
+
+/**
+ * Get feature flags for a brand
+ * @param {string} brandId - Brand identifier
+ * @returns {Object} Feature flags with defaults applied
+ */
+function getBrandFeatures(brandId) {
+  const metadata = getBrandMetadata(brandId);
+  if (!metadata) {
+    return { ...DEFAULT_FEATURES };
+  }
+  return {
+    ...DEFAULT_FEATURES,
+    ...(metadata.features || {})
+  };
+}
+
+/**
+ * Check if a specific feature is enabled for a brand
+ * @param {string} brandId - Brand identifier
+ * @param {string} featureName - Feature name (e.g., 'sharedReportEnabled')
+ * @returns {boolean} True if feature is enabled
+ */
+function isBrandFeatureEnabled(brandId, featureName) {
+  const features = getBrandFeatures(brandId);
+  // Return true if not explicitly set to false (opt-out model)
+  return features[featureName] !== false;
+}
+
+// =============================================================================
 // Runtime Configuration (Environment-Based)
 // =============================================================================
 
@@ -221,6 +279,9 @@ function getBrandConfig(brandId) {
     parentBrand: metadata.parentBrand || null,
     childBrands: metadata.childBrands || [],
     includeInPortfolioReports: metadata.includeInPortfolioReports || false,
+
+    // Feature flags (Dark Launch / Kill Switch)
+    features: getBrandFeatures(brandId),
 
     // Runtime configuration (from env)
     spreadsheetId,
@@ -386,6 +447,11 @@ module.exports = {
   getConfiguredBrands,
   getBrandsWithDedicatedSpreadsheets,
   isBrandConfigured,
+
+  // Feature flags (Dark Launch / Kill Switch)
+  DEFAULT_FEATURES,
+  getBrandFeatures,
+  isBrandFeatureEnabled,
 
   // Test utilities
   createBrandTestMatrix,

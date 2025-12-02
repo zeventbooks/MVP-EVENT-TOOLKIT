@@ -436,7 +436,9 @@ const BRANDS = [
     logoUrl: '', // Set to empty or use a valid HTTP/HTTPS URL
     // adminSecret: moved to Script Properties as 'ADMIN_SECRET_ROOT'
     store: { type: 'workbook', spreadsheetId: '1SV1oZMq4GbZBaRc0YmTeV02Tl5KXWD8R6FZXC7TwVCQ' },
-    scopesAllowed: ['events', 'sponsors']
+    scopesAllowed: ['events', 'sponsors'],
+    // Feature flags - Dark Launch / Kill Switch for non-critical features
+    features: { sharedReportEnabled: true, sponsorAnalyticsEnabled: true }
   },
   {
     id: 'abc',
@@ -447,7 +449,8 @@ const BRANDS = [
     logoUrl: '', // Set to empty or use a valid HTTP/HTTPS URL
     // adminSecret: moved to Script Properties as 'ADMIN_SECRET_ABC'
     store: { type: 'workbook', spreadsheetId: '1SV1oZMq4GbZBaRc0YmTeV02Tl5KXWD8R6FZXC7TwVCQ' },
-    scopesAllowed: ['events', 'sponsors']
+    scopesAllowed: ['events', 'sponsors'],
+    features: { sharedReportEnabled: true, sponsorAnalyticsEnabled: true }
   },
   {
     id: 'cbc',
@@ -459,7 +462,8 @@ const BRANDS = [
     logoUrl: '', // Set to empty or use a valid HTTP/HTTPS URL
     // adminSecret: moved to Script Properties as 'ADMIN_SECRET_CBC'
     store: { type: 'workbook', spreadsheetId: '1SV1oZMq4GbZBaRc0YmTeV02Tl5KXWD8R6FZXC7TwVCQ' },
-    scopesAllowed: ['events', 'sponsors']
+    scopesAllowed: ['events', 'sponsors'],
+    features: { sharedReportEnabled: true, sponsorAnalyticsEnabled: true }
   },
   {
     id: 'cbl',
@@ -471,7 +475,8 @@ const BRANDS = [
     logoUrl: '', // Set to empty or use a valid HTTP/HTTPS URL
     // adminSecret: moved to Script Properties as 'ADMIN_SECRET_CBL'
     store: { type: 'workbook', spreadsheetId: '1SV1oZMq4GbZBaRc0YmTeV02Tl5KXWD8R6FZXC7TwVCQ' },
-    scopesAllowed: ['events', 'sponsors']
+    scopesAllowed: ['events', 'sponsors'],
+    features: { sharedReportEnabled: true, sponsorAnalyticsEnabled: true }
   }
 ];
 
@@ -698,6 +703,65 @@ function requireFeature_(featureName) {
   }
   return null;
 }
+
+// =============================================================================
+// Brand-Level Feature Flags (Dark Launch / Kill Switch)
+// =============================================================================
+// Per-brand feature toggles for non-critical features like SharedReport and
+// SponsorAnalytics. Allows disabling features per brand without affecting others.
+// =============================================================================
+
+/**
+ * Default brand features - used when brand doesn't specify a feature
+ * @constant {Object}
+ */
+const DEFAULT_BRAND_FEATURES_ = Object.freeze({
+  sharedReportEnabled: true,
+  sponsorAnalyticsEnabled: true
+});
+
+/**
+ * Get feature flags for a specific brand
+ * @param {string} brandId - Brand ID to get features for
+ * @returns {Object} Feature flags with defaults applied
+ */
+function getBrandFeatures_(brandId) {
+  const brand = findBrand_(brandId);
+  if (!brand) {
+    return { ...DEFAULT_BRAND_FEATURES_ };
+  }
+  return {
+    ...DEFAULT_BRAND_FEATURES_,
+    ...(brand.features || {})
+  };
+}
+
+/**
+ * Check if a specific feature is enabled for a brand
+ * @param {string} brandId - Brand ID to check
+ * @param {string} featureName - Feature name (e.g., 'sharedReportEnabled')
+ * @returns {boolean} True if feature is enabled
+ */
+function isBrandFeatureEnabled_(brandId, featureName) {
+  const features = getBrandFeatures_(brandId);
+  // Return true if not explicitly set to false (opt-out model)
+  return features[featureName] !== false;
+}
+
+/**
+ * Gate an API response based on brand-level feature flag
+ * Returns a "feature disabled" error if the feature is not enabled for this brand
+ * @param {string} brandId - Brand ID to check
+ * @param {string} featureName - Feature name to check
+ * @returns {object|null} - Error envelope if disabled, null if enabled
+ */
+function requireBrandFeature_(brandId, featureName) {
+  if (!isBrandFeatureEnabled_(brandId, featureName)) {
+    return Err('FEATURE_DISABLED', `Feature '${featureName}' is not enabled for this brand.`);
+  }
+  return null;
+}
+
 // Fixed: Bug #43 - Don't default to root brand for unknown hosts
 function findBrandByHost_(host) {
   host = String(host || '').toLowerCase();
