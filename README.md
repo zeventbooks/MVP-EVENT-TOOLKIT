@@ -107,18 +107,52 @@ The CI gate validates:
 
 **If `ci:all` fails locally, it will also fail in CI and block deployment.**
 
+## Environment Matrix
+
+The application supports three environments: **Dev**, **Staging**, and **Production**.
+
+| Environment | URL | Purpose | Test Command |
+|-------------|-----|---------|--------------|
+| **Dev** | `http://localhost:3000` | Local development | `BASE_URL=http://localhost:3000 npm run test:smoke` |
+| **Staging** | `https://stg.eventangle.com` | Safe sandbox (DEFAULT) | `npm run test:smoke` |
+| **Production** | `https://www.eventangle.com` | Customer-facing | `npm run test:prod:smoke` |
+| **GAS Direct** | `https://script.google.com/macros/s/{ID}/exec` | Debugging | `BASE_URL="..." npm run test:smoke` |
+
+### Brand Defaults Per Environment
+
+All environments support these brands (configured in `src/mvp/Config.gs`):
+- `root` - Zeventbook (default)
+- `abc` - American Bocce Co.
+- `cbc` - Community Based Cricket
+- `cbl` - Community Based League
+
+### Environment Configuration
+
+Single source of truth: **`config/environments.js`**
+
+```javascript
+const { getBaseUrl, getEnvironment, ENVIRONMENTS } = require('./config/environments');
+
+// In tests
+const BASE_URL = getBaseUrl(); // Returns current environment URL
+```
+
 ## Testing
 
 ### BASE_URL Toggle (GAS vs EventAngle)
 
-The same test suite runs against either GAS exec URL or eventangle.com by changing `BASE_URL`:
+The same test suite runs against any environment by changing `BASE_URL`:
 
 ```bash
-# Test against GAS directly (default)
-BASE_URL="https://script.google.com/macros/s/XXX/exec" npm run test:smoke
+# Test against STAGING (default - safe sandbox)
+npm run test:smoke
 
-# Test against EventAngle (production via Cloudflare)
-BASE_URL="https://www.eventangle.com/events" npm run test:smoke
+# Test against PRODUCTION (explicit only)
+npm run test:prod:smoke
+USE_PRODUCTION=true npm run test:smoke
+
+# Test against GAS directly (debugging)
+BASE_URL="https://script.google.com/macros/s/XXX/exec" npm run test:smoke
 ```
 
 ### Quick Test Commands
