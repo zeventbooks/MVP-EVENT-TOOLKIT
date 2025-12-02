@@ -1,0 +1,481 @@
+name: Stage 2 - Staging Contract & Matrix Tests
+
+# ============================================================================
+# STAGE 2 FOR STAGING ENVIRONMENT ONLY
+# ============================================================================
+# This workflow runs deeper validation tests against the staging environment.
+# It deploys to Apps Script + Cloudflare staging, then runs:
+#   - Post-deploy contract tests (events-list, event-details, etc.)
+#   - Matrix tests via TestRunner (bundle endpoints, brand configs, sponsors)
+#
+# Key: This is NOT triggered on every dev push to avoid noise.
+# Fan out to dev/prod later once this is "boring" (stable).
+# ============================================================================
+
+on:
+  # Manual trigger - primary use case for controlled testing
+  workflow_dispatch:
+    inputs:
+      skip_deploy:
+        description: 'Skip deployment (test existing staging deployment)'
+        required: false
+        type: boolean
+        default: false
+      verbose:
+        description: 'Enable verbose output'
+        required: false
+        type: boolean
+        default: false
+
+  # Auto-trigger after Stage 1 succeeds on main (optional - can be disabled)
+  # Comment out this section if you want manual-only triggering
+  workflow_run:
+    workflows: ["Stage 1 - Build & Deploy"]
+    types: [completed]
+    branches:
+      - main
+
+# Only one staging test at a time
+concurrency:
+  group: stage2-staging
+  cancel-in-progress: false
+
+env:
+  STAGING_URL: https://stg.eventangle.com
+  NODE_VERSION: '18'
+
+jobs:
+  # ============================================================================
+  # GATE: Check if we should run
+  # ============================================================================
+  gate:
+    name: 🚦 Stage 2 Gate Check
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+      skip_deploy: ${{ steps.check.outputs.skip_deploy }}
+    steps:
+      - name: Check trigger conditions
+        id: check
+        run: |
+          echo "🔍 Checking Stage 2 gate conditions..."
+
+          # For workflow_dispatch, always run
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "✅ Manual trigger - proceeding with Stage 2"
+            echo "should_run=true" >> $GITHUB_OUTPUT
+            echo "skip_deploy=${{ inputs.skip_deploy }}" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # For workflow_run, check if Stage 1 succeeded
+          if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
+            if [[ "${{ github.event.workflow_run.conclusion }}" == "success" ]]; then
+              echo "✅ Stage 1 succeeded - proceeding with Stage 2"
+              echo "should_run=true" >> $GITHUB_OUTPUT
+              echo "skip_deploy=false" >> $GITHUB_OUTPUT
+            else
+              echo "⚠️ Stage 1 did not succeed - skipping Stage 2"
+              echo "should_run=false" >> $GITHUB_OUTPUT
+              echo "skip_deploy=true" >> $GITHUB_OUTPUT
+            fi
+            exit 0
+          fi
+
+          # Default: don't run
+          echo "⚠️ Unknown trigger - skipping"
+          echo "should_run=false" >> $GITHUB_OUTPUT
+          echo "skip_deploy=true" >> $GITHUB_OUTPUT
+
+  # ============================================================================
+  # DEPLOY TO STAGING
+  # ============================================================================
+  deploy-staging:
+    name: 🚀 Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: gate
+    if: needs.gate.outputs.should_run == 'true' && needs.gate.outputs.skip_deploy != 'true'
+    outputs:
+      deployment_url: ${{ steps.deploy.outputs.url }}
+      deployment_id: ${{ steps.deploy.outputs.deployment_id }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate staging secrets
+        env:
+          STAGING_CLASPRC: ${{ secrets.STAGING_OAUTH_CREDENTIALS }}
+          STAGING_SCRIPT_ID: ${{ secrets.STAGING_SCRIPT_ID }}
+        run: |
+          echo "🔍 Validating staging deployment secrets..."
+
+          if [ -z "$STAGING_CLASPRC" ]; then
+            echo "⚠️ WARNING: STAGING_OAUTH_CREDENTIALS not configured"
+            echo "   Skipping Apps Script deployment"
+            echo "   To enable, add STAGING_OAUTH_CREDENTIALS secret"
+            echo "skip_apps_script=true" >> $GITHUB_ENV
+          else
+            echo "skip_apps_script=false" >> $GITHUB_ENV
+          fi
+
+          if [ -z "$STAGING_SCRIPT_ID" ]; then
+            echo "⚠️ WARNING: STAGING_SCRIPT_ID not configured"
+            echo "   Using placeholder from .clasp-staging.json"
+          fi
+
+      - name: Deploy to Apps Script (Staging)
+        if: env.skip_apps_script != 'true'
+        id: deploy-gas
+        env:
+          STAGING_CLASPRC: ${{ secrets.STAGING_OAUTH_CREDENTIALS }}
+          STAGING_SCRIPT_ID: ${{ secrets.STAGING_SCRIPT_ID }}
+          STAGING_DEPLOYMENT_ID: ${{ secrets.STAGING_DEPLOYMENT_ID }}
+        run: |
+          echo "🚀 Deploying to Staging Apps Script..."
+
+          # Setup clasp credentials for staging
+          echo "$STAGING_CLASPRC" > ~/.clasprc.json
+          chmod 600 ~/.clasprc.json
+
+          # Update .clasp.json with staging script ID
+          if [ -n "$STAGING_SCRIPT_ID" ]; then
+            echo "{\"scriptId\": \"$STAGING_SCRIPT_ID\", \"rootDir\": \"./src/mvp\"}" > .clasp.json
+          else
+            cp .clasp-staging.json .clasp.json
+          fi
+
+          # Push to Apps Script
+          echo "📤 Pushing code to staging..."
+          npx clasp push --force
+
+          # Deploy
+          echo "📦 Creating/updating staging deployment..."
+          if [ -n "$STAGING_DEPLOYMENT_ID" ]; then
+            DEPLOY_OUTPUT=$(npx clasp deploy -i "$STAGING_DEPLOYMENT_ID" -d "Stage 2 Staging $(date -Iseconds)" 2>&1)
+          else
+            DEPLOY_OUTPUT=$(npx clasp deploy -d "Stage 2 Staging $(date -Iseconds)" 2>&1)
+          fi
+          echo "$DEPLOY_OUTPUT"
+
+          # Extract deployment ID
+          DEPLOYMENT_ID=$(echo "$DEPLOY_OUTPUT" | grep -oP 'AKfycb[a-zA-Z0-9_-]+' | head -1)
+          if [ -n "$DEPLOYMENT_ID" ]; then
+            echo "✅ Staging Apps Script deployed: $DEPLOYMENT_ID"
+            echo "gas_deployment_id=$DEPLOYMENT_ID" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Deploy to Cloudflare (Staging)
+        id: deploy-cf
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          echo "☁️ Deploying to Cloudflare Staging..."
+
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "⚠️ Cloudflare secrets not configured - skipping Worker deploy"
+            echo "   Using existing staging deployment at $STAGING_URL"
+            echo "url=${{ env.STAGING_URL }}" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Update staging deployment ID in wrangler.toml if we have it
+          if [ -n "${{ steps.deploy-gas.outputs.gas_deployment_id }}" ]; then
+            sed -i "s/STAGING_DEPLOYMENT_ID_PLACEHOLDER/${{ steps.deploy-gas.outputs.gas_deployment_id }}/g" cloudflare-proxy/wrangler.toml
+          fi
+
+          # Deploy to staging
+          npm install -g wrangler
+          cd cloudflare-proxy
+          wrangler deploy --env staging
+
+          echo "✅ Cloudflare staging Worker deployed"
+          echo "url=${{ env.STAGING_URL }}" >> $GITHUB_OUTPUT
+
+      - name: Set deployment outputs
+        id: deploy
+        run: |
+          echo "url=${{ env.STAGING_URL }}" >> $GITHUB_OUTPUT
+          echo "deployment_id=${{ steps.deploy-gas.outputs.gas_deployment_id || 'existing' }}" >> $GITHUB_OUTPUT
+
+  # ============================================================================
+  # WARMUP: Prepare staging for tests
+  # ============================================================================
+  warmup:
+    name: 🔥 Warmup Staging
+    runs-on: ubuntu-latest
+    needs: [gate, deploy-staging]
+    if: |
+      always() &&
+      needs.gate.outputs.should_run == 'true' &&
+      (needs.deploy-staging.result == 'success' || needs.deploy-staging.result == 'skipped')
+    outputs:
+      base_url: ${{ steps.warmup.outputs.base_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Warmup staging deployment
+        id: warmup
+        env:
+          BASE_URL: ${{ needs.deploy-staging.outputs.deployment_url || env.STAGING_URL }}
+        run: |
+          echo "🔥 Warming up staging deployment..."
+          echo "   BASE_URL: $BASE_URL"
+
+          # Run warmup script
+          WARMUP_MAX_ATTEMPTS=5 WARMUP_TIMEOUT=60000 node scripts/warmup-deployment.js || true
+
+          echo "base_url=$BASE_URL" >> $GITHUB_OUTPUT
+          echo "✅ Warmup complete"
+
+  # ============================================================================
+  # POST-DEPLOY CONTRACT TESTS
+  # ============================================================================
+  contract-tests:
+    name: 📋 Contract Tests (Post-Deploy)
+    runs-on: ubuntu-latest
+    needs: [gate, warmup]
+    if: needs.gate.outputs.should_run == 'true'
+    outputs:
+      result: ${{ steps.test.outputs.result }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Contract Tests
+        id: test
+        env:
+          BASE_URL: ${{ needs.warmup.outputs.base_url }}
+          CI: true
+          ADMIN_KEY: ${{ secrets.STAGING_ADMIN_KEY || secrets.ADMIN_KEY_ROOT }}
+          ADMIN_KEY_ROOT: ${{ secrets.STAGING_ADMIN_KEY || secrets.ADMIN_KEY_ROOT }}
+        run: |
+          echo "📋 Running Post-Deploy Contract Tests"
+          echo "======================================="
+          echo "BASE_URL: $BASE_URL"
+          echo ""
+
+          echo "📌 Contract Test Coverage:"
+          echo "  - events-list.contract.test.js (During Event)"
+          echo "  - event-details.contract.test.js (During Event)"
+          echo "  - create-event.contract.test.js (Before Event)"
+          echo "  - shortlinks.contract.test.js (Before Event)"
+          echo "  - analytics.contract.test.js (After Event)"
+          echo "  - status.contract.test.js (All Phases)"
+          echo "  - errors.contract.test.js (All Phases)"
+          echo ""
+
+          # Run triangle contract tests (these test against live deployment)
+          echo "🔺 Running Triangle Contract Tests..."
+          npm run test:triangle:before:contract || FAILED=1
+          npm run test:triangle:during:contract || FAILED=1
+          npm run test:triangle:after:contract || FAILED=1
+          npm run test:triangle:all:contract || FAILED=1
+
+          # Run core contract tests
+          echo ""
+          echo "📋 Running Core Contract Tests..."
+          npm run test:contract || FAILED=1
+
+          if [ "$FAILED" == "1" ]; then
+            echo "result=failure" >> $GITHUB_OUTPUT
+            echo ""
+            echo "❌ Some contract tests failed"
+            exit 1
+          else
+            echo "result=success" >> $GITHUB_OUTPUT
+            echo ""
+            echo "✅ All contract tests passed"
+          fi
+
+      - name: Upload contract test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: contract-test-results
+          path: |
+            coverage/
+            .test-results/
+          retention-days: 7
+
+  # ============================================================================
+  # MATRIX TESTS VIA TESTRUNNER
+  # ============================================================================
+  matrix-tests:
+    name: 🧪 Matrix Tests (TestRunner)
+    runs-on: ubuntu-latest
+    needs: [gate, warmup, contract-tests]
+    if: needs.gate.outputs.should_run == 'true' && needs.contract-tests.outputs.result == 'success'
+    outputs:
+      result: ${{ steps.test.outputs.result }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Matrix Tests
+        id: test
+        env:
+          BASE_URL: ${{ needs.warmup.outputs.base_url }}
+          CI: true
+          ADMIN_KEY: ${{ secrets.STAGING_ADMIN_KEY || secrets.ADMIN_KEY_ROOT }}
+          ADMIN_KEY_ROOT: ${{ secrets.STAGING_ADMIN_KEY || secrets.ADMIN_KEY_ROOT }}
+          ADMIN_KEY_ABC: ${{ secrets.ADMIN_KEY_ABC }}
+          ADMIN_KEY_CBC: ${{ secrets.ADMIN_KEY_CBC }}
+          ADMIN_KEY_CBL: ${{ secrets.ADMIN_KEY_CBL }}
+        run: |
+          echo "🧪 Running Matrix Tests via TestRunner"
+          echo "========================================"
+          echo "BASE_URL: $BASE_URL"
+          echo ""
+
+          echo "📌 Matrix Test Coverage:"
+          echo "  - Bundle endpoints (event bundles with proper nesting)"
+          echo "  - Brand configs (multi-brand validation)"
+          echo "  - Sponsor contracts (sponsor structure validation)"
+          echo "  - Envelope boundary (API_CONTRACT.md compliance)"
+          echo ""
+
+          # Run matrix tests
+          node scripts/run-matrix-tests.js
+
+          if [ $? -eq 0 ]; then
+            echo "result=success" >> $GITHUB_OUTPUT
+            echo ""
+            echo "✅ All matrix tests passed"
+          else
+            echo "result=failure" >> $GITHUB_OUTPUT
+            echo ""
+            echo "❌ Some matrix tests failed"
+            exit 1
+          fi
+
+      - name: Upload matrix test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: matrix-test-results
+          path: |
+            .test-results/
+            playwright-report/
+          retention-days: 7
+
+  # ============================================================================
+  # QUALITY GATE: Final validation
+  # ============================================================================
+  quality-gate:
+    name: 🎯 Stage 2 Staging Quality Gate
+    runs-on: ubuntu-latest
+    needs: [gate, contract-tests, matrix-tests]
+    if: always() && needs.gate.outputs.should_run == 'true'
+    steps:
+      - name: Evaluate test results
+        id: evaluate
+        run: |
+          echo "🎯 Stage 2 Staging Quality Gate"
+          echo "================================="
+          echo ""
+          echo "Test Results:"
+          echo "  📋 Contract Tests: ${{ needs.contract-tests.outputs.result || 'skipped' }}"
+          echo "  🧪 Matrix Tests:   ${{ needs.matrix-tests.outputs.result || 'skipped' }}"
+          echo ""
+
+          CONTRACT_RESULT="${{ needs.contract-tests.outputs.result }}"
+          MATRIX_RESULT="${{ needs.matrix-tests.outputs.result }}"
+
+          # Quality gate passes only if all tests pass
+          if [[ "$CONTRACT_RESULT" != "success" ]]; then
+            echo "❌ QUALITY GATE FAILED: Contract tests did not pass"
+            echo "   Fix contract test failures before proceeding"
+            exit 1
+          fi
+
+          if [[ "$MATRIX_RESULT" != "success" ]]; then
+            echo "❌ QUALITY GATE FAILED: Matrix tests did not pass"
+            echo "   Fix matrix test failures before proceeding"
+            exit 1
+          fi
+
+          echo "✅ QUALITY GATE PASSED"
+          echo "   All Stage 2 staging tests passed!"
+          echo ""
+          echo "This staging deployment has been validated with:"
+          echo "  - Contract tests (events-list, event-details, etc.)"
+          echo "  - Matrix tests (bundles, brand configs, sponsors)"
+
+      - name: Create summary
+        if: always()
+        run: |
+          echo "## 🎯 Stage 2 Staging Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Test Suite | Result |" >> $GITHUB_STEP_SUMMARY
+          echo "|------------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 📋 Contract Tests | ${{ needs.contract-tests.outputs.result == 'success' && '✅ PASS' || '❌ FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🧪 Matrix Tests | ${{ needs.matrix-tests.outputs.result == 'success' && '✅ PASS' || '❌ FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [[ "${{ needs.contract-tests.outputs.result }}" == "success" ]] && \
+             [[ "${{ needs.matrix-tests.outputs.result }}" == "success" ]]; then
+            echo "### ✅ Quality Gate PASSED" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Staging deployment validated successfully!" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ Quality Gate FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Fix failing tests before proceeding to production." >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Test Coverage" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Contract Tests:**" >> $GITHUB_STEP_SUMMARY
+          echo "- events-list.contract.test.js" >> $GITHUB_STEP_SUMMARY
+          echo "- event-details.contract.test.js" >> $GITHUB_STEP_SUMMARY
+          echo "- create-event.contract.test.js" >> $GITHUB_STEP_SUMMARY
+          echo "- shortlinks.contract.test.js" >> $GITHUB_STEP_SUMMARY
+          echo "- analytics.contract.test.js" >> $GITHUB_STEP_SUMMARY
+          echo "- status.contract.test.js" >> $GITHUB_STEP_SUMMARY
+          echo "- errors.contract.test.js" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Matrix Tests (via TestRunner):**" >> $GITHUB_STEP_SUMMARY
+          echo "- Bundle endpoints" >> $GITHUB_STEP_SUMMARY
+          echo "- Brand configs" >> $GITHUB_STEP_SUMMARY
+          echo "- Sponsor contracts" >> $GITHUB_STEP_SUMMARY
+          echo "- Envelope boundary validation" >> $GITHUB_STEP_SUMMARY
