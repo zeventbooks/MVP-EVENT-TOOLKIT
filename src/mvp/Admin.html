@@ -3245,7 +3245,7 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
     function updateChecklistStatus(event) {
       currentEventData = event;
       const links = event.links || {};
-      const data = event.data || {};
+      const ctas = event.ctas || {};
       const sponsors = event.sponsors || [];
 
       // Track completed count and remaining time
@@ -3266,8 +3266,8 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
       setChecklistItemStatus('checklist-event', 'done');
       completed++;
 
-      // 2. Signup form - done if at least one form URL is configured
-      const hasFormUrl = data.registerUrl || data.checkinUrl || data.walkinUrl || data.surveyUrl;
+      // 2. Signup form - done if signupUrl is configured (schema: links.signupUrl or ctas.primary.url)
+      const hasFormUrl = links.signupUrl || ctas.primary?.url;
       if (hasFormUrl) {
         setChecklistItemStatus('checklist-signup', 'done');
         completed++;
@@ -4575,11 +4575,6 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
             showQRSection: true
           }
         };
-
-        // Add signup URL if provided
-        if (signupUrl) {
-          event.registerUrl = signupUrl;
-        }
 
         // Get admin key
         const adminKey = getAdminKey();

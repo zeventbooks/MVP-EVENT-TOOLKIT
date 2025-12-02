@@ -51,16 +51,6 @@ const KNOWN_EXCEPTIONS = {
     // Safe: Falls back gracefully when undefined, uses schema-compliant field first
     'lastUpdated',
   ],
-  'Admin.html': [
-    // Legacy wizard code: event.data wrapper was removed in schema v2
-    // Code: const data = event.data || {};
-    // Safe: Falls back to empty object when undefined
-    'data',
-    // Legacy wizard code: registerUrl was replaced by ctas.primary.url
-    // Code: if (signupUrl) { event.registerUrl = signupUrl; }
-    // Safe: Field is only set if signupUrl exists, backend ignores unknown fields
-    'registerUrl',
-  ],
 };
 
 // Surface → Schema mapping
