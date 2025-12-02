@@ -309,9 +309,13 @@
     },
     "Sponsor": {
       "type": "object",
-      "description": "V2 REQUIRED fields when sponsor is present",
-      "required": ["id", "name", "logoUrl", "placement"],
+      "description": "V2 sponsor entity with multi-placement support",
+      "required": ["id", "name", "logoUrl"],
       "additionalProperties": false,
+      "anyOf": [
+        { "required": ["placement"] },
+        { "required": ["placements"] }
+      ],
       "properties": {
         "id": {
           "type": "string",
@@ -334,7 +338,34 @@
         },
         "placement": {
           "type": "string",
-          "enum": ["poster", "display", "public", "tv-banner"]
+          "enum": ["poster", "display", "public", "tv-banner"],
+          "description": "[Legacy] Single placement location - use 'placements' object for multi-placement"
+        },
+        "placements": {
+          "type": "object",
+          "description": "Multi-placement configuration - enables sponsor on multiple surfaces",
+          "properties": {
+            "posterTop": { "type": "boolean" },
+            "tvTop": { "type": "boolean" },
+            "tvSide": { "type": "boolean" },
+            "mobileBanner": { "type": "boolean" }
+          },
+          "additionalProperties": false
+        },
+        "clickToken": {
+          "type": ["string", "null"],
+          "maxLength": 256,
+          "description": "Tracking token for click attribution"
+        },
+        "impressionToken": {
+          "type": ["string", "null"],
+          "maxLength": 256,
+          "description": "Tracking token for impression attribution"
+        },
+        "tier": {
+          "type": "string",
+          "enum": ["title", "platinum", "gold", "silver", "bronze", "primary"],
+          "description": "Optional sponsorship tier for display priority"
         }
       }
     },

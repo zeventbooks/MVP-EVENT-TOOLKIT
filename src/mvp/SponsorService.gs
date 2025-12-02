@@ -2,6 +2,7 @@
  * Sponsor Service
  *
  * Centralizes all sponsor-related operations:
+ * - Sponsor contract validation (validateSponsorContract)
  * - Sponsor analytics (impressions, clicks, CTR)
  * - Performance metrics and insights
  * - ROI calculations
@@ -30,7 +31,15 @@
  *   name: string,            // [MVP] Display name
  *   logoUrl: string,         // [MVP] Logo URL (https)
  *   linkUrl: string|null,    // [MVP] Click-through URL (optional)
- *   placement: enum          // [MVP] 'poster'|'display'|'public'|'tv-banner'
+ *   placement: enum,         // [Legacy] 'poster'|'display'|'public'|'tv-banner'
+ *   placements: {            // [V2] Multi-placement configuration
+ *     posterTop: boolean,    // Show on poster top banner
+ *     tvTop: boolean,        // Show on TV display top banner
+ *     tvSide: boolean,       // Show on TV display side panel
+ *     mobileBanner: boolean  // Show on mobile/public banner
+ *   },
+ *   clickToken: string|null,       // [V2] Tracking token for click attribution
+ *   impressionToken: string|null   // [V2] Tracking token for impression attribution
  * }
  *
  * SponsorMetrics shape (/schemas/shared-analytics.schema.json):
@@ -60,6 +69,254 @@
  *
  * @module SponsorService
  */
+
+// === Contract Validation =================================================
+
+/**
+ * Valid placement values for legacy single-placement mode
+ * @constant {string[]}
+ */
+var VALID_PLACEMENTS = ['poster', 'display', 'public', 'tv-banner'];
+
+/**
+ * Valid placement keys for multi-placement mode
+ * @constant {string[]}
+ */
+var VALID_PLACEMENT_KEYS = ['posterTop', 'tvTop', 'tvSide', 'mobileBanner'];
+
+/**
+ * Validate a sponsor object against the Sponsor Contract
+ *
+ * Enforces the canonical sponsor shape defined in /schemas/sponsor.schema.json.
+ * Returns validation result with errors array if invalid.
+ *
+ * Required fields: id, name, logoUrl
+ * Must have either: placement (legacy) OR placements (v2)
+ *
+ * @param {object} sponsor - Sponsor object to validate
+ * @returns {object} Validation result: { valid: boolean, errors: string[], sponsor: object|null }
+ *
+ * @example
+ * // Valid v2 sponsor
+ * validateSponsorContract({
+ *   id: 'sp-123',
+ *   name: 'Acme Corp',
+ *   logoUrl: 'https://example.com/logo.png',
+ *   placements: { posterTop: true, tvTop: true }
+ * });
+ * // => { valid: true, errors: [], sponsor: {...} }
+ *
+ * @example
+ * // Invalid sponsor (missing id)
+ * validateSponsorContract({ name: 'Test' });
+ * // => { valid: false, errors: ['Missing required field: id'], sponsor: null }
+ */
+function validateSponsorContract(sponsor) {
+  var errors = [];
+
+  // Null/undefined check
+  if (!sponsor || typeof sponsor !== 'object') {
+    return { valid: false, errors: ['Sponsor must be a non-null object'], sponsor: null };
+  }
+
+  // Required field: id
+  if (!sponsor.id || typeof sponsor.id !== 'string' || sponsor.id.trim() === '') {
+    errors.push('Missing required field: id');
+  } else if (!/^[a-zA-Z0-9_-]+$/.test(sponsor.id)) {
+    errors.push('Invalid id: must contain only alphanumeric characters, underscores, and hyphens');
+  } else if (sponsor.id.length > 128) {
+    errors.push('Invalid id: must be 128 characters or fewer');
+  }
+
+  // Required field: name
+  if (!sponsor.name || typeof sponsor.name !== 'string' || sponsor.name.trim() === '') {
+    errors.push('Missing required field: name');
+  } else if (sponsor.name.length > 200) {
+    errors.push('Invalid name: must be 200 characters or fewer');
+  }
+
+  // Required field: logoUrl
+  if (!sponsor.logoUrl || typeof sponsor.logoUrl !== 'string' || sponsor.logoUrl.trim() === '') {
+    errors.push('Missing required field: logoUrl');
+  } else if (!/^https?:\/\/.+/.test(sponsor.logoUrl)) {
+    errors.push('Invalid logoUrl: must be a valid HTTP/HTTPS URL');
+  }
+
+  // Optional field: linkUrl (if present, must be valid URL or null)
+  if (sponsor.linkUrl !== undefined && sponsor.linkUrl !== null) {
+    if (typeof sponsor.linkUrl !== 'string' || !/^https?:\/\/.+/.test(sponsor.linkUrl)) {
+      errors.push('Invalid linkUrl: must be a valid HTTP/HTTPS URL or null');
+    }
+  }
+
+  // Must have either placement (legacy) or placements (v2)
+  var hasPlacement = sponsor.placement !== undefined && sponsor.placement !== null;
+  var hasPlacements = sponsor.placements !== undefined && sponsor.placements !== null;
+
+  if (!hasPlacement && !hasPlacements) {
+    errors.push('Must have either placement (string) or placements (object)');
+  }
+
+  // Validate legacy placement
+  if (hasPlacement) {
+    if (typeof sponsor.placement !== 'string' || VALID_PLACEMENTS.indexOf(sponsor.placement) === -1) {
+      errors.push('Invalid placement: must be one of ' + VALID_PLACEMENTS.join(', '));
+    }
+  }
+
+  // Validate v2 placements object
+  if (hasPlacements) {
+    if (typeof sponsor.placements !== 'object') {
+      errors.push('Invalid placements: must be an object');
+    } else {
+      var placementKeys = Object.keys(sponsor.placements);
+      var hasAtLeastOne = false;
+
+      for (var i = 0; i < placementKeys.length; i++) {
+        var key = placementKeys[i];
+        if (VALID_PLACEMENT_KEYS.indexOf(key) === -1) {
+          errors.push('Invalid placement key: ' + key + '. Valid keys: ' + VALID_PLACEMENT_KEYS.join(', '));
+        } else if (typeof sponsor.placements[key] !== 'boolean') {
+          errors.push('Invalid placement value for ' + key + ': must be boolean');
+        } else if (sponsor.placements[key] === true) {
+          hasAtLeastOne = true;
+        }
+      }
+
+      if (!hasAtLeastOne && placementKeys.length > 0) {
+        errors.push('At least one placement must be enabled (true)');
+      }
+    }
+  }
+
+  // Validate optional tokens
+  if (sponsor.clickToken !== undefined && sponsor.clickToken !== null) {
+    if (typeof sponsor.clickToken !== 'string' || sponsor.clickToken.length > 256) {
+      errors.push('Invalid clickToken: must be a string of 256 characters or fewer');
+    }
+  }
+
+  if (sponsor.impressionToken !== undefined && sponsor.impressionToken !== null) {
+    if (typeof sponsor.impressionToken !== 'string' || sponsor.impressionToken.length > 256) {
+      errors.push('Invalid impressionToken: must be a string of 256 characters or fewer');
+    }
+  }
+
+  // Validate optional tier
+  if (sponsor.tier !== undefined && sponsor.tier !== null) {
+    var validTiers = ['title', 'platinum', 'gold', 'silver', 'bronze', 'primary'];
+    if (typeof sponsor.tier !== 'string' || validTiers.indexOf(sponsor.tier) === -1) {
+      errors.push('Invalid tier: must be one of ' + validTiers.join(', '));
+    }
+  }
+
+  if (errors.length > 0) {
+    return { valid: false, errors: errors, sponsor: null };
+  }
+
+  // Return normalized sponsor object
+  return {
+    valid: true,
+    errors: [],
+    sponsor: {
+      id: sponsor.id.trim(),
+      name: sponsor.name.trim(),
+      logoUrl: sponsor.logoUrl.trim(),
+      linkUrl: sponsor.linkUrl || null,
+      placement: sponsor.placement || null,
+      placements: sponsor.placements || null,
+      clickToken: sponsor.clickToken || null,
+      impressionToken: sponsor.impressionToken || null,
+      tier: sponsor.tier || null
+    }
+  };
+}
+
+/**
+ * Validate an array of sponsors against the Sponsor Contract
+ *
+ * @param {array} sponsors - Array of sponsor objects to validate
+ * @returns {object} Validation result: { valid: boolean, errors: object[], validSponsors: object[] }
+ */
+function validateSponsorsArray(sponsors) {
+  if (!Array.isArray(sponsors)) {
+    return { valid: false, errors: [{ index: -1, errors: ['Sponsors must be an array'] }], validSponsors: [] };
+  }
+
+  var allErrors = [];
+  var validSponsors = [];
+
+  for (var i = 0; i < sponsors.length; i++) {
+    var result = validateSponsorContract(sponsors[i]);
+    if (result.valid) {
+      validSponsors.push(result.sponsor);
+    } else {
+      allErrors.push({ index: i, sponsorId: sponsors[i]?.id || '(unknown)', errors: result.errors });
+    }
+  }
+
+  return {
+    valid: allErrors.length === 0,
+    errors: allErrors,
+    validSponsors: validSponsors,
+    totalCount: sponsors.length,
+    validCount: validSponsors.length,
+    invalidCount: allErrors.length
+  };
+}
+
+/**
+ * Check if a sponsor should be shown on a specific surface
+ *
+ * Handles both legacy (placement string) and v2 (placements object) formats.
+ *
+ * @param {object} sponsor - Sponsor object
+ * @param {string} surface - Surface to check ('poster', 'display', 'public', 'tv-banner')
+ * @returns {boolean} True if sponsor should be shown on the surface
+ */
+function shouldShowSponsorOnSurface(sponsor, surface) {
+  if (!sponsor) return false;
+
+  // V2 placements object takes precedence
+  if (sponsor.placements) {
+    switch (surface) {
+      case 'poster':
+        return sponsor.placements.posterTop === true;
+      case 'display':
+      case 'tv-banner':
+        return sponsor.placements.tvTop === true || sponsor.placements.tvSide === true;
+      case 'public':
+        return sponsor.placements.mobileBanner === true;
+      default:
+        return false;
+    }
+  }
+
+  // Legacy: single placement string
+  if (sponsor.placement) {
+    // 'display' and 'tv-banner' are interchangeable for backward compatibility
+    if (surface === 'display' || surface === 'tv-banner') {
+      return sponsor.placement === 'display' || sponsor.placement === 'tv-banner';
+    }
+    return sponsor.placement === surface;
+  }
+
+  return false;
+}
+
+/**
+ * Filter sponsors for a specific surface
+ *
+ * @param {array} sponsors - Array of sponsor objects
+ * @param {string} surface - Surface to filter for ('poster', 'display', 'public', 'tv-banner')
+ * @returns {array} Sponsors that should appear on the surface
+ */
+function filterSponsorsForSurface(sponsors, surface) {
+  if (!Array.isArray(sponsors)) return [];
+  return sponsors.filter(function(s) {
+    return shouldShowSponsorOnSurface(s, surface);
+  });
+}
 
 // === Analytics Operations =================================================
 

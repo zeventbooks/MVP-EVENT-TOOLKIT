@@ -254,10 +254,14 @@ const SCHEMAS = {
     },
 
     // [MVP] SPONSOR SCHEMA - MIRRORS: /schemas/sponsor.schema.json
-    // V2 feature but shape is MVP-frozen
+    // V2 feature with multi-placement support
     _sponsor: {
       type: 'object',
-      required: ['id', 'name', 'logoUrl', 'placement'],
+      required: ['id', 'name', 'logoUrl'],
+      anyOf: [
+        { required: ['placement'] },
+        { required: ['placements'] }
+      ],
       properties: {
         id: { type: 'string' },
         name: { type: 'string' },
@@ -266,6 +270,21 @@ const SCHEMAS = {
         placement: {
           type: 'string',
           enum: ['poster', 'display', 'public', 'tv-banner']
+        },
+        placements: {
+          type: 'object',
+          properties: {
+            posterTop: { type: 'boolean' },
+            tvTop: { type: 'boolean' },
+            tvSide: { type: 'boolean' },
+            mobileBanner: { type: 'boolean' }
+          }
+        },
+        clickToken: { type: ['string', 'null'] },
+        impressionToken: { type: ['string', 'null'] },
+        tier: {
+          type: 'string',
+          enum: ['title', 'platinum', 'gold', 'silver', 'bronze', 'primary']
         }
       }
     },

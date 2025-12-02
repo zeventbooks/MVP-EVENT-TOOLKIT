@@ -2,6 +2,10 @@
  * Sponsor Fixtures for Testing
  *
  * Shared sponsor data for all test types across Triangle phases
+ *
+ * CONTRACT: /schemas/sponsor.schema.json
+ * Required fields: id, name, logoUrl, (placement OR placements)
+ * Optional fields: linkUrl, clickToken, impressionToken, tier
  */
 
 /**
@@ -26,54 +30,65 @@ const sponsorTiers = {
 };
 
 /**
- * Platinum sponsor fixture
+ * Valid placement keys per contract
+ */
+const VALID_PLACEMENT_KEYS = ['posterTop', 'tvTop', 'tvSide', 'mobileBanner'];
+
+/**
+ * Platinum sponsor fixture (Contract-compliant)
  */
 const platinumSponsor = {
+  id: 'sp-platinum-corp',
   name: 'Platinum Corp',
+  logoUrl: 'https://via.placeholder.com/300x100/FFD700/000000?text=Platinum+Corp',
+  linkUrl: 'https://platinum-corp.example.com',
   tier: 'platinum',
-  logo: 'https://via.placeholder.com/300x100/FFD700/000000?text=Platinum+Corp',
-  website: 'https://platinum-corp.example.com',
-  description: 'Leading technology company',
   placements: {
     posterTop: true,
     tvTop: true,
     tvSide: true,
     mobileBanner: true
-  }
+  },
+  clickToken: 'plat-click-token-001',
+  impressionToken: 'plat-imp-token-001'
 };
 
 /**
- * Gold sponsor fixture
+ * Gold sponsor fixture (Contract-compliant)
  */
 const goldSponsor = {
+  id: 'sp-gold-industries',
   name: 'Gold Industries',
+  logoUrl: 'https://via.placeholder.com/300x100/C0C0C0/000000?text=Gold+Industries',
+  linkUrl: 'https://gold-industries.example.com',
   tier: 'gold',
-  logo: 'https://via.placeholder.com/300x100/C0C0C0/000000?text=Gold+Industries',
-  website: 'https://gold-industries.example.com',
-  description: 'Manufacturing excellence',
   placements: {
     posterTop: true,
     tvTop: false,
     tvSide: true,
     mobileBanner: true
-  }
+  },
+  clickToken: 'gold-click-token-001',
+  impressionToken: 'gold-imp-token-001'
 };
 
 /**
- * Silver sponsor fixture
+ * Silver sponsor fixture (Contract-compliant)
  */
 const silverSponsor = {
+  id: 'sp-silver-solutions',
   name: 'Silver Solutions',
+  logoUrl: 'https://via.placeholder.com/300x100/CD7F32/000000?text=Silver+Solutions',
+  linkUrl: 'https://silver-solutions.example.com',
   tier: 'silver',
-  logo: 'https://via.placeholder.com/300x100/CD7F32/000000?text=Silver+Solutions',
-  website: 'https://silver-solutions.example.com',
-  description: 'Innovative software solutions',
   placements: {
     posterTop: false,
     tvTop: false,
     tvSide: true,
     mobileBanner: false
-  }
+  },
+  clickToken: null,
+  impressionToken: null
 };
 
 /**
@@ -125,41 +140,107 @@ const sponsorWithAnalytics = {
 };
 
 /**
- * Invalid sponsor fixtures (for validation testing)
+ * Legacy sponsor using single placement (for backward compatibility tests)
+ */
+const legacySponsor = {
+  id: 'sp-legacy-corp',
+  name: 'Legacy Corp',
+  logoUrl: 'https://via.placeholder.com/300x100/888888/000000?text=Legacy+Corp',
+  linkUrl: 'https://legacy-corp.example.com',
+  placement: 'display' // Legacy single placement
+};
+
+/**
+ * Invalid sponsor fixtures (for validation testing against contract)
  */
 const invalidSponsors = {
+  // Missing required field: id
+  missingId: {
+    name: 'No ID Sponsor',
+    logoUrl: 'https://via.placeholder.com/300x100',
+    placements: { posterTop: true }
+  },
+  // Missing required field: name
   missingName: {
-    tier: 'platinum',
-    logo: 'https://via.placeholder.com/300x100'
+    id: 'sp-no-name',
+    logoUrl: 'https://via.placeholder.com/300x100',
+    placements: { posterTop: true }
   },
-  missingTier: {
-    name: 'No Tier Sponsor',
-    logo: 'https://via.placeholder.com/300x100'
-  },
-  invalidTier: {
-    name: 'Invalid Tier Sponsor',
-    tier: 'diamond', // Not a valid tier
-    logo: 'https://via.placeholder.com/300x100'
-  },
-  missingLogo: {
+  // Missing required field: logoUrl
+  missingLogoUrl: {
+    id: 'sp-no-logo',
     name: 'No Logo Sponsor',
-    tier: 'gold'
+    placements: { posterTop: true }
   },
+  // Missing placement/placements (neither provided)
+  missingPlacements: {
+    id: 'sp-no-placements',
+    name: 'No Placements Sponsor',
+    logoUrl: 'https://via.placeholder.com/300x100'
+  },
+  // Invalid id pattern
+  invalidIdPattern: {
+    id: 'sp invalid id!', // Contains spaces and special chars
+    name: 'Bad ID Sponsor',
+    logoUrl: 'https://via.placeholder.com/300x100',
+    placements: { posterTop: true }
+  },
+  // Invalid logoUrl
   invalidLogoUrl: {
+    id: 'sp-bad-logo',
     name: 'Bad Logo Sponsor',
-    tier: 'gold',
-    logo: 'not-a-url'
-  }
+    logoUrl: 'not-a-valid-url',
+    placements: { posterTop: true }
+  },
+  // Invalid placement value (legacy)
+  invalidPlacement: {
+    id: 'sp-bad-placement',
+    name: 'Bad Placement Sponsor',
+    logoUrl: 'https://via.placeholder.com/300x100',
+    placement: 'invalid-placement'
+  },
+  // Invalid placements keys
+  invalidPlacementKeys: {
+    id: 'sp-bad-placement-keys',
+    name: 'Bad Placement Keys Sponsor',
+    logoUrl: 'https://via.placeholder.com/300x100',
+    placements: { invalidKey: true }
+  },
+  // All placements false
+  allPlacementsFalse: {
+    id: 'sp-all-false',
+    name: 'All False Sponsor',
+    logoUrl: 'https://via.placeholder.com/300x100',
+    placements: { posterTop: false, tvTop: false, tvSide: false, mobileBanner: false }
+  },
+  // Invalid tier
+  invalidTier: {
+    id: 'sp-bad-tier',
+    name: 'Invalid Tier Sponsor',
+    logoUrl: 'https://via.placeholder.com/300x100',
+    placements: { posterTop: true },
+    tier: 'diamond' // Not a valid tier
+  },
+  // Null object
+  nullSponsor: null,
+  // Empty object
+  emptySponsor: {}
 };
 
 module.exports = {
+  // Contract constants
+  VALID_PLACEMENT_KEYS,
+
   // Tier definitions
   sponsorTiers,
 
-  // Individual sponsors
+  // Individual sponsors (contract-compliant)
   platinumSponsor,
   goldSponsor,
   silverSponsor,
+
+  // Legacy sponsor (backward compatibility)
+  legacySponsor,
 
   // Sponsor configurations
   multiTierSponsors,
@@ -169,6 +250,6 @@ module.exports = {
   // With analytics
   sponsorWithAnalytics,
 
-  // Invalid data
+  // Invalid data (for contract validation testing)
   invalidSponsors
 };
