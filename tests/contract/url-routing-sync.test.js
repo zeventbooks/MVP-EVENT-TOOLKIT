@@ -20,31 +20,27 @@ const path = require('path');
 
 /**
  * Extract pathToPage mapping from worker.js
- * Parses the JavaScript object literal from the source
+ * Parses the CANONICAL_PATH_TO_PAGE constant from the source
  */
 function extractWorkerPathToPage() {
   const workerPath = path.join(__dirname, '../../cloudflare-proxy/worker.js');
   const content = fs.readFileSync(workerPath, 'utf8');
 
-  // Find the pathToPage object in the source
-  // Format: const pathToPage = { 'events': 'public', ... }
-  const regex = /const\s+pathToPage\s*=\s*\{([^}]+)\}/;
+  // Find the CANONICAL_PATH_TO_PAGE object in the source
+  // Format: const CANONICAL_PATH_TO_PAGE = Object.freeze({ 'events': 'public', ... })
+  const regex = /const\s+CANONICAL_PATH_TO_PAGE\s*=\s*Object\.freeze\(\{([\s\S]*?)\}\)/;
   const match = content.match(regex);
 
   if (!match) {
-    throw new Error('Could not find pathToPage in worker.js');
+    throw new Error('Could not find CANONICAL_PATH_TO_PAGE in worker.js');
   }
 
   // Parse the object literal
   const mapping = {};
-  const entries = match[1].split(',');
+  const entries = match[1].matchAll(/['"]([^'"]+)['"]\s*:\s*['"]([^'"]+)['"]/g);
 
   for (const entry of entries) {
-    // Match 'key': 'value' or "key": "value"
-    const kvMatch = entry.match(/['"]([^'"]+)['"]\s*:\s*['"]([^'"]+)['"]/);
-    if (kvMatch) {
-      mapping[kvMatch[1]] = kvMatch[2];
-    }
+    mapping[entry[1]] = entry[2];
   }
 
   return mapping;

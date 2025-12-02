@@ -43,10 +43,143 @@
  */
 
 // Worker version - used for transparency headers and debugging
-const WORKER_VERSION = '1.2.0';
+const WORKER_VERSION = '1.3.0';
 
 // Timeout for upstream requests (ms)
 const UPSTREAM_TIMEOUT_MS = 30000;
+
+// =============================================================================
+// CANONICAL ROUTES - Single Source of Truth
+// =============================================================================
+// Only these routes are supported externally. Unknown routes return 404.
+// This prevents mis-routing and ensures predictable behavior.
+
+/**
+ * Canonical page routes (?page=X or path-based)
+ * Maps to HTML pages served by Google Apps Script
+ */
+const CANONICAL_PAGES = Object.freeze({
+  'admin': 'admin',
+  'display': 'display',
+  'poster': 'poster',
+  'public': 'public',
+  'report': 'report',
+  'status': 'status',
+  'ping': 'ping',
+  'diagnostics': 'diagnostics',
+  'shared-report': 'report',  // Alias
+  'test': 'test'              // Test page
+});
+
+/**
+ * Canonical shorthand routes (?p=X)
+ * Short aliases for common operations
+ */
+const CANONICAL_P_ROUTES = Object.freeze({
+  'events': 'public',    // ?p=events -> public page
+  'status': 'status',    // ?p=status -> status JSON
+  'r': 'redirect',       // ?p=r -> shortlink redirect (handled by GAS)
+  'redirect': 'redirect' // ?p=redirect -> shortlink redirect
+});
+
+/**
+ * Canonical API actions (?action=X)
+ * Whitelisted API endpoints
+ */
+const CANONICAL_API_ACTIONS = Object.freeze([
+  // Public API endpoints
+  'api_status',
+  'api_statusPure',
+  'api_events',
+  'api_eventById',
+  'api_sponsors',
+  // Admin API endpoints (require auth)
+  'api_createEvent',
+  'api_updateEvent',
+  'api_deleteEvent',
+  'api_uploadImage',
+  // Display/Kiosk API
+  'api_displayData',
+  'api_nextEvent',
+  // Poster API
+  'api_posterData',
+  // Report API
+  'api_reportData',
+  'api_analytics'
+]);
+
+/**
+ * Canonical friendly URL path segments
+ * Maps first path segment to page parameter
+ */
+const CANONICAL_PATH_TO_PAGE = Object.freeze({
+  // Public page aliases
+  'events': 'public',
+  'schedule': 'public',
+  'calendar': 'public',
+  // Admin page aliases
+  'manage': 'admin',
+  'admin': 'admin',
+  'dashboard': 'admin',
+  'create': 'admin',
+  'docs': 'admin',
+  // Display page aliases
+  'display': 'display',
+  'tv': 'display',
+  'kiosk': 'display',
+  'screen': 'display',
+  // Poster page aliases
+  'poster': 'poster',
+  'posters': 'poster',
+  'flyers': 'poster',
+  // Report page aliases
+  'analytics': 'report',
+  'reports': 'report',
+  'insights': 'report',
+  'stats': 'report',
+  // Status/health aliases
+  'status': 'status',
+  'health': 'status',
+  'ping': 'ping',
+  // API path
+  'api': 'api'
+});
+
+/**
+ * Valid brands (path prefixes like /abc/events)
+ */
+const VALID_BRANDS = Object.freeze(['root', 'abc', 'cbc', 'cbl']);
+
+/**
+ * Check if a page parameter is valid
+ */
+function isValidPage(page) {
+  return page && CANONICAL_PAGES.hasOwnProperty(page);
+}
+
+/**
+ * Check if a ?p= shorthand is valid
+ */
+function isValidPRoute(p) {
+  return p && CANONICAL_P_ROUTES.hasOwnProperty(p);
+}
+
+/**
+ * Check if an action parameter is valid
+ */
+function isValidAction(action) {
+  return action && CANONICAL_API_ACTIONS.includes(action);
+}
+
+/**
+ * Check if a path segment maps to a known page
+ */
+function isValidPathSegment(segment) {
+  return segment && (
+    CANONICAL_PATH_TO_PAGE.hasOwnProperty(segment) ||
+    VALID_BRANDS.includes(segment)
+  );
+}
 
 // Error tracking endpoint (optional - set via env variable)
 // Falls back to console.error if not configured
@@ -226,6 +359,278 @@ function escapeHtml(str) {
 }
 
 /**
+ * Generate 404 Not Found HTML page
+ * @param {Object} options - Error page options
+ * @param {string} options.path - The requested path
+ * @param {string} options.corrId - Correlation ID for support
+ * @returns {string} HTML string
+ */
+function generate404Page(options) {
+  const { path = '/', corrId = '' } = options;
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EventAngle - Page Not Found</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f8fafc;
+      color: #1e293b;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    .error-container {
+      background: #ffffff;
+      border-radius: 16px;
+      padding: 48px;
+      max-width: 520px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.1);
+    }
+    .error-code {
+      font-size: 96px;
+      font-weight: 700;
+      color: #e2e8f0;
+      margin-bottom: 16px;
+    }
+    h1 {
+      font-size: 1.75rem;
+      color: #1e293b;
+      margin-bottom: 16px;
+      font-weight: 600;
+    }
+    .message {
+      font-size: 1.1rem;
+      color: #64748b;
+      margin-bottom: 12px;
+    }
+    .path {
+      font-family: monospace;
+      background: #f1f5f9;
+      padding: 8px 16px;
+      border-radius: 8px;
+      color: #475569;
+      margin: 16px 0;
+      word-break: break-all;
+    }
+    .hint {
+      font-size: 0.95rem;
+      color: #94a3b8;
+      margin-bottom: 24px;
+    }
+    .btn-home {
+      display: inline-block;
+      background: #3b82f6;
+      color: #fff;
+      padding: 14px 32px;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.2s ease;
+    }
+    .btn-home:hover {
+      background: #2563eb;
+      transform: translateY(-2px);
+    }
+    .corr-id {
+      margin-top: 24px;
+      font-size: 0.75rem;
+      color: #94a3b8;
+      font-family: monospace;
+      opacity: 0.7;
+    }
+    .valid-routes {
+      text-align: left;
+      margin: 24px 0;
+      padding: 16px;
+      background: #f8fafc;
+      border-radius: 8px;
+    }
+    .valid-routes h3 {
+      font-size: 0.9rem;
+      color: #64748b;
+      margin-bottom: 8px;
+    }
+    .valid-routes ul {
+      list-style: none;
+      font-size: 0.85rem;
+      color: #475569;
+    }
+    .valid-routes li {
+      padding: 4px 0;
+    }
+    .valid-routes code {
+      background: #e2e8f0;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="error-container" role="alert">
+    <div class="error-code">404</div>
+    <h1>Page Not Found</h1>
+    <p class="message">The page you're looking for doesn't exist or has been moved.</p>
+    <div class="path">${escapeHtml(path)}</div>
+    <div class="valid-routes">
+      <h3>Valid pages:</h3>
+      <ul>
+        <li><code>/events</code> - Public events</li>
+        <li><code>/admin</code> - Event management</li>
+        <li><code>/display</code> - TV/Kiosk display</li>
+        <li><code>/poster</code> - Poster generator</li>
+        <li><code>/status</code> - Health check</li>
+      </ul>
+    </div>
+    <a href="/events" class="btn-home">Go to Events</a>
+    ${corrId ? `<p class="corr-id">Reference: ${escapeHtml(corrId)}</p>` : ''}
+  </div>
+</body>
+</html>`;
+}
+
+/**
+ * Generate 404 JSON error response for API requests
+ * @param {Object} options - Error options
+ * @param {string} options.path - The requested path
+ * @param {string} options.action - The invalid action requested
+ * @param {string} options.corrId - Correlation ID
+ * @returns {Object} JSON object
+ */
+function generate404Json(options) {
+  const { path = '/', action = null, corrId = '' } = options;
+
+  return {
+    ok: false,
+    code: 'NOT_FOUND',
+    message: action
+      ? `Unknown API action: ${action}`
+      : `Route not found: ${path}`,
+    corrId,
+    workerVersion: WORKER_VERSION,
+    validActions: action ? CANONICAL_API_ACTIONS.slice(0, 5).concat(['...']) : undefined
+  };
+}
+
+/**
+ * Create 404 response based on request type
+ * @param {URL} url - The request URL
+ * @param {boolean} isApiRequest - Whether this is an API request
+ * @param {string} corrId - Correlation ID
+ * @returns {Response} 404 response
+ */
+function create404Response(url, isApiRequest, corrId) {
+  const path = url.pathname + url.search;
+
+  if (isApiRequest) {
+    const action = url.searchParams.get('action');
+    const json = generate404Json({ path, action, corrId });
+
+    return new Response(JSON.stringify(json), {
+      status: 404,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'X-Proxied-By': 'eventangle-worker',
+        'X-Worker-Version': WORKER_VERSION,
+        'X-Error-CorrId': corrId,
+        'Cache-Control': 'no-cache, no-store, must-revalidate'
+      }
+    });
+  }
+
+  const html = generate404Page({ path, corrId });
+
+  return new Response(html, {
+    status: 404,
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'X-Proxied-By': 'eventangle-worker',
+      'X-Worker-Version': WORKER_VERSION,
+      'X-Error-CorrId': corrId,
+      'Cache-Control': 'no-cache, no-store, must-revalidate'
+    }
+  });
+}
+
+/**
+ * Validate the incoming request and return validation result
+ * @param {URL} url - The request URL
+ * @returns {Object} { valid: boolean, reason?: string, isApiRequest: boolean }
+ */
+function validateRoute(url) {
+  const page = url.searchParams.get('page');
+  const p = url.searchParams.get('p');
+  const action = url.searchParams.get('action');
+  const pathname = url.pathname;
+
+  // Check for API request indicators
+  const isApiRequest = url.searchParams.has('action') ||
+                       url.searchParams.has('api') ||
+                       url.searchParams.get('format') === 'json' ||
+                       pathname.startsWith('/api');
+
+  // If ?action= is present, validate it
+  if (action) {
+    if (!isValidAction(action)) {
+      return { valid: false, reason: `Unknown action: ${action}`, isApiRequest: true };
+    }
+    return { valid: true, isApiRequest: true };
+  }
+
+  // If ?page= is present, validate it
+  if (page) {
+    if (!isValidPage(page)) {
+      return { valid: false, reason: `Unknown page: ${page}`, isApiRequest };
+    }
+    return { valid: true, isApiRequest };
+  }
+
+  // If ?p= is present, validate it
+  if (p) {
+    if (!isValidPRoute(p)) {
+      return { valid: false, reason: `Unknown p route: ${p}`, isApiRequest };
+    }
+    return { valid: true, isApiRequest };
+  }
+
+  // Validate path-based routing
+  const segments = pathname.split('/').filter(Boolean);
+
+  // Empty path or root - defaults to events (public)
+  if (segments.length === 0) {
+    return { valid: true, isApiRequest };
+  }
+
+  const firstSegment = segments[0].toLowerCase();
+
+  // Check if first segment is valid
+  if (!isValidPathSegment(firstSegment)) {
+    return { valid: false, reason: `Unknown path: ${pathname}`, isApiRequest };
+  }
+
+  // If first segment is a brand, validate second segment (if present)
+  if (VALID_BRANDS.includes(firstSegment) && segments.length > 1) {
+    const secondSegment = segments[1].toLowerCase();
+    if (!CANONICAL_PATH_TO_PAGE.hasOwnProperty(secondSegment)) {
+      return { valid: false, reason: `Unknown path: ${pathname}`, isApiRequest };
+    }
+  }
+
+  return { valid: true, isApiRequest };
+}
+
+/**
  * Log error details for diagnostics
  * @param {Object} env - Worker environment
  * @param {Object} errorDetails - Error information to log
@@ -384,13 +789,31 @@ export default {
       return corsResponse;
     }
 
+    // ==========================================================================
+    // ROUTE VALIDATION - Reject unknown routes with 404
+    // ==========================================================================
+    const validation = validateRoute(url);
+
+    if (!validation.valid) {
+      const corrId = generateCorrId();
+
+      // Log the invalid route attempt
+      ctx.waitUntil(logError(env, {
+        corrId,
+        type: 'invalid_route',
+        reason: validation.reason,
+        url: url.pathname + url.search,
+        isApiRequest: validation.isApiRequest
+      }));
+
+      console.log(`[EventAngle] 404 - ${validation.reason}`);
+      return create404Response(url, validation.isApiRequest, corrId);
+    }
+
     // Determine request type:
     // - API requests: ?action=* or ?api=* or /api/* → proxy with CORS headers
     // - Page requests: ?page=* or path-based → proxy and return HTML directly (no JSON wrapping)
-    const isApiRequest = url.searchParams.has('action') ||
-                         url.searchParams.has('api') ||
-                         url.searchParams.get('format') === 'json' ||
-                         url.pathname.startsWith('/api');
+    const isApiRequest = validation.isApiRequest;
 
     try {
       let response;
@@ -498,20 +921,10 @@ async function proxyPageRequest(request, appsScriptBase, url, env) {
   // Build query params, adding page= if not present
   const params = new URLSearchParams(url.search);
   if (!params.has('page')) {
-    // Map path prefix to page parameter
-    const pathToPage = {
-      'events': 'public', 'manage': 'admin', 'admin': 'admin',
-      'display': 'display', 'tv': 'display', 'kiosk': 'display',
-      'screen': 'display', 'poster': 'poster', 'posters': 'poster',
-      'flyers': 'poster', 'status': 'status', 'health': 'status',
-      'ping': 'ping',  // Ultra-simple uptime check endpoint
-      'analytics': 'report', 'reports': 'report', 'insights': 'report',
-      'stats': 'report', 'schedule': 'public', 'calendar': 'public',
-      'dashboard': 'admin', 'create': 'admin', 'docs': 'admin'
-    };
+    // Use canonical path-to-page mapping (defined at top of file)
     const firstSegment = url.pathname.split('/').filter(Boolean)[0] || 'events';
-    const mappedPage = pathToPage[firstSegment];
-    if (mappedPage) {
+    const mappedPage = CANONICAL_PATH_TO_PAGE[firstSegment];
+    if (mappedPage && mappedPage !== 'api') {
       params.set('page', mappedPage);
     }
   }
