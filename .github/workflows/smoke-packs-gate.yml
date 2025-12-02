@@ -68,8 +68,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # Default to staging for safe testing
-  DEFAULT_BASE_URL: 'https://stg.eventangle.com'
+  # Default to production (more reliable than staging)
+  DEFAULT_BASE_URL: 'https://www.eventangle.com'
   STAGING_URL: 'https://stg.eventangle.com'
   PRODUCTION_URL: 'https://www.eventangle.com'
 
@@ -95,7 +95,7 @@ jobs:
         run: npm ci
 
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install --with-deps chromium webkit
 
       - name: Determine BASE_URL
         id: env-setup
@@ -103,19 +103,19 @@ jobs:
           echo "Determining target BASE_URL..."
           echo ""
 
-          # Priority: Custom URL > Environment Selection > Default (staging)
+          # Priority: Custom URL > Environment Selection > Default (production)
           if [[ -n "${{ inputs.base_url }}" ]]; then
             BASE_URL="${{ inputs.base_url }}"
             echo "Using custom BASE_URL: $BASE_URL"
-          elif [[ "${{ inputs.environment }}" == "production" ]]; then
-            BASE_URL="${{ env.PRODUCTION_URL }}"
-            echo "Using PRODUCTION: $BASE_URL"
           elif [[ "${{ inputs.environment }}" == "staging" ]]; then
             BASE_URL="${{ env.STAGING_URL }}"
             echo "Using STAGING: $BASE_URL"
+          elif [[ "${{ inputs.environment }}" == "production" ]]; then
+            BASE_URL="${{ env.PRODUCTION_URL }}"
+            echo "Using PRODUCTION: $BASE_URL"
           else
             BASE_URL="${{ env.DEFAULT_BASE_URL }}"
-            echo "Using DEFAULT (staging): $BASE_URL"
+            echo "Using DEFAULT (production): $BASE_URL"
           fi
 
           # Set brand
@@ -127,6 +127,34 @@ jobs:
           echo "Configuration:"
           echo "  BASE_URL: $BASE_URL"
           echo "  BRAND: $BRAND"
+
+      - name: Warmup - Check deployment health
+        id: warmup
+        continue-on-error: true
+        run: |
+          echo "🔥 Warming up deployment before tests..."
+          BASE_URL="${{ steps.env-setup.outputs.base_url }}"
+
+          # Try to hit status endpoint to wake up cold instances
+          for i in 1 2 3; do
+            echo "  Attempt $i: Checking $BASE_URL/status..."
+            RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/status" --max-time 30 || echo "000")
+            echo "  Response code: $RESPONSE"
+
+            if [[ "$RESPONSE" == "200" ]]; then
+              echo "✅ Deployment is responding"
+              echo "healthy=true" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+
+            if [[ $i -lt 3 ]]; then
+              echo "  Waiting 5s before retry..."
+              sleep 5
+            fi
+          done
+
+          echo "⚠️ Warning: Deployment may be slow to respond"
+          echo "healthy=false" >> $GITHUB_OUTPUT
 
       - name: Run Smoke Pack - Pages
         id: smoke-pages
