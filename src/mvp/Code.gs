@@ -3216,6 +3216,33 @@ const EVENT_DEFAULTS_ = {
  * @see EVENT_CONTRACT.md
  * @private
  */
+/**
+ * _buildEventContract_ - Build canonical Event shape from database row
+ *
+ * STORY 6: This is THE single source of truth for event hydration.
+ * All bundle endpoints (Public, Display, Poster, Admin, SharedReport) call this
+ * through getEventById_(), ensuring consistent v2 contract compliance.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * LEGACY FIELD MAPPINGS (Story 6: Documented, NOT Required for MVP)
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * These legacy fields are automatically migrated to canonical names at read time:
+ *
+ * | Legacy Field          | Canonical Field       | Notes                        |
+ * |-----------------------|-----------------------|------------------------------|
+ * | dateISO               | startDateISO          | YYYY-MM-DD format            |
+ * | location              | venue                 | String, venue name           |
+ * | venueName             | venue                 | Alternative legacy name      |
+ * | ctaLabels[]           | ctas.{primary,second} | Array → object conversion    |
+ * | sections.*.enabled    | settings.show*        | Object → boolean conversion  |
+ * | videoUrl              | media.videoUrl        | Moved to media object        |
+ * | mapEmbedUrl           | media.mapUrl          | Moved to media object        |
+ * | sponsorIds            | sponsors[]            | Hydrated from SPONSORS sheet |
+ *
+ * Frontend consumers MUST read from canonical fields only.
+ * Legacy fields are NOT exposed in API responses.
+ * ═══════════════════════════════════════════════════════════════════════════════
+ */
 function _buildEventContract_(row, options = {}) {
   const [id, brandId, templateId, dataJson, createdAt, slug] = row;
   const data = safeJSONParse_(dataJson, {});
@@ -3366,6 +3393,7 @@ function _buildEventContract_(row, options = {}) {
 
   // ═══════════════════════════════════════════════════════════════════════════
   // CANONICAL EVENT SHAPE - MUST MATCH /schemas/event.schema.json
+  // Story 6: All bundles return this shape, validated by validateEventContractV2
   // ═══════════════════════════════════════════════════════════════════════════
   return {
     // Identity (MVP Required)
@@ -3374,6 +3402,7 @@ function _buildEventContract_(row, options = {}) {
     name: data.name || '',
     startDateISO: startDateISO,
     venue: venue,
+    templateId: templateId || 'event',  // MVP Optional, defaults to 'event'
 
     // Links (MVP Required)
     links: links,
@@ -4887,7 +4916,7 @@ function getSponsorMetricsForEvent_(brand, eventId) {
 // Analytics and reporting APIs for SharedReport.html and exports.
 //
 // Key exports:
-//   api_getSharedReportBundle(p) - [LEGACY] Report bundle
+//   api_getSharedReportBundle(p) - Report bundle (Story 6: v2 compliant)
 //   getEventMetricsForReport_(b, id) - Get event metrics from ANALYTICS
 //   api_getReport(req)           - Get report data
 //   api_exportReport(req)        - Export report to spreadsheet
@@ -4897,30 +4926,32 @@ function getSponsorMetricsForEvent_(brand, eventId) {
 // =============================================================================
 
 /**
- * [LEGACY] api_getSharedReportBundle - Optimized bundle for shared analytics reports
+ * api_getSharedReportBundle - Bundle for shared analytics reports
  *
- * NOT CANONICAL (Story 6): This endpoint is NOT used by SharedReport.html MVP surface.
- * SharedReport.html uses the canonical 3-endpoint set:
+ * STORY 6 UPDATE: Now returns FULL canonical event per EVENT_CONTRACT.md v2.0.
+ * Previously returned thin event subset - now follows same pattern as other bundles.
+ *
+ * SharedReport.html uses the canonical 3-endpoint set for primary access:
  *   - api_getSharedAnalytics
  *   - api_getSponsorAnalytics
  *   - api_getSponsorReportQr
  *
- * Kept for backward compatibility with direct action-based URL access.
- * Consider removing in future cleanup.
+ * This bundle provides a single-call alternative with full event + metrics.
+ * Event passes validateEventContractV2 for consistent contract compliance.
  *
  * @param {object} payload - { brandId, scope, id, ifNoneMatch }
- * @returns {object} { ok, value: SharedReportBundle, etag }
- * @tier legacy
- * @deprecated Use api_getSharedAnalytics instead
+ * @returns {object} { ok, value: { event: EventCore, metrics: SharedMetrics }, etag }
+ * @tier mvp
  */
 function api_getSharedReportBundle(payload){
   return runSafe('api_getSharedReportBundle', () => {
     const { brandId, scope, id } = payload||{};
 
-    // Use single source of truth loader with contract validation (no sponsors for reports)
+    // Use single source of truth loader with contract validation
+    // Story 6: Now hydrates sponsors for full v2 contract compliance
     const result = getEventById_(brandId, id, {
       scope: scope || 'events',
-      hydrateSponsors: false
+      hydrateSponsors: true
     });
 
     if (!result.ok) return result;
@@ -4932,19 +4963,12 @@ function api_getSharedReportBundle(payload){
     // Get event metrics from ANALYTICS sheet
     const metrics = getEventMetricsForReport_(brand, sanitizedId);
 
-    // Build thin event view per EVENT_CONTRACT.md v2.0
-    // Derived DTO from canonical Event - uses only contract fields
-    const thinEvent = {
-      id: event.id,
-      name: event.name,
-      startDateISO: event.startDateISO,  // MVP Required (was: dateTime)
-      venue: event.venue,                 // MVP Required
-      templateId: event.templateId
-    };
-
-    // Build bundled response matching SharedReportBundle interface
+    // Story 6: Return FULL canonical event (passes validateEventContractV2)
+    // Previously returned thin event subset - now v2 compliant like other bundles
     const value = {
-      event: thinEvent,
+      // Full canonical event shape per EVENT_CONTRACT.md v2.0
+      event: event,
+      // Aggregated metrics from ANALYTICS sheet
       metrics: metrics
     };
 
