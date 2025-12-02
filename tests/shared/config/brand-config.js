@@ -1,8 +1,10 @@
 /**
  * Per-Brand Test Configuration
  *
- * Provides brand-specific configuration for tests, mirroring the
- * per-brand spreadsheet support in src/mvp/Config.gs
+ * Re-exports brand configuration from the centralized source of truth.
+ * This file provides test-specific utilities and maintains backward compatibility.
+ *
+ * Centralized Source: config/brand-config.js
  *
  * Environment Variables:
  *   SPREADSHEET_ID       - Shared spreadsheet for all brands (fallback)
@@ -20,40 +22,25 @@
  * Priority: Brand-specific > Shared > Default
  */
 
-const { getEnvironment, BRANDS: ENV_BRANDS } = require('../../../config/environments');
+// Import from centralized source of truth
+const centralConfig = require('../../../config/brand-config');
+const { getEnvironment } = require('../../../config/environments');
 
-// Default spreadsheet ID (matches Config.gs DEFAULT_SPREADSHEET_ID)
-const DEFAULT_SPREADSHEET_ID = '1SV1oZMq4GbZBaRc0YmTeV02Tl5KXWD8R6FZXC7TwVCQ';
-
-// All valid brand IDs
-const BRANDS = Object.freeze(['root', 'abc', 'cbc', 'cbl']);
+// Re-export core constants from centralized config
+const { BRANDS, DEFAULT_SPREADSHEET_ID } = centralConfig;
 
 /**
- * Get configuration for a specific brand
+ * Get configuration for a specific brand (test-enhanced version)
+ *
+ * Adds baseUrl from environment config on top of central brand config.
  *
  * @param {string} brandId - Brand ID (root, abc, cbc, cbl)
- * @returns {Object} Brand configuration
+ * @returns {Object} Brand configuration with baseUrl
  */
 function getBrandConfig(brandId) {
-  if (!brandId || !BRANDS.includes(brandId)) {
-    brandId = 'root';
-  }
+  const config = centralConfig.getBrandConfig(brandId);
 
-  const upperBrand = brandId.toUpperCase();
-
-  // Get spreadsheet ID with priority: brand-specific > shared > default
-  const spreadsheetId =
-    process.env[`SPREADSHEET_ID_${upperBrand}`] ||
-    process.env.SPREADSHEET_ID ||
-    DEFAULT_SPREADSHEET_ID;
-
-  // Get admin key with priority: brand-specific > shared
-  const adminKey =
-    process.env[`ADMIN_KEY_${upperBrand}`] ||
-    process.env.ADMIN_KEY ||
-    null;
-
-  // Get base URL from environment config (canonical source)
+  // Add baseUrl from environment config
   let baseUrl;
   try {
     const env = getEnvironment();
@@ -63,18 +50,13 @@ function getBrandConfig(brandId) {
   }
 
   return {
-    brandId,
-    spreadsheetId,
-    adminKey,
-    baseUrl,
-    hasAdminKey: !!adminKey,
-    hasDedicatedSpreadsheet: !!process.env[`SPREADSHEET_ID_${upperBrand}`],
-    isConfigured: !!adminKey && !!spreadsheetId
+    ...config,
+    baseUrl
   };
 }
 
 /**
- * Get configurations for all brands
+ * Get configurations for all brands (test-enhanced version)
  *
  * @returns {Object} Map of brand ID to configuration
  */
@@ -126,7 +108,7 @@ function isBrandConfigured(brandId) {
 function forEachBrand(testFn, options = {}) {
   const { onlyConfigured = false, brands = null } = options;
 
-  let brandsToTest = brands || BRANDS;
+  let brandsToTest = brands || [...BRANDS];
 
   if (onlyConfigured) {
     brandsToTest = brandsToTest.filter(brandId =>
@@ -179,7 +161,7 @@ function printBrandConfigSummary() {
     const config = getBrandConfig(brandId);
     const spreadsheetStatus = config.hasDedicatedSpreadsheet ? 'dedicated' : 'shared';
     const adminStatus = config.hasAdminKey ? '****' : '(not set)';
-    console.log(`  ${brandId.toUpperCase()}:`);
+    console.log(`  ${brandId.toUpperCase()} (${config.brandName}):`);
     console.log(`    Spreadsheet: ${config.spreadsheetId.substring(0, 20)}... (${spreadsheetStatus})`);
     console.log(`    Admin Key: ${adminStatus}`);
   });
@@ -191,11 +173,17 @@ function printBrandConfigSummary() {
 }
 
 module.exports = {
-  // Constants
+  // Constants (from centralized source)
   BRANDS,
   DEFAULT_SPREADSHEET_ID,
 
-  // Configuration getters
+  // Centralized metadata access
+  BRAND_METADATA: centralConfig.BRAND_METADATA,
+  getBrandMetadata: centralConfig.getBrandMetadata,
+  getBrandName: centralConfig.getBrandName,
+  isValidBrand: centralConfig.isValidBrand,
+
+  // Configuration getters (test-enhanced with baseUrl)
   getBrandConfig,
   getAllBrandConfigs,
   getConfiguredBrands,

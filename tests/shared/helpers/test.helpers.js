@@ -7,6 +7,9 @@
  * - Test data factories
  */
 
+// Import brand configuration from centralized source
+const { BRANDS } = require('../../../config/brand-config');
+
 /**
  * Validates API response envelope structure
  * Ensures all responses follow Ok/Err pattern
@@ -299,25 +302,28 @@ const dateHelpers = {
 
 /**
  * Multi-brand test helpers
+ *
+ * BRANDS is imported from config/brand-config.js (single source of truth)
  */
 const brandHelpers = {
   /**
-   * Valid brand IDs from Config.gs
+   * Valid brand IDs from centralized config
+   * @see config/brand-config.js
    */
-  BRANDS: ['root', 'abc', 'cbc', 'cbl'],
+  BRANDS,
 
   /**
    * Get a random brand ID
    */
   randomBrand: () => {
-    return brandHelpers.BRANDS[Math.floor(Math.random() * brandHelpers.BRANDS.length)];
+    return BRANDS[Math.floor(Math.random() * BRANDS.length)];
   },
 
   /**
    * Get a different brand ID (for cross-brand tests)
    */
   differentBrand: (currentBrand) => {
-    const others = brandHelpers.BRANDS.filter(t => t !== currentBrand);
+    const others = BRANDS.filter(t => t !== currentBrand);
     return others[Math.floor(Math.random() * others.length)];
   },
 

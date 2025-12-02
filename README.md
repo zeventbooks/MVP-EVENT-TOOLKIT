@@ -118,13 +118,82 @@ The application supports three environments: **Dev**, **Staging**, and **Product
 | **Production** | `https://www.eventangle.com` | Customer-facing | `npm run test:prod:smoke` |
 | **GAS Direct** | `https://script.google.com/macros/s/{ID}/exec` | Debugging | `BASE_URL="..." npm run test:smoke` |
 
-### Brand Defaults Per Environment
+### Brand Configuration
 
-All environments support these brands (configured in `src/mvp/Config.gs`):
-- `root` - Zeventbook (default)
-- `abc` - American Bocce Co.
-- `cbc` - Community Based Cricket
-- `cbl` - Community Based League
+#### Single Source of Truth
+
+Brand metadata is centralized in **`config/brand-config.js`**:
+
+| Brand ID | Name | Type | Description |
+|----------|------|------|-------------|
+| `root` | Zeventbook | standalone | Default platform brand |
+| `abc` | American Bocce Co. | parent | Parent organization for bocce brands |
+| `cbc` | Chicago Bocce Club | child (of abc) | Community bocce club |
+| `cbl` | Chicago Bocce League | child (of abc) | Competitive bocce league |
+
+#### How to Add a New Brand
+
+1. **Add brand metadata** in `config/brand-config.js` (BRAND_METADATA object):
+   ```javascript
+   newbrand: {
+     id: 'newbrand',
+     name: 'New Brand Name',
+     type: 'standalone', // or 'parent' / 'child'
+     description: 'Description of the brand'
+   }
+   ```
+
+2. **Update backend** in `src/mvp/Config.gs` (BRANDS array):
+   ```javascript
+   {
+     id: 'newbrand',
+     name: 'New Brand Name',
+     hostnames: ['newbrand.zeventbooks.io'],
+     store: { type: 'workbook', spreadsheetId: '...' },
+     scopesAllowed: ['events', 'sponsors']
+   }
+   ```
+
+3. **Update worker routing** in `cloudflare-proxy/worker.js` (VALID_BRANDS):
+   ```javascript
+   const VALID_BRANDS = Object.freeze(['root', 'abc', 'cbc', 'cbl', 'newbrand']);
+   ```
+
+4. **Set environment variables** (see below)
+
+5. **Run validation tests** to verify configuration:
+   ```bash
+   npm run test -- tests/unit/brand-config.test.js
+   ```
+
+#### Admin Keys & Spreadsheet IDs (Environment Variables)
+
+Secrets and per-brand configuration flow via environment variables, NOT hardcoded in config files.
+
+**Environment Variable Priority:** Brand-specific > Shared > Default
+
+| Variable | Purpose | Example |
+|----------|---------|---------|
+| `ADMIN_KEY` | Shared admin key (all brands) | `my-shared-secret` |
+| `ADMIN_KEY_ROOT` | Admin key for root brand | `root-secret-123` |
+| `ADMIN_KEY_ABC` | Admin key for ABC brand | `abc-secret-456` |
+| `SPREADSHEET_ID` | Shared spreadsheet (all brands) | `1SV1oZMq...` |
+| `SPREADSHEET_ID_ROOT` | Dedicated spreadsheet for root | `1ABC...` |
+| `SPREADSHEET_ID_ABC` | Dedicated spreadsheet for ABC | `1DEF...` |
+
+**Local Development** (`.env` file):
+```bash
+ADMIN_KEY=your-dev-admin-key
+# Or per-brand:
+ADMIN_KEY_ROOT=root-dev-key
+ADMIN_KEY_ABC=abc-dev-key
+```
+
+**Production** (Google Apps Script):
+- Set via: File > Project Properties > Script Properties
+- Or: `PropertiesService.getScriptProperties().setProperty('ADMIN_SECRET_ROOT', 'secret')`
+
+**CI/CD**: Configure secrets in GitHub Actions or your deployment platform.
 
 ### Environment Configuration
 
@@ -200,6 +269,7 @@ Historical analysis reports and experimental features are in `docs/archived/`
 ## Notes
 - Poster shows a QR only when the server returns a verified `posterUrl`
 - `EVENTS` & `DIAG` sheets are created on-demand in the bound spreadsheet
-- Add brands by extending `BRANDS` in `Config.gs`; later enable more scopes by adding `'leagues'` or `'tournaments'`
+- Add brands via `config/brand-config.js` (see [Brand Configuration](#brand-configuration) section above)
+- Enable more scopes per brand by adding `'leagues'` or `'tournaments'` to `scopesAllowed` in `Config.gs`
 
 # Last updated: 2025-11-30
