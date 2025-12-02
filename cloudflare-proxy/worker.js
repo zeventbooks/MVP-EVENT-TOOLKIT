@@ -154,14 +154,14 @@ const VALID_BRANDS = Object.freeze(['root', 'abc', 'cbc', 'cbl']);
  * Check if a page parameter is valid
  */
 function isValidPage(page) {
-  return page && CANONICAL_PAGES.hasOwnProperty(page);
+  return page && Object.hasOwn(CANONICAL_PAGES, page);
 }
 
 /**
  * Check if a ?p= shorthand is valid
  */
 function isValidPRoute(p) {
-  return p && CANONICAL_P_ROUTES.hasOwnProperty(p);
+  return p && Object.hasOwn(CANONICAL_P_ROUTES, p);
 }
 
 /**
@@ -176,7 +176,7 @@ function isValidAction(action) {
  */
 function isValidPathSegment(segment) {
   return segment && (
-    CANONICAL_PATH_TO_PAGE.hasOwnProperty(segment) ||
+    Object.hasOwn(CANONICAL_PATH_TO_PAGE, segment) ||
     VALID_BRANDS.includes(segment)
   );
 }
@@ -622,7 +622,7 @@ function validateRoute(url) {
   // If first segment is a brand, validate second segment (if present)
   if (VALID_BRANDS.includes(firstSegment) && segments.length > 1) {
     const secondSegment = segments[1].toLowerCase();
-    if (!CANONICAL_PATH_TO_PAGE.hasOwnProperty(secondSegment)) {
+    if (!Object.hasOwn(CANONICAL_PATH_TO_PAGE, secondSegment)) {
       return { valid: false, reason: `Unknown path: ${pathname}`, isApiRequest };
     }
   }

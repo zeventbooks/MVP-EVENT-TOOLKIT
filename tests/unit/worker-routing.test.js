@@ -266,13 +266,13 @@ describe('Route Validation Logic', () => {
 
     // Validate page
     if (page) {
-      const valid = constants.canonicalPages.hasOwnProperty(page);
+      const valid = Object.hasOwn(constants.canonicalPages, page);
       return { valid, isApiRequest, reason: valid ? null : `Unknown page: ${page}` };
     }
 
     // Validate p-route
     if (p) {
-      const valid = constants.canonicalPRoutes.hasOwnProperty(p);
+      const valid = Object.hasOwn(constants.canonicalPRoutes, p);
       return { valid, isApiRequest, reason: valid ? null : `Unknown p route: ${p}` };
     }
 
@@ -283,7 +283,7 @@ describe('Route Validation Logic', () => {
     }
 
     const firstSegment = segments[0].toLowerCase();
-    const isValidFirstSegment = constants.canonicalPaths.hasOwnProperty(firstSegment) ||
+    const isValidFirstSegment = Object.hasOwn(constants.canonicalPaths, firstSegment) ||
                                  constants.validBrands.includes(firstSegment);
 
     if (!isValidFirstSegment) {
@@ -293,7 +293,7 @@ describe('Route Validation Logic', () => {
     // Check brand + second segment
     if (constants.validBrands.includes(firstSegment) && segments.length > 1) {
       const secondSegment = segments[1].toLowerCase();
-      if (!constants.canonicalPaths.hasOwnProperty(secondSegment)) {
+      if (!Object.hasOwn(constants.canonicalPaths, secondSegment)) {
         return { valid: false, isApiRequest, reason: `Unknown path: ${pathname}` };
       }
     }
