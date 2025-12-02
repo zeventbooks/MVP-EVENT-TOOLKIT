@@ -257,44 +257,111 @@ function generateCorrId_(endpoint) {
 
 /**
  * Log a structured error with correlation ID for observability
+ * All errors are logged with: timestamp (via diag_), brandId, action, code, message
+ *
  * @param {string} level - Log level (error, warn, info)
  * @param {string} corrId - Correlation ID for tracing
- * @param {string} endpoint - API endpoint/function name
+ * @param {string} endpoint - API endpoint/function name (action)
  * @param {string} message - Error message
  * @param {string} stack - Error stack trace (optional)
  * @param {string} eventId - Event ID if applicable (optional)
  * @param {object} extra - Additional metadata (optional)
+ *   - code: Error code from ERR constants
+ *   - brandId: Brand identifier for multi-tenant logging
  */
 function logStructuredError_(level, corrId, endpoint, message, stack, eventId, extra = {}) {
   const structured = {
     level: level,
     corrId: corrId,
-    endpoint: endpoint,
+    action: endpoint, // action = endpoint for API telemetry
     message: message
   };
+  // Include error code if provided
+  if (extra.code) structured.code = extra.code;
+  // Include brandId if provided
+  if (extra.brandId) structured.brandId = extra.brandId;
+  if (stack) structured.stack = stack;
+  if (eventId) structured.eventId = eventId;
+  // Copy remaining extra fields (excluding code/brandId already handled)
+  const { code: _code, brandId: _brandId, ...rest } = extra;
+  if (Object.keys(rest).length > 0) {
+    Object.assign(structured, rest);
+  }
+  diag_(level, endpoint, `[${corrId}] ${message}`, structured);
+}
+
+/**
+ * Centralized error logging helper for error telemetry
+ * Logs: timestamp, brandId, action, code, message (all fields required by observability baseline)
+ *
+ * @param {object} params - Error parameters
+ * @param {string} params.code - Error code from ERR constants (required)
+ * @param {string} params.action - API action/endpoint name (required)
+ * @param {string} params.message - Human-readable error message (required)
+ * @param {string} params.brandId - Brand identifier (optional, defaults to 'unknown')
+ * @param {string} params.corrId - Correlation ID (optional, auto-generated if not provided)
+ * @param {string} params.stack - Stack trace (optional)
+ * @param {string} params.eventId - Event ID (optional)
+ * @param {object} params.extra - Additional context (optional)
+ */
+function logError(params) {
+  const {
+    code,
+    action,
+    message,
+    brandId = 'unknown',
+    corrId,
+    stack,
+    eventId,
+    extra = {}
+  } = params;
+
+  // Generate corrId if not provided
+  const finalCorrId = corrId || generateCorrId_(action);
+
+  // Build structured log entry with all required telemetry fields
+  const structured = {
+    timestamp: new Date().toISOString(),
+    brandId: brandId,
+    action: action,
+    code: code,
+    message: message,
+    corrId: finalCorrId
+  };
+
   if (stack) structured.stack = stack;
   if (eventId) structured.eventId = eventId;
   if (Object.keys(extra).length > 0) {
     Object.assign(structured, extra);
   }
-  diag_(level, endpoint, `[${corrId}] ${message}`, structured);
+
+  // Log to DIAG sheet via diag_
+  diag_('error', action, `[${finalCorrId}] [${code}] ${message}`, structured);
+
+  return finalCorrId;
 }
 
 /**
  * Creates an error response with correlation ID
  * - Logs detailed structured error internally (with stack trace)
  * - Returns sanitized error to client (with corrId, without stack)
+ * Logs: timestamp, brandId, action, code, message for telemetry
+ *
  * @param {string} code - Error code (ERR.*)
  * @param {string} internalMessage - Detailed internal message (logged, not shown to user)
- * @param {object} options - Options: { stack, eventId, endpoint, extra }
+ * @param {object} options - Options: { stack, eventId, endpoint, brandId, extra }
  * @returns {object} Error envelope with corrId and sanitized message
  */
 function ErrWithCorrId_(code, internalMessage, options = {}) {
-  const { stack, eventId, endpoint = 'api', extra = {} } = options;
+  const { stack, eventId, endpoint = 'api', brandId, extra = {} } = options;
   const corrId = generateCorrId_(endpoint);
 
-  // Log structured error with full details internally
-  logStructuredError_('error', corrId, endpoint, internalMessage, stack, eventId, extra);
+  // Log structured error with full details including code and brandId
+  logStructuredError_('error', corrId, endpoint, internalMessage, stack, eventId, {
+    ...extra,
+    code: code,
+    brandId: brandId || extra.brandId || 'unknown'
+  });
 
   // Return sanitized error to client with corrId but no stack
   return Err(code, `Something went wrong. Reference: ${corrId}`, corrId);
@@ -304,18 +371,24 @@ function ErrWithCorrId_(code, internalMessage, options = {}) {
 /**
  * Creates a user-friendly error response while logging detailed information internally
  * Now includes correlation ID for request tracing (Story 5.1)
+ * Logs: timestamp, brandId, action, code, message for telemetry
+ *
  * @param {string} code - Error code (ERR.*)
  * @param {string} internalMessage - Detailed internal message (logged, not shown to user)
- * @param {object} logDetails - Additional details to log (stack, eventId, extra)
+ * @param {object} logDetails - Additional details to log (stack, eventId, brandId, extra)
  * @param {string} where - Function name for logging context
  * @returns {object} Error envelope with corrId and sanitized message
  */
 function UserFriendlyErr_(code, internalMessage, logDetails = {}, where = 'api') {
-  const { stack, eventId, ...extra } = logDetails;
+  const { stack, eventId, brandId, ...extra } = logDetails;
   const corrId = generateCorrId_(where);
 
-  // Log structured error with full details internally
-  logStructuredError_('error', corrId, where, internalMessage, stack, eventId, extra);
+  // Log structured error with full details including code and brandId
+  logStructuredError_('error', corrId, where, internalMessage, stack, eventId, {
+    ...extra,
+    code: code,
+    brandId: brandId || extra.brandId || 'unknown'
+  });
 
   // Map error codes to generic user-facing messages (with corrId reference)
   const userMessages = {
@@ -336,23 +409,28 @@ function UserFriendlyErr_(code, internalMessage, logDetails = {}, where = 'api')
  * Creates an HTML error page with correlation ID for tracing
  * - Logs detailed structured error internally (with stack trace)
  * - Returns user-friendly HTML page with corrId (without stack)
+ * Logs: timestamp, brandId, action, code, message for telemetry
  * Story 11: HTML surfaces show generic error with correlation ID
  *
  * @param {string} title - Error title shown to user (e.g., "Invalid shortlink")
  * @param {string} internalMessage - Detailed internal message (logged, not shown)
- * @param {object} options - Options: { stack, eventId, endpoint, extra, spreadsheetId }
+ * @param {object} options - Options: { code, stack, eventId, endpoint, brandId, extra, spreadsheetId }
  * @returns {HtmlOutput} - HTML page with error message and correlation ID
  */
 function HtmlErrorWithCorrId_(title, internalMessage, options = {}) {
-  const { stack, eventId, endpoint = 'html', extra = {}, spreadsheetId } = options;
+  const { code = ERR.INTERNAL, stack, eventId, endpoint = 'html', brandId, extra = {}, spreadsheetId } = options;
   const corrId = generateCorrId_(endpoint);
 
-  // Log structured error with full details internally
-  logStructuredError_('error', corrId, endpoint, internalMessage, stack, eventId, extra);
+  // Log structured error with full details including code and brandId
+  logStructuredError_('error', corrId, endpoint, internalMessage, stack, eventId, {
+    ...extra,
+    code: code,
+    brandId: brandId || extra.brandId || 'unknown'
+  });
 
   // Also log to DIAG sheet if spreadsheetId is provided
   if (spreadsheetId) {
-    diag_('error', endpoint, `[${corrId}] ${internalMessage}`, { corrId, ...extra }, spreadsheetId);
+    diag_('error', endpoint, `[${corrId}] [${code}] ${internalMessage}`, { corrId, code, brandId: brandId || 'unknown', ...extra }, spreadsheetId);
   }
 
   // Return user-friendly HTML with corrId but no internal details
@@ -6320,7 +6398,7 @@ function api_createFormFromTemplate(req){
 
     } catch(e) {
       diag_('error','api_createFormFromTemplate','failed',{error: e.toString(), templateType});
-      return Err(ERR.SERVER_ERROR, `Failed to create form: ${e.toString()}`);
+      return Err(ERR.INTERNAL, `Failed to create form: ${e.toString()}`);
     }
   });
 }

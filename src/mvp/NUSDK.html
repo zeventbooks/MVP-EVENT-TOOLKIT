@@ -39,6 +39,62 @@ See ApiSchemas.gs for full endpoint inventory and schemas.
 <script>
 window.NU = {
   /**
+   * Error telemetry: structured error log buffer
+   * Prevents spam by deduplicating errors within a short time window
+   * @private
+   */
+  _errorLog: [],
+  _errorDedupeWindow: 5000, // 5 seconds deduplication window
+
+  /**
+   * Structured error logging for telemetry
+   * Logs a single structured error when API returns ok:false (no spam)
+   *
+   * @param {object} params - Error parameters
+   * @param {string} params.method - API method that failed
+   * @param {string} params.code - Error code from response
+   * @param {string} params.message - Error message
+   * @param {string} params.corrId - Correlation ID if available
+   * @private
+   */
+  _logError(params) {
+    const { method, code, message, corrId } = params;
+    const timestamp = new Date().toISOString();
+
+    // Dedupe key: method + code within time window
+    const dedupeKey = `${method}:${code}`;
+    const now = Date.now();
+
+    // Check for recent duplicate
+    const recentError = NU._errorLog.find(e =>
+      e.key === dedupeKey && (now - e.time) < NU._errorDedupeWindow
+    );
+
+    if (recentError) {
+      // Skip duplicate error within time window
+      return;
+    }
+
+    // Add to error log (keep last 50 entries)
+    NU._errorLog.push({ key: dedupeKey, time: now });
+    if (NU._errorLog.length > 50) {
+      NU._errorLog.shift();
+    }
+
+    // Build structured error entry
+    const errorEntry = {
+      timestamp,
+      method,
+      code: code || 'UNKNOWN',
+      message: message || 'Unknown error'
+    };
+    if (corrId) errorEntry.corrId = corrId;
+
+    // Single structured console output for telemetry
+    console.error('[NUSDK:Error]', JSON.stringify(errorEntry));
+  },
+
+  /**
    * Make an RPC call to the Google Apps Script backend
    * @param {string} method - API method name (e.g., 'api_getPublicBundle')
    * @param {object} payload - Request parameters
@@ -106,6 +162,7 @@ window.NU = {
   /**
    * Safe RPC wrapper with graceful error handling for UI display
    * Normalizes all error types to a consistent format for StateRenderer
+   * Logs structured errors for telemetry when API returns ok:false
    *
    * @param {string} method - API method name
    * @param {object} payload - Request parameters
@@ -127,8 +184,14 @@ window.NU = {
           corrId: res.corrId
         };
 
+        // Log single structured error for telemetry (no spam via dedupe)
         if (!silent) {
-          console.warn(`[NUSDK] API error for ${method}:`, errorInfo.code, errorInfo.message);
+          NU._logError({
+            method,
+            code: errorInfo.code,
+            message: errorInfo.message,
+            corrId: errorInfo.corrId
+          });
         }
 
         if (onError) {
@@ -148,8 +211,13 @@ window.NU = {
         message: 'We\'re having trouble connecting. Please check your connection and try again.'
       };
 
+      // Log structured error for network failures
       if (!silent) {
-        console.error(`[NUSDK] Network/runtime error for ${method}:`, e);
+        NU._logError({
+          method,
+          code: errorInfo.code,
+          message: e?.message || errorInfo.message
+        });
       }
 
       if (onError) {
