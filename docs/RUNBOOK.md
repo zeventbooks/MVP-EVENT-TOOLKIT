@@ -6,12 +6,14 @@ This runbook provides step-by-step procedures for diagnosing and resolving commo
 
 ## Quick Reference
 
+**External uptime / SLO is measured via `?p=status`.**
+
 ### Health Check URLs
 
 | Check | URL | Expected Response |
 |-------|-----|-------------------|
 | Ping | `https://www.eventangle.com/ping` | `{"status":"ok"}` |
-| Status | `https://www.eventangle.com/status` | `{"ok":true,...}` |
+| Status (SLO anchor) | `https://www.eventangle.com/status` | `{"ok":true,"db":{"ok":true},...}` |
 | Setup | `https://www.eventangle.com/status?p=setup` | 6-point diagnostic |
 
 ### Data Health Sheets

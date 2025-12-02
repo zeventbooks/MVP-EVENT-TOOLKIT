@@ -2,6 +2,8 @@
 
 External uptime monitoring ensures you're alerted immediately when the system goes down, not when users start complaining.
 
+**External uptime / SLO is measured via `?p=status`.**
+
 ## Production Endpoints
 
 | Endpoint | URL | Purpose |
@@ -17,13 +19,14 @@ External uptime monitoring ensures you're alerted immediately when the system go
 {"status":"ok"}
 ```
 
-**`/status`**:
+**`/status`** (SLO anchor):
 ```json
 {
   "ok": true,
   "buildId": "mvp-v19",
   "brandId": "root",
-  "time": "2025-12-01T10:30:00.000Z"
+  "time": "2025-12-01T10:30:00.000Z",
+  "db": { "ok": true }
 }
 ```
 

@@ -2387,13 +2387,22 @@ function api_status(brandId){
 }
 
 /**
- * Pure status endpoint for health checks - no external dependencies
+ * Pure status endpoint for health checks - production SLO anchor
  * Returns a flat JSON response suitable for quick health monitoring.
- * This endpoint is intentionally pure: no sheet writes, no external services,
- * no auth failure scenarios. If brand is invalid, returns ok:false with message.
+ *
+ * External uptime / SLO is measured via ?p=status.
+ *
+ * This endpoint is the canonical health check for production monitoring:
+ * - Always returns flat JSON (never HTML)
+ * - Includes optional db.ok health flag for datastore connectivity
+ * - Fast and reliable for SLO measurement
+ *
+ * If brand is invalid, returns ok:false with message.
+ * If db check fails, returns ok:true but db.ok:false (API is live, db is not).
+ *
  * @tier mvp
  * @param {string} brandId - Brand identifier (defaults to 'root')
- * @returns {Object} Flat status object { ok, buildId, brandId, time, [message] }
+ * @returns {Object} Flat status object { ok, buildId, brandId, time, db: { ok }, [message] }
  */
 function api_statusPure(brandId) {
   const brand = brandId ? findBrand_(brandId) : findBrand_('root');
@@ -2404,15 +2413,29 @@ function api_statusPure(brandId) {
       buildId: ZEB.BUILD_ID,
       brandId: brandId || 'unknown',
       time: new Date().toISOString(),
+      db: { ok: false },
       message: `Brand not found: ${brandId || 'undefined'}`
     };
+  }
+
+  // Optional db health check - fast spreadsheet connectivity test
+  let dbOk = false;
+  try {
+    if (brand.store && brand.store.spreadsheetId) {
+      const ss = SpreadsheetApp.openById(brand.store.spreadsheetId);
+      dbOk = !!ss;
+    }
+  } catch (e) {
+    // db check failed - report but don't fail the overall status
+    dbOk = false;
   }
 
   return {
     ok: true,
     buildId: ZEB.BUILD_ID,
     brandId: brand.id,
-    time: new Date().toISOString()
+    time: new Date().toISOString(),
+    db: { ok: dbOk }
   };
 }
 

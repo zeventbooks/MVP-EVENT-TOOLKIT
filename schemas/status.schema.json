@@ -1,15 +1,15 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://eventangle.com/schemas/status.schema.json",
   "title": "Status Response",
-  "description": "Canonical status endpoint response contract for health checks and monitoring. This is the single source of truth for BUILD_ID and BRAND_ID.",
+  "description": "Canonical status endpoint response contract for health checks and monitoring. This is the single source of truth for BUILD_ID and BRAND_ID. External uptime / SLO is measured via ?p=status.",
   "type": "object",
   "required": ["ok", "buildId", "brandId", "time"],
   "additionalProperties": false,
   "properties": {
     "ok": {
       "type": "boolean",
-      "description": "Health status. True if the service is operational."
+      "description": "Health status. True if the service is operational and responding correctly."
     },
     "buildId": {
       "type": "string",
@@ -32,6 +32,18 @@
       "format": "date-time",
       "description": "Server timestamp in ISO 8601 format."
     },
+    "db": {
+      "type": "object",
+      "description": "Optional database/datastore health status.",
+      "required": ["ok"],
+      "additionalProperties": false,
+      "properties": {
+        "ok": {
+          "type": "boolean",
+          "description": "True if the backend datastore (spreadsheet) is accessible."
+        }
+      }
+    },
     "message": {
       "type": "string",
       "maxLength": 500,
@@ -43,13 +55,15 @@
       "ok": true,
       "buildId": "mvp-v19",
       "brandId": "root",
-      "time": "2025-11-28T12:00:00.000Z"
+      "time": "2025-11-28T12:00:00.000Z",
+      "db": { "ok": true }
     },
     {
       "ok": false,
       "buildId": "mvp-v19",
       "brandId": "unknown",
       "time": "2025-11-28T12:00:00.000Z",
+      "db": { "ok": false },
       "message": "Brand not found: invalid"
     }
   ]
