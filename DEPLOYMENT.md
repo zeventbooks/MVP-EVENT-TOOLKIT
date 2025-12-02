@@ -17,9 +17,31 @@ A boring, step-by-step checklist for shipping a release.
 
 | Environment | URL | GAS Project | Cloudflare Env | Who Can Deploy |
 |-------------|-----|-------------|----------------|----------------|
-| **Dev** | `localhost` / GAS exec URL | Production (read-only) | N/A | Developers |
+| **Dev** | `http://localhost:3000` | Production (read-only) | N/A | Developers |
 | **Staging** | `https://stg.eventangle.com` | Staging Script | `--env staging` | Developers, CI |
 | **Production** | `https://www.eventangle.com` | Production Script | `--env events` | **CI ONLY** |
+
+### Environment Configuration (Single Source of Truth)
+
+All environment URLs and brand defaults are defined in:
+
+```
+config/environments.js    # Canonical source - all tests import from here
+tests/config/environments.js    # Re-exports from canonical source
+```
+
+**Key URLs:**
+- **Production**: `https://www.eventangle.com`
+- **Staging**: `https://stg.eventangle.com`
+- **QA**: `https://zeventbooks.com`
+- **Local**: `http://localhost:3000`
+- **GAS Direct**: `https://script.google.com/macros/s/{DEPLOYMENT_ID}/exec`
+
+**Brands (all environments):**
+- `root` - Zeventbook (default)
+- `abc` - American Bocce Co.
+- `cbc` - Community Based Cricket
+- `cbl` - Community Based League
 
 ### Key Principles
 
@@ -27,6 +49,7 @@ A boring, step-by-step checklist for shipping a release.
 2. **Production testing requires explicit `test:prod:*`** - Prevents accidental prod load
 3. **Only CI deploys to production** - Human error prevention
 4. **Staging mirrors production** - Same routes, different GAS backend
+5. **Single source of truth** - All URLs defined in `config/environments.js`
 
 ### How to Deploy to Each Environment
 

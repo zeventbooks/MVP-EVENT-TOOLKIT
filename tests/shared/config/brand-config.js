@@ -20,7 +20,7 @@
  * Priority: Brand-specific > Shared > Default
  */
 
-const { getCurrentEnvironment } = require('../environments') || {};
+const { getEnvironment, BRANDS: ENV_BRANDS } = require('../../../config/environments');
 
 // Default spreadsheet ID (matches Config.gs DEFAULT_SPREADSHEET_ID)
 const DEFAULT_SPREADSHEET_ID = '1SV1oZMq4GbZBaRc0YmTeV02Tl5KXWD8R6FZXC7TwVCQ';
@@ -53,13 +53,13 @@ function getBrandConfig(brandId) {
     process.env.ADMIN_KEY ||
     null;
 
-  // Get base URL from environment config
+  // Get base URL from environment config (canonical source)
   let baseUrl;
   try {
-    const env = getCurrentEnvironment();
-    baseUrl = env?.baseUrl || process.env.BASE_URL || 'https://eventangle.com';
+    const env = getEnvironment();
+    baseUrl = env?.baseUrl || process.env.BASE_URL || 'https://www.eventangle.com';
   } catch {
-    baseUrl = process.env.BASE_URL || 'https://eventangle.com';
+    baseUrl = process.env.BASE_URL || 'https://www.eventangle.com';
   }
 
   return {
