@@ -1,4 +1,4 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
 exports[`URL Routing Sync Contract Snapshot consistency Config URL_ALIASES should match expected snapshot 1`] = `
 {
@@ -30,6 +30,7 @@ exports[`URL Routing Sync Contract Snapshot consistency Worker pathToPage should
 {
   "admin": "admin",
   "analytics": "report",
+  "api": "api",
   "calendar": "public",
   "create": "admin",
   "dashboard": "admin",
