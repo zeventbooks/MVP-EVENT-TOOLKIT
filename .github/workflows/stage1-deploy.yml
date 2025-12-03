@@ -18,8 +18,16 @@ jobs:
   # ============================================================================
   # STAGE 1: BUILD, TEST & DEPLOY
   # ============================================================================
-  # Local equivalent: npm run test:ci:stage1
-  # Runs: lint && test:unit && test:contract
+  #
+  # CANONICAL LOCAL EQUIVALENT: npm run test:ci:stage1
+  #
+  # This is the single source of truth for Stage 1 validation.
+  # Components (env-agnostic):
+  #   - lint        → ESLint code quality
+  #   - test:unit   → Jest unit tests
+  #   - test:contract → Contract tests (schema, API, bundles)
+  #   - check:guards  → Surface, dead-code, schema-fields, API-schema checks
+  #
   # Stage 1 red → DO NOT DEPLOY
   # ============================================================================
 
