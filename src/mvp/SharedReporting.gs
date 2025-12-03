@@ -139,6 +139,12 @@ function api_getSharedAnalytics(params) {
       return Err(ERR.BAD_INPUT, 'brandId required');
     }
 
+    // Dark Launch / Kill Switch: Check if SharedReport is enabled for this brand
+    const featureGate = requireBrandFeature_(brandId, 'sharedReportEnabled');
+    if (featureGate) {
+      return featureGate;
+    }
+
     // Try to use precomputed rollup first (unless forceRaw or sponsor filtering needed)
     // Note: Sponsor filtering requires raw data as rollup doesn't track per-sponsor metrics per event
     if (!forceRaw && !sponsorId && !isSponsorView) {
@@ -386,6 +392,12 @@ function api_getSponsorAnalytics(params) {
     }
     if (!sponsorId) {
       return Err(ERR.BAD_INPUT, 'sponsorId required for sponsor analytics');
+    }
+
+    // Dark Launch / Kill Switch: Check if Sponsor Analytics is enabled for this brand
+    const featureGate = requireBrandFeature_(brandId, 'sponsorAnalyticsEnabled');
+    if (featureGate) {
+      return featureGate;
     }
 
     // Delegate to getSharedAnalytics with isSponsorView=true

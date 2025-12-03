@@ -1178,6 +1178,17 @@ function routePage_(e, page, brand, demoMode, options = {}) {
   // Admin variant files (AdminWizard.html, AdminEnhanced.html) were moved to archive
   // All admin routes now use the single Admin.html dashboard
 
+  // Dark Launch / Kill Switch: Return 404 for SharedReport page when disabled
+  if ((page === 'report' || page === 'analytics') && !isBrandFeatureEnabled_(brand.id, 'sharedReportEnabled')) {
+    return HtmlService.createHtmlOutput(
+      '<html><head><title>Page Not Found</title></head><body style="font-family:sans-serif;text-align:center;padding:50px;">' +
+      '<h1>404 - Page Not Found</h1>' +
+      '<p>The requested page is not available for this organization.</p>' +
+      '<a href="/?brand=' + brand.id + '">Return to Events</a>' +
+      '</body></html>'
+    ).setTitle('Page Not Found');
+  }
+
   const scope = (e?.parameter?.p || e?.parameter?.scope || 'events').toString();
   const allowed = brand.scopesAllowed?.length ? brand.scopesAllowed : ['events','leagues','tournaments'];
 
@@ -1195,6 +1206,7 @@ function routePage_(e, page, brand, demoMode, options = {}) {
   tpl.ZEB = ZEB;
   tpl.demoMode = demoMode; // Pass demo mode flag to templates
   tpl.brand = brand; // Pass brand object for template consistency
+  tpl.brandFeatures = getBrandFeatures_(brand.id); // Pass feature flags for Dark Launch / Kill Switch
 
   // Pass friendly URL info if routed via alias
   if (options.fromAlias) {
@@ -1212,6 +1224,7 @@ function routePage_(e, page, brand, demoMode, options = {}) {
     ZEB: tpl.ZEB,
     demoMode: tpl.demoMode,
     brand: tpl.brand,
+    brandFeatures: tpl.brandFeatures,
     friendlyUrl: tpl.friendlyUrl || false,
     urlAlias: tpl.urlAlias || ''
   });
@@ -5114,6 +5127,12 @@ function api_getSharedReportBundle(payload){
   return runSafe('api_getSharedReportBundle', () => {
     const { brandId, scope, id } = payload||{};
 
+    // Dark Launch / Kill Switch: Check if SharedReport is enabled for this brand
+    const featureGate = requireBrandFeature_(brandId, 'sharedReportEnabled');
+    if (featureGate) {
+      return featureGate;
+    }
+
     // Use single source of truth loader with contract validation
     // Story 6: Now hydrates sponsors for full v2 contract compliance
     const result = getEventById_(brandId, id, {
@@ -5882,6 +5901,12 @@ function api_getSponsorAnalytics(req) {
 
     if (!sponsorId) return Err(ERR.BAD_INPUT, 'Missing sponsorId');
 
+    // Dark Launch / Kill Switch: Check if Sponsor Analytics is enabled for this brand
+    const featureGate = requireBrandFeature_(brandId, 'sponsorAnalyticsEnabled');
+    if (featureGate) {
+      return featureGate;
+    }
+
     // Delegate to api_getSharedAnalytics with sponsor filter
     // This ensures both endpoints return the exact same shape
     return api_getSharedAnalytics({
@@ -5920,6 +5945,12 @@ function api_getSponsorROI(req) {
 
     if (!sponsorId) {
       return Err(ERR.BAD_INPUT, 'Missing sponsorId');
+    }
+
+    // Dark Launch / Kill Switch: Check if Sponsor Analytics is enabled for this brand
+    const featureGate = requireBrandFeature_(brandId, 'sponsorAnalyticsEnabled');
+    if (featureGate) {
+      return featureGate;
     }
 
     // Optional authentication - sponsors can view their own data

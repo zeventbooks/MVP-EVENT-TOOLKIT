@@ -1621,7 +1621,8 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
               </div>
             </div>
 
-            <!-- Shared Report -->
+            <!-- Shared Report - Dark Launch / Kill Switch: Only show when enabled -->
+            <? if (brandFeatures && brandFeatures.sharedReportEnabled !== false) { ?>
             <div class="wizard-link-card" data-testid="wizard-link-report">
               <div class="link-icon">📊</div>
               <div class="link-title">Analytics Report</div>
@@ -1632,6 +1633,7 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
                 <button class="btn-secondary btn-sm" onclick="openWizardLink('report')">Open</button>
               </div>
             </div>
+            <? } ?>
           </div>
         </div>
 
@@ -2421,8 +2423,10 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
       <!-- ═══════════════════════════════════════════════════════════════════ -->
       <!-- CARD 7: SHARED REPORT - Post-event analytics                        -->
       <!-- Mobile: Collapsed by default (expand for report link)               -->
+      <!-- Dark Launch / Kill Switch: Only show when sharedReportEnabled       -->
       <!-- ═══════════════════════════════════════════════════════════════════ -->
-      <section class="card card-mobile-collapsible" id="card7Report" style="border-left: 4px solid #7c3aed;" data-mobile-collapse="true">
+      <? if (brandFeatures && brandFeatures.sharedReportEnabled !== false) { ?>
+      <section class="card card-mobile-collapsible" id="card7Report" style="border-left: 4px solid #7c3aed;" data-mobile-collapse="true" data-testid="card7-shared-report">
         <div style="display: flex; align-items: flex-start; gap: 16px;">
           <div style="font-size: 2rem; line-height: 1;">📊</div>
           <div style="flex: 1;">
@@ -2449,6 +2453,7 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
           </div>
         </div>
       </section>
+      <? } ?>
 
       <!-- ═══════════════════════════════════════════════════════════════════ -->
       <!-- DIAGNOSTICS & ADVANCED - For power users                            -->
@@ -2615,6 +2620,8 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
   <script>
     const BRAND = '<?= brandId ?>';
     const SCOPE = '<?= scope ?>';
+    // Dark Launch / Kill Switch: Brand feature flags
+    const BRAND_FEATURES = <?!= JSON.stringify(brandFeatures || {sharedReportEnabled: true, sponsorAnalyticsEnabled: true}) ?>;
 
     // Event state for edit mode - tracks current event's immutable/server-set fields
     const STATE = {
@@ -3121,7 +3128,10 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
       renderPosterQRPreview(links.posterUrl);
 
       // Feature 2: Render SharedReport QR Code (in the Share Report card)
-      renderSharedReportQR(event);
+      // Dark Launch / Kill Switch: Only render when feature is enabled
+      if (BRAND_FEATURES.sharedReportEnabled !== false) {
+        renderSharedReportQR(event);
+      }
 
       // Feature 1: Render Sponsor Performance Links
       renderSponsorReports(event);
@@ -3135,6 +3145,8 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
 
     function setLink(id, url) {
       const a = document.getElementById(id);
+      // Guard: Element may not exist when feature is disabled (Dark Launch / Kill Switch)
+      if (!a) return;
       a.textContent = url;
       a.href = url;
     }
@@ -3845,8 +3857,9 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
         const btnHover = 'onmouseover="this.style.transform=\'translateY(-1px)\';this.style.boxShadow=\'0 2px 8px rgba(0,0,0,0.15)\';" onmouseout="this.style.transform=\'\';this.style.boxShadow=\'\';"';
 
         // Links in reverse order: SharedReport, Poster, Display, Public
+        // Dark Launch / Kill Switch: Only show SharedReport link when enabled
         const reportUrl = links.sharedReportUrl || (links.publicUrl ? links.publicUrl.replace('page=public', 'page=report') : '');
-        if (reportUrl) {
+        if (reportUrl && BRAND_FEATURES.sharedReportEnabled !== false) {
           previewLinks.push('<a href="' + NU.esc(reportUrl) + '" target="_blank" rel="noopener" style="' + btnBase + 'background:#fce7f3;color:#be185d;border:1px solid #f9a8d4;" ' + btnHover + ' title="See sponsor performance analytics"><span style="font-size:1rem;">📊</span> Open SharedReport</a>');
         }
         if (links.posterUrl) {
