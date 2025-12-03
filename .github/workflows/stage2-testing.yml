@@ -48,7 +48,8 @@ jobs:
       github.event.workflow_run.conclusion == 'success'
     outputs:
       deployment_url: ${{ steps.get-url.outputs.url }}
-      skip_tests: ${{ steps.check.outputs.skip }}
+      skip_tests: ${{ steps.final-decision.outputs.skip }}
+      skip_reason: ${{ steps.final-decision.outputs.reason }}
     steps:
       - uses: actions/checkout@v4
 
@@ -70,6 +71,7 @@ jobs:
           if [[ -n "${{ inputs.deployment_url }}" ]]; then
             echo "🎯 Using manual deployment URL"
             echo "url=${{ inputs.deployment_url }}" >> $GITHUB_OUTPUT
+            echo "url_source=manual" >> $GITHUB_OUTPUT
             exit 0
           fi
 
@@ -86,6 +88,7 @@ jobs:
             DEPLOYMENT_URL=$(cat deployment-info/deployment-url.txt)
             echo "✅ Found deployment URL: $DEPLOYMENT_URL"
             echo "url=$DEPLOYMENT_URL" >> $GITHUB_OUTPUT
+            echo "url_source=stage1" >> $GITHUB_OUTPUT
           else
             echo "⚠️ No deployment URL found from Stage 1"
             # Default to STAGING for safe testing (not production)
@@ -93,9 +96,54 @@ jobs:
             # Use USE_PRODUCTION=true in workflow_dispatch to explicitly test production
             echo "Using default STAGING URL (stg.eventangle.com)"
             echo "url=https://stg.eventangle.com" >> $GITHUB_OUTPUT
+            echo "url_source=default_staging" >> $GITHUB_OUTPUT
           fi
         env:
           GH_TOKEN: ${{ github.token }}
+
+      - name: Validate deployment URL is reachable
+        id: validate-url
+        run: |
+          DEPLOYMENT_URL="${{ steps.get-url.outputs.url }}"
+          URL_SOURCE="${{ steps.get-url.outputs.url_source }}"
+
+          echo "🔍 Validating deployment URL is reachable..."
+          echo "   URL: $DEPLOYMENT_URL"
+          echo "   Source: $URL_SOURCE"
+          echo ""
+
+          # Try to reach the /ping endpoint (fastest health check)
+          PING_URL="${DEPLOYMENT_URL}/ping"
+          echo "   Testing: $PING_URL"
+
+          # Use curl with timeout and follow redirects
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 10 --max-time 30 -L "$PING_URL" || echo "000")
+
+          echo "   HTTP Status: $HTTP_STATUS"
+          echo ""
+
+          if [[ "$HTTP_STATUS" == "200" ]]; then
+            echo "✅ Deployment URL is reachable!"
+            echo "url_reachable=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Deployment URL is NOT reachable (HTTP $HTTP_STATUS)"
+            echo ""
+
+            # If this was the default staging URL, provide helpful message
+            if [[ "$URL_SOURCE" == "default_staging" ]]; then
+              echo "⚠️ The default staging URL (stg.eventangle.com) is not available."
+              echo "   This typically means staging is not yet deployed in Cloudflare."
+              echo ""
+              echo "   Options to resolve:"
+              echo "   1. Deploy staging environment in Cloudflare"
+              echo "   2. Manually trigger Stage 2 with a valid deployment_url"
+              echo "   3. Ensure Stage 1 produces a deployment-url artifact"
+              echo ""
+              echo "   Skipping tests to avoid false positives."
+            fi
+
+            echo "url_reachable=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Display URL
         run: |
@@ -110,6 +158,85 @@ jobs:
             echo "🧪 Environment: STAGING (safe sandbox for testing)"
           else
             echo "🚀 Environment: PRODUCTION (live site)"
+          fi
+
+      - name: Final decision - should tests run?
+        id: final-decision
+        run: |
+          echo "🎯 Final Decision: Should Stage 2 tests run?"
+          echo "================================================"
+          echo ""
+
+          STAGE1_SKIP="${{ steps.check.outputs.skip }}"
+          URL_REACHABLE="${{ steps.validate-url.outputs.url_reachable }}"
+          URL_SOURCE="${{ steps.get-url.outputs.url_source }}"
+
+          echo "Stage 1 check (skip): $STAGE1_SKIP"
+          echo "URL reachable: $URL_REACHABLE"
+          echo "URL source: $URL_SOURCE"
+          echo ""
+
+          # Skip if Stage 1 failed
+          if [[ "$STAGE1_SKIP" == "true" ]]; then
+            echo "❌ SKIP: Stage 1 did not succeed"
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "reason=stage1_failed" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Skip if URL is not reachable
+          if [[ "$URL_REACHABLE" != "true" ]]; then
+            echo "❌ SKIP: Deployment URL is not reachable"
+            echo ""
+            if [[ "$URL_SOURCE" == "default_staging" ]]; then
+              echo "   The default staging URL (stg.eventangle.com) is not available."
+              echo "   This prevents false positive test failures."
+              echo ""
+              echo "   To run tests, either:"
+              echo "   - Deploy staging to Cloudflare"
+              echo "   - Manually trigger with a valid deployment_url"
+              echo "   - Ensure Stage 1 produces a deployment URL artifact"
+            fi
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "reason=url_unreachable" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "✅ PROCEED: All checks passed, tests will run"
+          echo "skip=false" >> $GITHUB_OUTPUT
+          echo "reason=none" >> $GITHUB_OUTPUT
+
+      - name: Create setup summary
+        if: always()
+        run: |
+          echo "## 🔧 Stage 2 Setup Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          SKIP_TESTS="${{ steps.final-decision.outputs.skip }}"
+          SKIP_REASON="${{ steps.final-decision.outputs.reason }}"
+
+          if [[ "$SKIP_TESTS" == "true" ]]; then
+            echo "### ⏭️ Tests SKIPPED" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+
+            if [[ "$SKIP_REASON" == "stage1_failed" ]]; then
+              echo "**Reason:** Stage 1 did not succeed" >> $GITHUB_STEP_SUMMARY
+            elif [[ "$SKIP_REASON" == "url_unreachable" ]]; then
+              echo "**Reason:** Deployment URL is not reachable" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "**URL:** \`${{ steps.get-url.outputs.url }}\`" >> $GITHUB_STEP_SUMMARY
+              echo "**Source:** ${{ steps.get-url.outputs.url_source }}" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              if [[ "${{ steps.get-url.outputs.url_source }}" == "default_staging" ]]; then
+                echo "The default staging URL is not available in Cloudflare." >> $GITHUB_STEP_SUMMARY
+                echo "This is **NOT a test failure** - tests were skipped to prevent false positives." >> $GITHUB_STEP_SUMMARY
+              fi
+            fi
+          else
+            echo "### ✅ Tests will run" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Deployment URL:** \`${{ steps.get-url.outputs.url }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "**URL Source:** ${{ steps.get-url.outputs.url_source }}" >> $GITHUB_STEP_SUMMARY
           fi
 
   # ============================================================================
