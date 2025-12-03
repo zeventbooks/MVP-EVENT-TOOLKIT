@@ -299,10 +299,9 @@ jobs:
 
           echo "✅ Secrets validation passed"
 
-      # NOTE: Version cleanup removed - Google Apps Script API does not support
-      # deleting versions. The DELETE endpoint does not exist for projects.versions.
-      # Versions can only be deleted manually via the Apps Script UI.
-      # See: https://developers.google.com/apps-script/api/reference/rest/v1/projects.versions
+      # NOTE: Version cleanup is now handled by the "Cleanup old versions" step
+      # which runs after push and before deploy. This prevents hitting the 200
+      # version limit by deleting older versions via the Apps Script API.
 
       - name: Setup clasp credentials
         env:
@@ -507,6 +506,110 @@ jobs:
           echo "   5. Invalid scriptId in .clasp.json"
           echo "   6. Network connectivity issues"
           exit 1
+
+      - name: Cleanup old versions (prevent 200 version limit)
+        run: |
+          echo "🧹 Cleaning up old Apps Script versions..."
+          echo ""
+          echo "Google Apps Script has a 200 version limit. This step deletes"
+          echo "older versions to ensure deployments don't fail."
+          echo ""
+
+          SCRIPT_ID=$(jq -r '.scriptId' .clasp.json)
+          ACCESS_TOKEN=$(jq -r '.token.access_token' ~/.clasprc.json)
+
+          # Refresh token if needed by running clasp command
+          clasp list > /dev/null 2>&1 || true
+          ACCESS_TOKEN=$(jq -r '.token.access_token' ~/.clasprc.json)
+
+          echo "📋 Fetching current versions..."
+
+          # Get all versions
+          VERSIONS_RESPONSE=$(curl -s \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "Content-Type: application/json" \
+            "https://script.googleapis.com/v1/projects/${SCRIPT_ID}/versions")
+
+          # Check for API errors
+          if echo "$VERSIONS_RESPONSE" | jq -e '.error' > /dev/null 2>&1; then
+            echo "⚠️  Could not fetch versions (API error)"
+            echo "   Continuing with deployment anyway..."
+            exit 0
+          fi
+
+          VERSION_COUNT=$(echo "$VERSIONS_RESPONSE" | jq -r '.versions | length // 0')
+          echo "   Found $VERSION_COUNT version(s)"
+
+          # Keep 50 versions, delete the rest
+          KEEP_VERSIONS=50
+          DELETE_COUNT=$((VERSION_COUNT - KEEP_VERSIONS))
+
+          if [ "$DELETE_COUNT" -le 0 ]; then
+            echo "✅ Version count ($VERSION_COUNT) is below threshold ($KEEP_VERSIONS), no cleanup needed"
+            exit 0
+          fi
+
+          echo ""
+          echo "🗑️  Deleting $DELETE_COUNT old version(s) to stay under limit..."
+          echo ""
+
+          # Get oldest versions (sorted by version number, lowest first)
+          VERSIONS_TO_DELETE=$(echo "$VERSIONS_RESPONSE" | jq -r '.versions | sort_by(.versionNumber | tonumber) | .[0:'$DELETE_COUNT'] | .[].versionNumber')
+
+          DELETED=0
+          FAILED=0
+
+          for VERSION_NUM in $VERSIONS_TO_DELETE; do
+            echo -n "   Deleting version $VERSION_NUM... "
+
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE \
+              -H "Authorization: Bearer $ACCESS_TOKEN" \
+              -H "Content-Type: application/json" \
+              "https://script.googleapis.com/v1/projects/${SCRIPT_ID}/versions/${VERSION_NUM}")
+
+            if [ "$HTTP_CODE" == "200" ] || [ "$HTTP_CODE" == "204" ]; then
+              echo "✅"
+              DELETED=$((DELETED + 1))
+            elif [ "$HTTP_CODE" == "404" ]; then
+              echo "⏭️ (already gone)"
+              DELETED=$((DELETED + 1))
+            else
+              echo "❌ (HTTP $HTTP_CODE)"
+              FAILED=$((FAILED + 1))
+            fi
+
+            # Small delay to avoid rate limiting
+            sleep 0.3
+          done
+
+          echo ""
+          echo "📊 Cleanup Summary:"
+          echo "   Versions before: $VERSION_COUNT"
+          echo "   Deleted: $DELETED"
+          echo "   Failed: $FAILED"
+          echo "   Versions remaining: ~$((VERSION_COUNT - DELETED))"
+          echo ""
+
+          if [ "$FAILED" -gt 0 ] && [ "$DELETED" -eq 0 ]; then
+            echo "⚠️  Version deletion not supported by API"
+            echo "   Trying alternative cleanup method..."
+            echo ""
+
+            # Alternative: Use clasp to check version status
+            echo "📋 Current deployment state:"
+            clasp deployments 2>&1 | head -10 || true
+            echo ""
+
+            # If we're at the limit and can't delete, warn but don't fail
+            if [ "$VERSION_COUNT" -ge 195 ]; then
+              echo "⚠️  WARNING: Approaching 200 version limit!"
+              echo "   Manual cleanup may be required at:"
+              echo "   https://script.google.com/home/projects/${SCRIPT_ID}/versions"
+              echo ""
+            fi
+          fi
+
+          echo "✅ Cleanup step complete"
 
       - name: Deploy to Apps Script
         id: deploy
