@@ -17,9 +17,11 @@ Read it before you need it.
 2. [SEV Ladder](#2-sev-ladder)
 3. [System Health Checks](#3-system-health-checks)
 4. [Common Failure Scenarios](#4-common-failure-scenarios)
+   - [4.5 Events Sheet Corrupted or Data Loss](#45-events-sheet-corrupted-or-data-loss)
 5. [Rollback Procedures](#5-rollback-procedures)
 6. [Escalation Guide](#6-escalation-guide)
 7. [Quick Reference](#7-quick-reference)
+8. [Backup Strategy](#8-backup-strategy)
 
 ---
 
@@ -431,6 +433,82 @@ installDiagArchiveTrigger_();
 
 ---
 
+## 4.5 Events Sheet Corrupted or Data Loss
+
+**Symptoms:**
+- Events missing or showing incorrect data
+- DATA_ISSUES sheet shows RED rows for event validation
+- "Event not found" errors for known events
+- Blank or malformed event pages
+- Admin shows fewer events than expected
+
+**Diagnosis Checklist:**
+1. Check DATA_ISSUES sheet for specific errors
+2. Compare current EVENTS row count with expected
+3. Check DIAG logs for recent bulk operations or errors
+4. Verify backup sheets exist: Look for `BACKUP_YYYY_MM_DD_HHMM` tabs
+
+**Resolution:**
+
+### Option A: Restore from Script Backup (Preferred)
+
+If `backupControlSheet()` has been running:
+
+```javascript
+// 1. List available backups (run in Apps Script editor)
+listBackups_();
+
+// 2. Check backup stats to find latest good backup
+getBackupStats_();
+
+// 3. Dry run restore to validate (doesn't change data)
+restoreFromBackup_('BACKUP_2025_12_03_1030', null, { dryRun: true });
+
+// 4. Perform actual restore
+restoreFromBackup_('BACKUP_2025_12_03_1030');
+```
+
+### Option B: Restore from Manual Backup
+
+If you have a manual spreadsheet copy:
+
+1. Open the backup spreadsheet copy
+2. Select the EVENTS sheet tab
+3. Right-click → "Copy to..." → Select production spreadsheet
+4. Rename original EVENTS to `EVENTS_CORRUPTED_YYYYMMDD`
+5. Rename copied sheet to `EVENTS`
+6. Verify event count matches expected
+7. Test: `curl -s "https://www.eventangle.com/api?action=listEvents&brand=root" | jq '.value | length'`
+
+### Option C: Partial Recovery from Archives
+
+If DIAG_ARCHIVE sheets exist with event creation logs:
+
+1. Search DIAG_ARCHIVE sheets for `saveEvent` entries
+2. Extract event data from log metadata
+3. Manually recreate missing events through Admin UI
+4. Document which events were recovered
+
+### Post-Recovery Verification
+
+```bash
+# Verify events are accessible
+curl -s "https://www.eventangle.com/api?action=listEvents&brand=root" | jq '.value | length'
+
+# Test a specific event
+curl -s "https://www.eventangle.com/api?action=getPublicBundle&slug=test-event&brand=root" | jq '.ok'
+
+# Check for data issues
+# Open DATA_ISSUES sheet - should be empty or have only warnings
+```
+
+**Prevention:**
+- Run weekly manual backups before major changes
+- Enable scheduled `backupControlSheet()` trigger
+- Monitor backup health via `getBackupStats_()`
+
+---
+
 ## 5. Rollback Procedures
 
 ### 5.1 Roll Back Apps Script Deployment
@@ -718,6 +796,145 @@ After any incident:
 
 ---
 
+## 8. Backup Strategy
+
+### 8.1 Backup Options
+
+#### Option A: Manual Backup (Minimum)
+
+If you're just getting started, this is the bare minimum:
+
+1. **Weekly:** Open the master spreadsheet
+2. File → Make a copy
+3. Name it: `MVP-EVENT-TOOLKIT-BACKUP-YYYY-MM-DD`
+4. Store in a "Backups" folder in Google Drive
+5. Keep at least 4 weeks of backups
+
+**When to make extra backups:**
+- Before any major code deployment
+- Before bulk data operations
+- Before giving new team members edit access
+
+#### Option B: Scripted Backup (Recommended)
+
+Use `backupControlSheet()` for automated, in-spreadsheet backups:
+
+```javascript
+// Run manually in Apps Script editor
+const result = backupControlSheet();
+console.log(result);
+// Returns: { ok: true, value: { backupId: "BACKUP_2025_12_03_1030", ... } }
+```
+
+**What gets backed up:**
+- EVENTS (all event data)
+- SPONSORS (sponsor configurations)
+- ANALYTICS (metrics data)
+- TEMPLATES (event templates)
+
+**Backup naming:** `BACKUP_YYYY_MM_DD_HHMM` (e.g., `BACKUP_2025_12_03_1030`)
+
+**Retention:** Last 10 backups are kept automatically
+
+### 8.2 Setting Up Scheduled Backups
+
+To run backups automatically:
+
+```javascript
+// Run once in Apps Script editor to install trigger
+function installBackupTrigger_() {
+  // Check if trigger already exists
+  const triggers = ScriptApp.getProjectTriggers();
+  for (const trigger of triggers) {
+    if (trigger.getHandlerFunction() === 'backupControlSheet') {
+      return 'Trigger already exists';
+    }
+  }
+
+  // Create weekly trigger (Sundays at 3 AM)
+  ScriptApp.newTrigger('backupControlSheet')
+    .timeBased()
+    .onWeekDay(ScriptApp.WeekDay.SUNDAY)
+    .atHour(3)
+    .create();
+
+  return 'Weekly backup trigger installed';
+}
+```
+
+### 8.3 Checking Backup Health
+
+```javascript
+// Get backup statistics
+const stats = getBackupStats_();
+console.log(stats);
+// Returns:
+// {
+//   ok: true,
+//   value: {
+//     totalBackups: 5,
+//     maxBackups: 10,
+//     latestBackup: { id: "BACKUP_2025_12_03_1030", ageHours: 12 },
+//     backupHealth: "good"  // good | stale | critical | none
+//   }
+// }
+
+// List all available backups
+const list = listBackups_();
+console.log(list.value.backups);
+```
+
+**Health Status Meanings:**
+- `good`: Latest backup < 24 hours old
+- `stale`: Latest backup 24-72 hours old
+- `critical`: Latest backup > 72 hours old
+- `none`: No backups exist
+
+### 8.4 Restore Procedure
+
+**CAUTION:** Restore operations overwrite existing data. Always verify the backup first.
+
+```javascript
+// Step 1: Dry run to validate backup (doesn't change data)
+const dryRun = restoreFromBackup_('BACKUP_2025_12_03_1030', null, { dryRun: true });
+console.log(dryRun);
+// Check: dryRun.value.sheets shows what would be restored
+
+// Step 2: Perform actual restore
+const result = restoreFromBackup_('BACKUP_2025_12_03_1030');
+console.log(result);
+
+// Step 3: Verify restoration
+// curl -s "https://www.eventangle.com/api?action=listEvents&brand=root" | jq '.value | length'
+```
+
+**Restore Options:**
+- Restore all sheets: `restoreFromBackup_(backupId)`
+- Restore specific sheets: `restoreFromBackup_(backupId, null, { sheets: ['EVENTS'] })`
+
+### 8.5 Emergency Commands
+
+```bash
+# Check if events are accessible
+curl -s "https://www.eventangle.com/api?action=listEvents&brand=root" | jq '.value | length'
+
+# Compare with expected count (check EVENTS sheet row count)
+# If mismatch → consider restore
+
+# After restore, verify a specific event
+curl -s "https://www.eventangle.com/api?action=getPublicBundle&slug=test-event&brand=root" | jq '.ok'
+```
+
+### 8.6 Backup Best Practices
+
+1. **Test restores periodically** - Don't wait for an emergency to learn the process
+2. **Monitor backup health** - Check `getBackupStats_()` weekly
+3. **Keep manual backups** - Scripted backups are in the same spreadsheet; keep external copies too
+4. **Document recovery** - After any restore, create a GitHub issue documenting what happened
+5. **Backup before changes** - Run `backupControlSheet()` before bulk operations
+
+---
+
 ## Related Documentation
 
 | Document | Purpose |
@@ -728,9 +945,10 @@ After any incident:
 | [DEPLOYMENT.md](./DEPLOYMENT.md) | Deployment procedures |
 | [PRODUCTION_DEPLOYMENT_POLICY.md](./PRODUCTION_DEPLOYMENT_POLICY.md) | CI-only deployment policy |
 | [docs/DATA_POLICY.md](./docs/DATA_POLICY.md) | Data retention and archiving |
+| [src/mvp/BackupService.gs](./src/mvp/BackupService.gs) | Backup/restore implementation |
 
 ---
 
-**Last Updated:** 2025-12-02
+**Last Updated:** 2025-12-03
 
 **Remember:** When you're under pressure, don't think. Follow the steps. That's what this document is for.
