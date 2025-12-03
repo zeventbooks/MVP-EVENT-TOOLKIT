@@ -1,0 +1,221 @@
+name: Apps Script Version Monitor
+
+# Monitor Apps Script version count and alert when approaching the 200 limit.
+# Google Apps Script has a hard limit of 200 versions per project.
+# Versions can ONLY be deleted manually via the UI (no API support).
+# This workflow provides early warning to prevent deployment failures.
+
+on:
+  schedule:
+    # Run every Monday at 9 AM UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+    inputs:
+      force_issue:
+        description: 'Force create issue regardless of version count'
+        type: boolean
+        default: false
+
+jobs:
+  check-versions:
+    name: 📊 Check Version Count
+    runs-on: ubuntu-latest
+    outputs:
+      version_count: ${{ steps.check.outputs.version_count }}
+      needs_cleanup: ${{ steps.check.outputs.needs_cleanup }}
+      critical: ${{ steps.check.outputs.critical }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup clasp credentials
+        env:
+          CLASPRC_JSON: ${{ secrets.OAUTH_CREDENTIALS }}
+        run: |
+          if [ -z "$CLASPRC_JSON" ]; then
+            echo "⚠️ OAUTH_CREDENTIALS not configured - skipping version check"
+            echo "version_count=0" >> $GITHUB_OUTPUT
+            echo "needs_cleanup=false" >> $GITHUB_OUTPUT
+            echo "critical=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          echo "$CLASPRC_JSON" > ~/.clasprc.json
+          chmod 600 ~/.clasprc.json
+
+      - name: Check version count
+        id: check
+        env:
+          FORCE_ISSUE: ${{ github.event.inputs.force_issue }}
+        run: |
+          SCRIPT_ID=$(jq -r '.scriptId' .clasp.json)
+
+          # Refresh token by running clasp command
+          npm install -g @google/clasp@2.4.2 > /dev/null 2>&1
+          clasp list > /dev/null 2>&1 || true
+
+          ACCESS_TOKEN=$(jq -r '.token.access_token' ~/.clasprc.json)
+
+          echo "📊 Fetching version count for script: $SCRIPT_ID"
+
+          VERSIONS_RESPONSE=$(curl -s \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "Content-Type: application/json" \
+            "https://script.googleapis.com/v1/projects/${SCRIPT_ID}/versions")
+
+          # Check for API errors
+          if echo "$VERSIONS_RESPONSE" | jq -e '.error' > /dev/null 2>&1; then
+            echo "⚠️ Could not fetch versions (API error)"
+            echo "$VERSIONS_RESPONSE" | jq '.error'
+            echo "version_count=unknown" >> $GITHUB_OUTPUT
+            echo "needs_cleanup=false" >> $GITHUB_OUTPUT
+            echo "critical=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          VERSION_COUNT=$(echo "$VERSIONS_RESPONSE" | jq -r '.versions | length // 0')
+          echo "📈 Current version count: $VERSION_COUNT / 200"
+
+          # Determine thresholds
+          NEEDS_CLEANUP="false"
+          CRITICAL="false"
+
+          if [ "$VERSION_COUNT" -ge 195 ]; then
+            CRITICAL="true"
+            NEEDS_CLEANUP="true"
+            echo "🚨 CRITICAL: At $VERSION_COUNT versions! Deployments will fail soon!"
+          elif [ "$VERSION_COUNT" -ge 180 ]; then
+            NEEDS_CLEANUP="true"
+            echo "⚠️ WARNING: Approaching limit at $VERSION_COUNT versions"
+          elif [ "$VERSION_COUNT" -ge 150 ]; then
+            echo "ℹ️ Version count is getting high ($VERSION_COUNT). Consider cleanup."
+          else
+            echo "✅ Version count is healthy ($VERSION_COUNT)"
+          fi
+
+          # Force issue creation if requested
+          if [ "$FORCE_ISSUE" == "true" ]; then
+            NEEDS_CLEANUP="true"
+          fi
+
+          echo "version_count=$VERSION_COUNT" >> $GITHUB_OUTPUT
+          echo "needs_cleanup=$NEEDS_CLEANUP" >> $GITHUB_OUTPUT
+          echo "critical=$CRITICAL" >> $GITHUB_OUTPUT
+
+          # Create summary
+          echo "## 📊 Apps Script Version Status" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Current Versions | $VERSION_COUNT |" >> $GITHUB_STEP_SUMMARY
+          echo "| Maximum Allowed | 200 |" >> $GITHUB_STEP_SUMMARY
+          echo "| Available Slots | $((200 - VERSION_COUNT)) |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$CRITICAL" == "true" ]; then
+            echo "### 🚨 CRITICAL - Immediate Action Required" >> $GITHUB_STEP_SUMMARY
+            echo "Deployments will fail until versions are deleted!" >> $GITHUB_STEP_SUMMARY
+          elif [ "$NEEDS_CLEANUP" == "true" ]; then
+            echo "### ⚠️ WARNING - Cleanup Recommended" >> $GITHUB_STEP_SUMMARY
+            echo "Approaching version limit. Schedule cleanup soon." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ✅ Healthy" >> $GITHUB_STEP_SUMMARY
+            echo "Version count is within acceptable limits." >> $GITHUB_STEP_SUMMARY
+          fi
+
+  create-issue:
+    name: 📝 Create Cleanup Issue
+    runs-on: ubuntu-latest
+    needs: check-versions
+    if: needs.check-versions.outputs.needs_cleanup == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for existing open issue
+        id: existing
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Check if there's already an open issue about version cleanup
+          EXISTING=$(gh issue list --state open --label "version-cleanup" --json number --jq '.[0].number // empty' 2>/dev/null || echo "")
+
+          if [ -n "$EXISTING" ]; then
+            echo "Found existing issue #$EXISTING"
+            echo "existing_issue=$EXISTING" >> $GITHUB_OUTPUT
+          else
+            echo "No existing issue found"
+            echo "existing_issue=" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create or update issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION_COUNT: ${{ needs.check-versions.outputs.version_count }}
+          CRITICAL: ${{ needs.check-versions.outputs.critical }}
+          EXISTING_ISSUE: ${{ steps.existing.outputs.existing_issue }}
+        run: |
+          SCRIPT_ID=$(jq -r '.scriptId' .clasp.json)
+
+          if [ "$CRITICAL" == "true" ]; then
+            TITLE="🚨 CRITICAL: Apps Script at $VERSION_COUNT/200 versions - Deployments BLOCKED"
+            PRIORITY="critical"
+          else
+            TITLE="⚠️ Apps Script version cleanup needed ($VERSION_COUNT/200)"
+            PRIORITY="high"
+          fi
+
+          BODY=$(cat <<'ISSUE_BODY'
+## Apps Script Version Limit Alert
+
+The Apps Script project has reached **VERSION_COUNT_PLACEHOLDER/200** versions.
+
+### Why This Matters
+- Google Apps Script has a **hard limit of 200 versions** per project
+- Each deployment creates a new version
+- **Versions can ONLY be deleted manually** - there is no API support
+- Once at 200, all deployments will fail until versions are deleted
+
+### Immediate Action Required
+
+1. **Go to Project History**:
+   https://script.google.com/home/projects/SCRIPT_ID_PLACEHOLDER/versions
+
+2. **Bulk Delete Old Versions**:
+   - Click "Bulk delete versions" button
+   - Select old versions to delete (keep recent 20-50)
+   - Note: Versions with active deployments must be archived first
+
+3. **Archive Unused Deployments** (if needed):
+   - Go to Deploy → Manage Deployments
+   - Archive old deployments
+   - Then delete their associated versions
+
+### Best Practices Going Forward
+
+- Schedule monthly version cleanup
+- Keep no more than 50-100 versions
+- Consider tagging important releases before cleanup
+
+### References
+
+- [Google Apps Script Version Limits](https://developers.google.com/apps-script/guides/versions)
+- [Managing Versions](https://developers.google.com/apps-script/api/how-tos/manage-versions)
+
+---
+*This issue was automatically created by the version monitoring workflow.*
+*Close this issue after completing the cleanup.*
+ISSUE_BODY
+)
+
+          # Replace placeholders
+          BODY="${BODY//VERSION_COUNT_PLACEHOLDER/$VERSION_COUNT}"
+          BODY="${BODY//SCRIPT_ID_PLACEHOLDER/$SCRIPT_ID}"
+
+          if [ -n "$EXISTING_ISSUE" ]; then
+            echo "Updating existing issue #$EXISTING_ISSUE"
+            gh issue comment "$EXISTING_ISSUE" --body "**Update**: Version count is now at $VERSION_COUNT/200 as of $(date -Iseconds)"
+          else
+            echo "Creating new issue"
+            gh issue create \
+              --title "$TITLE" \
+              --body "$BODY" \
+              --label "version-cleanup,maintenance,$PRIORITY"
+          fi

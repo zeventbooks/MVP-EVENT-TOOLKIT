@@ -301,14 +301,14 @@ jobs:
 
       # NOTE: Apps Script has a 200 version limit. The Apps Script API does NOT
       # support deleting versions programmatically - they can only be deleted
-      # manually via the Google Apps Script web UI.
+      # manually via the Google Apps Script web UI using the "Bulk delete" feature.
       #
-      # When at the limit, this workflow uses a workaround: deploying with an
-      # existing version (-V flag) instead of creating a new one. This updates
-      # the deployment to point to the pushed code without creating a new version.
+      # The pre-flight check above will fail fast if at the 200 limit, providing
+      # clear instructions for manual cleanup. A weekly monitoring workflow
+      # (version-monitor.yml) also creates GitHub issues when approaching the limit.
       #
-      # To permanently fix: manually delete old versions at:
-      # https://script.google.com/home/projects/YOUR_SCRIPT_ID/versions
+      # To cleanup: https://script.google.com/home/projects/YOUR_SCRIPT_ID/versions
+      # Documentation: docs/VERSION_MANAGEMENT.md
 
       - name: Setup clasp credentials
         env:
@@ -441,6 +441,112 @@ jobs:
           echo "   Then update the OAUTH_CREDENTIALS secret in GitHub"
           exit 1
 
+      # ============================================================================
+      # PRE-FLIGHT VERSION CHECK - Fail fast if at 200 version limit
+      # ============================================================================
+      # This check runs BEFORE pushing code to avoid wasting time if we're blocked.
+      # At exactly 200 versions, there is NO programmatic workaround - manual
+      # deletion via the Google Apps Script UI is the ONLY solution.
+      # ============================================================================
+      - name: Pre-flight version check (fail fast)
+        id: preflight_version_check
+        run: |
+          echo "🔍 PRE-FLIGHT: Checking version count BEFORE pushing code..."
+          echo ""
+
+          SCRIPT_ID=$(jq -r '.scriptId' .clasp.json)
+          ACCESS_TOKEN=$(jq -r '.token.access_token' ~/.clasprc.json)
+
+          # Refresh token if needed
+          clasp list > /dev/null 2>&1 || true
+          ACCESS_TOKEN=$(jq -r '.token.access_token' ~/.clasprc.json)
+
+          echo "📋 Script ID: $SCRIPT_ID"
+          echo "📋 Fetching current version count..."
+
+          VERSIONS_RESPONSE=$(curl -s \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "Content-Type: application/json" \
+            "https://script.googleapis.com/v1/projects/${SCRIPT_ID}/versions")
+
+          # Check for API errors
+          if echo "$VERSIONS_RESPONSE" | jq -e '.error' > /dev/null 2>&1; then
+            echo "⚠️ Could not fetch versions (API error). Proceeding with deployment..."
+            echo "   Error: $(echo "$VERSIONS_RESPONSE" | jq -r '.error.message // "unknown"')"
+            echo "can_deploy=true" >> $GITHUB_OUTPUT
+            echo "version_count=unknown" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          VERSION_COUNT=$(echo "$VERSIONS_RESPONSE" | jq -r '.versions | length // 0')
+          LATEST_VERSION=$(echo "$VERSIONS_RESPONSE" | jq -r '.versions | sort_by(.versionNumber | tonumber) | last | .versionNumber // empty')
+
+          echo ""
+          echo "═══════════════════════════════════════════════════════════"
+          echo "   VERSION STATUS: $VERSION_COUNT / 200"
+          echo "   Latest version: $LATEST_VERSION"
+          echo "═══════════════════════════════════════════════════════════"
+          echo ""
+
+          # Store for later use
+          echo "version_count=$VERSION_COUNT" >> $GITHUB_OUTPUT
+          echo "latest_version=$LATEST_VERSION" >> $GITHUB_OUTPUT
+
+          # CRITICAL: At exactly 200 versions, there is NO workaround
+          if [ "$VERSION_COUNT" -ge 200 ]; then
+            echo ""
+            echo "🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨"
+            echo "🚨                                                          🚨"
+            echo "🚨   DEPLOYMENT BLOCKED: 200 VERSION LIMIT REACHED          🚨"
+            echo "🚨                                                          🚨"
+            echo "🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨"
+            echo ""
+            echo "Google Apps Script has a HARD LIMIT of 200 versions."
+            echo "There is NO programmatic workaround - versions can ONLY"
+            echo "be deleted manually through the Google Apps Script UI."
+            echo ""
+            echo "═══════════════════════════════════════════════════════════"
+            echo "   MANUAL ACTION REQUIRED (5-10 minutes)"
+            echo "═══════════════════════════════════════════════════════════"
+            echo ""
+            echo "1. Open the Project History page:"
+            echo "   https://script.google.com/home/projects/${SCRIPT_ID}/versions"
+            echo ""
+            echo "2. Click 'Bulk delete versions' button"
+            echo ""
+            echo "3. Select old versions to delete:"
+            echo "   - Keep the 20-50 most recent versions"
+            echo "   - Versions with active deployments must be archived first"
+            echo ""
+            echo "4. If versions are tied to deployments:"
+            echo "   - Go to: Deploy → Manage Deployments"
+            echo "   - Archive unused deployments"
+            echo "   - Then delete their versions"
+            echo ""
+            echo "5. After cleanup, re-run this workflow"
+            echo ""
+            echo "═══════════════════════════════════════════════════════════"
+            echo ""
+            echo "📚 Reference: https://developers.google.com/apps-script/guides/versions"
+            echo ""
+            echo "can_deploy=false" >> $GITHUB_OUTPUT
+            exit 1
+          elif [ "$VERSION_COUNT" -ge 195 ]; then
+            echo "⚠️ CRITICAL WARNING: Only $((200 - VERSION_COUNT)) version slots remaining!"
+            echo "   Schedule version cleanup IMMEDIATELY to avoid deployment failures."
+            echo "   Cleanup URL: https://script.google.com/home/projects/${SCRIPT_ID}/versions"
+            echo ""
+            echo "can_deploy=true" >> $GITHUB_OUTPUT
+          elif [ "$VERSION_COUNT" -ge 180 ]; then
+            echo "⚠️ WARNING: Approaching version limit ($VERSION_COUNT/200)"
+            echo "   Consider scheduling version cleanup soon."
+            echo ""
+            echo "can_deploy=true" >> $GITHUB_OUTPUT
+          else
+            echo "✅ Version count is healthy ($VERSION_COUNT/200)"
+            echo "can_deploy=true" >> $GITHUB_OUTPUT
+          fi
+
       - name: Push code to Apps Script
         run: |
           echo "🚀 Pushing code to Apps Script..."
@@ -514,122 +620,31 @@ jobs:
           echo "   6. Network connectivity issues"
           exit 1
 
-      - name: Check version count and prepare deployment strategy
-        id: version_check
-        run: |
-          echo "🔍 Checking Apps Script version count..."
-          echo ""
-          echo "Google Apps Script has a 200 version limit. This step checks"
-          echo "the current count and determines the deployment strategy."
-          echo ""
-
-          SCRIPT_ID=$(jq -r '.scriptId' .clasp.json)
-          ACCESS_TOKEN=$(jq -r '.token.access_token' ~/.clasprc.json)
-
-          # Refresh token if needed by running clasp command
-          clasp list > /dev/null 2>&1 || true
-          ACCESS_TOKEN=$(jq -r '.token.access_token' ~/.clasprc.json)
-
-          echo "📋 Fetching current versions..."
-
-          # Get all versions
-          VERSIONS_RESPONSE=$(curl -s \
-            -H "Authorization: Bearer $ACCESS_TOKEN" \
-            -H "Content-Type: application/json" \
-            "https://script.googleapis.com/v1/projects/${SCRIPT_ID}/versions")
-
-          # Check for API errors
-          if echo "$VERSIONS_RESPONSE" | jq -e '.error' > /dev/null 2>&1; then
-            echo "⚠️  Could not fetch versions (API error)"
-            echo "   Will attempt normal deployment..."
-            echo "use_existing_version=false" >> $GITHUB_OUTPUT
-            echo "latest_version=" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          VERSION_COUNT=$(echo "$VERSIONS_RESPONSE" | jq -r '.versions | length // 0')
-          echo "   Found $VERSION_COUNT version(s)"
-
-          # Get the latest version number
-          LATEST_VERSION=$(echo "$VERSIONS_RESPONSE" | jq -r '.versions | sort_by(.versionNumber | tonumber) | last | .versionNumber // empty')
-          echo "   Latest version: $LATEST_VERSION"
-
-          # If at or near the 200 limit, we need to use existing version
-          if [ "$VERSION_COUNT" -ge 199 ]; then
-            echo ""
-            echo "⚠️  VERSION LIMIT REACHED ($VERSION_COUNT/200)"
-            echo ""
-            echo "The Apps Script API does NOT support deleting versions programmatically."
-            echo "Versions can ONLY be deleted manually through the Google Apps Script UI."
-            echo ""
-            echo "🔄 WORKAROUND: Deploying using existing version $LATEST_VERSION"
-            echo "   This updates the deployment to point to the latest pushed code"
-            echo "   without creating a new version."
-            echo ""
-            echo "📋 TO PERMANENTLY FIX THIS:"
-            echo "   1. Go to: https://script.google.com/home/projects/${SCRIPT_ID}/versions"
-            echo "   2. Delete old versions (keep recent 20-50)"
-            echo "   3. Future deployments will work normally"
-            echo ""
-            echo "use_existing_version=true" >> $GITHUB_OUTPUT
-            echo "latest_version=$LATEST_VERSION" >> $GITHUB_OUTPUT
-          elif [ "$VERSION_COUNT" -ge 180 ]; then
-            echo ""
-            echo "⚠️  WARNING: Approaching version limit ($VERSION_COUNT/200)"
-            echo "   Consider manual cleanup soon at:"
-            echo "   https://script.google.com/home/projects/${SCRIPT_ID}/versions"
-            echo ""
-            echo "use_existing_version=false" >> $GITHUB_OUTPUT
-            echo "latest_version=$LATEST_VERSION" >> $GITHUB_OUTPUT
-          else
-            echo "✅ Version count ($VERSION_COUNT) is healthy"
-            echo "use_existing_version=false" >> $GITHUB_OUTPUT
-            echo "latest_version=$LATEST_VERSION" >> $GITHUB_OUTPUT
-          fi
-
       - name: Deploy to Apps Script
         id: deploy
         env:
           DEPLOYMENT_ID: ${{ secrets.DEPLOYMENT_ID }}
-          USE_EXISTING_VERSION: ${{ steps.version_check.outputs.use_existing_version }}
-          LATEST_VERSION: ${{ steps.version_check.outputs.latest_version }}
+          VERSION_COUNT: ${{ steps.preflight_version_check.outputs.version_count }}
         run: |
           echo "📦 Creating deployment..."
+          echo "   Current version count: $VERSION_COUNT / 200"
+          echo ""
 
           MAX_RETRIES=4
           RETRY_DELAY=5
           DEPLOY_OUTPUT=""
 
-          # Check if we need to use existing version (at 200 version limit)
-          if [ "$USE_EXISTING_VERSION" == "true" ] && [ -n "$LATEST_VERSION" ]; then
-            echo ""
-            echo "🔄 VERSION LIMIT WORKAROUND ACTIVE"
-            echo "   Using existing version $LATEST_VERSION instead of creating new version"
-            echo ""
-          fi
-
           for attempt in $(seq 1 $MAX_RETRIES); do
             echo "🚀 Deploy attempt $attempt of $MAX_RETRIES..."
 
             set +e
-            if [ "$USE_EXISTING_VERSION" == "true" ] && [ -n "$LATEST_VERSION" ]; then
-              # At version limit: update deployment to point to existing version
-              if [ -n "$DEPLOYMENT_ID" ]; then
-                echo "   Updating deployment $DEPLOYMENT_ID to version $LATEST_VERSION (no new version created)"
-                DEPLOY_OUTPUT=$(clasp deploy -V "$LATEST_VERSION" -i "$DEPLOYMENT_ID" -d "Stage 1 Deploy $(date -Iseconds) [v$LATEST_VERSION]" 2>&1)
-              else
-                echo "   Creating deployment using version $LATEST_VERSION"
-                DEPLOY_OUTPUT=$(clasp deploy -V "$LATEST_VERSION" -d "Stage 1 Deploy $(date -Iseconds) [v$LATEST_VERSION]" 2>&1)
-              fi
+            # Normal deployment: create new version and deploy
+            if [ -n "$DEPLOYMENT_ID" ]; then
+              echo "   Updating existing deployment: $DEPLOYMENT_ID"
+              DEPLOY_OUTPUT=$(clasp deploy -i "$DEPLOYMENT_ID" -d "Stage 1 Deploy $(date -Iseconds)" 2>&1)
             else
-              # Normal deployment: create new version
-              if [ -n "$DEPLOYMENT_ID" ]; then
-                echo "   Updating existing deployment: $DEPLOYMENT_ID"
-                DEPLOY_OUTPUT=$(clasp deploy -i "$DEPLOYMENT_ID" -d "Stage 1 Deploy $(date -Iseconds)" 2>&1)
-              else
-                echo "   Creating new deployment (no DEPLOYMENT_ID secret set)"
-                DEPLOY_OUTPUT=$(clasp deploy -d "Stage 1 Deploy $(date -Iseconds)" 2>&1)
-              fi
+              echo "   Creating new deployment (no DEPLOYMENT_ID secret set)"
+              DEPLOY_OUTPUT=$(clasp deploy -d "Stage 1 Deploy $(date -Iseconds)" 2>&1)
             fi
             DEPLOY_EXIT_CODE=$?
             set -e
@@ -649,15 +664,20 @@ jobs:
             if echo "$DEPLOY_OUTPUT" | grep -qi "200 versions"; then
               SCRIPT_ID=$(jq -r '.scriptId' .clasp.json)
               echo ""
-              echo "❌ FATAL: Hit 200 version limit!"
+              echo "🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨"
+              echo "🚨   DEPLOYMENT BLOCKED: 200 VERSION LIMIT REACHED          🚨"
+              echo "🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨"
               echo ""
-              echo "📋 MANUAL ACTION REQUIRED:"
-              echo "   1. Go to: https://script.google.com/home/projects/${SCRIPT_ID}/versions"
-              echo "   2. Delete old versions (keep the 20-50 most recent)"
-              echo "   3. Re-run this workflow"
+              echo "📋 MANUAL ACTION REQUIRED (5-10 minutes):"
               echo ""
-              echo "Note: The Apps Script API does not support programmatic version deletion."
-              echo "This must be done manually through the Google Apps Script web UI."
+              echo "1. Open: https://script.google.com/home/projects/${SCRIPT_ID}/versions"
+              echo "2. Click 'Bulk delete versions'"
+              echo "3. Delete old versions (keep 20-50 most recent)"
+              echo "4. Re-run this workflow"
+              echo ""
+              echo "Note: Google Apps Script API does NOT support programmatic version deletion."
+              echo ""
+              echo "📚 More info: docs/VERSION_MANAGEMENT.md"
               exit 1
             fi
 
