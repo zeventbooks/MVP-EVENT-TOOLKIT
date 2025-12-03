@@ -396,12 +396,76 @@ jobs:
           retention-days: 7
 
   # ============================================================================
+  # GOLDEN TEST: Triangle Happy Path (Final Integration Check)
+  # ============================================================================
+  golden-test:
+    name: 🏆 Golden Test (Triangle Happy Path)
+    runs-on: ubuntu-latest
+    needs: [gate, warmup, matrix-tests]
+    if: needs.gate.outputs.should_run == 'true' && needs.matrix-tests.outputs.result == 'success'
+    outputs:
+      result: ${{ steps.test.outputs.result }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Triangle Happy Path Golden Test
+        id: test
+        env:
+          BASE_URL: ${{ needs.warmup.outputs.base_url }}
+          CI: true
+          ADMIN_KEY: ${{ secrets.STAGING_ADMIN_KEY || secrets.ADMIN_KEY_ROOT }}
+        run: |
+          echo "🏆 Running Triangle Happy Path Golden Test"
+          echo "==========================================="
+          echo "BASE_URL: $BASE_URL"
+          echo ""
+          echo "This is the GOLDEN PATH test:"
+          echo "  Admin → Public → Display → SharedReport"
+          echo ""
+          echo "If this test passes, the release is probably fine."
+          echo ""
+
+          # Run the golden test
+          npm run test:triangle:golden
+
+          if [ $? -eq 0 ]; then
+            echo "result=success" >> $GITHUB_OUTPUT
+            echo ""
+            echo "✅ GOLDEN TEST PASSED"
+            echo "   Triangle Happy Path verified on staging!"
+          else
+            echo "result=failure" >> $GITHUB_OUTPUT
+            echo ""
+            echo "❌ GOLDEN TEST FAILED"
+            echo "   We do not ship if Triangle Happy Path fails on staging."
+            exit 1
+          fi
+
+      - name: Upload golden test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden-test-results
+          path: |
+            .test-results/
+          retention-days: 7
+
+  # ============================================================================
   # QUALITY GATE: Final validation
   # ============================================================================
   quality-gate:
     name: 🎯 Stage 2 Staging Quality Gate
     runs-on: ubuntu-latest
-    needs: [gate, contract-tests, matrix-tests]
+    needs: [gate, contract-tests, matrix-tests, golden-test]
     if: always() && needs.gate.outputs.should_run == 'true'
     steps:
       - name: Evaluate test results
@@ -413,10 +477,12 @@ jobs:
           echo "Test Results:"
           echo "  📋 Contract Tests: ${{ needs.contract-tests.outputs.result || 'skipped' }}"
           echo "  🧪 Matrix Tests:   ${{ needs.matrix-tests.outputs.result || 'skipped' }}"
+          echo "  🏆 Golden Test:    ${{ needs.golden-test.outputs.result || 'skipped' }}"
           echo ""
 
           CONTRACT_RESULT="${{ needs.contract-tests.outputs.result }}"
           MATRIX_RESULT="${{ needs.matrix-tests.outputs.result }}"
+          GOLDEN_RESULT="${{ needs.golden-test.outputs.result }}"
 
           # Quality gate passes only if all tests pass
           if [[ "$CONTRACT_RESULT" != "success" ]]; then
@@ -431,12 +497,19 @@ jobs:
             exit 1
           fi
 
+          if [[ "$GOLDEN_RESULT" != "success" ]]; then
+            echo "❌ QUALITY GATE FAILED: Golden test did not pass"
+            echo "   We do not ship if Triangle Happy Path fails on staging."
+            exit 1
+          fi
+
           echo "✅ QUALITY GATE PASSED"
           echo "   All Stage 2 staging tests passed!"
           echo ""
           echo "This staging deployment has been validated with:"
           echo "  - Contract tests (events-list, event-details, etc.)"
           echo "  - Matrix tests (bundles, brand configs, sponsors)"
+          echo "  - Golden test (Triangle Happy Path: Admin → Public → Display → SharedReport)"
 
       - name: Create summary
         if: always()
@@ -449,10 +522,12 @@ jobs:
           echo "|------------|--------|" >> $GITHUB_STEP_SUMMARY
           echo "| 📋 Contract Tests | ${{ needs.contract-tests.outputs.result == 'success' && '✅ PASS' || '❌ FAIL' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 🧪 Matrix Tests | ${{ needs.matrix-tests.outputs.result == 'success' && '✅ PASS' || '❌ FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🏆 Golden Test | ${{ needs.golden-test.outputs.result == 'success' && '✅ PASS' || '❌ FAIL' }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
           if [[ "${{ needs.contract-tests.outputs.result }}" == "success" ]] && \
-             [[ "${{ needs.matrix-tests.outputs.result }}" == "success" ]]; then
+             [[ "${{ needs.matrix-tests.outputs.result }}" == "success" ]] && \
+             [[ "${{ needs.golden-test.outputs.result }}" == "success" ]]; then
             echo "### ✅ Quality Gate PASSED" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "Staging deployment validated successfully!" >> $GITHUB_STEP_SUMMARY
@@ -460,6 +535,8 @@ jobs:
             echo "### ❌ Quality Gate FAILED" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "Fix failing tests before proceeding to production." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Rule: We do not ship if Triangle Happy Path fails on staging.**" >> $GITHUB_STEP_SUMMARY
           fi
 
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -479,3 +556,7 @@ jobs:
           echo "- Brand configs" >> $GITHUB_STEP_SUMMARY
           echo "- Sponsor contracts" >> $GITHUB_STEP_SUMMARY
           echo "- Envelope boundary validation" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Golden Test (Triangle Happy Path):**" >> $GITHUB_STEP_SUMMARY
+          echo "- Admin → Public → Display → SharedReport flow" >> $GITHUB_STEP_SUMMARY
+          echo "- V2 Contract validation for all bundles" >> $GITHUB_STEP_SUMMARY

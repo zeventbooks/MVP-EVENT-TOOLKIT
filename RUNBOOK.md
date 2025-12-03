@@ -35,6 +35,8 @@ Before starting a release:
 - [ ] No open SEV1 or SEV2 incidents
 - [ ] Avoid releasing on Fridays, holidays, or during peak traffic
 
+**Golden Rule: We do not ship if Triangle Happy Path fails on staging.**
+
 ### Release Pipeline
 
 ```
@@ -64,7 +66,10 @@ Before starting a release:
 │     │   ├── components.smoke.test.js                             │
 │     │   └── api.smoke.test.js                                    │
 │     ├── E2E Smoke Tests                                          │
-│     └── Expensive Tests (flows, pages)                           │
+│     ├── Expensive Tests (flows, pages)                           │
+│     └── 🏆 GOLDEN TEST (Triangle Happy Path)                     │
+│         Admin → Public → Display → SharedReport                  │
+│         ⚠️ BLOCKS RELEASE IF FAILS                               │
 │                                                                  │
 │  5. VERIFY PRODUCTION                                            │
 │     npm run test:prod:smoke                                      │
@@ -107,8 +112,9 @@ curl -s https://www.eventangle.com/cbl/status | jq '.ok'
 | **Stage 1 CI** | lint, unit, contract, MVP guards | Deploy to Apps Script |
 | **Stage 2 API** | api.contract, api.smoke | Smoke Packs |
 | **Stage 2 Smoke Packs** | 4 core smoke tests | E2E smoke tests |
-| **Stage 2 E2E** | smoke, flows, pages | Production approval |
-| **Production Gate** | Quality Gate + CI:ALL | Production deployment |
+| **Stage 2 E2E** | smoke, flows, pages | Golden Test |
+| **Stage 2 Golden Test** | Triangle Happy Path (Admin→Public→Display→SharedReport) | Production approval |
+| **Production Gate** | Quality Gate + CI:ALL + Golden Test | Production deployment |
 
 ---
 
