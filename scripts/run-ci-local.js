@@ -4,10 +4,15 @@
  *
  * Usage:
  *   node scripts/run-ci-local.js           # Full CI (Stage 1 + Stage 2)
- *   node scripts/run-ci-local.js stage1    # Stage 1 only (lint + unit + contract)
+ *   node scripts/run-ci-local.js stage1    # Stage 1 only (npm run test:ci:stage1)
  *   node scripts/run-ci-local.js stage2    # Stage 2 only (API + smoke + flows + pages)
  *   node scripts/run-ci-local.js quick     # Quick CI (critical tests only)
  *   node scripts/run-ci-local.js --help    # Show help
+ *
+ * STAGE 1 CONTRACT:
+ *   - Canonical command: npm run test:ci:stage1
+ *   - Runs: lint + unit + contract + guards (env-agnostic)
+ *   - This is the single source of truth for Stage 1
  *
  * This script implements the same progressive gating as the CI:
  * - Stage 1 must pass before Stage 2 runs
@@ -60,54 +65,26 @@ function runCommand(name, command) {
 
 /**
  * Stage 1: Build & Validate (mirrors stage1-deploy.yml)
+ *
+ * CANONICAL DEFINITION: npm run test:ci:stage1
+ * This is the single source of truth for Stage 1 validation.
+ * Runs: lint + unit + contract + guards (env-agnostic)
  */
 async function runStage1() {
   log.header('STAGE 1: Build & Validate');
-  log.info('This stage runs: ESLint, Unit Tests, Contract Tests');
+  log.info('Canonical command: npm run test:ci:stage1');
+  log.info('Runs: lint + unit + contract + guards (env-agnostic)');
   log.info('Mirrors: .github/workflows/stage1-deploy.yml');
 
-  const results = {
-    lint: false,
-    unitTests: false,
-    contractTests: false,
-    triangleContracts: false,
-  };
+  // Single source of truth: npm run test:ci:stage1
+  const success = runCommand('Stage 1 Contract (lint + unit + contract + guards)', 'npm run test:ci:stage1');
 
-  // 1. Lint
-  results.lint = runCommand('ESLint (Code Quality)', 'npm run lint');
-  if (!results.lint) {
-    log.error('Stage 1 BLOCKED: Fix lint errors before proceeding');
-    return { success: false, results };
+  if (!success) {
+    log.error('Stage 1 BLOCKED: Fix failures before proceeding');
+    log.info('Run "npm run test:ci:stage1" to see detailed output');
   }
 
-  // 2. Unit Tests
-  results.unitTests = runCommand('Unit Tests (Jest)', 'npm run test:unit');
-  if (!results.unitTests) {
-    log.error('Stage 1 BLOCKED: Fix unit test failures before proceeding');
-    return { success: false, results };
-  }
-
-  // 3. Contract Tests
-  results.contractTests = runCommand('Contract Tests', 'npm run test:contract');
-  if (!results.contractTests) {
-    log.error('Stage 1 BLOCKED: Fix contract test failures before proceeding');
-    return { success: false, results };
-  }
-
-  // 4. Triangle Contract Tests (all phases)
-  log.stage('Running Triangle Contract Tests (all phases)');
-  const triangleResults = [];
-  triangleResults.push(runCommand('Triangle Before Contract', 'npm run test:triangle:before:contract'));
-  triangleResults.push(runCommand('Triangle During Contract', 'npm run test:triangle:during:contract'));
-  triangleResults.push(runCommand('Triangle After Contract', 'npm run test:triangle:after:contract'));
-  triangleResults.push(runCommand('Triangle All Contract', 'npm run test:triangle:all:contract'));
-
-  results.triangleContracts = triangleResults.every(r => r);
-  if (!results.triangleContracts) {
-    log.warn('Triangle contract tests had failures (non-blocking for local dev)');
-  }
-
-  return { success: true, results };
+  return { success, results: { stage1: success } };
 }
 
 /**
@@ -208,11 +185,8 @@ function printSummary(stage1Results, stage2Results) {
 
   console.log('Stage 1 (Build & Validate):');
   if (stage1Results) {
-    console.log(`  Lint:              ${stage1Results.results.lint ? colors.green + 'PASS' : colors.red + 'FAIL'}${colors.reset}`);
-    console.log(`  Unit Tests:        ${stage1Results.results.unitTests ? colors.green + 'PASS' : colors.red + 'FAIL'}${colors.reset}`);
-    console.log(`  Contract Tests:    ${stage1Results.results.contractTests ? colors.green + 'PASS' : colors.red + 'FAIL'}${colors.reset}`);
-    console.log(`  Triangle Contracts:${stage1Results.results.triangleContracts ? colors.green + 'PASS' : colors.yellow + 'WARN'}${colors.reset}`);
-    console.log(`  Overall:           ${stage1Results.success ? colors.green + 'PASS' : colors.red + 'FAIL'}${colors.reset}`);
+    console.log(`  npm run test:ci:stage1: ${stage1Results.success ? colors.green + 'PASS' : colors.red + 'FAIL'}${colors.reset}`);
+    console.log(`  (lint + unit + contract + guards)`);
   } else {
     console.log('  (skipped)');
   }
@@ -250,10 +224,17 @@ ${colors.cyan}USAGE:${colors.reset}
 
 ${colors.cyan}COMMANDS:${colors.reset}
   (none)    Run full CI (Stage 1 + Stage 2)
-  stage1    Run Stage 1 only (lint, unit, contract tests)
+  stage1    Run Stage 1 only (calls npm run test:ci:stage1)
   stage2    Run Stage 2 only (API, smoke, flow, page tests)
   quick     Run quick CI (critical tests only - fast feedback)
   --help    Show this help
+
+${colors.cyan}STAGE 1 CONTRACT (env-agnostic):${colors.reset}
+  Single source of truth: npm run test:ci:stage1
+  Components: lint + unit + contract + guards
+
+  This is the canonical definition. The CI workflow and this script
+  both call the same npm command for consistency.
 
 ${colors.cyan}EXAMPLES:${colors.reset}
   # Full CI before creating a PR
@@ -262,26 +243,21 @@ ${colors.cyan}EXAMPLES:${colors.reset}
   # Quick check before committing
   npm run ci:local quick
 
-  # Just validate Stage 1 (no deployment needed)
+  # Just validate Stage 1 (no deployment needed, no env required)
   npm run ci:local stage1
+  npm run test:ci:stage1     # equivalent - the canonical command
 
   # Run Stage 2 against a specific URL
   BASE_URL=https://your-deployment.com npm run ci:local stage2
 
 ${colors.cyan}ENVIRONMENT VARIABLES:${colors.reset}
-  BASE_URL            Deployment URL for E2E tests
-  GOOGLE_SCRIPT_URL   Alternative to BASE_URL
+  BASE_URL            Deployment URL for E2E tests (Stage 2 only)
+  GOOGLE_SCRIPT_URL   Alternative to BASE_URL (Stage 2 only)
 
 ${colors.cyan}CI PARITY:${colors.reset}
   This script mirrors the exact behavior of the GitHub Actions workflows:
-  - stage1-deploy.yml   -> npm run ci:local stage1
-  - stage2-testing.yml  -> npm run ci:local stage2
-
-${colors.cyan}NPM SCRIPTS (EQUIVALENT):${colors.reset}
-  npm run test:ci:stage1     Stage 1 tests only
-  npm run test:ci:stage2     Stage 2 tests only
-  npm run test:ci            Full CI pipeline
-  npm run test:ci:quick      Quick critical tests
+  - stage1-deploy.yml   -> npm run test:ci:stage1 (env-agnostic)
+  - stage2-testing.yml  -> npm run ci:local stage2 (requires BASE_URL)
 `);
 }
 
