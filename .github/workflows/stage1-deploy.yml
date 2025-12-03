@@ -314,39 +314,69 @@ jobs:
           echo "$CLASPRC_JSON" > ~/.clasprc.json
           chmod 600 ~/.clasprc.json
 
+          # Log clasp version for debugging
+          echo "📋 Clasp version: $(npx clasp --version 2>/dev/null || echo 'unknown')"
+
+          # Validate clasprc.json format before proceeding
+          echo "🔍 Validating credential format..."
+          if ! jq -e '.token' ~/.clasprc.json > /dev/null 2>&1; then
+            echo "❌ ERROR: Invalid clasprc.json format - missing 'token' field"
+            echo "📋 Debug: File structure (sensitive values redacted):"
+            jq 'keys' ~/.clasprc.json 2>/dev/null || echo "   Could not parse JSON"
+            exit 1
+          fi
+
+          # Check for required token fields
+          TOKEN_FIELDS=$(jq -r '.token | keys | .[]' ~/.clasprc.json 2>/dev/null)
+          echo "   Token fields present: $TOKEN_FIELDS"
+
           echo "🔍 Pre-flight check: Verifying script access..."
           # Use 'clasp list' to verify authentication - this actually calls the API
           # Unlike 'clasp status' which only checks local files
           echo "   Testing API authentication with 'clasp list'..."
-          if ! LIST_OUTPUT=$(npx clasp list 2>&1); then
-            echo "❌ ERROR: Cannot authenticate with Google Apps Script API"
+
+          # Retry logic for transient API failures
+          MAX_RETRIES=3
+          RETRY_DELAY=5
+          LIST_SUCCESS=false
+
+          for attempt in $(seq 1 $MAX_RETRIES); do
+            echo "   Attempt $attempt of $MAX_RETRIES..."
+            if LIST_OUTPUT=$(npx clasp list 2>&1); then
+              # Check for error messages in output even if exit code is 0
+              if echo "$LIST_OUTPUT" | grep -qiE "(error|unauthorized|invalid.*token|access.*denied|ECONNRESET|ETIMEDOUT)"; then
+                echo "   ⚠️ Potential issue detected in output, will retry..."
+                sleep $RETRY_DELAY
+                RETRY_DELAY=$((RETRY_DELAY * 2))
+                continue
+              fi
+              LIST_SUCCESS=true
+              break
+            else
+              echo "   ⚠️ Attempt $attempt failed, retrying in ${RETRY_DELAY}s..."
+              sleep $RETRY_DELAY
+              RETRY_DELAY=$((RETRY_DELAY * 2))
+            fi
+          done
+
+          if [ "$LIST_SUCCESS" = false ]; then
+            echo "❌ ERROR: Cannot authenticate with Google Apps Script API after $MAX_RETRIES attempts"
             echo ""
             echo "📋 clasp list output:"
             echo "$LIST_OUTPUT"
             echo ""
             echo "📋 Diagnostic information:"
             echo "   Script ID from .clasp.json: $(cat .clasp.json | jq -r '.scriptId' 2>/dev/null || echo 'could not read')"
+            echo "   Token expiry_date: $(jq -r '.token.expiry_date // "not set"' ~/.clasprc.json 2>/dev/null)"
+            echo "   Current timestamp (ms): $(date +%s)000"
             echo ""
             echo "🔧 Possible fixes:"
             echo "   1. OAuth token may have expired - regenerate OAUTH_CREDENTIALS secret"
             echo "   2. Script access may have been revoked - check Google Apps Script permissions"
             echo "   3. The refresh_token may have been invalidated"
+            echo "   4. Network connectivity issues - check GitHub Actions status"
             echo ""
             echo "📖 To regenerate credentials locally:"
-            echo "   npx clasp login"
-            echo "   cat ~/.clasprc.json"
-            echo "   Then update the OAUTH_CREDENTIALS secret in GitHub"
-            exit 1
-          fi
-
-          # Also check for error messages in the output (clasp sometimes exits 0 but shows errors)
-          if echo "$LIST_OUTPUT" | grep -qiE "(error|unauthorized|invalid.*token|access.*denied)"; then
-            echo "❌ ERROR: Authentication issue detected in clasp output"
-            echo ""
-            echo "📋 clasp list output:"
-            echo "$LIST_OUTPUT"
-            echo ""
-            echo "📖 To regenerate credentials:"
             echo "   npx clasp login"
             echo "   cat ~/.clasprc.json"
             echo "   Then update the OAUTH_CREDENTIALS secret in GitHub"
@@ -358,8 +388,33 @@ jobs:
 
           echo "🚀 Deploying to Apps Script..."
           # Capture both stdout and stderr for better error reporting
-          if ! PUSH_OUTPUT=$(npx clasp push --force 2>&1); then
-            echo "❌ ERROR: clasp push failed"
+          # Retry logic for push as well
+          PUSH_SUCCESS=false
+          RETRY_DELAY=5
+
+          for attempt in $(seq 1 $MAX_RETRIES); do
+            echo "   Push attempt $attempt of $MAX_RETRIES..."
+            if PUSH_OUTPUT=$(npx clasp push --force 2>&1); then
+              # Check for errors in output
+              if echo "$PUSH_OUTPUT" | grep -qiE "(error|failed|ECONNRESET|ETIMEDOUT|rate.?limit)"; then
+                echo "   ⚠️ Potential issue in push output, will retry..."
+                echo "$PUSH_OUTPUT"
+                sleep $RETRY_DELAY
+                RETRY_DELAY=$((RETRY_DELAY * 2))
+                continue
+              fi
+              PUSH_SUCCESS=true
+              break
+            else
+              echo "   ⚠️ Push attempt $attempt failed, retrying in ${RETRY_DELAY}s..."
+              echo "   Output: $PUSH_OUTPUT"
+              sleep $RETRY_DELAY
+              RETRY_DELAY=$((RETRY_DELAY * 2))
+            fi
+          done
+
+          if [ "$PUSH_SUCCESS" = false ]; then
+            echo "❌ ERROR: clasp push failed after $MAX_RETRIES attempts"
             echo ""
             echo "📋 clasp push output:"
             echo "$PUSH_OUTPUT"
@@ -368,16 +423,20 @@ jobs:
             echo "   Checking .clasp.json configuration..."
             cat .clasp.json 2>/dev/null || echo "   Could not read .clasp.json"
             echo ""
-            echo "   Files being pushed:"
+            echo "   Files being pushed (with sizes):"
             ls -la src/mvp/*.gs src/mvp/*.html 2>/dev/null | head -20 || echo "   Could not list files"
+            echo ""
+            echo "   Total project size:"
+            du -sh src/mvp/ 2>/dev/null || echo "   Could not determine size"
             echo ""
             echo "🔧 Common causes:"
             echo "   1. Syntax error in .gs or .html files"
-            echo "   2. File size exceeds Apps Script limits (50KB per file)"
+            echo "   2. File size exceeds Apps Script limits"
             echo "   3. OAuth token expired mid-operation"
             echo "   4. Google Apps Script API rate limiting"
             echo "   5. Invalid scriptId in .clasp.json"
             echo "   6. Missing spreadsheetId for bound scripts"
+            echo "   7. Network connectivity issues"
             exit 1
           fi
           echo "$PUSH_OUTPUT"
@@ -386,17 +445,32 @@ jobs:
           echo "📦 Updating deployment..."
           # Check if we have a deployment ID to update
           DEPLOY_FAILED=false
-          if [ -n "$DEPLOYMENT_ID" ]; then
-            echo "Updating existing deployment: $DEPLOYMENT_ID"
-            if ! DEPLOY_OUTPUT=$(npx clasp deploy -i "$DEPLOYMENT_ID" -d "Stage 1 Deploy $(date -Iseconds)" 2>&1); then
-              DEPLOY_FAILED=true
+          RETRY_DELAY=5
+
+          for attempt in $(seq 1 $MAX_RETRIES); do
+            echo "   Deploy attempt $attempt of $MAX_RETRIES..."
+            if [ -n "$DEPLOYMENT_ID" ]; then
+              echo "   Updating existing deployment: $DEPLOYMENT_ID"
+              if DEPLOY_OUTPUT=$(npx clasp deploy -i "$DEPLOYMENT_ID" -d "Stage 1 Deploy $(date -Iseconds)" 2>&1); then
+                if ! echo "$DEPLOY_OUTPUT" | grep -qiE "(error|failed|ECONNRESET|ETIMEDOUT)"; then
+                  DEPLOY_FAILED=false
+                  break
+                fi
+              fi
+            else
+              echo "   Creating new deployment (no DEPLOYMENT_ID secret set)"
+              if DEPLOY_OUTPUT=$(npx clasp deploy -d "Stage 1 Deploy $(date -Iseconds)" 2>&1); then
+                if ! echo "$DEPLOY_OUTPUT" | grep -qiE "(error|failed|ECONNRESET|ETIMEDOUT)"; then
+                  DEPLOY_FAILED=false
+                  break
+                fi
+              fi
             fi
-          else
-            echo "Creating new deployment (no DEPLOYMENT_ID secret set)"
-            if ! DEPLOY_OUTPUT=$(npx clasp deploy -d "Stage 1 Deploy $(date -Iseconds)" 2>&1); then
-              DEPLOY_FAILED=true
-            fi
-          fi
+            DEPLOY_FAILED=true
+            echo "   ⚠️ Deploy attempt $attempt failed, retrying in ${RETRY_DELAY}s..."
+            sleep $RETRY_DELAY
+            RETRY_DELAY=$((RETRY_DELAY * 2))
+          done
 
           echo "$DEPLOY_OUTPUT"
 
