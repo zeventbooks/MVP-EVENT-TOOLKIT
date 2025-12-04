@@ -47,6 +47,7 @@ const EXPECTED_INVENTORY = {
     'api_getEventTemplates',
     'api_saveEvent',
     'api_get',
+    'api_getEventsSafe',
     'api_createFormFromTemplate',
     'api_generateFormShortlink'
   ],
@@ -98,6 +99,7 @@ const API_TO_SCHEMA = {
   'api_getEventTemplates': 'templates.getEventTemplates',
   'api_saveEvent': 'events.saveEvent',
   'api_get': 'events.get',
+  'api_getEventsSafe': 'events.getEventsSafe',
   'api_createFormFromTemplate': 'forms.createFromTemplate',
   'api_generateFormShortlink': 'forms.generateShortlink',
   'api_getPublicBundle': 'bundles.public',

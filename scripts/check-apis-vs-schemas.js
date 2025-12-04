@@ -46,6 +46,7 @@ const EXPLICIT_MAPPING = {
   // Events API
   'api_list': 'events.list',
   'api_get': 'events.get',
+  'api_getEventsSafe': 'events.getEventsSafe',
   'api_saveEvent': 'events.saveEvent',
 
   // Bundle APIs (surface-optimized payloads)
@@ -167,6 +168,7 @@ function extractSchemasFromApiSchemasGs() {
     // Events
     'events.list',
     'events.get',
+    'events.getEventsSafe',
     'events.create',
     'events.update',
     'events.saveEvent',
