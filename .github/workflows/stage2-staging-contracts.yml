@@ -115,13 +115,81 @@ jobs:
           echo "=================================================="
 
   # ============================================================================
+  # PREFLIGHT STAGING: Fail fast if staging is unreachable
+  # ============================================================================
+  # Checks that staging is reachable before running any tests.
+  # This prevents noisy test failures when staging is simply down.
+  # ============================================================================
+
+  preflight-staging:
+    name: 🛫 Preflight - Check Staging Reachable
+    runs-on: ubuntu-latest
+    needs: setup
+    if: needs.setup.outputs.should_run == 'true'
+    outputs:
+      staging_reachable: ${{ steps.check.outputs.reachable }}
+    steps:
+      - name: Check staging is reachable
+        id: check
+        env:
+          BASE_URL: ${{ env.STAGING_URL }}
+        run: |
+          echo "🛫 Preflight Check: Is staging reachable?"
+          echo "==========================================="
+          echo ""
+          echo "Target URL: $BASE_URL (staging only - never hits prod)"
+          echo ""
+
+          # Try /status endpoint first, then /ping as fallback
+          STATUS_URL="${BASE_URL}/status"
+          PING_URL="${BASE_URL}/ping"
+
+          echo "🔍 Checking $STATUS_URL ..."
+          HTTP_STATUS=$(curl -sf -o /dev/null -w "%{http_code}" --connect-timeout 15 --max-time 30 "$STATUS_URL" 2>/dev/null || echo "000")
+
+          if [[ "$HTTP_STATUS" == "200" ]]; then
+            echo "✅ Staging is reachable (status: $HTTP_STATUS)"
+            echo "reachable=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "⚠️ /status returned $HTTP_STATUS, trying /ping..."
+          HTTP_STATUS=$(curl -sf -o /dev/null -w "%{http_code}" --connect-timeout 15 --max-time 30 "$PING_URL" 2>/dev/null || echo "000")
+
+          if [[ "$HTTP_STATUS" == "200" ]]; then
+            echo "✅ Staging is reachable via /ping (status: $HTTP_STATUS)"
+            echo "reachable=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Staging is unreachable - fail fast with clear message
+          echo ""
+          echo "=============================================="
+          echo "❌ STAGING UNREACHABLE"
+          echo "=============================================="
+          echo ""
+          echo "Target: $BASE_URL"
+          echo "Status: $HTTP_STATUS"
+          echo ""
+          echo "Tests cannot run because staging is not responding."
+          echo "This is NOT a test failure - staging is simply down."
+          echo ""
+          echo "To fix:"
+          echo "  1. Check if staging is deployed"
+          echo "  2. Check Cloudflare Worker status"
+          echo "  3. Check Apps Script deployment"
+          echo "=============================================="
+          echo "reachable=false" >> $GITHUB_OUTPUT
+          exit 1
+
+  # ============================================================================
   # DEPLOY TO STAGING (never hits prod)
   # ============================================================================
   deploy-staging:
     name: 🚀 Deploy to Staging
     runs-on: ubuntu-latest
-    needs: setup
-    if: needs.setup.outputs.should_run == 'true' && needs.setup.outputs.skip_deploy != 'true'
+    needs: [setup, preflight-staging]
+    if: needs.setup.outputs.should_run == 'true' && needs.setup.outputs.skip_deploy != 'true' && needs.preflight-staging.outputs.staging_reachable == 'true'
     outputs:
       deployment_id: ${{ steps.deploy.outputs.deployment_id }}
     steps:
@@ -236,10 +304,11 @@ jobs:
   warmup:
     name: 🔥 Warmup Staging
     runs-on: ubuntu-latest
-    needs: [setup, deploy-staging]
+    needs: [setup, preflight-staging, deploy-staging]
     if: |
       always() &&
       needs.setup.outputs.should_run == 'true' &&
+      needs.preflight-staging.outputs.staging_reachable == 'true' &&
       (needs.deploy-staging.result == 'success' || needs.deploy-staging.result == 'skipped')
     steps:
       - uses: actions/checkout@v4
@@ -273,8 +342,8 @@ jobs:
   contract-tests:
     name: 📋 Contract Tests (Post-Deploy)
     runs-on: ubuntu-latest
-    needs: [setup, warmup]
-    if: needs.setup.outputs.should_run == 'true'
+    needs: [setup, preflight-staging, warmup]
+    if: needs.setup.outputs.should_run == 'true' && needs.preflight-staging.outputs.staging_reachable == 'true'
     outputs:
       result: ${{ steps.test.outputs.result }}
     steps:
@@ -490,7 +559,7 @@ jobs:
   quality-gate:
     name: 🎯 Stage 2 Staging Quality Gate
     runs-on: ubuntu-latest
-    needs: [setup, contract-tests, matrix-tests, golden-test]
+    needs: [setup, preflight-staging, contract-tests, matrix-tests, golden-test]
     if: always() && needs.setup.outputs.should_run == 'true'
     steps:
       - name: Evaluate test results
@@ -499,15 +568,26 @@ jobs:
           echo "🎯 Stage 2 Staging Quality Gate"
           echo "================================="
           echo ""
+          echo "Preflight Check:"
+          echo "  🛫 Staging Reachable: ${{ needs.preflight-staging.outputs.staging_reachable || 'skipped' }}"
+          echo ""
           echo "Test Results:"
           echo "  📋 Contract Tests: ${{ needs.contract-tests.outputs.result || 'skipped' }}"
           echo "  🧪 Matrix Tests:   ${{ needs.matrix-tests.outputs.result || 'skipped' }}"
           echo "  🏆 Golden Test:    ${{ needs.golden-test.outputs.result || 'skipped' }}"
           echo ""
 
+          PREFLIGHT_RESULT="${{ needs.preflight-staging.outputs.staging_reachable }}"
           CONTRACT_RESULT="${{ needs.contract-tests.outputs.result }}"
           MATRIX_RESULT="${{ needs.matrix-tests.outputs.result }}"
           GOLDEN_RESULT="${{ needs.golden-test.outputs.result }}"
+
+          # Check preflight first
+          if [[ "$PREFLIGHT_RESULT" != "true" ]]; then
+            echo "❌ QUALITY GATE FAILED: Staging was unreachable"
+            echo "   Fix staging infrastructure before running tests"
+            exit 1
+          fi
 
           # Quality gate passes only if all tests pass
           if [[ "$CONTRACT_RESULT" != "success" ]]; then
@@ -541,13 +621,14 @@ jobs:
         run: |
           echo "## 🎯 Stage 2 Staging Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "### Preflight & Test Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Test Suite | Result |" >> $GITHUB_STEP_SUMMARY
-          echo "|------------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| 📋 Contract Tests | ${{ needs.contract-tests.outputs.result == 'success' && '✅ PASS' || '❌ FAIL' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| 🧪 Matrix Tests | ${{ needs.matrix-tests.outputs.result == 'success' && '✅ PASS' || '❌ FAIL' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| 🏆 Golden Test | ${{ needs.golden-test.outputs.result == 'success' && '✅ PASS' || '❌ FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Result |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 🛫 Preflight (Staging Reachable) | ${{ needs.preflight-staging.outputs.staging_reachable == 'true' && '✅ PASS' || '❌ FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 📋 Contract Tests | ${{ needs.contract-tests.outputs.result == 'success' && '✅ PASS' || (needs.preflight-staging.outputs.staging_reachable != 'true' && '⏭️ SKIPPED' || '❌ FAIL') }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🧪 Matrix Tests | ${{ needs.matrix-tests.outputs.result == 'success' && '✅ PASS' || (needs.preflight-staging.outputs.staging_reachable != 'true' && '⏭️ SKIPPED' || '❌ FAIL') }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🏆 Golden Test | ${{ needs.golden-test.outputs.result == 'success' && '✅ PASS' || (needs.preflight-staging.outputs.staging_reachable != 'true' && '⏭️ SKIPPED' || '❌ FAIL') }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
           if [[ "${{ needs.contract-tests.outputs.result }}" == "success" ]] && \
