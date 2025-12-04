@@ -133,6 +133,7 @@
     "test:prod:flows": "USE_PRODUCTION=true npm run test:flows",
     "test:prod:all": "USE_PRODUCTION=true npm run test:e2e",
     "test:prod:health": "USE_PRODUCTION=true npm run test:health",
+    "test:prod:smoke:minimal": "BASE_URL=https://www.eventangle.com playwright test tests/smoke/prod.smoke.test.js --project=chromium",
     "test:qa": "BASE_URL=https://qa.zeventbooks.com playwright test",
     "test:qa:api": "BASE_URL=https://qa.zeventbooks.com npm run test:api",
     "test:qa:smoke": "BASE_URL=https://qa.zeventbooks.com npm run test:smoke",

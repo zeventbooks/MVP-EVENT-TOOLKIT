@@ -19,6 +19,11 @@ on:
         required: false
         type: string
         default: ''
+      use_production:
+        description: '⚠️ DANGER: Run minimal smoke tests against PRODUCTION (www.eventangle.com). Only workflow_dispatch. Read-only tests ONLY. Use with extreme caution!'
+        required: false
+        type: boolean
+        default: false
 
 # Prevent duplicate runs: only one Stage 2 at a time per branch
 # Note: cancel-in-progress: false ensures runs queue instead of cancelling each other
@@ -51,6 +56,7 @@ jobs:
       url_mode: ${{ steps.get-url.outputs.url_mode }}
       skip_tests: ${{ steps.final-decision.outputs.skip }}
       skip_reason: ${{ steps.final-decision.outputs.reason }}
+      is_prod_smoke: ${{ steps.get-url.outputs.is_prod_smoke }}
     steps:
       - uses: actions/checkout@v4
 
@@ -73,12 +79,34 @@ jobs:
           echo "=================================================="
           echo ""
           echo "Precedence:"
+          echo "  0. use_production (PROD SMOKE - workflow_dispatch only)"
           echo "  1. inputs.deployment_url (manual_override)"
           echo "  2. Stage 1 artifact (from_artifact → prod)"
           echo "  3. Fallback (default_staging)"
           echo ""
           echo "=================================================="
           echo ""
+
+          # Priority 0: Production smoke mode (workflow_dispatch only, explicit opt-in)
+          if [[ "${{ inputs.use_production }}" == "true" ]]; then
+            DEPLOYMENT_URL="https://www.eventangle.com"
+            URL_MODE="prod_smoke"
+            echo "=============================================="
+            echo "⚠️  PRODUCTION SMOKE MODE ACTIVATED"
+            echo "=============================================="
+            echo "You have explicitly opted into production testing."
+            echo "ONLY minimal read-only smoke tests will run."
+            echo "=============================================="
+            echo ""
+            echo "📋 Mode: prod_smoke"
+            echo "📋 URL:  $DEPLOYMENT_URL"
+            echo ""
+            echo "url=$DEPLOYMENT_URL" >> $GITHUB_OUTPUT
+            echo "url_mode=$URL_MODE" >> $GITHUB_OUTPUT
+            echo "is_prod_smoke=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          echo "is_prod_smoke=false" >> $GITHUB_OUTPUT
 
           # Priority 1: Manual override via workflow_dispatch input
           if [[ -n "${{ inputs.deployment_url }}" ]]; then
@@ -191,6 +219,12 @@ jobs:
 
           # Display mode with explanation
           case "$URL_MODE" in
+            "prod_smoke")
+              echo "📋 Mode: prod_smoke"
+              echo "   → ⚠️  PRODUCTION SMOKE - Explicit opt-in via use_production=true"
+              echo "   → Only minimal read-only tests will run"
+              echo "   → Full test suite is SKIPPED in this mode"
+              ;;
             "manual_override")
               echo "📋 Mode: manual_override"
               echo "   → URL provided via workflow_dispatch input"
@@ -288,6 +322,9 @@ jobs:
 
           # Mode description
           case "$URL_MODE" in
+            "prod_smoke")
+              echo "| **Mode** | \`prod_smoke\` - ⚠️ PRODUCTION minimal smoke (opt-in) |" >> $GITHUB_STEP_SUMMARY
+              ;;
             "manual_override")
               echo "| **Mode** | \`manual_override\` - User provided via workflow_dispatch |" >> $GITHUB_STEP_SUMMARY
               ;;
@@ -329,6 +366,111 @@ jobs:
           fi
 
   # ============================================================================
+  # PRODUCTION SMOKE: Minimal read-only health checks against production
+  # ============================================================================
+  # DANGER: This job runs tests against LIVE PRODUCTION (www.eventangle.com)
+  # - Only runs when use_production=true (workflow_dispatch only)
+  # - Runs ONLY minimal read-only tests (status + admin + public page load)
+  # - All other test jobs are SKIPPED in this mode
+  # ============================================================================
+
+  prod-smoke:
+    name: 🚨 PRODUCTION Smoke (Read-Only)
+    runs-on: ubuntu-latest
+    needs: setup
+    if: needs.setup.outputs.is_prod_smoke == 'true'
+    outputs:
+      result: ${{ steps.test.outputs.result }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Display Production Warning
+        run: |
+          echo "=============================================="
+          echo "⚠️  PRODUCTION SMOKE TEST"
+          echo "=============================================="
+          echo ""
+          echo "You are running tests against LIVE PRODUCTION:"
+          echo "  https://www.eventangle.com"
+          echo ""
+          echo "These are READ-ONLY tests only:"
+          echo "  - Status API health check"
+          echo "  - Admin page loads (no form submissions)"
+          echo "  - Public page loads (read-only)"
+          echo ""
+          echo "NO write operations will be performed."
+          echo "=============================================="
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Production Smoke Tests
+        id: test
+        env:
+          BASE_URL: https://www.eventangle.com
+          CI: true
+        run: |
+          echo "🚨 Running Production Smoke Tests"
+          echo "Target: https://www.eventangle.com"
+          echo ""
+          npm run test:prod:smoke:minimal
+          if [ $? -eq 0 ]; then
+            echo "result=success" >> $GITHUB_OUTPUT
+            echo ""
+            echo "✅ PRODUCTION SMOKE PASSED"
+            echo "Production is healthy and responding correctly."
+          else
+            echo "result=failure" >> $GITHUB_OUTPUT
+            echo ""
+            echo "❌ PRODUCTION SMOKE FAILED"
+            echo "Production may have issues - investigate immediately!"
+            exit 1
+          fi
+
+      - name: Create Production Smoke Summary
+        if: always()
+        run: |
+          echo "## 🚨 Production Smoke Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Target:** \`https://www.eventangle.com\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [[ "${{ steps.test.outputs.result }}" == "success" ]]; then
+            echo "### ✅ PRODUCTION IS HEALTHY" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "All minimal read-only checks passed:" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ Status API responding" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ Admin page loads" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ Public page loads" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ PRODUCTION HAS ISSUES" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "One or more health checks failed. Investigate immediately!" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "*Note: This was a minimal read-only smoke test. No data was modified.*" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload Production Smoke report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-prod-smoke-report
+          path: playwright-report/
+          retention-days: 7
+
+  # ============================================================================
   # PREFLIGHT STAGING: Fail fast if staging is unreachable
   # ============================================================================
   # Checks that the target URL is reachable before running any tests.
@@ -339,7 +481,7 @@ jobs:
     name: 🛫 Preflight - Check Staging Reachable
     runs-on: ubuntu-latest
     needs: setup
-    if: needs.setup.outputs.skip_tests != 'true'
+    if: needs.setup.outputs.skip_tests != 'true' && needs.setup.outputs.is_prod_smoke != 'true'
     outputs:
       staging_reachable: ${{ steps.check.outputs.reachable }}
     steps:
@@ -407,7 +549,7 @@ jobs:
     name: 🔥 Warmup Deployment
     runs-on: ubuntu-latest
     needs: [setup, preflight-staging]
-    if: needs.setup.outputs.skip_tests != 'true'
+    if: needs.setup.outputs.skip_tests != 'true' && needs.setup.outputs.is_prod_smoke != 'true'
     outputs:
       warmup_success: ${{ steps.warmup.outputs.success }}
     steps:
@@ -451,7 +593,7 @@ jobs:
     name: 🔥 API Tests (Critical)
     runs-on: ubuntu-latest
     needs: [setup, preflight-staging, warmup]
-    if: needs.setup.outputs.skip_tests != 'true' && needs.preflight-staging.outputs.staging_reachable == 'true'
+    if: needs.setup.outputs.skip_tests != 'true' && needs.setup.outputs.is_prod_smoke != 'true' && needs.preflight-staging.outputs.staging_reachable == 'true'
     outputs:
       result: ${{ steps.test.outputs.result }}
     steps:
@@ -515,7 +657,7 @@ jobs:
     name: 🚦 Gate 1 - Check API Results
     runs-on: ubuntu-latest
     needs: [setup, api-tests]
-    if: always() && needs.setup.outputs.skip_tests != 'true'
+    if: always() && needs.setup.outputs.skip_tests != 'true' && needs.setup.outputs.is_prod_smoke != 'true'
     outputs:
       should_run_smoke_packs: ${{ steps.gate.outputs.should_run }}
       api_passed: ${{ steps.gate.outputs.api_passed }}
@@ -558,7 +700,7 @@ jobs:
     name: 📦 Smoke Packs (Stage 1 Gate)
     runs-on: ubuntu-latest
     needs: [setup, gate-1-api-results]
-    if: needs.gate-1-api-results.outputs.should_run_smoke_packs == 'true'
+    if: needs.setup.outputs.is_prod_smoke != 'true' && needs.gate-1-api-results.outputs.should_run_smoke_packs == 'true'
     outputs:
       result: ${{ steps.test.outputs.result }}
     steps:
@@ -626,7 +768,7 @@ jobs:
     name: 🚦 Gate 1.5 - Check Smoke Packs
     runs-on: ubuntu-latest
     needs: [setup, gate-1-api-results, smoke-packs]
-    if: always() && needs.setup.outputs.skip_tests != 'true' && needs.gate-1-api-results.outputs.should_run_smoke_packs == 'true'
+    if: always() && needs.setup.outputs.skip_tests != 'true' && needs.setup.outputs.is_prod_smoke != 'true' && needs.gate-1-api-results.outputs.should_run_smoke_packs == 'true'
     outputs:
       should_run_smoke: ${{ steps.gate.outputs.should_run }}
       smoke_packs_passed: ${{ steps.gate.outputs.smoke_packs_passed }}
@@ -663,7 +805,7 @@ jobs:
     name: 🔥 Smoke Tests (E2E)
     runs-on: ubuntu-latest
     needs: [setup, gate-smoke-packs-results]
-    if: needs.gate-smoke-packs-results.outputs.should_run_smoke == 'true'
+    if: needs.setup.outputs.is_prod_smoke != 'true' && needs.gate-smoke-packs-results.outputs.should_run_smoke == 'true'
     outputs:
       result: ${{ steps.test.outputs.result }}
     steps:
@@ -766,7 +908,7 @@ jobs:
     name: 🚦 Gate 2 - Check Smoke Results
     runs-on: ubuntu-latest
     needs: [setup, gate-smoke-packs-results, smoke-tests]
-    if: always() && needs.setup.outputs.skip_tests != 'true' && needs.gate-smoke-packs-results.outputs.should_run_smoke == 'true'
+    if: always() && needs.setup.outputs.skip_tests != 'true' && needs.setup.outputs.is_prod_smoke != 'true' && needs.gate-smoke-packs-results.outputs.should_run_smoke == 'true'
     outputs:
       should_run_expensive: ${{ steps.gate.outputs.should_run }}
       smoke_passed: ${{ steps.gate.outputs.smoke_passed }}
@@ -804,7 +946,7 @@ jobs:
     name: 💰 Expensive - ${{ matrix.suite }}
     runs-on: ubuntu-latest
     needs: [setup, gate-2-smoke-results]
-    if: needs.gate-2-smoke-results.outputs.should_run_expensive == 'true'
+    if: needs.setup.outputs.is_prod_smoke != 'true' && needs.gate-2-smoke-results.outputs.should_run_expensive == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -894,7 +1036,7 @@ jobs:
     name: 🎯 Quality Gate - Final Validation
     runs-on: ubuntu-latest
     needs: [setup, preflight-staging, api-tests, gate-1-api-results, smoke-packs, gate-smoke-packs-results, smoke-tests, gate-2-smoke-results, expensive-tests]
-    if: always() && needs.setup.outputs.skip_tests != 'true'
+    if: always() && needs.setup.outputs.skip_tests != 'true' && needs.setup.outputs.is_prod_smoke != 'true'
     outputs:
       qa_approved: ${{ steps.gate.outputs.approved }}
     steps:
@@ -1060,7 +1202,7 @@ jobs:
     name: 🚦 CI:ALL Global Gate
     runs-on: ubuntu-latest
     needs: [setup, quality-gate]
-    if: always() && needs.setup.outputs.skip_tests != 'true'
+    if: always() && needs.setup.outputs.skip_tests != 'true' && needs.setup.outputs.is_prod_smoke != 'true'
     outputs:
       gate_passed: ${{ steps.ci-all.outputs.passed }}
     steps:
@@ -1155,7 +1297,7 @@ jobs:
     name: 🔒 Production Deployment Gate
     runs-on: ubuntu-latest
     needs: [setup, quality-gate, ci-all-gate]
-    if: always() && needs.setup.outputs.skip_tests != 'true'
+    if: always() && needs.setup.outputs.skip_tests != 'true' && needs.setup.outputs.is_prod_smoke != 'true'
     steps:
       - name: Check production readiness
         id: prod-check
