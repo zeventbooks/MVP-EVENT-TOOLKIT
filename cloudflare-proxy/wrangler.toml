@@ -55,9 +55,14 @@ DEPLOYMENT_ID = "AKfycbyS1cW9VhviR-Jr8AmYY_BAGrb1gzuKkrgEBP2M3bMdqAv4ktqHOZInWV8
 # 1. Create staging GAS project (see STAGING_SETUP.md)
 # 2. Deploy GAS: npm run deploy:staging
 # 3. Configure: npm run staging:configure -- --deployment-id=YOUR_ID
-# 4. Configure DNS: stg.eventangle.com CNAME → eventangle.workers.dev
+# 4. Set up DNS (choose one):
+#    a) Automated: export CLOUDFLARE_API_TOKEN=xxx && npm run staging:dns
+#    b) Manual: Add A record for stg.eventangle.com -> 192.0.2.1 (proxied)
 # 5. Deploy worker: npm run deploy:staging:worker
 # 6. Verify: npm run staging:verify
+#
+# Quick one-command setup (after setting CLOUDFLARE_API_TOKEN):
+#   npm run staging:setup
 #
 # Deploy: wrangler deploy --env staging
 # Status: npm run staging:status
