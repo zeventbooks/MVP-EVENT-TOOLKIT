@@ -525,7 +525,26 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
     </div>
     <!-- V2 REMOVED: eventTime, eventEntity, eventImage, eventSummary - not in schema -->
 
-    <!-- QR Codes Section -->
+    <!--
+    =========================================================================
+    QR CODES SECTION - MVP SCOPE LOCK (3-QR LIMIT)
+    =========================================================================
+    RULE: Poster renders EXACTLY 3 QR display slots (no more, no less).
+
+    Backend may define unlimited QR flows, but this UI enforces a hard limit.
+    DO NOT add a 4th QR slot. See docs/MVP_SCOPE.md for full rules.
+
+    Current slots (priority order):
+      1. Sign Up QR    - event.qr.signup (primary CTA)
+      2. Event Page QR - event.qr.public
+      3. Reserved      - event.qr.display (v2, currently empty)
+
+    If fewer than 3 QRs exist: show placeholder for empty slots
+    If more than 3 QRs exist: only render first 3, hide extras
+
+    CSS grid is set to: grid-template-columns: repeat(3, 1fr)
+    =========================================================================
+    -->
     <section class="qr-section">
       <h2>Scan to Connect</h2>
       <div id="qrGrid" class="qr-grid"></div>
@@ -606,6 +625,20 @@ Related MVP Surfaces: Admin, Display, Public, Sponsor, SharedReport
     /**
      * Render QR codes section
      * SCHEMA: /schemas/event.schema.json
+     *
+     * =========================================================================
+     * MVP SCOPE LOCK: 3-QR DISPLAY SLOT LIMIT
+     * =========================================================================
+     * This function enforces a HARD LIMIT of 3 QR display slots on the poster.
+     * DO NOT add a 4th QR slot. See docs/MVP_SCOPE.md for full rules.
+     *
+     * Slot allocation (priority order):
+     *   Slot 1: Sign Up QR    (event.qr.signup)
+     *   Slot 2: Event Page QR (event.qr.public)
+     *   Slot 3: Reserved      (event.qr.display - v2)
+     *
+     * Backend may define unlimited QR flows, but poster ONLY renders 3.
+     * =========================================================================
      *
      * Fields used (ALL from schema):
      * - event.qr.public (MVP Required) - Base64 PNG data URI
