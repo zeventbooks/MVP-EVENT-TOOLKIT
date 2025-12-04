@@ -52,6 +52,10 @@ MVP-EVENT-TOOLKIT/
 | `AnalyticsService.gs` | Logging, metrics, diagnostics (DIAG sheet) |
 | `SecurityMiddleware.gs` | Auth, JWT, rate limiting, CSRF protection, input sanitization |
 | `ApiSchemas.gs` | JSON Schema validation for API contracts |
+| `AnalyticsRollup.gs` | Precomputed analytics for SharedReport performance |
+| `DiagArchiver.gs` | DIAG log rotation and archiving (ops tooling) |
+| `BackupService.gs` | Control sheet backup/restore (ops tooling) |
+| `DataHealthChecker.gs` | Nightly data sanity checks (ops tooling) |
 
 ### Frontend Surfaces (.html)
 
@@ -86,36 +90,21 @@ MVP-EVENT-TOOLKIT/
 
 | File | Purpose | Notes |
 |------|---------|-------|
-| `i18nService.gs` | Multi-language support | Feature-flagged OFF |
-| `WebhookService.gs` | External integrations (Zapier, Slack) | Feature-flagged OFF |
+| `TemplateManagementService.gs` | Custom template CRUD for SEM staff | Feature-flagged OFF (TEMPLATE_MANAGEMENT_V2) |
 
 ### Experimental Surfaces (.html)
 
 | File | Purpose |
 |------|---------|
-| `Sponsor.html` | Sponsor management portal - tier management, placement config |
-| `DemoMode.html` | Demo/sandbox mode support (`?demo=true`) |
-| `Test.html` | Triangle Framework testing dashboard for developers |
-| `ApiDocs.html` | Interactive API documentation for developers |
-| `Diagnostics.html` | System diagnostics and health checks |
-| `DiagnosticsDashboard.html` | DevOps dashboard for system monitoring |
-| `Signup.html` | Sign-up forms management interface |
-| `ConfigHtml.html` | System configuration interface |
-| `PlannerCards.html` | Event planner card-based interface |
+| `PortfolioDashboard.html` | Multi-brand portfolio analytics dashboard |
 
-### UI Components (.html)
+### Archived Services (in archive/v2-code/)
 
-| File | Purpose |
-|------|---------|
-| `PersonalizedCTA.html` | Dynamic CTA component based on event status |
-| `EmptyStates.html` | Empty state placeholders with CTAs |
-| `AccessibilityUtils.html` | WCAG 2.1 AA accessibility utilities |
-| `ImageOptimization.html` | Lazy loading, responsive images |
-| `Tooltips.html` | Inline help and feature explanations |
-| `components/QRRegenerator.html` | QR code regeneration component |
-| `components/StateManager.html` | Client-side state management with auto-save |
-| `components/CardComponent.html` | Base card component template |
-| `components/DashboardCard.html` | Event dashboard analytics card |
+| File | Purpose | Notes |
+|------|---------|-------|
+| `i18nService.gs` | Multi-language support | Feature-flagged OFF |
+| `WebhookService.gs` | External integrations (Zapier, Slack) | Feature-flagged OFF |
+| `SponsorPortfolioV2.gs` | Advanced sponsor portfolio | Feature-flagged OFF |
 
 ---
 
@@ -163,11 +152,11 @@ Only files in `src/mvp/` are pushed to Apps Script:
 ```
 src/mvp/
 ├── appsscript.json     # Apps Script manifest
-├── *.gs                # 10 backend services
-└── *.html              # 5 surfaces + 10 infrastructure = 15 files
+├── *.gs                # 13 backend services
+└── *.html              # 5 surfaces + 12 infrastructure = 17 files
 ```
 
-**Total deployed: 26 files** (1 manifest + 10 .gs + 15 .html)
+**Total deployed: 31 files** (1 manifest + 13 .gs + 17 .html)
 
 ---
 
@@ -175,9 +164,10 @@ src/mvp/
 
 | Location | .gs Files | .html Files | Total |
 |----------|-----------|-------------|-------|
-| `src/mvp/` | 10 | 15 | 25 (+1 manifest) |
-| `src/v2/` | 2 | 14 | 16 |
-| `archive/` | 0 | 7+ | 7+ |
+| `src/mvp/` | 13 | 17 | 30 (+1 manifest) |
+| `src/v2/` | 1 | 1 | 2 |
+| `archive/v2-code/` | 3 | 11+ | 14+ |
+| `archive/` | - | 7+ | 7+ |
 
 ---
 
