@@ -2,6 +2,23 @@
 
 This guide explains how to set up and configure the staging environment for the MVP Event Toolkit.
 
+## Quick Start
+
+```bash
+# Check current staging status
+npm run staging:status
+
+# Configure staging (after creating GAS project)
+npm run staging:configure -- --script-id=YOUR_ID --deployment-id=YOUR_ID
+
+# Deploy to staging
+npm run deploy:staging           # Deploy GAS code
+npm run deploy:staging:worker    # Deploy Cloudflare worker
+
+# Verify staging works
+npm run staging:verify
+```
+
 ## Overview
 
 The staging environment provides a safe sandbox for:
@@ -259,13 +276,41 @@ npm run test:load:stress    # Safe - hits staging
 
 Use this checklist when setting up staging:
 
+- [ ] Check current status: `npm run staging:status`
 - [ ] Created staging GAS project in Google Apps Script
 - [ ] Created STAGING_EVENTS and STAGING_DIAG spreadsheets
-- [ ] Updated `.clasp-staging.json` with staging Script ID
+- [ ] Configured staging: `npm run staging:configure -- --script-id=... --deployment-id=...`
 - [ ] Deployed to staging GAS: `npm run deploy:staging`
-- [ ] Updated `wrangler.toml` with staging Deployment ID
-- [ ] Added DNS records: `stg` and `api-stg` CNAMEs
+- [ ] Added DNS records in Cloudflare:
+  - [ ] `stg` CNAME → `eventangle.workers.dev` (Proxied)
+  - [ ] `api-stg` CNAME → `eventangle.workers.dev` (Proxied)
 - [ ] Deployed staging Worker: `npm run deploy:staging:worker`
-- [ ] Added GitHub secrets for staging
-- [ ] Verified staging URLs work: `curl https://stg.eventangle.com/status`
+- [ ] Added GitHub secrets for staging (STAGING_SCRIPT_ID, STAGING_DEPLOYMENT_ID)
+- [ ] Verified staging works: `npm run staging:verify`
 - [ ] Ran tests against staging: `npm run test:smoke`
+
+## Useful Commands
+
+```bash
+# Check staging configuration status
+npm run staging:status
+
+# Configure staging with your IDs
+npm run staging:configure -- --script-id=YOUR_SCRIPT_ID --deployment-id=YOUR_DEPLOYMENT_ID
+
+# Verify staging endpoint is working
+npm run staging:verify
+
+# Deploy GAS code to staging
+npm run deploy:staging
+
+# Deploy Cloudflare worker to staging
+npm run deploy:staging:worker
+
+# Run tests against staging
+npm run test:staging:smoke
+npm run test:staging:api
+
+# Health check
+curl https://stg.eventangle.com/status
+```
