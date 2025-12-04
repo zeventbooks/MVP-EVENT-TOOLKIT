@@ -37,6 +37,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # ========================================================================
+      # HERMETIC GUARD: Stage 1 must have zero BASE_URL dependency
+      # Story B: Ensures Stage 1 cannot be broken by staging/prod DNS or CF issues
+      # ========================================================================
+      - name: 🔒 Verify Stage 1 is hermetic (no BASE_URL)
+        run: |
+          if [ -n "$BASE_URL" ]; then
+            echo "❌ ERROR: BASE_URL is set in Stage 1!"
+            echo ""
+            echo "Stage 1 must be hermetic - it cannot depend on external URLs."
+            echo "BASE_URL should only be used in Stage 2 (post-deploy validation)."
+            echo ""
+            echo "Found BASE_URL: $BASE_URL"
+            echo ""
+            echo "Please remove BASE_URL from this workflow or environment."
+            exit 1
+          fi
+          echo "✅ Stage 1 is hermetic: no BASE_URL dependency"
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
