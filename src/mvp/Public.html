@@ -1699,7 +1699,8 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       }
 
       // Schedule Section - uses event.schedule (MVP Optional) + event.settings.showSchedule
-      if (sectionEnabled('schedule') && (schedule.length > 0 || externalData.scheduleUrl)) {
+      // Week 3 MVP: Show section with TBD placeholder when enabled but empty
+      if (sectionEnabled('schedule')) {
         html += '<div class="event-section">';
         html += '<h2>Schedule</h2>';
         if (schedule.length > 0) {
@@ -1718,6 +1719,11 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
           html += `<div id="schedule-container" data-url="${esc(externalData.scheduleUrl)}">
             <div class="loading-placeholder">Loading schedule...</div>
           </div>`;
+        } else {
+          // TBD placeholder when schedule is enabled but no data yet
+          html += '<div class="empty-state" style="padding: 24px;">';
+          html += '<p style="color: var(--color-gray-500); font-style: italic;">Schedule to be announced</p>';
+          html += '</div>';
         }
         html += '</div>';
       }
@@ -1751,7 +1757,8 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       // }
 
       // === STANDINGS SECTION - uses event.standings (MVP Optional) + event.settings.showStandings ===
-      if (sectionEnabled('standings') && (standings.length > 0 || externalData.standingsUrl)) {
+      // Week 3 MVP: Show section with TBD placeholder when enabled but empty
+      if (sectionEnabled('standings')) {
         html += '<div class="event-section">';
         html += '<h2>Standings</h2>';
         if (standings.length > 0) {
@@ -1773,12 +1780,18 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
           html += `<div id="standings-container" data-url="${esc(externalData.standingsUrl)}">
             <div class="loading-placeholder">Loading standings...</div>
           </div>`;
+        } else {
+          // TBD placeholder when standings is enabled but no data yet
+          html += '<div class="empty-state" style="padding: 24px;">';
+          html += '<p style="color: var(--color-gray-500); font-style: italic;">Standings to be announced</p>';
+          html += '</div>';
         }
         html += '</div>';
       }
 
       // === BRACKET SECTION - uses event.bracket (MVP Optional) + event.settings.showBracket ===
-      if (sectionEnabled('bracket') && (bracket || externalData.bracketUrl)) {
+      // Week 3 MVP: Show section with TBD placeholder when enabled but empty
+      if (sectionEnabled('bracket')) {
         html += '<div class="event-section">';
         html += '<h2>Bracket</h2>';
         if (bracket && bracket.rounds && bracket.rounds.length > 0) {
@@ -1809,6 +1822,11 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
           html += `<div id="bracket-container" data-url="${esc(externalData.bracketUrl)}">
             <div class="loading-placeholder">Loading bracket...</div>
           </div>`;
+        } else {
+          // TBD placeholder when bracket is enabled but no data yet
+          html += '<div class="empty-state" style="padding: 24px;">';
+          html += '<p style="color: var(--color-gray-500); font-style: italic;">Bracket to be announced</p>';
+          html += '</div>';
         }
         html += '</div>';
       }
