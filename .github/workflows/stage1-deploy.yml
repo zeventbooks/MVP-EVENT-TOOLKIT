@@ -16,17 +16,25 @@ concurrency:
 
 jobs:
   # ============================================================================
-  # STAGE 1: BUILD, TEST & DEPLOY
+  # STAGE 1: BUILD, TEST & DEPLOY (HERMETIC - NO HTTP ENV DEPENDENCY)
   # ============================================================================
   #
   # CANONICAL LOCAL EQUIVALENT: npm run test:ci:stage1
   #
   # This is the single source of truth for Stage 1 validation.
-  # Components (env-agnostic):
-  #   - lint        → ESLint code quality
-  #   - test:unit   → Jest unit tests
-  #   - test:contract → Contract tests (schema, API, bundles)
+  # Stage 1 is HERMETIC: tests + GAS deploy only. No BASE_URL, no HTTP calls.
+  #
+  # Components (env-agnostic - zero external HTTP dependencies):
+  #   - lint          → ESLint code quality
+  #   - test:unit     → Jest unit tests (mocked, no network)
+  #   - test:contract → Contract tests (schema, API, bundles - all local)
   #   - check:guards  → Surface, dead-code, schema-fields, API-schema checks
+  #   - deploy        → Apps Script deploy + PROD URL artifact (for Stage 2)
+  #
+  # ARTIFACT OUTPUT:
+  #   deployment-info/deployment-url.txt → https://eventangle.com (prod URL)
+  #   This artifact is for Stage 2 POST-DEPLOY validation, NOT Stage 1 correctness.
+  #   Stage 1 passes/fails based on local tests only.
   #
   # Stage 1 red → DO NOT DEPLOY
   # ============================================================================
@@ -258,8 +266,22 @@ jobs:
             echo "Run locally: \`npm run ci:all:verbose\`" >> $GITHUB_STEP_SUMMARY
           fi
 
+  # ============================================================================
+  # DEPLOY JOB: Apps Script Deploy + Produce PROD URL Artifact
+  # ============================================================================
+  # PURPOSE:
+  #   1. Push code to Google Apps Script (GAS)
+  #   2. Create/update GAS web app deployment
+  #   3. Produce PROD URL artifact for Stage 2
+  #
+  # IMPORTANT:
+  #   - This job does NOT make HTTP calls to validate the deployment
+  #   - Stage 1 correctness is determined by LOCAL tests (lint, unit, contract)
+  #   - The PROD URL artifact (deployment-url.txt) is consumed by Stage 2
+  #   - Stage 2 performs POST-DEPLOY HTTP validation, not Stage 1
+  # ============================================================================
   deploy-to-apps-script:
-    name: 🚀 Deploy to Apps Script API
+    name: 🚀 Apps Script Deploy + PROD URL Artifact
     runs-on: ubuntu-latest
     needs: [lint, unit-tests, contract-tests, mvp-guards, ci-all-gate]
     # MVP SRE Policy: Deploy only if Stage 1 passes AND push to main/release branches
@@ -836,19 +858,50 @@ jobs:
           echo "cbc_url=${APPS_SCRIPT_BASE}/cbc/events" >> $GITHUB_OUTPUT
           echo "cbl_url=${APPS_SCRIPT_BASE}/cbl/events" >> $GITHUB_OUTPUT
 
-      - name: Save deployment URL for Stage 2
+      # ========================================================================
+      # PROD URL ARTIFACT: For Stage 2 POST-DEPLOY validation (NOT Stage 1)
+      # ========================================================================
+      # IMPORTANT DESIGN DECISION:
+      #   - deployment-info/deployment-url.txt → https://eventangle.com (PROD)
+      #   - This artifact is EXCLUSIVELY for Stage 2 HTTP validation
+      #   - Stage 1 correctness does NOT depend on this URL being reachable
+      #   - Stage 1 is tests + GAS deploy only (hermetic, no HTTP env dependency)
+      #
+      # WHY PROD URL?
+      #   - Stage 2 validates the deployed code via HTTP against production
+      #   - https://eventangle.com is the Cloudflare-proxied production endpoint
+      #   - This ensures Stage 2 tests real user-facing behavior
+      # ========================================================================
+      - name: Save PROD URL artifact for Stage 2
         run: |
           mkdir -p deployment-info
-          # Use the Cloudflare friendly URL for Stage 2 testing
-          # This ensures tests run against the production-ready endpoint
-          CLOUDFLARE_URL="https://eventangle.com"
-          echo "$CLOUDFLARE_URL" > deployment-info/deployment-url.txt
-          echo "✅ Saved Cloudflare URL for Stage 2 auto-trigger: $CLOUDFLARE_URL"
-          echo ""
-          echo "📋 Stage 2 will test against: $CLOUDFLARE_URL"
-          echo "   (Apps Script URL also available: ${{ steps.deploy.outputs.url }})"
 
-      - name: Upload deployment info artifact
+          # ==================================================================
+          # PROD URL: https://eventangle.com
+          # ==================================================================
+          # This is the production Cloudflare-proxied URL.
+          # Stage 2 will use this URL for POST-DEPLOY HTTP validation.
+          #
+          # NOTE: This artifact is for Stage 2 consumption ONLY.
+          # Stage 1 pass/fail is determined by local tests, NOT by this URL.
+          # ==================================================================
+          PROD_URL="https://eventangle.com"
+          echo "$PROD_URL" > deployment-info/deployment-url.txt
+
+          echo "============================================================"
+          echo "📦 PROD URL ARTIFACT CREATED"
+          echo "============================================================"
+          echo ""
+          echo "   File: deployment-info/deployment-url.txt"
+          echo "   URL:  $PROD_URL"
+          echo ""
+          echo "   Purpose: Stage 2 POST-DEPLOY HTTP validation"
+          echo "   Note:    Stage 1 correctness is NOT dependent on this URL"
+          echo ""
+          echo "   Apps Script URL (for reference): ${{ steps.deploy.outputs.url }}"
+          echo "============================================================"
+
+      - name: Upload PROD URL artifact for Stage 2
         uses: actions/upload-artifact@v4
         with:
           name: deployment-info
