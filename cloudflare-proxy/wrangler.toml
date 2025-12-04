@@ -51,21 +51,40 @@ DEPLOYMENT_ID = "AKfycbyS1cW9VhviR-Jr8AmYY_BAGrb1gzuKkrgEBP2M3bMdqAv4ktqHOZInWV8
 # - Pre-production validation
 # - Safe sandbox for development testing
 #
+# SETUP INSTRUCTIONS:
+# 1. Create staging GAS project (see STAGING_SETUP.md)
+# 2. Deploy GAS: npm run deploy:staging
+# 3. Configure: npm run staging:configure -- --deployment-id=YOUR_ID
+# 4. Configure DNS: stg.eventangle.com CNAME → eventangle.workers.dev
+# 5. Deploy worker: npm run deploy:staging:worker
+# 6. Verify: npm run staging:verify
+#
 # Deploy: wrangler deploy --env staging
+# Status: npm run staging:status
 # ============================================
 [env.staging]
 name = "eventangle-staging"
 routes = [
-  # Main staging domain
+  # Main staging domain - serves full site (HTML + API)
   { pattern = "stg.eventangle.com/*", zone_name = "eventangle.com" },
-  # API staging subdomain
+  # API staging subdomain - same worker, API focus
   { pattern = "api-stg.eventangle.com/*", zone_name = "eventangle.com" }
 ]
 
 [env.staging.vars]
-# IMPORTANT: This must point to the STAGING GAS deployment, NOT production
-# Update this after deploying to the staging Apps Script project
-# See STAGING_SETUP.md for configuration instructions
+# ============================================
+# STAGING DEPLOYMENT CONFIGURATION
+# ============================================
+# IMPORTANT: These values must point to the STAGING GAS deployment
+# NOT production! Run: npm run staging:configure --deployment-id=YOUR_ID
+#
+# To get your deployment ID:
+# 1. Deploy staging GAS: npm run deploy:staging
+# 2. Copy the AKfycb... deployment ID from the output
+# 3. Run: npm run staging:configure --deployment-id=AKfycb...
+#
+# Placeholder value indicates staging is NOT configured.
+# ============================================
 STAGING_DEPLOYMENT_ID = "STAGING_DEPLOYMENT_ID_PLACEHOLDER"
 GAS_DEPLOYMENT_BASE_URL = "https://script.google.com/macros/s/STAGING_DEPLOYMENT_ID_PLACEHOLDER/exec"
 DEPLOYMENT_ID = "STAGING_DEPLOYMENT_ID_PLACEHOLDER"
