@@ -1,26 +1,26 @@
 name: Stage 2 - Staging Contract & Matrix Tests
 
 # ============================================================================
-# STAGE 2 FOR STAGING ENVIRONMENT ONLY
+# ⚠️  STAGING ONLY - NEVER HITS PROD ⚠️
 # ============================================================================
-# This workflow runs deeper validation tests against the staging environment.
-# It deploys to Apps Script + Cloudflare staging, then runs:
-#   - Post-deploy contract tests (events-list, event-details, etc.)
-#   - Matrix tests via TestRunner (bundle endpoints, brand configs, sponsors)
+# This is the "beat the crap out of staging" pipeline.
+# All tests run exclusively against STAGING_URL (https://stg.eventangle.com).
+# This workflow is intentionally isolated from production to enable aggressive
+# testing without risk.
 #
-# Key: This is NOT triggered on every dev push to avoid noise.
-# Fan out to dev/prod later once this is "boring" (stable).
+# What this workflow does:
+#   - Deploys to Apps Script + Cloudflare staging
+#   - Runs post-deploy contract tests (events-list, event-details, etc.)
+#   - Runs matrix tests via TestRunner (bundle endpoints, brand configs, sponsors)
+#   - Runs golden test (Triangle Happy Path)
+#
+# Safe to run frequently - staging only.
 # ============================================================================
 
 on:
   # Manual trigger - primary use case for controlled testing
   workflow_dispatch:
     inputs:
-      deployment_url:
-        description: 'Deployment URL to test (leave empty for default staging)'
-        required: false
-        type: string
-        default: ''
       skip_deploy:
         description: 'Skip deployment (test existing staging deployment)'
         required: false
@@ -47,24 +47,30 @@ concurrency:
 
 env:
   NODE_VERSION: '18'
+  # Never hits prod; staging only.
+  STAGING_URL: 'https://stg.eventangle.com'
 
 jobs:
   # ============================================================================
-  # SETUP: Check gate conditions and extract deployment URL
+  # SETUP: Check gate conditions (staging URL is fixed - never hits prod)
   # ============================================================================
   setup:
-    name: 🔧 Setup & Extract Deployment URL
+    name: 🔧 Setup (Staging Only)
     runs-on: ubuntu-latest
     outputs:
       should_run: ${{ steps.check.outputs.should_run }}
       skip_deploy: ${{ steps.check.outputs.skip_deploy }}
-      deployment_url: ${{ steps.get-url.outputs.url }}
-      url_mode: ${{ steps.get-url.outputs.url_mode }}
+      # Always use STAGING_URL - never hits prod
+      base_url: ${{ env.STAGING_URL }}
     steps:
       - name: Check trigger conditions
         id: check
         run: |
           echo "🔍 Checking Stage 2 gate conditions..."
+          echo ""
+          echo "⚠️  STAGING ONLY - This workflow never hits prod"
+          echo "   BASE_URL: ${{ env.STAGING_URL }}"
+          echo ""
 
           # For workflow_dispatch, always run
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
@@ -93,78 +99,23 @@ jobs:
           echo "should_run=false" >> $GITHUB_OUTPUT
           echo "skip_deploy=true" >> $GITHUB_OUTPUT
 
-      - name: Get deployment URL
-        id: get-url
+      - name: Display staging target
         run: |
           echo "=================================================="
-          echo "🎯 Stage 2 URL Selection (Precedence Order)"
+          echo "🎯 Stage 2 - Staging Contract Tests"
           echo "=================================================="
           echo ""
-          echo "Precedence:"
-          echo "  1. inputs.deployment_url (manual_override)"
-          echo "  2. Default staging URL (default_staging)"
+          echo "⚠️  NEVER HITS PROD - Staging only"
           echo ""
-          echo "=================================================="
+          echo "🎯 BASE_URL: ${{ env.STAGING_URL }}"
+          echo "🎯 Events:   ${{ env.STAGING_URL }}/events"
           echo ""
-
-          # Priority 1: Manual override via workflow_dispatch input
-          if [[ -n "${{ inputs.deployment_url }}" ]]; then
-            DEPLOYMENT_URL="${{ inputs.deployment_url }}"
-            URL_MODE="manual_override"
-            echo "✅ Priority 1 MATCHED: inputs.deployment_url provided"
-            echo ""
-            echo "📋 Mode: manual_override"
-            echo "📋 URL:  $DEPLOYMENT_URL"
-            echo ""
-            echo "url=$DEPLOYMENT_URL" >> $GITHUB_OUTPUT
-            echo "url_mode=$URL_MODE" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-          echo "❌ Priority 1: No inputs.deployment_url provided"
-          echo ""
-
-          # Priority 2: Default to staging
-          DEPLOYMENT_URL="https://stg.eventangle.com"
-          URL_MODE="default_staging"
-          echo "✅ Priority 2 FALLBACK: Using default staging URL"
-          echo ""
-          echo "📋 Mode: default_staging"
-          echo "📋 URL:  $DEPLOYMENT_URL"
-          echo ""
-          echo "url=$DEPLOYMENT_URL" >> $GITHUB_OUTPUT
-          echo "url_mode=$URL_MODE" >> $GITHUB_OUTPUT
-
-      - name: Display URL selection result
-        run: |
-          URL_MODE="${{ steps.get-url.outputs.url_mode }}"
-          DEPLOYMENT_URL="${{ steps.get-url.outputs.url }}"
-
-          echo "=================================================="
-          echo "📋 Stage 2 Staging URL Selection Result"
-          echo "=================================================="
-          echo ""
-          echo "🎯 URL:  $DEPLOYMENT_URL"
-          echo ""
-
-          case "$URL_MODE" in
-            "manual_override")
-              echo "📋 Mode: manual_override"
-              echo "   → URL provided via workflow_dispatch input"
-              ;;
-            "default_staging")
-              echo "📋 Mode: default_staging"
-              echo "   → Using default staging URL"
-              ;;
-            *)
-              echo "📋 Mode: unknown ($URL_MODE)"
-              ;;
-          esac
-          echo ""
-          echo "🎯 Canonical Events URL: $DEPLOYMENT_URL/events"
+          echo "This is the 'beat the crap out of staging' pipeline."
+          echo "Safe to run frequently against staging."
           echo "=================================================="
 
   # ============================================================================
-  # DEPLOY TO STAGING
+  # DEPLOY TO STAGING (never hits prod)
   # ============================================================================
   deploy-staging:
     name: 🚀 Deploy to Staging
@@ -172,7 +123,6 @@ jobs:
     needs: setup
     if: needs.setup.outputs.should_run == 'true' && needs.setup.outputs.skip_deploy != 'true'
     outputs:
-      deployment_url: ${{ steps.deploy.outputs.url }}
       deployment_id: ${{ steps.deploy.outputs.deployment_id }}
     steps:
       - uses: actions/checkout@v4
@@ -192,6 +142,7 @@ jobs:
           STAGING_SCRIPT_ID: ${{ secrets.STAGING_SCRIPT_ID }}
         run: |
           echo "🔍 Validating staging deployment secrets..."
+          echo "   Target: ${{ env.STAGING_URL }} (never hits prod)"
 
           if [ -z "$STAGING_CLASPRC" ]; then
             echo "⚠️ WARNING: STAGING_OAUTH_CREDENTIALS not configured"
@@ -255,11 +206,10 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           echo "☁️ Deploying to Cloudflare Staging..."
+          echo "   Target: ${{ env.STAGING_URL }} (never hits prod)"
 
           if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
             echo "⚠️ Cloudflare secrets not configured - skipping Worker deploy"
-            echo "   Using deployment URL from setup: ${{ needs.setup.outputs.deployment_url }}"
-            echo "url=${{ needs.setup.outputs.deployment_url }}" >> $GITHUB_OUTPUT
             exit 0
           fi
 
@@ -274,16 +224,14 @@ jobs:
           wrangler deploy --env staging
 
           echo "✅ Cloudflare staging Worker deployed"
-          echo "url=${{ needs.setup.outputs.deployment_url }}" >> $GITHUB_OUTPUT
 
       - name: Set deployment outputs
         id: deploy
         run: |
-          echo "url=${{ needs.setup.outputs.deployment_url }}" >> $GITHUB_OUTPUT
           echo "deployment_id=${{ steps.deploy-gas.outputs.gas_deployment_id || 'existing' }}" >> $GITHUB_OUTPUT
 
   # ============================================================================
-  # WARMUP: Prepare staging for tests
+  # WARMUP: Prepare staging for tests (never hits prod)
   # ============================================================================
   warmup:
     name: 🔥 Warmup Staging
@@ -308,10 +256,11 @@ jobs:
       - name: Warmup staging deployment
         id: warmup
         env:
-          BASE_URL: ${{ needs.setup.outputs.deployment_url }}
+          # Never hits prod; staging only.
+          BASE_URL: ${{ env.STAGING_URL }}
         run: |
           echo "🔥 Warming up staging deployment..."
-          echo "   BASE_URL: $BASE_URL"
+          echo "   BASE_URL: $BASE_URL (staging only)"
 
           # Run warmup script
           WARMUP_MAX_ATTEMPTS=5 WARMUP_TIMEOUT=60000 node scripts/warmup-deployment.js || true
@@ -319,7 +268,7 @@ jobs:
           echo "✅ Warmup complete"
 
   # ============================================================================
-  # POST-DEPLOY CONTRACT TESTS
+  # POST-DEPLOY CONTRACT TESTS (never hits prod)
   # ============================================================================
   contract-tests:
     name: 📋 Contract Tests (Post-Deploy)
@@ -343,14 +292,15 @@ jobs:
       - name: Run Contract Tests
         id: test
         env:
-          BASE_URL: ${{ needs.setup.outputs.deployment_url }}
+          # Never hits prod; staging only.
+          BASE_URL: ${{ env.STAGING_URL }}
           CI: true
           ADMIN_KEY: ${{ secrets.STAGING_ADMIN_KEY || secrets.ADMIN_KEY_ROOT }}
           ADMIN_KEY_ROOT: ${{ secrets.STAGING_ADMIN_KEY || secrets.ADMIN_KEY_ROOT }}
         run: |
           echo "📋 Running Post-Deploy Contract Tests"
           echo "======================================="
-          echo "BASE_URL: $BASE_URL"
+          echo "BASE_URL: $BASE_URL (staging only - never hits prod)"
           echo ""
 
           echo "📌 Contract Test Coverage:"
@@ -397,7 +347,7 @@ jobs:
           retention-days: 7
 
   # ============================================================================
-  # MATRIX TESTS VIA TESTRUNNER
+  # MATRIX TESTS VIA TESTRUNNER (never hits prod)
   # ============================================================================
   matrix-tests:
     name: 🧪 Matrix Tests (TestRunner)
@@ -424,7 +374,8 @@ jobs:
       - name: Run Matrix Tests
         id: test
         env:
-          BASE_URL: ${{ needs.setup.outputs.deployment_url }}
+          # Never hits prod; staging only.
+          BASE_URL: ${{ env.STAGING_URL }}
           CI: true
           ADMIN_KEY: ${{ secrets.STAGING_ADMIN_KEY || secrets.ADMIN_KEY_ROOT }}
           ADMIN_KEY_ROOT: ${{ secrets.STAGING_ADMIN_KEY || secrets.ADMIN_KEY_ROOT }}
@@ -434,7 +385,7 @@ jobs:
         run: |
           echo "🧪 Running Matrix Tests via TestRunner"
           echo "========================================"
-          echo "BASE_URL: $BASE_URL"
+          echo "BASE_URL: $BASE_URL (staging only - never hits prod)"
           echo ""
 
           echo "📌 Matrix Test Coverage:"
@@ -469,7 +420,7 @@ jobs:
           retention-days: 7
 
   # ============================================================================
-  # GOLDEN TEST: Triangle Happy Path (Final Integration Check)
+  # GOLDEN TEST: Triangle Happy Path (never hits prod)
   # ============================================================================
   golden-test:
     name: 🏆 Golden Test (Triangle Happy Path)
@@ -493,13 +444,14 @@ jobs:
       - name: Run Triangle Happy Path Golden Test
         id: test
         env:
-          BASE_URL: ${{ needs.setup.outputs.deployment_url }}
+          # Never hits prod; staging only.
+          BASE_URL: ${{ env.STAGING_URL }}
           CI: true
           ADMIN_KEY: ${{ secrets.STAGING_ADMIN_KEY || secrets.ADMIN_KEY_ROOT }}
         run: |
           echo "🏆 Running Triangle Happy Path Golden Test"
           echo "==========================================="
-          echo "BASE_URL: $BASE_URL"
+          echo "BASE_URL: $BASE_URL (staging only - never hits prod)"
           echo ""
           echo "This is the GOLDEN PATH test:"
           echo "  Admin → Public → Display → SharedReport"
@@ -533,7 +485,7 @@ jobs:
           retention-days: 7
 
   # ============================================================================
-  # QUALITY GATE: Final validation
+  # QUALITY GATE: Final validation (staging only - never hits prod)
   # ============================================================================
   quality-gate:
     name: 🎯 Stage 2 Staging Quality Gate
