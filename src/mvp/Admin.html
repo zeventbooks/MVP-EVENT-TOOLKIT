@@ -953,6 +953,113 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
       }
     }
 
+    /* ===== Event Selector Bar - S07 Event Selection ===== */
+    .event-selector-bar {
+      background: #fff;
+      border: 1px solid var(--color-gray-200, #e2e8f0);
+      border-radius: var(--radius-md, 8px);
+      padding: 12px 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    .event-selector-content {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .event-selector-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      min-width: 200px;
+    }
+
+    .event-selector-label {
+      font-weight: 600;
+      color: var(--color-gray-700, #334155);
+      white-space: nowrap;
+    }
+
+    .event-dropdown {
+      flex: 1;
+      max-width: 400px;
+      padding: 8px 12px;
+      border: 1px solid var(--color-gray-300, #cbd5e1);
+      border-radius: var(--radius-sm, 6px);
+      font-size: 14px;
+      background: #fff;
+      cursor: pointer;
+    }
+
+    .event-dropdown:focus {
+      outline: none;
+      border-color: var(--color-primary, #2563eb);
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+    }
+
+    .btn-icon {
+      background: transparent;
+      border: none;
+      padding: 6px 8px;
+      cursor: pointer;
+      border-radius: var(--radius-sm, 6px);
+      font-size: 16px;
+      transition: background 0.15s;
+    }
+
+    .btn-icon:hover {
+      background: var(--color-gray-100, #f1f5f9);
+    }
+
+    .event-selector-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .quick-link {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 6px 12px;
+      border-radius: var(--radius-sm, 6px);
+      background: var(--color-gray-100, #f1f5f9);
+      color: var(--color-gray-700, #334155);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.15s;
+    }
+
+    .quick-link:hover {
+      background: var(--color-gray-200, #e2e8f0);
+      color: var(--color-primary, #2563eb);
+    }
+
+    @media (max-width: 600px) {
+      .event-selector-content {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .event-selector-left {
+        flex-wrap: wrap;
+      }
+
+      .event-dropdown {
+        max-width: 100%;
+      }
+
+      .event-selector-right {
+        justify-content: center;
+      }
+    }
+
     /* ===== Create & Launch Wizard - S08 Guided Flow ===== */
     .launch-wizard {
       background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 50%, #f0fdf4 100%);
@@ -1449,6 +1556,30 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
       <div id="eventDayProgress"></div>
       <div id="postEventProgress"></div>
     </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- S07: EVENT SELECTOR - Choose existing or create new                     -->
+    <!-- Allows loading existing events or starting the creation wizard          -->
+    <!-- Uses api_getEventsSafe for dropdown population                          -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <section class="event-selector-bar" id="eventSelectorBar" data-testid="event-selector-bar">
+      <div class="event-selector-content">
+        <div class="event-selector-left">
+          <label for="eventDropdown" class="event-selector-label">Event:</label>
+          <select id="eventDropdown" class="event-dropdown" data-testid="event-dropdown" onchange="onEventDropdownChange()">
+            <option value="">— Select an event —</option>
+            <option value="__create__">➕ Create New Event</option>
+          </select>
+          <button class="btn-icon" onclick="refreshEventList()" title="Refresh event list" data-testid="refresh-events-btn">
+            🔄
+          </button>
+        </div>
+        <div class="event-selector-right" id="eventQuickLinks" style="display: none;">
+          <a href="#" id="quickLinkPublic" target="_blank" class="quick-link" title="Open Public Page">🌐 Public</a>
+          <a href="#" id="quickLinkDisplay" target="_blank" class="quick-link" title="Open Display/TV">📺 Display</a>
+        </div>
+      </div>
+    </section>
 
     <!-- ═══════════════════════════════════════════════════════════════════════ -->
     <!-- S08: CREATE & LAUNCH WIZARD - Guided "10-Minute Event" Flow             -->
@@ -2633,6 +2764,195 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
     let currentEventId = null;  // Legacy compat - will migrate to STATE.id
     let availableTemplates = [];
     let defaultTemplateId = 'custom';
+    let loadedEvents = [];  // Cache of loaded events for dropdown
+
+    // ==========================================================================
+    // S07: EVENT SELECTOR - Load existing events into dropdown
+    // ==========================================================================
+
+    /**
+     * Load existing events into the dropdown.
+     * Called on page init and after event creation.
+     */
+    async function loadExistingEvents() {
+      const dropdown = document.getElementById('eventDropdown');
+      if (!dropdown) return;
+
+      try {
+        console.log('[EventSelector] Loading events for brand:', BRAND);
+        const res = await NU.rpc('api_getEventsSafe', { brandId: BRAND });
+
+        if (!res.ok) {
+          console.warn('[EventSelector] Failed to load events:', res.message || res.error);
+          return;
+        }
+
+        loadedEvents = res.value?.items || [];
+        console.log('[EventSelector] Loaded', loadedEvents.length, 'events');
+
+        // Clear existing options (keep placeholder and create option)
+        while (dropdown.options.length > 2) {
+          dropdown.remove(2);
+        }
+
+        // Sort by date descending (newest first)
+        loadedEvents.sort((a, b) => {
+          const dateA = a.startDateISO || '';
+          const dateB = b.startDateISO || '';
+          return dateB.localeCompare(dateA);
+        });
+
+        // Add events to dropdown
+        loadedEvents.forEach(event => {
+          const option = document.createElement('option');
+          option.value = event.id;
+          const dateStr = event.startDateISO || 'No date';
+          option.textContent = `${event.name || 'Unnamed'} (${dateStr})`;
+          dropdown.appendChild(option);
+        });
+
+      } catch (err) {
+        console.error('[EventSelector] Error loading events:', err);
+        SharedUtils.showToast('Could not load events', 'error');
+      }
+    }
+
+    /**
+     * Handle dropdown selection change.
+     */
+    async function onEventDropdownChange() {
+      const dropdown = document.getElementById('eventDropdown');
+      const value = dropdown.value;
+
+      if (value === '__create__') {
+        // Show wizard, hide event card
+        showWizard();
+        return;
+      }
+
+      if (!value) {
+        // No selection - show wizard
+        showWizard();
+        return;
+      }
+
+      // Load selected event
+      await loadSelectedEvent(value);
+    }
+
+    /**
+     * Load a specific event by ID and show in the dashboard.
+     */
+    async function loadSelectedEvent(eventId) {
+      if (!eventId) return;
+
+      try {
+        overlay(true);
+        console.log('[EventSelector] Loading event:', eventId);
+
+        const res = await NU.rpc('api_get', {
+          brandId: BRAND,
+          scope: SCOPE,
+          id: eventId
+        });
+
+        if (!res.ok) {
+          SharedUtils.showToast('Failed to load event: ' + (res.message || 'Unknown error'), 'error');
+          overlay(false);
+          return;
+        }
+
+        const event = res.value;
+        console.log('[EventSelector] Loaded event:', event.name);
+
+        // Set current event ID
+        currentEventId = event.id;
+        STATE.id = event.id;
+        STATE.slug = event.slug;
+        STATE.createdAtISO = event.createdAtISO;
+
+        // Hide wizard, show event card
+        hideWizard();
+
+        // Update quick links
+        updateQuickLinks(event);
+
+        // Show the event card
+        showEventCard(event);
+
+        overlay(false);
+
+      } catch (err) {
+        console.error('[EventSelector] Error loading event:', err);
+        SharedUtils.showToast('Error loading event', 'error');
+        overlay(false);
+      }
+    }
+
+    /**
+     * Update quick links with event URLs.
+     */
+    function updateQuickLinks(event) {
+      const quickLinksContainer = document.getElementById('eventQuickLinks');
+      const publicLink = document.getElementById('quickLinkPublic');
+      const displayLink = document.getElementById('quickLinkDisplay');
+
+      if (event && event.links) {
+        if (publicLink) publicLink.href = event.links.publicUrl || '#';
+        if (displayLink) displayLink.href = event.links.displayUrl || '#';
+        if (quickLinksContainer) quickLinksContainer.style.display = 'flex';
+      } else {
+        if (quickLinksContainer) quickLinksContainer.style.display = 'none';
+      }
+    }
+
+    /**
+     * Show the create wizard and hide event card.
+     */
+    function showWizard() {
+      const wizard = document.getElementById('launchWizard');
+      const eventCard = document.getElementById('eventCard');
+      const quickLinks = document.getElementById('eventQuickLinks');
+
+      if (wizard) wizard.style.display = 'block';
+      if (eventCard) eventCard.style.display = 'none';
+      if (quickLinks) quickLinks.style.display = 'none';
+
+      // Reset dropdown to placeholder
+      const dropdown = document.getElementById('eventDropdown');
+      if (dropdown) dropdown.value = '__create__';
+    }
+
+    /**
+     * Hide the wizard (when viewing an existing event).
+     */
+    function hideWizard() {
+      const wizard = document.getElementById('launchWizard');
+      if (wizard) wizard.style.display = 'none';
+    }
+
+    /**
+     * Refresh the event list.
+     */
+    async function refreshEventList() {
+      await loadExistingEvents();
+      SharedUtils.showToast('Event list refreshed', 'info');
+    }
+
+    /**
+     * Select an event in the dropdown by ID.
+     * Used after creating a new event to auto-select it.
+     */
+    function selectEventInDropdown(eventId) {
+      const dropdown = document.getElementById('eventDropdown');
+      if (dropdown) {
+        dropdown.value = eventId;
+      }
+    }
+
+    // ==========================================================================
+    // END S07: EVENT SELECTOR
+    // ==========================================================================
 
     // === Helper Functions ===
     function generateId() {
@@ -4312,6 +4632,9 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
 
       // Load templates for wizard
       loadWizardTemplates();
+
+      // Load existing events into dropdown (S07)
+      loadExistingEvents();
     }
 
     /**
@@ -4774,14 +5097,25 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
     /**
      * Finish wizard and transition to main dashboard
      */
-    function finishWizard() {
+    async function finishWizard() {
       // Hide wizard
       document.getElementById('launchWizard').style.display = 'none';
 
       // Show the event card with created event
       if (WIZARD.event) {
         currentEventId = WIZARD.event.id;
+        STATE.id = WIZARD.event.id;
+        STATE.slug = WIZARD.event.slug;
+        STATE.createdAtISO = WIZARD.event.createdAtISO;
+
         showEventCard(WIZARD.event);
+
+        // Refresh dropdown and select the new event (S07)
+        await loadExistingEvents();
+        selectEventInDropdown(WIZARD.event.id);
+
+        // Update quick links
+        updateQuickLinks(WIZARD.event);
       }
 
       SharedUtils.showToast('Welcome to your event dashboard!', 'success');

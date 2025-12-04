@@ -56,14 +56,15 @@
  * - Error: res.ok === false, error in res.code + res.message + res.corrId?
  *
  * ═══════════════════════════════════════════════════════════════════════════
- * RPC ENDPOINT INVENTORY (13 unique endpoints, 14 surface bindings)
+ * RPC ENDPOINT INVENTORY (14 unique endpoints, 15 surface bindings)
  * ═══════════════════════════════════════════════════════════════════════════
  * Validated by: scripts/check-rpc-inventory.js
  *
- * Admin.html (5 endpoints):
+ * Admin.html (6 endpoints):
  *   - api_getEventTemplates      → templates.getEventTemplates
  *   - api_saveEvent              → events.saveEvent   [CANONICAL write - ZEVENT-003]
  *   - api_get                    → events.get
+ *   - api_getEventsSafe          → events.getEventsSafe  [Admin dropdown]
  *   - api_createFormFromTemplate → forms.createFromTemplate
  *   - api_generateFormShortlink  → forms.generateShortlink
  *
@@ -530,6 +531,46 @@ const SCHEMAS = {
           etag: { type: 'string' },
           notModified: { type: 'boolean' },
           value: { $ref: '#/schemas/events/_eventShape' }
+        }
+      }
+    },
+
+    // api_getEventsSafe - Simplified event list for Admin dropdown
+    // Returns clean shape: { id, name, startDateISO, eventSpreadsheetUrl, publicUrl, displayUrl }
+    getEventsSafe: {
+      request: {
+        type: 'object',
+        required: ['brandId'],
+        properties: {
+          brandId: { $ref: '#/common/brandId' }
+        }
+      },
+      response: {
+        type: 'object',
+        required: ['ok', 'value'],
+        properties: {
+          ok: { type: 'boolean' },
+          value: {
+            type: 'object',
+            required: ['items'],
+            properties: {
+              items: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  required: ['id', 'name', 'startDateISO', 'publicUrl', 'displayUrl'],
+                  properties: {
+                    id: { type: 'string' },
+                    name: { type: 'string' },
+                    startDateISO: { type: 'string' },
+                    eventSpreadsheetUrl: { type: 'string' },
+                    publicUrl: { type: 'string' },
+                    displayUrl: { type: 'string' }
+                  }
+                }
+              }
+            }
+          }
         }
       }
     },

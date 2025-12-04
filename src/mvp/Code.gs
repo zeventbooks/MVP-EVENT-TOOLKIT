@@ -1325,6 +1325,11 @@ function handleRestApiGet_(e, action, brand) {
     return jsonResponse_(api_list({brandId, scope, ifNoneMatch: etag}));
   }
 
+  // Event selector dropdown - clean shape for Admin UI
+  if (action === 'getEventsSafe') {
+    return jsonResponse_(api_getEventsSafe({brandId}));
+  }
+
   if (action === 'get') {
     if (!id) return jsonResponse_(Err(ERR.BAD_INPUT, 'Missing id parameter'));
     return jsonResponse_(api_get({brandId, scope, id, ifNoneMatch: etag}));
@@ -7084,4 +7089,178 @@ function getPortfolioSponsors_(parentBrandId) {
       totalCount: sponsorsMap.size
     }
   };
+}
+
+// =============================================================================
+// [S20] CONSOLE HELPERS - Event Lifecycle Core
+// =============================================================================
+// Console-friendly functions for Apps Script editor testing.
+// These wrap the API functions with sensible defaults.
+//
+// Usage from Apps Script console:
+//   createEvent({ name: 'Test Event', date: '2025-12-20', venue: 'My Bar' })
+//   getEventsSafe()
+// =============================================================================
+
+/**
+ * Create an event from the Apps Script console.
+ * Simplified wrapper around api_create for quick testing.
+ *
+ * @param {Object} opts - Event options
+ * @param {string} opts.name - Event name (required)
+ * @param {string} opts.date - Event date YYYY-MM-DD (required)
+ * @param {string} opts.venue - Event venue (required)
+ * @param {string} [opts.brandId] - Brand ID (default: 'abc')
+ * @param {string} [opts.templateId] - Template ID (default: 'custom')
+ * @param {string} [opts.adminKey] - Admin key (auto-resolved if not provided)
+ * @returns {Object} Created event or error
+ *
+ * @example
+ * // From Apps Script console:
+ * createEvent({ name: 'Friday Night Bocce', date: '2025-12-20', venue: 'Sports Bar' })
+ */
+function createEvent(opts = {}) {
+  const brandId = opts.brandId || 'abc';
+  const brand = findBrand_(brandId);
+
+  if (!brand) {
+    return { ok: false, error: 'Unknown brand: ' + brandId };
+  }
+
+  // Auto-resolve admin key from Script Properties
+  let adminKey = opts.adminKey;
+  if (!adminKey) {
+    const props = PropertiesService.getScriptProperties();
+    adminKey = props.getProperty('ADMIN_SECRET_' + brandId.toUpperCase()) ||
+               props.getProperty('ADMIN_SECRET_ABC') ||
+               props.getProperty('ADMIN_SECRET');
+  }
+
+  if (!adminKey) {
+    return { ok: false, error: 'No admin key found. Set ADMIN_SECRET_' + brandId.toUpperCase() + ' in Script Properties.' };
+  }
+
+  // Validate required fields
+  if (!opts.name) return { ok: false, error: 'Missing required field: name' };
+  if (!opts.date) return { ok: false, error: 'Missing required field: date' };
+  if (!opts.venue) return { ok: false, error: 'Missing required field: venue' };
+
+  // Normalize date format
+  const dateISO = String(opts.date).trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateISO)) {
+    return { ok: false, error: 'Invalid date format. Use YYYY-MM-DD.' };
+  }
+
+  const result = api_create({
+    brandId: brandId,
+    adminKey: adminKey,
+    templateId: opts.templateId || 'custom',
+    scope: 'events',
+    data: {
+      name: opts.name,
+      startDateISO: dateISO,
+      venue: opts.venue
+    }
+  });
+
+  if (result.ok) {
+    Logger.log('✅ Event created: ' + result.value.name);
+    Logger.log('   ID: ' + result.value.id);
+    Logger.log('   Public URL: ' + result.value.links.publicUrl);
+    Logger.log('   Display URL: ' + result.value.links.displayUrl);
+  } else {
+    Logger.log('❌ Failed: ' + (result.message || result.error));
+  }
+
+  return result;
+}
+
+/**
+ * Alias for createEvent - creates an eventbook (same as event).
+ * @param {Object} opts - Same as createEvent
+ * @returns {Object} Created event or error
+ */
+function createEventbook(opts) {
+  return createEvent(opts);
+}
+
+/**
+ * Get all events with a clean, predictable return shape.
+ * Safe for console use - always returns array, never throws.
+ *
+ * @param {Object} [opts] - Options
+ * @param {string} [opts.brandId] - Brand ID (default: 'abc')
+ * @returns {Array<Object>} Array of events with clean shape:
+ *   - id: Event ID
+ *   - name: Event name
+ *   - startDateISO: Event date (YYYY-MM-DD)
+ *   - eventSpreadsheetUrl: URL to event data spreadsheet
+ *   - publicUrl: Public-facing event page URL
+ *   - displayUrl: TV display URL
+ *
+ * @example
+ * // From Apps Script console:
+ * getEventsSafe()
+ * getEventsSafe({ brandId: 'cbc' })
+ */
+function getEventsSafe(opts = {}) {
+  const brandId = opts.brandId || 'abc';
+
+  try {
+    const result = api_list({ brandId: brandId, scope: 'events' });
+
+    if (!result.ok) {
+      Logger.log('⚠️ getEventsSafe failed: ' + (result.message || result.error));
+      return [];
+    }
+
+    const items = result.value?.items || [];
+    const brand = findBrand_(brandId);
+    const spreadsheetUrl = brand?.store?.spreadsheetId
+      ? 'https://docs.google.com/spreadsheets/d/' + brand.store.spreadsheetId
+      : '';
+
+    // Map to clean shape
+    const events = items.map(event => ({
+      id: event.id,
+      name: event.name || '',
+      startDateISO: event.startDateISO || '',
+      eventSpreadsheetUrl: spreadsheetUrl,
+      publicUrl: event.links?.publicUrl || '',
+      displayUrl: event.links?.displayUrl || ''
+    }));
+
+    Logger.log('📋 Found ' + events.length + ' events for brand: ' + brandId);
+    events.forEach((e, i) => {
+      Logger.log('  ' + (i + 1) + '. ' + e.name + ' (' + e.startDateISO + ')');
+    });
+
+    return events;
+  } catch (err) {
+    Logger.log('❌ getEventsSafe error: ' + err.message);
+    return [];
+  }
+}
+
+/**
+ * API endpoint: Get events with safe, clean return shape.
+ * Designed for Admin dropdown population.
+ *
+ * @param {Object} payload - Request payload
+ * @param {string} payload.brandId - Brand ID (required)
+ * @returns {Object} { ok, value: { items: [...] } }
+ * @tier mvp
+ */
+function api_getEventsSafe(payload) {
+  return runSafe('api_getEventsSafe', () => {
+    const { brandId } = payload || {};
+
+    if (!brandId) {
+      return Err(ERR.BAD_INPUT, 'Missing brandId');
+    }
+
+    const events = getEventsSafe({ brandId });
+
+    return Ok({ items: events });
+  });
 }
