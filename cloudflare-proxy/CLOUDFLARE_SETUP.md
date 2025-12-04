@@ -245,9 +245,34 @@ wrangler deploy --env production
 
 ### Staging
 
+**Quick Setup (recommended):**
 ```bash
+# Set your Cloudflare API token (get from https://dash.cloudflare.com/profile/api-tokens)
+export CLOUDFLARE_API_TOKEN="your-api-token"
+
+# Run the automated setup (creates DNS + deploys worker)
+npm run staging:setup
+```
+
+**Manual Setup:**
+```bash
+# 1. Create DNS records (choose one method):
+#    Option A: Use the script
+export CLOUDFLARE_API_TOKEN="your-api-token"
+npm run staging:dns
+
+#    Option B: Manual in Cloudflare Dashboard
+#    - Add A record: stg.eventangle.com → 192.0.2.1 (proxied/orange cloud)
+#    - Add A record: api-stg.eventangle.com → 192.0.2.1 (proxied/orange cloud)
+
+# 2. Deploy the staging worker
 wrangler deploy --env staging
-# → https://api-staging.eventangle.com
+```
+
+**Result:**
+```
+# → https://stg.eventangle.com
+# → https://api-stg.eventangle.com
 ```
 
 ## Testing with Cloudflare URL

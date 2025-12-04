@@ -196,6 +196,8 @@
     "staging:status": "node scripts/setup-staging.js status",
     "staging:configure": "node scripts/setup-staging.js configure",
     "staging:verify": "node scripts/setup-staging.js verify",
+    "staging:dns": "./scripts/setup-cloudflare-staging-dns.sh",
+    "staging:setup": "./scripts/setup-cloudflare-staging-dns.sh && cd cloudflare-proxy && wrangler deploy --env staging",
     "deploy:prod:worker": "cd cloudflare-proxy && wrangler deploy --env events",
     "pull": "clasp pull",
     "open": "clasp open",
