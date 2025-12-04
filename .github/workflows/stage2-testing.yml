@@ -329,6 +329,74 @@ jobs:
           fi
 
   # ============================================================================
+  # PREFLIGHT STAGING: Fail fast if staging is unreachable
+  # ============================================================================
+  # Checks that the target URL is reachable before running any tests.
+  # This prevents noisy test failures when staging is simply down.
+  # ============================================================================
+
+  preflight-staging:
+    name: 🛫 Preflight - Check Staging Reachable
+    runs-on: ubuntu-latest
+    needs: setup
+    if: needs.setup.outputs.skip_tests != 'true'
+    outputs:
+      staging_reachable: ${{ steps.check.outputs.reachable }}
+    steps:
+      - name: Check staging is reachable
+        id: check
+        env:
+          BASE_URL: ${{ needs.setup.outputs.deployment_url }}
+        run: |
+          echo "🛫 Preflight Check: Is staging reachable?"
+          echo "==========================================="
+          echo ""
+          echo "Target URL: $BASE_URL"
+          echo ""
+
+          # Try /status endpoint first, then /ping as fallback
+          STATUS_URL="${BASE_URL}/status"
+          PING_URL="${BASE_URL}/ping"
+
+          echo "🔍 Checking $STATUS_URL ..."
+          HTTP_STATUS=$(curl -sf -o /dev/null -w "%{http_code}" --connect-timeout 15 --max-time 30 "$STATUS_URL" 2>/dev/null || echo "000")
+
+          if [[ "$HTTP_STATUS" == "200" ]]; then
+            echo "✅ Staging is reachable (status: $HTTP_STATUS)"
+            echo "reachable=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "⚠️ /status returned $HTTP_STATUS, trying /ping..."
+          HTTP_STATUS=$(curl -sf -o /dev/null -w "%{http_code}" --connect-timeout 15 --max-time 30 "$PING_URL" 2>/dev/null || echo "000")
+
+          if [[ "$HTTP_STATUS" == "200" ]]; then
+            echo "✅ Staging is reachable via /ping (status: $HTTP_STATUS)"
+            echo "reachable=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Staging is unreachable - fail fast with clear message
+          echo ""
+          echo "=============================================="
+          echo "❌ STAGING UNREACHABLE"
+          echo "=============================================="
+          echo ""
+          echo "Target: $BASE_URL"
+          echo "Status: $HTTP_STATUS"
+          echo ""
+          echo "Tests cannot run because the deployment is not responding."
+          echo "This is NOT a test failure - staging is simply down."
+          echo ""
+          echo "To fix:"
+          echo "  1. Check if staging is deployed"
+          echo "  2. Check Cloudflare Worker status"
+          echo "  3. Check Apps Script deployment"
+          echo "=============================================="
+          echo "reachable=false" >> $GITHUB_OUTPUT
+          exit 1
+
+  # ============================================================================
   # WARMUP: Eliminate Cold Start Flakiness
   # ============================================================================
   # Warms up the GAS deployment before running any tests
@@ -338,7 +406,7 @@ jobs:
   warmup:
     name: 🔥 Warmup Deployment
     runs-on: ubuntu-latest
-    needs: setup
+    needs: [setup, preflight-staging]
     if: needs.setup.outputs.skip_tests != 'true'
     outputs:
       warmup_success: ${{ steps.warmup.outputs.success }}
@@ -382,8 +450,8 @@ jobs:
   api-tests:
     name: 🔥 API Tests (Critical)
     runs-on: ubuntu-latest
-    needs: [setup, warmup]
-    if: needs.setup.outputs.skip_tests != 'true'
+    needs: [setup, preflight-staging, warmup]
+    if: needs.setup.outputs.skip_tests != 'true' && needs.preflight-staging.outputs.staging_reachable == 'true'
     outputs:
       result: ${{ steps.test.outputs.result }}
     steps:
@@ -825,7 +893,7 @@ jobs:
   quality-gate:
     name: 🎯 Quality Gate - Final Validation
     runs-on: ubuntu-latest
-    needs: [setup, api-tests, gate-1-api-results, smoke-packs, gate-smoke-packs-results, smoke-tests, gate-2-smoke-results, expensive-tests]
+    needs: [setup, preflight-staging, api-tests, gate-1-api-results, smoke-packs, gate-smoke-packs-results, smoke-tests, gate-2-smoke-results, expensive-tests]
     if: always() && needs.setup.outputs.skip_tests != 'true'
     outputs:
       qa_approved: ${{ steps.gate.outputs.approved }}
