@@ -394,7 +394,7 @@ async function main() {
       printStatus();
       break;
 
-    case 'configure':
+    case 'configure': {
       const scriptId = args.options.script_id;
       const deploymentId = args.options.deployment_id;
 
@@ -408,6 +408,7 @@ async function main() {
 
       configure(scriptId, deploymentId);
       break;
+    }
 
     case 'verify':
       await verify();
