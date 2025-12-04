@@ -31,6 +31,21 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
+# Function to extract JSON value (no jq dependency)
+# Usage: extract_json_value "$json" "key"
+extract_json_value() {
+    local json="$1"
+    local key="$2"
+    echo "$json" | grep -o "\"$key\"[[:space:]]*:[[:space:]]*\"[^\"]*\"" | head -1 | sed 's/.*:.*"\([^"]*\)".*/\1/'
+}
+
+# Function to extract first result id from Cloudflare API response
+extract_result_id() {
+    local json="$1"
+    # Match "result":[{"id":"xxx" pattern
+    echo "$json" | grep -o '"result":\[{"id":"[^"]*"' | head -1 | sed 's/.*"id":"\([^"]*\)".*/\1/'
+}
+
 echo "========================================"
 echo "  Cloudflare Staging DNS Setup"
 echo "========================================"
@@ -62,15 +77,16 @@ if [ -z "$CLOUDFLARE_ZONE_ID" ]; then
     # Check for errors
     if echo "$ZONE_RESPONSE" | grep -q '"success":false'; then
         echo -e "${RED}Error: Failed to lookup zone${NC}"
-        echo "$ZONE_RESPONSE" | jq -r '.errors[0].message' 2>/dev/null || echo "$ZONE_RESPONSE"
+        echo "$ZONE_RESPONSE"
         exit 1
     fi
 
-    CLOUDFLARE_ZONE_ID=$(echo "$ZONE_RESPONSE" | jq -r '.result[0].id')
+    CLOUDFLARE_ZONE_ID=$(extract_result_id "$ZONE_RESPONSE")
 
-    if [ -z "$CLOUDFLARE_ZONE_ID" ] || [ "$CLOUDFLARE_ZONE_ID" = "null" ]; then
+    if [ -z "$CLOUDFLARE_ZONE_ID" ]; then
         echo -e "${RED}Error: Could not find zone for ${ZONE_NAME}${NC}"
         echo "Make sure the domain is added to your Cloudflare account."
+        echo "Response: $ZONE_RESPONSE"
         exit 1
     fi
 
@@ -93,7 +109,7 @@ create_dns_record() {
         -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
         -H "Content-Type: application/json")
 
-    EXISTING_ID=$(echo "$EXISTING" | jq -r '.result[0].id')
+    EXISTING_ID=$(extract_result_id "$EXISTING")
 
     # DNS record configuration
     # Using 192.0.2.1 (RFC 5737 TEST-NET-1) as a placeholder IP
@@ -110,7 +126,7 @@ create_dns_record() {
 EOF
 )
 
-    if [ -z "$EXISTING_ID" ] || [ "$EXISTING_ID" = "null" ]; then
+    if [ -z "$EXISTING_ID" ]; then
         # Create new record
         echo "  Creating new DNS record..."
         RESPONSE=$(curl -s -X POST "${API_BASE}/zones/${CLOUDFLARE_ZONE_ID}/dns_records" \
@@ -132,7 +148,7 @@ EOF
         return 0
     else
         echo -e "  ${RED}Error creating DNS record:${NC}"
-        echo "$RESPONSE" | jq -r '.errors[0].message' 2>/dev/null || echo "$RESPONSE"
+        echo "  $RESPONSE"
         return 1
     fi
 }
