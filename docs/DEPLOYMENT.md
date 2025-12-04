@@ -164,19 +164,24 @@ npm run deploy  # Create new deployment (dev/stage only)
 
 ## Environment URLs
 
-| Environment | URL | Purpose | Status |
-|-------------|-----|---------|--------|
-| **QA** | `https://qa.zeventbooks.com` | Testing & validation | Active |
-| **Dev** | `https://dev.zeventbooks.com` | Development | Planned |
-| **Production** | `https://app.zeventbooks.com` | Live application | Planned |
+> **See [ENVIRONMENT_MATRIX.md](../ENVIRONMENT_MATRIX.md) for the authoritative environment reference.**
+
+| Environment | URL | Cloudflare Env | Purpose |
+|-------------|-----|----------------|---------|
+| **Staging** | `https://stg.eventangle.com` | `[env.staging]` | Testing & validation (default for tests) |
+| **Production** | `https://www.eventangle.com` | `[env.production]` | Live application (CI-only deploy) |
+| **QA** | `https://zeventbooks.com` | - | Secondary testing |
 
 ### Brand-Specific Access
 
-```
-# QA environment examples
-https://qa.zeventbooks.com?p=events&brand=root
-https://qa.zeventbooks.com?p=events&brand=abc
-https://qa.zeventbooks.com?p=events&brand=cbc
+```bash
+# Staging environment examples (default)
+https://stg.eventangle.com/events?brand=root
+https://stg.eventangle.com/abc/events
+
+# Production environment examples
+https://www.eventangle.com/events?brand=root
+https://www.eventangle.com/abc/events
 ```
 
 ---

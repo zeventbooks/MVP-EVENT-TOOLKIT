@@ -15,11 +15,13 @@ A boring, step-by-step checklist for shipping a release.
 
 ## Environment Matrix: Dev → Staging → Prod
 
+> **Quick reference:** See [ENVIRONMENT_MATRIX.md](./ENVIRONMENT_MATRIX.md) for the authoritative environment table.
+
 | Environment | URL | GAS Project | Cloudflare Env | Who Can Deploy |
 |-------------|-----|-------------|----------------|----------------|
 | **Dev** | `http://localhost:3000` | Production (read-only) | N/A | Developers |
-| **Staging** | `https://stg.eventangle.com` | Staging Script | `--env staging` | Developers, CI |
-| **Production** | `https://www.eventangle.com` | Production Script | `--env events` | **CI ONLY** |
+| **Staging** | `https://stg.eventangle.com` | Staging Script | `[env.staging]` | Developers, CI |
+| **Production** | `https://www.eventangle.com` | Production Script | `[env.production]` | **CI ONLY** |
 
 ### Environment Configuration (Single Source of Truth)
 
