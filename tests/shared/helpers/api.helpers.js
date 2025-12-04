@@ -4,12 +4,12 @@
  * Shared utilities for making API requests across all test types
  *
  * BASE_URL-Aware: Automatically uses centralized environment config
- * Default: https://eventangle.com (production via Cloudflare Workers)
+ * Default: https://stg.eventangle.com (staging via Cloudflare Workers)
  */
 
 const { getBaseUrl } = require('../../config/environments');
 
-// Use centralized BASE_URL config (defaults to eventangle.com)
+// Use centralized BASE_URL config (defaults to stg.eventangle.com)
 const BASE_URL = getBaseUrl();
 const ADMIN_KEY = process.env.ADMIN_KEY || 'CHANGE_ME_root';
 const BRAND_ID = process.env.BRAND_ID || 'root';

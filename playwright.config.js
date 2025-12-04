@@ -47,7 +47,7 @@ module.exports = defineConfig({
 
   use: {
     // Use environment-aware base URL
-    // Defaults to Cloudflare production, can be overridden with BASE_URL or TEST_ENV
+    // Defaults to staging (stg.eventangle.com), can be overridden with BASE_URL or USE_PRODUCTION=true
     baseURL: env.baseUrl,
 
     // Enable traces on all retries for better debugging in CI

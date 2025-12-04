@@ -10,12 +10,12 @@
  * - V2 Optional: sponsors[], media{}, externalData{}, analytics{}, payments{}
  *
  * BASE_URL-Aware: Automatically uses centralized environment config
- * Default: https://eventangle.com (production via Cloudflare Workers)
+ * Default: https://stg.eventangle.com (staging via Cloudflare Workers)
  */
 
 const { getBaseUrl } = require('../../config/environments');
 
-// Use centralized BASE_URL config (defaults to eventangle.com)
+// Use centralized BASE_URL config (defaults to stg.eventangle.com)
 const BASE_URL = getBaseUrl();
 const BRAND_ID = process.env.BRAND_ID || 'root';
 
