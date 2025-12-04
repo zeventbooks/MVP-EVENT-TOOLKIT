@@ -48,6 +48,7 @@ jobs:
       github.event.workflow_run.conclusion == 'success'
     outputs:
       deployment_url: ${{ steps.get-url.outputs.url }}
+      url_mode: ${{ steps.get-url.outputs.url_mode }}
       skip_tests: ${{ steps.final-decision.outputs.skip }}
       skip_reason: ${{ steps.final-decision.outputs.reason }}
     steps:
@@ -67,37 +68,68 @@ jobs:
       - name: Get deployment URL
         id: get-url
         run: |
-          # If manually triggered with URL, use that
+          echo "=================================================="
+          echo "🎯 Stage 2 URL Selection (Precedence Order)"
+          echo "=================================================="
+          echo ""
+          echo "Precedence:"
+          echo "  1. inputs.deployment_url (manual_override)"
+          echo "  2. Stage 1 artifact (from_artifact → prod)"
+          echo "  3. Fallback (default_staging)"
+          echo ""
+          echo "=================================================="
+          echo ""
+
+          # Priority 1: Manual override via workflow_dispatch input
           if [[ -n "${{ inputs.deployment_url }}" ]]; then
-            echo "🎯 Using manual deployment URL"
-            echo "url=${{ inputs.deployment_url }}" >> $GITHUB_OUTPUT
-            echo "url_source=manual" >> $GITHUB_OUTPUT
+            DEPLOYMENT_URL="${{ inputs.deployment_url }}"
+            URL_MODE="manual_override"
+            echo "✅ Priority 1 MATCHED: inputs.deployment_url provided"
+            echo ""
+            echo "📋 Mode: manual_override"
+            echo "📋 URL:  $DEPLOYMENT_URL"
+            echo ""
+            echo "url=$DEPLOYMENT_URL" >> $GITHUB_OUTPUT
+            echo "url_mode=$URL_MODE" >> $GITHUB_OUTPUT
             exit 0
           fi
+          echo "❌ Priority 1: No inputs.deployment_url provided"
+          echo ""
 
-          # Otherwise, extract from Stage 1 workflow run
-          echo "🔍 Extracting deployment URL from Stage 1..."
+          # Priority 2: Stage 1 artifact (deployment-url.txt)
+          echo "🔍 Checking Priority 2: Stage 1 artifact..."
+          if [[ -n "${{ github.event.workflow_run.id }}" ]]; then
+            gh run download ${{ github.event.workflow_run.id }} \
+              --name deployment-info 2>/dev/null || true
 
-          # Download Stage 1 artifacts to get deployment info
-          gh run download ${{ github.event.workflow_run.id }} \
-            --name deployment-info || true
-
-          # If artifact exists, read URL from it
-          # Note: gh run download creates a folder with the artifact name
-          if [[ -f deployment-info/deployment-url.txt ]]; then
-            DEPLOYMENT_URL=$(cat deployment-info/deployment-url.txt)
-            echo "✅ Found deployment URL: $DEPLOYMENT_URL"
-            echo "url=$DEPLOYMENT_URL" >> $GITHUB_OUTPUT
-            echo "url_source=stage1" >> $GITHUB_OUTPUT
-          else
-            echo "⚠️ No deployment URL found from Stage 1"
-            # Default to STAGING for safe testing (not production)
-            # This ensures CI tests don't accidentally stress production
-            # Use USE_PRODUCTION=true in workflow_dispatch to explicitly test production
-            echo "Using default STAGING URL (stg.eventangle.com)"
-            echo "url=https://stg.eventangle.com" >> $GITHUB_OUTPUT
-            echo "url_source=default_staging" >> $GITHUB_OUTPUT
+            if [[ -f deployment-info/deployment-url.txt ]]; then
+              DEPLOYMENT_URL=$(cat deployment-info/deployment-url.txt)
+              URL_MODE="from_artifact"
+              echo "✅ Priority 2 MATCHED: Found deployment-url.txt from Stage 1"
+              echo ""
+              echo "📋 Mode: from_artifact"
+              echo "📋 URL:  $DEPLOYMENT_URL"
+              echo "📋 Note: This is typically the PRODUCTION deployment from Stage 1"
+              echo ""
+              echo "url=$DEPLOYMENT_URL" >> $GITHUB_OUTPUT
+              echo "url_mode=$URL_MODE" >> $GITHUB_OUTPUT
+              exit 0
+            fi
           fi
+          echo "❌ Priority 2: No Stage 1 artifact found"
+          echo ""
+
+          # Priority 3: Default to staging (safe fallback)
+          DEPLOYMENT_URL="https://stg.eventangle.com"
+          URL_MODE="default_staging"
+          echo "✅ Priority 3 FALLBACK: Using default staging URL"
+          echo ""
+          echo "📋 Mode: default_staging"
+          echo "📋 URL:  $DEPLOYMENT_URL"
+          echo "📋 Note: Staging is the safe default - tests won't stress production"
+          echo ""
+          echo "url=$DEPLOYMENT_URL" >> $GITHUB_OUTPUT
+          echo "url_mode=$URL_MODE" >> $GITHUB_OUTPUT
         env:
           GH_TOKEN: ${{ github.token }}
 
@@ -105,11 +137,11 @@ jobs:
         id: validate-url
         run: |
           DEPLOYMENT_URL="${{ steps.get-url.outputs.url }}"
-          URL_SOURCE="${{ steps.get-url.outputs.url_source }}"
+          URL_MODE="${{ steps.get-url.outputs.url_mode }}"
 
           echo "🔍 Validating deployment URL is reachable..."
-          echo "   URL: $DEPLOYMENT_URL"
-          echo "   Source: $URL_SOURCE"
+          echo "   URL:  $DEPLOYMENT_URL"
+          echo "   Mode: $URL_MODE"
           echo ""
 
           # Try to reach the /ping endpoint (fastest health check)
@@ -130,7 +162,7 @@ jobs:
             echo ""
 
             # If this was the default staging URL, provide helpful message
-            if [[ "$URL_SOURCE" == "default_staging" ]]; then
+            if [[ "$URL_MODE" == "default_staging" ]]; then
               echo "⚠️ The default staging URL (stg.eventangle.com) is not available."
               echo "   This typically means staging is not yet deployed in Cloudflare."
               echo ""
@@ -145,20 +177,50 @@ jobs:
             echo "url_reachable=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Display URL
+      - name: Display URL selection result
         run: |
-          echo "📋 Deployment URL for testing:"
-          echo "${{ steps.get-url.outputs.url }}"
+          URL_MODE="${{ steps.get-url.outputs.url_mode }}"
+          DEPLOYMENT_URL="${{ steps.get-url.outputs.url }}"
+
+          echo "=================================================="
+          echo "📋 Stage 2 URL Selection Result"
+          echo "=================================================="
           echo ""
-          echo "🎯 Canonical Events URL: ${{ steps.get-url.outputs.url }}/events"
-          echo "   All user-facing links use this base URL pattern"
+          echo "🎯 URL:  $DEPLOYMENT_URL"
           echo ""
-          # Check if this is staging or production
-          if [[ "${{ steps.get-url.outputs.url }}" == *"stg."* ]]; then
+
+          # Display mode with explanation
+          case "$URL_MODE" in
+            "manual_override")
+              echo "📋 Mode: manual_override"
+              echo "   → URL provided via workflow_dispatch input"
+              echo "   → User explicitly chose this target"
+              ;;
+            "from_artifact")
+              echo "📋 Mode: from_artifact"
+              echo "   → URL read from Stage 1 deployment-url.txt"
+              echo "   → This is the production deployment from Stage 1"
+              ;;
+            "default_staging")
+              echo "📋 Mode: default_staging"
+              echo "   → Using fallback staging URL"
+              echo "   → Safe default: tests won't stress production"
+              ;;
+            *)
+              echo "📋 Mode: unknown ($URL_MODE)"
+              ;;
+          esac
+          echo ""
+
+          # Determine environment from URL
+          if [[ "$DEPLOYMENT_URL" == *"stg."* ]]; then
             echo "🧪 Environment: STAGING (safe sandbox for testing)"
           else
             echo "🚀 Environment: PRODUCTION (live site)"
           fi
+          echo ""
+          echo "🎯 Canonical Events URL: $DEPLOYMENT_URL/events"
+          echo "=================================================="
 
       - name: Final decision - should tests run?
         id: final-decision
@@ -169,11 +231,11 @@ jobs:
 
           STAGE1_SKIP="${{ steps.check.outputs.skip }}"
           URL_REACHABLE="${{ steps.validate-url.outputs.url_reachable }}"
-          URL_SOURCE="${{ steps.get-url.outputs.url_source }}"
+          URL_MODE="${{ steps.get-url.outputs.url_mode }}"
 
           echo "Stage 1 check (skip): $STAGE1_SKIP"
           echo "URL reachable: $URL_REACHABLE"
-          echo "URL source: $URL_SOURCE"
+          echo "URL mode: $URL_MODE"
           echo ""
 
           # Skip if Stage 1 failed
@@ -188,7 +250,7 @@ jobs:
           if [[ "$URL_REACHABLE" != "true" ]]; then
             echo "❌ SKIP: Deployment URL is not reachable"
             echo ""
-            if [[ "$URL_SOURCE" == "default_staging" ]]; then
+            if [[ "$URL_MODE" == "default_staging" ]]; then
               echo "   The default staging URL (stg.eventangle.com) is not available."
               echo "   This prevents false positive test failures."
               echo ""
@@ -214,6 +276,39 @@ jobs:
 
           SKIP_TESTS="${{ steps.final-decision.outputs.skip }}"
           SKIP_REASON="${{ steps.final-decision.outputs.reason }}"
+          URL_MODE="${{ steps.get-url.outputs.url_mode }}"
+          DEPLOYMENT_URL="${{ steps.get-url.outputs.url }}"
+
+          # URL Selection info
+          echo "### 🎯 URL Selection" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Setting | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **URL** | \`$DEPLOYMENT_URL\` |" >> $GITHUB_STEP_SUMMARY
+
+          # Mode description
+          case "$URL_MODE" in
+            "manual_override")
+              echo "| **Mode** | \`manual_override\` - User provided via workflow_dispatch |" >> $GITHUB_STEP_SUMMARY
+              ;;
+            "from_artifact")
+              echo "| **Mode** | \`from_artifact\` - From Stage 1 deployment-url.txt (prod) |" >> $GITHUB_STEP_SUMMARY
+              ;;
+            "default_staging")
+              echo "| **Mode** | \`default_staging\` - Fallback to stg.eventangle.com |" >> $GITHUB_STEP_SUMMARY
+              ;;
+            *)
+              echo "| **Mode** | \`$URL_MODE\` |" >> $GITHUB_STEP_SUMMARY
+              ;;
+          esac
+
+          # Environment
+          if [[ "$DEPLOYMENT_URL" == *"stg."* ]]; then
+            echo "| **Environment** | 🧪 STAGING |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| **Environment** | 🚀 PRODUCTION |" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
 
           if [[ "$SKIP_TESTS" == "true" ]]; then
             echo "### ⏭️ Tests SKIPPED" >> $GITHUB_STEP_SUMMARY
@@ -224,19 +319,13 @@ jobs:
             elif [[ "$SKIP_REASON" == "url_unreachable" ]]; then
               echo "**Reason:** Deployment URL is not reachable" >> $GITHUB_STEP_SUMMARY
               echo "" >> $GITHUB_STEP_SUMMARY
-              echo "**URL:** \`${{ steps.get-url.outputs.url }}\`" >> $GITHUB_STEP_SUMMARY
-              echo "**Source:** ${{ steps.get-url.outputs.url_source }}" >> $GITHUB_STEP_SUMMARY
-              echo "" >> $GITHUB_STEP_SUMMARY
-              if [[ "${{ steps.get-url.outputs.url_source }}" == "default_staging" ]]; then
+              if [[ "$URL_MODE" == "default_staging" ]]; then
                 echo "The default staging URL is not available in Cloudflare." >> $GITHUB_STEP_SUMMARY
                 echo "This is **NOT a test failure** - tests were skipped to prevent false positives." >> $GITHUB_STEP_SUMMARY
               fi
             fi
           else
             echo "### ✅ Tests will run" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Deployment URL:** \`${{ steps.get-url.outputs.url }}\`" >> $GITHUB_STEP_SUMMARY
-            echo "**URL Source:** ${{ steps.get-url.outputs.url_source }}" >> $GITHUB_STEP_SUMMARY
           fi
 
   # ============================================================================
