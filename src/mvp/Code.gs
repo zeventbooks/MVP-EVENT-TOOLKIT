@@ -4352,6 +4352,26 @@ function saveEvent_(brandId, id, data, options = {}) {
   }
 }
 
+// =============================================================================
+// QR CODE FLOW CONFIGURATION - MVP SCOPE LOCK
+// =============================================================================
+// RULE: Unlimited backend QR flows; poster may render max 3 flows as display QRs.
+//
+// Backend can define any number of QR flow types (public, signup, display, etc.)
+// Poster.html enforces a hard limit of 3 QR display slots regardless of how
+// many flows backend provides. See docs/MVP_SCOPE.md for full rules.
+//
+// Current MVP Flows:
+//   - public:  Points to Public.html event page
+//   - signup:  Points to signup/registration URL
+//   - display: Points to Display.html (v2, reserved)
+//
+// To add new QR flow types:
+//   1. Add generation logic here
+//   2. Update _buildEventContract_() to include in event.qr object
+//   3. DO NOT modify Poster.html 3-slot limit
+// =============================================================================
+
 /**
  * Generate QR code as base64 PNG data URI
  * Uses Google Charts API for QR code generation
