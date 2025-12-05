@@ -159,26 +159,32 @@ function checkClaspLogin() {
   }
 
   const clasprc = readJson(CONFIG.clasprcPath);
-  if (!clasprc || !clasprc.tokens?.default?.access_token) {
+  // Support both token formats: tokens.default.access_token or token.access_token
+  const hasToken = clasprc?.tokens?.default?.access_token || clasprc?.token?.access_token;
+
+  if (!clasprc || !hasToken) {
     log.error('Invalid clasp credentials');
     return addCheck('clasp_login', false, 'Invalid ~/.clasprc.json format',
       'Run: rm ~/.clasprc.json && clasp login');
   }
 
-  // Test actual API access
-  const listResult = runCommand('npx clasp list', { silent: true, timeout: 15000 });
+  log.success('clasp credentials found');
+
+  // Test actual API access (non-blocking - just a warning if it fails)
+  const listResult = runCommand('clasp list', { silent: true, timeout: 20000 });
 
   if (!listResult.success) {
-    if (listResult.error.includes('invalid_grant') || listResult.error.includes('Token has been expired')) {
+    if (listResult.error && (listResult.error.includes('invalid_grant') || listResult.error.includes('Token has been expired'))) {
       log.error('Clasp token expired or revoked');
       return addCheck('clasp_login', false, 'Token expired or revoked',
         'Run: rm ~/.clasprc.json && clasp login');
     }
-    log.warning('Could not verify clasp login via API');
-    addWarning('clasp_api', 'API access check failed - may be transient');
+    log.warning('Could not verify clasp API access - may be transient');
+    addWarning('clasp_api', 'API access check failed - proceeding anyway');
+  } else {
+    log.success('clasp API access verified');
   }
 
-  log.success('clasp login valid');
   return addCheck('clasp_login', true, 'Logged in with valid credentials');
 }
 

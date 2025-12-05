@@ -107,12 +107,34 @@ function preflightChecks() {
     return false;
   }
 
-  // Check clasp login
-  const loginCheck = run('npx clasp list', { silent: true, timeout: 15000 });
-  if (!loginCheck.success) {
-    error('Not logged in to clasp or token expired');
+  // Check clasp login - look for credentials file first
+  const home = process.env.HOME || process.env.USERPROFILE || '';
+  const clasprcPath = path.join(home, '.clasprc.json');
+
+  if (!fs.existsSync(clasprcPath)) {
+    error('Not logged in to clasp - ~/.clasprc.json not found');
     log('Run: clasp login');
     return false;
+  }
+
+  // Validate clasprc.json has tokens
+  const clasprc = readJson(clasprcPath);
+  if (!clasprc?.tokens?.default?.access_token && !clasprc?.token?.access_token) {
+    error('Invalid clasp credentials - missing access_token');
+    log('Run: rm ~/.clasprc.json && clasp login');
+    return false;
+  }
+
+  success('Clasp credentials found');
+
+  // Optional: verify API access (non-blocking)
+  log('Verifying clasp API access...');
+  const loginCheck = run('clasp list', { silent: true, timeout: 20000 });
+  if (loginCheck.success) {
+    success('Clasp API access verified');
+  } else {
+    warn('Could not verify clasp API access - proceeding anyway');
+    log('If deployment fails, run: clasp login');
   }
 
   success('Pre-flight checks passed');
