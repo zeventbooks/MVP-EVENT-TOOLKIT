@@ -166,10 +166,10 @@ async function deployToStaging() {
   let deploySuccess = false;
 
   try {
-    // Push code
+    // Push code (use clasp directly, not npx - npx has env issues)
     log('Pushing code to staging...');
     for (let attempt = 1; attempt <= CONFIG.maxRetries; attempt++) {
-      const pushResult = run('npx clasp push --force', { timeout: 120000 });
+      const pushResult = run('clasp push --force', { timeout: 120000 });
 
       if (pushResult.success) {
         success('Code pushed to staging');
@@ -185,12 +185,12 @@ async function deployToStaging() {
       }
     }
 
-    // Create/update deployment
+    // Create/update deployment (use clasp directly)
     log('Creating staging deployment...');
     for (let attempt = 1; attempt <= CONFIG.maxRetries; attempt++) {
       const timestamp = new Date().toISOString();
       const deployResult = run(
-        `npx clasp deploy -d "Staging deployment ${timestamp}"`,
+        `clasp deploy -d "Staging deployment ${timestamp}"`,
         { silent: true, timeout: 60000 }
       );
 
@@ -216,7 +216,7 @@ async function deployToStaging() {
 
     // List deployments for verification
     log('Verifying deployment...');
-    const listResult = run('npx clasp deployments', { silent: true });
+    const listResult = run('clasp deployments', { silent: true });
     if (listResult.success && MODE.verbose) {
       console.log(listResult.output);
     }
@@ -268,7 +268,7 @@ async function verifyStagingDeployment() {
   writeJson(CONFIG.prodClaspFile, stagingConfig);
 
   try {
-    const deployResult = run('npx clasp deployments', { silent: true });
+    const deployResult = run('clasp deployments', { silent: true });
     writeJson(CONFIG.prodClaspFile, prodConfig);
 
     if (!deployResult.success) {
