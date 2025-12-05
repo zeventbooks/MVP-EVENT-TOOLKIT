@@ -302,6 +302,58 @@ The automation scripts include:
 
 ---
 
+## Development Workflow
+
+Development follows a **Staging → Production** flow. All changes are tested on staging before reaching production.
+
+### Code Flow
+
+```
+src/mvp/ (local) → Staging Script → Production Script
+                        ↓                   ↓
+               stg.eventangle.com    eventangle.com
+```
+
+### Daily Development
+
+```bash
+# 1. Make changes in src/mvp/
+
+# 2. Push to staging for testing
+npm run deploy:staging
+
+# 3. Test at staging URL
+#    https://script.google.com/macros/s/AKfycbyoBftd-LfKnCqNz8cTO_cQhmqLlqi_kqddNRoSaGk/exec
+#    or https://stg.eventangle.com (if Cloudflare configured)
+
+# 4. When ready, commit and push to main
+git add . && git commit -m "feat: your changes"
+git push origin main
+
+# 5. CI/CD (Stage 1) automatically deploys to production
+```
+
+### Manual Sync (Both Projects Identical)
+
+To ensure staging and production have identical code:
+
+```bash
+# Push to production (default .clasp.json)
+clasp push --force
+
+# Push to staging
+npm run deploy:staging
+```
+
+### Project URLs
+
+| Environment | Apps Script Project | Web App |
+|-------------|---------------------|---------|
+| **Staging** | [Edit](https://script.google.com/home/projects/1gHiPuj7eXNk09dDyk17SJ6QsCJg7LMqXBRrkowljL3z2TaAKFIvBLhHJ/edit) | HEAD deployment |
+| **Production** | [Edit](https://script.google.com/home/projects/1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l/edit) | eventangle.com |
+
+---
+
 ## Related Documentation
 
 - [PRODUCTION_DEPLOYMENT_POLICY.md](./PRODUCTION_DEPLOYMENT_POLICY.md) - CI-only production policy
