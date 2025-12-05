@@ -20,7 +20,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { execSync, spawnSync } = require('child_process');
+const { execSync } = require('child_process');
 
 // Configuration
 const CONFIG = {
@@ -279,7 +279,9 @@ function checkScriptAccess() {
     return true; // Non-blocking warning
   }
 
-  const scripts = listResult.output.split('\n').filter(l => l.includes('script.google.com'));
+  // Filter lines containing Apps Script URLs (use regex for proper URL matching)
+  const appsScriptUrlPattern = /https:\/\/script\.google\.com\/d\/[a-zA-Z0-9_-]+/;
+  const scripts = listResult.output.split('\n').filter(l => appsScriptUrlPattern.test(l));
 
   if (scripts.length === 0) {
     log.warning('No scripts found');

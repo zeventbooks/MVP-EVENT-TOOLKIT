@@ -128,7 +128,9 @@ function main() {
       log('❌', `clasp list failed: ${claspList.error}`);
       hasErrors = true;
     } else {
-      const lines = claspList.output.split('\n').filter(l => l.includes('script.google.com'));
+      // Filter lines containing Apps Script URLs (use regex for proper URL matching)
+      const appsScriptUrlPattern = /https:\/\/script\.google\.com\/d\/[a-zA-Z0-9_-]+/;
+      const lines = claspList.output.split('\n').filter(l => appsScriptUrlPattern.test(l));
       if (lines.length === 0) {
         log('⚠', 'No accessible scripts found. Ensure projects are shared with logged-in account.');
         hasWarnings = true;
