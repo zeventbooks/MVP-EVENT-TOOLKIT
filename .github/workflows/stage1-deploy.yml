@@ -410,12 +410,58 @@ jobs:
             exit 1
           fi
 
-          # Validate JSON structure
-          if ! echo "$CLASPRC_JSON" | jq -e '.token.access_token' > /dev/null 2>&1; then
-            echo "❌ ERROR: Invalid OAUTH_CREDENTIALS format"
-            echo "Expected JSON with .token.access_token field"
+          # First check if it's valid JSON at all
+          if ! echo "$CLASPRC_JSON" | jq -e '.' > /dev/null 2>&1; then
+            echo "❌ ERROR: OAUTH_CREDENTIALS is not valid JSON"
+            echo ""
+            echo "📋 Expected format (clasp OAuth credentials):"
+            echo '   {"token": {"access_token": "...", "refresh_token": "...", ...}}'
+            echo ""
+            echo "📖 To get the correct format:"
+            echo "   1. Run locally: npx clasp login"
+            echo "   2. Copy contents of ~/.clasprc.json"
+            echo "   3. Update OAUTH_CREDENTIALS secret in GitHub"
             exit 1
           fi
+
+          # Show structure for debugging (keys only, no sensitive values)
+          echo "📋 Credential structure detected:"
+          echo "$CLASPRC_JSON" | jq -r 'keys | .[]' 2>/dev/null | sed 's/^/   - /'
+
+          # Validate JSON structure - check for token field first
+          if ! echo "$CLASPRC_JSON" | jq -e '.token' > /dev/null 2>&1; then
+            echo ""
+            echo "❌ ERROR: Missing 'token' field in OAUTH_CREDENTIALS"
+            echo ""
+            echo "📋 Expected format (clasp OAuth credentials):"
+            echo '   {"token": {"access_token": "...", "refresh_token": "...", ...}}'
+            echo ""
+            echo "📋 Your credential has these top-level keys:"
+            echo "$CLASPRC_JSON" | jq -r 'keys | .[]' 2>/dev/null | sed 's/^/   - /'
+            echo ""
+            echo "📖 To fix this:"
+            echo "   1. Run locally: npx clasp login"
+            echo "   2. Copy the ENTIRE contents of ~/.clasprc.json"
+            echo "   3. Update OAUTH_CREDENTIALS secret in GitHub"
+            exit 1
+          fi
+
+          # Check for access_token within token
+          if ! echo "$CLASPRC_JSON" | jq -e '.token.access_token' > /dev/null 2>&1; then
+            echo ""
+            echo "❌ ERROR: Missing 'access_token' in token object"
+            echo ""
+            echo "📋 Your token object has these fields:"
+            echo "$CLASPRC_JSON" | jq -r '.token | keys | .[]' 2>/dev/null | sed 's/^/   - /'
+            echo ""
+            echo "📖 To fix this:"
+            echo "   1. Run locally: npx clasp login"
+            echo "   2. Copy the ENTIRE contents of ~/.clasprc.json"
+            echo "   3. Update OAUTH_CREDENTIALS secret in GitHub"
+            exit 1
+          fi
+
+          echo "✅ JSON structure validated (token.access_token present)"
 
           # Check if refresh_token exists (required for token refresh)
           if ! echo "$CLASPRC_JSON" | jq -e '.token.refresh_token' > /dev/null 2>&1; then
