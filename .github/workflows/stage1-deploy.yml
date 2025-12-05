@@ -788,11 +788,11 @@ jobs:
             exit 0
           fi
 
-          VERSION_COUNT=$(echo "$VERSIONS_RESPONSE" | jq -r '.versions | length // 0')
+          VERSION_COUNT=$(echo "$VERSIONS_RESPONSE" | jq -r '(.versions // []) | length')
           echo "   Found $VERSION_COUNT version(s)"
 
-          # Get the latest version number
-          LATEST_VERSION=$(echo "$VERSIONS_RESPONSE" | jq -r '.versions | sort_by(.versionNumber | tonumber) | last | .versionNumber // empty')
+          # Get the latest version number (handle null/empty versions array)
+          LATEST_VERSION=$(echo "$VERSIONS_RESPONSE" | jq -r 'if (.versions // []) | length > 0 then (.versions | sort_by(.versionNumber | tonumber) | last | .versionNumber) else empty end')
           echo "   Latest version: $LATEST_VERSION"
 
           # If at or near the 200 limit, we need to use existing version
