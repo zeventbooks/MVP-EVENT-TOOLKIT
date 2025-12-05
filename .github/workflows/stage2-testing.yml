@@ -475,7 +475,7 @@ jobs:
 
       - name: Upload Production Smoke report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: playwright-prod-smoke-report
           path: playwright-report/
@@ -654,7 +654,7 @@ jobs:
 
       - name: Upload API test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: playwright-api-report
           path: playwright-report/
@@ -765,7 +765,7 @@ jobs:
 
       - name: Upload Smoke Packs report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: playwright-smoke-packs-report
           path: playwright-report/
@@ -905,7 +905,7 @@ jobs:
 
       - name: Upload Smoke test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: playwright-smoke-report
           path: playwright-report/
@@ -1033,7 +1033,7 @@ jobs:
 
       - name: Upload ${{ matrix.suite }} test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: playwright-${{ matrix.suite }}-report
           path: playwright-report/
