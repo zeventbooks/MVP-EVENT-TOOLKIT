@@ -45,7 +45,7 @@ jobs:
     name: 🔍 Validate Configuration
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check .clasp.json exists
         run: |
@@ -117,7 +117,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.inputs.validate_stage1 != 'false'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -188,7 +188,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.inputs.validate_stage2 != 'false'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check admin keys
         env:
@@ -237,7 +237,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.inputs.test_clasp == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

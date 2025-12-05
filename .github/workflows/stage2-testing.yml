@@ -59,7 +59,7 @@ jobs:
       skip_reason: ${{ steps.final-decision.outputs.reason }}
       is_prod_smoke: ${{ steps.get-url.outputs.is_prod_smoke }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check if Stage 1 failed
         id: check
@@ -393,7 +393,7 @@ jobs:
     outputs:
       result: ${{ steps.test.outputs.result }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Display Production Warning
         run: |
@@ -564,7 +564,7 @@ jobs:
     outputs:
       warmup_success: ${{ steps.warmup.outputs.success }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -608,7 +608,7 @@ jobs:
     outputs:
       result: ${{ steps.test.outputs.result }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -715,7 +715,7 @@ jobs:
     outputs:
       result: ${{ steps.test.outputs.result }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -820,7 +820,7 @@ jobs:
     outputs:
       result: ${{ steps.test.outputs.result }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -968,7 +968,7 @@ jobs:
       flows_result: ${{ steps.set-result.outputs.flows_result }}
       pages_result: ${{ steps.set-result.outputs.pages_result }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -1217,7 +1217,7 @@ jobs:
     outputs:
       gate_passed: ${{ steps.ci-all.outputs.passed }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
