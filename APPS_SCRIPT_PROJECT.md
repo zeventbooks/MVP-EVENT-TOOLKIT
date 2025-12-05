@@ -231,6 +231,77 @@ Run this checklist to verify proper ownership:
 
 ---
 
+## Automated Environment Setup
+
+The repository includes comprehensive automation for environment setup and validation.
+
+### Quick Setup (New Developer)
+
+```bash
+# 1. Full environment check and auto-fix
+npm run setup:clasp:fix
+
+# 2. Verify ownership
+npm run clasp:verify-ownership
+
+# 3. Deploy to staging (automated)
+npm run deploy:staging:auto
+```
+
+### Available Automation Commands
+
+| Command | Description |
+|---------|-------------|
+| `npm run setup:clasp` | Interactive environment setup |
+| `npm run setup:clasp:check` | Check environment (no changes) |
+| `npm run setup:clasp:fix` | Auto-fix configuration issues |
+| `npm run setup:clasp:ci` | CI mode (exit codes only) |
+| `npm run clasp:verify-ownership` | Verify zeventbook ownership |
+| `npm run validate:secrets` | Validate CI secrets requirements |
+| `npm run validate:secrets:stage1` | Validate Stage 1 secrets |
+| `npm run validate:secrets:stage2` | Validate Stage 2 secrets |
+| `npm run deploy:staging:auto` | Automated staging deployment |
+| `npm run deploy:staging:check` | Pre-flight check for staging |
+| `npm run deploy:staging:verify` | Verify staging deployment |
+
+### CI Environment Validation
+
+The `validate-environment.yml` workflow automatically validates:
+
+1. **Configuration Files** - `.clasp.json`, `.clasp-staging.json`, `appsscript.json`
+2. **Stage 1 Secrets** - `OAUTH_CREDENTIALS`, `DEPLOYMENT_ID`, Cloudflare secrets
+3. **Stage 2 Secrets** - Admin keys, spreadsheet IDs per brand
+
+Runs automatically on:
+- PRs that modify configuration files
+- Pushes to main that modify configuration
+- Manual trigger for debugging
+
+### Self-Healing Features
+
+The automation scripts include:
+
+- **Auto-fix mode** - Repairs common configuration issues
+- **Retry logic** - Handles transient API failures
+- **Config restoration** - Always restores production config after staging operations
+- **Clear error messages** - Provides actionable fix instructions
+
+### Required GitHub Secrets
+
+| Secret | Required | Purpose |
+|--------|----------|---------|
+| `OAUTH_CREDENTIALS` | ✅ Yes | Clasp authentication (zeventbook@gmail.com) |
+| `DEPLOYMENT_ID` | Optional | Production deployment ID |
+| `ADMIN_KEY_ROOT` | For Stage 2 | Root brand admin key |
+| `ADMIN_KEY_ABC` | Optional | ABC brand admin key |
+| `ADMIN_KEY_CBC` | Optional | CBC brand admin key |
+| `ADMIN_KEY_CBL` | Optional | CBL brand admin key |
+| `SPREADSHEET_ID` | Optional | Fallback spreadsheet ID |
+| `CLOUDFLARE_API_TOKEN` | Optional | Cloudflare Worker updates |
+| `CLOUDFLARE_ACCOUNT_ID` | Optional | Cloudflare Worker updates |
+
+---
+
 ## Related Documentation
 
 - [PRODUCTION_DEPLOYMENT_POLICY.md](./PRODUCTION_DEPLOYMENT_POLICY.md) - CI-only production policy
