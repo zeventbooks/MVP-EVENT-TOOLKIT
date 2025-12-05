@@ -428,13 +428,29 @@ jobs:
           echo "📋 Credential structure detected:"
           echo "$CLASPRC_JSON" | jq -r 'keys | .[]' 2>/dev/null | sed 's/^/   - /'
 
-          # Validate JSON structure - check for token field first
-          if ! echo "$CLASPRC_JSON" | jq -e '.token' > /dev/null 2>&1; then
+          # Determine token path - clasp uses either 'token' or 'tokens' depending on version
+          # 'tokens' format: {"tokens": {"default": {"access_token": ...}}} or {"tokens": {"access_token": ...}}
+          # 'token' format: {"token": {"access_token": ...}}
+          TOKEN_PATH=""
+          if echo "$CLASPRC_JSON" | jq -e '.token.access_token' > /dev/null 2>&1; then
+            TOKEN_PATH=".token"
+            echo "📋 Format: standard (.token)"
+          elif echo "$CLASPRC_JSON" | jq -e '.tokens.default.access_token' > /dev/null 2>&1; then
+            TOKEN_PATH=".tokens.default"
+            echo "📋 Format: multi-account (.tokens.default)"
+          elif echo "$CLASPRC_JSON" | jq -e '.tokens.access_token' > /dev/null 2>&1; then
+            TOKEN_PATH=".tokens"
+            echo "📋 Format: alternate (.tokens)"
+          fi
+
+          if [ -z "$TOKEN_PATH" ]; then
             echo ""
-            echo "❌ ERROR: Missing 'token' field in OAUTH_CREDENTIALS"
+            echo "❌ ERROR: Cannot find access_token in OAUTH_CREDENTIALS"
             echo ""
-            echo "📋 Expected format (clasp OAuth credentials):"
-            echo '   {"token": {"access_token": "...", "refresh_token": "...", ...}}'
+            echo "📋 Supported formats:"
+            echo '   {"token": {"access_token": "...", ...}}'
+            echo '   {"tokens": {"access_token": "...", ...}}'
+            echo '   {"tokens": {"default": {"access_token": "...", ...}}}'
             echo ""
             echo "📋 Your credential has these top-level keys:"
             echo "$CLASPRC_JSON" | jq -r 'keys | .[]' 2>/dev/null | sed 's/^/   - /'
@@ -446,26 +462,11 @@ jobs:
             exit 1
           fi
 
-          # Check for access_token within token
-          if ! echo "$CLASPRC_JSON" | jq -e '.token.access_token' > /dev/null 2>&1; then
-            echo ""
-            echo "❌ ERROR: Missing 'access_token' in token object"
-            echo ""
-            echo "📋 Your token object has these fields:"
-            echo "$CLASPRC_JSON" | jq -r '.token | keys | .[]' 2>/dev/null | sed 's/^/   - /'
-            echo ""
-            echo "📖 To fix this:"
-            echo "   1. Run locally: npx clasp login"
-            echo "   2. Copy the ENTIRE contents of ~/.clasprc.json"
-            echo "   3. Update OAUTH_CREDENTIALS secret in GitHub"
-            exit 1
-          fi
-
-          echo "✅ JSON structure validated (token.access_token present)"
+          echo "✅ Found access_token at $TOKEN_PATH"
 
           # Check if refresh_token exists (required for token refresh)
-          if ! echo "$CLASPRC_JSON" | jq -e '.token.refresh_token' > /dev/null 2>&1; then
-            echo "❌ ERROR: No refresh_token found in OAUTH_CREDENTIALS"
+          if ! echo "$CLASPRC_JSON" | jq -e "${TOKEN_PATH}.refresh_token" > /dev/null 2>&1; then
+            echo "❌ ERROR: No refresh_token found at ${TOKEN_PATH}"
             echo "The refresh_token is required for clasp to refresh expired access tokens."
             echo ""
             echo "📖 To fix this, regenerate credentials with full scopes:"
@@ -476,7 +477,7 @@ jobs:
           fi
 
           # Check token expiry if expiry_date is present
-          EXPIRY_DATE=$(echo "$CLASPRC_JSON" | jq -r '.token.expiry_date // empty' 2>/dev/null)
+          EXPIRY_DATE=$(echo "$CLASPRC_JSON" | jq -r "${TOKEN_PATH}.expiry_date // empty" 2>/dev/null)
           if [ -n "$EXPIRY_DATE" ]; then
             CURRENT_TIME=$(date +%s)000  # Current time in milliseconds
             if [ "$EXPIRY_DATE" -lt "$CURRENT_TIME" ]; then
@@ -486,6 +487,8 @@ jobs:
             fi
           fi
 
+          # Export TOKEN_PATH for use in subsequent steps
+          echo "TOKEN_PATH=$TOKEN_PATH" >> $GITHUB_ENV
           echo "✅ Secrets validation passed"
 
       # NOTE: Apps Script has a 200 version limit. The Apps Script API does NOT
@@ -504,7 +507,29 @@ jobs:
           CLASPRC_JSON: ${{ secrets.OAUTH_CREDENTIALS }}
         run: |
           echo "🔐 Setting up clasp credentials..."
-          echo "$CLASPRC_JSON" > ~/.clasprc.json
+
+          # Normalize credential format to what clasp expects
+          # clasp@2.4.2 expects: {"token": {"access_token": ..., "refresh_token": ..., ...}}
+          # But some versions create: {"tokens": {"default": {...}}} or {"tokens": {...}}
+          echo "📋 Normalizing credential format (TOKEN_PATH=$TOKEN_PATH)..."
+
+          if [ "$TOKEN_PATH" = ".token" ]; then
+            # Already in correct format
+            echo "$CLASPRC_JSON" > ~/.clasprc.json
+            echo "   Using credentials as-is (already in .token format)"
+          elif [ "$TOKEN_PATH" = ".tokens.default" ]; then
+            # Convert from multi-account format
+            echo "$CLASPRC_JSON" | jq '{token: .tokens.default}' > ~/.clasprc.json
+            echo "   Converted from .tokens.default to .token format"
+          elif [ "$TOKEN_PATH" = ".tokens" ]; then
+            # Convert from alternate format
+            echo "$CLASPRC_JSON" | jq '{token: .tokens}' > ~/.clasprc.json
+            echo "   Converted from .tokens to .token format"
+          else
+            echo "❌ ERROR: Unknown TOKEN_PATH: $TOKEN_PATH"
+            exit 1
+          fi
+
           chmod 600 ~/.clasprc.json
 
           # Pin clasp version for reproducibility
@@ -514,10 +539,10 @@ jobs:
           # Log clasp version for debugging
           echo "📋 Clasp version: $(clasp --version 2>/dev/null || echo 'unknown')"
 
-          # Validate clasprc.json format before proceeding
-          echo "🔍 Validating credential format..."
-          if ! jq -e '.token' ~/.clasprc.json > /dev/null 2>&1; then
-            echo "❌ ERROR: Invalid clasprc.json format - missing 'token' field"
+          # Validate normalized clasprc.json format
+          echo "🔍 Validating normalized credential format..."
+          if ! jq -e '.token.access_token' ~/.clasprc.json > /dev/null 2>&1; then
+            echo "❌ ERROR: Normalization failed - missing .token.access_token"
             echo "📋 Debug: File structure (sensitive values redacted):"
             jq 'keys' ~/.clasprc.json 2>/dev/null || echo "   Could not parse JSON"
             exit 1
@@ -539,7 +564,7 @@ jobs:
               echo "   ✅ Access token is still valid"
             fi
           fi
-          echo "✅ Credentials configured"
+          echo "✅ Credentials configured and normalized"
 
       - name: Configure target Script ID
         run: |
