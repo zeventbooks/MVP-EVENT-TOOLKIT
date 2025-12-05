@@ -791,9 +791,14 @@ jobs:
           VERSION_COUNT=$(echo "$VERSIONS_RESPONSE" | jq -r '.versions | length // 0')
           echo "   Found $VERSION_COUNT version(s)"
 
-          # Get the latest version number
-          LATEST_VERSION=$(echo "$VERSIONS_RESPONSE" | jq -r '.versions | sort_by(.versionNumber | tonumber) | last | .versionNumber // empty')
-          echo "   Latest version: $LATEST_VERSION"
+          # Get the latest version number (handle null/empty versions array for new projects)
+          if [ "$VERSION_COUNT" -eq 0 ] || [ "$VERSION_COUNT" == "0" ]; then
+            echo "   No versions exist yet (new project) - will create first version"
+            LATEST_VERSION=""
+          else
+            LATEST_VERSION=$(echo "$VERSIONS_RESPONSE" | jq -r '.versions | sort_by(.versionNumber | tonumber) | last | .versionNumber // empty')
+            echo "   Latest version: $LATEST_VERSION"
+          fi
 
           # If at or near the 200 limit, we need to use existing version
           if [ "$VERSION_COUNT" -ge 199 ]; then
