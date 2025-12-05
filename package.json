@@ -193,6 +193,7 @@
     "deploy:fix-permissions:test": "node scripts/fix-deployment-permissions.js --test",
     "deploy:staging": "cp .clasp-staging.json .clasp.json && clasp push && clasp deploy -d 'Staging deployment' && git checkout .clasp.json",
     "deploy:staging:worker": "cd cloudflare-proxy && wrangler deploy --env staging",
+    "clasp:verify-ownership": "node scripts/verify-clasp-ownership.js",
     "staging:status": "node scripts/setup-staging.js status",
     "staging:configure": "node scripts/setup-staging.js configure",
     "staging:verify": "node scripts/setup-staging.js verify",

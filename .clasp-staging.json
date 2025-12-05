@@ -1,4 +1,5 @@
 {
-  "scriptId": "STAGING_SCRIPT_ID_PLACEHOLDER",
-  "rootDir": "./src/mvp"
+  "scriptId": "REPLACE_WITH_STAGING_SCRIPT_ID",
+  "rootDir": "./src/mvp",
+  "_comment": "Owner must be zeventbook@gmail.com - see APPS_SCRIPT_PROJECT.md"
 }
