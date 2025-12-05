@@ -428,13 +428,20 @@ jobs:
           echo "📋 Credential structure detected:"
           echo "$CLASPRC_JSON" | jq -r 'keys | .[]' 2>/dev/null | sed 's/^/   - /'
 
-          # Validate JSON structure - check for token field first
-          if ! echo "$CLASPRC_JSON" | jq -e '.token' > /dev/null 2>&1; then
+          # Validate JSON structure - support both legacy and new clasp formats
+          # Legacy format: {"token": {"access_token": "...", "refresh_token": "..."}}
+          # New format: {"tokens": {"default": {"access_token": "...", "refresh_token": "..."}}}
+
+          HAS_LEGACY_TOKEN=$(echo "$CLASPRC_JSON" | jq -e '.token.access_token' > /dev/null 2>&1 && echo "true" || echo "false")
+          HAS_NEW_TOKEN=$(echo "$CLASPRC_JSON" | jq -e '.tokens.default.access_token' > /dev/null 2>&1 && echo "true" || echo "false")
+
+          if [ "$HAS_LEGACY_TOKEN" = "false" ] && [ "$HAS_NEW_TOKEN" = "false" ]; then
             echo ""
-            echo "❌ ERROR: Missing 'token' field in OAUTH_CREDENTIALS"
+            echo "❌ ERROR: Missing access_token in OAUTH_CREDENTIALS"
             echo ""
-            echo "📋 Expected format (clasp OAuth credentials):"
-            echo '   {"token": {"access_token": "...", "refresh_token": "...", ...}}'
+            echo "📋 Expected formats (clasp OAuth credentials):"
+            echo '   Legacy: {"token": {"access_token": "...", "refresh_token": "...", ...}}'
+            echo '   New:    {"tokens": {"default": {"access_token": "...", "refresh_token": "...", ...}}}'
             echo ""
             echo "📋 Your credential has these top-level keys:"
             echo "$CLASPRC_JSON" | jq -r 'keys | .[]' 2>/dev/null | sed 's/^/   - /'
@@ -446,25 +453,19 @@ jobs:
             exit 1
           fi
 
-          # Check for access_token within token
-          if ! echo "$CLASPRC_JSON" | jq -e '.token.access_token' > /dev/null 2>&1; then
-            echo ""
-            echo "❌ ERROR: Missing 'access_token' in token object"
-            echo ""
-            echo "📋 Your token object has these fields:"
-            echo "$CLASPRC_JSON" | jq -r '.token | keys | .[]' 2>/dev/null | sed 's/^/   - /'
-            echo ""
-            echo "📖 To fix this:"
-            echo "   1. Run locally: npx clasp login"
-            echo "   2. Copy the ENTIRE contents of ~/.clasprc.json"
-            echo "   3. Update OAUTH_CREDENTIALS secret in GitHub"
-            exit 1
+          # Determine which format is being used and set variables for later checks
+          if [ "$HAS_NEW_TOKEN" = "true" ]; then
+            echo "✅ Detected NEW clasp credential format (tokens.default)"
+            TOKEN_PATH=".tokens.default"
+          else
+            echo "✅ Detected LEGACY clasp credential format (token)"
+            TOKEN_PATH=".token"
           fi
 
-          echo "✅ JSON structure validated (token.access_token present)"
+          echo "✅ JSON structure validated (access_token present)"
 
           # Check if refresh_token exists (required for token refresh)
-          if ! echo "$CLASPRC_JSON" | jq -e '.token.refresh_token' > /dev/null 2>&1; then
+          if ! echo "$CLASPRC_JSON" | jq -e "${TOKEN_PATH}.refresh_token" > /dev/null 2>&1; then
             echo "❌ ERROR: No refresh_token found in OAUTH_CREDENTIALS"
             echo "The refresh_token is required for clasp to refresh expired access tokens."
             echo ""
@@ -476,7 +477,7 @@ jobs:
           fi
 
           # Check token expiry if expiry_date is present
-          EXPIRY_DATE=$(echo "$CLASPRC_JSON" | jq -r '.token.expiry_date // empty' 2>/dev/null)
+          EXPIRY_DATE=$(echo "$CLASPRC_JSON" | jq -r "${TOKEN_PATH}.expiry_date // empty" 2>/dev/null)
           if [ -n "$EXPIRY_DATE" ]; then
             CURRENT_TIME=$(date +%s)000  # Current time in milliseconds
             if [ "$EXPIRY_DATE" -lt "$CURRENT_TIME" ]; then
@@ -515,20 +516,34 @@ jobs:
           echo "📋 Clasp version: $(clasp --version 2>/dev/null || echo 'unknown')"
 
           # Validate clasprc.json format before proceeding
+          # Support both legacy (.token) and new (.tokens.default) formats
           echo "🔍 Validating credential format..."
-          if ! jq -e '.token' ~/.clasprc.json > /dev/null 2>&1; then
-            echo "❌ ERROR: Invalid clasprc.json format - missing 'token' field"
+
+          HAS_LEGACY=$(jq -e '.token.access_token' ~/.clasprc.json > /dev/null 2>&1 && echo "true" || echo "false")
+          HAS_NEW=$(jq -e '.tokens.default.access_token' ~/.clasprc.json > /dev/null 2>&1 && echo "true" || echo "false")
+
+          if [ "$HAS_LEGACY" = "false" ] && [ "$HAS_NEW" = "false" ]; then
+            echo "❌ ERROR: Invalid clasprc.json format - no valid token structure found"
             echo "📋 Debug: File structure (sensitive values redacted):"
             jq 'keys' ~/.clasprc.json 2>/dev/null || echo "   Could not parse JSON"
             exit 1
           fi
 
+          # Determine token path for subsequent operations
+          if [ "$HAS_NEW" = "true" ]; then
+            TOKEN_PATH=".tokens.default"
+            echo "   Using NEW clasp format (tokens.default)"
+          else
+            TOKEN_PATH=".token"
+            echo "   Using LEGACY clasp format (token)"
+          fi
+
           # Check for required token fields
           echo "   Token fields present:"
-          jq -r '.token | keys | .[]' ~/.clasprc.json 2>/dev/null | sed 's/^/     - /'
+          jq -r "${TOKEN_PATH} | keys | .[]" ~/.clasprc.json 2>/dev/null | sed 's/^/     - /'
 
           # Show token expiry status
-          EXPIRY_DATE=$(jq -r '.token.expiry_date // empty' ~/.clasprc.json 2>/dev/null)
+          EXPIRY_DATE=$(jq -r "${TOKEN_PATH}.expiry_date // empty" ~/.clasprc.json 2>/dev/null)
           CURRENT_TIME=$(date +%s)000
           if [ -n "$EXPIRY_DATE" ]; then
             if [ "$EXPIRY_DATE" -lt "$CURRENT_TIME" ]; then
