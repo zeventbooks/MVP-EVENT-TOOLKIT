@@ -103,17 +103,20 @@ clasp deploy -d "Dev test deployment"
 
 | Setting | Value |
 |---------|-------|
-| **Script ID** | See `.clasp-staging.json` |
+| **Script ID** | `1gHiPuj7eXNk09dDyk17SJ6QsCJg7LMqXBRrkowljL3z2TaAKFIvBLhHJ` |
+| **Project URL** | https://script.google.com/home/projects/1gHiPuj7eXNk09dDyk17SJ6QsCJg7LMqXBRrkowljL3z2TaAKFIvBLhHJ/edit |
 | **Config File** | `.clasp-staging.json` |
 | **Staging URL** | https://stg.eventangle.com |
 | **Owner** | `zeventbook@gmail.com` (REQUIRED) |
 
-### Setting Up Staging Script ID
+### GitHub Secrets
 
-1. Log in to Apps Script as `zeventbook@gmail.com`
-2. Create a new project: **MVP Event Toolkit - STAGING**
-3. Get the Script ID from Project Settings
-4. Update `.clasp-staging.json` with the real Script ID
+| Secret | Purpose | Value |
+|--------|---------|-------|
+| `OAUTH_CREDENTIALS` | Production deployments | `~/.clasprc.json` content |
+| `STAGING_SCRIPT_ID` | Staging Script ID | `1gHiPuj7eXNk09dDyk17SJ6QsCJg7LMqXBRrkowljL3z2TaAKFIvBLhHJ` |
+
+Note: The same `OAUTH_CREDENTIALS` works for both prod and staging since both scripts are owned by zeventbook@gmail.com.
 
 ---
 
