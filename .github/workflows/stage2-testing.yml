@@ -54,6 +54,7 @@ jobs:
     outputs:
       deployment_url: ${{ steps.get-url.outputs.url }}
       url_mode: ${{ steps.get-url.outputs.url_mode }}
+      environment: ${{ steps.get-url.outputs.environment }}
       skip_tests: ${{ steps.final-decision.outputs.skip }}
       skip_reason: ${{ steps.final-decision.outputs.reason }}
       is_prod_smoke: ${{ steps.get-url.outputs.is_prod_smoke }}
@@ -124,7 +125,7 @@ jobs:
           echo "❌ Priority 1: No inputs.deployment_url provided"
           echo ""
 
-          # Priority 2: Stage 1 artifact (deployment-url.txt)
+          # Priority 2: Stage 1 artifact (deployment-url.txt + environment.txt)
           echo "🔍 Checking Priority 2: Stage 1 artifact..."
           if [[ -n "${{ github.event.workflow_run.id }}" ]]; then
             gh run download ${{ github.event.workflow_run.id }} \
@@ -132,15 +133,20 @@ jobs:
 
             if [[ -f deployment-info/deployment-url.txt ]]; then
               DEPLOYMENT_URL=$(cat deployment-info/deployment-url.txt)
+              ENVIRONMENT="staging"
+              if [[ -f deployment-info/environment.txt ]]; then
+                ENVIRONMENT=$(cat deployment-info/environment.txt)
+              fi
               URL_MODE="from_artifact"
-              echo "✅ Priority 2 MATCHED: Found deployment-url.txt from Stage 1"
+              echo "✅ Priority 2 MATCHED: Found deployment artifacts from Stage 1"
               echo ""
               echo "📋 Mode: from_artifact"
+              echo "📋 Environment: $ENVIRONMENT"
               echo "📋 URL:  $DEPLOYMENT_URL"
-              echo "📋 Note: This is typically the PRODUCTION deployment from Stage 1"
               echo ""
               echo "url=$DEPLOYMENT_URL" >> $GITHUB_OUTPUT
               echo "url_mode=$URL_MODE" >> $GITHUB_OUTPUT
+              echo "environment=$ENVIRONMENT" >> $GITHUB_OUTPUT
               exit 0
             fi
           fi
@@ -150,14 +156,17 @@ jobs:
           # Priority 3: Default to staging (safe fallback)
           DEPLOYMENT_URL="https://stg.eventangle.com"
           URL_MODE="default_staging"
+          ENVIRONMENT="staging"
           echo "✅ Priority 3 FALLBACK: Using default staging URL"
           echo ""
           echo "📋 Mode: default_staging"
+          echo "📋 Environment: $ENVIRONMENT"
           echo "📋 URL:  $DEPLOYMENT_URL"
           echo "📋 Note: Staging is the safe default - tests won't stress production"
           echo ""
           echo "url=$DEPLOYMENT_URL" >> $GITHUB_OUTPUT
           echo "url_mode=$URL_MODE" >> $GITHUB_OUTPUT
+          echo "environment=$ENVIRONMENT" >> $GITHUB_OUTPUT
         env:
           GH_TOKEN: ${{ github.token }}
 
@@ -209,12 +218,14 @@ jobs:
         run: |
           URL_MODE="${{ steps.get-url.outputs.url_mode }}"
           DEPLOYMENT_URL="${{ steps.get-url.outputs.url }}"
+          ENVIRONMENT="${{ steps.get-url.outputs.environment }}"
 
           echo "=================================================="
           echo "📋 Stage 2 URL Selection Result"
           echo "=================================================="
           echo ""
-          echo "🎯 URL:  $DEPLOYMENT_URL"
+          echo "🎯 Environment: ${ENVIRONMENT:-staging}"
+          echo "🎯 URL: $DEPLOYMENT_URL"
           echo ""
 
           # Display mode with explanation
@@ -232,8 +243,8 @@ jobs:
               ;;
             "from_artifact")
               echo "📋 Mode: from_artifact"
-              echo "   → URL read from Stage 1 deployment-url.txt"
-              echo "   → This is the production deployment from Stage 1"
+              echo "   → URL read from Stage 1 deployment artifact"
+              echo "   → Environment: ${ENVIRONMENT:-staging}"
               ;;
             "default_staging")
               echo "📋 Mode: default_staging"
