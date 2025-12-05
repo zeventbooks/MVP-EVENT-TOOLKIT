@@ -314,6 +314,16 @@ src/mvp/ (local) → Staging Script → Production Script
                stg.eventangle.com    eventangle.com
 ```
 
+### CI/CD Default Behavior
+
+| Trigger | Target Environment |
+|---------|-------------------|
+| Push to `main` | **STAGING** (default) |
+| Push to `release/*` | **STAGING** (default) |
+| Manual workflow_dispatch | User choice (default: staging) |
+
+**Production deployments require explicit opt-in via workflow_dispatch.**
+
 ### Daily Development
 
 ```bash
@@ -330,7 +340,23 @@ npm run deploy:staging
 git add . && git commit -m "feat: your changes"
 git push origin main
 
-# 5. CI/CD (Stage 1) automatically deploys to production
+# 5. CI/CD (Stage 1) automatically deploys to STAGING
+# 6. CI/CD (Stage 2) runs E2E tests against STAGING
+```
+
+### Deploying to Production
+
+Production deployment is opt-in only. To deploy to production:
+
+1. Go to **Actions** → **Stage 1 - Build & Deploy**
+2. Click **Run workflow**
+3. Select **environment: production**
+4. Click **Run workflow**
+
+Or via GitHub CLI:
+```bash
+gh workflow run "Stage 1 - Build & Deploy" \
+  -f environment=production
 ```
 
 ### Manual Sync (Both Projects Identical)
@@ -347,9 +373,9 @@ npm run deploy:staging
 
 ### Project URLs
 
-| Environment | Apps Script Project | Web App |
-|-------------|---------------------|---------|
-| **Staging** | [Edit](https://script.google.com/home/projects/1gHiPuj7eXNk09dDyk17SJ6QsCJg7LMqXBRrkowljL3z2TaAKFIvBLhHJ/edit) | HEAD deployment |
+| Environment | Apps Script Project | Cloudflare URL |
+|-------------|---------------------|----------------|
+| **Staging** | [Edit](https://script.google.com/home/projects/1gHiPuj7eXNk09dDyk17SJ6QsCJg7LMqXBRrkowljL3z2TaAKFIvBLhHJ/edit) | stg.eventangle.com |
 | **Production** | [Edit](https://script.google.com/home/projects/1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l/edit) | eventangle.com |
 
 ---

@@ -3,20 +3,104 @@ name: Stage 1 - Build & Deploy
 on:
   push:
     branches:
-      - main           # Deploy on main push (after PR merge)
-      - 'release/**'   # Deploy on release branches
+      - main           # Deploy to STAGING on main push
+      - 'release/**'   # Deploy to STAGING on release branches
       - 'release/*'
   pull_request:
-    branches: [ main ]  # Validate PRs before merge
+    branches: [ main ]  # Validate PRs (no deploy)
+
+  # Manual trigger with environment selection
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+        default: staging
+      skip_tests:
+        description: 'Skip quality gate tests (emergency deploy only)'
+        required: false
+        type: boolean
+        default: false
 
 # Prevent duplicate runs: cancel in-progress runs for the same PR/branch
 concurrency:
   group: stage1-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+# Environment configuration
+env:
+  # Script IDs - zeventbook@gmail.com owned
+  STAGING_SCRIPT_ID: '1gHiPuj7eXNk09dDyk17SJ6QsCJg7LMqXBRrkowljL3z2TaAKFIvBLhHJ'
+  PRODUCTION_SCRIPT_ID: '1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l'
+  # URLs
+  STAGING_URL: 'https://stg.eventangle.com'
+  PRODUCTION_URL: 'https://eventangle.com'
+
 jobs:
   # ============================================================================
-  # STAGE 1: BUILD, TEST & DEPLOY (HERMETIC - NO HTTP ENV DEPENDENCY)
+  # ENVIRONMENT DETERMINATION
+  # ============================================================================
+  # Determines target environment: staging (default) or production (opt-in)
+  # - Push to main/release → STAGING
+  # - workflow_dispatch → User choice (default: staging)
+  # ============================================================================
+  determine-environment:
+    name: 🎯 Determine Target Environment
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.env.outputs.environment }}
+      script_id: ${{ steps.env.outputs.script_id }}
+      base_url: ${{ steps.env.outputs.base_url }}
+      is_production: ${{ steps.env.outputs.is_production }}
+    steps:
+      - name: Determine environment
+        id: env
+        run: |
+          echo "=================================================="
+          echo "🎯 Environment Selection"
+          echo "=================================================="
+          echo ""
+
+          # Default to staging
+          ENVIRONMENT="staging"
+          SCRIPT_ID="${{ env.STAGING_SCRIPT_ID }}"
+          BASE_URL="${{ env.STAGING_URL }}"
+          IS_PRODUCTION="false"
+
+          # Check if this is a manual trigger with production selected
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            if [[ "${{ inputs.environment }}" == "production" ]]; then
+              ENVIRONMENT="production"
+              SCRIPT_ID="${{ env.PRODUCTION_SCRIPT_ID }}"
+              BASE_URL="${{ env.PRODUCTION_URL }}"
+              IS_PRODUCTION="true"
+              echo "⚠️  PRODUCTION DEPLOYMENT REQUESTED"
+              echo "   This will deploy to the live production environment!"
+            else
+              echo "📋 Manual trigger: STAGING selected"
+            fi
+          else
+            echo "📋 Automatic trigger: defaulting to STAGING"
+          fi
+
+          echo ""
+          echo "Environment: $ENVIRONMENT"
+          echo "Script ID: $SCRIPT_ID"
+          echo "Base URL: $BASE_URL"
+          echo ""
+          echo "=================================================="
+
+          echo "environment=$ENVIRONMENT" >> $GITHUB_OUTPUT
+          echo "script_id=$SCRIPT_ID" >> $GITHUB_OUTPUT
+          echo "base_url=$BASE_URL" >> $GITHUB_OUTPUT
+          echo "is_production=$IS_PRODUCTION" >> $GITHUB_OUTPUT
+
+  # ============================================================================
+  # STAGE 1: BUILD, TEST & DEPLOY
   # ============================================================================
   #
   # CANONICAL LOCAL EQUIVALENT: npm run test:ci:stage1
@@ -24,17 +108,15 @@ jobs:
   # This is the single source of truth for Stage 1 validation.
   # Stage 1 is HERMETIC: tests + GAS deploy only. No BASE_URL, no HTTP calls.
   #
+  # DEFAULT: Deploy to STAGING
+  # PRODUCTION: Only via workflow_dispatch with explicit selection
+  #
   # Components (env-agnostic - zero external HTTP dependencies):
   #   - lint          → ESLint code quality
   #   - test:unit     → Jest unit tests (mocked, no network)
   #   - test:contract → Contract tests (schema, API, bundles - all local)
   #   - check:guards  → Surface, dead-code, schema-fields, API-schema checks
-  #   - deploy        → Apps Script deploy + PROD URL artifact (for Stage 2)
-  #
-  # ARTIFACT OUTPUT:
-  #   deployment-info/deployment-url.txt → https://eventangle.com (prod URL)
-  #   This artifact is for Stage 2 POST-DEPLOY validation, NOT Stage 1 correctness.
-  #   Stage 1 passes/fails based on local tests only.
+  #   - deploy        → Apps Script deploy + URL artifact (for Stage 2)
   #
   # Stage 1 red → DO NOT DEPLOY
   # ============================================================================
@@ -267,27 +349,39 @@ jobs:
           fi
 
   # ============================================================================
-  # DEPLOY JOB: Apps Script Deploy + Produce PROD URL Artifact
+  # DEPLOY JOB: Apps Script Deploy (Staging or Production)
   # ============================================================================
   # PURPOSE:
   #   1. Push code to Google Apps Script (GAS)
   #   2. Create/update GAS web app deployment
-  #   3. Produce PROD URL artifact for Stage 2
+  #   3. Produce URL artifact for Stage 2
+  #
+  # DEFAULT: Deploy to STAGING
+  # PRODUCTION: Only via workflow_dispatch with explicit selection
   #
   # IMPORTANT:
   #   - This job does NOT make HTTP calls to validate the deployment
   #   - Stage 1 correctness is determined by LOCAL tests (lint, unit, contract)
-  #   - The PROD URL artifact (deployment-url.txt) is consumed by Stage 2
+  #   - The URL artifact (deployment-url.txt) is consumed by Stage 2
   #   - Stage 2 performs POST-DEPLOY HTTP validation, not Stage 1
   # ============================================================================
   deploy-to-apps-script:
-    name: 🚀 Apps Script Deploy + PROD URL Artifact
+    name: 🚀 Deploy to ${{ needs.determine-environment.outputs.environment }}
     runs-on: ubuntu-latest
-    needs: [lint, unit-tests, contract-tests, mvp-guards, ci-all-gate]
-    # MVP SRE Policy: Deploy only if Stage 1 passes AND push to main/release branches
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/'))
+    needs: [determine-environment, lint, unit-tests, contract-tests, mvp-guards, ci-all-gate]
+    # Deploy on push to main/release OR on manual workflow_dispatch
+    if: |
+      (github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/'))) ||
+      github.event_name == 'workflow_dispatch'
+    env:
+      TARGET_ENVIRONMENT: ${{ needs.determine-environment.outputs.environment }}
+      TARGET_SCRIPT_ID: ${{ needs.determine-environment.outputs.script_id }}
+      TARGET_BASE_URL: ${{ needs.determine-environment.outputs.base_url }}
+      IS_PRODUCTION: ${{ needs.determine-environment.outputs.is_production }}
     outputs:
       deployment_url: ${{ steps.deploy.outputs.url }}
+      environment: ${{ needs.determine-environment.outputs.environment }}
+      base_url: ${{ needs.determine-environment.outputs.base_url }}
       root_url: ${{ steps.urls.outputs.root_url }}
       abc_url: ${{ steps.urls.outputs.abc_url }}
       cbc_url: ${{ steps.urls.outputs.cbc_url }}
@@ -400,6 +494,28 @@ jobs:
             fi
           fi
           echo "✅ Credentials configured"
+
+      - name: Configure target Script ID
+        run: |
+          echo "🎯 Configuring deployment target..."
+          echo ""
+          echo "   Environment: $TARGET_ENVIRONMENT"
+          echo "   Script ID: $TARGET_SCRIPT_ID"
+          echo ""
+
+          # Update .clasp.json with the target Script ID
+          jq --arg scriptId "$TARGET_SCRIPT_ID" '.scriptId = $scriptId' .clasp.json > .clasp.json.tmp
+          mv .clasp.json.tmp .clasp.json
+
+          echo "📋 Updated .clasp.json:"
+          cat .clasp.json
+
+          echo ""
+          if [ "$IS_PRODUCTION" == "true" ]; then
+            echo "⚠️  DEPLOYING TO PRODUCTION"
+          else
+            echo "📋 Deploying to staging (default)"
+          fi
 
       - name: Verify API authentication
         run: |
@@ -859,61 +975,55 @@ jobs:
           echo "cbl_url=${APPS_SCRIPT_BASE}/cbl/events" >> $GITHUB_OUTPUT
 
       # ========================================================================
-      # PROD URL ARTIFACT: For Stage 2 POST-DEPLOY validation (NOT Stage 1)
+      # URL ARTIFACT: For Stage 2 POST-DEPLOY validation
       # ========================================================================
-      # IMPORTANT DESIGN DECISION:
-      #   - deployment-info/deployment-url.txt → https://eventangle.com (PROD)
-      #   - This artifact is EXCLUSIVELY for Stage 2 HTTP validation
-      #   - Stage 1 correctness does NOT depend on this URL being reachable
-      #   - Stage 1 is tests + GAS deploy only (hermetic, no HTTP env dependency)
-      #
-      # WHY PROD URL?
-      #   - Stage 2 validates the deployed code via HTTP against production
-      #   - https://eventangle.com is the Cloudflare-proxied production endpoint
-      #   - This ensures Stage 2 tests real user-facing behavior
+      # Creates artifact with target environment URL for Stage 2 E2E tests
+      # - Staging (default): https://stg.eventangle.com
+      # - Production (opt-in): https://eventangle.com
       # ========================================================================
-      - name: Save PROD URL artifact for Stage 2
+      - name: Save URL artifact for Stage 2
         run: |
           mkdir -p deployment-info
 
-          # ==================================================================
-          # PROD URL: https://eventangle.com
-          # ==================================================================
-          # This is the production Cloudflare-proxied URL.
-          # Stage 2 will use this URL for POST-DEPLOY HTTP validation.
-          #
-          # NOTE: This artifact is for Stage 2 consumption ONLY.
-          # Stage 1 pass/fail is determined by local tests, NOT by this URL.
-          # ==================================================================
-          PROD_URL="https://eventangle.com"
-          echo "$PROD_URL" > deployment-info/deployment-url.txt
+          # Use the target environment URL
+          TARGET_URL="$TARGET_BASE_URL"
+          echo "$TARGET_URL" > deployment-info/deployment-url.txt
+          echo "$TARGET_ENVIRONMENT" > deployment-info/environment.txt
 
           echo "============================================================"
-          echo "📦 PROD URL ARTIFACT CREATED"
+          echo "📦 DEPLOYMENT ARTIFACT CREATED"
           echo "============================================================"
           echo ""
-          echo "   File: deployment-info/deployment-url.txt"
-          echo "   URL:  $PROD_URL"
+          echo "   Environment: $TARGET_ENVIRONMENT"
+          echo "   URL: $TARGET_URL"
           echo ""
-          echo "   Purpose: Stage 2 POST-DEPLOY HTTP validation"
-          echo "   Note:    Stage 1 correctness is NOT dependent on this URL"
+          echo "   Files:"
+          echo "   - deployment-info/deployment-url.txt"
+          echo "   - deployment-info/environment.txt"
           echo ""
-          echo "   Apps Script URL (for reference): ${{ steps.deploy.outputs.url }}"
+          echo "   Apps Script URL: ${{ steps.deploy.outputs.url }}"
           echo "============================================================"
 
-      - name: Upload PROD URL artifact for Stage 2
+      - name: Upload deployment artifact for Stage 2
         uses: actions/upload-artifact@v4
         with:
           name: deployment-info
-          path: deployment-info/deployment-url.txt
+          path: deployment-info/
           retention-days: 1
 
       - name: Create comprehensive deployment summary
         run: |
           APPS_SCRIPT_BASE="${{ steps.deploy.outputs.url }}"
-          CLOUDFLARE_BASE="https://eventangle.com"
+          CLOUDFLARE_BASE="$TARGET_BASE_URL"
 
           echo "## 🚀 Stage 1 Deployment Complete!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🎯 Target Environment: **${TARGET_ENVIRONMENT^^}**" >> $GITHUB_STEP_SUMMARY
+          if [ "$IS_PRODUCTION" == "true" ]; then
+            echo "> ⚠️ This deployment went to **PRODUCTION**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "> This deployment went to **STAGING** (default)" >> $GITHUB_STEP_SUMMARY
+          fi
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### ✅ Quality Gates Passed" >> $GITHUB_STEP_SUMMARY
           echo "- Code Quality (ESLint)" >> $GITHUB_STEP_SUMMARY
