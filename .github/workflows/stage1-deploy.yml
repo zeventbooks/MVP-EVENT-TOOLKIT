@@ -505,8 +505,6 @@ jobs:
           CLASPRC_JSON: ${{ secrets.OAUTH_CREDENTIALS }}
         run: |
           echo "🔐 Setting up clasp credentials..."
-          echo "$CLASPRC_JSON" > ~/.clasprc.json
-          chmod 600 ~/.clasprc.json
 
           # Pin clasp version for reproducibility
           echo "📦 Installing clasp@2.4.2 (pinned version)..."
@@ -515,28 +513,45 @@ jobs:
           # Log clasp version for debugging
           echo "📋 Clasp version: $(clasp --version 2>/dev/null || echo 'unknown')"
 
-          # Validate clasprc.json format before proceeding
-          # Support both legacy (.token) and new (.tokens.default) formats
-          echo "🔍 Validating credential format..."
+          # Validate and convert credential format
+          # clasp 2.4.2 ONLY supports the legacy format: {"token": {...}}
+          # New clasp format is: {"tokens": {"default": {...}}}
+          # We must convert new format to legacy format for clasp 2.4.2 to work
+          echo "🔍 Checking credential format..."
 
-          HAS_LEGACY=$(jq -e '.token.access_token' ~/.clasprc.json > /dev/null 2>&1 && echo "true" || echo "false")
-          HAS_NEW=$(jq -e '.tokens.default.access_token' ~/.clasprc.json > /dev/null 2>&1 && echo "true" || echo "false")
+          HAS_LEGACY=$(echo "$CLASPRC_JSON" | jq -e '.token.access_token' > /dev/null 2>&1 && echo "true" || echo "false")
+          HAS_NEW=$(echo "$CLASPRC_JSON" | jq -e '.tokens.default.access_token' > /dev/null 2>&1 && echo "true" || echo "false")
 
           if [ "$HAS_LEGACY" = "false" ] && [ "$HAS_NEW" = "false" ]; then
-            echo "❌ ERROR: Invalid clasprc.json format - no valid token structure found"
-            echo "📋 Debug: File structure (sensitive values redacted):"
-            jq 'keys' ~/.clasprc.json 2>/dev/null || echo "   Could not parse JSON"
+            echo "❌ ERROR: Invalid credential format - no valid token structure found"
+            echo "📋 Debug: JSON structure (sensitive values redacted):"
+            echo "$CLASPRC_JSON" | jq 'keys' 2>/dev/null || echo "   Could not parse JSON"
             exit 1
           fi
 
-          # Determine token path for subsequent operations
+          # Convert new format to legacy format that clasp 2.4.2 understands
           if [ "$HAS_NEW" = "true" ]; then
-            TOKEN_PATH=".tokens.default"
-            echo "   Using NEW clasp format (tokens.default)"
-          else
+            echo "   Detected NEW clasp format (tokens.default)"
+            echo "   🔄 Converting to legacy format for clasp 2.4.2 compatibility..."
+
+            # Extract the token object from new format and create legacy format
+            CONVERTED_JSON=$(echo "$CLASPRC_JSON" | jq '{token: .tokens.default}')
+
+            if ! echo "$CONVERTED_JSON" | jq -e '.token.access_token' > /dev/null 2>&1; then
+              echo "❌ ERROR: Conversion failed - could not extract token"
+              exit 1
+            fi
+
+            echo "$CONVERTED_JSON" > ~/.clasprc.json
+            echo "   ✅ Converted to legacy format"
             TOKEN_PATH=".token"
-            echo "   Using LEGACY clasp format (token)"
+          else
+            echo "   Using LEGACY clasp format (token) - no conversion needed"
+            echo "$CLASPRC_JSON" > ~/.clasprc.json
+            TOKEN_PATH=".token"
           fi
+
+          chmod 600 ~/.clasprc.json
 
           # Check for required token fields
           echo "   Token fields present:"
