@@ -193,7 +193,7 @@ jobs:
     outputs:
       deployment_id: ${{ steps.deploy.outputs.deployment_id }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -311,7 +311,7 @@ jobs:
       needs.preflight-staging.outputs.staging_reachable == 'true' &&
       (needs.deploy-staging.result == 'success' || needs.deploy-staging.result == 'skipped')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -347,7 +347,7 @@ jobs:
     outputs:
       result: ${{ steps.test.outputs.result }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -426,7 +426,7 @@ jobs:
     outputs:
       result: ${{ steps.test.outputs.result }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -499,7 +499,7 @@ jobs:
     outputs:
       result: ${{ steps.test.outputs.result }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
