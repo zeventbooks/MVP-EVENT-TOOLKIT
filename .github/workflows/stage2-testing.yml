@@ -667,11 +667,12 @@ jobs:
   gate-1-api-results:
     name: 🚦 Gate 1 - Check API Results
     runs-on: ubuntu-latest
-    needs: [setup, api-tests]
+    needs: [setup, preflight-staging, api-tests]
     if: always() && needs.setup.outputs.skip_tests != 'true' && needs.setup.outputs.is_prod_smoke != 'true'
     outputs:
       should_run_smoke_packs: ${{ steps.gate.outputs.should_run }}
       api_passed: ${{ steps.gate.outputs.api_passed }}
+      skipped_reason: ${{ steps.gate.outputs.skipped_reason }}
     steps:
       - name: Evaluate API test results
         id: gate
@@ -680,21 +681,45 @@ jobs:
           echo "========================================="
 
           API_RESULT="${{ needs.api-tests.result }}"
+          PREFLIGHT_RESULT="${{ needs.preflight-staging.result }}"
+          STAGING_REACHABLE="${{ needs.preflight-staging.outputs.staging_reachable }}"
 
+          echo "Preflight Result: $PREFLIGHT_RESULT"
+          echo "Staging Reachable: $STAGING_REACHABLE"
           echo "API Tests Result: $API_RESULT"
           echo ""
 
-          if [[ "$API_RESULT" == "success" ]]; then
+          # Handle case where API tests were skipped due to staging being unreachable
+          if [[ "$API_RESULT" == "skipped" ]]; then
+            if [[ "$PREFLIGHT_RESULT" == "failure" ]] || [[ "$STAGING_REACHABLE" != "true" ]]; then
+              echo "⏭️ API tests were SKIPPED (staging unreachable)"
+              echo ""
+              echo "This is NOT a test failure - staging is simply not available."
+              echo "All downstream tests will also be skipped."
+              echo ""
+              echo "To fix: Ensure staging is deployed and accessible"
+              echo "should_run=false" >> $GITHUB_OUTPUT
+              echo "api_passed=skipped" >> $GITHUB_OUTPUT
+              echo "skipped_reason=staging_unreachable" >> $GITHUB_OUTPUT
+            else
+              echo "⏭️ API tests were SKIPPED (unknown reason)"
+              echo "should_run=false" >> $GITHUB_OUTPUT
+              echo "api_passed=skipped" >> $GITHUB_OUTPUT
+              echo "skipped_reason=unknown" >> $GITHUB_OUTPUT
+            fi
+          elif [[ "$API_RESULT" == "success" ]]; then
             echo "✅ API tests PASSED"
             echo "✅ Proceeding to Smoke Packs"
             echo "should_run=true" >> $GITHUB_OUTPUT
             echo "api_passed=true" >> $GITHUB_OUTPUT
+            echo "skipped_reason=" >> $GITHUB_OUTPUT
           else
             echo "❌ API tests FAILED"
             echo "🛑 BLOCKING: Skipping Smoke Packs and all downstream tests"
             echo "   Fix API issues before running further tests"
             echo "should_run=false" >> $GITHUB_OUTPUT
             echo "api_passed=false" >> $GITHUB_OUTPUT
+            echo "skipped_reason=" >> $GITHUB_OUTPUT
           fi
 
   # ============================================================================
@@ -1090,6 +1115,7 @@ jobs:
 
           # Determine overall quality gate
           API_PASSED="${{ needs.gate-1-api-results.outputs.api_passed }}"
+          SKIPPED_REASON="${{ needs.gate-1-api-results.outputs.skipped_reason }}"
           SMOKE_PACKS_PASSED="${{ needs.gate-smoke-packs-results.outputs.smoke_packs_passed }}"
           SMOKE_PASSED="${{ needs.gate-2-smoke-results.outputs.smoke_passed }}"
           EXPENSIVE_RESULT="${{ needs.expensive-tests.result }}"
@@ -1099,6 +1125,29 @@ jobs:
           # 2. Smoke Packs passed AND
           # 3. Smoke tests passed AND
           # 4. Expensive tests passed (or were skipped)
+          #
+          # Special case: If tests were skipped due to staging being unreachable,
+          # we don't fail the quality gate - we just indicate tests were skipped.
+
+          # Handle skipped tests due to staging being unreachable
+          if [[ "$API_PASSED" == "skipped" ]]; then
+            echo "⏭️ QUALITY GATE SKIPPED: Tests were skipped"
+            echo ""
+            if [[ "$SKIPPED_REASON" == "staging_unreachable" ]]; then
+              echo "   Reason: Staging environment is not reachable"
+              echo "   This is NOT a test failure - staging is simply not deployed/available."
+              echo ""
+              echo "   To run tests:"
+              echo "   1. Ensure staging is deployed (Stage 1 must succeed)"
+              echo "   2. Verify Cloudflare Worker is configured"
+              echo "   3. Check that stg.eventangle.com resolves correctly"
+            else
+              echo "   Reason: $SKIPPED_REASON"
+            fi
+            echo ""
+            echo "approved=skipped" >> $GITHUB_OUTPUT
+            exit 0
+          fi
 
           if [[ "$API_PASSED" != "true" ]]; then
             echo "❌ QUALITY GATE FAILED: API tests failed"
@@ -1323,6 +1372,19 @@ jobs:
           QUALITY_PASSED="${{ needs.quality-gate.outputs.qa_approved }}"
           CIALL_PASSED="${{ needs.ci-all-gate.outputs.gate_passed }}"
 
+          # Handle case where tests were skipped (staging unreachable)
+          if [[ "$QUALITY_PASSED" == "skipped" ]]; then
+            echo "⏭️ PRODUCTION GATE SKIPPED"
+            echo ""
+            echo "Tests were skipped because staging was not reachable."
+            echo "This is NOT a failure - production gate simply cannot be evaluated."
+            echo ""
+            echo "Once staging is deployed and tests run successfully,"
+            echo "the production gate will properly evaluate."
+            echo "production_approved=skipped" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
           if [[ "$QUALITY_PASSED" == "true" ]] && [[ "$CIALL_PASSED" == "true" ]]; then
             echo "✅ PRODUCTION GATE PASSED"
             echo ""
@@ -1349,10 +1411,24 @@ jobs:
           echo "## 🔒 Production Deployment Gate" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          if [[ "${{ steps.prod-check.outputs.production_approved }}" == "true" ]]; then
+          PROD_APPROVED="${{ steps.prod-check.outputs.production_approved }}"
+          QUALITY_STATUS="${{ needs.quality-gate.outputs.qa_approved }}"
+          CIALL_STATUS="${{ needs.ci-all-gate.outputs.gate_passed }}"
+
+          if [[ "$PROD_APPROVED" == "true" ]]; then
             echo "### ✅ APPROVED FOR PRODUCTION" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "All gates passed. This build is safe to deploy to production." >> $GITHUB_STEP_SUMMARY
+          elif [[ "$PROD_APPROVED" == "skipped" ]]; then
+            echo "### ⏭️ TESTS SKIPPED" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Tests were skipped because staging was not reachable." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**This is NOT a failure** - the staging environment is simply not available." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "To run tests, ensure:" >> $GITHUB_STEP_SUMMARY
+            echo "1. Stage 1 deployment succeeds" >> $GITHUB_STEP_SUMMARY
+            echo "2. Staging environment is accessible at stg.eventangle.com" >> $GITHUB_STEP_SUMMARY
           else
             echo "### ❌ BLOCKED FROM PRODUCTION" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
@@ -1364,5 +1440,19 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Gate | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Quality Gate | ${{ needs.quality-gate.outputs.qa_approved == 'true' && '✅ PASS' || '❌ FAIL' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| CI:ALL Gate | ${{ needs.ci-all-gate.outputs.gate_passed == 'true' && '✅ PASS' || '❌ FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+
+          # Quality Gate status with skipped handling
+          if [[ "$QUALITY_STATUS" == "true" ]]; then
+            echo "| Quality Gate | ✅ PASS |" >> $GITHUB_STEP_SUMMARY
+          elif [[ "$QUALITY_STATUS" == "skipped" ]]; then
+            echo "| Quality Gate | ⏭️ SKIPPED |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Quality Gate | ❌ FAIL |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # CI:ALL Gate status
+          if [[ "$CIALL_STATUS" == "true" ]]; then
+            echo "| CI:ALL Gate | ✅ PASS |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| CI:ALL Gate | ❌ FAIL |" >> $GITHUB_STEP_SUMMARY
+          fi
