@@ -1,0 +1,405 @@
+name: Stage 1 - Validate, Build & Deploy
+
+# ============================================================================
+# CLEAN STAGE 1 PIPELINE
+# ============================================================================
+# Purpose: Single source of truth for Stage 1 validation + deployment
+#
+# Jobs:
+#   1. validate      - Run npm run ci:stage1-local (lint, unit, contract, guards)
+#   2. deploy-staging - Deploy to stg.eventangle.com (main branch only)
+#   3. deploy-prod   - Deploy to www.eventangle.com (release/* branches only)
+#
+# Artifact Output:
+#   - deployment-info/deployment-url.txt
+#   - deployment-info/environment.txt
+#
+# Security:
+#   - Fork PRs do NOT trigger deploy steps (secrets not available)
+#   - Staging: main branch only
+#   - Production: release/* branches only
+# ============================================================================
+
+on:
+  push:
+    branches:
+      - main           # Deploy to staging
+      - 'release/**'   # Deploy to production
+      - 'release/*'
+  pull_request:
+    branches: [main]   # Validate only (no deploy)
+
+  workflow_dispatch:
+    inputs:
+      skip_validation:
+        description: 'Skip validation (emergency deploy only)'
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: stage1-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '18'
+  # Environment URLs
+  STAGING_URL: 'https://stg.eventangle.com'
+  PRODUCTION_URL: 'https://www.eventangle.com'
+  # Script IDs
+  STAGING_SCRIPT_ID: '1gHiPuj7eXNk09dDyk17SJ6QsCJg7LMqXBRrkowljL3z2TaAKFIvBLhHJ'
+  PRODUCTION_SCRIPT_ID: '1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l'
+
+jobs:
+  # ============================================================================
+  # VALIDATE: Single job running canonical ci:stage1-local
+  # ============================================================================
+  # This is the SINGLE SOURCE OF TRUTH for Stage 1 validation.
+  # Runs exactly the same checks as local development.
+  #
+  # CANONICAL COMMAND: npm run ci:stage1-local
+  #   - npm run lint
+  #   - npm run test:unit
+  #   - npm run test:contract
+  #   - node scripts/check-surfaces.js
+  #   - node scripts/check-dead-code.js --fail-on-dead
+  #   - node scripts/check-v2-files.js
+  #   - npm run test:unit -- tests/unit/security.test.js --verbose
+  # ============================================================================
+  validate:
+    name: Validate (ci:stage1-local)
+    runs-on: ubuntu-latest
+    # Skip if emergency deploy requested
+    if: ${{ !inputs.skip_validation }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Stage 1 validation
+        run: |
+          echo "========================================"
+          echo "Stage 1 Validation (ci:stage1-local)"
+          echo "========================================"
+          echo ""
+          echo "This runs exactly the same validation as local development:"
+          echo "  - Lint (ESLint)"
+          echo "  - Unit Tests (Jest)"
+          echo "  - Contract Tests"
+          echo "  - Surface Check (5 MVP surfaces only)"
+          echo "  - Dead Code Check"
+          echo "  - V2 Files Check"
+          echo "  - Security Tests"
+          echo ""
+          npm run ci:stage1-local
+
+      - name: Create validation summary
+        if: always()
+        run: |
+          echo "## Stage 1 Validation Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "### PASSED" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "All Stage 1 checks passed:" >> $GITHUB_STEP_SUMMARY
+            echo "- ESLint" >> $GITHUB_STEP_SUMMARY
+            echo "- Unit Tests" >> $GITHUB_STEP_SUMMARY
+            echo "- Contract Tests" >> $GITHUB_STEP_SUMMARY
+            echo "- MVP Surface Guards" >> $GITHUB_STEP_SUMMARY
+            echo "- Dead Code Detection" >> $GITHUB_STEP_SUMMARY
+            echo "- V2 File Validation" >> $GITHUB_STEP_SUMMARY
+            echo "- Security Tests" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Stage 1 validation failed. Check logs for details." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Run locally: \`npm run ci:stage1-local\`" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # ============================================================================
+  # DEPLOY-STAGING: Deploy to stg.eventangle.com (main branch only)
+  # ============================================================================
+  # Triggered ONLY on push to main branch.
+  # Fork PRs cannot trigger this (no access to secrets).
+  # ============================================================================
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [validate]
+    # Only deploy on main branch push (not PRs, not forks)
+    if: |
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      github.repository == 'zeventbooks/MVP-EVENT-TOOLKIT'
+    environment: staging
+    outputs:
+      deployment_url: ${{ steps.artifact.outputs.deployment_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup clasp credentials
+        env:
+          CLASPRC_JSON: ${{ secrets.OAUTH_CREDENTIALS }}
+        run: |
+          echo "Setting up clasp credentials..."
+          npm install -g @google/clasp@2.4.2
+
+          # Handle new vs legacy clasp format
+          HAS_NEW=$(echo "$CLASPRC_JSON" | jq -e '.tokens.default.access_token' > /dev/null 2>&1 && echo "true" || echo "false")
+
+          if [ "$HAS_NEW" = "true" ]; then
+            echo "Converting new format to legacy..."
+            echo "$CLASPRC_JSON" | jq '{token: .tokens.default}' > ~/.clasprc.json
+          else
+            echo "$CLASPRC_JSON" > ~/.clasprc.json
+          fi
+          chmod 600 ~/.clasprc.json
+
+      - name: Configure staging Script ID
+        run: |
+          jq --arg scriptId "${{ env.STAGING_SCRIPT_ID }}" '.scriptId = $scriptId' .clasp.json > .clasp.json.tmp
+          mv .clasp.json.tmp .clasp.json
+          echo "Configured for staging: ${{ env.STAGING_SCRIPT_ID }}"
+
+      - name: Push to Apps Script
+        run: |
+          echo "Pushing code to staging Apps Script..."
+          MAX_RETRIES=4
+          RETRY_DELAY=5
+
+          for attempt in $(seq 1 $MAX_RETRIES); do
+            echo "Push attempt $attempt of $MAX_RETRIES..."
+            if clasp push --force; then
+              echo "Push successful!"
+              exit 0
+            fi
+            if [ $attempt -lt $MAX_RETRIES ]; then
+              echo "Retrying in ${RETRY_DELAY}s..."
+              sleep $RETRY_DELAY
+              RETRY_DELAY=$((RETRY_DELAY * 2))
+            fi
+          done
+          echo "Push failed after $MAX_RETRIES attempts"
+          exit 1
+
+      - name: Deploy to Apps Script
+        id: deploy
+        env:
+          DEPLOYMENT_ID: ${{ secrets.STAGING_DEPLOYMENT_ID }}
+        run: |
+          echo "Creating staging deployment..."
+          MAX_RETRIES=4
+          RETRY_DELAY=5
+
+          for attempt in $(seq 1 $MAX_RETRIES); do
+            echo "Deploy attempt $attempt of $MAX_RETRIES..."
+            if [ -n "$DEPLOYMENT_ID" ]; then
+              DEPLOY_OUTPUT=$(clasp deploy -i "$DEPLOYMENT_ID" -d "Staging $(date -Iseconds)" 2>&1) && break
+            else
+              DEPLOY_OUTPUT=$(clasp deploy -d "Staging $(date -Iseconds)" 2>&1) && break
+            fi
+            if [ $attempt -lt $MAX_RETRIES ]; then
+              echo "Retrying in ${RETRY_DELAY}s..."
+              sleep $RETRY_DELAY
+              RETRY_DELAY=$((RETRY_DELAY * 2))
+            fi
+          done
+
+          echo "$DEPLOY_OUTPUT"
+          DEPLOYMENT_ID_OUT=$(echo "$DEPLOY_OUTPUT" | grep -oP 'AKfycb[a-zA-Z0-9_-]+' | head -1)
+          echo "deployment_id=$DEPLOYMENT_ID_OUT" >> $GITHUB_OUTPUT
+
+      - name: Create deployment artifact
+        id: artifact
+        run: |
+          mkdir -p deployment-info
+          echo "${{ env.STAGING_URL }}" > deployment-info/deployment-url.txt
+          echo "staging" > deployment-info/environment.txt
+
+          echo "========================================"
+          echo "Deployment Artifact Created"
+          echo "========================================"
+          echo "Environment: staging"
+          echo "URL: ${{ env.STAGING_URL }}"
+          echo "========================================"
+
+          echo "deployment_url=${{ env.STAGING_URL }}" >> $GITHUB_OUTPUT
+
+      - name: Upload deployment artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-info
+          path: deployment-info/
+          retention-days: 1
+
+      - name: Create deployment summary
+        run: |
+          echo "## Staging Deployment Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Environment | staging |" >> $GITHUB_STEP_SUMMARY
+          echo "| URL | ${{ env.STAGING_URL }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Deployment ID | ${{ steps.deploy.outputs.deployment_id }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Test URLs" >> $GITHUB_STEP_SUMMARY
+          echo "- [Status](${{ env.STAGING_URL }}/status)" >> $GITHUB_STEP_SUMMARY
+          echo "- [Events](${{ env.STAGING_URL }}/events)" >> $GITHUB_STEP_SUMMARY
+          echo "- [Manage](${{ env.STAGING_URL }}/manage)" >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================================
+  # DEPLOY-PROD: Deploy to www.eventangle.com (release/* branches only)
+  # ============================================================================
+  # Triggered ONLY on push to release/* branches.
+  # Fork PRs cannot trigger this (no access to secrets).
+  # ============================================================================
+  deploy-prod:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [validate]
+    # Only deploy on release/* branch push (not PRs, not forks)
+    if: |
+      github.event_name == 'push' &&
+      startsWith(github.ref, 'refs/heads/release/') &&
+      github.repository == 'zeventbooks/MVP-EVENT-TOOLKIT'
+    environment: production
+    outputs:
+      deployment_url: ${{ steps.artifact.outputs.deployment_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup clasp credentials
+        env:
+          CLASPRC_JSON: ${{ secrets.OAUTH_CREDENTIALS }}
+        run: |
+          echo "Setting up clasp credentials..."
+          npm install -g @google/clasp@2.4.2
+
+          # Handle new vs legacy clasp format
+          HAS_NEW=$(echo "$CLASPRC_JSON" | jq -e '.tokens.default.access_token' > /dev/null 2>&1 && echo "true" || echo "false")
+
+          if [ "$HAS_NEW" = "true" ]; then
+            echo "Converting new format to legacy..."
+            echo "$CLASPRC_JSON" | jq '{token: .tokens.default}' > ~/.clasprc.json
+          else
+            echo "$CLASPRC_JSON" > ~/.clasprc.json
+          fi
+          chmod 600 ~/.clasprc.json
+
+      - name: Configure production Script ID
+        run: |
+          jq --arg scriptId "${{ env.PRODUCTION_SCRIPT_ID }}" '.scriptId = $scriptId' .clasp.json > .clasp.json.tmp
+          mv .clasp.json.tmp .clasp.json
+          echo "Configured for production: ${{ env.PRODUCTION_SCRIPT_ID }}"
+
+      - name: Push to Apps Script
+        run: |
+          echo "Pushing code to production Apps Script..."
+          MAX_RETRIES=4
+          RETRY_DELAY=5
+
+          for attempt in $(seq 1 $MAX_RETRIES); do
+            echo "Push attempt $attempt of $MAX_RETRIES..."
+            if clasp push --force; then
+              echo "Push successful!"
+              exit 0
+            fi
+            if [ $attempt -lt $MAX_RETRIES ]; then
+              echo "Retrying in ${RETRY_DELAY}s..."
+              sleep $RETRY_DELAY
+              RETRY_DELAY=$((RETRY_DELAY * 2))
+            fi
+          done
+          echo "Push failed after $MAX_RETRIES attempts"
+          exit 1
+
+      - name: Deploy to Apps Script
+        id: deploy
+        env:
+          DEPLOYMENT_ID: ${{ secrets.PRODUCTION_DEPLOYMENT_ID }}
+        run: |
+          echo "Creating production deployment..."
+          MAX_RETRIES=4
+          RETRY_DELAY=5
+
+          for attempt in $(seq 1 $MAX_RETRIES); do
+            echo "Deploy attempt $attempt of $MAX_RETRIES..."
+            if [ -n "$DEPLOYMENT_ID" ]; then
+              DEPLOY_OUTPUT=$(clasp deploy -i "$DEPLOYMENT_ID" -d "Production $(date -Iseconds)" 2>&1) && break
+            else
+              DEPLOY_OUTPUT=$(clasp deploy -d "Production $(date -Iseconds)" 2>&1) && break
+            fi
+            if [ $attempt -lt $MAX_RETRIES ]; then
+              echo "Retrying in ${RETRY_DELAY}s..."
+              sleep $RETRY_DELAY
+              RETRY_DELAY=$((RETRY_DELAY * 2))
+            fi
+          done
+
+          echo "$DEPLOY_OUTPUT"
+          DEPLOYMENT_ID_OUT=$(echo "$DEPLOY_OUTPUT" | grep -oP 'AKfycb[a-zA-Z0-9_-]+' | head -1)
+          echo "deployment_id=$DEPLOYMENT_ID_OUT" >> $GITHUB_OUTPUT
+
+      - name: Create deployment artifact
+        id: artifact
+        run: |
+          mkdir -p deployment-info
+          echo "${{ env.PRODUCTION_URL }}" > deployment-info/deployment-url.txt
+          echo "production" > deployment-info/environment.txt
+
+          echo "========================================"
+          echo "Deployment Artifact Created"
+          echo "========================================"
+          echo "Environment: production"
+          echo "URL: ${{ env.PRODUCTION_URL }}"
+          echo "========================================"
+
+          echo "deployment_url=${{ env.PRODUCTION_URL }}" >> $GITHUB_OUTPUT
+
+      - name: Upload deployment artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-info
+          path: deployment-info/
+          retention-days: 1
+
+      - name: Create deployment summary
+        run: |
+          echo "## Production Deployment Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Environment | production |" >> $GITHUB_STEP_SUMMARY
+          echo "| URL | ${{ env.PRODUCTION_URL }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Deployment ID | ${{ steps.deploy.outputs.deployment_id }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Test URLs" >> $GITHUB_STEP_SUMMARY
+          echo "- [Status](${{ env.PRODUCTION_URL }}/status)" >> $GITHUB_STEP_SUMMARY
+          echo "- [Events](${{ env.PRODUCTION_URL }}/events)" >> $GITHUB_STEP_SUMMARY
+          echo "- [Manage](${{ env.PRODUCTION_URL }}/manage)" >> $GITHUB_STEP_SUMMARY
