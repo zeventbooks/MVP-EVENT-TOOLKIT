@@ -854,26 +854,50 @@ jobs:
             echo ""
           fi
 
+          # Validate DEPLOYMENT_ID exists before attempting to use it
+          # This handles cases where the secret is set but the deployment doesn't exist
+          # (e.g., new project, deployment was deleted, wrong ID for this environment)
+          VALID_DEPLOYMENT_ID=""
+          if [ -n "$DEPLOYMENT_ID" ]; then
+            echo "🔍 Validating DEPLOYMENT_ID: $DEPLOYMENT_ID"
+            DEPLOYMENTS_LIST=$(clasp deployments 2>&1 || echo "")
+
+            if echo "$DEPLOYMENTS_LIST" | grep -q "$DEPLOYMENT_ID"; then
+              echo "   ✅ Deployment ID exists in this project"
+              VALID_DEPLOYMENT_ID="$DEPLOYMENT_ID"
+            else
+              echo "   ⚠️  Deployment ID NOT found in this project"
+              echo "   Will create a new deployment instead"
+              echo ""
+              echo "📋 Current deployments:"
+              echo "$DEPLOYMENTS_LIST" | sed 's/^/   /'
+              echo ""
+              echo "💡 TIP: After this deployment succeeds, update the DEPLOYMENT_ID secret"
+              echo "   with the new deployment ID shown below to enable updates in future runs."
+              echo ""
+            fi
+          fi
+
           for attempt in $(seq 1 $MAX_RETRIES); do
             echo "🚀 Deploy attempt $attempt of $MAX_RETRIES..."
 
             set +e
             if [ "$USE_EXISTING_VERSION" == "true" ] && [ -n "$LATEST_VERSION" ]; then
               # At version limit: update deployment to point to existing version
-              if [ -n "$DEPLOYMENT_ID" ]; then
-                echo "   Updating deployment $DEPLOYMENT_ID to version $LATEST_VERSION (no new version created)"
-                DEPLOY_OUTPUT=$(clasp deploy -V "$LATEST_VERSION" -i "$DEPLOYMENT_ID" -d "Stage 1 Deploy $(date -Iseconds) [v$LATEST_VERSION]" 2>&1)
+              if [ -n "$VALID_DEPLOYMENT_ID" ]; then
+                echo "   Updating deployment $VALID_DEPLOYMENT_ID to version $LATEST_VERSION (no new version created)"
+                DEPLOY_OUTPUT=$(clasp deploy -V "$LATEST_VERSION" -i "$VALID_DEPLOYMENT_ID" -d "Stage 1 Deploy $(date -Iseconds) [v$LATEST_VERSION]" 2>&1)
               else
                 echo "   Creating deployment using version $LATEST_VERSION"
                 DEPLOY_OUTPUT=$(clasp deploy -V "$LATEST_VERSION" -d "Stage 1 Deploy $(date -Iseconds) [v$LATEST_VERSION]" 2>&1)
               fi
             else
               # Normal deployment: create new version
-              if [ -n "$DEPLOYMENT_ID" ]; then
-                echo "   Updating existing deployment: $DEPLOYMENT_ID"
-                DEPLOY_OUTPUT=$(clasp deploy -i "$DEPLOYMENT_ID" -d "Stage 1 Deploy $(date -Iseconds)" 2>&1)
+              if [ -n "$VALID_DEPLOYMENT_ID" ]; then
+                echo "   Updating existing deployment: $VALID_DEPLOYMENT_ID"
+                DEPLOY_OUTPUT=$(clasp deploy -i "$VALID_DEPLOYMENT_ID" -d "Stage 1 Deploy $(date -Iseconds)" 2>&1)
               else
-                echo "   Creating new deployment (no DEPLOYMENT_ID secret set)"
+                echo "   Creating new deployment (no valid DEPLOYMENT_ID)"
                 DEPLOY_OUTPUT=$(clasp deploy -d "Stage 1 Deploy $(date -Iseconds)" 2>&1)
               fi
             fi
