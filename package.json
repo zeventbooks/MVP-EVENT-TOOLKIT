@@ -81,6 +81,7 @@
     "ci:local:stage1": "node scripts/run-ci-local.js stage1",
     "ci:local:stage2": "node scripts/run-ci-local.js stage2",
     "ci:local:quick": "node scripts/run-ci-local.js quick",
+    "ci:stage1-local": "npm run lint && npm run test:unit && npm run test:contract && node scripts/check-surfaces.js && node scripts/check-dead-code.js --fail-on-dead && node scripts/check-v2-files.js && npm run test:unit -- tests/unit/security.test.js --verbose",
     "test:report": "./scripts/view-test-reports.sh",
     "test:report:api": "npx playwright show-report playwright-report-api",
     "test:report:smoke": "npx playwright show-report playwright-report-smoke",
