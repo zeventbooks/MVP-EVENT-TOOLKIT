@@ -1,4 +1,4 @@
-name: Stage 1 - Build & Deploy
+name: Stage 1 - Validate & Build & Deploy (stg/prod)
 
 on:
   push:
