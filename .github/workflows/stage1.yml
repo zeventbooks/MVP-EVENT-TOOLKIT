@@ -1,46 +1,57 @@
-# Stage-1 PR Validation Workflow
+# Stage-1 Validation & Staging Deploy Workflow
 #
-# Purpose: Validate PRs before merge - NO deployment logic
+# Purpose: Validate code quality and deploy to staging on main push
 #
 # This workflow creates a clean boundary:
 #   - PRs validate correctness only (lint, test, contract, guards)
-#   - PRs NEVER touch staging or production
+#   - Push to main: validate + deploy to staging
 #   - Guards eventbook data integrity by preventing accidental deploys
 #
 # Acceptance Criteria:
 #   - PR to main triggers: checkout, npm ci, npm run stage1-local
-#   - No deployment logic executes on PRs
+#   - Push to main triggers: validation + staging deploy
+#   - Emits artifact stg-base-url containing https://stg.eventangle.com
+#   - Deploy aborts on validation failure
 #   - PR cannot merge unless Stage-1 passes (configure as required check)
 #
 # Contract Boundaries:
 #   - Uses strict v4.1.2 response contract but does not modify it
-#   - Stage-1 is HERMETIC: no BASE_URL, no HTTP calls
+#   - Stage-1 validation is HERMETIC: no BASE_URL, no HTTP calls
+#   - Stage-2 will consume the stg-base-url artifact for post-deploy testing
 #
 # @see scripts/stage1-local.mjs - Single source of truth for validation steps
-# @see .github/workflows/stage1-deploy.yml - Deployment workflow (push to main only)
+# @see scripts/deploy-gas-stg.mjs - Staging deployment script
 
-name: Stage-1 PR Validation
+name: Stage-1 Validation
 
 on:
   pull_request:
     branches:
       - main
+  push:
+    branches:
+      - main
 
-# Prevent duplicate runs: cancel in-progress runs for the same PR
+# Prevent duplicate runs: cancel in-progress runs for the same PR/branch
 concurrency:
-  group: stage1-pr-${{ github.event.pull_request.number }}
+  group: stage1-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
+
+# Environment configuration
+env:
+  STAGING_URL: 'https://stg.eventangle.com'
+  STAGING_SCRIPT_ID: '1gHiPuj7eXNk09dDyk17SJ6QsCJg7LMqXBRrkowljL3z2TaAKFIvBLhHJ'
 
 jobs:
   # ============================================================================
-  # STAGE-1 PR VALIDATION
+  # STAGE-1 VALIDATION
   # ============================================================================
   # Runs the unified truth script: npm run stage1-local
   #
   # This job is designed to be a REQUIRED STATUS CHECK for PR merges.
   # Configure in GitHub Settings > Branches > Branch protection rules:
   #   - Require status checks to pass before merging
-  #   - Select "Stage-1 PR Validation / validate"
+  #   - Select "Stage-1 Validation / validate"
   #
   # Components validated (via scripts/stage1-local.mjs):
   #   - ESLint code quality
@@ -51,11 +62,11 @@ jobs:
   #   - V2 file guardrails (no V2 files in MVP directory)
   #   - Bundle compilation verification
   #
-  # HERMETIC: Stage-1 has ZERO external dependencies.
+  # HERMETIC: Stage-1 validation has ZERO external dependencies.
   # No BASE_URL, no HTTP calls, no staging/prod access.
   # ============================================================================
   validate:
-    name: Stage-1 Validate
+    name: Validate
     runs-on: ubuntu-latest
 
     steps:
@@ -114,13 +125,17 @@ jobs:
       - name: Create validation summary
         if: always()
         run: |
-          echo "## Stage-1 PR Validation" >> $GITHUB_STEP_SUMMARY
+          echo "## Stage-1 Validation" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
           if [ "${{ job.status }}" == "success" ]; then
             echo "### PASSED" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "All Stage-1 checks passed. PR is ready for review." >> $GITHUB_STEP_SUMMARY
+            if [ "${{ github.event_name }}" == "pull_request" ]; then
+              echo "All Stage-1 checks passed. PR is ready for review." >> $GITHUB_STEP_SUMMARY
+            else
+              echo "All Stage-1 checks passed. Staging deploy will proceed." >> $GITHUB_STEP_SUMMARY
+            fi
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "**Validated Components:**" >> $GITHUB_STEP_SUMMARY
             echo "- ESLint Code Quality" >> $GITHUB_STEP_SUMMARY
@@ -133,7 +148,11 @@ jobs:
           else
             echo "### FAILED" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "One or more Stage-1 checks failed. PR cannot be merged." >> $GITHUB_STEP_SUMMARY
+            if [ "${{ github.event_name }}" == "pull_request" ]; then
+              echo "One or more Stage-1 checks failed. PR cannot be merged." >> $GITHUB_STEP_SUMMARY
+            else
+              echo "One or more Stage-1 checks failed. **Staging deploy aborted.**" >> $GITHUB_STEP_SUMMARY
+            fi
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "**To reproduce locally:**" >> $GITHUB_STEP_SUMMARY
             echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
@@ -143,8 +162,231 @@ jobs:
             echo "Fix the failing checks and push again." >> $GITHUB_STEP_SUMMARY
           fi
 
+  # ============================================================================
+  # STAGING DEPLOY (Push to main only)
+  # ============================================================================
+  # Deploys to staging environment after validation passes.
+  #
+  # This job:
+  #   - Only runs on push to main (not on PRs)
+  #   - Depends on validation passing (aborts if validation fails)
+  #   - Deploys to Google Apps Script staging environment
+  #   - Emits stg-base-url artifact for Stage-2 consumption
+  #
+  # Contract:
+  #   - Produces artifact: stg-base-url containing https://stg.eventangle.com
+  #   - Stage-2 consumes this artifact for post-deploy E2E testing
+  # ============================================================================
+  staging-deploy:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [validate]
+    # Only deploy on push to main, not on PRs
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    outputs:
+      base_url: ${{ steps.emit-url.outputs.base_url }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install clasp
+        run: npm install -g @google/clasp@2.4.2
+
+      - name: Setup clasp credentials
+        env:
+          CLASPRC_JSON: ${{ secrets.OAUTH_CREDENTIALS }}
+        run: |
+          echo "Setting up clasp credentials..."
+
+          if [ -z "$CLASPRC_JSON" ]; then
+            echo "ERROR: OAUTH_CREDENTIALS secret not set"
+            exit 1
+          fi
+
+          # Validate JSON structure
+          if ! echo "$CLASPRC_JSON" | jq -e '.' > /dev/null 2>&1; then
+            echo "ERROR: OAUTH_CREDENTIALS is not valid JSON"
+            exit 1
+          fi
+
+          # Support both legacy and new clasp credential formats
+          HAS_LEGACY=$(echo "$CLASPRC_JSON" | jq -e '.token.access_token' > /dev/null 2>&1 && echo "true" || echo "false")
+          HAS_NEW=$(echo "$CLASPRC_JSON" | jq -e '.tokens.default.access_token' > /dev/null 2>&1 && echo "true" || echo "false")
+
+          if [ "$HAS_LEGACY" = "false" ] && [ "$HAS_NEW" = "false" ]; then
+            echo "ERROR: Missing access_token in OAUTH_CREDENTIALS"
+            exit 1
+          fi
+
+          # Convert new format to legacy for clasp 2.4.2 compatibility
+          if [ "$HAS_NEW" = "true" ]; then
+            echo "Converting new clasp format to legacy..."
+            CONVERTED_JSON=$(echo "$CLASPRC_JSON" | jq '{token: .tokens.default}')
+            echo "$CONVERTED_JSON" > ~/.clasprc.json
+          else
+            echo "$CLASPRC_JSON" > ~/.clasprc.json
+          fi
+
+          chmod 600 ~/.clasprc.json
+          echo "Credentials configured"
+
+      - name: Configure staging Script ID
+        run: |
+          echo "Configuring staging deployment target..."
+          echo "Script ID: ${{ env.STAGING_SCRIPT_ID }}"
+
+          # Update .clasp.json with staging Script ID
+          jq --arg scriptId "${{ env.STAGING_SCRIPT_ID }}" '.scriptId = $scriptId' .clasp.json > .clasp.json.tmp
+          mv .clasp.json.tmp .clasp.json
+
+          echo "Updated .clasp.json:"
+          cat .clasp.json
+
+      - name: Push code to staging
+        run: |
+          echo "Pushing code to staging Apps Script..."
+
+          MAX_RETRIES=4
+          RETRY_DELAY=5
+
+          for attempt in $(seq 1 $MAX_RETRIES); do
+            echo "Push attempt $attempt of $MAX_RETRIES..."
+
+            set +e
+            PUSH_OUTPUT=$(clasp push --force 2>&1)
+            PUSH_EXIT_CODE=$?
+            set -e
+
+            echo "Exit code: $PUSH_EXIT_CODE"
+            echo "$PUSH_OUTPUT"
+
+            if [ $PUSH_EXIT_CODE -eq 0 ]; then
+              if ! echo "$PUSH_OUTPUT" | grep -qiE "^Error|failed to|ECONNRESET|ETIMEDOUT"; then
+                echo "Push successful!"
+                exit 0
+              fi
+            fi
+
+            if [ $attempt -lt $MAX_RETRIES ]; then
+              echo "Retrying in ${RETRY_DELAY}s..."
+              sleep $RETRY_DELAY
+              RETRY_DELAY=$((RETRY_DELAY * 2))
+            fi
+          done
+
+          echo "ERROR: clasp push failed after $MAX_RETRIES attempts"
+          exit 1
+
+      - name: Deploy to staging
+        id: deploy
+        run: |
+          echo "Creating staging deployment..."
+
+          MAX_RETRIES=4
+          RETRY_DELAY=5
+          DEPLOY_DESCRIPTION="Stage-1 staging deploy $(date -Iseconds)"
+
+          for attempt in $(seq 1 $MAX_RETRIES); do
+            echo "Deploy attempt $attempt of $MAX_RETRIES..."
+
+            set +e
+            DEPLOY_OUTPUT=$(clasp deploy -d "$DEPLOY_DESCRIPTION" 2>&1)
+            DEPLOY_EXIT_CODE=$?
+            set -e
+
+            echo "Exit code: $DEPLOY_EXIT_CODE"
+            echo "$DEPLOY_OUTPUT"
+
+            if [ $DEPLOY_EXIT_CODE -eq 0 ]; then
+              # Extract deployment ID
+              DEPLOYMENT_ID=$(echo "$DEPLOY_OUTPUT" | grep -oP 'AKfycb[a-zA-Z0-9_-]+' | head -1)
+
+              if [ -n "$DEPLOYMENT_ID" ]; then
+                WEB_APP_URL="https://script.google.com/macros/s/${DEPLOYMENT_ID}/exec"
+                echo "deployment_id=$DEPLOYMENT_ID" >> $GITHUB_OUTPUT
+                echo "web_app_url=$WEB_APP_URL" >> $GITHUB_OUTPUT
+                echo "Deployment successful!"
+                echo "Deployment ID: $DEPLOYMENT_ID"
+                echo "Web App URL: $WEB_APP_URL"
+                exit 0
+              fi
+            fi
+
+            if [ $attempt -lt $MAX_RETRIES ]; then
+              echo "Retrying in ${RETRY_DELAY}s..."
+              sleep $RETRY_DELAY
+              RETRY_DELAY=$((RETRY_DELAY * 2))
+            fi
+          done
+
+          echo "ERROR: clasp deploy failed after $MAX_RETRIES attempts"
+          exit 1
+
+      - name: Emit staging URL artifact
+        id: emit-url
+        run: |
+          # Create the stg-base-url artifact
+          mkdir -p artifact
+          echo "${{ env.STAGING_URL }}" > artifact/stg-base-url.txt
+
+          echo "=============================================="
+          echo "STAGING DEPLOYMENT COMPLETE"
+          echo "=============================================="
+          echo ""
+          echo "Staging URL: ${{ env.STAGING_URL }}"
+          echo "Apps Script URL: ${{ steps.deploy.outputs.web_app_url }}"
+          echo "Deployment ID: ${{ steps.deploy.outputs.deployment_id }}"
+          echo ""
+          echo "Artifact stg-base-url created for Stage-2 consumption"
+          echo "=============================================="
+
+          echo "base_url=${{ env.STAGING_URL }}" >> $GITHUB_OUTPUT
+
+      - name: Upload stg-base-url artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: stg-base-url
+          path: artifact/stg-base-url.txt
+          retention-days: 1
+
+      - name: Create deployment summary
+        if: always()
+        run: |
+          echo "## Stage-1 Staging Deployment" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "---" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Note:** This workflow validates PRs only. Deployment happens" >> $GITHUB_STEP_SUMMARY
-          echo "via \`stage1-deploy.yml\` when code is pushed to \`main\`." >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "### DEPLOYED" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Staging deployment completed successfully." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+            echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| **Staging URL** | \`${{ env.STAGING_URL }}\` |" >> $GITHUB_STEP_SUMMARY
+            echo "| **Apps Script URL** | \`${{ steps.deploy.outputs.web_app_url }}\` |" >> $GITHUB_STEP_SUMMARY
+            echo "| **Deployment ID** | \`${{ steps.deploy.outputs.deployment_id }}\` |" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Artifact:** \`stg-base-url\` created for Stage-2 consumption" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Stage-2 will consume the \`stg-base-url\` artifact and run:" >> $GITHUB_STEP_SUMMARY
+            echo "- Smoke tests on QR routes" >> $GITHUB_STEP_SUMMARY
+            echo "- E2E validation against staging" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Staging deployment failed. Check the logs above for details." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Note:** Stage-2 will NOT run because staging deploy failed." >> $GITHUB_STEP_SUMMARY
+          fi
