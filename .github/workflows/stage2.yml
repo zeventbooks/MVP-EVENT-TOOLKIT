@@ -1,0 +1,405 @@
+# Stage-2 Orchestrator Workflow
+#
+# Purpose: Validates the live staging environment after Stage-1 deploys.
+#          This closes the loop: Stage-1 deploys -> Stage-2 validates.
+#
+# Trigger: Runs automatically when Stage-1 Validation workflow succeeds.
+#
+# What it does:
+#   - Downloads stg-base-url artifact from Stage-1
+#   - Runs API smoke tests against the live staging URL
+#   - Runs UI smoke tests against the live staging URL
+#   - Blocks release on any failure (authoritative deployment validator)
+#
+# Contract Boundaries:
+#   - Uses strict JSON schema checks from v4.1.2
+#   - Validates stable routes only (no dev-only endpoints)
+#   - Prevents broken posters, QR codes, events from going live
+#
+# System Impacts:
+#   - Upstream: Validates deployment integrity from Stage-1
+#   - Downstream: Prevents broken features from reaching production
+#
+# @see tests/api/smoke/ - API smoke test pack
+# @see tests/ui/smoke/ - UI smoke test pack
+# @see playwright.smoke.config.ts - API smoke configuration
+# @see playwright.ui-smoke.config.ts - UI smoke configuration
+
+name: Stage-2 Orchestrator
+
+on:
+  workflow_run:
+    workflows:
+      - "Stage-1 Validation"
+    types:
+      - completed
+    branches:
+      - main
+
+# Prevent duplicate runs for the same deployment
+concurrency:
+  group: stage2-orchestrator-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: true
+
+jobs:
+  # ============================================================================
+  # GATE CHECK
+  # ============================================================================
+  # Only proceed if Stage-1 completed successfully.
+  # This prevents running Stage-2 on failed deployments.
+  # ============================================================================
+  check-stage1:
+    name: Check Stage-1 Status
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+      stage1_conclusion: ${{ steps.check.outputs.conclusion }}
+
+    steps:
+      - name: Check Stage-1 conclusion
+        id: check
+        run: |
+          CONCLUSION="${{ github.event.workflow_run.conclusion }}"
+          echo "Stage-1 Validation conclusion: $CONCLUSION"
+          echo "conclusion=$CONCLUSION" >> $GITHUB_OUTPUT
+
+          if [ "$CONCLUSION" == "success" ]; then
+            echo "Stage-1 succeeded - proceeding with Stage-2 validation"
+            echo "should_run=true" >> $GITHUB_OUTPUT
+          else
+            echo "::warning::Stage-1 did not succeed (conclusion: $CONCLUSION)"
+            echo "Stage-2 validation skipped - Stage-1 must succeed first"
+            echo "should_run=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create skip summary
+        if: steps.check.outputs.should_run != 'true'
+        run: |
+          echo "## Stage-2 Orchestrator - Skipped" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Stage-1 Validation did not succeed." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Stage-1 Conclusion** | \`${{ github.event.workflow_run.conclusion }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Workflow Run** | \`${{ github.event.workflow_run.id }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Head SHA** | \`${{ github.event.workflow_run.head_sha }}\` |" >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================================
+  # ARTIFACT DOWNLOAD
+  # ============================================================================
+  # Downloads the stg-base-url artifact from the triggering Stage-1 run.
+  # This artifact contains the staging URL for live validation.
+  # ============================================================================
+  download-artifact:
+    name: Download Staging URL
+    runs-on: ubuntu-latest
+    needs: check-stage1
+    if: needs.check-stage1.outputs.should_run == 'true'
+    outputs:
+      base_url: ${{ steps.extract.outputs.base_url }}
+
+    steps:
+      - name: Download stg-base-url artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: stg-base-url
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract and validate BASE_URL
+        id: extract
+        run: |
+          if [ ! -f stg-base-url.txt ]; then
+            echo "::error::stg-base-url.txt not found in artifact"
+            exit 1
+          fi
+
+          BASE_URL=$(cat stg-base-url.txt | tr -d '\n')
+
+          # Validate URL format
+          if [[ ! "$BASE_URL" =~ ^https:// ]]; then
+            echo "::error::Invalid BASE_URL format: $BASE_URL (must start with https://)"
+            exit 1
+          fi
+
+          echo "Extracted BASE_URL: $BASE_URL"
+          echo "base_url=$BASE_URL" >> $GITHUB_OUTPUT
+
+      - name: Create artifact summary
+        run: |
+          echo "## Stage-2 Artifact Download" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Successfully downloaded staging URL artifact." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Staging URL** | \`${{ steps.extract.outputs.base_url }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Source Workflow Run** | \`${{ github.event.workflow_run.id }}\` |" >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================================
+  # API SMOKE TESTS
+  # ============================================================================
+  # Validates API contract compliance against the live staging environment.
+  # Tests: status, events, qr, sharedreport endpoints
+  # Uses strict v4.1.2 JSON schema validation.
+  # ============================================================================
+  api-smoke:
+    name: API Smoke Tests
+    runs-on: ubuntu-latest
+    needs: download-artifact
+    env:
+      BASE_URL: ${{ needs.download-artifact.outputs.base_url }}
+      CI: true
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium --with-deps
+
+      - name: Display test configuration
+        run: |
+          echo "=============================================="
+          echo "API SMOKE TEST CONFIGURATION"
+          echo "=============================================="
+          echo "BASE_URL: $BASE_URL"
+          echo "Node version: $(node --version)"
+          echo "npm version: $(npm --version)"
+          echo "=============================================="
+
+      - name: Run API smoke tests
+        id: api-tests
+        run: |
+          echo "Running API smoke tests against: $BASE_URL"
+          npm run test:api:smoke
+        continue-on-error: true
+
+      - name: Upload API smoke test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: api-smoke-results
+          path: |
+            playwright-report-smoke/
+            .test-results/smoke-*.json
+            .test-results/smoke-*.xml
+          retention-days: 7
+
+      - name: Check API smoke test result
+        if: steps.api-tests.outcome == 'failure'
+        run: |
+          echo "::error::API smoke tests failed against $BASE_URL"
+          echo ""
+          echo "Stage-2 API validation failed. This blocks the release."
+          echo "Check the API smoke test results artifact for details."
+          exit 1
+
+      - name: Create API smoke summary
+        if: always()
+        run: |
+          echo "## API Smoke Tests" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ steps.api-tests.outcome }}" == "success" ]; then
+            echo "### PASSED" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "All API smoke tests passed against staging." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "API smoke tests failed. Check test results for details." >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Target URL** | \`$BASE_URL\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Result** | \`${{ steps.api-tests.outcome }}\` |" >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================================
+  # UI SMOKE TESTS
+  # ============================================================================
+  # Validates UI surfaces against the live staging environment.
+  # Tests: Admin, Public, Display, Poster surfaces
+  # Principle: "If you show it, it works"
+  # ============================================================================
+  ui-smoke:
+    name: UI Smoke Tests
+    runs-on: ubuntu-latest
+    needs: download-artifact
+    env:
+      BASE_URL: ${{ needs.download-artifact.outputs.base_url }}
+      CI: true
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium --with-deps
+
+      - name: Display test configuration
+        run: |
+          echo "=============================================="
+          echo "UI SMOKE TEST CONFIGURATION"
+          echo "=============================================="
+          echo "BASE_URL: $BASE_URL"
+          echo "Node version: $(node --version)"
+          echo "npm version: $(npm --version)"
+          echo "=============================================="
+
+      - name: Run UI smoke tests
+        id: ui-tests
+        run: |
+          echo "Running UI smoke tests against: $BASE_URL"
+          npm run test:ui:smoke
+        continue-on-error: true
+
+      - name: Upload UI smoke test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ui-smoke-results
+          path: |
+            playwright-report-ui-smoke/
+            .test-results/ui-smoke-*.json
+            .test-results/ui-smoke-*.xml
+          retention-days: 7
+
+      - name: Check UI smoke test result
+        if: steps.ui-tests.outcome == 'failure'
+        run: |
+          echo "::error::UI smoke tests failed against $BASE_URL"
+          echo ""
+          echo "Stage-2 UI validation failed. This blocks the release."
+          echo "Check the UI smoke test results artifact for details."
+          exit 1
+
+      - name: Create UI smoke summary
+        if: always()
+        run: |
+          echo "## UI Smoke Tests" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ steps.ui-tests.outcome }}" == "success" ]; then
+            echo "### PASSED" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "All UI smoke tests passed against staging." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "UI smoke tests failed. Check test results for details." >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Target URL** | \`$BASE_URL\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Result** | \`${{ steps.ui-tests.outcome }}\` |" >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================================
+  # FINAL VALIDATION GATE
+  # ============================================================================
+  # Aggregates results from all Stage-2 tests.
+  # This is the authoritative deployment validator.
+  # Failure here blocks the release and signals red in GitHub.
+  # ============================================================================
+  validation-gate:
+    name: Stage-2 Validation Gate
+    runs-on: ubuntu-latest
+    needs: [download-artifact, api-smoke, ui-smoke]
+    if: always() && needs.download-artifact.result == 'success'
+
+    steps:
+      - name: Evaluate validation results
+        id: evaluate
+        run: |
+          API_RESULT="${{ needs.api-smoke.result }}"
+          UI_RESULT="${{ needs.ui-smoke.result }}"
+
+          echo "API Smoke Tests: $API_RESULT"
+          echo "UI Smoke Tests: $UI_RESULT"
+
+          if [ "$API_RESULT" == "success" ] && [ "$UI_RESULT" == "success" ]; then
+            echo "Stage-2 validation PASSED"
+            echo "status=passed" >> $GITHUB_OUTPUT
+          else
+            echo "Stage-2 validation FAILED"
+            echo "status=failed" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create final summary
+        run: |
+          BASE_URL="${{ needs.download-artifact.outputs.base_url }}"
+          API_RESULT="${{ needs.api-smoke.result }}"
+          UI_RESULT="${{ needs.ui-smoke.result }}"
+          STATUS="${{ steps.evaluate.outputs.status }}"
+
+          echo "# Stage-2 Orchestrator Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$STATUS" == "passed" ]; then
+            echo "## DEPLOYMENT VALIDATED" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Stage-2 validation passed. The staging deployment is verified." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## DEPLOYMENT BLOCKED" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Stage-2 validation failed. Release is blocked until issues are resolved." >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Test Suite | Result |" >> $GITHUB_STEP_SUMMARY
+          echo "|------------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **API Smoke Tests** | \`$API_RESULT\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **UI Smoke Tests** | \`$UI_RESULT\` |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Configuration" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Target URL** | \`$BASE_URL\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Source Commit** | \`${{ github.event.workflow_run.head_sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Stage-1 Run ID** | \`${{ github.event.workflow_run.id }}\` |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Fail if validation failed
+        if: steps.evaluate.outputs.status == 'failed'
+        run: |
+          echo "::error::Stage-2 validation failed"
+          echo ""
+          echo "=============================================="
+          echo "STAGE-2 VALIDATION FAILED"
+          echo "=============================================="
+          echo ""
+          echo "One or more smoke test suites failed."
+          echo "This blocks the release and signals red in GitHub."
+          echo ""
+          echo "Please review the test results and fix the issues."
+          echo "=============================================="
+          exit 1
