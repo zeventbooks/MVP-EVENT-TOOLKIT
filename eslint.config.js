@@ -261,12 +261,28 @@ module.exports = [
     },
   },
 
-  // Scripts (Node.js)
+  // Scripts (Node.js CommonJS)
   {
     files: ['scripts/**/*.js'],
     languageOptions: {
       ecmaVersion: 2021,
       sourceType: 'script',
+      globals: {
+        ...globals.node,
+      },
+    },
+    rules: {
+      // Scripts may define variables that shadow browser globals
+      'no-redeclare': 'off',
+    },
+  },
+
+  // Scripts (Node.js ESM - .mjs files)
+  {
+    files: ['scripts/**/*.mjs'],
+    languageOptions: {
+      ecmaVersion: 2021,
+      sourceType: 'module',
       globals: {
         ...globals.node,
       },

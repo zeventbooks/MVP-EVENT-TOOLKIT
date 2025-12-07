@@ -27,7 +27,7 @@
  * @see .github/workflows/stage1-deploy.yml (CI uses same validations)
  */
 
-import { execSync, spawn } from 'child_process';
+import { execSync } from 'child_process';
 import { existsSync, readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
