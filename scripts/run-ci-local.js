@@ -66,22 +66,31 @@ function runCommand(name, command) {
 /**
  * Stage 1: Build & Validate (mirrors stage1-deploy.yml)
  *
- * CANONICAL DEFINITION: npm run test:ci:stage1
+ * UNIFIED TRUTH SCRIPT: npm run stage1-local (scripts/stage1-local.mjs)
  * This is the single source of truth for Stage 1 validation.
- * Runs: lint + unit + contract + guards (env-agnostic)
+ * Same script runs locally and in CI - zero drift.
+ *
+ * Components:
+ *   - lint            → ESLint code quality
+ *   - unit tests      → Jest unit tests (mocked, no network)
+ *   - contract tests  → Contract tests (schema, API, bundles - all local)
+ *   - security lint   → Security-specific test validation
+ *   - mvp guards      → Surface, dead-code, schema-fields, API-schema checks
+ *   - v2 files check  → Prevents V2 files in MVP directory
+ *   - build verify    → Bundle compilation verification
  */
 async function runStage1() {
   log.header('STAGE 1: Build & Validate');
-  log.info('Canonical command: npm run test:ci:stage1');
-  log.info('Runs: lint + unit + contract + guards (env-agnostic)');
+  log.info('Unified truth script: npm run stage1-local');
+  log.info('Same script runs locally and in CI - zero drift');
   log.info('Mirrors: .github/workflows/stage1-deploy.yml');
 
-  // Single source of truth: npm run test:ci:stage1
-  const success = runCommand('Stage 1 Contract (lint + unit + contract + guards)', 'npm run test:ci:stage1');
+  // Single source of truth: npm run stage1-local
+  const success = runCommand('Stage 1 Unified Validation', 'npm run stage1-local');
 
   if (!success) {
     log.error('Stage 1 BLOCKED: Fix failures before proceeding');
-    log.info('Run "npm run test:ci:stage1" to see detailed output');
+    log.info('Run "npm run stage1-local" to see detailed output');
   }
 
   return { success, results: { stage1: success } };
@@ -229,12 +238,21 @@ ${colors.cyan}COMMANDS:${colors.reset}
   quick     Run quick CI (critical tests only - fast feedback)
   --help    Show this help
 
-${colors.cyan}STAGE 1 CONTRACT (env-agnostic):${colors.reset}
-  Single source of truth: npm run test:ci:stage1
-  Components: lint + unit + contract + guards
+${colors.cyan}STAGE 1 UNIFIED TRUTH SCRIPT (env-agnostic):${colors.reset}
+  Single source of truth: npm run stage1-local
+  Script location: scripts/stage1-local.mjs
+
+  Components (run in order):
+    - lint            → ESLint code quality
+    - unit tests      → Jest unit tests (mocked, no network)
+    - contract tests  → Contract tests (schema, API, bundles)
+    - security lint   → Security-specific test validation
+    - mvp guards      → Surface, dead-code, schema-fields, API checks
+    - v2 files check  → Prevents V2 files in MVP directory
+    - build verify    → Bundle compilation verification
 
   This is the canonical definition. The CI workflow and this script
-  both call the same npm command for consistency.
+  both invoke the same unified script for 100% parity.
 
 ${colors.cyan}EXAMPLES:${colors.reset}
   # Full CI before creating a PR
