@@ -268,8 +268,97 @@ jobs:
         run: |
           echo "Pushing code to staging Apps Script..."
 
+          # Function to clean up old versions when hitting the 200 version limit
+          cleanup_old_versions() {
+            echo ""
+            echo "=============================================="
+            echo "VERSION LIMIT REACHED - Cleaning up old versions"
+            echo "=============================================="
+
+            SCRIPT_ID=$(jq -r '.scriptId' .clasp.json)
+            if [ -z "$SCRIPT_ID" ] || [ "$SCRIPT_ID" == "null" ]; then
+              echo "ERROR: Could not read scriptId from .clasp.json"
+              return 1
+            fi
+
+            # Get OAuth token from ~/.clasprc.json
+            ACCESS_TOKEN=$(jq -r '.token.access_token // .tokens.default.access_token' ~/.clasprc.json)
+            if [ -z "$ACCESS_TOKEN" ] || [ "$ACCESS_TOKEN" == "null" ]; then
+              echo "ERROR: Could not get access token"
+              return 1
+            fi
+
+            echo "Script ID: $SCRIPT_ID"
+            echo "Fetching all versions..."
+
+            # List all versions
+            VERSIONS_RESPONSE=$(curl -s -X GET \
+              -H "Authorization: Bearer $ACCESS_TOKEN" \
+              -H "Content-Type: application/json" \
+              "https://script.googleapis.com/v1/projects/${SCRIPT_ID}/versions")
+
+            # Check for API errors
+            if echo "$VERSIONS_RESPONSE" | jq -e '.error' > /dev/null 2>&1; then
+              ERROR_MSG=$(echo "$VERSIONS_RESPONSE" | jq -r '.error.message')
+              echo "API error: $ERROR_MSG"
+              return 1
+            fi
+
+            VERSION_COUNT=$(echo "$VERSIONS_RESPONSE" | jq -r '.versions | length // 0')
+            echo "Found $VERSION_COUNT versions"
+
+            # Keep 50 most recent versions, delete the rest
+            KEEP_VERSIONS=50
+            DELETE_COUNT=$((VERSION_COUNT - KEEP_VERSIONS))
+
+            if [ "$DELETE_COUNT" -le 0 ]; then
+              echo "Version count ($VERSION_COUNT) is within limit, no cleanup needed"
+              return 1
+            fi
+
+            echo "Will delete $DELETE_COUNT old versions, keeping $KEEP_VERSIONS most recent"
+
+            # Get version numbers to delete (oldest first)
+            VERSIONS_TO_DELETE=$(echo "$VERSIONS_RESPONSE" | jq -r '.versions | sort_by(.versionNumber | tonumber) | .[0:'$DELETE_COUNT'] | .[].versionNumber')
+
+            DELETED=0
+            for VERSION_NUM in $VERSIONS_TO_DELETE; do
+              echo -n "Deleting version $VERSION_NUM... "
+
+              DELETE_RESPONSE=$(curl -s -X DELETE \
+                -H "Authorization: Bearer $ACCESS_TOKEN" \
+                -H "Content-Type: application/json" \
+                -w "\n%{http_code}" \
+                "https://script.googleapis.com/v1/projects/${SCRIPT_ID}/versions/${VERSION_NUM}")
+
+              HTTP_CODE=$(echo "$DELETE_RESPONSE" | tail -n1)
+
+              if [ "$HTTP_CODE" == "200" ] || [ "$HTTP_CODE" == "204" ] || [ "$HTTP_CODE" == "404" ]; then
+                echo "OK"
+                ((DELETED++))
+              else
+                echo "FAILED (HTTP $HTTP_CODE)"
+              fi
+
+              # Small delay to avoid rate limiting
+              sleep 0.2
+            done
+
+            echo ""
+            echo "Cleanup complete: deleted $DELETED versions"
+            echo "=============================================="
+            echo ""
+
+            if [ "$DELETED" -gt 0 ]; then
+              return 0
+            else
+              return 1
+            fi
+          }
+
           MAX_RETRIES=4
           RETRY_DELAY=5
+          VERSION_CLEANUP_ATTEMPTED=false
 
           for attempt in $(seq 1 $MAX_RETRIES); do
             echo "Push attempt $attempt of $MAX_RETRIES..."
@@ -286,6 +375,24 @@ jobs:
               if ! echo "$PUSH_OUTPUT" | grep -qiE "^Error|failed to|ECONNRESET|ETIMEDOUT"; then
                 echo "Push successful!"
                 exit 0
+              fi
+            fi
+
+            # Check for 200 version limit error
+            if echo "$PUSH_OUTPUT" | grep -qiE "version.*limit|200.*version|too many versions"; then
+              if [ "$VERSION_CLEANUP_ATTEMPTED" = false ]; then
+                echo ""
+                echo "Detected 200-version limit error - attempting cleanup..."
+                VERSION_CLEANUP_ATTEMPTED=true
+
+                if cleanup_old_versions; then
+                  echo "Cleanup successful - retrying push immediately..."
+                  continue
+                else
+                  echo "Cleanup failed - will continue with normal retry"
+                fi
+              else
+                echo "Version cleanup already attempted"
               fi
             fi
 
@@ -599,8 +706,97 @@ jobs:
         run: |
           echo "Pushing code to production Apps Script..."
 
+          # Function to clean up old versions when hitting the 200 version limit
+          cleanup_old_versions() {
+            echo ""
+            echo "=============================================="
+            echo "VERSION LIMIT REACHED - Cleaning up old versions"
+            echo "=============================================="
+
+            SCRIPT_ID=$(jq -r '.scriptId' .clasp.json)
+            if [ -z "$SCRIPT_ID" ] || [ "$SCRIPT_ID" == "null" ]; then
+              echo "ERROR: Could not read scriptId from .clasp.json"
+              return 1
+            fi
+
+            # Get OAuth token from ~/.clasprc.json
+            ACCESS_TOKEN=$(jq -r '.token.access_token // .tokens.default.access_token' ~/.clasprc.json)
+            if [ -z "$ACCESS_TOKEN" ] || [ "$ACCESS_TOKEN" == "null" ]; then
+              echo "ERROR: Could not get access token"
+              return 1
+            fi
+
+            echo "Script ID: $SCRIPT_ID"
+            echo "Fetching all versions..."
+
+            # List all versions
+            VERSIONS_RESPONSE=$(curl -s -X GET \
+              -H "Authorization: Bearer $ACCESS_TOKEN" \
+              -H "Content-Type: application/json" \
+              "https://script.googleapis.com/v1/projects/${SCRIPT_ID}/versions")
+
+            # Check for API errors
+            if echo "$VERSIONS_RESPONSE" | jq -e '.error' > /dev/null 2>&1; then
+              ERROR_MSG=$(echo "$VERSIONS_RESPONSE" | jq -r '.error.message')
+              echo "API error: $ERROR_MSG"
+              return 1
+            fi
+
+            VERSION_COUNT=$(echo "$VERSIONS_RESPONSE" | jq -r '.versions | length // 0')
+            echo "Found $VERSION_COUNT versions"
+
+            # Keep 50 most recent versions, delete the rest
+            KEEP_VERSIONS=50
+            DELETE_COUNT=$((VERSION_COUNT - KEEP_VERSIONS))
+
+            if [ "$DELETE_COUNT" -le 0 ]; then
+              echo "Version count ($VERSION_COUNT) is within limit, no cleanup needed"
+              return 1
+            fi
+
+            echo "Will delete $DELETE_COUNT old versions, keeping $KEEP_VERSIONS most recent"
+
+            # Get version numbers to delete (oldest first)
+            VERSIONS_TO_DELETE=$(echo "$VERSIONS_RESPONSE" | jq -r '.versions | sort_by(.versionNumber | tonumber) | .[0:'$DELETE_COUNT'] | .[].versionNumber')
+
+            DELETED=0
+            for VERSION_NUM in $VERSIONS_TO_DELETE; do
+              echo -n "Deleting version $VERSION_NUM... "
+
+              DELETE_RESPONSE=$(curl -s -X DELETE \
+                -H "Authorization: Bearer $ACCESS_TOKEN" \
+                -H "Content-Type: application/json" \
+                -w "\n%{http_code}" \
+                "https://script.googleapis.com/v1/projects/${SCRIPT_ID}/versions/${VERSION_NUM}")
+
+              HTTP_CODE=$(echo "$DELETE_RESPONSE" | tail -n1)
+
+              if [ "$HTTP_CODE" == "200" ] || [ "$HTTP_CODE" == "204" ] || [ "$HTTP_CODE" == "404" ]; then
+                echo "OK"
+                ((DELETED++))
+              else
+                echo "FAILED (HTTP $HTTP_CODE)"
+              fi
+
+              # Small delay to avoid rate limiting
+              sleep 0.2
+            done
+
+            echo ""
+            echo "Cleanup complete: deleted $DELETED versions"
+            echo "=============================================="
+            echo ""
+
+            if [ "$DELETED" -gt 0 ]; then
+              return 0
+            else
+              return 1
+            fi
+          }
+
           MAX_RETRIES=4
           RETRY_DELAY=5
+          VERSION_CLEANUP_ATTEMPTED=false
 
           for attempt in $(seq 1 $MAX_RETRIES); do
             echo "Push attempt $attempt of $MAX_RETRIES..."
@@ -617,6 +813,24 @@ jobs:
               if ! echo "$PUSH_OUTPUT" | grep -qiE "^Error|failed to|ECONNRESET|ETIMEDOUT"; then
                 echo "Push successful!"
                 exit 0
+              fi
+            fi
+
+            # Check for 200 version limit error
+            if echo "$PUSH_OUTPUT" | grep -qiE "version.*limit|200.*version|too many versions"; then
+              if [ "$VERSION_CLEANUP_ATTEMPTED" = false ]; then
+                echo ""
+                echo "Detected 200-version limit error - attempting cleanup..."
+                VERSION_CLEANUP_ATTEMPTED=true
+
+                if cleanup_old_versions; then
+                  echo "Cleanup successful - retrying push immediately..."
+                  continue
+                else
+                  echo "Cleanup failed - will continue with normal retry"
+                fi
+              else
+                echo "Version cleanup already attempted"
               fi
             fi
 
