@@ -1,0 +1,150 @@
+# Stage-1 PR Validation Workflow
+#
+# Purpose: Validate PRs before merge - NO deployment logic
+#
+# This workflow creates a clean boundary:
+#   - PRs validate correctness only (lint, test, contract, guards)
+#   - PRs NEVER touch staging or production
+#   - Guards eventbook data integrity by preventing accidental deploys
+#
+# Acceptance Criteria:
+#   - PR to main triggers: checkout, npm ci, npm run stage1-local
+#   - No deployment logic executes on PRs
+#   - PR cannot merge unless Stage-1 passes (configure as required check)
+#
+# Contract Boundaries:
+#   - Uses strict v4.1.2 response contract but does not modify it
+#   - Stage-1 is HERMETIC: no BASE_URL, no HTTP calls
+#
+# @see scripts/stage1-local.mjs - Single source of truth for validation steps
+# @see .github/workflows/stage1-deploy.yml - Deployment workflow (push to main only)
+
+name: Stage-1 PR Validation
+
+on:
+  pull_request:
+    branches:
+      - main
+
+# Prevent duplicate runs: cancel in-progress runs for the same PR
+concurrency:
+  group: stage1-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  # ============================================================================
+  # STAGE-1 PR VALIDATION
+  # ============================================================================
+  # Runs the unified truth script: npm run stage1-local
+  #
+  # This job is designed to be a REQUIRED STATUS CHECK for PR merges.
+  # Configure in GitHub Settings > Branches > Branch protection rules:
+  #   - Require status checks to pass before merging
+  #   - Select "Stage-1 PR Validation / validate"
+  #
+  # Components validated (via scripts/stage1-local.mjs):
+  #   - ESLint code quality
+  #   - Jest unit tests (MVP logic + security)
+  #   - Jest contract tests (schema + API + bundles)
+  #   - Security-specific test validation
+  #   - MVP guards (surfaces, dead code, schema, API checks)
+  #   - V2 file guardrails (no V2 files in MVP directory)
+  #   - Bundle compilation verification
+  #
+  # HERMETIC: Stage-1 has ZERO external dependencies.
+  # No BASE_URL, no HTTP calls, no staging/prod access.
+  # ============================================================================
+  validate:
+    name: Stage-1 Validate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ========================================================================
+      # HERMETIC GUARD: Stage-1 must have zero BASE_URL dependency
+      # Ensures Stage-1 cannot be broken by staging/prod DNS or CF issues
+      # ========================================================================
+      - name: Verify hermetic environment (no BASE_URL)
+        run: |
+          if [ -n "$BASE_URL" ]; then
+            echo "::error::BASE_URL is set in Stage-1 PR validation!"
+            echo ""
+            echo "Stage-1 must be hermetic - it cannot depend on external URLs."
+            echo "BASE_URL should only be used in Stage-2 (post-deploy validation)."
+            echo ""
+            echo "Found BASE_URL: $BASE_URL"
+            exit 1
+          fi
+          echo "Hermetic guard passed: no BASE_URL dependency"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Stage-1 validation
+        run: |
+          echo "=================================================="
+          echo "STAGE-1 PR VALIDATION"
+          echo "=================================================="
+          echo ""
+          echo "Running: npm run stage1-local"
+          echo ""
+          echo "This is the SINGLE SOURCE OF TRUTH for Stage-1."
+          echo "Same script runs locally and in CI - zero drift."
+          echo ""
+          echo "Components:"
+          echo "  - ESLint code quality"
+          echo "  - Jest unit tests (MVP logic + security)"
+          echo "  - Jest contract tests (schema + API + bundles)"
+          echo "  - Security-specific test validation"
+          echo "  - MVP guards (surfaces, dead code, schema, API)"
+          echo "  - V2 file guardrails"
+          echo "  - Bundle compilation verification"
+          echo ""
+          echo "=================================================="
+          npm run stage1-local
+
+      - name: Create validation summary
+        if: always()
+        run: |
+          echo "## Stage-1 PR Validation" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "### PASSED" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "All Stage-1 checks passed. PR is ready for review." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Validated Components:**" >> $GITHUB_STEP_SUMMARY
+            echo "- ESLint Code Quality" >> $GITHUB_STEP_SUMMARY
+            echo "- Jest Unit Tests (MVP Logic + Security)" >> $GITHUB_STEP_SUMMARY
+            echo "- Jest Contract Tests (Schema + API + Bundles)" >> $GITHUB_STEP_SUMMARY
+            echo "- Security-Specific Tests" >> $GITHUB_STEP_SUMMARY
+            echo "- MVP Guards (Surfaces, Dead Code, Schema, API)" >> $GITHUB_STEP_SUMMARY
+            echo "- V2 File Guardrails" >> $GITHUB_STEP_SUMMARY
+            echo "- Bundle Compilation Verification" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "One or more Stage-1 checks failed. PR cannot be merged." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**To reproduce locally:**" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+            echo "npm run stage1-local" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Fix the failing checks and push again." >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Note:** This workflow validates PRs only. Deployment happens" >> $GITHUB_STEP_SUMMARY
+          echo "via \`stage1-deploy.yml\` when code is pushed to \`main\`." >> $GITHUB_STEP_SUMMARY
