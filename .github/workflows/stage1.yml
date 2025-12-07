@@ -183,11 +183,16 @@ jobs:
   #   - Only runs on push to main (not on PRs)
   #   - Depends on validation passing (aborts if validation fails)
   #   - Deploys to Google Apps Script staging environment
+  #   - Deploys Cloudflare Worker with new GAS deployment ID
   #   - Emits stg-base-url artifact for Stage-2 consumption
   #
   # Contract:
   #   - Produces artifact: stg-base-url containing https://stg.eventangle.com
   #   - Stage-2 consumes this artifact for post-deploy E2E testing
+  #
+  # Required secrets for Cloudflare Worker deployment:
+  #   - CLOUDFLARE_API_TOKEN: API token with Worker deployment permissions
+  #   - CLOUDFLARE_ACCOUNT_ID: Cloudflare account ID
   # ============================================================================
   staging-deploy:
     name: Deploy to Staging
@@ -537,6 +542,67 @@ jobs:
           echo "ERROR: clasp deploy failed after $MAX_RETRIES attempts"
           exit 1
 
+      - name: Deploy Cloudflare Worker (staging)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          DEPLOYMENT_ID: ${{ steps.deploy.outputs.deployment_id }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::warning::Cloudflare secrets not configured - skipping worker update"
+            echo "To enable staging URL (stg.eventangle.com), configure:"
+            echo "  - CLOUDFLARE_API_TOKEN secret"
+            echo "  - CLOUDFLARE_ACCOUNT_ID secret"
+            echo ""
+            echo "Stage-2 smoke tests will likely fail without Cloudflare Worker deployment."
+            exit 0
+          fi
+
+          if [ -z "$DEPLOYMENT_ID" ]; then
+            echo "::error::No deployment ID available from previous step"
+            exit 1
+          fi
+
+          echo "=============================================="
+          echo "DEPLOYING CLOUDFLARE WORKER (STAGING)"
+          echo "=============================================="
+          echo "Deployment ID: $DEPLOYMENT_ID"
+          echo ""
+
+          # Install wrangler
+          npm install -g wrangler@3
+
+          # Update staging environment in wrangler.toml with the new deployment ID
+          cd cloudflare-proxy
+
+          echo "Updating wrangler.toml with staging deployment ID..."
+
+          # Update STAGING_DEPLOYMENT_ID in the staging section
+          sed -i "s|STAGING_DEPLOYMENT_ID = \"[^\"]*\"|STAGING_DEPLOYMENT_ID = \"${DEPLOYMENT_ID}\"|g" wrangler.toml
+
+          # Update DEPLOYMENT_ID in the staging section (after STAGING_DEPLOYMENT_ID line)
+          sed -i "/\[env.staging.vars\]/,/\[env\.[^s]/ s|DEPLOYMENT_ID = \"[^\"]*\"|DEPLOYMENT_ID = \"${DEPLOYMENT_ID}\"|" wrangler.toml
+
+          # Update GAS_DEPLOYMENT_BASE_URL in staging section
+          GAS_URL="https://script.google.com/macros/s/${DEPLOYMENT_ID}/exec"
+          sed -i "s|GAS_DEPLOYMENT_BASE_URL = \"[^\"]*\"|GAS_DEPLOYMENT_BASE_URL = \"${GAS_URL}\"|g" wrangler.toml
+
+          echo "Updated wrangler.toml staging config:"
+          grep -A 20 '\[env.staging.vars\]' wrangler.toml | head -10
+
+          # Deploy to staging environment
+          echo ""
+          echo "Deploying worker to staging..."
+          wrangler deploy --env staging
+
+          echo ""
+          echo "=============================================="
+          echo "CLOUDFLARE WORKER DEPLOYED TO STAGING"
+          echo "=============================================="
+          echo "Staging URL: ${{ env.STAGING_URL }}"
+          echo "GAS URL: $GAS_URL"
+          echo "=============================================="
+
       - name: Emit staging URL artifact
         id: emit-url
         run: |
@@ -566,9 +632,19 @@ jobs:
 
       - name: Create deployment summary
         if: always()
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           echo "## Stage-1 Staging Deployment" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Determine Cloudflare Worker status
+          if [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            CF_STATUS="Deployed"
+          else
+            CF_STATUS="Skipped (secrets not configured)"
+          fi
 
           if [ "${{ job.status }}" == "success" ]; then
             echo "### DEPLOYED" >> $GITHUB_STEP_SUMMARY
@@ -580,14 +656,28 @@ jobs:
             echo "| **Staging URL** | \`${{ env.STAGING_URL }}\` |" >> $GITHUB_STEP_SUMMARY
             echo "| **Apps Script URL** | \`${{ steps.deploy.outputs.web_app_url }}\` |" >> $GITHUB_STEP_SUMMARY
             echo "| **Deployment ID** | \`${{ steps.deploy.outputs.deployment_id }}\` |" >> $GITHUB_STEP_SUMMARY
+            echo "| **Cloudflare Worker** | $CF_STATUS |" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "**Artifact:** \`stg-base-url\` created for Stage-2 consumption" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
+
+            if [ "$CF_STATUS" = "Skipped (secrets not configured)" ]; then
+              echo "### ⚠️ Warning: Cloudflare Worker Not Deployed" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "Stage-2 smoke tests will likely fail because the Cloudflare Worker for" >> $GITHUB_STEP_SUMMARY
+              echo "\`stg.eventangle.com\` was not updated with the new deployment ID." >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "To fix this, configure the following secrets in GitHub:" >> $GITHUB_STEP_SUMMARY
+              echo "- \`CLOUDFLARE_API_TOKEN\`: API token with Worker deployment permissions" >> $GITHUB_STEP_SUMMARY
+              echo "- \`CLOUDFLARE_ACCOUNT_ID\`: Your Cloudflare account ID" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+            fi
+
             echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "Stage-2 will consume the \`stg-base-url\` artifact and run:" >> $GITHUB_STEP_SUMMARY
-            echo "- Smoke tests on QR routes" >> $GITHUB_STEP_SUMMARY
-            echo "- E2E validation against staging" >> $GITHUB_STEP_SUMMARY
+            echo "- API smoke tests against staging" >> $GITHUB_STEP_SUMMARY
+            echo "- UI smoke tests against staging" >> $GITHUB_STEP_SUMMARY
           else
             echo "### FAILED" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
