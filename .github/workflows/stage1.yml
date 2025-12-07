@@ -304,9 +304,76 @@ jobs:
         run: |
           echo "Creating staging deployment..."
 
+          # Function to clean up old deployments when hitting the 20-deployment limit
+          cleanup_old_deployments() {
+            echo ""
+            echo "=============================================="
+            echo "DEPLOYMENT LIMIT REACHED - Cleaning up old deployments"
+            echo "=============================================="
+
+            DEPLOYMENTS=$(clasp deployments 2>&1)
+            echo "$DEPLOYMENTS"
+
+            # Extract deployment IDs (AKfycb... format), excluding @HEAD
+            DEPLOYMENT_IDS=$(echo "$DEPLOYMENTS" | grep -oP 'AKfycb[a-zA-Z0-9_-]+' || true)
+
+            if [ -z "$DEPLOYMENT_IDS" ]; then
+              echo "WARNING: Could not extract deployment IDs for cleanup"
+              return 1
+            fi
+
+            # Convert to array
+            readarray -t DEPLOYMENT_ARRAY <<< "$DEPLOYMENT_IDS"
+            TOTAL_COUNT=${#DEPLOYMENT_ARRAY[@]}
+
+            echo "Found $TOTAL_COUNT deployments"
+
+            # Keep the 5 most recent deployments, delete the rest
+            KEEP_COUNT=5
+            DELETE_COUNT=$((TOTAL_COUNT - KEEP_COUNT))
+
+            if [ "$DELETE_COUNT" -le 0 ]; then
+              echo "Not enough deployments to clean up (keeping $KEEP_COUNT)"
+              return 1
+            fi
+
+            echo "Will remove $DELETE_COUNT old deployments, keeping $KEEP_COUNT most recent"
+            echo ""
+
+            # Remove oldest deployments (first in list = oldest)
+            REMOVED=0
+            for (( i=0; i<DELETE_COUNT; i++ )); do
+              DEPLOY_ID="${DEPLOYMENT_ARRAY[$i]}"
+              echo -n "Removing deployment $DEPLOY_ID... "
+
+              set +e
+              UNDEPLOY_OUTPUT=$(clasp undeploy "$DEPLOY_ID" 2>&1)
+              UNDEPLOY_EXIT=$?
+              set -e
+
+              if [ $UNDEPLOY_EXIT -eq 0 ]; then
+                echo "OK"
+                ((REMOVED++))
+              else
+                echo "FAILED (may already be removed)"
+                echo "  $UNDEPLOY_OUTPUT"
+              fi
+
+              # Small delay to avoid rate limiting
+              sleep 1
+            done
+
+            echo ""
+            echo "Cleanup complete: removed $REMOVED deployments"
+            echo "=============================================="
+            echo ""
+            return 0
+          }
+
           MAX_RETRIES=4
           RETRY_DELAY=5
           DEPLOY_DESCRIPTION="Stage-1 staging deploy $(date -Iseconds)"
+          CLEANUP_ATTEMPTED=false
 
           for attempt in $(seq 1 $MAX_RETRIES); do
             echo "Deploy attempt $attempt of $MAX_RETRIES..."
@@ -331,6 +398,25 @@ jobs:
                 echo "Deployment ID: $DEPLOYMENT_ID"
                 echo "Web App URL: $WEB_APP_URL"
                 exit 0
+              fi
+            fi
+
+            # Check for deployment limit error
+            if echo "$DEPLOY_OUTPUT" | grep -q "20 versioned deployments"; then
+              if [ "$CLEANUP_ATTEMPTED" = false ]; then
+                echo ""
+                echo "Detected 20-deployment limit error - attempting cleanup..."
+                CLEANUP_ATTEMPTED=true
+
+                if cleanup_old_deployments; then
+                  echo "Cleanup successful - retrying deployment immediately..."
+                  # Don't count this as a retry attempt, continue loop
+                  continue
+                else
+                  echo "Cleanup failed - will continue with normal retry"
+                fi
+              else
+                echo "Cleanup already attempted - deployment limit still in effect"
               fi
             fi
 
@@ -549,10 +635,77 @@ jobs:
         run: |
           echo "Creating production deployment..."
 
+          # Function to clean up old deployments when hitting the 20-deployment limit
+          cleanup_old_deployments() {
+            echo ""
+            echo "=============================================="
+            echo "DEPLOYMENT LIMIT REACHED - Cleaning up old deployments"
+            echo "=============================================="
+
+            DEPLOYMENTS=$(clasp deployments 2>&1)
+            echo "$DEPLOYMENTS"
+
+            # Extract deployment IDs (AKfycb... format), excluding @HEAD
+            DEPLOYMENT_IDS=$(echo "$DEPLOYMENTS" | grep -oP 'AKfycb[a-zA-Z0-9_-]+' || true)
+
+            if [ -z "$DEPLOYMENT_IDS" ]; then
+              echo "WARNING: Could not extract deployment IDs for cleanup"
+              return 1
+            fi
+
+            # Convert to array
+            readarray -t DEPLOYMENT_ARRAY <<< "$DEPLOYMENT_IDS"
+            TOTAL_COUNT=${#DEPLOYMENT_ARRAY[@]}
+
+            echo "Found $TOTAL_COUNT deployments"
+
+            # Keep the 5 most recent deployments, delete the rest
+            KEEP_COUNT=5
+            DELETE_COUNT=$((TOTAL_COUNT - KEEP_COUNT))
+
+            if [ "$DELETE_COUNT" -le 0 ]; then
+              echo "Not enough deployments to clean up (keeping $KEEP_COUNT)"
+              return 1
+            fi
+
+            echo "Will remove $DELETE_COUNT old deployments, keeping $KEEP_COUNT most recent"
+            echo ""
+
+            # Remove oldest deployments (first in list = oldest)
+            REMOVED=0
+            for (( i=0; i<DELETE_COUNT; i++ )); do
+              DEPLOY_ID="${DEPLOYMENT_ARRAY[$i]}"
+              echo -n "Removing deployment $DEPLOY_ID... "
+
+              set +e
+              UNDEPLOY_OUTPUT=$(clasp undeploy "$DEPLOY_ID" 2>&1)
+              UNDEPLOY_EXIT=$?
+              set -e
+
+              if [ $UNDEPLOY_EXIT -eq 0 ]; then
+                echo "OK"
+                ((REMOVED++))
+              else
+                echo "FAILED (may already be removed)"
+                echo "  $UNDEPLOY_OUTPUT"
+              fi
+
+              # Small delay to avoid rate limiting
+              sleep 1
+            done
+
+            echo ""
+            echo "Cleanup complete: removed $REMOVED deployments"
+            echo "=============================================="
+            echo ""
+            return 0
+          }
+
           MAX_RETRIES=4
           RETRY_DELAY=5
           VERSION="${{ steps.extract-version.outputs.version }}"
           DEPLOY_DESCRIPTION="Production release ${VERSION} $(date -Iseconds)"
+          CLEANUP_ATTEMPTED=false
 
           for attempt in $(seq 1 $MAX_RETRIES); do
             echo "Deploy attempt $attempt of $MAX_RETRIES..."
@@ -577,6 +730,25 @@ jobs:
                 echo "Deployment ID: $DEPLOYMENT_ID"
                 echo "Web App URL: $WEB_APP_URL"
                 exit 0
+              fi
+            fi
+
+            # Check for deployment limit error
+            if echo "$DEPLOY_OUTPUT" | grep -q "20 versioned deployments"; then
+              if [ "$CLEANUP_ATTEMPTED" = false ]; then
+                echo ""
+                echo "Detected 20-deployment limit error - attempting cleanup..."
+                CLEANUP_ATTEMPTED=true
+
+                if cleanup_old_deployments; then
+                  echo "Cleanup successful - retrying deployment immediately..."
+                  # Don't count this as a retry attempt, continue loop
+                  continue
+                else
+                  echo "Cleanup failed - will continue with normal retry"
+                fi
+              else
+                echo "Cleanup already attempted - deployment limit still in effect"
               fi
             fi
 
