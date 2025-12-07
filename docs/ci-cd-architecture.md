@@ -6,18 +6,35 @@
 
 ---
 
+## Active CI/CD Workflows
+
+Only these workflows are considered part of the live CI/CD pipeline:
+
+| Workflow | Purpose | Trigger |
+|----------|---------|---------|
+| `.github/workflows/stage1.yml` | Stage 1 – Validate, Build, Deploy | PRs = validate only; push to main = deploy STG; tags = deploy PROD |
+| `.github/workflows/stage2.yml` | Stage 2 – Environment Tests | Runs after Stage-1 succeeds on main (API + UI smoke against deployed STG) |
+| `.github/workflows/codeql-analysis.yml` | Security scanning (CodeQL) | Push to main/claude branches, PRs to main, weekly schedule |
+
+**Rule:** If it's not `stage1.yml`, `stage2.yml`, or `codeql-analysis.yml`, it doesn't run as part of the live CI/CD pipeline.
+
+All other CI definitions have been archived under `.github/workflows/archive/`.
+
+---
+
 ## Table of Contents
 
-1. [Overview](#overview)
-2. [Stage-1: Validate + Deploy](#stage-1-validate--deploy)
-3. [Stage-2: Environment Tests](#stage-2-environment-tests)
-4. [Environment Keys (stg/prod)](#environment-keys-stgprod)
-5. [Cloudflare Routing Alignment](#cloudflare-routing-alignment)
-6. [QR Verification Invariant](#qr-verification-invariant)
-7. [Contract Safety Rules](#contract-safety-rules)
-8. [Fail-Fast Philosophy](#fail-fast-philosophy)
-9. [Deployment Flow Diagram](#deployment-flow-diagram)
-10. [Quick Reference](#quick-reference)
+1. [Active CI/CD Workflows](#active-cicd-workflows)
+2. [Overview](#overview)
+3. [Stage-1: Validate + Deploy](#stage-1-validate--deploy)
+4. [Stage-2: Environment Tests](#stage-2-environment-tests)
+5. [Environment Keys (stg/prod)](#environment-keys-stgprod)
+6. [Cloudflare Routing Alignment](#cloudflare-routing-alignment)
+7. [QR Verification Invariant](#qr-verification-invariant)
+8. [Contract Safety Rules](#contract-safety-rules)
+9. [Fail-Fast Philosophy](#fail-fast-philosophy)
+10. [Deployment Flow Diagram](#deployment-flow-diagram)
+11. [Quick Reference](#quick-reference)
 
 ---
 
