@@ -38,6 +38,22 @@ This repository uses a **two-stage CI/CD architecture**:
 
 ---
 
+## Active CI/CD Workflows
+
+Only these workflows are considered part of the live CI/CD pipeline:
+
+| Workflow | Purpose | Trigger |
+|----------|---------|---------|
+| `.github/workflows/stage1.yml` | Stage 1 – Validate, Build, Deploy (PRs = validate only; main = deploy STG; tags = deploy PROD) | PR, push to main, tag `vX.Y.Z` |
+| `.github/workflows/stage2.yml` | Stage 2 – Environment Tests (API + UI smoke packs against deployed STG/PROD) | After Stage-1 succeeds on main |
+| `.github/workflows/security-scan.yml` | Periodic / on-push security checks (CodeQL, Snyk, etc.) | Push, PR, weekly schedule |
+
+**Rule:** If it's not `stage1.yml`, `stage2.yml`, or `security-scan.yml`, it doesn't run.
+
+All other CI definitions have been archived under `.github/workflows/archive/`.
+
+---
+
 ## Stage-1: Validate + Deploy
 
 **Workflow:** `.github/workflows/stage1.yml`
@@ -540,8 +556,9 @@ TEST_BRAND=abc npm run test:smoke          # Brand-specific
 
 | Purpose | File |
 |---------|------|
-| Stage-1 Workflow | `.github/workflows/stage1.yml` |
-| Stage-2 Workflow | `.github/workflows/stage2-testing.yml` |
+| **Stage-1 Workflow** | `.github/workflows/stage1.yml` ✅ Active |
+| **Stage-2 Workflow** | `.github/workflows/stage2.yml` ✅ Active |
+| **Security Workflow** | `.github/workflows/security-scan.yml` ✅ Active |
 | Environment Config | `config/environments.js` |
 | Cloudflare Config | `cloudflare-proxy/wrangler.toml` |
 | QR Tests | `tests/api/smoke/qr.spec.ts` |
