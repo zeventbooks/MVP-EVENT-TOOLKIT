@@ -83,11 +83,32 @@ npm run deploy # Create new deployment
 4. Open `/exec?page=test` → all ✅
 5. Open `/exec?page=admin&p=events&brand=root` → create an event → get Public/Poster links
 
-## CI Gate (Required Before Pushing)
+## CI/CD
 
-**You must be able to run `npm run ci:all` locally before pushing.**
+### Stage-1 (Local & CI)
 
-This is the mandatory pre-deploy gate that runs all contract guards:
+**Single source of truth: `npm run stage1-local`**
+
+This command mirrors exactly what CI Stage-1 runs. Run it locally before pushing:
+
+```bash
+npm run stage1-local
+```
+
+Stage-1 validates (in order):
+1. **Lint** - ESLint code quality
+2. **Typecheck** - TypeScript validation (placeholder for JS projects)
+3. **Contract tests** - Schema & API contract validation
+4. **Unit tests** - Jest unit tests
+5. **Security tests** - Basic security checks
+6. **Build** - Build validation (GAS file presence check)
+
+**Fails fast**: If any step fails, the pipeline stops immediately.
+**Succeeds only when all pass**: All 6 steps must complete successfully.
+
+### CI Gate (Full Validation)
+
+For comprehensive validation including additional guards, run:
 
 ```bash
 npm run ci:all          # Run full CI gate
@@ -95,7 +116,7 @@ npm run ci:all:verbose  # Run with detailed output
 npm run ci:all:fast     # Run critical checks only
 ```
 
-The CI gate validates:
+The full CI gate additionally validates:
 - MVP Surfaces (only 5 allowed: admin, public, display, poster, report)
 - RPC Inventory (API inventory matches actual usage)
 - API vs Schemas (all api_* functions have schemas)
