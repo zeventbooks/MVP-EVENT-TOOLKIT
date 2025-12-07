@@ -33,8 +33,9 @@ on:
       - main
 
 # Prevent duplicate runs: cancel in-progress runs for the same PR/branch
+# Note: Uses unique group name to avoid conflicts with stage1-deploy.yml
 concurrency:
-  group: stage1-${{ github.event.pull_request.number || github.ref }}
+  group: stage1-validation-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 # Environment configuration
