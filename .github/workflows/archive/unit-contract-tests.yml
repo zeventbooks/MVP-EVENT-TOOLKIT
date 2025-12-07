@@ -1,4 +1,8 @@
-name: Unit & Contract Tests
+# DEPRECATED WORKFLOW (ARCHIVED)
+# This workflow is kept for historical reference only.
+# Do NOT re-enable without updating it to the current CI/CD architecture.
+
+name: OLD – Unit & Contract Tests
 
 on:
   # Run on feature branch pushes for fast feedback (not main - handled by Stage 1)
