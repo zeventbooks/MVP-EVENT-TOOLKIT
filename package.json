@@ -203,6 +203,8 @@
     "validate:secrets": "node scripts/validate-ci-secrets.js",
     "validate:secrets:stage1": "node scripts/validate-ci-secrets.js --stage1",
     "validate:secrets:stage2": "node scripts/validate-ci-secrets.js --stage2",
+    "deploy:gas:stg": "node scripts/deploy-gas-stg.mjs",
+    "deploy:gas:prod": "node scripts/deploy-gas-prod.mjs",
     "deploy:staging:auto": "node scripts/deploy-staging.js",
     "deploy:staging:check": "node scripts/deploy-staging.js --check",
     "deploy:staging:verify": "node scripts/deploy-staging.js --verify",
