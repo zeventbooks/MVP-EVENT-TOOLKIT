@@ -834,6 +834,69 @@ jobs:
           fi
 
   # ============================================================================
+  # STAGE 2B.5: UI SMOKE TESTS (Surface Validation - Only if Smoke Packs passed)
+  # ============================================================================
+  # Validates "If you show it, it works" across Admin, Public, Display, Poster
+  # Catches breakage in HTML, CSS, routing, and SSR before anyone sees it
+  # ============================================================================
+
+  ui-smoke-tests:
+    name: 🖥️ UI Smoke Tests (Surface Validation)
+    runs-on: ubuntu-latest
+    needs: [setup, gate-smoke-packs-results]
+    if: needs.setup.outputs.is_prod_smoke != 'true' && needs.gate-smoke-packs-results.outputs.should_run_smoke == 'true'
+    outputs:
+      result: ${{ steps.test.outputs.result }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run UI Smoke Tests
+        id: test
+        continue-on-error: true
+        env:
+          BASE_URL: ${{ needs.setup.outputs.deployment_url }}
+          CI: true
+          TEST_BRAND: root
+          ADMIN_KEY: ${{ secrets.ADMIN_KEY_ROOT }}
+        run: |
+          echo "🖥️ Running UI Smoke Tests"
+          echo "BASE_URL: $BASE_URL"
+          echo ""
+          echo "Surfaces being tested:"
+          echo "  - Admin page (wizard, event management, data-testid selectors)"
+          echo "  - Public page (event listing, sponsor display)"
+          echo "  - Display page (TV/kiosk mode, sponsor carousel)"
+          echo "  - Poster page (print layout, QR codes, map)"
+          echo ""
+          npm run test:ui:smoke
+          if [ $? -eq 0 ]; then
+            echo "result=success" >> $GITHUB_OUTPUT
+          else
+            echo "result=failure" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+      - name: Upload UI Smoke test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-ui-smoke-report
+          path: playwright-report-ui-smoke/
+          retention-days: 7
+
+  # ============================================================================
   # STAGE 2C: SMOKE TESTS (E2E Smoke - Only if Smoke Packs passed)
   # ============================================================================
 
@@ -1071,7 +1134,7 @@ jobs:
   quality-gate:
     name: 🎯 Quality Gate - Final Validation
     runs-on: ubuntu-latest
-    needs: [setup, preflight-staging, api-tests, gate-1-api-results, smoke-packs, gate-smoke-packs-results, smoke-tests, gate-2-smoke-results, expensive-tests]
+    needs: [setup, preflight-staging, api-tests, gate-1-api-results, smoke-packs, gate-smoke-packs-results, ui-smoke-tests, smoke-tests, gate-2-smoke-results, expensive-tests]
     if: always() && needs.setup.outputs.skip_tests != 'true' && needs.setup.outputs.is_prod_smoke != 'true'
     outputs:
       qa_approved: ${{ steps.gate.outputs.approved }}
@@ -1097,9 +1160,11 @@ jobs:
           fi
 
           if [[ "${{ needs.gate-smoke-packs-results.outputs.should_run_smoke }}" == "true" ]]; then
+            echo "  🖥️ UI Smoke Tests:           ${{ needs.ui-smoke-tests.result }}"
             echo "  🔥 Smoke Tests (E2E):        ${{ needs.smoke-tests.result }}"
             echo "  🚦 Gate 2 Decision:          ${{ needs.gate-2-smoke-results.outputs.should_run_expensive }}"
           else
+            echo "  🖥️ UI Smoke Tests:           ⏭️ SKIPPED (Smoke Packs failed)"
             echo "  🔥 Smoke Tests:              ⏭️ SKIPPED (Smoke Packs failed)"
             echo "  🚦 Gate 2 Decision:          N/A"
           fi
@@ -1117,14 +1182,16 @@ jobs:
           API_PASSED="${{ needs.gate-1-api-results.outputs.api_passed }}"
           SKIPPED_REASON="${{ needs.gate-1-api-results.outputs.skipped_reason }}"
           SMOKE_PACKS_PASSED="${{ needs.gate-smoke-packs-results.outputs.smoke_packs_passed }}"
+          UI_SMOKE_RESULT="${{ needs.ui-smoke-tests.result }}"
           SMOKE_PASSED="${{ needs.gate-2-smoke-results.outputs.smoke_passed }}"
           EXPENSIVE_RESULT="${{ needs.expensive-tests.result }}"
 
           # Quality gate passes if:
           # 1. API tests passed AND
           # 2. Smoke Packs passed AND
-          # 3. Smoke tests passed AND
-          # 4. Expensive tests passed (or were skipped)
+          # 3. UI Smoke tests passed AND
+          # 4. Smoke tests passed AND
+          # 5. Expensive tests passed (or were skipped)
           #
           # Special case: If tests were skipped due to staging being unreachable,
           # we don't fail the quality gate - we just indicate tests were skipped.
@@ -1157,6 +1224,12 @@ jobs:
 
           if [[ "$SMOKE_PACKS_PASSED" != "true" ]]; then
             echo "❌ QUALITY GATE FAILED: Smoke Packs failed"
+            echo "approved=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+          if [[ "$UI_SMOKE_RESULT" != "success" ]]; then
+            echo "❌ QUALITY GATE FAILED: UI Smoke tests failed"
             echo "approved=false" >> $GITHUB_OUTPUT
             exit 1
           fi
@@ -1194,9 +1267,10 @@ jobs:
           echo "2. 🚦 **Gate 1**: Only proceed if API tests pass" >> $GITHUB_STEP_SUMMARY
           echo "3. 📦 **Smoke Packs** (Stage 1 gate - 4 core smoke tests)" >> $GITHUB_STEP_SUMMARY
           echo "4. 🚦 **Gate 1.5**: Only proceed if Smoke Packs pass" >> $GITHUB_STEP_SUMMARY
-          echo "5. ✅ **Smoke Tests** (E2E smoke tests)" >> $GITHUB_STEP_SUMMARY
-          echo "6. 🚦 **Gate 2**: Only proceed if Smoke tests pass" >> $GITHUB_STEP_SUMMARY
-          echo "7. ✅ **Expensive Tests** (Flow + Page, run if Smoke passed)" >> $GITHUB_STEP_SUMMARY
+          echo "5. 🖥️ **UI Smoke Tests** (Admin, Public, Display, Poster surfaces)" >> $GITHUB_STEP_SUMMARY
+          echo "6. ✅ **Smoke Tests** (E2E smoke tests)" >> $GITHUB_STEP_SUMMARY
+          echo "7. 🚦 **Gate 2**: Only proceed if Smoke tests pass" >> $GITHUB_STEP_SUMMARY
+          echo "8. ✅ **Expensive Tests** (Flow + Page, run if Smoke passed)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📊 Test Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -1214,9 +1288,11 @@ jobs:
           fi
 
           if [[ "${{ needs.gate-smoke-packs-results.outputs.should_run_smoke }}" == "true" ]]; then
+            echo "| 2.5️⃣ | 🖥️ UI Smoke Tests | ${{ needs.ui-smoke-tests.result == 'success' && '✅ PASS' || '❌ FAIL' }} | - |" >> $GITHUB_STEP_SUMMARY
             echo "| 3️⃣ | 🔥 Smoke Tests | ${{ needs.smoke-tests.result == 'success' && '✅ PASS' || '❌ FAIL' }} | - |" >> $GITHUB_STEP_SUMMARY
             echo "| 🚦 | Gate 2 | - | ${{ needs.gate-2-smoke-results.outputs.should_run_expensive == 'true' && '✅ Proceed to Expensive' || '🛑 Block Expensive' }} |" >> $GITHUB_STEP_SUMMARY
           else
+            echo "| 2.5️⃣ | 🖥️ UI Smoke Tests | ⏭️ SKIPPED | Smoke Packs failed |" >> $GITHUB_STEP_SUMMARY
             echo "| 3️⃣ | 🔥 Smoke Tests | ⏭️ SKIPPED | Smoke Packs failed |" >> $GITHUB_STEP_SUMMARY
             echo "| 🚦 | Gate 2 | - | N/A |" >> $GITHUB_STEP_SUMMARY
           fi
