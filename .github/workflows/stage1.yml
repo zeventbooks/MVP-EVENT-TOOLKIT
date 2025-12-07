@@ -268,8 +268,97 @@ jobs:
         run: |
           echo "Pushing code to staging Apps Script..."
 
+          # Function to clean up old versions when hitting the 200 version limit
+          cleanup_old_versions() {
+            echo ""
+            echo "=============================================="
+            echo "VERSION LIMIT REACHED - Cleaning up old versions"
+            echo "=============================================="
+
+            SCRIPT_ID=$(jq -r '.scriptId' .clasp.json)
+            if [ -z "$SCRIPT_ID" ] || [ "$SCRIPT_ID" == "null" ]; then
+              echo "ERROR: Could not read scriptId from .clasp.json"
+              return 1
+            fi
+
+            # Get OAuth token from ~/.clasprc.json
+            ACCESS_TOKEN=$(jq -r '.token.access_token // .tokens.default.access_token' ~/.clasprc.json)
+            if [ -z "$ACCESS_TOKEN" ] || [ "$ACCESS_TOKEN" == "null" ]; then
+              echo "ERROR: Could not get access token"
+              return 1
+            fi
+
+            echo "Script ID: $SCRIPT_ID"
+            echo "Fetching all versions..."
+
+            # List all versions
+            VERSIONS_RESPONSE=$(curl -s -X GET \
+              -H "Authorization: Bearer $ACCESS_TOKEN" \
+              -H "Content-Type: application/json" \
+              "https://script.googleapis.com/v1/projects/${SCRIPT_ID}/versions")
+
+            # Check for API errors
+            if echo "$VERSIONS_RESPONSE" | jq -e '.error' > /dev/null 2>&1; then
+              ERROR_MSG=$(echo "$VERSIONS_RESPONSE" | jq -r '.error.message')
+              echo "API error: $ERROR_MSG"
+              return 1
+            fi
+
+            VERSION_COUNT=$(echo "$VERSIONS_RESPONSE" | jq -r '.versions | length // 0')
+            echo "Found $VERSION_COUNT versions"
+
+            # Keep 50 most recent versions, delete the rest
+            KEEP_VERSIONS=50
+            DELETE_COUNT=$((VERSION_COUNT - KEEP_VERSIONS))
+
+            if [ "$DELETE_COUNT" -le 0 ]; then
+              echo "Version count ($VERSION_COUNT) is within limit, no cleanup needed"
+              return 1
+            fi
+
+            echo "Will delete $DELETE_COUNT old versions, keeping $KEEP_VERSIONS most recent"
+
+            # Get version numbers to delete (oldest first)
+            VERSIONS_TO_DELETE=$(echo "$VERSIONS_RESPONSE" | jq -r '.versions | sort_by(.versionNumber | tonumber) | .[0:'$DELETE_COUNT'] | .[].versionNumber')
+
+            DELETED=0
+            for VERSION_NUM in $VERSIONS_TO_DELETE; do
+              echo -n "Deleting version $VERSION_NUM... "
+
+              DELETE_RESPONSE=$(curl -s -X DELETE \
+                -H "Authorization: Bearer $ACCESS_TOKEN" \
+                -H "Content-Type: application/json" \
+                -w "\n%{http_code}" \
+                "https://script.googleapis.com/v1/projects/${SCRIPT_ID}/versions/${VERSION_NUM}")
+
+              HTTP_CODE=$(echo "$DELETE_RESPONSE" | tail -n1)
+
+              if [ "$HTTP_CODE" == "200" ] || [ "$HTTP_CODE" == "204" ] || [ "$HTTP_CODE" == "404" ]; then
+                echo "OK"
+                ((DELETED++))
+              else
+                echo "FAILED (HTTP $HTTP_CODE)"
+              fi
+
+              # Small delay to avoid rate limiting
+              sleep 0.2
+            done
+
+            echo ""
+            echo "Cleanup complete: deleted $DELETED versions"
+            echo "=============================================="
+            echo ""
+
+            if [ "$DELETED" -gt 0 ]; then
+              return 0
+            else
+              return 1
+            fi
+          }
+
           MAX_RETRIES=4
           RETRY_DELAY=5
+          VERSION_CLEANUP_ATTEMPTED=false
 
           for attempt in $(seq 1 $MAX_RETRIES); do
             echo "Push attempt $attempt of $MAX_RETRIES..."
@@ -289,6 +378,24 @@ jobs:
               fi
             fi
 
+            # Check for 200 version limit error
+            if echo "$PUSH_OUTPUT" | grep -qiE "version.*limit|200.*version|too many versions"; then
+              if [ "$VERSION_CLEANUP_ATTEMPTED" = false ]; then
+                echo ""
+                echo "Detected 200-version limit error - attempting cleanup..."
+                VERSION_CLEANUP_ATTEMPTED=true
+
+                if cleanup_old_versions; then
+                  echo "Cleanup successful - retrying push immediately..."
+                  continue
+                else
+                  echo "Cleanup failed - will continue with normal retry"
+                fi
+              else
+                echo "Version cleanup already attempted"
+              fi
+            fi
+
             if [ $attempt -lt $MAX_RETRIES ]; then
               echo "Retrying in ${RETRY_DELAY}s..."
               sleep $RETRY_DELAY
@@ -304,9 +411,76 @@ jobs:
         run: |
           echo "Creating staging deployment..."
 
+          # Function to clean up old deployments when hitting the 20-deployment limit
+          cleanup_old_deployments() {
+            echo ""
+            echo "=============================================="
+            echo "DEPLOYMENT LIMIT REACHED - Cleaning up old deployments"
+            echo "=============================================="
+
+            DEPLOYMENTS=$(clasp deployments 2>&1)
+            echo "$DEPLOYMENTS"
+
+            # Extract deployment IDs (AKfycb... format), excluding @HEAD
+            DEPLOYMENT_IDS=$(echo "$DEPLOYMENTS" | grep -oP 'AKfycb[a-zA-Z0-9_-]+' || true)
+
+            if [ -z "$DEPLOYMENT_IDS" ]; then
+              echo "WARNING: Could not extract deployment IDs for cleanup"
+              return 1
+            fi
+
+            # Convert to array
+            readarray -t DEPLOYMENT_ARRAY <<< "$DEPLOYMENT_IDS"
+            TOTAL_COUNT=${#DEPLOYMENT_ARRAY[@]}
+
+            echo "Found $TOTAL_COUNT deployments"
+
+            # Keep the 5 most recent deployments, delete the rest
+            KEEP_COUNT=5
+            DELETE_COUNT=$((TOTAL_COUNT - KEEP_COUNT))
+
+            if [ "$DELETE_COUNT" -le 0 ]; then
+              echo "Not enough deployments to clean up (keeping $KEEP_COUNT)"
+              return 1
+            fi
+
+            echo "Will remove $DELETE_COUNT old deployments, keeping $KEEP_COUNT most recent"
+            echo ""
+
+            # Remove oldest deployments (first in list = oldest)
+            REMOVED=0
+            for (( i=0; i<DELETE_COUNT; i++ )); do
+              DEPLOY_ID="${DEPLOYMENT_ARRAY[$i]}"
+              echo -n "Removing deployment $DEPLOY_ID... "
+
+              set +e
+              UNDEPLOY_OUTPUT=$(clasp undeploy "$DEPLOY_ID" 2>&1)
+              UNDEPLOY_EXIT=$?
+              set -e
+
+              if [ $UNDEPLOY_EXIT -eq 0 ]; then
+                echo "OK"
+                ((REMOVED++))
+              else
+                echo "FAILED (may already be removed)"
+                echo "  $UNDEPLOY_OUTPUT"
+              fi
+
+              # Small delay to avoid rate limiting
+              sleep 1
+            done
+
+            echo ""
+            echo "Cleanup complete: removed $REMOVED deployments"
+            echo "=============================================="
+            echo ""
+            return 0
+          }
+
           MAX_RETRIES=4
           RETRY_DELAY=5
           DEPLOY_DESCRIPTION="Stage-1 staging deploy $(date -Iseconds)"
+          CLEANUP_ATTEMPTED=false
 
           for attempt in $(seq 1 $MAX_RETRIES); do
             echo "Deploy attempt $attempt of $MAX_RETRIES..."
@@ -331,6 +505,25 @@ jobs:
                 echo "Deployment ID: $DEPLOYMENT_ID"
                 echo "Web App URL: $WEB_APP_URL"
                 exit 0
+              fi
+            fi
+
+            # Check for deployment limit error
+            if echo "$DEPLOY_OUTPUT" | grep -q "20 versioned deployments"; then
+              if [ "$CLEANUP_ATTEMPTED" = false ]; then
+                echo ""
+                echo "Detected 20-deployment limit error - attempting cleanup..."
+                CLEANUP_ATTEMPTED=true
+
+                if cleanup_old_deployments; then
+                  echo "Cleanup successful - retrying deployment immediately..."
+                  # Don't count this as a retry attempt, continue loop
+                  continue
+                else
+                  echo "Cleanup failed - will continue with normal retry"
+                fi
+              else
+                echo "Cleanup already attempted - deployment limit still in effect"
               fi
             fi
 
@@ -513,8 +706,97 @@ jobs:
         run: |
           echo "Pushing code to production Apps Script..."
 
+          # Function to clean up old versions when hitting the 200 version limit
+          cleanup_old_versions() {
+            echo ""
+            echo "=============================================="
+            echo "VERSION LIMIT REACHED - Cleaning up old versions"
+            echo "=============================================="
+
+            SCRIPT_ID=$(jq -r '.scriptId' .clasp.json)
+            if [ -z "$SCRIPT_ID" ] || [ "$SCRIPT_ID" == "null" ]; then
+              echo "ERROR: Could not read scriptId from .clasp.json"
+              return 1
+            fi
+
+            # Get OAuth token from ~/.clasprc.json
+            ACCESS_TOKEN=$(jq -r '.token.access_token // .tokens.default.access_token' ~/.clasprc.json)
+            if [ -z "$ACCESS_TOKEN" ] || [ "$ACCESS_TOKEN" == "null" ]; then
+              echo "ERROR: Could not get access token"
+              return 1
+            fi
+
+            echo "Script ID: $SCRIPT_ID"
+            echo "Fetching all versions..."
+
+            # List all versions
+            VERSIONS_RESPONSE=$(curl -s -X GET \
+              -H "Authorization: Bearer $ACCESS_TOKEN" \
+              -H "Content-Type: application/json" \
+              "https://script.googleapis.com/v1/projects/${SCRIPT_ID}/versions")
+
+            # Check for API errors
+            if echo "$VERSIONS_RESPONSE" | jq -e '.error' > /dev/null 2>&1; then
+              ERROR_MSG=$(echo "$VERSIONS_RESPONSE" | jq -r '.error.message')
+              echo "API error: $ERROR_MSG"
+              return 1
+            fi
+
+            VERSION_COUNT=$(echo "$VERSIONS_RESPONSE" | jq -r '.versions | length // 0')
+            echo "Found $VERSION_COUNT versions"
+
+            # Keep 50 most recent versions, delete the rest
+            KEEP_VERSIONS=50
+            DELETE_COUNT=$((VERSION_COUNT - KEEP_VERSIONS))
+
+            if [ "$DELETE_COUNT" -le 0 ]; then
+              echo "Version count ($VERSION_COUNT) is within limit, no cleanup needed"
+              return 1
+            fi
+
+            echo "Will delete $DELETE_COUNT old versions, keeping $KEEP_VERSIONS most recent"
+
+            # Get version numbers to delete (oldest first)
+            VERSIONS_TO_DELETE=$(echo "$VERSIONS_RESPONSE" | jq -r '.versions | sort_by(.versionNumber | tonumber) | .[0:'$DELETE_COUNT'] | .[].versionNumber')
+
+            DELETED=0
+            for VERSION_NUM in $VERSIONS_TO_DELETE; do
+              echo -n "Deleting version $VERSION_NUM... "
+
+              DELETE_RESPONSE=$(curl -s -X DELETE \
+                -H "Authorization: Bearer $ACCESS_TOKEN" \
+                -H "Content-Type: application/json" \
+                -w "\n%{http_code}" \
+                "https://script.googleapis.com/v1/projects/${SCRIPT_ID}/versions/${VERSION_NUM}")
+
+              HTTP_CODE=$(echo "$DELETE_RESPONSE" | tail -n1)
+
+              if [ "$HTTP_CODE" == "200" ] || [ "$HTTP_CODE" == "204" ] || [ "$HTTP_CODE" == "404" ]; then
+                echo "OK"
+                ((DELETED++))
+              else
+                echo "FAILED (HTTP $HTTP_CODE)"
+              fi
+
+              # Small delay to avoid rate limiting
+              sleep 0.2
+            done
+
+            echo ""
+            echo "Cleanup complete: deleted $DELETED versions"
+            echo "=============================================="
+            echo ""
+
+            if [ "$DELETED" -gt 0 ]; then
+              return 0
+            else
+              return 1
+            fi
+          }
+
           MAX_RETRIES=4
           RETRY_DELAY=5
+          VERSION_CLEANUP_ATTEMPTED=false
 
           for attempt in $(seq 1 $MAX_RETRIES); do
             echo "Push attempt $attempt of $MAX_RETRIES..."
@@ -534,6 +816,24 @@ jobs:
               fi
             fi
 
+            # Check for 200 version limit error
+            if echo "$PUSH_OUTPUT" | grep -qiE "version.*limit|200.*version|too many versions"; then
+              if [ "$VERSION_CLEANUP_ATTEMPTED" = false ]; then
+                echo ""
+                echo "Detected 200-version limit error - attempting cleanup..."
+                VERSION_CLEANUP_ATTEMPTED=true
+
+                if cleanup_old_versions; then
+                  echo "Cleanup successful - retrying push immediately..."
+                  continue
+                else
+                  echo "Cleanup failed - will continue with normal retry"
+                fi
+              else
+                echo "Version cleanup already attempted"
+              fi
+            fi
+
             if [ $attempt -lt $MAX_RETRIES ]; then
               echo "Retrying in ${RETRY_DELAY}s..."
               sleep $RETRY_DELAY
@@ -549,10 +849,77 @@ jobs:
         run: |
           echo "Creating production deployment..."
 
+          # Function to clean up old deployments when hitting the 20-deployment limit
+          cleanup_old_deployments() {
+            echo ""
+            echo "=============================================="
+            echo "DEPLOYMENT LIMIT REACHED - Cleaning up old deployments"
+            echo "=============================================="
+
+            DEPLOYMENTS=$(clasp deployments 2>&1)
+            echo "$DEPLOYMENTS"
+
+            # Extract deployment IDs (AKfycb... format), excluding @HEAD
+            DEPLOYMENT_IDS=$(echo "$DEPLOYMENTS" | grep -oP 'AKfycb[a-zA-Z0-9_-]+' || true)
+
+            if [ -z "$DEPLOYMENT_IDS" ]; then
+              echo "WARNING: Could not extract deployment IDs for cleanup"
+              return 1
+            fi
+
+            # Convert to array
+            readarray -t DEPLOYMENT_ARRAY <<< "$DEPLOYMENT_IDS"
+            TOTAL_COUNT=${#DEPLOYMENT_ARRAY[@]}
+
+            echo "Found $TOTAL_COUNT deployments"
+
+            # Keep the 5 most recent deployments, delete the rest
+            KEEP_COUNT=5
+            DELETE_COUNT=$((TOTAL_COUNT - KEEP_COUNT))
+
+            if [ "$DELETE_COUNT" -le 0 ]; then
+              echo "Not enough deployments to clean up (keeping $KEEP_COUNT)"
+              return 1
+            fi
+
+            echo "Will remove $DELETE_COUNT old deployments, keeping $KEEP_COUNT most recent"
+            echo ""
+
+            # Remove oldest deployments (first in list = oldest)
+            REMOVED=0
+            for (( i=0; i<DELETE_COUNT; i++ )); do
+              DEPLOY_ID="${DEPLOYMENT_ARRAY[$i]}"
+              echo -n "Removing deployment $DEPLOY_ID... "
+
+              set +e
+              UNDEPLOY_OUTPUT=$(clasp undeploy "$DEPLOY_ID" 2>&1)
+              UNDEPLOY_EXIT=$?
+              set -e
+
+              if [ $UNDEPLOY_EXIT -eq 0 ]; then
+                echo "OK"
+                ((REMOVED++))
+              else
+                echo "FAILED (may already be removed)"
+                echo "  $UNDEPLOY_OUTPUT"
+              fi
+
+              # Small delay to avoid rate limiting
+              sleep 1
+            done
+
+            echo ""
+            echo "Cleanup complete: removed $REMOVED deployments"
+            echo "=============================================="
+            echo ""
+            return 0
+          }
+
           MAX_RETRIES=4
           RETRY_DELAY=5
           VERSION="${{ steps.extract-version.outputs.version }}"
           DEPLOY_DESCRIPTION="Production release ${VERSION} $(date -Iseconds)"
+          CLEANUP_ATTEMPTED=false
 
           for attempt in $(seq 1 $MAX_RETRIES); do
             echo "Deploy attempt $attempt of $MAX_RETRIES..."
@@ -577,6 +944,25 @@ jobs:
                 echo "Deployment ID: $DEPLOYMENT_ID"
                 echo "Web App URL: $WEB_APP_URL"
                 exit 0
+              fi
+            fi
+
+            # Check for deployment limit error
+            if echo "$DEPLOY_OUTPUT" | grep -q "20 versioned deployments"; then
+              if [ "$CLEANUP_ATTEMPTED" = false ]; then
+                echo ""
+                echo "Detected 20-deployment limit error - attempting cleanup..."
+                CLEANUP_ATTEMPTED=true
+
+                if cleanup_old_deployments; then
+                  echo "Cleanup successful - retrying deployment immediately..."
+                  # Don't count this as a retry attempt, continue loop
+                  continue
+                else
+                  echo "Cleanup failed - will continue with normal retry"
+                fi
+              else
+                echo "Cleanup already attempted - deployment limit still in effect"
               fi
             fi
 
