@@ -6,10 +6,12 @@
  * - Resolves <?!= include('File') ?> directives
  * - Preserves <?= variable ?> markers for runtime substitution
  * - Outputs bundled HTML files to cloudflare-proxy/templates/
+ * - Validates all templates are present and non-empty (Stage-1)
  *
  * Usage:
  *   node scripts/bundle-worker-templates.js
- *   node scripts/bundle-worker-templates.js --check  # Verify bundles are up-to-date
+ *   node scripts/bundle-worker-templates.js --check    # Verify bundles are up-to-date
+ *   node scripts/bundle-worker-templates.js --validate # Validate templates only (Stage-1)
  *
  * Template Variables (replaced at runtime by Worker):
  *   <?= appTitle ?>  - Brand name + scope (e.g., "My Brand · events")
@@ -17,6 +19,12 @@
  *   <?= scope ?>     - Scope from URL (default: 'events')
  *   <?= execUrl ?>   - GAS deployment URL for API calls
  *   <?= demoMode ?>  - Demo mode flag (true/false)
+ *
+ * Stage-1 Validation (Story 3):
+ *   - All templates must be present
+ *   - All templates must be non-empty
+ *   - All templates must contain valid HTML structure
+ *   - Exits with code 1 if any validation fails
  *
  * Related: cloudflare-proxy/worker.js (renderTemplate function)
  */
@@ -311,11 +319,165 @@ function checkBundles() {
 }
 
 /**
+ * Stage-1 Validation: Validate all bundled templates
+ *
+ * Story 3: Ensures Worker has all templates it needs.
+ * Fails if any template is missing, empty, or invalid.
+ *
+ * Validation checks:
+ * - Template file exists
+ * - Template file is non-empty
+ * - Template contains valid HTML structure (DOCTYPE or <html>)
+ * - Template contains required placeholders
+ * - Template is reasonably sized (> 100 bytes)
+ */
+function validateBundles() {
+  console.log('Stage-1 Validation: Checking bundled templates...\n');
+
+  const MIN_TEMPLATE_SIZE = 100;
+  const REQUIRED_PLACEHOLDERS = ['appTitle', 'brandId'];
+
+  let allValid = true;
+  const results = [];
+
+  for (const template of TEMPLATES) {
+    const templatePath = path.join(OUTPUT_DIR, template.output);
+    const checks = [];
+
+    // Check 1: File exists
+    if (!fs.existsSync(templatePath)) {
+      results.push({
+        name: template.name,
+        valid: false,
+        checks: [{ check: 'exists', passed: false, message: 'Template file not found' }]
+      });
+      allValid = false;
+      continue;
+    }
+    checks.push({ check: 'exists', passed: true });
+
+    // Read file content
+    const content = fs.readFileSync(templatePath, 'utf8');
+    const trimmed = content.trim();
+
+    // Check 2: Non-empty
+    if (trimmed.length === 0) {
+      checks.push({ check: 'non-empty', passed: false, message: 'Template is empty' });
+      results.push({ name: template.name, valid: false, checks });
+      allValid = false;
+      continue;
+    }
+    checks.push({ check: 'non-empty', passed: true });
+
+    // Check 3: Minimum size
+    if (trimmed.length < MIN_TEMPLATE_SIZE) {
+      checks.push({
+        check: 'min-size',
+        passed: false,
+        message: `Template too small: ${trimmed.length} bytes (min ${MIN_TEMPLATE_SIZE})`
+      });
+      results.push({ name: template.name, valid: false, checks });
+      allValid = false;
+      continue;
+    }
+    checks.push({ check: 'min-size', passed: true, size: trimmed.length });
+
+    // Check 4: Valid HTML structure
+    const lowerContent = trimmed.toLowerCase();
+    if (!lowerContent.includes('<!doctype html') && !lowerContent.includes('<html')) {
+      checks.push({
+        check: 'html-structure',
+        passed: false,
+        message: 'Missing DOCTYPE or <html> tag'
+      });
+      results.push({ name: template.name, valid: false, checks });
+      allValid = false;
+      continue;
+    }
+    checks.push({ check: 'html-structure', passed: true });
+
+    // Check 5: Required placeholders
+    const missingPlaceholders = [];
+    for (const placeholder of REQUIRED_PLACEHOLDERS) {
+      const pattern = new RegExp(`<\\?=\\s*${placeholder}\\s*\\?>`, 'i');
+      if (!pattern.test(content)) {
+        missingPlaceholders.push(placeholder);
+      }
+    }
+    if (missingPlaceholders.length > 0) {
+      checks.push({
+        check: 'placeholders',
+        passed: false,
+        message: `Missing placeholders: ${missingPlaceholders.join(', ')}`
+      });
+      results.push({ name: template.name, valid: false, checks });
+      allValid = false;
+      continue;
+    }
+    checks.push({ check: 'placeholders', passed: true });
+
+    // Check 6: No unresolved includes
+    if (/<\?!=\s*include\s*\(/.test(content)) {
+      checks.push({
+        check: 'includes-resolved',
+        passed: false,
+        message: 'Unresolved <?!= include() ?> directives found'
+      });
+      results.push({ name: template.name, valid: false, checks });
+      allValid = false;
+      continue;
+    }
+    checks.push({ check: 'includes-resolved', passed: true });
+
+    // All checks passed
+    results.push({ name: template.name, valid: true, checks, size: trimmed.length });
+  }
+
+  // Print results
+  console.log('Validation Results:');
+  console.log('─'.repeat(60));
+
+  for (const result of results) {
+    const icon = result.valid ? '✓' : '✗';
+    const color = result.valid ? '\x1b[32m' : '\x1b[31m';
+    const sizeStr = result.size ? ` (${(result.size / 1024).toFixed(1)} KB)` : '';
+
+    console.log(`${color}${icon}\x1b[0m ${result.name}${sizeStr}`);
+
+    if (!result.valid) {
+      for (const check of result.checks) {
+        if (!check.passed) {
+          console.log(`  └─ ${check.check}: ${check.message}`);
+        }
+      }
+    }
+  }
+
+  console.log('─'.repeat(60));
+
+  if (!allValid) {
+    console.log('\n\x1b[31m✗ Stage-1 validation FAILED\x1b[0m');
+    console.log('Run `npm run bundle:templates` to regenerate templates.');
+    process.exit(1);
+  }
+
+  const totalSize = results.reduce((sum, r) => sum + (r.size || 0), 0);
+  console.log(`\n\x1b[32m✓ All ${results.length} templates validated successfully\x1b[0m`);
+  console.log(`Total bundle size: ${(totalSize / 1024).toFixed(1)} KB`);
+}
+
+/**
  * Main bundling process
  */
 function main() {
   const args = process.argv.slice(2);
   const isCheck = args.includes('--check');
+  const isValidate = args.includes('--validate');
+
+  if (isValidate) {
+    validateBundles();
+    return;
+  }
 
   if (isCheck) {
     checkBundles();

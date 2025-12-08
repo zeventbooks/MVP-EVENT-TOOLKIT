@@ -193,6 +193,7 @@
     "format": "prettier --write '**/*.{js,gs,html,json,md}'",
     "bundle:templates": "node scripts/bundle-worker-templates.js",
     "bundle:templates:check": "node scripts/bundle-worker-templates.js --check",
+    "bundle:templates:validate": "node scripts/bundle-worker-templates.js --validate",
     "deploy": "node scripts/deploy-apps-script.js",
     "deploy:diagnose": "node scripts/diagnose-apps-script-access.js",
     "deploy:verify-secrets": "node scripts/verify-secrets.js",

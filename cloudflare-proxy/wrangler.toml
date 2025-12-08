@@ -93,6 +93,9 @@ routes = [
 STAGING_DEPLOYMENT_ID = "AKfycbxx2nN-zkU-Jke1ECl1C7RUwOyGmrZ6B-6-ViMIjXKrIT3Q1dLh5lf5LK5Ymdg-cbcJ"
 GAS_DEPLOYMENT_BASE_URL = "https://script.google.com/macros/s/AKfycbxx2nN-zkU-Jke1ECl1C7RUwOyGmrZ6B-6-ViMIjXKrIT3Q1dLh5lf5LK5Ymdg-cbcJ/exec"
 DEPLOYMENT_ID = "AKfycbxx2nN-zkU-Jke1ECl1C7RUwOyGmrZ6B-6-ViMIjXKrIT3Q1dLh5lf5LK5Ymdg-cbcJ"
+# Enable debug endpoints (/__debug/template/*) for staging only
+# SECURITY: This should NEVER be enabled in production
+ENABLE_DEBUG_ENDPOINTS = "true"
 
 # ============================================
 # API Only (subdomain only, no main site)

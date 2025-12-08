@@ -43,7 +43,7 @@
  */
 
 // Worker version - used for transparency headers and debugging
-const WORKER_VERSION = '2.0.0';
+const WORKER_VERSION = '2.1.0';
 
 // =============================================================================
 // EXPLICIT HTML ROUTE MAP - Story 2 Implementation
@@ -247,35 +247,393 @@ function renderTemplate(templateContent, params, env) {
   return html;
 }
 
+// =============================================================================
+// TEMPLATE REGISTRY - Story 3 Implementation
+// =============================================================================
+// Template sanity helpers to guarantee Worker has all templates it needs.
+// If a template is missing or empty, these functions throw descriptive errors.
+
 /**
- * Get template content from KV storage or bundled templates
+ * Valid template names - the ONLY valid template identifiers
+ */
+const VALID_TEMPLATE_NAMES = Object.freeze(['admin', 'public', 'display', 'poster', 'report']);
+
+/**
+ * Check if a template name is valid
+ * @param {string} name - Template name to check
+ * @returns {boolean} True if valid
+ */
+function isValidTemplateName(name) {
+  return name && VALID_TEMPLATE_NAMES.includes(name.toLowerCase());
+}
+
+/**
+ * TemplateError class for template-related errors
+ */
+class TemplateError extends Error {
+  constructor(templateName, reason) {
+    super(`Template '${templateName}' error: ${reason}`);
+    this.name = 'TemplateError';
+    this.templateName = templateName;
+    this.reason = reason;
+  }
+}
+
+/**
+ * Validate template content
  *
- * Templates are stored in Cloudflare KV for production.
- * Falls back to fetch from origin if KV is not available.
+ * Throws TemplateError if:
+ * - Template name is not valid
+ * - Content is null, undefined, or not a string
+ * - Content is empty or whitespace-only
+ * - Content doesn't look like HTML (basic sanity check)
  *
  * @param {string} templateName - Template name
- * @param {Object} env - Worker environment
- * @returns {Promise<string|null>} Template content or null
+ * @param {*} content - Template content to validate
+ * @throws {TemplateError} If validation fails
+ * @returns {string} The validated content
+ */
+function validateTemplate(templateName, content) {
+  // Validate template name
+  if (!isValidTemplateName(templateName)) {
+    throw new TemplateError(templateName, `Invalid template name. Valid names: ${VALID_TEMPLATE_NAMES.join(', ')}`);
+  }
+
+  // Check for null/undefined
+  if (content == null) {
+    throw new TemplateError(templateName, 'Template content is null or undefined');
+  }
+
+  // Check for string type
+  if (typeof content !== 'string') {
+    throw new TemplateError(templateName, `Template content must be string, got ${typeof content}`);
+  }
+
+  // Check for empty content
+  const trimmed = content.trim();
+  if (trimmed.length === 0) {
+    throw new TemplateError(templateName, 'Template content is empty');
+  }
+
+  // Basic HTML sanity check - should contain doctype or html tag
+  const lowerContent = trimmed.toLowerCase();
+  if (!lowerContent.includes('<!doctype html') && !lowerContent.includes('<html')) {
+    throw new TemplateError(templateName, 'Template content does not appear to be valid HTML');
+  }
+
+  // Check minimum length (HTML templates should be reasonably sized)
+  const MIN_TEMPLATE_SIZE = 100; // bytes
+  if (trimmed.length < MIN_TEMPLATE_SIZE) {
+    throw new TemplateError(templateName, `Template content too small (${trimmed.length} bytes, min ${MIN_TEMPLATE_SIZE})`);
+  }
+
+  return content;
+}
+
+/**
+ * Get template content from KV storage with validation
+ *
+ * Story 3: Enhanced version that throws if template is missing or empty.
+ * Templates are stored in Cloudflare KV for production.
+ *
+ * @param {string} templateName - Template name (admin, public, display, poster, report)
+ * @param {Object} env - Worker environment with TEMPLATES_KV binding
+ * @throws {TemplateError} If template is missing, empty, or invalid
+ * @returns {Promise<string>} Template HTML content
  */
 async function getTemplate(templateName, env) {
-  const templateFile = `${templateName}.html`;
+  const name = templateName?.toLowerCase();
+
+  // Validate template name first
+  if (!isValidTemplateName(name)) {
+    throw new TemplateError(templateName, `Invalid template name. Valid names: ${VALID_TEMPLATE_NAMES.join(', ')}`);
+  }
+
+  const templateFile = `${name}.html`;
 
   // Try KV storage first (for production deployments)
-  if (env.TEMPLATES_KV) {
+  if (env?.TEMPLATES_KV) {
     try {
       const content = await env.TEMPLATES_KV.get(templateFile);
+
       if (content) {
-        return content;
+        // Validate and return
+        return validateTemplate(name, content);
       }
+
+      // Content was null - template not in KV
+      throw new TemplateError(name, `Template file '${templateFile}' not found in KV storage`);
     } catch (e) {
-      console.error(`[EventAngle] KV fetch error for ${templateFile}:`, e.message);
+      // Re-throw TemplateError, wrap others
+      if (e instanceof TemplateError) {
+        throw e;
+      }
+      throw new TemplateError(name, `KV fetch error: ${e.message}`);
     }
   }
 
-  // Fallback: Return null to trigger error page
-  // In production, templates should always be in KV
-  console.warn(`[EventAngle] Template not found: ${templateFile}`);
+  // No KV binding - return null for graceful degradation
+  // In production with KV, this shouldn't happen
+  console.warn(`[EventAngle] Template not found (no KV): ${templateFile}`);
   return null;
+}
+
+/**
+ * Validate all required templates are available
+ *
+ * @param {Object} env - Worker environment with TEMPLATES_KV binding
+ * @returns {Promise<Object>} Validation result with status and details
+ */
+async function validateAllTemplates(env) {
+  const result = {
+    valid: true,
+    templates: {},
+    errors: [],
+    timestamp: new Date().toISOString()
+  };
+
+  for (const name of VALID_TEMPLATE_NAMES) {
+    try {
+      const content = await getTemplate(name, env);
+      result.templates[name] = {
+        valid: true,
+        size: content ? content.length : 0,
+        hasDoctype: content ? content.toLowerCase().includes('<!doctype html') : false
+      };
+    } catch (e) {
+      result.valid = false;
+      result.templates[name] = {
+        valid: false,
+        error: e.message
+      };
+      result.errors.push(`${name}: ${e.message}`);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Get template manifest from KV storage
+ *
+ * @param {Object} env - Worker environment with TEMPLATES_KV binding
+ * @returns {Promise<Object|null>} Manifest object or null if not found
+ */
+async function getManifest(env) {
+  if (!env?.TEMPLATES_KV) {
+    return null;
+  }
+
+  try {
+    const manifestStr = await env.TEMPLATES_KV.get('manifest.json');
+    if (manifestStr) {
+      return JSON.parse(manifestStr);
+    }
+  } catch (e) {
+    console.error('[EventAngle] Failed to load template manifest:', e.message);
+  }
+
+  return null;
+}
+
+// =============================================================================
+// DEBUG ENDPOINTS - Story 3 Implementation
+// =============================================================================
+// Staging-only debug endpoints for template inspection.
+// Guarded by ENABLE_DEBUG_ENDPOINTS env flag (should NEVER be enabled in prod).
+
+/**
+ * Handle debug endpoint requests
+ *
+ * Debug endpoints (staging only):
+ * - /__debug/template/admin → returns Admin HTML directly
+ * - /__debug/template/public → returns Public HTML directly
+ * - /__debug/template/display → returns Display HTML directly
+ * - /__debug/template/poster → returns Poster HTML directly
+ * - /__debug/template/report → returns Report HTML directly
+ * - /__debug/templates/manifest → returns template manifest
+ * - /__debug/templates/validate → validates all templates
+ *
+ * @param {URL} url - Request URL
+ * @param {Object} env - Worker environment
+ * @returns {Promise<Response|null>} Response if handled, null otherwise
+ */
+async function handleDebugEndpoint(url, env) {
+  const pathname = url.pathname;
+
+  // Only handle /__debug/* paths
+  if (!pathname.startsWith('/__debug/')) {
+    return null;
+  }
+
+  // Check if debug endpoints are enabled
+  if (env.ENABLE_DEBUG_ENDPOINTS !== 'true') {
+    return new Response(JSON.stringify({
+      ok: false,
+      code: 'DEBUG_DISABLED',
+      message: 'Debug endpoints are disabled in this environment'
+    }), {
+      status: 403,
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Proxied-By': 'eventangle-worker',
+        'X-Worker-Version': WORKER_VERSION
+      }
+    });
+  }
+
+  // /__debug/template/<name> - Get raw template HTML
+  const templateMatch = pathname.match(/^\/__debug\/template\/([a-z]+)$/);
+  if (templateMatch) {
+    const templateName = templateMatch[1];
+
+    if (!isValidTemplateName(templateName)) {
+      return new Response(JSON.stringify({
+        ok: false,
+        code: 'INVALID_TEMPLATE',
+        message: `Invalid template name: ${templateName}`,
+        validTemplates: VALID_TEMPLATE_NAMES
+      }), {
+        status: 400,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Proxied-By': 'eventangle-worker',
+          'X-Worker-Version': WORKER_VERSION
+        }
+      });
+    }
+
+    try {
+      const content = await getTemplate(templateName, env);
+
+      if (!content) {
+        return new Response(JSON.stringify({
+          ok: false,
+          code: 'TEMPLATE_NOT_FOUND',
+          message: `Template '${templateName}' not found in KV storage`
+        }), {
+          status: 404,
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Proxied-By': 'eventangle-worker',
+            'X-Worker-Version': WORKER_VERSION
+          }
+        });
+      }
+
+      return new Response(content, {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/html; charset=utf-8',
+          'X-Proxied-By': 'eventangle-worker',
+          'X-Worker-Version': WORKER_VERSION,
+          'X-Template': templateName,
+          'X-Template-Size': String(content.length),
+          'X-Debug-Endpoint': 'true',
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
+        }
+      });
+    } catch (e) {
+      return new Response(JSON.stringify({
+        ok: false,
+        code: 'TEMPLATE_ERROR',
+        message: e.message,
+        templateName
+      }), {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Proxied-By': 'eventangle-worker',
+          'X-Worker-Version': WORKER_VERSION
+        }
+      });
+    }
+  }
+
+  // /__debug/templates/manifest - Get template manifest
+  if (pathname === '/__debug/templates/manifest') {
+    const manifest = await getManifest(env);
+
+    if (!manifest) {
+      return new Response(JSON.stringify({
+        ok: false,
+        code: 'MANIFEST_NOT_FOUND',
+        message: 'Template manifest not found in KV storage'
+      }), {
+        status: 404,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Proxied-By': 'eventangle-worker',
+          'X-Worker-Version': WORKER_VERSION
+        }
+      });
+    }
+
+    return new Response(JSON.stringify(manifest, null, 2), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Proxied-By': 'eventangle-worker',
+        'X-Worker-Version': WORKER_VERSION,
+        'X-Debug-Endpoint': 'true',
+        'Cache-Control': 'no-cache, no-store, must-revalidate'
+      }
+    });
+  }
+
+  // /__debug/templates/validate - Validate all templates
+  if (pathname === '/__debug/templates/validate') {
+    const result = await validateAllTemplates(env);
+
+    return new Response(JSON.stringify(result, null, 2), {
+      status: result.valid ? 200 : 500,
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Proxied-By': 'eventangle-worker',
+        'X-Worker-Version': WORKER_VERSION,
+        'X-Debug-Endpoint': 'true',
+        'X-Templates-Valid': String(result.valid),
+        'Cache-Control': 'no-cache, no-store, must-revalidate'
+      }
+    });
+  }
+
+  // /__debug/templates - List available debug endpoints
+  if (pathname === '/__debug/templates') {
+    return new Response(JSON.stringify({
+      ok: true,
+      debugEndpoints: {
+        'GET /__debug/template/<name>': 'Get raw template HTML (admin, public, display, poster, report)',
+        'GET /__debug/templates/manifest': 'Get template manifest',
+        'GET /__debug/templates/validate': 'Validate all templates are present and valid'
+      },
+      validTemplates: VALID_TEMPLATE_NAMES,
+      workerVersion: WORKER_VERSION
+    }, null, 2), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Proxied-By': 'eventangle-worker',
+        'X-Worker-Version': WORKER_VERSION,
+        'X-Debug-Endpoint': 'true'
+      }
+    });
+  }
+
+  // Unknown debug endpoint
+  return new Response(JSON.stringify({
+    ok: false,
+    code: 'UNKNOWN_DEBUG_ENDPOINT',
+    message: `Unknown debug endpoint: ${pathname}`,
+    help: 'GET /__debug/templates for available endpoints'
+  }), {
+    status: 404,
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Proxied-By': 'eventangle-worker',
+      'X-Worker-Version': WORKER_VERSION
+    }
+  });
 }
 
 /**
@@ -1207,6 +1565,16 @@ export default {
       corsResponse.headers.set('X-Proxied-By', 'eventangle-worker');
       corsResponse.headers.set('X-Worker-Version', WORKER_VERSION);
       return corsResponse;
+    }
+
+    // ==========================================================================
+    // DEBUG ENDPOINTS - Story 3 Implementation
+    // ==========================================================================
+    // Staging-only debug endpoints for template inspection.
+    // Returns early if handled; null response means continue to normal routing.
+    const debugResponse = await handleDebugEndpoint(url, env);
+    if (debugResponse) {
+      return addTransparencyHeaders(debugResponse, startTime);
     }
 
     // ==========================================================================
