@@ -259,7 +259,11 @@ function checkBundles() {
     const existing = fs.readFileSync(outputPath, 'utf8');
 
     // Compare content (ignoring metadata comments which include timestamps)
+    // Security note: This regex strips HTML comments for string comparison only,
+    // not for HTML output. The stripped content is only used for equality checking.
+    // eslint-disable-next-line security/detect-non-literal-regexp -- intentional comment stripping for comparison
     const bundledClean = bundled.replace(/<!--[\s\S]*?-->/g, '').trim();
+    // eslint-disable-next-line security/detect-non-literal-regexp -- intentional comment stripping for comparison
     const existingClean = existing.replace(/<!--[\s\S]*?-->/g, '').trim();
 
     if (bundledClean !== existingClean) {

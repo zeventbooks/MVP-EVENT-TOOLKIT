@@ -91,8 +91,8 @@ Related MVP Surfaces: Admin, Poster, Public, Sponsor, SharedReport
 <!DOCTYPE html>
 <!--
   Template: Display
-  Bundled: 2025-12-08T18:54:03.580Z
-  Hash: 2ad5872b
+  Bundled: 2025-12-08T19:06:54.565Z
+  Hash: f5767bb0
   Source: GAS templates (src/mvp/)
   Generator: scripts/bundle-worker-templates.js
 
@@ -5093,9 +5093,22 @@ DO NOT modify this component's structure without updating:
         if (!url) return setTimeout(next, 200);
 
         // Skip known restricted embeds (Instagram, etc.) silently
-        const lower = url.toLowerCase();
-        if (lower.includes('instagram.com') || lower.includes('tiktok.com')) {
-          console.log(`Skipping restricted embed: ${url}`);
+        // Use proper URL parsing to prevent substring attacks (e.g., fakeinstagram.com)
+        try {
+          const parsedUrl = new URL(url);
+          const hostname = parsedUrl.hostname.toLowerCase();
+          // Check for exact domain or subdomain match (e.g., www.instagram.com, instagram.com)
+          const restrictedDomains = ['instagram.com', 'tiktok.com'];
+          const isRestricted = restrictedDomains.some(domain =>
+            hostname === domain || hostname.endsWith('.' + domain)
+          );
+          if (isRestricted) {
+            console.log(`Skipping restricted embed: ${url}`);
+            return setTimeout(next, 500);
+          }
+        } catch (e) {
+          // Invalid URL - skip it
+          console.warn(`Invalid URL in dynamic rotation: ${url}`);
           return setTimeout(next, 500);
         }
 
