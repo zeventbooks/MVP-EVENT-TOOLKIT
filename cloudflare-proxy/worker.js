@@ -43,7 +43,7 @@
  */
 
 // Worker version - used for transparency headers and debugging
-const WORKER_VERSION = '1.4.1';
+const WORKER_VERSION = '1.5.0';
 
 // Timeout for upstream requests (ms)
 const UPSTREAM_TIMEOUT_MS = 30000;
@@ -798,25 +798,30 @@ export default {
     }
 
     // ==========================================================================
-    // /api/rpc - Frontend RPC endpoint (replaces google.script.run)
+    // /api/* - Frontend API endpoints (fetch-based transport)
     // ==========================================================================
-    // This endpoint allows the frontend to make API calls via fetch() instead of
-    // google.script.run, enabling friendly URLs (eventangle.com/events) to work.
+    // Supports two patterns:
     //
-    // Request: POST /api/rpc with body { method: 'api_list', payload: {...} }
+    // 1. Legacy RPC: POST /api/rpc with body { method: 'api_list', payload: {...} }
+    //    - Preserves backward compatibility with existing SDK calls
+    //
+    // 2. Path-based: POST /api/<path> with body {...payload}
+    //    - New pattern: /api/events/list, /api/getPublicBundle
+    //    - Maps to GAS action: events/list -> list, getPublicBundle -> getPublicBundle
+    //
     // Response: JSON from GAS backend
     //
-    if (url.pathname === '/api/rpc' && request.method === 'POST') {
+    if (url.pathname.startsWith('/api/') && request.method === 'POST') {
       try {
-        const response = await handleRpcRequest(request, appsScriptBase, env, url.origin);
+        const response = await handleApiRequest(request, appsScriptBase, env, url);
         return addTransparencyHeaders(addCORSHeaders(response), startTime);
       } catch (error) {
         const corrId = generateCorrId();
         ctx.waitUntil(logError(env, {
           corrId,
-          type: 'rpc_error',
+          type: 'api_error',
           error: error.message,
-          url: '/api/rpc',
+          url: url.pathname,
           duration: Date.now() - startTime
         }));
         return createGracefulErrorResponse(error, url, true, corrId);
@@ -1073,7 +1078,120 @@ async function proxyToAppsScript(request, appsScriptBase, env) {
 }
 
 /**
- * Handle RPC request from frontend
+ * Handle API request from frontend (unified handler)
+ *
+ * Supports two patterns:
+ * 1. Legacy RPC: POST /api/rpc with { method: 'api_list', payload: {...} }
+ * 2. Path-based: POST /api/<path> with {...payload}
+ *
+ * @param {Request} request - The incoming request
+ * @param {string} appsScriptBase - GAS exec URL
+ * @param {object} env - Worker environment
+ * @param {URL} url - Parsed request URL
+ * @returns {Response} JSON response from GAS
+ */
+async function handleApiRequest(request, appsScriptBase, env, url) {
+  const pathname = url.pathname;
+  const origin = url.origin;
+
+  // Check if this is the legacy /api/rpc endpoint
+  if (pathname === '/api/rpc') {
+    return handleRpcRequest(request, appsScriptBase, env, origin);
+  }
+
+  // Path-based routing: /api/<path> -> action=<path>
+  // Examples:
+  //   /api/events/list -> action=list
+  //   /api/getPublicBundle -> action=getPublicBundle
+  //   /api/status -> action=status
+
+  // Parse the path after /api/
+  const apiPath = pathname.slice('/api/'.length);
+
+  if (!apiPath) {
+    return new Response(JSON.stringify({
+      ok: false,
+      code: 'BAD_INPUT',
+      message: 'Missing API path'
+    }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  // Parse request body as payload
+  let payload = {};
+  try {
+    const bodyText = await request.text();
+    if (bodyText) {
+      payload = JSON.parse(bodyText);
+    }
+  } catch (e) {
+    return new Response(JSON.stringify({
+      ok: false,
+      code: 'BAD_INPUT',
+      message: 'Invalid JSON in request body'
+    }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  // Convert path to action
+  // 'events/list' -> 'list' (last segment)
+  // 'getPublicBundle' -> 'getPublicBundle' (single segment)
+  const pathSegments = apiPath.split('/').filter(Boolean);
+  const action = pathSegments[pathSegments.length - 1] || apiPath;
+
+  // Build the GAS request body
+  const gasBody = {
+    action,
+    ...payload
+  };
+
+  // Add request ID header if present
+  const requestId = request.headers.get('X-Request-Id');
+
+  console.log(`[EventAngle] API: ${pathname} -> action=${action}${requestId ? ` (${requestId})` : ''}`);
+
+  // Create AbortController for timeout
+  const controller = new AbortController();
+  const timeoutMs = env.UPSTREAM_TIMEOUT_MS ? parseInt(env.UPSTREAM_TIMEOUT_MS) : UPSTREAM_TIMEOUT_MS;
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    // Forward to GAS doPost
+    const response = await fetch(appsScriptBase, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Origin': origin || 'https://eventangle.com',
+        'User-Agent': request.headers.get('user-agent') || 'EventAngle-Worker',
+        ...(requestId ? { 'X-Request-Id': requestId } : {})
+      },
+      body: JSON.stringify(gasBody),
+      redirect: 'follow',
+      signal: controller.signal
+    });
+
+    console.log(`[EventAngle] API response: ${response.status}`);
+
+    const responseText = await response.text();
+
+    return new Response(responseText, {
+      status: response.status,
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+/**
+ * Handle RPC request from frontend (legacy endpoint)
  *
  * This replaces google.script.run for API calls, enabling friendly URLs.
  * The frontend sends: { method: 'api_list', payload: { brandId: 'root', ... } }

@@ -4,6 +4,14 @@
  * Tests for the client SDK RPC layer that handles frontend→backend calls
  * in Google Apps Script environment.
  *
+ * NUSDK v2.0 Features:
+ * - Path-based routing: NU.rpc('events/list', payload) → /api/events/list
+ * - Legacy method support: NU.rpc('api_getPublicBundle', payload) → /api/rpc
+ * - Rolling log buffer: window.__NU_LOGS__
+ * - Diagnostic helper: window.NU_DIAG
+ * - Flush support: NU.flush()
+ * - Environment-aware logging: debug (staging) / error (production)
+ *
  * RESPONSE ENVELOPE CONTRACT:
  * SUCCESS: { ok: true, value: {...}, etag?: string, notModified?: boolean }
  * ERROR:   { ok: false, code: string, message: string }
@@ -13,6 +21,9 @@
  * - Error RPC: {ok:false, code, message} returns error structure
  * - Network error: surfaces see safe error, not crash
  * - google.script.run unavailable: graceful degradation
+ * - Path-based routing support
+ * - Rolling log buffer
+ * - Flush functionality
  */
 
 describe('NUSDK', () => {
@@ -754,6 +765,23 @@ describe('Raw Fetch Ban Enforcement', () => {
 
     const content = fs.readFileSync(nusdkPath, 'utf8');
     expect(content).toContain('window.NU');
-    expect(content).toContain('rpc(method, payload)');
+    // v2.0 uses rpc(path, payload) instead of rpc(method, payload)
+    expect(content).toMatch(/rpc\s*\(\s*path\s*,/);
+  });
+
+  test('NUSDK.html should define v2.0 features', () => {
+    const nusdkPath = path.join(srcDir, 'NUSDK.html');
+
+    if (!fs.existsSync(nusdkPath)) {
+      return; // Skip if file doesn't exist
+    }
+
+    const content = fs.readFileSync(nusdkPath, 'utf8');
+
+    // v2.0 features
+    expect(content).toContain('window.__NU_LOGS__');
+    expect(content).toContain('window.NU_DIAG');
+    expect(content).toMatch(/VERSION:\s*['"]2\./);  // Version 2.x
+    expect(content).toContain('flush()');
   });
 });
