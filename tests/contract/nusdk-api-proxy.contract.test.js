@@ -298,20 +298,6 @@ describe('Story 4: NU SDK + /api/* Proxy (Stage-1 Hermetic)', () => {
     });
 
     test('Expected response envelope for events/list', () => {
-      // Define expected response shape
-      const expectedSuccessShape = {
-        ok: true,
-        value: {
-          items: expect.any(Array),
-          pagination: {
-            total: expect.any(Number),
-            limit: expect.any(Number),
-            offset: expect.any(Number),
-            hasMore: expect.any(Boolean)
-          }
-        }
-      };
-
       // Mock response for validation
       const mockResponse = {
         ok: true,
@@ -322,7 +308,19 @@ describe('Story 4: NU SDK + /api/* Proxy (Stage-1 Hermetic)', () => {
         }
       };
 
-      expect(mockResponse.ok).toBe(true);
+      // Validate response matches expected shape
+      expect(mockResponse).toMatchObject({
+        ok: true,
+        value: {
+          items: expect.any(Array),
+          pagination: expect.objectContaining({
+            total: expect.any(Number),
+            limit: expect.any(Number),
+            hasMore: expect.any(Boolean)
+          })
+        }
+      });
+
       expect(mockResponse.value).toHaveProperty('items');
       expect(mockResponse.value).toHaveProperty('pagination');
       expect(Array.isArray(mockResponse.value.items)).toBe(true);

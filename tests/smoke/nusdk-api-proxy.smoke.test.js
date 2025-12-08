@@ -24,7 +24,7 @@
  */
 
 const { test, expect } = require('@playwright/test');
-const { getBaseUrl, STAGING_URL } = require('../config/environments');
+const { STAGING_URL } = require('../config/environments');
 
 // Use staging by default for these tests
 const BASE_URL = process.env.BASE_URL || STAGING_URL;
@@ -202,8 +202,15 @@ test.describe('Story 4: NU SDK + /api/* Proxy Smoke Tests', () => {
           apiCalls.push(url);
         }
 
-        if (url.includes('script.google.com')) {
-          gasCalls.push(url);
+        // Check for direct GAS calls using proper URL parsing
+        // to avoid false positives from substring matching
+        try {
+          const parsedUrl = new URL(url);
+          if (parsedUrl.hostname === 'script.google.com') {
+            gasCalls.push(url);
+          }
+        } catch {
+          // Invalid URL, ignore
         }
       });
 
