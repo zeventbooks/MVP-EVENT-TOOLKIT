@@ -54,6 +54,29 @@ const INCLUDE_FILES = [
 ];
 
 /**
+ * Strip all HTML comments from content using iterative approach.
+ * Uses a loop to ensure complete removal even with edge cases.
+ * This addresses CodeQL's "Incomplete multi-character sanitization" warning.
+ *
+ * @param {string} content - The content to strip comments from
+ * @returns {string} Content with all HTML comments removed
+ */
+function stripHtmlComments(content) {
+  // Use literal regex pattern (not constructed from user input)
+  const commentPattern = /<!--[\s\S]*?-->/g;
+  let result = content;
+  let previous;
+
+  // Iterate until no more comments are found (handles edge cases)
+  do {
+    previous = result;
+    result = result.replace(commentPattern, '');
+  } while (result !== previous);
+
+  return result;
+}
+
+/**
  * Read a template file
  */
 function readTemplate(filename) {
@@ -259,12 +282,10 @@ function checkBundles() {
     const existing = fs.readFileSync(outputPath, 'utf8');
 
     // Compare content (ignoring metadata comments which include timestamps)
-    // Security note: This regex strips HTML comments for string comparison only,
+    // Security note: stripHtmlComments is used for string comparison only,
     // not for HTML output. The stripped content is only used for equality checking.
-    // eslint-disable-next-line security/detect-non-literal-regexp -- intentional comment stripping for comparison
-    const bundledClean = bundled.replace(/<!--[\s\S]*?-->/g, '').trim();
-    // eslint-disable-next-line security/detect-non-literal-regexp -- intentional comment stripping for comparison
-    const existingClean = existing.replace(/<!--[\s\S]*?-->/g, '').trim();
+    const bundledClean = stripHtmlComments(bundled).trim();
+    const existingClean = stripHtmlComments(existing).trim();
 
     if (bundledClean !== existingClean) {
       results.push({ name: template.name, status: 'outdated', message: 'Content differs from source' });
