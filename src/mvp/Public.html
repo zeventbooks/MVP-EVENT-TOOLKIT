@@ -1034,7 +1034,7 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
 
     // Render standings table from sheet data
     function renderStandingsTable(data) {
-      if (!data || !data.rows.length) return '<p class="muted">No standings data available.</p>';
+      if (!data || !data.rows || !data.rows.length) return '<p class="muted">No standings data available.</p>';
 
       let html = '<table class="data-table standings-table">';
       html += '<thead><tr>';
@@ -1061,7 +1061,7 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
 
     // Render schedule/agenda from sheet data
     function renderScheduleTable(data) {
-      if (!data || !data.rows.length) return '<p class="muted">No schedule data available.</p>';
+      if (!data || !data.rows || !data.rows.length) return '<p class="muted">No schedule data available.</p>';
 
       let html = '<div class="schedule-list">';
       data.rows.forEach(row => {
@@ -1078,7 +1078,7 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
 
     // Render vendor list from sheet data
     function renderVendorList(data) {
-      if (!data || !data.rows.length) return '<p class="muted">No vendor data available.</p>';
+      if (!data || !data.rows || !data.rows.length) return '<p class="muted">No vendor data available.</p>';
 
       let html = '<div class="vendor-grid">';
       data.rows.forEach(row => {
@@ -1096,7 +1096,7 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
     // Render bracket/tournament from sheet data
     // Supports formats: Round, Match, Team1, Score1, Team2, Score2 -OR- Team1, Team2, Winner, Score
     function renderBracketTable(data) {
-      if (!data || !data.rows.length) return '<p class="muted">No bracket data available.</p>';
+      if (!data || !data.rows || !data.rows.length) return '<p class="muted">No bracket data available.</p>';
 
       // Detect format based on headers
       const headers = data.headers.map(h => h.toLowerCase());
