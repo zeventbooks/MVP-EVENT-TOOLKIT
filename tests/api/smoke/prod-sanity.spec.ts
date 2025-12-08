@@ -21,7 +21,7 @@
  * @see docs/ROLLBACK.md - Recovery procedures if tests fail
  */
 
-import { test, expect, Page, BrowserContext } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -38,15 +38,6 @@ const STORY7_ROUTES = {
   display: '/display',
   poster: '/poster',
   public: '/public',
-} as const;
-
-// Expected UI elements for each route
-const EXPECTED_UI_ELEMENTS = {
-  events: ['EventAngle', '.container', '#app'],
-  admin: ['Create Event', '.container', '#app', 'Admin'],
-  display: ['#stage', '.display-container', '#app'],
-  poster: ['.poster-container', '#poster', '.poster', '#app'],
-  public: ['.container', '#app'],
 } as const;
 
 // =============================================================================
@@ -82,6 +73,24 @@ function isApiJsonRequest(url: string): boolean {
   return urlObj.pathname.startsWith('/api/') ||
          urlObj.searchParams.get('action')?.startsWith('api_') ||
          urlObj.pathname.includes('/api/rpc');
+}
+
+/**
+ * Check if a URL is from Google Apps Script domain
+ * Uses secure URL parsing to prevent subdomain spoofing
+ * @param urlStr - URL string to check
+ * @returns true if URL is from script.google.com domain
+ */
+function isGoogleAppsScriptUrl(urlStr: string): boolean {
+  try {
+    const url = new URL(urlStr);
+    const hostname = url.hostname.toLowerCase();
+    // Exact match for script.google.com only
+    return hostname === 'script.google.com';
+  } catch {
+    // If URL parsing fails, cannot be a valid GAS URL
+    return false;
+  }
 }
 
 // =============================================================================
@@ -210,7 +219,7 @@ test.describe('Story 7 - Production Sanity Verification', () => {
         if (request.resourceType() === 'xhr' || request.resourceType() === 'fetch') {
           if (isApiJsonRequest(url)) {
             apiCalls.push(url);
-          } else if (url.includes('script.google.com')) {
+          } else if (isGoogleAppsScriptUrl(url)) {
             // Direct GAS calls are NOT expected for data
             nonApiDataCalls.push(url);
           }
