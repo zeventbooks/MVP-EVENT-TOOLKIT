@@ -95,33 +95,73 @@ window.NU = {
   },
 
   /**
-   * Make an RPC call to the Google Apps Script backend
+   * Make an RPC call to the backend
+   *
+   * Uses fetch('/api/rpc') when available (Cloudflare Worker proxy),
+   * falls back to google.script.run for direct GAS serving.
+   *
    * @param {string} method - API method name (e.g., 'api_getPublicBundle')
    * @param {object} payload - Request parameters
    * @returns {Promise<{ok: boolean, value?: any, code?: string, message?: string}>}
    */
-  rpc(method, payload) {
-    return new Promise((resolve) => {
-      // Check if google.script.run is available (required for GAS HTML pages)
-      if (!window.google || !window.google.script || !window.google.script.run) {
-        console.error('[NUSDK] google.script.run is not available');
-        resolve({ ok: false, code: 'INTERNAL', message: 'google.script.run not available - page must be served from Apps Script' });
-        return;
+  async rpc(method, payload) {
+    // Try fetch first (works with Cloudflare Worker proxy)
+    // This enables friendly URLs like eventangle.com/events
+    try {
+      const response = await fetch('/api/rpc', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ method, payload }),
+        credentials: 'same-origin'
+      });
+
+      if (!response.ok) {
+        // HTTP error - try to parse JSON error response
+        try {
+          const errorData = await response.json();
+          console.error('[NUSDK] HTTP error for', method, ':', response.status, errorData);
+          return errorData;
+        } catch {
+          console.error('[NUSDK] HTTP error for', method, ':', response.status);
+          return { ok: false, code: 'INTERNAL', message: `HTTP ${response.status}` };
+        }
       }
 
-      try {
-        google.script.run
-          .withSuccessHandler(res => resolve(res))
-          .withFailureHandler(err => {
-            console.error('[NUSDK] Server error for', method, ':', err);
-            resolve({ ok: false, code: 'INTERNAL', message: String(err) });
-          })
-          [method](payload);
-      } catch (e) {
-        console.error('[NUSDK] Exception calling', method, ':', e);
-        resolve({ ok: false, code: 'INTERNAL', message: String(e) });
-      }
-    });
+      const data = await response.json();
+      return data;
+
+    } catch (fetchError) {
+      // Fetch failed - fall back to google.script.run if available
+      // This happens when:
+      // 1. Page is served directly from GAS (no worker proxy)
+      // 2. Network error
+      console.debug('[NUSDK] fetch failed, trying google.script.run:', fetchError.message);
+
+      return new Promise((resolve) => {
+        // Check if google.script.run is available
+        if (!window.google || !window.google.script || !window.google.script.run) {
+          console.error('[NUSDK] Neither fetch nor google.script.run available');
+          resolve({ ok: false, code: 'NETWORK_ERROR', message: 'Cannot connect to backend. Check your connection.' });
+          return;
+        }
+
+        try {
+          google.script.run
+            .withSuccessHandler(res => resolve(res))
+            .withFailureHandler(err => {
+              console.error('[NUSDK] Server error for', method, ':', err);
+              resolve({ ok: false, code: 'INTERNAL', message: String(err) });
+            })
+            [method](payload);
+        } catch (e) {
+          console.error('[NUSDK] Exception calling', method, ':', e);
+          resolve({ ok: false, code: 'INTERNAL', message: String(e) });
+        }
+      });
+    }
   },
 
   /**
@@ -246,26 +286,39 @@ window.NU = {
     // Fire and forget - don't await, don't block
     (async () => {
       try {
-        // Check if google.script.run is available
-        if (!window.google || !window.google.script || !window.google.script.run) {
-          // Silently fail - analytics shouldn't break the page
-          console.debug('[NUSDK] Analytics skipped: google.script.run not available');
-          return;
+        // Try fetch first (works with Cloudflare Worker proxy)
+        const response = await fetch('/api/rpc', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({ method, payload }),
+          credentials: 'same-origin'
+        });
+
+        if (!response.ok) {
+          console.debug(`[NUSDK] Analytics ${method} HTTP ${response.status}`);
         }
 
-        google.script.run
-          .withSuccessHandler(() => {
-            // Success - no action needed
-          })
-          .withFailureHandler((err) => {
-            // Log quietly but don't propagate error
-            console.debug(`[NUSDK] Analytics ${method} failed silently:`, err?.message || err);
-          })
-          [method](payload);
+      } catch (fetchError) {
+        // Fetch failed - try google.script.run as fallback
+        try {
+          if (!window.google || !window.google.script || !window.google.script.run) {
+            console.debug('[NUSDK] Analytics skipped: no backend available');
+            return;
+          }
 
-      } catch (e) {
-        // Catch any synchronous errors and log quietly
-        console.debug(`[NUSDK] Analytics ${method} exception (suppressed):`, e?.message || e);
+          google.script.run
+            .withSuccessHandler(() => {})
+            .withFailureHandler((err) => {
+              console.debug(`[NUSDK] Analytics ${method} failed silently:`, err?.message || err);
+            })
+            [method](payload);
+
+        } catch (e) {
+          console.debug(`[NUSDK] Analytics ${method} exception (suppressed):`, e?.message || e);
+        }
       }
     })();
   },

@@ -173,6 +173,9 @@ routes = [
   { pattern = "www.eventangle.com/docs*", zone_name = "eventangle.com" },
   { pattern = "eventangle.com/api*", zone_name = "eventangle.com" },
   { pattern = "www.eventangle.com/api*", zone_name = "eventangle.com" },
+  # RPC endpoint for frontend API calls (replaces google.script.run)
+  { pattern = "eventangle.com/api/rpc", zone_name = "eventangle.com" },
+  { pattern = "www.eventangle.com/api/rpc", zone_name = "eventangle.com" },
   # Brand-prefixed paths (abc, cbc, cbl)
   { pattern = "eventangle.com/abc/*", zone_name = "eventangle.com" },
   { pattern = "www.eventangle.com/abc/*", zone_name = "eventangle.com" },
