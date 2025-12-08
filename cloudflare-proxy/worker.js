@@ -43,7 +43,7 @@
  */
 
 // Worker version - used for transparency headers and debugging
-const WORKER_VERSION = '1.3.0';
+const WORKER_VERSION = '1.4.0';
 
 // Timeout for upstream requests (ms)
 const UPSTREAM_TIMEOUT_MS = 30000;
@@ -790,6 +790,32 @@ export default {
     }
 
     // ==========================================================================
+    // /api/rpc - Frontend RPC endpoint (replaces google.script.run)
+    // ==========================================================================
+    // This endpoint allows the frontend to make API calls via fetch() instead of
+    // google.script.run, enabling friendly URLs (eventangle.com/events) to work.
+    //
+    // Request: POST /api/rpc with body { method: 'api_list', payload: {...} }
+    // Response: JSON from GAS backend
+    //
+    if (url.pathname === '/api/rpc' && request.method === 'POST') {
+      try {
+        const response = await handleRpcRequest(request, appsScriptBase, env, url.origin);
+        return addTransparencyHeaders(addCORSHeaders(response), startTime);
+      } catch (error) {
+        const corrId = generateCorrId();
+        ctx.waitUntil(logError(env, {
+          corrId,
+          type: 'rpc_error',
+          error: error.message,
+          url: '/api/rpc',
+          duration: Date.now() - startTime
+        }));
+        return createGracefulErrorResponse(error, url, true, corrId);
+      }
+    }
+
+    // ==========================================================================
     // ROUTE VALIDATION - Reject unknown routes with 404
     // ==========================================================================
     const validation = validateRoute(url);
@@ -1033,6 +1059,85 @@ async function proxyToAppsScript(request, appsScriptBase, env) {
     console.log(`[EventAngle] Response: ${response.status} ${response.statusText}`);
 
     return response;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+/**
+ * Handle RPC request from frontend
+ *
+ * This replaces google.script.run for API calls, enabling friendly URLs.
+ * The frontend sends: { method: 'api_list', payload: { brandId: 'root', ... } }
+ * We forward to GAS doPost as: { action: 'list', brandId: 'root', ... }
+ *
+ * @param {Request} request - The incoming request
+ * @param {string} appsScriptBase - GAS exec URL
+ * @param {object} env - Worker environment
+ * @param {string} origin - Request origin for CORS
+ * @returns {Response} JSON response from GAS
+ */
+async function handleRpcRequest(request, appsScriptBase, env, origin) {
+  // Parse the RPC request body
+  const rpcBody = await request.json();
+  const { method, payload = {} } = rpcBody;
+
+  if (!method) {
+    return new Response(JSON.stringify({
+      ok: false,
+      code: 'BAD_INPUT',
+      message: 'Missing method in RPC request'
+    }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  // Convert method name to action (strip api_ prefix for REST compatibility)
+  // api_list -> list, api_getPublicBundle -> getPublicBundle
+  const action = method.startsWith('api_') ? method.slice(4) : method;
+
+  // Build the GAS request body
+  const gasBody = {
+    action,
+    ...payload
+  };
+
+  console.log(`[EventAngle] RPC: ${method} -> action=${action}`);
+
+  // Create AbortController for timeout
+  const controller = new AbortController();
+  const timeoutMs = env.UPSTREAM_TIMEOUT_MS ? parseInt(env.UPSTREAM_TIMEOUT_MS) : UPSTREAM_TIMEOUT_MS;
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    // Forward to GAS doPost
+    const response = await fetch(appsScriptBase, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        // Pass through origin for CORS validation in GAS
+        'Origin': origin || 'https://eventangle.com',
+        // Forward user-agent for analytics
+        'User-Agent': request.headers.get('user-agent') || 'EventAngle-Worker'
+      },
+      body: JSON.stringify(gasBody),
+      redirect: 'follow',
+      signal: controller.signal
+    });
+
+    console.log(`[EventAngle] RPC response: ${response.status}`);
+
+    // Return the response (GAS returns JSON)
+    const responseText = await response.text();
+
+    return new Response(responseText, {
+      status: response.status,
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
   } finally {
     clearTimeout(timeoutId);
   }
