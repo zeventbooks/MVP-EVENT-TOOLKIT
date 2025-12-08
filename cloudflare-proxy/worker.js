@@ -43,7 +43,7 @@
  */
 
 // Worker version - used for transparency headers and debugging
-const WORKER_VERSION = '1.4.0';
+const WORKER_VERSION = '1.4.1';
 
 // Timeout for upstream requests (ms)
 const UPSTREAM_TIMEOUT_MS = 30000;
@@ -79,7 +79,8 @@ const CANONICAL_P_ROUTES = Object.freeze({
   'events': 'public',    // ?p=events -> public page
   'status': 'status',    // ?p=status -> status JSON
   'r': 'redirect',       // ?p=r -> shortlink redirect (handled by GAS)
-  'redirect': 'redirect' // ?p=redirect -> shortlink redirect
+  'redirect': 'redirect', // ?p=redirect -> shortlink redirect
+  'api': 'api'           // ?p=api -> API request (legacy format)
 });
 
 /**
@@ -105,7 +106,14 @@ const CANONICAL_API_ACTIONS = Object.freeze([
   'api_posterData',
   // Report API
   'api_reportData',
-  'api_analytics'
+  'api_analytics',
+  // Legacy action names (used by smoke tests and older clients)
+  // These map to api_* functions in the GAS backend
+  'list',              // -> api_list (events, sponsors)
+  'getPublicBundle',   // -> api_getPublicBundle
+  'getSponsorReportQr', // -> api_getSponsorReportQr
+  'getSharedAnalytics', // -> api_getSharedAnalytics
+  'getSharedReportBundle' // -> api_getSharedReportBundle
 ]);
 
 /**
