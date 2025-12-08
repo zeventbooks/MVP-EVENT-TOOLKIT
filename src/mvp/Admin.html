@@ -1536,6 +1536,164 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
         justify-content: center;
       }
     }
+
+    /* ===== Diagnostics Panel Styles ===== */
+    .diag-panel {
+      margin-top: 16px;
+      padding: 16px;
+      background: var(--color-gray-50, #f8fafc);
+      border: 1px solid var(--color-gray-200, #e2e8f0);
+      border-radius: var(--radius-base, 8px);
+    }
+
+    .diag-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+      align-items: center;
+    }
+
+    .diag-controls button {
+      padding: 6px 12px;
+      font-size: 0.75rem;
+      border-radius: var(--radius-sm, 4px);
+      border: 1px solid var(--color-gray-300, #cbd5e1);
+      background: white;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .diag-controls button:hover {
+      background: var(--color-gray-100, #f1f5f9);
+    }
+
+    .diag-controls button.active {
+      background: var(--color-primary, #2563eb);
+      color: white;
+      border-color: var(--color-primary, #2563eb);
+    }
+
+    .diag-filter-group {
+      display: flex;
+      gap: 4px;
+    }
+
+    .diag-stats {
+      margin-left: auto;
+      font-size: 0.7rem;
+      color: var(--color-gray-500, #64748b);
+    }
+
+    .diag-log-container {
+      max-height: 400px;
+      overflow-y: auto;
+      background: var(--color-gray-900, #0f172a);
+      border-radius: var(--radius-sm, 4px);
+      padding: 8px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.7rem;
+      line-height: 1.5;
+    }
+
+    .diag-log-entry {
+      padding: 4px 8px;
+      margin-bottom: 2px;
+      border-radius: 2px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .diag-log-entry:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .diag-log-entry.level-debug {
+      color: var(--color-gray-400, #94a3b8);
+    }
+
+    .diag-log-entry.level-error {
+      color: #f87171;
+      background: rgba(248, 113, 113, 0.1);
+    }
+
+    .diag-log-time {
+      color: var(--color-gray-500, #64748b);
+      flex-shrink: 0;
+    }
+
+    .diag-log-type {
+      font-weight: 600;
+      min-width: 80px;
+    }
+
+    .diag-log-type.type-init { color: #a78bfa; }
+    .diag-log-type.type-start { color: #38bdf8; }
+    .diag-log-type.type-ok { color: #4ade80; }
+    .diag-log-type.type-network_fail,
+    .diag-log-type.type-http_fail,
+    .diag-log-type.type-json_fail,
+    .diag-log-type.type-error { color: #f87171; }
+    .diag-log-type.type-flush { color: #facc15; }
+
+    .diag-log-path {
+      color: #60a5fa;
+    }
+
+    .diag-log-details {
+      color: var(--color-gray-400, #94a3b8);
+      word-break: break-all;
+    }
+
+    .diag-log-duration {
+      color: #facc15;
+    }
+
+    .diag-empty {
+      color: var(--color-gray-500, #64748b);
+      text-align: center;
+      padding: 24px;
+    }
+
+    .diag-debug-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: var(--color-gray-100, #f1f5f9);
+      border-radius: var(--radius-sm, 4px);
+      cursor: pointer;
+      font-size: 0.75rem;
+      color: var(--color-gray-600, #475569);
+      border: 1px dashed var(--color-gray-300, #cbd5e1);
+      margin-bottom: 12px;
+    }
+
+    .diag-debug-toggle:hover {
+      background: var(--color-gray-200, #e2e8f0);
+    }
+
+    .diag-debug-toggle input {
+      cursor: pointer;
+    }
+
+    @media (max-width: 640px) {
+      .diag-controls {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .diag-stats {
+        margin-left: 0;
+        text-align: center;
+      }
+
+      .diag-log-container {
+        max-height: 300px;
+        font-size: 0.65rem;
+      }
+    }
   </style>
 </head>
 <body>
@@ -2595,7 +2753,7 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
             <span style="font-size: 1.5rem;">🔧</span>
             <div>
               <h3 style="margin: 0; color: var(--color-gray-600, #475569); font-size: 1rem;">Advanced Tools</h3>
-              <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: var(--color-gray-400, #94a3b8);">Event ID and technical details</p>
+              <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: var(--color-gray-400, #94a3b8);">Event ID, diagnostics, and transport logs</p>
             </div>
           </div>
           <span class="collapsible-icon" style="color: var(--color-gray-400, #94a3b8); font-size: 0.8rem;">▼</span>
@@ -2609,6 +2767,45 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
             <p style="margin: 0; font-size: 0.75rem; color: var(--color-gray-400, #94a3b8);">
               Use this ID if you need technical support or want to reference this event in other systems.
             </p>
+          </div>
+
+          <!-- NU Transport Logs Panel -->
+          <div id="diagPanelWrapper" class="diag-panel" data-testid="diagnostics-panel" style="display: none;">
+            <h4 style="margin: 0 0 12px 0; font-size: 0.9rem; color: var(--color-gray-700, #334155); display: flex; align-items: center; gap: 8px;">
+              <span>NU Transport Logs</span>
+              <span style="font-size: 0.7rem; color: var(--color-gray-400, #94a3b8);">v<span id="diagSdkVersion"></span></span>
+            </h4>
+
+            <!-- Debug Toggle (shown in production, hidden in staging) -->
+            <label id="diagDebugToggle" class="diag-debug-toggle" style="display: none;">
+              <input type="checkbox" id="diagDebugModeCheckbox" onchange="toggleDiagDebugMode(this.checked)">
+              <span>Enable Debug Mode</span>
+              <span style="font-size: 0.65rem; color: var(--color-gray-400, #94a3b8);">(shows detailed logs)</span>
+            </label>
+
+            <!-- Controls -->
+            <div class="diag-controls">
+              <button id="diagRefreshBtn" onclick="refreshDiagLogs()" data-testid="diag-refresh-btn">Refresh</button>
+              <button id="diagClearBtn" onclick="clearDiagLogs()">Clear</button>
+
+              <div class="diag-filter-group">
+                <button id="diagFilterAll" class="active" onclick="setDiagFilter('all')" data-testid="diag-filter-all">All</button>
+                <button id="diagFilterDebug" onclick="setDiagFilter('debug')" data-testid="diag-filter-debug">Debug</button>
+                <button id="diagFilterError" onclick="setDiagFilter('error')" data-testid="diag-filter-error">Errors</button>
+              </div>
+
+              <label style="display: flex; align-items: center; gap: 4px; font-size: 0.7rem; color: var(--color-gray-500);">
+                <input type="checkbox" id="diagAutoRefresh" onchange="toggleDiagAutoRefresh(this.checked)">
+                Auto-refresh
+              </label>
+
+              <div class="diag-stats" id="diagStats" data-testid="diag-stats"></div>
+            </div>
+
+            <!-- Log Container -->
+            <div id="diagLogContainer" class="diag-log-container" data-testid="diag-log-container">
+              <div class="diag-empty">No logs yet. Make an action to see transport logs.</div>
+            </div>
           </div>
         </div>
       </section>
@@ -2765,6 +2962,274 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
     let availableTemplates = [];
     let defaultTemplateId = 'custom';
     let loadedEvents = [];  // Cache of loaded events for dropdown
+
+    // ==========================================================================
+    // DIAGNOSTICS PANEL - NU Transport Logs
+    // Story 6: Surface NU logs for debugging transport/routing issues
+    // ==========================================================================
+
+    // Diagnostics state
+    const DIAG_STATE = {
+      filter: 'all',          // 'all' | 'debug' | 'error'
+      autoRefresh: false,
+      autoRefreshInterval: null,
+      debugModeEnabled: false,
+      isProduction: false,
+      isStaging: false
+    };
+
+    /**
+     * Initialize the diagnostics panel.
+     * Auto-detects environment and shows/hides debug toggle accordingly.
+     */
+    function initDiagnosticsPanel() {
+      if (!window.NU || !window.NU_DIAG) {
+        console.warn('[Diag] NU SDK not available');
+        return;
+      }
+
+      // Get environment from NU SDK config
+      const config = NU.getConfig();
+      const hostname = window.location?.hostname || '';
+
+      // Environment detection (matching NUSDK.html logic)
+      const isDomain = (host, domain) =>
+        host === domain || host.endsWith('.' + domain);
+
+      DIAG_STATE.isStaging = isDomain(hostname, 'stg.eventangle.com') ||
+                              hostname === 'localhost' ||
+                              hostname === '127.0.0.1';
+      DIAG_STATE.isProduction = isDomain(hostname, 'eventangle.com') && !DIAG_STATE.isStaging;
+
+      // Set SDK version display
+      const versionEl = document.getElementById('diagSdkVersion');
+      if (versionEl) {
+        versionEl.textContent = NU.VERSION || '?';
+      }
+
+      // Show panel in staging by default, hide in production unless debug enabled
+      const panelWrapper = document.getElementById('diagPanelWrapper');
+      const debugToggle = document.getElementById('diagDebugToggle');
+
+      if (DIAG_STATE.isProduction) {
+        // Production: Show debug toggle, hide panel until debug is enabled
+        if (debugToggle) debugToggle.style.display = 'flex';
+        if (panelWrapper) panelWrapper.style.display = 'none';
+      } else {
+        // Staging/localhost: Show panel directly, hide toggle
+        if (debugToggle) debugToggle.style.display = 'none';
+        if (panelWrapper) panelWrapper.style.display = 'block';
+        // Auto-refresh on load for staging
+        refreshDiagLogs();
+      }
+
+      console.log('[Diag] Panel initialized', {
+        isProduction: DIAG_STATE.isProduction,
+        isStaging: DIAG_STATE.isStaging,
+        logLevel: config.logLevel
+      });
+    }
+
+    /**
+     * Toggle debug mode in production.
+     * When enabled, sets log level to 'debug' and shows the panel.
+     */
+    function toggleDiagDebugMode(enabled) {
+      DIAG_STATE.debugModeEnabled = enabled;
+
+      const panelWrapper = document.getElementById('diagPanelWrapper');
+
+      if (enabled) {
+        // Enable debug logging
+        NU.setLogLevel('debug');
+        if (panelWrapper) panelWrapper.style.display = 'block';
+        refreshDiagLogs();
+        console.log('[Diag] Debug mode enabled');
+      } else {
+        // Restore error-only logging
+        NU.setLogLevel('error');
+        if (panelWrapper) panelWrapper.style.display = 'none';
+        stopDiagAutoRefresh();
+        console.log('[Diag] Debug mode disabled');
+      }
+    }
+
+    /**
+     * Refresh the diagnostics log display.
+     */
+    function refreshDiagLogs() {
+      if (!window.NU_DIAG) {
+        console.warn('[Diag] NU_DIAG not available');
+        return;
+      }
+
+      const container = document.getElementById('diagLogContainer');
+      const statsEl = document.getElementById('diagStats');
+      if (!container) return;
+
+      // Get logs based on filter
+      const options = { limit: 100 };
+      if (DIAG_STATE.filter !== 'all') {
+        options.level = DIAG_STATE.filter;
+      }
+
+      const logs = NU_DIAG.getLogs(options);
+      const stats = NU_DIAG.getStats();
+
+      // Update stats display
+      if (statsEl) {
+        const errorCount = stats.byLevel?.error || 0;
+        const okCount = stats.byType?.ok || 0;
+        statsEl.innerHTML = `
+          <span>Total: ${stats.totalLogs}</span>
+          <span style="color: #4ade80;">OK: ${okCount}</span>
+          ${errorCount > 0 ? `<span style="color: #f87171;">Errors: ${errorCount}</span>` : ''}
+          ${stats.avgDurationMs > 0 ? `<span>Avg: ${stats.avgDurationMs}ms</span>` : ''}
+        `;
+      }
+
+      // Render logs
+      if (logs.length === 0) {
+        container.innerHTML = '<div class="diag-empty">No logs yet. Make an action to see transport logs.</div>';
+        return;
+      }
+
+      // Render logs in reverse chronological order (newest first)
+      const logsReversed = [...logs].reverse();
+      container.innerHTML = logsReversed.map(log => renderDiagLogEntry(log)).join('');
+    }
+
+    /**
+     * Render a single log entry as HTML.
+     */
+    function renderDiagLogEntry(log) {
+      const time = formatDiagTime(log.timestamp);
+      const levelClass = `level-${log.level || 'debug'}`;
+      const typeClass = `type-${log.type || 'unknown'}`;
+
+      // Build details string
+      const details = [];
+      if (log.path) details.push(`<span class="diag-log-path">${escapeHtml(log.path)}</span>`);
+      if (log.durationMs) details.push(`<span class="diag-log-duration">${log.durationMs}ms</span>`);
+      if (log.code) details.push(`code:${escapeHtml(log.code)}`);
+      if (log.error) details.push(`err:${escapeHtml(truncate(log.error, 50))}`);
+      if (log.message && log.type !== 'init') details.push(escapeHtml(truncate(log.message, 60)));
+      if (log.transport) details.push(`via:${log.transport}`);
+      if (log.hasValue !== undefined) details.push(log.hasValue ? 'has-value' : 'no-value');
+      if (log.payloadKeys?.length) details.push(`keys:[${log.payloadKeys.join(',')}]`);
+
+      // For init logs, show environment info
+      if (log.type === 'init') {
+        details.push(`env:${log.isProduction ? 'prod' : log.isStaging ? 'staging' : 'dev'}`);
+        details.push(`level:${log.logLevel || '?'}`);
+      }
+
+      return `
+        <div class="diag-log-entry ${levelClass}" data-testid="diag-log-entry">
+          <span class="diag-log-time">${time}</span>
+          <span class="diag-log-type ${typeClass}">${log.type || '?'}</span>
+          <span class="diag-log-details">${details.join(' ')}</span>
+        </div>
+      `;
+    }
+
+    /**
+     * Format timestamp for display.
+     */
+    function formatDiagTime(isoString) {
+      if (!isoString) return '--:--:--';
+      try {
+        const date = new Date(isoString);
+        return date.toLocaleTimeString('en-US', {
+          hour12: false,
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit'
+        });
+      } catch {
+        return '--:--:--';
+      }
+    }
+
+    /**
+     * Truncate string for display.
+     */
+    function truncate(str, maxLen) {
+      if (!str || str.length <= maxLen) return str || '';
+      return str.slice(0, maxLen) + '...';
+    }
+
+    /**
+     * Escape HTML special characters.
+     */
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    /**
+     * Set log filter.
+     */
+    function setDiagFilter(filter) {
+      DIAG_STATE.filter = filter;
+
+      // Update button states
+      ['All', 'Debug', 'Error'].forEach(f => {
+        const btn = document.getElementById(`diagFilter${f}`);
+        if (btn) {
+          btn.classList.toggle('active', f.toLowerCase() === filter || (f === 'All' && filter === 'all'));
+        }
+      });
+
+      refreshDiagLogs();
+    }
+
+    /**
+     * Clear all logs.
+     */
+    function clearDiagLogs() {
+      if (window.NU_DIAG) {
+        NU_DIAG.clearLogs();
+        refreshDiagLogs();
+      }
+    }
+
+    /**
+     * Toggle auto-refresh.
+     */
+    function toggleDiagAutoRefresh(enabled) {
+      DIAG_STATE.autoRefresh = enabled;
+
+      if (enabled) {
+        // Refresh every 2 seconds
+        DIAG_STATE.autoRefreshInterval = setInterval(refreshDiagLogs, 2000);
+        console.log('[Diag] Auto-refresh enabled');
+      } else {
+        stopDiagAutoRefresh();
+      }
+    }
+
+    /**
+     * Stop auto-refresh.
+     */
+    function stopDiagAutoRefresh() {
+      if (DIAG_STATE.autoRefreshInterval) {
+        clearInterval(DIAG_STATE.autoRefreshInterval);
+        DIAG_STATE.autoRefreshInterval = null;
+      }
+      DIAG_STATE.autoRefresh = false;
+      const checkbox = document.getElementById('diagAutoRefresh');
+      if (checkbox) checkbox.checked = false;
+      console.log('[Diag] Auto-refresh stopped');
+    }
+
+    // Initialize diagnostics panel when DOM is ready
+    document.addEventListener('DOMContentLoaded', initDiagnosticsPanel);
 
     // ==========================================================================
     // S07: EVENT SELECTOR - Load existing events into dropdown
