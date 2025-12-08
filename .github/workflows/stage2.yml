@@ -9,18 +9,28 @@
 #   - Downloads stg-base-url artifact from Stage-1
 #   - Runs API smoke tests against the live staging URL
 #   - Runs UI smoke tests against the live staging URL
+#   - Validates HTML integrity (Story 6: blocks GAS HTML leaks)
 #   - Blocks release on any failure (authoritative deployment validator)
+#
+# Story 6 - GAS HTML Guardrails:
+#   API smoke tests include gas-html-integrity.spec.ts which:
+#   - Fetches /events and all HTML routes
+#   - Validates response does NOT contain GAS HTML markers
+#   - Saves HTML artifacts on failure for debugging
+#   - Blocks promotion to prod if GAS HTML is detected
 #
 # Contract Boundaries:
 #   - Uses strict JSON schema checks from v4.1.2
 #   - Validates stable routes only (no dev-only endpoints)
 #   - Prevents broken posters, QR codes, events from going live
+#   - Prevents GAS HTML shell from leaking to users
 #
 # System Impacts:
 #   - Upstream: Validates deployment integrity from Stage-1
 #   - Downstream: Prevents broken features from reaching production
 #
 # @see tests/api/smoke/ - API smoke test pack
+# @see tests/api/smoke/gas-html-integrity.spec.ts - Story 6 GAS HTML guardrails
 # @see tests/ui/smoke/ - UI smoke test pack
 # @see playwright.smoke.config.ts - API smoke configuration
 # @see playwright.ui-smoke.config.ts - UI smoke configuration
@@ -143,6 +153,13 @@ jobs:
   # Validates API contract compliance against the live staging environment.
   # Tests: status, events, qr, sharedreport endpoints
   # Uses strict v4.1.2 JSON schema validation.
+  #
+  # Story 6 GAS HTML Guardrails (gas-html-integrity.spec.ts):
+  #   - Fetches /events and all HTML routes from staging
+  #   - Validates NO GAS HTML markers in response
+  #   - Blocks deploy if "Google Apps Script user" message found
+  #   - Blocks deploy if warden scripts detected
+  #   - Saves HTML artifacts on failure for debugging
   # ============================================================================
   api-smoke:
     name: API Smoke Tests
@@ -196,6 +213,7 @@ jobs:
             playwright-report-smoke/
             .test-results/smoke-*.json
             .test-results/smoke-*.xml
+            .test-results/gas-html-artifacts/
           retention-days: 7
 
       - name: Check API smoke test result
@@ -327,6 +345,12 @@ jobs:
   # Aggregates results from all Stage-2 tests.
   # This is the authoritative deployment validator.
   # Failure here blocks the release and signals red in GitHub.
+  #
+  # Story 6 Acceptance Criteria Met:
+  #   - Any regression where Worker routes /events back to GAS:
+  #     - Fails CI (via api-smoke job)
+  #     - Blocks promotion to prod (via this gate)
+  #   - CI job artifacts include HTML snippet for debugging
   # ============================================================================
   validation-gate:
     name: Stage-2 Validation Gate

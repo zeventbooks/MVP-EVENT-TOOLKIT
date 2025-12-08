@@ -68,7 +68,7 @@ jobs:
   # Components validated (via scripts/stage1-local.mjs):
   #   - ESLint code quality
   #   - Jest unit tests (MVP logic + security)
-  #   - Jest contract tests (schema + API + bundles)
+  #   - Jest contract tests (schema + API + bundles + GAS HTML guardrails)
   #   - Security-specific test validation
   #   - MVP guards (surfaces, dead code, schema, API checks)
   #   - V2 file guardrails (no V2 files in MVP directory)
@@ -125,7 +125,7 @@ jobs:
           echo "Components:"
           echo "  - ESLint code quality"
           echo "  - Jest unit tests (MVP logic + security)"
-          echo "  - Jest contract tests (schema + API + bundles)"
+          echo "  - Jest contract tests (schema + API + bundles + GAS HTML guardrails)"
           echo "  - Security-specific test validation"
           echo "  - MVP guards (surfaces, dead code, schema, API)"
           echo "  - V2 file guardrails"
