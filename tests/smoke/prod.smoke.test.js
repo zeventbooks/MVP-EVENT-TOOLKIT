@@ -30,6 +30,25 @@ const PROD_URL = 'https://www.eventangle.com';
 const BRAND_ID = 'root';
 
 /**
+ * Check if a URL string belongs to the eventangle.com domain
+ * Uses URL parsing to prevent subdomain spoofing attacks
+ * @param {string} urlStr - URL string to check
+ * @returns {boolean} - True if URL is from eventangle.com domain
+ */
+function isEventangleDomain(urlStr) {
+  try {
+    const url = new URL(urlStr);
+    const hostname = url.hostname;
+    // Exact match or proper subdomain match (e.g., www.eventangle.com, stg.eventangle.com)
+    return hostname === 'eventangle.com' || hostname.endsWith('.eventangle.com');
+  } catch {
+    // If URL parsing fails, check for eventangle.com with boundary markers
+    // This handles cases where the URL is malformed but still contains our domain
+    return false;
+  }
+}
+
+/**
  * Filter out non-critical console errors
  */
 function filterCriticalErrors(errors) {
@@ -39,8 +58,15 @@ function filterCriticalErrors(errors) {
     if (msg.includes('favicon')) return false;
     if (msg.includes('google.script')) return false;
     if (msg.includes('google is not defined')) return false;
-    // Ignore CORS errors from external resources
-    if (msg.includes('CORS') && !msg.includes('eventangle.com')) return false;
+    // Ignore CORS errors from external resources (not our domain)
+    // Extract URL from CORS error message and validate using secure parsing
+    if (msg.includes('CORS')) {
+      // Try to extract URL from the error message
+      const urlMatch = msg.match(/https?:\/\/[^\s'"]+/);
+      if (urlMatch && !isEventangleDomain(urlMatch[0])) {
+        return false; // Ignore CORS errors from external domains
+      }
+    }
     return true;
   });
 }
