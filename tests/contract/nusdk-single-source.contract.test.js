@@ -80,6 +80,7 @@ describe('NUSDK Single Source of Truth', () => {
         'esc',           // XSS escape
         'safeRpc',       // Graceful error handling
         'safeAnalytics', // Fire-and-forget analytics
+        'flush',         // Flush pending requests (v2.0)
       ];
 
       for (const method of requiredMethods) {
@@ -87,6 +88,27 @@ describe('NUSDK Single Source of Truth', () => {
         const methodPattern = new RegExp(`(async\\s+)?${method}\\s*[:(]`);
         expect(content).toMatch(methodPattern);
       }
+    });
+
+    test('NUSDK.html should define VERSION property (v2.0+)', () => {
+      const content = fs.readFileSync(nusdkPath, 'utf8');
+      expect(content).toMatch(/VERSION:\s*['"][0-9]+\.[0-9]+\.[0-9]+['"]/);
+    });
+
+    test('NUSDK.html should define rolling log buffer window.__NU_LOGS__ (v2.0+)', () => {
+      const content = fs.readFileSync(nusdkPath, 'utf8');
+      expect(content).toMatch(/window\.__NU_LOGS__\s*=\s*\[\]/);
+    });
+
+    test('NUSDK.html should define NU_DIAG diagnostic helper (v2.0+)', () => {
+      const content = fs.readFileSync(nusdkPath, 'utf8');
+      expect(content).toMatch(/window\.NU_DIAG\s*=\s*\{/);
+    });
+
+    test('NUSDK.html should support path-based routing (v2.0+)', () => {
+      const content = fs.readFileSync(nusdkPath, 'utf8');
+      // Check for /api/<path> pattern support
+      expect(content).toMatch(/apiBase:\s*['"]\/api['"]/);
     });
   });
 

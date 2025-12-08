@@ -1,12 +1,21 @@
 <!--
 ═══════════════════════════════════════════════════════════════════════════════
-NUSDK - Zeventbook Client SDK for Google Apps Script
+NUSDK v2.0 - Fetch-Based NU SDK for Google Apps Script
 ═══════════════════════════════════════════════════════════════════════════════
 
 RESPONSIBILITY: This file provides the RPC client for frontend→backend calls ONLY.
 It does NOT implement business logic - that belongs in Code.gs.
 
-WINDOW ADDITION: window.NU
+WINDOW ADDITIONS:
+- window.NU        - Main SDK object
+- window.__NU_LOGS__ - Rolling log buffer for diagnostics
+- window.NU_DIAG   - Diagnostic helper for Test.html
+
+TRANSPORT: Fetch-based (/api/<path>) with google.script.run fallback
+
+LOGGING LEVELS:
+- Staging: 'debug' (all logs)
+- Production: 'error' (errors only)
 
 RESPONSE ENVELOPE CONTRACT (all API endpoints follow this pattern):
 
@@ -26,159 +35,412 @@ ERROR:
 }
 
 USAGE:
-  const res = await NU.rpc('api_getPublicBundle', { brandId, scope, id });
+  const res = await NU.rpc('events/list', { brandId });
   if (!res.ok) {
     console.error(res.code, res.message);
     return;
   }
-  const { event, config } = res.value;
+  const { events } = res.value;
 
 See ApiSchemas.gs for full endpoint inventory and schemas.
 ═══════════════════════════════════════════════════════════════════════════════
 -->
 <script>
+// =============================================================================
+// Rolling Log Buffer - Global diagnostic storage
+// =============================================================================
+window.__NU_LOGS__ = [];
+
+// =============================================================================
+// NU SDK - Main SDK Object
+// =============================================================================
 window.NU = {
   /**
-   * Error telemetry: structured error log buffer
-   * Prevents spam by deduplicating errors within a short time window
-   * @private
+   * SDK Version
    */
-  _errorLog: [],
-  _errorDedupeWindow: 5000, // 5 seconds deduplication window
+  VERSION: '2.0.0',
 
   /**
-   * Structured error logging for telemetry
-   * Logs a single structured error when API returns ok:false (no spam)
-   *
-   * @param {object} params - Error parameters
-   * @param {string} params.method - API method that failed
-   * @param {string} params.code - Error code from response
-   * @param {string} params.message - Error message
-   * @param {string} params.corrId - Correlation ID if available
+   * Configuration
    * @private
    */
-  _logError(params) {
-    const { method, code, message, corrId } = params;
-    const timestamp = new Date().toISOString();
+  _config: {
+    logLevel: 'debug', // 'debug' | 'error' | 'none' - auto-detected from environment
+    maxLogs: 100,      // Max entries in rolling log buffer
+    apiBase: '/api',   // Base path for API endpoints
+    dedupeWindow: 5000 // Error deduplication window (ms)
+  },
 
-    // Dedupe key: method + code within time window
-    const dedupeKey = `${method}:${code}`;
-    const now = Date.now();
+  /**
+   * Log level constants
+   * @private
+   */
+  _LOG_LEVELS: Object.freeze({ none: 0, error: 1, debug: 2 }),
 
-    // Check for recent duplicate
-    const recentError = NU._errorLog.find(e =>
-      e.key === dedupeKey && (now - e.time) < NU._errorDedupeWindow
-    );
+  /**
+   * Pending requests for flush tracking
+   * @private
+   */
+  _pending: [],
 
-    if (recentError) {
-      // Skip duplicate error within time window
-      return;
+  /**
+   * Error deduplication tracking
+   * @private
+   */
+  _errorDedupeMap: new Map(),
+
+  /**
+   * Initialize SDK - auto-detect environment and set log level
+   * @private
+   */
+  _init() {
+    // Auto-detect environment from hostname
+    // SECURITY: Use exact match or suffix match to prevent subdomain spoofing
+    // e.g., "fake-eventangle.com" should NOT match as production
+    const hostname = window.location?.hostname || '';
+
+    // Helper for safe domain suffix check
+    const isDomain = (host, domain) =>
+      host === domain || host.endsWith('.' + domain);
+
+    const isStaging = isDomain(hostname, 'stg.eventangle.com') ||
+                      hostname === 'localhost' ||
+                      hostname === '127.0.0.1';
+    const isProduction = isDomain(hostname, 'eventangle.com') && !isStaging;
+
+    // Set log level based on environment
+    if (isProduction) {
+      NU._config.logLevel = 'error';
+    } else {
+      NU._config.logLevel = 'debug';
     }
 
-    // Add to error log (keep last 50 entries)
-    NU._errorLog.push({ key: dedupeKey, time: now });
-    if (NU._errorLog.length > 50) {
-      NU._errorLog.shift();
-    }
+    NU._log('debug', 'init', {
+      version: NU.VERSION,
+      logLevel: NU._config.logLevel,
+      hostname,
+      isStaging,
+      isProduction
+    });
+  },
 
-    // Build structured error entry
-    const errorEntry = {
-      timestamp,
-      method,
-      code: code || 'UNKNOWN',
-      message: message || 'Unknown error'
+  /**
+   * Internal logging with rolling buffer
+   * Logs to both __NU_LOGS__ buffer and console (based on log level)
+   *
+   * @param {string} level - 'debug' | 'error'
+   * @param {string} type - Log type: 'start' | 'ok' | 'network_fail' | 'http_fail' | 'json_fail' | 'error'
+   * @param {object} data - Log data
+   * @private
+   */
+  _log(level, type, data = {}) {
+    const entry = {
+      timestamp: new Date().toISOString(),
+      level,
+      type,
+      ...data
     };
-    if (corrId) errorEntry.corrId = corrId;
 
-    // Single structured console output for telemetry
-    console.error('[NUSDK:Error]', JSON.stringify(errorEntry));
+    // Add timing if startTime provided
+    if (data.startTime) {
+      entry.durationMs = Date.now() - data.startTime;
+      delete entry.startTime;
+    }
+
+    // Add to rolling buffer
+    window.__NU_LOGS__.push(entry);
+    if (window.__NU_LOGS__.length > NU._config.maxLogs) {
+      window.__NU_LOGS__.shift();
+    }
+
+    // Console output based on log level
+    const currentLevel = NU._LOG_LEVELS[NU._config.logLevel] || 0;
+    const entryLevel = NU._LOG_LEVELS[level] || 0;
+
+    if (entryLevel <= currentLevel) {
+      const prefix = '[NUSDK]';
+      const logData = { ...entry };
+      delete logData.timestamp;
+      delete logData.level;
+
+      if (level === 'error') {
+        console.error(prefix, type, JSON.stringify(logData));
+      } else {
+        console.debug(prefix, type, JSON.stringify(logData));
+      }
+    }
+  },
+
+  /**
+   * Check for duplicate error (deduplication within time window)
+   * @private
+   */
+  _isDuplicateError(path, code) {
+    const key = `${path}:${code}`;
+    const now = Date.now();
+    const lastTime = NU._errorDedupeMap.get(key);
+
+    if (lastTime && (now - lastTime) < NU._config.dedupeWindow) {
+      return true;
+    }
+
+    NU._errorDedupeMap.set(key, now);
+
+    // Clean old entries periodically
+    if (NU._errorDedupeMap.size > 100) {
+      for (const [k, t] of NU._errorDedupeMap.entries()) {
+        if (now - t > NU._config.dedupeWindow) {
+          NU._errorDedupeMap.delete(k);
+        }
+      }
+    }
+
+    return false;
   },
 
   /**
    * Make an RPC call to the backend
    *
-   * Uses fetch('/api/rpc') when available (Cloudflare Worker proxy),
+   * Uses fetch('/api/<path>') when available (Cloudflare Worker proxy),
    * falls back to google.script.run for direct GAS serving.
    *
-   * @param {string} method - API method name (e.g., 'api_getPublicBundle')
+   * @param {string} path - API path (e.g., 'events/list', 'getPublicBundle')
    * @param {object} payload - Request parameters
    * @returns {Promise<{ok: boolean, value?: any, code?: string, message?: string}>}
    */
-  async rpc(method, payload) {
-    // Try fetch first (works with Cloudflare Worker proxy)
-    // This enables friendly URLs like eventangle.com/events
+  async rpc(path, payload = {}) {
+    const startTime = Date.now();
+    const requestId = Math.random().toString(36).slice(2, 10);
+
+    // Log request start
+    NU._log('debug', 'start', { path, requestId, payloadKeys: Object.keys(payload) });
+
+    // Track pending request
+    const pendingEntry = { path, requestId, startTime };
+    NU._pending.push(pendingEntry);
+
     try {
-      const response = await fetch('/api/rpc', {
+      // Build API URL - support both path formats:
+      // - 'events/list' -> '/api/events/list'
+      // - 'api_getPublicBundle' -> '/api/rpc' with method in body (legacy)
+      const isLegacyMethod = path.startsWith('api_');
+      const url = isLegacyMethod
+        ? `${NU._config.apiBase}/rpc`
+        : `${NU._config.apiBase}/${path}`;
+
+      const body = isLegacyMethod
+        ? JSON.stringify({ method: path, payload })
+        : JSON.stringify(payload);
+
+      // Make fetch request
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'application/json'
+          'Accept': 'application/json',
+          'X-Request-Id': requestId
         },
-        body: JSON.stringify({ method, payload }),
+        body,
         credentials: 'same-origin'
       });
 
+      // Handle HTTP errors
       if (!response.ok) {
-        // HTTP error - try to parse JSON error response
+        let errorData;
         try {
-          const errorData = await response.json();
-          console.error('[NUSDK] HTTP error for', method, ':', response.status, errorData);
-          return errorData;
+          errorData = await response.json();
         } catch {
-          console.error('[NUSDK] HTTP error for', method, ':', response.status);
-          return { ok: false, code: 'INTERNAL', message: `HTTP ${response.status}` };
+          errorData = { ok: false, code: 'INTERNAL', message: `HTTP ${response.status}` };
         }
+
+        NU._log('error', 'http_fail', {
+          path,
+          requestId,
+          status: response.status,
+          code: errorData.code,
+          startTime
+        });
+
+        return errorData;
       }
 
-      const data = await response.json();
+      // Parse JSON response
+      let data;
+      try {
+        data = await response.json();
+      } catch (jsonError) {
+        NU._log('error', 'json_fail', {
+          path,
+          requestId,
+          error: jsonError.message,
+          startTime
+        });
+        return { ok: false, code: 'INTERNAL', message: 'Invalid JSON response' };
+      }
+
+      // Log success with timing
+      NU._log('debug', 'ok', {
+        path,
+        requestId,
+        hasValue: !!data?.value,
+        startTime
+      });
+
       return data;
 
     } catch (fetchError) {
-      // Fetch failed - fall back to google.script.run if available
-      // This happens when:
-      // 1. Page is served directly from GAS (no worker proxy)
-      // 2. Network error
-      console.debug('[NUSDK] fetch failed, trying google.script.run:', fetchError.message);
-
-      return new Promise((resolve) => {
-        // Check if google.script.run is available
-        if (!window.google || !window.google.script || !window.google.script.run) {
-          console.error('[NUSDK] Neither fetch nor google.script.run available');
-          resolve({ ok: false, code: 'NETWORK_ERROR', message: 'Cannot connect to backend. Check your connection.' });
-          return;
-        }
-
-        try {
-          google.script.run
-            .withSuccessHandler(res => resolve(res))
-            .withFailureHandler(err => {
-              console.error('[NUSDK] Server error for', method, ':', err);
-              resolve({ ok: false, code: 'INTERNAL', message: String(err) });
-            })
-            [method](payload);
-        } catch (e) {
-          console.error('[NUSDK] Exception calling', method, ':', e);
-          resolve({ ok: false, code: 'INTERNAL', message: String(e) });
-        }
+      // Network error - try google.script.run fallback
+      NU._log('debug', 'network_fail', {
+        path,
+        requestId,
+        error: fetchError.message,
+        fallback: 'google.script.run',
+        startTime: startTime
       });
+
+      // For legacy methods, try google.script.run
+      if (path.startsWith('api_') || path.includes('/')) {
+        return NU._fallbackToGAS(path, payload, requestId, startTime);
+      }
+
+      // Non-legacy path with no GAS fallback
+      NU._log('error', 'network_fail', {
+        path,
+        requestId,
+        error: fetchError.message,
+        startTime
+      });
+      return {
+        ok: false,
+        code: 'NETWORK_ERROR',
+        message: 'Cannot connect to backend. Check your connection.'
+      };
+
+    } finally {
+      // Remove from pending
+      const idx = NU._pending.indexOf(pendingEntry);
+      if (idx > -1) NU._pending.splice(idx, 1);
+    }
+  },
+
+  /**
+   * Fallback to google.script.run for direct GAS serving
+   * @private
+   */
+  _fallbackToGAS(path, payload, requestId, startTime) {
+    return new Promise((resolve) => {
+      // Check if google.script.run is available
+      if (!window.google?.script?.run) {
+        NU._log('error', 'network_fail', {
+          path,
+          requestId,
+          error: 'Neither fetch nor google.script.run available',
+          startTime
+        });
+        resolve({
+          ok: false,
+          code: 'NETWORK_ERROR',
+          message: 'Cannot connect to backend. Check your connection.'
+        });
+        return;
+      }
+
+      // Convert path to method name for GAS
+      // 'events/list' -> 'api_list' (if needed)
+      // 'api_getPublicBundle' -> 'api_getPublicBundle' (as-is)
+      const method = path.startsWith('api_') ? path : `api_${path.replace('/', '_')}`;
+
+      try {
+        google.script.run
+          .withSuccessHandler(res => {
+            NU._log('debug', 'ok', {
+              path,
+              requestId,
+              transport: 'google.script.run',
+              hasValue: !!res?.value,
+              startTime
+            });
+            resolve(res);
+          })
+          .withFailureHandler(err => {
+            NU._log('error', 'error', {
+              path,
+              requestId,
+              transport: 'google.script.run',
+              error: String(err),
+              startTime
+            });
+            resolve({ ok: false, code: 'INTERNAL', message: String(err) });
+          })
+          [method](payload);
+      } catch (e) {
+        NU._log('error', 'error', {
+          path,
+          requestId,
+          error: e.message,
+          startTime
+        });
+        resolve({ ok: false, code: 'INTERNAL', message: String(e) });
+      }
+    });
+  },
+
+  /**
+   * Flush all pending requests
+   * Waits for all in-flight requests to complete
+   *
+   * @returns {Promise<void>}
+   */
+  async flush() {
+    if (NU._pending.length === 0) {
+      NU._log('debug', 'flush', { message: 'No pending requests' });
+      return;
+    }
+
+    NU._log('debug', 'flush', { pendingCount: NU._pending.length });
+
+    // Wait for all pending requests (with timeout)
+    const timeout = 5000;
+    const startTime = Date.now();
+
+    while (NU._pending.length > 0 && (Date.now() - startTime) < timeout) {
+      await new Promise(r => setTimeout(r, 100));
+    }
+
+    if (NU._pending.length > 0) {
+      NU._log('error', 'flush', {
+        message: 'Timeout waiting for pending requests',
+        remaining: NU._pending.length
+      });
+    } else {
+      NU._log('debug', 'flush', { message: 'All requests completed' });
     }
   },
 
   /**
    * Stale-while-revalidate pattern for cached data
    * Returns cached data immediately, then fetches fresh data
-   * @param {string} method - API method name
+   *
+   * @param {string} path - API path
    * @param {object} payload - Request parameters
    * @param {object} options - { staleMs, onUpdate }
    */
-  swr(method, payload, { staleMs = 120000, onUpdate } = {}) {
-    const key = `swr:${method}:${JSON.stringify(payload || {})}`;
+  swr(path, payload, { staleMs = 120000, onUpdate } = {}) {
+    const key = `swr:${path}:${JSON.stringify(payload || {})}`;
     const cached = JSON.parse(localStorage.getItem(key) || '{}');
-    if (cached.data) setTimeout(() => onUpdate && onUpdate(cached.data), 0);
-    NU.rpc(method, { ...(payload || {}), ifNoneMatch: cached.etag }).then(res => {
-      if (res && res.notModified) return;
-      if (res && res.ok && res.value) {
-        localStorage.setItem(key, JSON.stringify({ etag: res.etag, data: res.value, t: Date.now() }));
+
+    if (cached.data) {
+      setTimeout(() => onUpdate && onUpdate(cached.data), 0);
+    }
+
+    NU.rpc(path, { ...(payload || {}), ifNoneMatch: cached.etag }).then(res => {
+      if (res?.notModified) return;
+      if (res?.ok && res.value) {
+        localStorage.setItem(key, JSON.stringify({
+          etag: res.etag,
+          data: res.value,
+          t: Date.now()
+        }));
         onUpdate && onUpdate(res.value);
       }
     });
@@ -186,6 +448,7 @@ window.NU = {
 
   /**
    * Escapes HTML special characters to prevent XSS
+   *
    * @param {string} s - String to escape
    * @returns {string} HTML-safe string
    */
@@ -202,18 +465,17 @@ window.NU = {
   /**
    * Safe RPC wrapper with graceful error handling for UI display
    * Normalizes all error types to a consistent format for StateRenderer
-   * Logs structured errors for telemetry when API returns ok:false
    *
-   * @param {string} method - API method name
+   * @param {string} path - API path
    * @param {object} payload - Request parameters
    * @param {object} options - { onError, silent }
    * @returns {Promise<{ok: boolean, value?: any, code?: string, message?: string}>}
    */
-  async safeRpc(method, payload, options = {}) {
+  async safeRpc(path, payload, options = {}) {
     const { onError, silent = false } = options;
 
     try {
-      const res = await NU.rpc(method, payload);
+      const res = await NU.rpc(path, payload);
 
       // Handle backend error responses (ok: false)
       if (!res.ok) {
@@ -224,20 +486,17 @@ window.NU = {
           corrId: res.corrId
         };
 
-        // Log single structured error for telemetry (no spam via dedupe)
-        if (!silent) {
-          NU._logError({
-            method,
+        // Log error (with deduplication)
+        if (!silent && !NU._isDuplicateError(path, errorInfo.code)) {
+          NU._log('error', 'error', {
+            path,
             code: errorInfo.code,
             message: errorInfo.message,
             corrId: errorInfo.corrId
           });
         }
 
-        if (onError) {
-          onError(errorInfo);
-        }
-
+        if (onError) onError(errorInfo);
         return errorInfo;
       }
 
@@ -251,92 +510,84 @@ window.NU = {
         message: 'We\'re having trouble connecting. Please check your connection and try again.'
       };
 
-      // Log structured error for network failures
-      if (!silent) {
-        NU._logError({
-          method,
-          code: errorInfo.code,
-          message: e?.message || errorInfo.message
+      if (!silent && !NU._isDuplicateError(path, 'NETWORK_ERROR')) {
+        NU._log('error', 'network_fail', {
+          path,
+          error: e?.message || errorInfo.message
         });
       }
 
-      if (onError) {
-        onError(errorInfo);
-      }
-
+      if (onError) onError(errorInfo);
       return errorInfo;
     }
   },
 
   /**
    * Fire-and-forget analytics logging that NEVER throws or blocks UI
-   * Analytics failures are silently logged but don't affect page functionality
    *
-   * Use this for:
-   * - CTA click tracking
-   * - Impression logging
-   * - Dwell time tracking
-   * - Any non-critical telemetry
-   *
-   * @param {string} method - Analytics API method (e.g., 'api_logExternalClick', 'api_logEvents')
+   * @param {string} path - Analytics API path
    * @param {object} payload - Analytics data
-   * @returns {void} - Does not return a promise to ensure fire-and-forget behavior
+   * @returns {void}
    */
-  safeAnalytics(method, payload) {
+  safeAnalytics(path, payload) {
     // Fire and forget - don't await, don't block
     (async () => {
       try {
-        // Try fetch first (works with Cloudflare Worker proxy)
-        const response = await fetch('/api/rpc', {
+        const url = path.startsWith('api_')
+          ? `${NU._config.apiBase}/rpc`
+          : `${NU._config.apiBase}/${path}`;
+
+        const body = path.startsWith('api_')
+          ? JSON.stringify({ method: path, payload })
+          : JSON.stringify(payload);
+
+        const response = await fetch(url, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Accept': 'application/json'
           },
-          body: JSON.stringify({ method, payload }),
+          body,
           credentials: 'same-origin'
         });
 
         if (!response.ok) {
-          console.debug(`[NUSDK] Analytics ${method} HTTP ${response.status}`);
+          NU._log('debug', 'analytics_fail', { path, status: response.status });
         }
 
       } catch (fetchError) {
-        // Fetch failed - try google.script.run as fallback
+        // Fallback to google.script.run
         try {
-          if (!window.google || !window.google.script || !window.google.script.run) {
-            console.debug('[NUSDK] Analytics skipped: no backend available');
+          if (!window.google?.script?.run) {
+            NU._log('debug', 'analytics_skip', { path, reason: 'no backend' });
             return;
           }
 
+          const method = path.startsWith('api_') ? path : `api_${path.replace('/', '_')}`;
           google.script.run
             .withSuccessHandler(() => {})
-            .withFailureHandler((err) => {
-              console.debug(`[NUSDK] Analytics ${method} failed silently:`, err?.message || err);
-            })
+            .withFailureHandler(() => {})
             [method](payload);
 
-        } catch (e) {
-          console.debug(`[NUSDK] Analytics ${method} exception (suppressed):`, e?.message || e);
+        } catch {
+          // Silently ignore analytics failures
         }
       }
     })();
   },
 
   /**
-   * Safe analytics batch logger - fire-and-forget version of api_logEvents
-   * For bulk logging impressions, clicks, etc.
+   * Safe analytics batch logger
    *
-   * @param {Array} items - Array of analytics items [{eventId, surface, metric, sponsorId?, value?}]
+   * @param {Array} items - Array of analytics items
    */
   safeLogEvents(items) {
-    if (!items || !items.length) return;
+    if (!items?.length) return;
     NU.safeAnalytics('api_logEvents', { items });
   },
 
   /**
-   * Safe external click logger - fire-and-forget version
-   * Logs CTA/sponsor clicks without blocking navigation
+   * Safe external click logger
    *
    * @param {object} params - { eventId, sponsorId, surface, linkType?, ua? }
    */
@@ -345,6 +596,257 @@ window.NU = {
       ...params,
       ua: params.ua || navigator.userAgent
     });
+  },
+
+  /**
+   * Set log level manually
+   *
+   * @param {'debug' | 'error' | 'none'} level - Log level
+   */
+  setLogLevel(level) {
+    if (NU._LOG_LEVELS.hasOwnProperty(level)) {
+      NU._config.logLevel = level;
+      NU._log('debug', 'config', { logLevel: level });
+    }
+  },
+
+  /**
+   * Get current configuration (for diagnostics)
+   *
+   * @returns {object} Current SDK configuration
+   */
+  getConfig() {
+    return { ...NU._config, version: NU.VERSION };
   }
 };
+
+// =============================================================================
+// NU_DIAG - Diagnostic Helper for Test.html
+// =============================================================================
+window.NU_DIAG = {
+  /**
+   * Get all logs from the rolling buffer
+   *
+   * @param {object} options - { type?, level?, limit? }
+   * @returns {Array} Filtered log entries
+   */
+  getLogs(options = {}) {
+    const { type, level, limit = 100 } = options;
+    let logs = [...window.__NU_LOGS__];
+
+    if (type) {
+      logs = logs.filter(l => l.type === type);
+    }
+    if (level) {
+      logs = logs.filter(l => l.level === level);
+    }
+
+    return logs.slice(-limit);
+  },
+
+  /**
+   * Clear all logs from the buffer
+   */
+  clearLogs() {
+    window.__NU_LOGS__.length = 0;
+    console.debug('[NU_DIAG] Logs cleared');
+  },
+
+  /**
+   * Get statistics about logged requests
+   *
+   * @returns {object} Statistics object
+   */
+  getStats() {
+    const logs = window.__NU_LOGS__;
+    const stats = {
+      totalLogs: logs.length,
+      byType: {},
+      byLevel: {},
+      errors: [],
+      avgDurationMs: 0
+    };
+
+    let totalDuration = 0;
+    let durationCount = 0;
+
+    logs.forEach(log => {
+      // Count by type
+      stats.byType[log.type] = (stats.byType[log.type] || 0) + 1;
+
+      // Count by level
+      stats.byLevel[log.level] = (stats.byLevel[log.level] || 0) + 1;
+
+      // Track errors
+      if (log.level === 'error') {
+        stats.errors.push({
+          timestamp: log.timestamp,
+          type: log.type,
+          path: log.path,
+          code: log.code,
+          error: log.error
+        });
+      }
+
+      // Track durations
+      if (log.durationMs) {
+        totalDuration += log.durationMs;
+        durationCount++;
+      }
+    });
+
+    stats.avgDurationMs = durationCount > 0
+      ? Math.round(totalDuration / durationCount)
+      : 0;
+
+    return stats;
+  },
+
+  /**
+   * Test an RPC call and return detailed diagnostics
+   *
+   * @param {string} path - API path to test
+   * @param {object} payload - Request payload
+   * @returns {Promise<object>} Test result with timing and diagnostics
+   */
+  async testRpc(path, payload = {}) {
+    const startTime = Date.now();
+    const logsBefore = window.__NU_LOGS__.length;
+
+    console.group(`[NU_DIAG] Testing RPC: ${path}`);
+    console.debug('Payload:', payload);
+
+    try {
+      const result = await NU.rpc(path, payload);
+      const endTime = Date.now();
+      const newLogs = window.__NU_LOGS__.slice(logsBefore);
+
+      const diagnostic = {
+        success: result.ok,
+        path,
+        payload,
+        result,
+        durationMs: endTime - startTime,
+        logs: newLogs,
+        timestamp: new Date().toISOString()
+      };
+
+      console.debug('Result:', result);
+      console.debug('Duration:', diagnostic.durationMs, 'ms');
+      console.debug('Logs generated:', newLogs.length);
+      console.groupEnd();
+
+      return diagnostic;
+
+    } catch (error) {
+      const endTime = Date.now();
+      const newLogs = window.__NU_LOGS__.slice(logsBefore);
+
+      const diagnostic = {
+        success: false,
+        path,
+        payload,
+        error: error.message,
+        durationMs: endTime - startTime,
+        logs: newLogs,
+        timestamp: new Date().toISOString()
+      };
+
+      console.error('Error:', error);
+      console.groupEnd();
+
+      return diagnostic;
+    }
+  },
+
+  /**
+   * Run a quick health check
+   *
+   * @returns {Promise<object>} Health check results
+   */
+  async healthCheck() {
+    console.group('[NU_DIAG] Health Check');
+
+    const health = {
+      sdk: {
+        version: NU.VERSION,
+        config: NU.getConfig(),
+        pendingRequests: NU._pending.length
+      },
+      logs: {
+        count: window.__NU_LOGS__.length,
+        maxSize: NU._config.maxLogs
+      },
+      environment: {
+        hostname: window.location?.hostname,
+        protocol: window.location?.protocol,
+        hasGoogleScript: !!window.google?.script?.run
+      },
+      timestamp: new Date().toISOString()
+    };
+
+    // Test connectivity with a simple ping
+    try {
+      const pingStart = Date.now();
+      const pingResult = await NU.rpc('status', {});
+      health.connectivity = {
+        ok: pingResult.ok,
+        durationMs: Date.now() - pingStart,
+        response: pingResult.ok ? 'connected' : pingResult.code
+      };
+    } catch (e) {
+      health.connectivity = {
+        ok: false,
+        error: e.message
+      };
+    }
+
+    console.debug('Health:', health);
+    console.groupEnd();
+
+    return health;
+  },
+
+  /**
+   * Export logs as JSON for debugging
+   *
+   * @returns {string} JSON string of all logs
+   */
+  exportLogs() {
+    const exportData = {
+      sdk: {
+        version: NU.VERSION,
+        config: NU.getConfig()
+      },
+      stats: NU_DIAG.getStats(),
+      logs: window.__NU_LOGS__,
+      exportedAt: new Date().toISOString()
+    };
+
+    return JSON.stringify(exportData, null, 2);
+  },
+
+  /**
+   * Print a summary to console
+   */
+  printSummary() {
+    const stats = NU_DIAG.getStats();
+    console.group('[NU_DIAG] Summary');
+    console.log('SDK Version:', NU.VERSION);
+    console.log('Log Level:', NU._config.logLevel);
+    console.log('Total Logs:', stats.totalLogs);
+    console.log('By Type:', stats.byType);
+    console.log('By Level:', stats.byLevel);
+    console.log('Avg Duration:', stats.avgDurationMs, 'ms');
+    if (stats.errors.length > 0) {
+      console.warn('Recent Errors:', stats.errors.slice(-5));
+    }
+    console.groupEnd();
+  }
+};
+
+// =============================================================================
+// Auto-initialize SDK
+// =============================================================================
+NU._init();
 </script>
