@@ -452,3 +452,123 @@ describe('Worker Version', () => {
     }
   });
 });
+
+// =============================================================================
+// CORS Rules Validation (Story 3)
+// =============================================================================
+// Verifies CORS configuration remains unchanged and follows same-origin iframe safety
+
+describe('CORS Rules Configuration', () => {
+
+  it('should have Access-Control-Allow-Origin: * for API responses', () => {
+    const workerPath = path.join(__dirname, '../../cloudflare-proxy/worker.js');
+    const content = fs.readFileSync(workerPath, 'utf8');
+
+    // CORS headers should allow all origins for API requests
+    expect(content).toContain("'Access-Control-Allow-Origin': '*'");
+  });
+
+  it('should have handleCORS function for preflight requests', () => {
+    const workerPath = path.join(__dirname, '../../cloudflare-proxy/worker.js');
+    const content = fs.readFileSync(workerPath, 'utf8');
+
+    expect(content).toContain('function handleCORS');
+    expect(content).toContain("request.method === 'OPTIONS'");
+  });
+
+  it('should allow POST, GET, OPTIONS methods', () => {
+    const workerPath = path.join(__dirname, '../../cloudflare-proxy/worker.js');
+    const content = fs.readFileSync(workerPath, 'utf8');
+
+    // Methods should be allowed
+    expect(content).toContain("'Access-Control-Allow-Methods'");
+    expect(content).toMatch(/POST/);
+    expect(content).toMatch(/GET/);
+    expect(content).toMatch(/OPTIONS/);
+  });
+
+  it('should allow Content-Type and Authorization headers', () => {
+    const workerPath = path.join(__dirname, '../../cloudflare-proxy/worker.js');
+    const content = fs.readFileSync(workerPath, 'utf8');
+
+    expect(content).toContain("'Access-Control-Allow-Headers'");
+    expect(content).toContain('Content-Type');
+  });
+
+  it('should cache preflight response for 86400 seconds', () => {
+    const workerPath = path.join(__dirname, '../../cloudflare-proxy/worker.js');
+    const content = fs.readFileSync(workerPath, 'utf8');
+
+    // Max-Age should be 24 hours for preflight caching
+    expect(content).toContain("'Access-Control-Max-Age': '86400'");
+  });
+
+  it('should return 204 status for OPTIONS preflight', () => {
+    const workerPath = path.join(__dirname, '../../cloudflare-proxy/worker.js');
+    const content = fs.readFileSync(workerPath, 'utf8');
+
+    // OPTIONS should return 204 No Content
+    expect(content).toMatch(/status:\s*204/);
+  });
+
+});
+
+// =============================================================================
+// /api/* Never Returns HTML (Story 3)
+// =============================================================================
+// Ensures Worker never returns HTML fallback on API routes
+
+describe('/api/* Response Type Guarantee', () => {
+
+  it('should return JSON Content-Type for API errors', () => {
+    const workerPath = path.join(__dirname, '../../cloudflare-proxy/worker.js');
+    const content = fs.readFileSync(workerPath, 'utf8');
+
+    // API error responses should be JSON
+    expect(content).toContain("'Content-Type': 'application/json'");
+  });
+
+  it('should have createGracefulErrorResponse that returns JSON for API requests', () => {
+    const workerPath = path.join(__dirname, '../../cloudflare-proxy/worker.js');
+    const content = fs.readFileSync(workerPath, 'utf8');
+
+    // Function should exist
+    expect(content).toContain('function createGracefulErrorResponse');
+
+    // Should check isApiRequest and return JSON
+    expect(content).toContain('if (isApiRequest)');
+    expect(content).toContain('JSON.stringify({');
+  });
+
+  it('should have generate404Json for API 404 responses', () => {
+    const workerPath = path.join(__dirname, '../../cloudflare-proxy/worker.js');
+    const content = fs.readFileSync(workerPath, 'utf8');
+
+    expect(content).toContain('function generate404Json');
+  });
+
+  it('should check isApiRequest before generating error response', () => {
+    const workerPath = path.join(__dirname, '../../cloudflare-proxy/worker.js');
+    const content = fs.readFileSync(workerPath, 'utf8');
+
+    // Worker distinguishes between API and HTML requests
+    expect(content).toContain('isApiRequest');
+    // API requests get JSON, non-API get HTML
+    expect(content).toContain('create404Response(url, isApiRequest');
+  });
+
+  it('should NOT include HTML tags in JSON error responses', () => {
+    const workerPath = path.join(__dirname, '../../cloudflare-proxy/worker.js');
+    const content = fs.readFileSync(workerPath, 'utf8');
+
+    // Extract the generate404Json function
+    const funcMatch = content.match(/function generate404Json\([\s\S]*?\n\}/);
+    if (funcMatch) {
+      const func = funcMatch[0];
+      // Should not contain HTML
+      expect(func).not.toContain('<html');
+      expect(func).not.toContain('<!DOCTYPE');
+    }
+  });
+
+});

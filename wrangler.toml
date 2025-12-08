@@ -1,5 +1,15 @@
+# ============================================
+# Staging Worker Configuration (Root wrangler.toml)
+# ============================================
+# This is the staging deployment configuration.
+# For production, use cloudflare-proxy/wrangler.toml [env.production]
+#
+# Deployment: wrangler deploy
+# This deploys to stg.eventangle.com for pre-production validation.
+# ============================================
+
 name = "eventangle-staging"
-main = "workers/proxy/worker.js"
+main = "cloudflare-proxy/worker.js"
 compatibility_date = "2024-01-01"
 
 routes = [
@@ -8,5 +18,16 @@ routes = [
 ]
 
 [vars]
+# ============================================
+# STAGING DEPLOYMENT CONFIGURATION
+# ============================================
+# IMPORTANT: These values point to the STAGING GAS deployment
+# NOT production! The staging deployment ID is:
+#   AKfycbxx2nN-zkU-Jke1ECl1C7RUwOyGmrZ6B-6-ViMIjXKrIT3Q1dLh5lf5LK5Ymdg-cbcJ
+# ============================================
 WORKER_ENV = "staging"
 UPSTREAM_TIMEOUT_MS = "30000"
+# GAS Staging Deployment ID (Single Source of Truth)
+DEPLOYMENT_ID = "AKfycbxx2nN-zkU-Jke1ECl1C7RUwOyGmrZ6B-6-ViMIjXKrIT3Q1dLh5lf5LK5Ymdg-cbcJ"
+# Full GAS URL (preferred - avoids URL construction)
+GAS_DEPLOYMENT_BASE_URL = "https://script.google.com/macros/s/AKfycbxx2nN-zkU-Jke1ECl1C7RUwOyGmrZ6B-6-ViMIjXKrIT3Q1dLh5lf5LK5Ymdg-cbcJ/exec"
