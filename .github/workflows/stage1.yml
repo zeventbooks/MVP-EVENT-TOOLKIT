@@ -1067,11 +1067,90 @@ jobs:
           exit 1
 
       # ========================================================================
+      # CLOUDFLARE WORKER PRODUCTION DEPLOYMENT (Story 7)
+      # ========================================================================
+      # Deploy the Cloudflare Worker to production with the new GAS deployment ID.
+      # This ensures the Worker serves HTML templates with correct routing:
+      #   - /events, /admin, /display, /poster → Worker HTML templates
+      #   - /api/* → GAS JSON endpoints
+      #   - No GAS HTML shell leakage
+      # ========================================================================
+      - name: Deploy Cloudflare Worker (production)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          DEPLOYMENT_ID: ${{ steps.deploy.outputs.deployment_id }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::warning::Cloudflare secrets not configured - skipping worker deployment"
+            echo "To enable full production deployment, configure:"
+            echo "  - CLOUDFLARE_API_TOKEN secret"
+            echo "  - CLOUDFLARE_ACCOUNT_ID secret"
+            echo ""
+            echo "NOTE: Without Worker deployment, HTML routes may not work correctly!"
+            exit 0
+          fi
+
+          if [ -z "$DEPLOYMENT_ID" ]; then
+            echo "::error::No deployment ID available from GAS deploy step"
+            exit 1
+          fi
+
+          echo "=============================================="
+          echo "DEPLOYING CLOUDFLARE WORKER (PRODUCTION)"
+          echo "=============================================="
+          echo "Version: ${{ steps.extract-version.outputs.version }}"
+          echo "Deployment ID: $DEPLOYMENT_ID"
+          echo ""
+
+          # Install wrangler
+          npm install -g wrangler@3
+
+          # Update production environment in wrangler.toml with the new deployment ID
+          cd cloudflare-proxy
+
+          echo "Updating wrangler.toml with production deployment ID..."
+
+          # Update DEPLOYMENT_ID in root vars (default/production)
+          sed -i "s|^DEPLOYMENT_ID = \"[^\"]*\"|DEPLOYMENT_ID = \"${DEPLOYMENT_ID}\"|" wrangler.toml
+
+          # Update DEPLOYMENT_ID in production.vars section
+          sed -i "/\[env.production.vars\]/,/\[env\.[^p]/ s|DEPLOYMENT_ID = \"[^\"]*\"|DEPLOYMENT_ID = \"${DEPLOYMENT_ID}\"|" wrangler.toml
+
+          # Update GAS_DEPLOYMENT_BASE_URL in events.vars section (used by some routes)
+          GAS_URL="https://script.google.com/macros/s/${DEPLOYMENT_ID}/exec"
+          sed -i "s|GAS_DEPLOYMENT_BASE_URL = \"https://script.google.com/macros/s/AKfycby[^\"]*\"|GAS_DEPLOYMENT_BASE_URL = \"${GAS_URL}\"|g" wrangler.toml
+
+          echo "Updated wrangler.toml production config:"
+          echo "--- Root vars ---"
+          grep "^DEPLOYMENT_ID" wrangler.toml | head -1
+          echo "--- Production vars ---"
+          grep -A 5 '\[env.production.vars\]' wrangler.toml | head -3
+
+          # Deploy to production environment
+          echo ""
+          echo "Deploying worker to production..."
+          wrangler deploy --env production
+
+          echo ""
+          echo "=============================================="
+          echo "CLOUDFLARE WORKER DEPLOYED TO PRODUCTION"
+          echo "=============================================="
+          echo "Production URL: ${{ env.PRODUCTION_URL }}"
+          echo "GAS URL: $GAS_URL"
+          echo ""
+          echo "Worker routing now active:"
+          echo "  - /events, /admin, /display, /poster → Worker HTML"
+          echo "  - /api/* → GAS JSON endpoints"
+          echo "=============================================="
+
+      # ========================================================================
       # PRODUCTION SMOKE TESTS (Minimal, Read-Only)
       # ========================================================================
       # These are the MINIMAL tests required before declaring production ready:
       # 1. Status API health check
       # 2. QR verification test (critical invariant)
+      # 3. GAS HTML integrity check (Story 7)
       # ========================================================================
       - name: Install Playwright browsers
         run: npx playwright install chromium --with-deps
@@ -1106,6 +1185,40 @@ jobs:
           # Run Poster smoke test which includes QR verification
           npx playwright test tests/e2e/1-smoke/Poster.spec.js --project=chromium --reporter=list
 
+      # ========================================================================
+      # STORY 7: GAS HTML INTEGRITY CHECK (Production)
+      # ========================================================================
+      # Validates that production Worker is serving HTML templates correctly
+      # and NOT leaking GAS HTML shell on /events and other HTML routes.
+      # ========================================================================
+      - name: Run GAS HTML integrity check (Story 7)
+        id: gas-integrity
+        env:
+          BASE_URL: ${{ env.PRODUCTION_URL }}
+        run: |
+          echo "=============================================="
+          echo "GAS HTML INTEGRITY CHECK (Story 7)"
+          echo "=============================================="
+          echo "Validating Worker HTML routing on production..."
+          echo "Target: ${{ env.PRODUCTION_URL }}"
+          echo ""
+          echo "Checks:"
+          echo "  - No GAS blue banner"
+          echo "  - Admin UI visible"
+          echo "  - Network calls use /api/* only"
+          echo "=============================================="
+
+          # Run GAS HTML integrity smoke tests against production
+          npx playwright test tests/api/smoke/gas-html-integrity.spec.ts --project=chromium --reporter=list
+
+      - name: Upload GAS HTML artifacts on failure
+        if: failure() && steps.gas-integrity.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: prod-gas-html-artifacts
+          path: .test-results/gas-html-artifacts/
+          retention-days: 7
+
       - name: Emit production URL artifact
         id: emit-url
         run: |
@@ -1136,9 +1249,19 @@ jobs:
 
       - name: Create deployment summary
         if: always()
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           echo "## Stage-1 Production Deployment" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Determine Cloudflare Worker status
+          if [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            CF_STATUS="Deployed"
+          else
+            CF_STATUS="Skipped (secrets not configured)"
+          fi
 
           if [ "${{ job.status }}" == "success" ]; then
             echo "### DEPLOYED TO PRODUCTION" >> $GITHUB_STEP_SUMMARY
@@ -1151,12 +1274,20 @@ jobs:
             echo "| **Production URL** | \`${{ env.PRODUCTION_URL }}\` |" >> $GITHUB_STEP_SUMMARY
             echo "| **Apps Script URL** | \`${{ steps.deploy.outputs.web_app_url }}\` |" >> $GITHUB_STEP_SUMMARY
             echo "| **Deployment ID** | \`${{ steps.deploy.outputs.deployment_id }}\` |" >> $GITHUB_STEP_SUMMARY
+            echo "| **Cloudflare Worker** | $CF_STATUS |" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Smoke Tests Passed:**" >> $GITHUB_STEP_SUMMARY
+            echo "**Smoke Tests Passed (Story 7):**" >> $GITHUB_STEP_SUMMARY
             echo "- Production health check (status API)" >> $GITHUB_STEP_SUMMARY
             echo "- QR verification (critical invariant)" >> $GITHUB_STEP_SUMMARY
+            echo "- GAS HTML integrity check (no blue banner)" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Artifact:** \`prod-base-url\` created for downstream consumption" >> $GITHUB_STEP_SUMMARY
+            echo "**Story 7 Acceptance Criteria:**" >> $GITHUB_STEP_SUMMARY
+            echo "- No GAS blue banner on /events" >> $GITHUB_STEP_SUMMARY
+            echo "- Admin UI visible on /admin" >> $GITHUB_STEP_SUMMARY
+            echo "- Worker HTML routing active" >> $GITHUB_STEP_SUMMARY
+            echo "- /api/* used for JSON data only" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Artifact:** \`prod-base-url\` created for Stage-2 validation" >> $GITHUB_STEP_SUMMARY
           else
             echo "### PRODUCTION DEPLOYMENT FAILED" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
@@ -1165,8 +1296,12 @@ jobs:
             echo "**Possible causes:**" >> $GITHUB_STEP_SUMMARY
             echo "- Stage-1 validation failed" >> $GITHUB_STEP_SUMMARY
             echo "- clasp push/deploy error" >> $GITHUB_STEP_SUMMARY
+            echo "- Cloudflare Worker deployment failed" >> $GITHUB_STEP_SUMMARY
             echo "- Production smoke tests failed" >> $GITHUB_STEP_SUMMARY
             echo "- QR verification test failed" >> $GITHUB_STEP_SUMMARY
+            echo "- GAS HTML integrity check failed (Story 7)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Rollback:** See docs/ROLLBACK.md for recovery procedures" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "**Action:** Do NOT retry. Investigate and fix the issue first." >> $GITHUB_STEP_SUMMARY
           fi

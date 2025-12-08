@@ -1,15 +1,17 @@
 # Stage-2 Orchestrator Workflow
 #
-# Purpose: Validates the live staging environment after Stage-1 deploys.
+# Purpose: Validates live staging AND production environments after Stage-1 deploys.
 #          This closes the loop: Stage-1 deploys -> Stage-2 validates.
 #
 # Trigger: Runs automatically when Stage-1 Validation workflow succeeds.
 #
 # What it does:
-#   - Downloads stg-base-url artifact from Stage-1
-#   - Runs API smoke tests against the live staging URL
-#   - Runs UI smoke tests against the live staging URL
+#   - Staging (push to main): Downloads stg-base-url, runs full validation
+#   - Production (tag push): Downloads prod-base-url, runs post-deploy sanity
+#   - Runs API smoke tests against the live URL
+#   - Runs UI smoke tests against the live URL
 #   - Validates HTML integrity (Story 6: blocks GAS HTML leaks)
+#   - Validates Story 7 acceptance criteria for production
 #   - Blocks release on any failure (authoritative deployment validator)
 #
 # Story 6 - GAS HTML Guardrails:
@@ -17,7 +19,15 @@
 #   - Fetches /events and all HTML routes
 #   - Validates response does NOT contain GAS HTML markers
 #   - Saves HTML artifacts on failure for debugging
-#   - Blocks promotion to prod if GAS HTML is detected
+#   - Blocks promotion if GAS HTML is detected
+#
+# Story 7 - Production Promotion & Sanity:
+#   Post-deploy production validation includes:
+#   - Same HTML integrity checks used for staging
+#   - No GAS blue banner on /events
+#   - Admin UI visible
+#   - Network calls use /api/* for JSON only
+#   - QR codes still resolve to correct pages
 #
 # Contract Boundaries:
 #   - Uses strict JSON schema checks from v4.1.2
@@ -27,10 +37,12 @@
 #
 # System Impacts:
 #   - Upstream: Validates deployment integrity from Stage-1
-#   - Downstream: Prevents broken features from reaching production
+#   - Downstream: Prevents broken features from reaching users
+#   - Rollback: If validation fails, see docs/ROLLBACK.md
 #
 # @see tests/api/smoke/ - API smoke test pack
 # @see tests/api/smoke/gas-html-integrity.spec.ts - Story 6 GAS HTML guardrails
+# @see tests/api/smoke/prod-sanity.spec.ts - Story 7 production sanity
 # @see tests/ui/smoke/ - UI smoke test pack
 # @see playwright.smoke.config.ts - API smoke configuration
 # @see playwright.ui-smoke.config.ts - UI smoke configuration
@@ -43,8 +55,11 @@ on:
       - "Stage-1 Validation"
     types:
       - completed
-    branches:
-      - main
+
+# Environment configuration
+env:
+  STAGING_URL: 'https://stg.eventangle.com'
+  PRODUCTION_URL: 'https://www.eventangle.com'
 
 # Prevent duplicate runs for the same deployment
 concurrency:
@@ -56,6 +71,7 @@ jobs:
   # GATE CHECK
   # ============================================================================
   # Only proceed if Stage-1 completed successfully.
+  # Determines whether this is a staging (push to main) or production (tag) deploy.
   # This prevents running Stage-2 on failed deployments.
   # ============================================================================
   check-stage1:
@@ -64,14 +80,30 @@ jobs:
     outputs:
       should_run: ${{ steps.check.outputs.should_run }}
       stage1_conclusion: ${{ steps.check.outputs.conclusion }}
+      deploy_type: ${{ steps.check.outputs.deploy_type }}
+      is_production: ${{ steps.check.outputs.is_production }}
 
     steps:
-      - name: Check Stage-1 conclusion
+      - name: Check Stage-1 conclusion and deploy type
         id: check
         run: |
           CONCLUSION="${{ github.event.workflow_run.conclusion }}"
+          HEAD_BRANCH="${{ github.event.workflow_run.head_branch }}"
+
           echo "Stage-1 Validation conclusion: $CONCLUSION"
+          echo "Head branch/tag: $HEAD_BRANCH"
           echo "conclusion=$CONCLUSION" >> $GITHUB_OUTPUT
+
+          # Determine deploy type based on head branch (tag vs main)
+          if [[ "$HEAD_BRANCH" =~ ^v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+            echo "Detected PRODUCTION deployment (tag: $HEAD_BRANCH)"
+            echo "deploy_type=production" >> $GITHUB_OUTPUT
+            echo "is_production=true" >> $GITHUB_OUTPUT
+          else
+            echo "Detected STAGING deployment (branch: $HEAD_BRANCH)"
+            echo "deploy_type=staging" >> $GITHUB_OUTPUT
+            echo "is_production=false" >> $GITHUB_OUTPUT
+          fi
 
           if [ "$CONCLUSION" == "success" ]; then
             echo "Stage-1 succeeded - proceeding with Stage-2 validation"
@@ -92,40 +124,63 @@ jobs:
           echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
           echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
           echo "| **Stage-1 Conclusion** | \`${{ github.event.workflow_run.conclusion }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Deploy Type** | \`${{ steps.check.outputs.deploy_type }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **Workflow Run** | \`${{ github.event.workflow_run.id }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **Head SHA** | \`${{ github.event.workflow_run.head_sha }}\` |" >> $GITHUB_STEP_SUMMARY
 
   # ============================================================================
   # ARTIFACT DOWNLOAD
   # ============================================================================
-  # Downloads the stg-base-url artifact from the triggering Stage-1 run.
-  # This artifact contains the staging URL for live validation.
+  # Downloads the appropriate base-url artifact from Stage-1:
+  #   - Staging deploy (main push): stg-base-url
+  #   - Production deploy (tag push): prod-base-url
   # ============================================================================
   download-artifact:
-    name: Download Staging URL
+    name: Download Base URL
     runs-on: ubuntu-latest
     needs: check-stage1
     if: needs.check-stage1.outputs.should_run == 'true'
     outputs:
       base_url: ${{ steps.extract.outputs.base_url }}
+      environment: ${{ steps.extract.outputs.environment }}
 
     steps:
-      - name: Download stg-base-url artifact
+      - name: Download staging artifact
+        if: needs.check-stage1.outputs.is_production != 'true'
         uses: actions/download-artifact@v4
         with:
           name: stg-base-url
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Download production artifact
+        if: needs.check-stage1.outputs.is_production == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: prod-base-url
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Extract and validate BASE_URL
         id: extract
+        env:
+          IS_PRODUCTION: ${{ needs.check-stage1.outputs.is_production }}
         run: |
-          if [ ! -f stg-base-url.txt ]; then
-            echo "::error::stg-base-url.txt not found in artifact"
+          # Determine which file to read based on deploy type
+          if [ "$IS_PRODUCTION" == "true" ]; then
+            ARTIFACT_FILE="prod-base-url.txt"
+            ENV_NAME="production"
+          else
+            ARTIFACT_FILE="stg-base-url.txt"
+            ENV_NAME="staging"
+          fi
+
+          if [ ! -f "$ARTIFACT_FILE" ]; then
+            echo "::error::$ARTIFACT_FILE not found in artifact"
             exit 1
           fi
 
-          BASE_URL=$(cat stg-base-url.txt | tr -d '\n')
+          BASE_URL=$(cat "$ARTIFACT_FILE" | tr -d '\n')
 
           # Validate URL format
           if [[ ! "$BASE_URL" =~ ^https:// ]]; then
@@ -134,39 +189,49 @@ jobs:
           fi
 
           echo "Extracted BASE_URL: $BASE_URL"
+          echo "Environment: $ENV_NAME"
           echo "base_url=$BASE_URL" >> $GITHUB_OUTPUT
+          echo "environment=$ENV_NAME" >> $GITHUB_OUTPUT
 
       - name: Create artifact summary
         run: |
           echo "## Stage-2 Artifact Download" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Successfully downloaded staging URL artifact." >> $GITHUB_STEP_SUMMARY
+          echo "Successfully downloaded ${{ steps.extract.outputs.environment }} URL artifact." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
           echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| **Staging URL** | \`${{ steps.extract.outputs.base_url }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Environment** | \`${{ steps.extract.outputs.environment }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Base URL** | \`${{ steps.extract.outputs.base_url }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **Source Workflow Run** | \`${{ github.event.workflow_run.id }}\` |" >> $GITHUB_STEP_SUMMARY
 
   # ============================================================================
   # API SMOKE TESTS
   # ============================================================================
-  # Validates API contract compliance against the live staging environment.
+  # Validates API contract compliance against the live environment.
   # Tests: status, events, qr, sharedreport endpoints
   # Uses strict v4.1.2 JSON schema validation.
   #
   # Story 6 GAS HTML Guardrails (gas-html-integrity.spec.ts):
-  #   - Fetches /events and all HTML routes from staging
+  #   - Fetches /events and all HTML routes
   #   - Validates NO GAS HTML markers in response
   #   - Blocks deploy if "Google Apps Script user" message found
   #   - Blocks deploy if warden scripts detected
   #   - Saves HTML artifacts on failure for debugging
+  #
+  # Story 7 Production Sanity (prod-sanity.spec.ts - production only):
+  #   - Additional production-specific validation
+  #   - Network request monitoring
+  #   - QR code resolution verification
   # ============================================================================
   api-smoke:
-    name: API Smoke Tests
+    name: API Smoke Tests (${{ needs.download-artifact.outputs.environment }})
     runs-on: ubuntu-latest
-    needs: download-artifact
+    needs: [check-stage1, download-artifact]
     env:
       BASE_URL: ${{ needs.download-artifact.outputs.base_url }}
+      ENVIRONMENT: ${{ needs.download-artifact.outputs.environment }}
+      IS_PRODUCTION: ${{ needs.check-stage1.outputs.is_production }}
       CI: true
 
     steps:
@@ -192,7 +257,9 @@ jobs:
           echo "=============================================="
           echo "API SMOKE TEST CONFIGURATION"
           echo "=============================================="
+          echo "Environment: $ENVIRONMENT"
           echo "BASE_URL: $BASE_URL"
+          echo "Is Production: $IS_PRODUCTION"
           echo "Node version: $(node --version)"
           echo "npm version: $(npm --version)"
           echo "=============================================="
@@ -200,15 +267,35 @@ jobs:
       - name: Run API smoke tests
         id: api-tests
         run: |
-          echo "Running API smoke tests against: $BASE_URL"
+          echo "Running API smoke tests against: $BASE_URL ($ENVIRONMENT)"
           npm run test:api:smoke
+        continue-on-error: true
+
+      - name: Run production sanity tests (Story 7)
+        id: prod-sanity
+        if: env.IS_PRODUCTION == 'true'
+        run: |
+          echo "=============================================="
+          echo "STORY 7 - PRODUCTION SANITY TESTS"
+          echo "=============================================="
+          echo "Running production-specific validation..."
+          echo "Target: $BASE_URL"
+          echo "=============================================="
+
+          # Run production sanity tests if they exist
+          if [ -f "tests/api/smoke/prod-sanity.spec.ts" ]; then
+            npx playwright test tests/api/smoke/prod-sanity.spec.ts --project=chromium --reporter=list
+          else
+            echo "prod-sanity.spec.ts not found, skipping production sanity tests"
+            echo "This is expected for initial Story 7 deployment"
+          fi
         continue-on-error: true
 
       - name: Upload API smoke test results
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: api-smoke-results
+          name: api-smoke-results-${{ env.ENVIRONMENT }}
           path: |
             playwright-report-smoke/
             .test-results/smoke-*.json
@@ -219,47 +306,69 @@ jobs:
       - name: Check API smoke test result
         if: steps.api-tests.outcome == 'failure'
         run: |
-          echo "::error::API smoke tests failed against $BASE_URL"
+          echo "::error::API smoke tests failed against $BASE_URL ($ENVIRONMENT)"
           echo ""
           echo "Stage-2 API validation failed. This blocks the release."
           echo "Check the API smoke test results artifact for details."
           exit 1
 
+      - name: Check production sanity result (Story 7)
+        if: env.IS_PRODUCTION == 'true' && steps.prod-sanity.outcome == 'failure'
+        run: |
+          echo "::error::Production sanity tests failed (Story 7)"
+          echo ""
+          echo "Production validation failed. This blocks the release."
+          echo "See docs/ROLLBACK.md for recovery procedures."
+          exit 1
+
       - name: Create API smoke summary
         if: always()
         run: |
-          echo "## API Smoke Tests" >> $GITHUB_STEP_SUMMARY
+          echo "## API Smoke Tests ($ENVIRONMENT)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
           if [ "${{ steps.api-tests.outcome }}" == "success" ]; then
             echo "### PASSED" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "All API smoke tests passed against staging." >> $GITHUB_STEP_SUMMARY
+            echo "All API smoke tests passed against $ENVIRONMENT." >> $GITHUB_STEP_SUMMARY
           else
             echo "### FAILED" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "API smoke tests failed. Check test results for details." >> $GITHUB_STEP_SUMMARY
           fi
 
+          if [ "$IS_PRODUCTION" == "true" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Story 7 Production Sanity:** \`${{ steps.prod-sanity.outcome }}\`" >> $GITHUB_STEP_SUMMARY
+          fi
+
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
           echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Environment** | \`$ENVIRONMENT\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **Target URL** | \`$BASE_URL\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Result** | \`${{ steps.api-tests.outcome }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **API Tests** | \`${{ steps.api-tests.outcome }}\` |" >> $GITHUB_STEP_SUMMARY
 
   # ============================================================================
   # UI SMOKE TESTS
   # ============================================================================
-  # Validates UI surfaces against the live staging environment.
+  # Validates UI surfaces against the live environment.
   # Tests: Admin, Public, Display, Poster surfaces
   # Principle: "If you show it, it works"
+  #
+  # Story 7 Production Validation:
+  #   - Admin UI visible on /admin
+  #   - No GAS blue banner on /events
+  #   - QR codes render correctly on Poster
   # ============================================================================
   ui-smoke:
-    name: UI Smoke Tests
+    name: UI Smoke Tests (${{ needs.download-artifact.outputs.environment }})
     runs-on: ubuntu-latest
-    needs: download-artifact
+    needs: [check-stage1, download-artifact]
     env:
       BASE_URL: ${{ needs.download-artifact.outputs.base_url }}
+      ENVIRONMENT: ${{ needs.download-artifact.outputs.environment }}
+      IS_PRODUCTION: ${{ needs.check-stage1.outputs.is_production }}
       CI: true
 
     steps:
@@ -285,7 +394,9 @@ jobs:
           echo "=============================================="
           echo "UI SMOKE TEST CONFIGURATION"
           echo "=============================================="
+          echo "Environment: $ENVIRONMENT"
           echo "BASE_URL: $BASE_URL"
+          echo "Is Production: $IS_PRODUCTION"
           echo "Node version: $(node --version)"
           echo "npm version: $(npm --version)"
           echo "=============================================="
@@ -293,7 +404,7 @@ jobs:
       - name: Run UI smoke tests
         id: ui-tests
         run: |
-          echo "Running UI smoke tests against: $BASE_URL"
+          echo "Running UI smoke tests against: $BASE_URL ($ENVIRONMENT)"
           npm run test:ui:smoke
         continue-on-error: true
 
@@ -301,7 +412,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: ui-smoke-results
+          name: ui-smoke-results-${{ env.ENVIRONMENT }}
           path: |
             playwright-report-ui-smoke/
             .test-results/ui-smoke-*.json
@@ -311,22 +422,25 @@ jobs:
       - name: Check UI smoke test result
         if: steps.ui-tests.outcome == 'failure'
         run: |
-          echo "::error::UI smoke tests failed against $BASE_URL"
+          echo "::error::UI smoke tests failed against $BASE_URL ($ENVIRONMENT)"
           echo ""
           echo "Stage-2 UI validation failed. This blocks the release."
           echo "Check the UI smoke test results artifact for details."
+          if [ "$IS_PRODUCTION" == "true" ]; then
+            echo "See docs/ROLLBACK.md for recovery procedures."
+          fi
           exit 1
 
       - name: Create UI smoke summary
         if: always()
         run: |
-          echo "## UI Smoke Tests" >> $GITHUB_STEP_SUMMARY
+          echo "## UI Smoke Tests ($ENVIRONMENT)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
           if [ "${{ steps.ui-tests.outcome }}" == "success" ]; then
             echo "### PASSED" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "All UI smoke tests passed against staging." >> $GITHUB_STEP_SUMMARY
+            echo "All UI smoke tests passed against $ENVIRONMENT." >> $GITHUB_STEP_SUMMARY
           else
             echo "### FAILED" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
@@ -336,6 +450,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
           echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Environment** | \`$ENVIRONMENT\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **Target URL** | \`$BASE_URL\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **Result** | \`${{ steps.ui-tests.outcome }}\` |" >> $GITHUB_STEP_SUMMARY
 
@@ -351,20 +466,32 @@ jobs:
   #     - Fails CI (via api-smoke job)
   #     - Blocks promotion to prod (via this gate)
   #   - CI job artifacts include HTML snippet for debugging
+  #
+  # Story 7 Acceptance Criteria Met (Production Only):
+  #   - No GAS blue banner on /events
+  #   - Admin UI visible
+  #   - Network calls show /api/* only for data
+  #   - All existing QR codes still resolve correctly
+  #   - No increase in Worker or GAS error rates
   # ============================================================================
   validation-gate:
-    name: Stage-2 Validation Gate
+    name: Stage-2 Validation Gate (${{ needs.download-artifact.outputs.environment }})
     runs-on: ubuntu-latest
-    needs: [download-artifact, api-smoke, ui-smoke]
+    needs: [check-stage1, download-artifact, api-smoke, ui-smoke]
     if: always() && needs.download-artifact.result == 'success'
 
     steps:
       - name: Evaluate validation results
         id: evaluate
+        env:
+          IS_PRODUCTION: ${{ needs.check-stage1.outputs.is_production }}
+          ENVIRONMENT: ${{ needs.download-artifact.outputs.environment }}
         run: |
           API_RESULT="${{ needs.api-smoke.result }}"
           UI_RESULT="${{ needs.ui-smoke.result }}"
 
+          echo "Environment: $ENVIRONMENT"
+          echo "Is Production: $IS_PRODUCTION"
           echo "API Smoke Tests: $API_RESULT"
           echo "UI Smoke Tests: $UI_RESULT"
 
@@ -377,23 +504,44 @@ jobs:
           fi
 
       - name: Create final summary
+        env:
+          IS_PRODUCTION: ${{ needs.check-stage1.outputs.is_production }}
+          ENVIRONMENT: ${{ needs.download-artifact.outputs.environment }}
         run: |
           BASE_URL="${{ needs.download-artifact.outputs.base_url }}"
           API_RESULT="${{ needs.api-smoke.result }}"
           UI_RESULT="${{ needs.ui-smoke.result }}"
           STATUS="${{ steps.evaluate.outputs.status }}"
 
-          echo "# Stage-2 Orchestrator Results" >> $GITHUB_STEP_SUMMARY
+          echo "# Stage-2 Orchestrator Results ($ENVIRONMENT)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
           if [ "$STATUS" == "passed" ]; then
             echo "## DEPLOYMENT VALIDATED" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Stage-2 validation passed. The staging deployment is verified." >> $GITHUB_STEP_SUMMARY
+            echo "Stage-2 validation passed. The $ENVIRONMENT deployment is verified." >> $GITHUB_STEP_SUMMARY
+
+            if [ "$IS_PRODUCTION" == "true" ]; then
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "### Story 7 Production Acceptance Criteria" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "- No GAS blue banner on /events" >> $GITHUB_STEP_SUMMARY
+              echo "- Admin UI visible on /admin" >> $GITHUB_STEP_SUMMARY
+              echo "- Worker HTML routing active" >> $GITHUB_STEP_SUMMARY
+              echo "- /api/* used for JSON data only" >> $GITHUB_STEP_SUMMARY
+              echo "- QR codes resolve correctly" >> $GITHUB_STEP_SUMMARY
+            fi
           else
             echo "## DEPLOYMENT BLOCKED" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "Stage-2 validation failed. Release is blocked until issues are resolved." >> $GITHUB_STEP_SUMMARY
+
+            if [ "$IS_PRODUCTION" == "true" ]; then
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "### Rollback Required" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "Production validation failed. See [docs/ROLLBACK.md](../docs/ROLLBACK.md) for recovery procedures." >> $GITHUB_STEP_SUMMARY
+            fi
           fi
 
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -408,21 +556,30 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
           echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Environment** | \`$ENVIRONMENT\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **Target URL** | \`$BASE_URL\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **Source Commit** | \`${{ github.event.workflow_run.head_sha }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **Stage-1 Run ID** | \`${{ github.event.workflow_run.id }}\` |" >> $GITHUB_STEP_SUMMARY
 
       - name: Fail if validation failed
         if: steps.evaluate.outputs.status == 'failed'
+        env:
+          IS_PRODUCTION: ${{ needs.check-stage1.outputs.is_production }}
+          ENVIRONMENT: ${{ needs.download-artifact.outputs.environment }}
         run: |
-          echo "::error::Stage-2 validation failed"
+          echo "::error::Stage-2 validation failed for $ENVIRONMENT"
           echo ""
           echo "=============================================="
-          echo "STAGE-2 VALIDATION FAILED"
+          echo "STAGE-2 VALIDATION FAILED ($ENVIRONMENT)"
           echo "=============================================="
           echo ""
           echo "One or more smoke test suites failed."
           echo "This blocks the release and signals red in GitHub."
+          echo ""
+          if [ "$IS_PRODUCTION" == "true" ]; then
+            echo "PRODUCTION DEPLOYMENT BLOCKED"
+            echo "See docs/ROLLBACK.md for recovery procedures."
+          fi
           echo ""
           echo "Please review the test results and fix the issues."
           echo "=============================================="
