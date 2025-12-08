@@ -116,7 +116,8 @@ function fetchUrl(urlString) {
  */
 function sanitizeForLog(str) {
   if (typeof str !== 'string') return String(str);
-  // Remove control characters and limit length
+  // Remove control characters (ASCII 0-31 and 127) and limit length
+  // eslint-disable-next-line no-control-regex -- Intentionally matching control chars for security
   return str.replace(/[\x00-\x1F\x7F]/g, '').slice(0, 2000);
 }
 
