@@ -96,6 +96,10 @@ DEPLOYMENT_ID = "AKfycbxx2nN-zkU-Jke1ECl1C7RUwOyGmrZ6B-6-ViMIjXKrIT3Q1dLh5lf5LK5
 # Enable debug endpoints (/__debug/template/*) for staging only
 # SECURITY: This should NEVER be enabled in production
 ENABLE_DEBUG_ENDPOINTS = "true"
+# Story 5: Debug level for observability
+# Staging uses 'debug' for full visibility, production uses 'error'
+# Note: NU SDK auto-detects based on hostname, this is for documentation
+DEBUG_LEVEL = "debug"
 
 # ============================================
 # API Only (subdomain only, no main site)

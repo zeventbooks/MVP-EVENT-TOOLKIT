@@ -43,7 +43,82 @@
  */
 
 // Worker version - used for transparency headers and debugging
-const WORKER_VERSION = '2.1.0';
+const WORKER_VERSION = '2.2.0';
+
+// =============================================================================
+// OBSERVABILITY & LOGGING - Story 5 Implementation
+// =============================================================================
+// Structured logging for route resolution and error tracking.
+// Logs use consistent prefixes for easy filtering and alerting.
+
+/**
+ * Log Prefixes:
+ * - [ROUTE] - Route resolution logs (HTML routes)
+ * - [API] - API request logs
+ * - [404] - Not found logs
+ * - [ERROR] - Error logs
+ * - [GAS_PROXY] - Routes that legitimately proxy to GAS (shortlinks, JSON pages)
+ */
+
+/**
+ * Get environment identifier from env object
+ * @param {Object} env - Worker environment
+ * @returns {string} Environment identifier (prod, stg, dev)
+ */
+function getEnvironmentId(env) {
+  // Check for staging indicators
+  if (env.ENABLE_DEBUG_ENDPOINTS === 'true') {
+    return 'stg';
+  }
+  // Check deployment ID pattern
+  const deploymentId = env.DEPLOYMENT_ID || '';
+  if (deploymentId.includes('xx2nN-zkU')) {
+    return 'stg'; // Staging deployment ID pattern
+  }
+  // Check GAS URL for staging
+  const gasUrl = env.GAS_DEPLOYMENT_BASE_URL || '';
+  if (gasUrl.includes('stg') || gasUrl.includes('staging')) {
+    return 'stg';
+  }
+  // Default to prod
+  return 'prod';
+}
+
+/**
+ * Log route resolution for HTML pages
+ * Format: [ROUTE] /path -> template=X env=Y
+ * @param {string} path - Request path
+ * @param {string} templateName - Resolved template name
+ * @param {Object} env - Worker environment
+ */
+function logRouteResolution(path, templateName, env) {
+  const envId = getEnvironmentId(env);
+  console.log(`[ROUTE] ${path} -> template=${templateName} env=${envId}`);
+}
+
+/**
+ * Log 404 not found responses
+ * Format: [404] /path reason=X env=Y
+ * @param {string} path - Request path
+ * @param {string} reason - Reason for 404
+ * @param {Object} env - Worker environment
+ */
+function log404Response(path, reason, env) {
+  const envId = getEnvironmentId(env);
+  console.log(`[404] ${path} reason="${reason}" env=${envId}`);
+}
+
+/**
+ * Log GAS proxy requests (for legitimate GAS-proxied routes only)
+ * Format: [GAS_PROXY] type=X path=Y env=Z
+ * @param {string} proxyType - Type of proxy (shortlink, json_page, api)
+ * @param {string} path - Request path
+ * @param {Object} env - Worker environment
+ */
+function logGasProxy(proxyType, path, env) {
+  const envId = getEnvironmentId(env);
+  console.log(`[GAS_PROXY] type=${proxyType} path=${path} env=${envId}`);
+}
 
 // =============================================================================
 // EXPLICIT HTML ROUTE MAP - Story 2 Implementation
@@ -656,8 +731,13 @@ async function handleHtmlPageRequest(url, params, env) {
   if (!templateName) {
     // Should not happen if validation passed, but safety check
     const corrId = generateCorrId();
+    log404Response(url.pathname, `No template for page=${page}`, env);
     return create404Response(url, false, corrId);
   }
+
+  // Story 5: Log route resolution with structured format
+  // This helps track which template is being served for each route
+  logRouteResolution(url.pathname, templateName, env);
 
   // Check for demo mode
   const demoMode = searchParams.get('demo') === 'true' ||
@@ -1616,7 +1696,10 @@ export default {
     if (!validation.valid) {
       const corrId = generateCorrId();
 
-      // Log the invalid route attempt
+      // Story 5: Structured 404 logging - never silently proxy to GAS
+      log404Response(url.pathname + url.search, validation.reason, env);
+
+      // Log the invalid route attempt for error tracking
       ctx.waitUntil(logError(env, {
         corrId,
         type: 'invalid_route',
@@ -1625,7 +1708,6 @@ export default {
         isApiRequest: validation.isApiRequest
       }));
 
-      console.log(`[EventAngle] 404 - ${validation.reason}`);
       return create404Response(url, validation.isApiRequest, corrId);
     }
 
@@ -1647,21 +1729,26 @@ export default {
       if (isApiRequest) {
         // API request: proxy and add CORS headers
         // This is the ONLY path that touches GAS for regular requests
+        logGasProxy('api', url.pathname, env);
         response = await proxyToAppsScript(request, appsScriptBase, env);
       } else if (routeParams.p && Object.hasOwn(GAS_PROXY_ROUTES, routeParams.p)) {
         // Shortlink redirect: requires GAS to resolve token
         // This is a deliberate exception where we proxy to GAS
+        logGasProxy('shortlink', url.pathname, env);
         response = await handleShortlinkRedirect(request, url, appsScriptBase, env);
       } else if (routeParams.page && Object.hasOwn(JSON_ROUTE_MAP, routeParams.page)) {
         // JSON page (status, ping, etc.): proxy to GAS for data
+        logGasProxy('json_page', url.pathname, env);
         response = await handleJsonPageRequest(request, url, routeParams, appsScriptBase, env);
       } else if (routeParams.page && Object.hasOwn(HTML_ROUTE_MAP, routeParams.page)) {
         // HTML page: render from Worker template
         // NEVER calls fetch(GAS_WEBAPP_URL) for these routes
+        // Story 5: HTML routes are logged via logRouteResolution in handleHtmlPageRequest
         response = await handleHtmlPageRequest(url, routeParams, env);
       } else {
         // Default to public page (HTML)
         routeParams.page = 'public';
+        // Story 5: Default routes also get structured logging
         response = await handleHtmlPageRequest(url, routeParams, env);
       }
 
