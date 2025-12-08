@@ -1,0 +1,23 @@
+name = "eventangle"
+main = "workers/proxy/worker.js"
+compatibility_date = "2024-01-01"
+
+[env.staging]
+name = "eventangle-staging"
+routes = [
+  { pattern = "stg.eventangle.com/*", zone_name = "eventangle.com" },
+  { pattern = "api-stg.eventangle.com/*", zone_name = "eventangle.com" }
+]
+[env.staging.vars]
+WORKER_ENV = "staging"
+UPSTREAM_TIMEOUT_MS = "30000"
+
+[env.production]
+name = "eventangle-prod"
+routes = [
+  { pattern = "eventangle.com/*", zone_name = "eventangle.com" },
+  { pattern = "www.eventangle.com/*", zone_name = "eventangle.com" }
+]
+[env.production.vars]
+WORKER_ENV = "production"
+UPSTREAM_TIMEOUT_MS = "30000"

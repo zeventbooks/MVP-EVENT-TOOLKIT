@@ -90,9 +90,9 @@ routes = [
 #
 # Placeholder value indicates staging is NOT configured.
 # ============================================
-STAGING_DEPLOYMENT_ID = "STAGING_DEPLOYMENT_ID_PLACEHOLDER"
-GAS_DEPLOYMENT_BASE_URL = "https://script.google.com/macros/s/STAGING_DEPLOYMENT_ID_PLACEHOLDER/exec"
-DEPLOYMENT_ID = "STAGING_DEPLOYMENT_ID_PLACEHOLDER"
+STAGING_DEPLOYMENT_ID = "AKfycbxx2nN-zkU-Jke1ECl1C7RUwOyGmrZ6B-6-ViMIjXKrIT3Q1dLh5lf5LK5Ymdg-cbcJ"
+GAS_DEPLOYMENT_BASE_URL = "https://script.google.com/macros/s/AKfycbxx2nN-zkU-Jke1ECl1C7RUwOyGmrZ6B-6-ViMIjXKrIT3Q1dLh5lf5LK5Ymdg-cbcJ/exec"
+DEPLOYMENT_ID = "AKfycbxx2nN-zkU-Jke1ECl1C7RUwOyGmrZ6B-6-ViMIjXKrIT3Q1dLh5lf5LK5Ymdg-cbcJ"
 
 # ============================================
 # API Only (subdomain only, no main site)

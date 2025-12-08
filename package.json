@@ -229,7 +229,8 @@
     "logs": "clasp logs",
     "verify-deployment": "./verify-deployment.sh",
     "dashboard": "cd dashboard && npm start",
-    "dashboard:dev": "cd dashboard && npm run dev"
+    "dashboard:dev": "cd dashboard && npm run dev",
+    "verify:brands": "node scripts/verify-brand-registry.js"
   },
   "keywords": [
     "events",
