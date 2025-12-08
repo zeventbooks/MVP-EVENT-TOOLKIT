@@ -102,7 +102,12 @@ window.SponsorUtils = (function() {
   function flush() {
     if (!logBatch.length) return;
     const copy = logBatch.splice(0, logBatch.length);
-    if (window.google?.script?.run) {
+    // Use NU.safeLogEvents for fetch-based RPC (works through Cloudflare proxy)
+    // Falls back to google.script.run internally if fetch fails
+    if (window.NU?.safeLogEvents) {
+      NU.safeLogEvents(copy);
+    } else if (window.google?.script?.run) {
+      // Legacy fallback for pages without NUSDK
       google.script.run.withFailureHandler(() => {}).api_logEvents({ items: copy });
     }
   }
