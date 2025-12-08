@@ -23,13 +23,8 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: cloudflare-proxy
           command: deploy --env ${{ inputs.environment }}
-          secrets: |
-            DEPLOYMENT_ID
-            GAS_DEPLOYMENT_BASE_URL
-        env:
-          DEPLOYMENT_ID: ${{ inputs.environment == 'staging' && secrets.STAGING_GAS_DEPLOYMENT_ID || secrets.PROD_GAS_DEPLOYMENT_ID }}
-          GAS_DEPLOYMENT_BASE_URL: ${{ format('https://script.google.com/macros/s/{0}/exec', inputs.environment == 'staging' && secrets.STAGING_GAS_DEPLOYMENT_ID || secrets.PROD_GAS_DEPLOYMENT_ID) }}
 
       - name: Verify deployment
         run: |
