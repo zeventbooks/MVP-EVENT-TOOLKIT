@@ -108,7 +108,7 @@ describe('NUSDK Single Source of Truth', () => {
         const content = fs.readFileSync(filePath, 'utf8');
 
         // Check for GAS include pattern
-        const includePattern = /\<\?!?=\s*include\(['"]NUSDK['"]\)\s*;?\s*\?>/;
+        const includePattern = /<\?!?=\s*include\(['"]NUSDK['"]\)\s*;?\s*\?>/;
         expect(content).toMatch(includePattern);
       }
     );
