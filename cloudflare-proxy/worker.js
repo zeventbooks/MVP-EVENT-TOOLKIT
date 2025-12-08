@@ -43,7 +43,419 @@
  */
 
 // Worker version - used for transparency headers and debugging
-const WORKER_VERSION = '1.5.0';
+const WORKER_VERSION = '2.0.0';
+
+// =============================================================================
+// EXPLICIT HTML ROUTE MAP - Story 2 Implementation
+// =============================================================================
+// HTML routes are served directly from Worker templates.
+// GAS is ONLY accessed via /api/* JSON endpoints.
+// This eliminates the "leaky" routing where HTML could come from GAS.
+
+/**
+ * HTML Route Map - Maps page types to template names
+ * Each route explicitly defines which template to render
+ */
+const HTML_ROUTE_MAP = Object.freeze({
+  // Public-facing routes
+  'public': 'public',
+  'events': 'public',      // Alias for public
+  'schedule': 'public',    // Alias for public
+  'calendar': 'public',    // Alias for public
+
+  // Admin routes
+  'admin': 'admin',
+  'manage': 'admin',       // Alias for admin
+  'dashboard': 'admin',    // Alias for admin
+  'create': 'admin',       // Alias for admin
+  'docs': 'admin',         // Alias for admin
+
+  // Display/TV routes
+  'display': 'display',
+  'tv': 'display',         // Alias for display
+  'kiosk': 'display',      // Alias for display
+  'screen': 'display',     // Alias for display
+
+  // Poster routes
+  'poster': 'poster',
+  'posters': 'poster',     // Alias for poster
+  'flyers': 'poster',      // Alias for poster
+
+  // Report/Analytics routes
+  'report': 'report',
+  'analytics': 'report',   // Alias for report
+  'reports': 'report',     // Alias for report
+  'insights': 'report',    // Alias for report
+  'stats': 'report'        // Alias for report
+});
+
+/**
+ * JSON-only routes - These return JSON, not HTML
+ * Handled separately from HTML routes
+ */
+const JSON_ROUTE_MAP = Object.freeze({
+  'status': 'status',
+  'health': 'status',
+  'ping': 'ping',
+  'diagnostics': 'diagnostics',
+  'test': 'test'
+});
+
+/**
+ * Routes that require GAS proxy (shortlinks/redirects)
+ * These are the ONLY non-API routes that touch GAS
+ */
+const GAS_PROXY_ROUTES = Object.freeze({
+  'r': 'redirect',         // Shortlink redirect
+  'redirect': 'redirect'   // Explicit redirect
+});
+
+// =============================================================================
+// TEMPLATE RENDERING SYSTEM
+// =============================================================================
+// Templates are bundled at build time from GAS templates.
+// See: scripts/bundle-worker-templates.js
+
+/**
+ * Brand configuration for template rendering
+ */
+const BRAND_CONFIG = Object.freeze({
+  'root': { name: 'EventAngle', scope: 'events' },
+  'abc': { name: 'ABC Events', scope: 'events' },
+  'cbc': { name: 'CBC Events', scope: 'events' },
+  'cbl': { name: 'CBL Events', scope: 'leagues' }
+});
+
+/**
+ * Get brand configuration from brand ID
+ */
+function getBrandConfig(brandId) {
+  return BRAND_CONFIG[brandId] || BRAND_CONFIG['root'];
+}
+
+/**
+ * Extract routing parameters from URL
+ * @param {URL} url - Request URL
+ * @returns {Object} Routing parameters
+ */
+function extractRouteParams(url) {
+  const pathname = url.pathname;
+  const searchParams = url.searchParams;
+
+  // Extract from query params first
+  let page = searchParams.get('page');
+  let p = searchParams.get('p');
+  let brandId = searchParams.get('brand') || 'root';
+  let scope = searchParams.get('scope');
+
+  // Parse path segments
+  const segments = pathname.split('/').filter(Boolean);
+
+  // Check if first segment is a brand
+  if (segments.length > 0 && VALID_BRANDS.includes(segments[0])) {
+    brandId = segments[0];
+    segments.shift(); // Remove brand from segments
+  }
+
+  // Get page from path if not in query
+  if (!page && !p && segments.length > 0) {
+    const firstSegment = segments[0].toLowerCase();
+    if (Object.hasOwn(HTML_ROUTE_MAP, firstSegment)) {
+      page = firstSegment;
+    } else if (Object.hasOwn(JSON_ROUTE_MAP, firstSegment)) {
+      page = firstSegment;
+    } else if (Object.hasOwn(GAS_PROXY_ROUTES, firstSegment)) {
+      p = firstSegment;
+    }
+  }
+
+  // Resolve p-route to page if needed
+  if (p && !page) {
+    if (p === 'events') {
+      page = 'public';
+    } else if (Object.hasOwn(GAS_PROXY_ROUTES, p)) {
+      // Keep p for redirect handling
+    } else {
+      page = p;
+    }
+  }
+
+  // Default to public page
+  if (!page && !p) {
+    page = 'public';
+  }
+
+  // Get brand config
+  const brandConfig = getBrandConfig(brandId);
+
+  // Build scope
+  if (!scope) {
+    scope = brandConfig.scope || 'events';
+  }
+
+  return {
+    page,
+    p,
+    brandId,
+    scope,
+    brandName: brandConfig.name,
+    segments,
+    searchParams
+  };
+}
+
+/**
+ * Render HTML template with variable substitution
+ *
+ * Variables replaced:
+ * - <?= appTitle ?> - Page title (brand name + scope)
+ * - <?= brandId ?> - Brand identifier
+ * - <?= scope ?> - Scope (events, leagues, etc.)
+ * - <?= execUrl ?> - API endpoint URL (GAS or Worker)
+ * - <?= demoMode ?> - Demo mode flag
+ *
+ * @param {string} templateName - Template name (public, admin, display, poster, report)
+ * @param {Object} params - Template parameters
+ * @param {Object} env - Worker environment
+ * @returns {string} Rendered HTML
+ */
+function renderTemplate(templateContent, params, env) {
+  const {
+    brandId = 'root',
+    brandName = 'EventAngle',
+    scope = 'events',
+    demoMode = false
+  } = params;
+
+  // Get exec URL from environment (for API calls)
+  const execUrl = env.GAS_DEPLOYMENT_BASE_URL ||
+    `https://script.google.com/macros/s/${env.DEPLOYMENT_ID || DEFAULT_DEPLOYMENT_ID}/exec`;
+
+  // Build app title
+  const appTitle = `${brandName} · ${scope}`;
+
+  // Replace template variables
+  let html = templateContent;
+
+  // Replace <?= variable ?> patterns
+  html = html.replace(/<\?=\s*appTitle\s*\?>/g, escapeHtml(appTitle));
+  html = html.replace(/<\?=\s*brandId\s*\?>/g, escapeHtml(brandId));
+  html = html.replace(/<\?=\s*scope\s*\?>/g, escapeHtml(scope));
+  html = html.replace(/<\?=\s*execUrl\s*\?>/g, escapeHtml(execUrl));
+  html = html.replace(/<\?=\s*demoMode\s*\?>/g, demoMode ? 'true' : 'false');
+
+  return html;
+}
+
+/**
+ * Get template content from KV storage or bundled templates
+ *
+ * Templates are stored in Cloudflare KV for production.
+ * Falls back to fetch from origin if KV is not available.
+ *
+ * @param {string} templateName - Template name
+ * @param {Object} env - Worker environment
+ * @returns {Promise<string|null>} Template content or null
+ */
+async function getTemplate(templateName, env) {
+  const templateFile = `${templateName}.html`;
+
+  // Try KV storage first (for production deployments)
+  if (env.TEMPLATES_KV) {
+    try {
+      const content = await env.TEMPLATES_KV.get(templateFile);
+      if (content) {
+        return content;
+      }
+    } catch (e) {
+      console.error(`[EventAngle] KV fetch error for ${templateFile}:`, e.message);
+    }
+  }
+
+  // Fallback: Return null to trigger error page
+  // In production, templates should always be in KV
+  console.warn(`[EventAngle] Template not found: ${templateFile}`);
+  return null;
+}
+
+/**
+ * Handle HTML page request by rendering template
+ *
+ * This function serves HTML pages directly from Worker templates.
+ * It NEVER calls fetch(GAS_WEBAPP_URL) for HTML routes.
+ *
+ * @param {URL} url - Request URL
+ * @param {Object} params - Route parameters
+ * @param {Object} env - Worker environment
+ * @returns {Promise<Response>} HTML response
+ */
+async function handleHtmlPageRequest(url, params, env) {
+  const { page, brandId, brandName, scope, searchParams } = params;
+
+  // Resolve template name from route map
+  const templateName = HTML_ROUTE_MAP[page];
+
+  if (!templateName) {
+    // Should not happen if validation passed, but safety check
+    const corrId = generateCorrId();
+    return create404Response(url, false, corrId);
+  }
+
+  // Check for demo mode
+  const demoMode = searchParams.get('demo') === 'true' ||
+                   searchParams.get('test') === 'true';
+
+  // Get template content
+  const templateContent = await getTemplate(templateName, env);
+
+  if (!templateContent) {
+    // Template not found - return error page
+    const corrId = generateCorrId();
+    console.error(`[EventAngle] Template not found: ${templateName}`);
+
+    const html = generateErrorPage({
+      title: 'Page Unavailable',
+      message: 'This page is temporarily unavailable.',
+      hint: 'Please try again in a moment or contact support if the issue persists.',
+      corrId,
+      pageType: page,
+      statusCode: 503
+    });
+
+    return new Response(html, {
+      status: 503,
+      headers: {
+        'Content-Type': 'text/html; charset=utf-8',
+        'X-Proxied-By': 'eventangle-worker',
+        'X-Worker-Version': WORKER_VERSION,
+        'X-Error-CorrId': corrId,
+        'Cache-Control': 'no-cache, no-store, must-revalidate'
+      }
+    });
+  }
+
+  // Render template with variables
+  const html = renderTemplate(templateContent, {
+    brandId,
+    brandName,
+    scope,
+    demoMode
+  }, env);
+
+  return new Response(html, {
+    status: 200,
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'X-Proxied-By': 'eventangle-worker',
+      'X-Worker-Version': WORKER_VERSION,
+      'X-Template': templateName,
+      'Cache-Control': 'no-cache, no-store, must-revalidate'
+    }
+  });
+}
+
+/**
+ * Handle JSON page request (status, ping, etc.)
+ *
+ * These routes return JSON responses, not HTML.
+ * They proxy to GAS for actual status data.
+ *
+ * @param {Request} request - Original request
+ * @param {URL} url - Request URL
+ * @param {Object} params - Route parameters
+ * @param {string} appsScriptBase - GAS base URL
+ * @param {Object} env - Worker environment
+ * @returns {Promise<Response>} JSON response
+ */
+async function handleJsonPageRequest(request, url, params, appsScriptBase, env) {
+  const { page, brandId } = params;
+
+  // Build API URL for status/ping endpoints
+  const apiParams = new URLSearchParams();
+  apiParams.set('page', page);
+  if (brandId) {
+    apiParams.set('brand', brandId);
+  }
+
+  const targetUrl = `${appsScriptBase}?${apiParams.toString()}`;
+
+  console.log(`[EventAngle] JSON page request: ${page} -> ${targetUrl}`);
+
+  // Create timeout controller
+  const controller = new AbortController();
+  const timeoutMs = env.UPSTREAM_TIMEOUT_MS ? parseInt(env.UPSTREAM_TIMEOUT_MS) : UPSTREAM_TIMEOUT_MS;
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(targetUrl, {
+      method: 'GET',
+      headers: buildHeaders(request),
+      redirect: 'follow',
+      signal: controller.signal
+    });
+
+    // Return JSON response with CORS headers
+    const newResponse = new Response(response.body, response);
+    newResponse.headers.set('Content-Type', 'application/json');
+    newResponse.headers.set('Access-Control-Allow-Origin', '*');
+    newResponse.headers.set('X-Proxied-By', 'eventangle-worker');
+    newResponse.headers.set('X-Worker-Version', WORKER_VERSION);
+
+    return newResponse;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+/**
+ * Handle shortlink redirect request
+ *
+ * Shortlinks (?p=r&t=...) require GAS to resolve the token.
+ * This is one of the FEW routes that proxies to GAS.
+ *
+ * @param {Request} request - Original request
+ * @param {URL} url - Request URL
+ * @param {string} appsScriptBase - GAS base URL
+ * @param {Object} env - Worker environment
+ * @returns {Promise<Response>} Redirect response
+ */
+async function handleShortlinkRedirect(request, url, appsScriptBase, env) {
+  const token = url.searchParams.get('t') || url.searchParams.get('token') || '';
+
+  // Build redirect URL
+  const redirectParams = new URLSearchParams();
+  redirectParams.set('p', 'r');
+  if (token) {
+    redirectParams.set('t', token);
+  }
+
+  const targetUrl = `${appsScriptBase}?${redirectParams.toString()}`;
+
+  console.log(`[EventAngle] Shortlink redirect: ${token ? token.slice(0, 8) + '...' : 'no-token'}`);
+
+  // Create timeout controller
+  const controller = new AbortController();
+  const timeoutMs = env.UPSTREAM_TIMEOUT_MS ? parseInt(env.UPSTREAM_TIMEOUT_MS) : UPSTREAM_TIMEOUT_MS;
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(targetUrl, {
+      method: request.method,
+      headers: buildHeaders(request),
+      redirect: 'follow',
+      signal: controller.signal
+    });
+
+    // Return response as-is (GAS handles the redirect)
+    const newResponse = new Response(response.body, response);
+    newResponse.headers.set('X-Proxied-By', 'eventangle-worker');
+    newResponse.headers.set('X-Worker-Version', WORKER_VERSION);
+
+    return newResponse;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
 
 // Timeout for upstream requests (ms)
 const UPSTREAM_TIMEOUT_MS = 30000;
@@ -849,21 +1261,40 @@ export default {
       return create404Response(url, validation.isApiRequest, corrId);
     }
 
-    // Determine request type:
-    // - API requests: ?action=* or ?api=* or /api/* → proxy with CORS headers
-    // - Page requests: ?page=* or path-based → proxy and return HTML directly (no JSON wrapping)
+    // ==========================================================================
+    // EXPLICIT ROUTE HANDLING - Story 2 Implementation
+    // ==========================================================================
+    // Routes are handled explicitly based on type:
+    // - API requests: /api/* → proxy to GAS with CORS
+    // - HTML pages: /events, /admin, etc. → render from Worker templates (NO GAS)
+    // - JSON pages: /status, /ping → proxy to GAS for data
+    // - Shortlinks: ?p=r&t=... → proxy to GAS for redirect resolution
+
     const isApiRequest = validation.isApiRequest;
+    const routeParams = extractRouteParams(url);
 
     try {
       let response;
 
       if (isApiRequest) {
         // API request: proxy and add CORS headers
+        // This is the ONLY path that touches GAS for regular requests
         response = await proxyToAppsScript(request, appsScriptBase, env);
+      } else if (routeParams.p && Object.hasOwn(GAS_PROXY_ROUTES, routeParams.p)) {
+        // Shortlink redirect: requires GAS to resolve token
+        // This is a deliberate exception where we proxy to GAS
+        response = await handleShortlinkRedirect(request, url, appsScriptBase, env);
+      } else if (routeParams.page && Object.hasOwn(JSON_ROUTE_MAP, routeParams.page)) {
+        // JSON page (status, ping, etc.): proxy to GAS for data
+        response = await handleJsonPageRequest(request, url, routeParams, appsScriptBase, env);
+      } else if (routeParams.page && Object.hasOwn(HTML_ROUTE_MAP, routeParams.page)) {
+        // HTML page: render from Worker template
+        // NEVER calls fetch(GAS_WEBAPP_URL) for these routes
+        response = await handleHtmlPageRequest(url, routeParams, env);
       } else {
-        // HTML page request: proxy directly without CORS wrapping
-        // This keeps eventangle.com in the browser address bar
-        response = await proxyPageRequest(request, appsScriptBase, url, env);
+        // Default to public page (HTML)
+        routeParams.page = 'public';
+        response = await handleHtmlPageRequest(url, routeParams, env);
       }
 
       // Check for upstream 5xx errors and provide graceful degradation
@@ -918,6 +1349,25 @@ export default {
 };
 
 /**
+ * @deprecated Story 2 - This function is NO LONGER USED for HTML routes.
+ *
+ * HTML routes are now served directly from Worker templates via handleHtmlPageRequest().
+ * This function is kept for reference and potential emergency rollback only.
+ *
+ * MIGRATION (Story 2):
+ * - HTML pages: handleHtmlPageRequest() - renders from Worker templates
+ * - JSON pages: handleJsonPageRequest() - proxies to GAS for data
+ * - Shortlinks: handleShortlinkRedirect() - proxies to GAS for redirect resolution
+ * - API calls: proxyToAppsScript() - proxies to GAS (unchanged)
+ *
+ * The only paths that now touch GAS directly are:
+ * - /api/* JSON RPC
+ * - /status, /ping JSON endpoints
+ * - ?p=r&t=... shortlink redirects
+ *
+ * See: HTML_ROUTE_MAP, JSON_ROUTE_MAP, GAS_PROXY_ROUTES
+ *
+ * ORIGINAL DOCUMENTATION:
  * Proxy HTML page request to Google Apps Script
  *
  * This function fetches HTML pages from Apps Script and returns them directly.
@@ -937,7 +1387,7 @@ export default {
  * - /display, /tv, /kiosk → page=display
  * - /status, /health → page=status
  */
-async function proxyPageRequest(request, appsScriptBase, url, env) {
+async function proxyPageRequest_DEPRECATED(request, appsScriptBase, url, env) {
   // Get path and strip known prefixes
   let path = url.pathname;
   const knownPrefixes = [

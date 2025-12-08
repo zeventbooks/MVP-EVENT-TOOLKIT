@@ -572,3 +572,372 @@ describe('/api/* Response Type Guarantee', () => {
   });
 
 });
+
+// =============================================================================
+// Story 2: Explicit HTML Route Map (No HTML → GAS)
+// =============================================================================
+// Verifies that HTML routes are served from Worker templates, not GAS.
+// GAS is only hit via JSON API endpoints.
+
+describe('Story 2: Explicit HTML Route Map', () => {
+
+  describe('HTML_ROUTE_MAP Configuration', () => {
+    it('should have HTML_ROUTE_MAP constant', () => {
+      const workerPath = path.join(__dirname, '../../cloudflare-proxy/worker.js');
+      const content = fs.readFileSync(workerPath, 'utf8');
+
+      expect(content).toContain('const HTML_ROUTE_MAP = Object.freeze({');
+    });
+
+    it('should map /events to public template', () => {
+      const workerPath = path.join(__dirname, '../../cloudflare-proxy/worker.js');
+      const content = fs.readFileSync(workerPath, 'utf8');
+
+      // Extract HTML_ROUTE_MAP
+      const match = content.match(/const HTML_ROUTE_MAP = Object\.freeze\(\{([\s\S]*?)\}\);/);
+      expect(match).toBeTruthy();
+
+      const routeMap = match[1];
+      expect(routeMap).toContain("'events': 'public'");
+    });
+
+    it('should map admin routes to admin template', () => {
+      const workerPath = path.join(__dirname, '../../cloudflare-proxy/worker.js');
+      const content = fs.readFileSync(workerPath, 'utf8');
+
+      const match = content.match(/const HTML_ROUTE_MAP = Object\.freeze\(\{([\s\S]*?)\}\);/);
+      expect(match).toBeTruthy();
+
+      const routeMap = match[1];
+      expect(routeMap).toContain("'admin': 'admin'");
+      expect(routeMap).toContain("'manage': 'admin'");
+      expect(routeMap).toContain("'dashboard': 'admin'");
+    });
+
+    it('should map display routes to display template', () => {
+      const workerPath = path.join(__dirname, '../../cloudflare-proxy/worker.js');
+      const content = fs.readFileSync(workerPath, 'utf8');
+
+      const match = content.match(/const HTML_ROUTE_MAP = Object\.freeze\(\{([\s\S]*?)\}\);/);
+      expect(match).toBeTruthy();
+
+      const routeMap = match[1];
+      expect(routeMap).toContain("'display': 'display'");
+      expect(routeMap).toContain("'tv': 'display'");
+      expect(routeMap).toContain("'kiosk': 'display'");
+    });
+
+    it('should map poster routes to poster template', () => {
+      const workerPath = path.join(__dirname, '../../cloudflare-proxy/worker.js');
+      const content = fs.readFileSync(workerPath, 'utf8');
+
+      const match = content.match(/const HTML_ROUTE_MAP = Object\.freeze\(\{([\s\S]*?)\}\);/);
+      expect(match).toBeTruthy();
+
+      const routeMap = match[1];
+      expect(routeMap).toContain("'poster': 'poster'");
+      expect(routeMap).toContain("'posters': 'poster'");
+      expect(routeMap).toContain("'flyers': 'poster'");
+    });
+
+    it('should map report routes to report template', () => {
+      const workerPath = path.join(__dirname, '../../cloudflare-proxy/worker.js');
+      const content = fs.readFileSync(workerPath, 'utf8');
+
+      const match = content.match(/const HTML_ROUTE_MAP = Object\.freeze\(\{([\s\S]*?)\}\);/);
+      expect(match).toBeTruthy();
+
+      const routeMap = match[1];
+      expect(routeMap).toContain("'report': 'report'");
+      expect(routeMap).toContain("'analytics': 'report'");
+    });
+  });
+
+  describe('JSON_ROUTE_MAP Configuration', () => {
+    it('should have JSON_ROUTE_MAP for status/health endpoints', () => {
+      const workerPath = path.join(__dirname, '../../cloudflare-proxy/worker.js');
+      const content = fs.readFileSync(workerPath, 'utf8');
+
+      expect(content).toContain('const JSON_ROUTE_MAP = Object.freeze({');
+
+      const match = content.match(/const JSON_ROUTE_MAP = Object\.freeze\(\{([\s\S]*?)\}\);/);
+      expect(match).toBeTruthy();
+
+      const routeMap = match[1];
+      expect(routeMap).toContain("'status': 'status'");
+      expect(routeMap).toContain("'ping': 'ping'");
+    });
+  });
+
+  describe('GAS_PROXY_ROUTES Configuration', () => {
+    it('should have GAS_PROXY_ROUTES for shortlinks only', () => {
+      const workerPath = path.join(__dirname, '../../cloudflare-proxy/worker.js');
+      const content = fs.readFileSync(workerPath, 'utf8');
+
+      expect(content).toContain('const GAS_PROXY_ROUTES = Object.freeze({');
+
+      const match = content.match(/const GAS_PROXY_ROUTES = Object\.freeze\(\{([\s\S]*?)\}\);/);
+      expect(match).toBeTruthy();
+
+      const routeMap = match[1];
+      // Only redirect routes should proxy to GAS
+      expect(routeMap).toContain("'r': 'redirect'");
+      expect(routeMap).toContain("'redirect': 'redirect'");
+    });
+  });
+
+  describe('handleHtmlPageRequest Function', () => {
+    it('should exist and handle HTML page requests', () => {
+      const workerPath = path.join(__dirname, '../../cloudflare-proxy/worker.js');
+      const content = fs.readFileSync(workerPath, 'utf8');
+
+      expect(content).toContain('async function handleHtmlPageRequest(url, params, env)');
+    });
+
+    it('should render template with variables', () => {
+      const workerPath = path.join(__dirname, '../../cloudflare-proxy/worker.js');
+      const content = fs.readFileSync(workerPath, 'utf8');
+
+      // Should call renderTemplate
+      expect(content).toContain('renderTemplate(templateContent, {');
+
+      // Should pass brandId, brandName, scope, demoMode
+      expect(content).toContain('brandId,');
+      expect(content).toContain('brandName,');
+      expect(content).toContain('scope,');
+      expect(content).toContain('demoMode');
+    });
+
+    it('should return HTML with text/html Content-Type', () => {
+      const workerPath = path.join(__dirname, '../../cloudflare-proxy/worker.js');
+      const content = fs.readFileSync(workerPath, 'utf8');
+
+      // Look for handleHtmlPageRequest returning HTML content type
+      const funcMatch = content.match(/async function handleHtmlPageRequest[\s\S]*?return new Response\(html,[\s\S]*?'Content-Type':\s*'text\/html/);
+      expect(funcMatch).toBeTruthy();
+    });
+
+    it('should add X-Template header for debugging', () => {
+      const workerPath = path.join(__dirname, '../../cloudflare-proxy/worker.js');
+      const content = fs.readFileSync(workerPath, 'utf8');
+
+      expect(content).toContain("'X-Template': templateName");
+    });
+  });
+
+  describe('renderTemplate Function', () => {
+    it('should exist and replace template variables', () => {
+      const workerPath = path.join(__dirname, '../../cloudflare-proxy/worker.js');
+      const content = fs.readFileSync(workerPath, 'utf8');
+
+      expect(content).toContain('function renderTemplate(templateContent, params, env)');
+
+      // Should replace template variables
+      expect(content).toContain('html.replace(/<\\?=\\s*appTitle\\s*\\?>/g');
+      expect(content).toContain('html.replace(/<\\?=\\s*brandId\\s*\\?>/g');
+      expect(content).toContain('html.replace(/<\\?=\\s*scope\\s*\\?>/g');
+      expect(content).toContain('html.replace(/<\\?=\\s*execUrl\\s*\\?>/g');
+    });
+  });
+
+  describe('extractRouteParams Function', () => {
+    it('should exist and extract route parameters from URL', () => {
+      const workerPath = path.join(__dirname, '../../cloudflare-proxy/worker.js');
+      const content = fs.readFileSync(workerPath, 'utf8');
+
+      expect(content).toContain('function extractRouteParams(url)');
+    });
+
+    it('should extract brandId from path segments', () => {
+      const workerPath = path.join(__dirname, '../../cloudflare-proxy/worker.js');
+      const content = fs.readFileSync(workerPath, 'utf8');
+
+      // Should check for brand in first segment
+      expect(content).toContain('VALID_BRANDS.includes(segments[0])');
+    });
+
+    it('should return page, brandId, scope, and brandName', () => {
+      const workerPath = path.join(__dirname, '../../cloudflare-proxy/worker.js');
+      const content = fs.readFileSync(workerPath, 'utf8');
+
+      // Should return these properties
+      expect(content).toMatch(/return\s*\{[\s\S]*page[\s\S]*brandId[\s\S]*scope[\s\S]*brandName/);
+    });
+  });
+
+  describe('Route Handling Logic', () => {
+    it('should route HTML pages through handleHtmlPageRequest (not GAS)', () => {
+      const workerPath = path.join(__dirname, '../../cloudflare-proxy/worker.js');
+      const content = fs.readFileSync(workerPath, 'utf8');
+
+      // HTML routes should use handleHtmlPageRequest
+      expect(content).toContain("Object.hasOwn(HTML_ROUTE_MAP, routeParams.page)");
+      expect(content).toContain("response = await handleHtmlPageRequest(url, routeParams, env)");
+    });
+
+    it('should route JSON pages through handleJsonPageRequest', () => {
+      const workerPath = path.join(__dirname, '../../cloudflare-proxy/worker.js');
+      const content = fs.readFileSync(workerPath, 'utf8');
+
+      expect(content).toContain("Object.hasOwn(JSON_ROUTE_MAP, routeParams.page)");
+      expect(content).toContain("response = await handleJsonPageRequest(request, url, routeParams, appsScriptBase, env)");
+    });
+
+    it('should route shortlinks through handleShortlinkRedirect', () => {
+      const workerPath = path.join(__dirname, '../../cloudflare-proxy/worker.js');
+      const content = fs.readFileSync(workerPath, 'utf8');
+
+      expect(content).toContain("Object.hasOwn(GAS_PROXY_ROUTES, routeParams.p)");
+      expect(content).toContain("response = await handleShortlinkRedirect(request, url, appsScriptBase, env)");
+    });
+
+    it('should route API requests through proxyToAppsScript', () => {
+      const workerPath = path.join(__dirname, '../../cloudflare-proxy/worker.js');
+      const content = fs.readFileSync(workerPath, 'utf8');
+
+      expect(content).toContain("if (isApiRequest)");
+      expect(content).toContain("response = await proxyToAppsScript(request, appsScriptBase, env)");
+    });
+  });
+
+  describe('GAS Isolation Guarantee', () => {
+    it('should mark proxyPageRequest as deprecated', () => {
+      const workerPath = path.join(__dirname, '../../cloudflare-proxy/worker.js');
+      const content = fs.readFileSync(workerPath, 'utf8');
+
+      // Function should be marked deprecated
+      expect(content).toContain('@deprecated Story 2');
+      expect(content).toContain('proxyPageRequest_DEPRECATED');
+    });
+
+    it('should NOT call proxyPageRequest in main routing logic', () => {
+      const workerPath = path.join(__dirname, '../../cloudflare-proxy/worker.js');
+      const content = fs.readFileSync(workerPath, 'utf8');
+
+      // Extract the main fetch handler routing section
+      const fetchMatch = content.match(/async fetch\(request, env, ctx\)[\s\S]*?export default/);
+      if (fetchMatch) {
+        const fetchHandler = fetchMatch[0];
+        // Should NOT call proxyPageRequest (only the deprecated version exists)
+        expect(fetchHandler).not.toMatch(/proxyPageRequest\s*\(/);
+      }
+    });
+
+    it('should have comment explaining GAS is only for /api/*', () => {
+      const workerPath = path.join(__dirname, '../../cloudflare-proxy/worker.js');
+      const content = fs.readFileSync(workerPath, 'utf8');
+
+      // Should have clear documentation about GAS isolation
+      expect(content).toContain('GAS is ONLY accessed via /api/* JSON endpoints');
+      // HTML routes are served from Worker templates (documented in route map header)
+      expect(content).toContain('HTML routes are served directly from Worker templates');
+    });
+
+    it('should document that handleHtmlPageRequest NEVER calls fetch(GAS_WEBAPP_URL)', () => {
+      const workerPath = path.join(__dirname, '../../cloudflare-proxy/worker.js');
+      const content = fs.readFileSync(workerPath, 'utf8');
+
+      // Find the handleHtmlPageRequest function
+      const funcMatch = content.match(/async function handleHtmlPageRequest[\s\S]*?^}/m);
+      if (funcMatch) {
+        const func = funcMatch[0];
+        // Should not contain fetch calls to GAS
+        expect(func).not.toContain('fetch(appsScriptBase');
+        expect(func).not.toContain('fetch(targetUrl');
+      }
+
+      // Should have comment stating this
+      expect(content).toContain('NEVER calls fetch(GAS_WEBAPP_URL)');
+    });
+  });
+
+  describe('Template Bundling Integration', () => {
+    it('should have getTemplate function for loading templates', () => {
+      const workerPath = path.join(__dirname, '../../cloudflare-proxy/worker.js');
+      const content = fs.readFileSync(workerPath, 'utf8');
+
+      expect(content).toContain('async function getTemplate(templateName, env)');
+    });
+
+    it('should support TEMPLATES_KV environment binding', () => {
+      const workerPath = path.join(__dirname, '../../cloudflare-proxy/worker.js');
+      const content = fs.readFileSync(workerPath, 'utf8');
+
+      expect(content).toContain('env.TEMPLATES_KV');
+    });
+
+    it('should return graceful error if template not found', () => {
+      const workerPath = path.join(__dirname, '../../cloudflare-proxy/worker.js');
+      const content = fs.readFileSync(workerPath, 'utf8');
+
+      expect(content).toContain('if (!templateContent)');
+      expect(content).toContain('Page Unavailable');
+    });
+  });
+});
+
+// =============================================================================
+// Template Bundles Validation
+// =============================================================================
+// Verifies that bundled templates exist and are valid
+
+describe('Template Bundles', () => {
+  const templatesDir = path.join(__dirname, '../../cloudflare-proxy/templates');
+
+  it('should have templates directory', () => {
+    expect(fs.existsSync(templatesDir)).toBe(true);
+  });
+
+  it('should have manifest.json', () => {
+    const manifestPath = path.join(templatesDir, 'manifest.json');
+    expect(fs.existsSync(manifestPath)).toBe(true);
+
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+    expect(manifest).toHaveProperty('version');
+    expect(manifest).toHaveProperty('templates');
+  });
+
+  const requiredTemplates = ['public', 'admin', 'display', 'poster', 'report'];
+
+  it.each(requiredTemplates)('should have %s template file', (templateName) => {
+    const templatePath = path.join(templatesDir, `${templateName}.html`);
+    expect(fs.existsSync(templatePath)).toBe(true);
+  });
+
+  it.each(requiredTemplates)('should have %s template in manifest', (templateName) => {
+    const manifestPath = path.join(templatesDir, 'manifest.json');
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+
+    expect(manifest.templates).toHaveProperty(templateName);
+    expect(manifest.templates[templateName]).toHaveProperty('file');
+    expect(manifest.templates[templateName]).toHaveProperty('size');
+    expect(manifest.templates[templateName]).toHaveProperty('hash');
+  });
+
+  it.each(requiredTemplates)('%s template should have GAS variable placeholders', (templateName) => {
+    const templatePath = path.join(templatesDir, `${templateName}.html`);
+    const content = fs.readFileSync(templatePath, 'utf8');
+
+    // Templates should contain placeholders for runtime substitution
+    expect(content).toMatch(/<\?=\s*appTitle\s*\?>/);
+    expect(content).toMatch(/<\?=\s*brandId\s*\?>/);
+  });
+
+  it.each(requiredTemplates)('%s template should have resolved includes (no <?!= include)', (templateName) => {
+    const templatePath = path.join(templatesDir, `${templateName}.html`);
+    const content = fs.readFileSync(templatePath, 'utf8');
+
+    // Includes should be resolved - no <?!= include(...) ?> should remain
+    expect(content).not.toMatch(/<\?!=\s*include\s*\(/);
+  });
+
+  it.each(requiredTemplates)('%s template should have bundle metadata comment', (templateName) => {
+    const templatePath = path.join(templatesDir, `${templateName}.html`);
+    const content = fs.readFileSync(templatePath, 'utf8');
+
+    // Should have bundle metadata
+    expect(content).toContain('Template:');
+    expect(content).toContain('Bundled:');
+    expect(content).toContain('Hash:');
+  });
+});
