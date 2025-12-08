@@ -509,8 +509,23 @@ test.describe('NU SDK Integration: Cross-Surface Validation', () => {
       expect(health.initLog.version).toBe('2.0.0');
 
       // In staging, should detect staging environment
+      // Use URL parsing for secure hostname matching (prevents subdomain spoofing)
       const baseUrl = process.env.BASE_URL || '';
-      if (baseUrl.includes('stg.eventangle.com') || baseUrl.includes('localhost')) {
+      let isStaging = false;
+      try {
+        const parsedUrl = new URL(baseUrl);
+        const hostname = parsedUrl.hostname;
+        // Exact match or proper suffix match for staging detection
+        isStaging = hostname === 'stg.eventangle.com' ||
+                    hostname.endsWith('.stg.eventangle.com') ||
+                    hostname === 'localhost' ||
+                    hostname === '127.0.0.1';
+      } catch {
+        // If URL parsing fails, assume not staging
+        isStaging = false;
+      }
+
+      if (isStaging) {
         expect(health.initLog.logLevel, 'Staging should use debug log level').toBe('debug');
         expect(health.initLog.isStaging).toBe(true);
       }
