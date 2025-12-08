@@ -4759,6 +4759,7 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
 
     /**
      * Fetch and display QR code for a sponsor's report
+     * Uses NU SDK for consistent API calls through Worker proxy
      * @param {string} sponsorId - The sponsor ID
      * @param {string} sponsorName - The sponsor name for display
      */
@@ -4767,23 +4768,15 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
       showSponsorQrModal(sponsorName, null, true);
 
       try {
-        const payload = {
-          action: 'getSponsorReportQr',
+        // Use NU SDK - routes through /api/getSponsorReportQr
+        const result = await NU.rpc('getSponsorReportQr', {
           sponsorId: sponsorId,
           brandId: currentBrandId,
           adminKey: currentAdminKey
-        };
-
-        const response = await fetch(execUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
         });
 
-        const result = await response.json();
-
         if (!result.ok) {
-          showSponsorQrModal(sponsorName, null, false, result.error || 'Failed to generate QR code');
+          showSponsorQrModal(sponsorName, null, false, result.message || 'Failed to generate QR code');
           return;
         }
 
