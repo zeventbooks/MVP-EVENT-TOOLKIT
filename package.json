@@ -191,6 +191,8 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write '**/*.{js,gs,html,json,md}'",
+    "bundle:templates": "node scripts/bundle-worker-templates.js",
+    "bundle:templates:check": "node scripts/bundle-worker-templates.js --check",
     "deploy": "node scripts/deploy-apps-script.js",
     "deploy:diagnose": "node scripts/diagnose-apps-script-access.js",
     "deploy:verify-secrets": "node scripts/verify-secrets.js",

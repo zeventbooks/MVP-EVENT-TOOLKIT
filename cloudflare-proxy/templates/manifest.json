@@ -1,0 +1,31 @@
+{
+  "version": "1.0.0",
+  "generated": "2025-12-08T19:06:54.580Z",
+  "templates": {
+    "public": {
+      "file": "public.html",
+      "size": 178743,
+      "hash": "4aba3642"
+    },
+    "admin": {
+      "file": "admin.html",
+      "size": 303599,
+      "hash": "fdcc1e63"
+    },
+    "display": {
+      "file": "display.html",
+      "size": 168501,
+      "hash": "540fc135"
+    },
+    "poster": {
+      "file": "poster.html",
+      "size": 142084,
+      "hash": "c485d602"
+    },
+    "report": {
+      "file": "report.html",
+      "size": 170077,
+      "hash": "56e67211"
+    }
+  }
+}
