@@ -199,10 +199,10 @@ window.NU = {
   },
 
   /**
-   * Make an RPC call to the backend
+   * Make an RPC call to the backend via Cloudflare Worker proxy
    *
-   * Uses fetch('/api/<path>') when available (Cloudflare Worker proxy),
-   * falls back to google.script.run for direct GAS serving.
+   * Uses fetch('/api/<path>') for all requests. NO google.script.run fallback
+   * as it fails when proxied through Cloudflare.
    *
    * @param {string} path - API path (e.g., 'events/list', 'getPublicBundle')
    * @param {object} payload - Request parameters
@@ -232,7 +232,7 @@ window.NU = {
         ? JSON.stringify({ method: path, payload })
         : JSON.stringify(payload);
 
-      // Make fetch request
+      // Make fetch request (NO google.script.run fallback - fails through Cloudflare)
       const response = await fetch(url, {
         method: 'POST',
         headers: {
@@ -289,21 +289,7 @@ window.NU = {
       return data;
 
     } catch (fetchError) {
-      // Network error - try google.script.run fallback
-      NU._log('debug', 'network_fail', {
-        path,
-        requestId,
-        error: fetchError.message,
-        fallback: 'google.script.run',
-        startTime: startTime
-      });
-
-      // For legacy methods, try google.script.run
-      if (path.startsWith('api_') || path.includes('/')) {
-        return NU._fallbackToGAS(path, payload, requestId, startTime);
-      }
-
-      // Non-legacy path with no GAS fallback
+      // Network error - NO fallback to google.script.run (fails through Cloudflare)
       NU._log('error', 'network_fail', {
         path,
         requestId,
@@ -321,68 +307,6 @@ window.NU = {
       const idx = NU._pending.indexOf(pendingEntry);
       if (idx > -1) NU._pending.splice(idx, 1);
     }
-  },
-
-  /**
-   * Fallback to google.script.run for direct GAS serving
-   * @private
-   */
-  _fallbackToGAS(path, payload, requestId, startTime) {
-    return new Promise((resolve) => {
-      // Check if google.script.run is available
-      if (!window.google?.script?.run) {
-        NU._log('error', 'network_fail', {
-          path,
-          requestId,
-          error: 'Neither fetch nor google.script.run available',
-          startTime
-        });
-        resolve({
-          ok: false,
-          code: 'NETWORK_ERROR',
-          message: 'Cannot connect to backend. Check your connection.'
-        });
-        return;
-      }
-
-      // Convert path to method name for GAS
-      // 'events/list' -> 'api_list' (if needed)
-      // 'api_getPublicBundle' -> 'api_getPublicBundle' (as-is)
-      const method = path.startsWith('api_') ? path : `api_${path.replace('/', '_')}`;
-
-      try {
-        google.script.run
-          .withSuccessHandler(res => {
-            NU._log('debug', 'ok', {
-              path,
-              requestId,
-              transport: 'google.script.run',
-              hasValue: !!res?.value,
-              startTime
-            });
-            resolve(res);
-          })
-          .withFailureHandler(err => {
-            NU._log('error', 'error', {
-              path,
-              requestId,
-              transport: 'google.script.run',
-              error: String(err),
-              startTime
-            });
-            resolve({ ok: false, code: 'INTERNAL', message: String(err) });
-          })
-          [method](payload);
-      } catch (e) {
-        NU._log('error', 'error', {
-          path,
-          requestId,
-          error: e.message,
-          startTime
-        });
-        resolve({ ok: false, code: 'INTERNAL', message: String(e) });
-      }
-    });
   },
 
   /**
