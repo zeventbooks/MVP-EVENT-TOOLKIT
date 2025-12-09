@@ -135,7 +135,9 @@ function runCommand(command, options = {}) {
       cwd,
       encoding: 'utf-8',
       stdio: silent ? 'pipe' : 'inherit',
-      env: { ...process.env, FORCE_COLOR: '1' },
+      // HERMETIC: Stage 1 must have no external dependencies
+      // Set SKIP_NETWORK_TESTS to ensure contract tests don't make HTTP calls
+      env: { ...process.env, FORCE_COLOR: '1', SKIP_NETWORK_TESTS: 'true' },
     });
     return { success: true, output };
   } catch (error) {
