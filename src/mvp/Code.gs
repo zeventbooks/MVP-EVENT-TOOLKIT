@@ -1123,7 +1123,7 @@ function doGet(e){
   }
 
   const path = (e?.pathInfo || '').toString().replace(/^\/+|\/+$/g,'');
-  const scope = (e?.parameter?.p || e?.parameter?.scope || 'events').toString();
+  const scope = (e?.parameter?.scope || 'events').toString();
   const allowed = brand.scopesAllowed?.length ? brand.scopesAllowed : ['events','leagues','tournaments'];
 
   if (!allowed.includes(scope)){
@@ -1189,7 +1189,7 @@ function routePage_(e, page, brand, demoMode, options = {}) {
     ).setTitle('Page Not Found');
   }
 
-  const scope = (e?.parameter?.p || e?.parameter?.scope || 'events').toString();
+  const scope = (e?.parameter?.scope || 'events').toString();
   const allowed = brand.scopesAllowed?.length ? brand.scopesAllowed : ['events','leagues','tournaments'];
 
   if (!allowed.includes(scope) && page === 'public'){
