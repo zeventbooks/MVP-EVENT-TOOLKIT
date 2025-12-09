@@ -1129,6 +1129,154 @@ function generateCorrId() {
   return `err_${timestamp}_${rand}`;
 }
 
+// =============================================================================
+// FRIENDLY OFFLINE PAGE - Story 7 Implementation
+// =============================================================================
+// Minimal, human-readable error page for when staging is offline or redeploying.
+// Returns simple HTML instead of a white screen for better UX.
+
+/**
+ * Generate minimal friendly offline page for staging deployments
+ *
+ * Story 7 AC:
+ * - No white-screen
+ * - Human-readable error
+ * - Message: "Staging temporarily offline; build redeploying."
+ *
+ * @param {Object} options - Offline page options
+ * @param {string} options.corrId - Correlation ID for support
+ * @param {boolean} options.isStaging - Whether this is a staging environment
+ * @returns {string} Minimal HTML string
+ */
+function generateOfflinePage(options = {}) {
+  const {
+    corrId = '',
+    isStaging = true
+  } = options;
+
+  const envLabel = isStaging ? 'Staging' : 'Service';
+  const message = isStaging
+    ? 'Staging temporarily offline; build redeploying.'
+    : 'Service temporarily unavailable.';
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EventAngle - Offline</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    .offline-container {
+      background: rgba(30, 41, 59, 0.8);
+      border: 1px solid #334155;
+      border-radius: 16px;
+      padding: 48px 40px;
+      max-width: 480px;
+      width: 100%;
+      text-align: center;
+      backdrop-filter: blur(10px);
+    }
+    .offline-icon {
+      font-size: 56px;
+      margin-bottom: 20px;
+      animation: spin 3s linear infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    h1 {
+      font-size: 1.5rem;
+      color: #f59e0b;
+      margin-bottom: 12px;
+      font-weight: 600;
+    }
+    .message {
+      font-size: 1.1rem;
+      color: #cbd5e1;
+      margin-bottom: 24px;
+    }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(245, 158, 11, 0.15);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      color: #fbbf24;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      background: #fbbf24;
+      border-radius: 50%;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.8); }
+    }
+    .auto-refresh {
+      margin-top: 24px;
+      font-size: 0.875rem;
+      color: #64748b;
+    }
+    .countdown {
+      color: #f59e0b;
+      font-weight: 600;
+    }
+    .corr-id {
+      margin-top: 20px;
+      font-size: 0.7rem;
+      color: #475569;
+      font-family: monospace;
+    }
+  </style>
+</head>
+<body>
+  <div class="offline-container" role="alert" aria-live="polite">
+    <div class="offline-icon" aria-hidden="true">⚙️</div>
+    <h1>${envLabel} Offline</h1>
+    <p class="message">${message}</p>
+    <div class="status-badge">
+      <span class="pulse-dot" aria-hidden="true"></span>
+      <span>Redeploying...</span>
+    </div>
+    <p class="auto-refresh">Page will refresh in <span class="countdown" id="countdown">15</span>s</p>
+    ${corrId ? `<p class="corr-id">Reference: ${corrId}</p>` : ''}
+  </div>
+  <script>
+    // Auto-refresh with countdown
+    let seconds = 15;
+    const countdownEl = document.getElementById('countdown');
+    const interval = setInterval(() => {
+      seconds--;
+      if (countdownEl) countdownEl.textContent = seconds;
+      if (seconds <= 0) {
+        clearInterval(interval);
+        location.reload();
+      }
+    }, 1000);
+  </script>
+</body>
+</html>`;
+}
+
 /**
  * Generate branded HTML error page for graceful degradation
  * @param {Object} options - Error page options
@@ -1615,22 +1763,38 @@ function getPageType(url) {
 
 /**
  * Create graceful degradation response for upstream failures
+ *
+ * Story 7: For staging environments experiencing 503 errors (non-timeout),
+ * returns a friendly offline page instead of generic error.
+ *
+ * @param {Error|Object} error - Error object or {status, message}
+ * @param {URL} url - Request URL
+ * @param {boolean} isApiRequest - Whether this is an API request
+ * @param {string} corrId - Correlation ID
+ * @param {Object} env - Worker environment (for staging detection)
  */
-function createGracefulErrorResponse(error, url, isApiRequest, corrId) {
+function createGracefulErrorResponse(error, url, isApiRequest, corrId, env = {}) {
   const pageType = getPageType(url);
   const isTimeout = error.name === 'AbortError' || error.message?.includes('timeout');
-  const is5xx = error.status >= 500;
+  const is503 = error.status === 503 || (!isTimeout && !error.name);
+  const isStaging = getEnvironmentId(env) === 'stg';
 
   if (isApiRequest) {
     // API requests get JSON error response
+    // Story 7: Include staging-specific message for 503
+    const apiMessage = isTimeout
+      ? 'The request took too long to complete. Please try again.'
+      : isStaging && is503
+        ? 'Staging temporarily offline; build redeploying.'
+        : 'We\'re experiencing a temporary issue. Please try again in a moment.';
+
     return new Response(JSON.stringify({
       ok: false,
       code: isTimeout ? 'TIMEOUT' : 'SERVICE_UNAVAILABLE',
-      message: isTimeout
-        ? 'The request took too long to complete. Please try again.'
-        : 'We\'re experiencing a temporary issue. Please try again in a moment.',
+      message: apiMessage,
       corrId,
-      workerVersion: WORKER_VERSION
+      workerVersion: WORKER_VERSION,
+      ...(isStaging && is503 ? { redeploying: true } : {})
     }), {
       status: isTimeout ? 504 : 503,
       headers: {
@@ -1639,12 +1803,32 @@ function createGracefulErrorResponse(error, url, isApiRequest, corrId) {
         'X-Proxied-By': 'eventangle-worker',
         'X-Worker-Version': WORKER_VERSION,
         'X-Error-CorrId': corrId,
-        'Retry-After': '30'
+        'Retry-After': isStaging && is503 ? '15' : '30'
       }
     });
   }
 
-  // HTML page requests get branded error page
+  // Story 7: For staging 503 errors, use the friendly offline page
+  if (isStaging && is503 && !isTimeout) {
+    const html = generateOfflinePage({
+      corrId,
+      isStaging: true
+    });
+
+    return new Response(html, {
+      status: 503,
+      headers: {
+        'Content-Type': 'text/html; charset=utf-8',
+        'X-Proxied-By': 'eventangle-worker',
+        'X-Worker-Version': WORKER_VERSION,
+        'X-Error-CorrId': corrId,
+        'Retry-After': '15',
+        'Cache-Control': 'no-cache, no-store, must-revalidate'
+      }
+    });
+  }
+
+  // HTML page requests get branded error page (non-staging or timeout)
   const html = generateErrorPage({
     title: isTimeout ? 'Taking Too Long' : 'Temporary Issue',
     message: isTimeout
@@ -1769,7 +1953,7 @@ export default {
           url: url.pathname,
           duration: Date.now() - startTime
         }));
-        return createGracefulErrorResponse(error, url, true, corrId);
+        return createGracefulErrorResponse(error, url, true, corrId, env);
       }
     }
 
@@ -1857,7 +2041,8 @@ export default {
           { status: response.status, message: `Upstream returned ${response.status}` },
           url,
           isApiRequest,
-          corrId
+          corrId,
+          env
         );
       }
 
@@ -1883,7 +2068,7 @@ export default {
       }));
 
       // Return graceful degradation response
-      return createGracefulErrorResponse(error, url, isApiRequest, corrId);
+      return createGracefulErrorResponse(error, url, isApiRequest, corrId, env);
     }
   },
 };
