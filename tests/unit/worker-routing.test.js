@@ -318,6 +318,7 @@ describe('Route Validation Logic', () => {
       { pathname: '/', params: { page: 'status' }, desc: '?page=status' },
       { pathname: '/', params: { page: 'diagnostics' }, desc: '?page=diagnostics' },
       { pathname: '/', params: { page: 'test' }, desc: '?page=test' },
+      { pathname: '/', params: { page: 'whoami' }, desc: '?page=whoami' },
       { pathname: '/', params: { p: 'events' }, desc: '?p=events' },
       { pathname: '/', params: { p: 'status' }, desc: '?p=status' },
       { pathname: '/', params: { p: 'r' }, desc: '?p=r (shortlink)' },
@@ -666,6 +667,17 @@ describe('Story 2: Explicit HTML Route Map', () => {
       const routeMap = match[1];
       expect(routeMap).toContain("'status': 'status'");
       expect(routeMap).toContain("'ping': 'ping'");
+    });
+
+    it('should have whoami route for GAS identity endpoint (Story 3)', () => {
+      const workerPath = path.join(__dirname, '../../cloudflare-proxy/worker.js');
+      const content = fs.readFileSync(workerPath, 'utf8');
+
+      const match = content.match(/const JSON_ROUTE_MAP = Object\.freeze\(\{([\s\S]*?)\}\);/);
+      expect(match).toBeTruthy();
+
+      const routeMap = match[1];
+      expect(routeMap).toContain("'whoami': 'whoami'");
     });
   });
 
