@@ -11,8 +11,9 @@
 import { check, group, sleep } from 'k6';
 import http from 'k6/http';
 
-// Default deployment ID (matches tests/config/environments.js)
-const DEFAULT_DEPLOYMENT_ID = 'AKfycbx3n9ALDESLEQTgIf47pimbs4zhugPzC4gLLr6aBff6UpH4VzAquYHRVHurP-6QjZ-g';
+// Default deployment ID (PROD_DEPLOYMENT_ID from config/deployment-ids.js)
+// Note: K6 uses ES modules and cannot import CommonJS modules directly
+const DEFAULT_DEPLOYMENT_ID = 'AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw';
 
 /**
  * Get base URL from environment or use default GAS URL

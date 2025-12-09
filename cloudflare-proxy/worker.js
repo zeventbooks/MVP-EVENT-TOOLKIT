@@ -70,13 +70,17 @@ function getEnvironmentId(env) {
   if (env.ENABLE_DEBUG_ENDPOINTS === 'true') {
     return 'stg';
   }
-  // Check deployment ID pattern
-  const deploymentId = env.DEPLOYMENT_ID || '';
-  if (deploymentId.includes('xx2nN-zkU')) {
-    return 'stg'; // Staging deployment ID pattern
+  // Check if staging-specific variables are set (standardized naming)
+  if (env.STAGING_DEPLOYMENT_ID || env.STAGING_WEB_APP_URL) {
+    return 'stg';
   }
-  // Check GAS URL for staging
-  const gasUrl = env.GAS_DEPLOYMENT_BASE_URL || '';
+  // Check deployment ID pattern (legacy detection)
+  const deploymentId = env.STAGING_DEPLOYMENT_ID || env.DEPLOYMENT_ID || '';
+  if (deploymentId.includes('xx2nN-zkU') || deploymentId.includes('wwi0ta5')) {
+    return 'stg'; // Staging deployment ID patterns
+  }
+  // Check GAS URL for staging (standardized or legacy)
+  const gasUrl = env.STAGING_WEB_APP_URL || env.GAS_DEPLOYMENT_BASE_URL || '';
   if (gasUrl.includes('stg') || gasUrl.includes('staging')) {
     return 'stg';
   }
@@ -303,8 +307,9 @@ function renderTemplate(templateContent, params, env) {
   } = params;
 
   // Get exec URL from environment (for API calls)
-  const execUrl = env.GAS_DEPLOYMENT_BASE_URL ||
-    `https://script.google.com/macros/s/${env.DEPLOYMENT_ID || DEFAULT_DEPLOYMENT_ID}/exec`;
+  // Priority: Standardized names (PROD_WEB_APP_URL, STAGING_WEB_APP_URL) > Legacy (GAS_DEPLOYMENT_BASE_URL) > Constructed
+  const execUrl = env.PROD_WEB_APP_URL || env.STAGING_WEB_APP_URL || env.GAS_DEPLOYMENT_BASE_URL ||
+    `https://script.google.com/macros/s/${env.PROD_DEPLOYMENT_ID || env.STAGING_DEPLOYMENT_ID || env.DEPLOYMENT_ID || DEFAULT_DEPLOYMENT_ID}/exec`;
 
   // Build app title
   const appTitle = `${brandName} · ${scope}`;
@@ -1043,7 +1048,8 @@ function isValidPathSegment(segment) {
 // Falls back to console.error if not configured
 
 // Configuration - Updated by CI/CD or set in wrangler.toml
-const DEFAULT_DEPLOYMENT_ID = 'AKfycbyS1cW9VhviR-Jr8AmYY_BAGrb1gzuKkrgEBP2M3bMdqAv4ktqHOZInWV8ogkpz5i8SYQ';
+// This is the production deployment ID (PROD_DEPLOYMENT_ID)
+const DEFAULT_DEPLOYMENT_ID = 'AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw';
 
 /**
  * Generate a correlation ID for error tracking
@@ -1600,9 +1606,11 @@ export default {
   async fetch(request, env, ctx) {
     const startTime = Date.now();
 
-    // Use GAS_DEPLOYMENT_BASE_URL if available (preferred), otherwise build from DEPLOYMENT_ID
-    const appsScriptBase = env.GAS_DEPLOYMENT_BASE_URL ||
-      `https://script.google.com/macros/s/${env.DEPLOYMENT_ID || DEFAULT_DEPLOYMENT_ID}/exec`;
+    // Get GAS base URL - Priority: Standardized names > Legacy names > Constructed
+    // Standardized: PROD_WEB_APP_URL, STAGING_WEB_APP_URL
+    // Legacy: GAS_DEPLOYMENT_BASE_URL, DEPLOYMENT_ID
+    const appsScriptBase = env.PROD_WEB_APP_URL || env.STAGING_WEB_APP_URL || env.GAS_DEPLOYMENT_BASE_URL ||
+      `https://script.google.com/macros/s/${env.PROD_DEPLOYMENT_ID || env.STAGING_DEPLOYMENT_ID || env.DEPLOYMENT_ID || DEFAULT_DEPLOYMENT_ID}/exec`;
 
     const url = new URL(request.url);
 

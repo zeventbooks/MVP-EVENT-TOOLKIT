@@ -56,9 +56,14 @@ on:
     types:
       - completed
 
-# Environment configuration
+# Environment configuration - Standardized naming convention
+# See config/deployment-ids.js for canonical source of truth
 env:
+  # Staging environment
   STAGING_URL: 'https://stg.eventangle.com'
+  # Production environment (standardized naming)
+  PROD_URL: 'https://www.eventangle.com'
+  # Legacy alias (keeping for backward compatibility)
   PRODUCTION_URL: 'https://www.eventangle.com'
 
 # Prevent duplicate runs for the same deployment

@@ -37,11 +37,16 @@ const PROXY_WRANGLER_PATH = path.join(__dirname, '../../cloudflare-proxy/wrangle
 const ENVIRONMENTS_PATH = path.join(__dirname, '../../config/environments.js');
 
 // =============================================================================
-// Known Deployment IDs (Single Source of Truth)
+// Known Deployment IDs (Import from canonical source)
 // =============================================================================
+// These are imported from config/deployment-ids.js - the single source of truth
+const {
+  STAGING_DEPLOYMENT_ID,
+  PROD_DEPLOYMENT_ID
+} = require('../../config/deployment-ids');
 
-const STAGING_DEPLOYMENT_ID = 'AKfycbxx2nN-zkU-Jke1ECl1C7RUwOyGmrZ6B-6-ViMIjXKrIT3Q1dLh5lf5LK5Ymdg-cbcJ';
-const PRODUCTION_DEPLOYMENT_ID = 'AKfycbyS1cW9VhviR-Jr8AmYY_BAGrb1gzuKkrgEBP2M3bMdqAv4ktqHOZInWV8ogkpz5i8SYQ';
+// Legacy alias for backward compatibility in tests
+const PRODUCTION_DEPLOYMENT_ID = PROD_DEPLOYMENT_ID;
 
 // =============================================================================
 // Helper Functions
@@ -71,15 +76,16 @@ describe('Worker → GAS Routing Contract', () => {
       proxyWranglerContent = readFileContent(PROXY_WRANGLER_PATH);
     });
 
-    test('root wrangler.toml has correct staging DEPLOYMENT_ID', () => {
-      // Staging deployment should NOT use production ID
-      expect(rootWranglerContent).toContain(`DEPLOYMENT_ID = "${STAGING_DEPLOYMENT_ID}"`);
-      expect(rootWranglerContent).not.toContain(`DEPLOYMENT_ID = "${PRODUCTION_DEPLOYMENT_ID}"`);
+    test('root wrangler.toml has correct staging STAGING_DEPLOYMENT_ID', () => {
+      // Staging deployment should use standardized STAGING_DEPLOYMENT_ID
+      expect(rootWranglerContent).toContain(`STAGING_DEPLOYMENT_ID = "${STAGING_DEPLOYMENT_ID}"`);
+      // Should NOT contain production deployment ID
+      expect(rootWranglerContent).not.toContain(PRODUCTION_DEPLOYMENT_ID);
     });
 
-    test('root wrangler.toml has correct GAS_DEPLOYMENT_BASE_URL for staging', () => {
+    test('root wrangler.toml has correct STAGING_WEB_APP_URL', () => {
       const expectedUrl = `https://script.google.com/macros/s/${STAGING_DEPLOYMENT_ID}/exec`;
-      expect(rootWranglerContent).toContain(expectedUrl);
+      expect(rootWranglerContent).toContain(`STAGING_WEB_APP_URL = "${expectedUrl}"`);
     });
 
     test('root wrangler.toml points to correct worker path', () => {
@@ -95,11 +101,12 @@ describe('Worker → GAS Routing Contract', () => {
       expect(proxyWranglerContent).toContain(`STAGING_DEPLOYMENT_ID = "${STAGING_DEPLOYMENT_ID}"`);
     });
 
-    test('proxy wrangler.toml [env.production] has correct deployment ID', () => {
-      // Production section should have production ID
-      expect(proxyWranglerContent).toMatch(
-        /\[env\.production\.vars\][\s\S]*?DEPLOYMENT_ID = "AKfycbyS1/
-      );
+    test('proxy wrangler.toml [env.production] has correct PROD_DEPLOYMENT_ID', () => {
+      // Production section should have standardized PROD_DEPLOYMENT_ID
+      expect(proxyWranglerContent).toContain(`PROD_DEPLOYMENT_ID = "${PRODUCTION_DEPLOYMENT_ID}"`);
+      // Should also have PROD_WEB_APP_URL
+      const expectedUrl = `https://script.google.com/macros/s/${PRODUCTION_DEPLOYMENT_ID}/exec`;
+      expect(proxyWranglerContent).toContain(`PROD_WEB_APP_URL = "${expectedUrl}"`);
     });
 
     test('staging and production deployment IDs are different', () => {

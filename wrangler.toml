@@ -6,6 +6,10 @@
 #
 # Deployment: wrangler deploy
 # This deploys to stg.eventangle.com for pre-production validation.
+#
+# Naming Convention (see config/deployment-ids.js):
+#   STAGING_* - Staging environment variables
+#   PROD_*    - Production environment variables
 # ============================================
 
 name = "eventangle-staging"
@@ -21,13 +25,17 @@ routes = [
 # ============================================
 # STAGING DEPLOYMENT CONFIGURATION
 # ============================================
-# IMPORTANT: These values point to the STAGING GAS deployment
-# NOT production! The staging deployment ID is:
-#   AKfycbxx2nN-zkU-Jke1ECl1C7RUwOyGmrZ6B-6-ViMIjXKrIT3Q1dLh5lf5LK5Ymdg-cbcJ
+# Uses standardized naming convention:
+#   STAGING_DEPLOYMENT_ID  - Web app deployment ID (changes per deploy)
+#   STAGING_WEB_APP_URL    - Executable URL (runtime)
+#
+# Script ID: 1gHiPuj7eXNk09dDyk17SJ6QsCJg7LMqXBRrkowljL3z2TaAKFIvBLhHJ
 # ============================================
 WORKER_ENV = "staging"
 UPSTREAM_TIMEOUT_MS = "30000"
-# GAS Staging Deployment ID (Single Source of Truth)
-DEPLOYMENT_ID = "AKfycbxx2nN-zkU-Jke1ECl1C7RUwOyGmrZ6B-6-ViMIjXKrIT3Q1dLh5lf5LK5Ymdg-cbcJ"
-# Full GAS URL (preferred - avoids URL construction)
-GAS_DEPLOYMENT_BASE_URL = "https://script.google.com/macros/s/AKfycbxx2nN-zkU-Jke1ECl1C7RUwOyGmrZ6B-6-ViMIjXKrIT3Q1dLh5lf5LK5Ymdg-cbcJ/exec"
+# Standardized naming (primary)
+STAGING_DEPLOYMENT_ID = "AKfycbwwi0ta5UxNEMnOrU9PYE1Rj3fXRbAMhlPyvjernOA_COW_jIf1095mYTMoBqxHYCeg"
+STAGING_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwwi0ta5UxNEMnOrU9PYE1Rj3fXRbAMhlPyvjernOA_COW_jIf1095mYTMoBqxHYCeg/exec"
+# Legacy aliases (keeping for backward compatibility)
+DEPLOYMENT_ID = "AKfycbwwi0ta5UxNEMnOrU9PYE1Rj3fXRbAMhlPyvjernOA_COW_jIf1095mYTMoBqxHYCeg"
+GAS_DEPLOYMENT_BASE_URL = "https://script.google.com/macros/s/AKfycbwwi0ta5UxNEMnOrU9PYE1Rj3fXRbAMhlPyvjernOA_COW_jIf1095mYTMoBqxHYCeg/exec"
