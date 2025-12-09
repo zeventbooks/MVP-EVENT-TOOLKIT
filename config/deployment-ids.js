@@ -35,7 +35,7 @@ const STAGING_SCRIPT_ID = '1gHiPuj7eXNk09dDyk17SJ6QsCJg7LMqXBRrkowljL3z2TaAKFIvB
  * Can be overridden via STAGING_DEPLOYMENT_ID environment variable
  */
 const STAGING_DEPLOYMENT_ID = process.env.STAGING_DEPLOYMENT_ID ||
-  'AKfycbwwi0ta5UxNEMnOrU9PYE1Rj3fXRbAMhlPyvjernOA_COW_jIf1095mYTMoBqxHYCeg';
+  'AKfycbwFneYCpkio7wCn7y08eDUb2PRCPc2Tdtbv20L4AbEHvuCvoqY9ks7-ONL0pzPPw4Hm';
 
 /**
  * Staging web app executable URL
