@@ -1091,6 +1091,14 @@ function doGet(e){
       .setMimeType(ContentService.MimeType.JSON);
   }
 
+  // Story 4: Whoami endpoint - returns deployment and account info for CI
+  if (pageParam === 'whoami') {
+    const brandParam = (e?.parameter?.brand || 'root').toString();
+    const whoami = api_whoami(brandParam);
+    return ContentService.createTextOutput(JSON.stringify(whoami, null, 2))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
   // MVP Status endpoint with analytics health checks
   if (pageParam === 'statusmvp' || pageParam === 'status-mvp') {
     const brandParam = (e?.parameter?.brand || 'root').toString();
@@ -2633,6 +2641,59 @@ function api_statusPure(brandId) {
     brandId: brand.id,
     time: new Date().toISOString(),
     db: { ok: dbOk }
+  };
+}
+
+/**
+ * GAS /whoami endpoint - returns deployment and account information
+ * Story 4: Returns structured JSON for CI consumption and comparison with Worker /env-status
+ *
+ * @tier mvp
+ * @param {string} brandId - Brand identifier (defaults to 'root')
+ * @returns {Object} Flat object { scriptId, deploymentId, email, buildId, brand, time }
+ */
+function api_whoami(brandId) {
+  const brand = brandId ? findBrand_(brandId) : findBrand_('root');
+  const brandName = brand ? brand.id : (brandId || 'root');
+
+  // Get script ID
+  let scriptId = 'unknown';
+  try {
+    scriptId = ScriptApp.getScriptId();
+  } catch (e) {
+    // Script ID not available
+  }
+
+  // Get deployment ID from web app URL
+  // URL format: https://script.google.com/macros/s/{deploymentId}/exec
+  let deploymentId = 'unknown';
+  try {
+    const webAppUrl = ScriptApp.getService().getUrl();
+    if (webAppUrl) {
+      const match = webAppUrl.match(/\/macros\/s\/([^/]+)\//);
+      if (match && match[1]) {
+        deploymentId = match[1];
+      }
+    }
+  } catch (e) {
+    // Deployment ID not available
+  }
+
+  // Get account email (effective user running the script)
+  let email = 'unknown';
+  try {
+    email = Session.getEffectiveUser().getEmail() || 'unknown';
+  } catch (e) {
+    // Email not available (permission or scope issue)
+  }
+
+  return {
+    scriptId: scriptId,
+    deploymentId: deploymentId,
+    email: email,
+    buildId: ZEB.BUILD_ID,
+    brand: brandName,
+    time: new Date().toISOString()
   };
 }
 
