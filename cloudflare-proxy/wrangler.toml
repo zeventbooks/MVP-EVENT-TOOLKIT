@@ -5,6 +5,16 @@ name = "eventangle"
 main = "worker.js"
 compatibility_date = "2024-01-01"
 
+# ===========================================
+# Text Rules for Embedded Templates
+# ===========================================
+# Import HTML templates as text strings for embedding in the Worker.
+# This eliminates the need for KV storage for templates.
+[[rules]]
+type = "Text"
+globs = ["**/*.html"]
+fallthrough = true
+
 # Account ID - Set via environment or wrangler login
 # account_id = "your-account-id"
 
