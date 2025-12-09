@@ -43,7 +43,8 @@
  */
 
 // Worker version - used for transparency headers and debugging
-const WORKER_VERSION = '2.2.0';
+// Story 2: Updated for staging env vars and versioning support
+const WORKER_VERSION = '2.3.0';
 
 // =============================================================================
 // OBSERVABILITY & LOGGING - Story 5 Implementation
@@ -1662,7 +1663,7 @@ export default {
     // Returns early if handled; null response means continue to normal routing.
     const debugResponse = await handleDebugEndpoint(url, env);
     if (debugResponse) {
-      return addTransparencyHeaders(debugResponse, startTime);
+      return addTransparencyHeaders(debugResponse, startTime, env);
     }
 
     // ==========================================================================
@@ -1682,7 +1683,7 @@ export default {
     if (url.pathname.startsWith('/api/') && request.method === 'POST') {
       try {
         const response = await handleApiRequest(request, appsScriptBase, env, url);
-        return addTransparencyHeaders(addCORSHeaders(response), startTime);
+        return addTransparencyHeaders(addCORSHeaders(response), startTime, env);
       } catch (error) {
         const corrId = generateCorrId();
         ctx.waitUntil(logError(env, {
@@ -1788,7 +1789,7 @@ export default {
       if (isApiRequest) {
         response = addCORSHeaders(response);
       }
-      return addTransparencyHeaders(response, startTime);
+      return addTransparencyHeaders(response, startTime, env);
 
     } catch (error) {
       const corrId = generateCorrId();
@@ -2247,13 +2248,24 @@ function addCORSHeaders(response) {
 /**
  * Add transparency headers to response
  * These headers help with debugging and monitoring without modifying response body
+ * Story 2: Added build version header for deployment tracking
  */
-function addTransparencyHeaders(response, startTime) {
+function addTransparencyHeaders(response, startTime, env) {
   const newResponse = new Response(response.body, response);
 
   // Transparency headers for debugging
   newResponse.headers.set('X-Proxied-By', 'eventangle-worker');
   newResponse.headers.set('X-Worker-Version', WORKER_VERSION);
+
+  // Story 2: Build version from env for deployment tracking
+  if (env?.WORKER_BUILD_VERSION) {
+    newResponse.headers.set('X-Worker-Build-Version', env.WORKER_BUILD_VERSION);
+  }
+
+  // Environment identifier
+  if (env?.WORKER_ENV) {
+    newResponse.headers.set('X-Worker-Env', env.WORKER_ENV);
+  }
 
   // Timing header (if start time provided)
   if (startTime) {
