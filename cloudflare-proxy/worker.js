@@ -256,7 +256,8 @@ const JSON_ROUTE_MAP = Object.freeze({
   'health': 'status',
   'ping': 'ping',
   'diagnostics': 'diagnostics',
-  'test': 'test'
+  'test': 'test',
+  'whoami': 'whoami'      // Story 3: GAS identity/deployment info for CI
 });
 
 /**
