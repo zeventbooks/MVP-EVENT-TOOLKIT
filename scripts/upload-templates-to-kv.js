@@ -152,14 +152,20 @@ function getNamespaceId(env) {
 
   const content = fs.readFileSync(WRANGLER_TOML, 'utf8');
 
-  // Look for the KV namespace ID in the appropriate environment section
-  // Pattern: [[env.<env>.kv_namespaces]] followed by binding = "TEMPLATES_KV" and id = "..."
-  const envSection = new RegExp(
-    `\\[\\[env\\.${env}\\.kv_namespaces\\]\\][\\s\\S]*?binding\\s*=\\s*"TEMPLATES_KV"[\\s\\S]*?id\\s*=\\s*"([^"]+)"`,
-    'm'
-  );
+  // Pre-defined regex patterns for known environments (avoids regex injection)
+  // These patterns match: [[env.<env>.kv_namespaces]] ... binding = "TEMPLATES_KV" ... id = "..."
+  const ENV_PATTERNS = {
+    staging: /\[\[env\.staging\.kv_namespaces\]\][\s\S]*?binding\s*=\s*"TEMPLATES_KV"[\s\S]*?id\s*=\s*"([^"]+)"/m,
+    production: /\[\[env\.production\.kv_namespaces\]\][\s\S]*?binding\s*=\s*"TEMPLATES_KV"[\s\S]*?id\s*=\s*"([^"]+)"/m
+  };
 
-  const match = content.match(envSection);
+  const envPattern = ENV_PATTERNS[env];
+  if (!envPattern) {
+    console.error(`\n✗ Unknown environment: ${env}`);
+    process.exit(1);
+  }
+
+  const match = content.match(envPattern);
 
   if (!match) {
     console.error(`\n✗ KV namespace not configured for environment: ${env}`);
