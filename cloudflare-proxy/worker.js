@@ -985,7 +985,8 @@ const CANONICAL_PAGES = Object.freeze({
   'diagnostics': 'diagnostics',
   'shared-report': 'report',  // Alias
   'test': 'test',             // Test page
-  'env-status': 'env-status'  // Story 3: Environment status for CI
+  'env-status': 'env-status', // Story 3: Environment status for CI
+  'whoami': 'whoami'          // Story 4: GAS deployment/account info for CI
 });
 
 /**
@@ -1068,6 +1069,8 @@ const CANONICAL_PATH_TO_PAGE = Object.freeze({
   'ping': 'ping',
   // Story 3: Environment status for CI
   'env-status': 'env-status',
+  // Story 4: GAS deployment/account info for CI
+  'whoami': 'whoami',
   // API path
   'api': 'api'
 });

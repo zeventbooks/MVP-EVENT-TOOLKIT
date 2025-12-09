@@ -84,7 +84,8 @@ const ZEB = Object.freeze({
     // Utility aliases
     'status': { page: 'status', label: 'Status', public: true },
     'health': { page: 'status', label: 'Health Check', public: true },
-    'ping': { page: 'ping', label: 'Ping', public: true }  // Ultra-simple uptime check
+    'ping': { page: 'ping', label: 'Ping', public: true },  // Ultra-simple uptime check
+    'whoami': { page: 'whoami', label: 'Whoami', public: true }  // Story 4: Deployment/account info for CI
     // V2 aliases removed: teams, picker, randomizer, portfolio - router locked to MVP surfaces
     // Story 16: Removed docs, api - ApiDocs.html archived in v2-code
   },
