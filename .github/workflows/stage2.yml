@@ -216,11 +216,160 @@ jobs:
           echo "| **Source Workflow Run** | \`${{ github.event.workflow_run.id }}\` |" >> $GITHUB_STEP_SUMMARY
 
   # ============================================================================
+  # ENVIRONMENT ALIGNMENT GATE (Story 4 - Critical First Gate)
+  # ============================================================================
+  # MUST run FIRST before any other tests. Verifies Worker ↔ GAS alignment.
+  # This is the critical fail-fast gate that prevents deployment mismatches.
+  #
+  # Checks performed:
+  #   - Worker /env-status returns correct environment (staging/production)
+  #   - GAS /whoami returns correct scriptId and deploymentId
+  #   - Worker deploymentId matches GAS deploymentId (CRITICAL)
+  #   - Script ID matches expected staging/production Script ID
+  #   - Account email contains "zeventbook"
+  #
+  # If ANY check fails:
+  #   - Pipeline FAILS IMMEDIATELY
+  #   - All downstream tests are SKIPPED
+  #   - Promotion to production is BLOCKED
+  #
+  # @see tests/api/smoke/env-alignment.spec.ts
+  # ============================================================================
+  env-alignment-gate:
+    name: 🔐 Environment Alignment Gate (${{ needs.download-artifact.outputs.environment }})
+    runs-on: ubuntu-latest
+    needs: [check-stage1, download-artifact]
+    outputs:
+      alignment_status: ${{ steps.alignment-check.outputs.status }}
+      worker_deployment_id: ${{ steps.alignment-check.outputs.worker_deployment_id }}
+      gas_deployment_id: ${{ steps.alignment-check.outputs.gas_deployment_id }}
+    env:
+      BASE_URL: ${{ needs.download-artifact.outputs.base_url }}
+      ENVIRONMENT: ${{ needs.download-artifact.outputs.environment }}
+      IS_PRODUCTION: ${{ needs.check-stage1.outputs.is_production }}
+      CI: true
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium --with-deps
+
+      - name: Display alignment check configuration
+        run: |
+          echo "=============================================="
+          echo "ENVIRONMENT ALIGNMENT GATE (Story 4)"
+          echo "=============================================="
+          echo "Environment: $ENVIRONMENT"
+          echo "BASE_URL: $BASE_URL"
+          echo "Is Production: $IS_PRODUCTION"
+          echo ""
+          echo "This gate verifies:"
+          echo "  - Worker /env-status and GAS /whoami alignment"
+          echo "  - Deployment IDs match between Worker and GAS"
+          echo "  - Script ID matches expected for environment"
+          echo "  - Environment name is consistent"
+          echo ""
+          echo "FAILURE = IMMEDIATE PIPELINE ABORT"
+          echo "=============================================="
+
+      - name: Run Environment Alignment Tests
+        id: alignment-check
+        run: |
+          echo "Running environment alignment tests against: $BASE_URL"
+
+          # Run alignment tests with verbose output
+          set +e
+          OUTPUT=$(npx playwright test tests/api/smoke/env-alignment.spec.ts --project=chromium --reporter=list 2>&1)
+          EXIT_CODE=$?
+          set -e
+
+          echo "$OUTPUT"
+
+          # Extract deployment IDs from test output if available
+          WORKER_ID=$(echo "$OUTPUT" | grep -oP 'deploymentId.*?AKfycb[a-zA-Z0-9_-]+' | head -1 | grep -oP 'AKfycb[a-zA-Z0-9_-]+' || echo "unknown")
+          GAS_ID=$(echo "$OUTPUT" | grep -oP 'gas.*deploymentId.*?AKfycb[a-zA-Z0-9_-]+' | head -1 | grep -oP 'AKfycb[a-zA-Z0-9_-]+' || echo "unknown")
+
+          echo "worker_deployment_id=$WORKER_ID" >> $GITHUB_OUTPUT
+          echo "gas_deployment_id=$GAS_ID" >> $GITHUB_OUTPUT
+
+          if [ $EXIT_CODE -eq 0 ]; then
+            echo "status=passed" >> $GITHUB_OUTPUT
+            echo ""
+            echo "✅ ENVIRONMENT ALIGNMENT: PASS"
+            echo "Worker and GAS deployment IDs are aligned."
+          else
+            echo "status=failed" >> $GITHUB_OUTPUT
+            echo ""
+            echo "❌ ENVIRONMENT ALIGNMENT: FAIL"
+            echo "Worker and GAS deployment mismatch detected!"
+            echo ""
+            echo "This blocks all downstream tests and deployment promotion."
+            exit 1
+          fi
+
+      - name: Upload alignment test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: env-alignment-results-${{ env.ENVIRONMENT }}
+          path: |
+            playwright-report-smoke/
+            .test-results/smoke-*.json
+          retention-days: 7
+
+      - name: Create alignment gate summary
+        if: always()
+        run: |
+          echo "## 🔐 Environment Alignment Gate ($ENVIRONMENT)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          STATUS="${{ steps.alignment-check.outputs.status }}"
+          WORKER_ID="${{ steps.alignment-check.outputs.worker_deployment_id }}"
+          GAS_ID="${{ steps.alignment-check.outputs.gas_deployment_id }}"
+
+          if [ "$STATUS" == "passed" ]; then
+            echo "### ✅ ALIGNED" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Worker ↔ GAS deployment alignment verified." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ MISALIGNED - PIPELINE BLOCKED" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**CRITICAL:** Worker and GAS deployment mismatch detected!" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "This indicates the Cloudflare Worker is pointing to the wrong" >> $GITHUB_STEP_SUMMARY
+            echo "Google Apps Script deployment. All downstream tests are SKIPPED." >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Environment** | \`$ENVIRONMENT\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Target URL** | \`$BASE_URL\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Worker Deployment ID** | \`$WORKER_ID\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **GAS Deployment ID** | \`$GAS_ID\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **IDs Match** | \`$([ \"$WORKER_ID\" == \"$GAS_ID\" ] && echo 'Yes ✅' || echo 'No ❌')\` |" >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================================
   # API SMOKE TESTS
   # ============================================================================
   # Validates API contract compliance against the live environment.
   # Tests: status, events, qr, sharedreport endpoints
   # Uses strict v4.1.2 JSON schema validation.
+  #
+  # DEPENDS ON: env-alignment-gate (fail-fast - skipped if alignment fails)
   #
   # Story 6 GAS HTML Guardrails (gas-html-integrity.spec.ts):
   #   - Fetches /events and all HTML routes
@@ -237,7 +386,7 @@ jobs:
   api-smoke:
     name: API Smoke Tests (${{ needs.download-artifact.outputs.environment }})
     runs-on: ubuntu-latest
-    needs: [check-stage1, download-artifact]
+    needs: [check-stage1, download-artifact, env-alignment-gate]
     env:
       BASE_URL: ${{ needs.download-artifact.outputs.base_url }}
       ENVIRONMENT: ${{ needs.download-artifact.outputs.environment }}
@@ -366,6 +515,8 @@ jobs:
   # Tests: Admin, Public, Display, Poster surfaces
   # Principle: "If you show it, it works"
   #
+  # DEPENDS ON: env-alignment-gate (fail-fast - skipped if alignment fails)
+  #
   # Story 7 Production Validation:
   #   - Admin UI visible on /admin
   #   - No GAS blue banner on /events
@@ -374,7 +525,7 @@ jobs:
   ui-smoke:
     name: UI Smoke Tests (${{ needs.download-artifact.outputs.environment }})
     runs-on: ubuntu-latest
-    needs: [check-stage1, download-artifact]
+    needs: [check-stage1, download-artifact, env-alignment-gate]
     env:
       BASE_URL: ${{ needs.download-artifact.outputs.base_url }}
       ENVIRONMENT: ${{ needs.download-artifact.outputs.environment }}
@@ -471,6 +622,12 @@ jobs:
   # This is the authoritative deployment validator.
   # Failure here blocks the release and signals red in GitHub.
   #
+  # Story 4 Environment Alignment Gate:
+  #   - Worker /env-status and GAS /whoami MUST return matching deploymentIds
+  #   - Script ID must match expected staging/production Script ID
+  #   - Environment name must be consistent
+  #   - If alignment fails, ALL downstream tests are skipped (fail-fast)
+  #
   # Story 6 Acceptance Criteria Met:
   #   - Any regression where Worker routes /events back to GAS:
   #     - Fails CI (via api-smoke job)
@@ -487,7 +644,7 @@ jobs:
   validation-gate:
     name: Stage-2 Validation Gate (${{ needs.download-artifact.outputs.environment }})
     runs-on: ubuntu-latest
-    needs: [check-stage1, download-artifact, api-smoke, ui-smoke]
+    needs: [check-stage1, download-artifact, env-alignment-gate, api-smoke, ui-smoke]
     if: always() && needs.download-artifact.result == 'success'
 
     steps:
@@ -497,20 +654,38 @@ jobs:
           IS_PRODUCTION: ${{ needs.check-stage1.outputs.is_production }}
           ENVIRONMENT: ${{ needs.download-artifact.outputs.environment }}
         run: |
+          ENV_ALIGNMENT_RESULT="${{ needs.env-alignment-gate.result }}"
           API_RESULT="${{ needs.api-smoke.result }}"
           UI_RESULT="${{ needs.ui-smoke.result }}"
 
+          echo "=============================================="
+          echo "STAGE-2 VALIDATION GATE EVALUATION"
+          echo "=============================================="
           echo "Environment: $ENVIRONMENT"
           echo "Is Production: $IS_PRODUCTION"
-          echo "API Smoke Tests: $API_RESULT"
-          echo "UI Smoke Tests: $UI_RESULT"
+          echo ""
+          echo "Gate Results:"
+          echo "  🔐 Environment Alignment: $ENV_ALIGNMENT_RESULT"
+          echo "  📡 API Smoke Tests: $API_RESULT"
+          echo "  🖥️  UI Smoke Tests: $UI_RESULT"
+          echo "=============================================="
 
-          if [ "$API_RESULT" == "success" ] && [ "$UI_RESULT" == "success" ]; then
-            echo "Stage-2 validation PASSED"
+          # Fail-fast: If alignment failed, mark overall as failed
+          if [ "$ENV_ALIGNMENT_RESULT" != "success" ]; then
+            echo ""
+            echo "❌ CRITICAL: Environment alignment check failed!"
+            echo "All downstream tests were skipped due to fail-fast."
+            echo "status=failed" >> $GITHUB_OUTPUT
+            echo "failure_reason=env_alignment" >> $GITHUB_OUTPUT
+          elif [ "$API_RESULT" == "success" ] && [ "$UI_RESULT" == "success" ]; then
+            echo ""
+            echo "✅ Stage-2 validation PASSED"
             echo "status=passed" >> $GITHUB_OUTPUT
           else
-            echo "Stage-2 validation FAILED"
+            echo ""
+            echo "❌ Stage-2 validation FAILED"
             echo "status=failed" >> $GITHUB_OUTPUT
+            echo "failure_reason=tests" >> $GITHUB_OUTPUT
           fi
 
       - name: Create final summary
@@ -519,17 +694,26 @@ jobs:
           ENVIRONMENT: ${{ needs.download-artifact.outputs.environment }}
         run: |
           BASE_URL="${{ needs.download-artifact.outputs.base_url }}"
+          ENV_ALIGNMENT_RESULT="${{ needs.env-alignment-gate.result }}"
           API_RESULT="${{ needs.api-smoke.result }}"
           UI_RESULT="${{ needs.ui-smoke.result }}"
           STATUS="${{ steps.evaluate.outputs.status }}"
+          FAILURE_REASON="${{ steps.evaluate.outputs.failure_reason }}"
 
           echo "# Stage-2 Orchestrator Results ($ENVIRONMENT)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
           if [ "$STATUS" == "passed" ]; then
-            echo "## DEPLOYMENT VALIDATED" >> $GITHUB_STEP_SUMMARY
+            echo "## ✅ DEPLOYMENT VALIDATED" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "Stage-2 validation passed. The $ENVIRONMENT deployment is verified." >> $GITHUB_STEP_SUMMARY
+
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Story 4 Environment Alignment (Verified)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "- Worker /env-status and GAS /whoami deployment IDs match" >> $GITHUB_STEP_SUMMARY
+            echo "- Script ID matches expected for $ENVIRONMENT" >> $GITHUB_STEP_SUMMARY
+            echo "- Environment name is consistent" >> $GITHUB_STEP_SUMMARY
 
             if [ "$IS_PRODUCTION" == "true" ]; then
               echo "" >> $GITHUB_STEP_SUMMARY
@@ -542,9 +726,24 @@ jobs:
               echo "- QR codes resolve correctly" >> $GITHUB_STEP_SUMMARY
             fi
           else
-            echo "## DEPLOYMENT BLOCKED" >> $GITHUB_STEP_SUMMARY
+            echo "## ❌ DEPLOYMENT BLOCKED" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Stage-2 validation failed. Release is blocked until issues are resolved." >> $GITHUB_STEP_SUMMARY
+
+            if [ "$FAILURE_REASON" == "env_alignment" ]; then
+              echo "### 🚨 CRITICAL: Environment Alignment Failed" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "**The Cloudflare Worker is pointing to the wrong GAS deployment!**" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "This is a critical configuration error. All downstream tests were" >> $GITHUB_STEP_SUMMARY
+              echo "skipped because the environment is not properly aligned." >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "**Action Required:**" >> $GITHUB_STEP_SUMMARY
+              echo "1. Check Cloudflare Worker deployment configuration" >> $GITHUB_STEP_SUMMARY
+              echo "2. Verify STAGING_DEPLOYMENT_ID or PROD_DEPLOYMENT_ID in wrangler.toml" >> $GITHUB_STEP_SUMMARY
+              echo "3. Ensure CI deployed the Worker with the correct deployment ID" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "Stage-2 validation failed. Release is blocked until issues are resolved." >> $GITHUB_STEP_SUMMARY
+            fi
 
             if [ "$IS_PRODUCTION" == "true" ]; then
               echo "" >> $GITHUB_STEP_SUMMARY
@@ -559,8 +758,9 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Test Suite | Result |" >> $GITHUB_STEP_SUMMARY
           echo "|------------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| **API Smoke Tests** | \`$API_RESULT\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| **UI Smoke Tests** | \`$UI_RESULT\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **🔐 Environment Alignment** | \`$ENV_ALIGNMENT_RESULT\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **📡 API Smoke Tests** | \`$API_RESULT\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **🖥️ UI Smoke Tests** | \`$UI_RESULT\` |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Configuration" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY

@@ -1,8 +1,8 @@
 # CI/CD Architecture & Enforcement Rules
 
 > **Purpose:** Anchor the CI/CD design for future maintainers and prevent architecture drift.
-> **Last Updated:** 2025-12-07
-> **Status:** MVP Production-Ready
+> **Last Updated:** 2025-12-09
+> **Status:** MVP Production-Ready (Story 4 Enhanced)
 
 ---
 
@@ -11,13 +11,15 @@
 1. [Overview](#overview)
 2. [Stage-1: Validate + Deploy](#stage-1-validate--deploy)
 3. [Stage-2: Environment Tests](#stage-2-environment-tests)
-4. [Environment Keys (stg/prod)](#environment-keys-stgprod)
-5. [Cloudflare Routing Alignment](#cloudflare-routing-alignment)
-6. [QR Verification Invariant](#qr-verification-invariant)
-7. [Contract Safety Rules](#contract-safety-rules)
-8. [Fail-Fast Philosophy](#fail-fast-philosophy)
-9. [Deployment Flow Diagram](#deployment-flow-diagram)
-10. [Quick Reference](#quick-reference)
+4. [Environment Alignment Gate (Story 4)](#environment-alignment-gate-story-4)
+5. [Security Scanning (Story 4)](#security-scanning-story-4)
+6. [Environment Keys (stg/prod)](#environment-keys-stgprod)
+7. [Cloudflare Routing Alignment](#cloudflare-routing-alignment)
+8. [QR Verification Invariant](#qr-verification-invariant)
+9. [Contract Safety Rules](#contract-safety-rules)
+10. [Fail-Fast Philosophy](#fail-fast-philosophy)
+11. [Deployment Flow Diagram](#deployment-flow-diagram)
+12. [Quick Reference](#quick-reference)
 
 ---
 
@@ -188,6 +190,132 @@ All tests run for each of 4 brands:
 | abc | American Bocce Co. | `ADMIN_KEY_ABC`, `SPREADSHEET_ID_ABC` |
 | cbc | Community Based Cricket | `ADMIN_KEY_CBC`, `SPREADSHEET_ID_CBC` |
 | cbl | Community Based League | `ADMIN_KEY_CBL`, `SPREADSHEET_ID_CBL` |
+
+---
+
+## Environment Alignment Gate (Story 4)
+
+### Purpose
+
+The Environment Alignment Gate ensures that the Cloudflare Worker and Google Apps Script deployment are correctly synchronized. This is the **first critical check** in Stage-2 and acts as a fail-fast gate.
+
+### Why This Matters
+
+Deployment mismatches between Worker and GAS cause 503 errors and broken functionality. The alignment gate prevents this by verifying:
+
+1. **Deployment ID Match** — Worker's configured deployment ID matches GAS's actual deployment ID
+2. **Script ID Verification** — GAS Script ID matches expected staging/production Script ID
+3. **Environment Consistency** — Both Worker and GAS report the same environment (staging/production)
+4. **Account Validation** — GAS account email contains "zeventbook" (correct service account)
+
+### Endpoints Used
+
+| Endpoint | Source | Returns |
+|----------|--------|---------|
+| `/env-status` | Cloudflare Worker | `{env, gasBase, deploymentId, workerBuild}` |
+| `/?page=whoami` | Google Apps Script | `{scriptId, deploymentId, email, buildId, brand, time}` |
+
+### Alignment Checks
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│           ENVIRONMENT ALIGNMENT GATE                        │
+│           (First Gate in Stage-2)                           │
+├─────────────────────────────────────────────────────────────┤
+│  1. Worker deploymentId == GAS deploymentId (CRITICAL)     │
+│  2. GAS scriptId == Expected Script ID for environment     │
+│  3. Worker env == Expected environment (staging/prod)       │
+│  4. GAS email contains "zeventbook"                         │
+│                                                             │
+│  ANY FAILURE → Pipeline STOPS, downstream tests SKIPPED     │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Fail-Fast Behavior
+
+If the alignment gate fails:
+- **All downstream tests are SKIPPED** (API smoke, UI smoke)
+- **Pipeline reports clear failure reason**
+- **Promotion to production is BLOCKED**
+
+This saves CI time and provides immediate feedback about configuration issues.
+
+### Test File
+
+**Location:** `tests/api/smoke/env-alignment.spec.ts`
+
+### Expected Script IDs
+
+| Environment | Script ID |
+|-------------|-----------|
+| Staging | `1gHiPuj7eXNk09dDyk17SJ6QsCJg7LMqXBRrkowljL3z2TaAKFIvBLhHJ` |
+| Production | `1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l` |
+
+---
+
+## Security Scanning (Story 4)
+
+### Overview
+
+Security scanning is a **required release gate**. No code goes to production without passing security scans.
+
+### CodeQL Analysis
+
+**Workflow:** `.github/workflows/security-scan.yml`
+
+| Trigger | Behavior |
+|---------|----------|
+| PR to main | Required check - blocks merge on findings |
+| Push to main | Continuous monitoring |
+| Push to claude/* | Continuous monitoring |
+| Weekly (Sunday) | Scheduled vulnerability discovery |
+| Manual dispatch | Security audits |
+
+### Query Packs
+
+- **security-extended** — Extended security queries
+- **security-and-quality** — Security and code quality checks
+
+### Coverage
+
+| File Type | Extension | Coverage |
+|-----------|-----------|----------|
+| Backend | `.gs` | Google Apps Script functions |
+| Frontend | `.html` | Embedded JavaScript |
+| Scripts | `.js`, `.mjs` | Build and deployment scripts |
+| Tests | `.spec.ts`, `.test.js` | Test code quality |
+| Worker | `worker.js` | Cloudflare Worker |
+
+### Security Checks Include
+
+- SQL Injection vulnerabilities
+- Cross-Site Scripting (XSS)
+- Command Injection
+- Path Traversal
+- Insecure Randomness
+- Hardcoded Credentials
+- Prototype Pollution
+- Regular Expression DoS (ReDoS)
+- 200+ additional security patterns
+
+### Dependency Audit
+
+Runs `npm audit` alongside CodeQL to check for known vulnerabilities in npm dependencies. High and critical findings are reported but CodeQL is the authoritative gate.
+
+### Branch Protection Configuration
+
+To enforce security scans as a required check:
+
+1. Go to **Settings > Branches > Branch protection rules**
+2. Select or create rule for `main`
+3. Enable **Require status checks to pass before merging**
+4. Add **CodeQL Security Scan** as a required check
+
+### Policy
+
+> **No code goes to production without passing security scans.**
+>
+> Critical and high severity findings BLOCK merges. This is team policy enforced by CI.
 
 ---
 
@@ -400,32 +528,46 @@ IF QR verification fails → BLOCK production deployment
 ### Implementation
 
 ```
+Env Alignment fail → Skip ALL downstream tests (critical first gate)
 API Tests fail     → Skip Smoke Packs + all downstream
 Smoke Packs fail   → Skip E2E Smoke + Expensive Tests
 Smoke Tests fail   → Skip Expensive Tests (Flow + Page)
 ```
 
-### Gate Hierarchy
+### Gate Hierarchy (Story 4 Enhanced)
 
 ```
 ┌─────────────────────────────────────────────────┐
-│   GATE 1 (API)                                  │
-│   ├─ FAIL → Stop immediately, block release     │
-│   └─ PASS → Continue to Gate 1.5                │
+│   GATE 0 (Environment Alignment) - FIRST       │
+│   ├─ FAIL → Stop IMMEDIATELY, skip ALL tests   │
+│   └─ PASS → Continue to Gate 1                 │
 ├─────────────────────────────────────────────────┤
-│   GATE 1.5 (Smoke Packs)                        │
-│   ├─ FAIL → Stop, skip expensive tests          │
-│   └─ PASS → Continue to Gate 2                  │
+│   GATE 1 (API Smoke)                           │
+│   ├─ FAIL → Stop immediately, block release    │
+│   └─ PASS → Continue to Gate 1.5               │
 ├─────────────────────────────────────────────────┤
-│   GATE 2 (Smoke Tests)                          │
-│   ├─ FAIL → Stop, skip expensive tests          │
-│   └─ PASS → Run expensive tests                 │
+│   GATE 1.5 (Smoke Packs)                       │
+│   ├─ FAIL → Stop, skip expensive tests         │
+│   └─ PASS → Continue to Gate 2                 │
 ├─────────────────────────────────────────────────┤
-│   Quality Gate (Final)                          │
-│   ├─ ANY FAIL → Block release                   │
-│   └─ ALL PASS → Release ready                   │
+│   GATE 2 (UI Smoke Tests)                      │
+│   ├─ FAIL → Stop, skip expensive tests         │
+│   └─ PASS → Run expensive tests                │
+├─────────────────────────────────────────────────┤
+│   Quality Gate (Final)                         │
+│   ├─ ANY FAIL → Block release                  │
+│   └─ ALL PASS → Release ready                  │
 └─────────────────────────────────────────────────┘
 ```
+
+### Environment Alignment (Gate 0)
+
+The environment alignment gate is **the first check** in Stage-2. It verifies Worker ↔ GAS deployment synchronization before any other tests run.
+
+**Why Gate 0?**
+- Configuration mismatches cause 503 errors that cascade through all tests
+- Running tests against misaligned deployments wastes CI resources
+- Early detection provides immediate, actionable feedback
 
 ### Benefits
 
@@ -455,7 +597,15 @@ Smoke Tests fail   → Skip Expensive Tests (Flow + Page)
            │  Create PR to main     │
            └───────────┬────────────┘
                        │
-                       ▼
+          ┌────────────┴────────────┐
+          │                         │
+          ▼                         │
+   ┌────────────────┐               │
+   │ Security Scan  │               │
+   │ (CodeQL)       │ ← Parallel    │
+   └───────┬────────┘               │
+           │                        │
+           ▼                        ▼
     ┌──────────────────────────────────────┐
     │         STAGE-1: VALIDATION          │
     │      (Hermetic - No BASE_URL)        │
@@ -503,12 +653,10 @@ Smoke Tests fail   → Skip Expensive Tests (Flow + Page)
            │    │   STAGE-2: POST-DEPLOY TEST  │
            │    │   (Against Live Staging URL) │
            │    ├──────────────────────────────┤
-           │    │  ● Preflight Check           │
-           │    │  ● API Tests (GATE 1)        │
-           │    │  ● Smoke Packs (GATE 1.5)    │
-           │    │  ● UI + E2E Smoke (GATE 2)   │
-           │    │  ● Expensive Tests           │
-           │    │  ● Quality Gate              │
+           │    │  ● Env Alignment (GATE 0)    │ ← First!
+           │    │  ● API Smoke (GATE 1)        │
+           │    │  ● UI Smoke (GATE 2)         │
+           │    │  ● Validation Gate           │
            │    └───────────────┬──────────────┘
            │                    │
            │           ┌───────┴───────┐
@@ -521,6 +669,51 @@ Smoke Tests fail   → Skip Expensive Tests (Flow + Page)
            │
            ▼
          END
+```
+
+### Stage-2 Gate Details (Story 4 Enhanced)
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│                  STAGE-2 GATE SEQUENCE                       │
+├──────────────────────────────────────────────────────────────┤
+│                                                              │
+│   GATE 0: Environment Alignment                              │
+│   ┌──────────────────────────────────────────────────────┐   │
+│   │  • Worker /env-status vs GAS /whoami                 │   │
+│   │  • Deployment IDs MUST match                         │   │
+│   │  • Script ID must match expected                     │   │
+│   │  • FAIL → Skip ALL downstream, BLOCK release         │   │
+│   └──────────────────────────────────────────────────────┘   │
+│                          │                                   │
+│                          ▼ PASS                              │
+│   GATE 1: API Smoke Tests                                    │
+│   ┌──────────────────────────────────────────────────────┐   │
+│   │  • Status, events, qr, sharedreport endpoints        │   │
+│   │  • v4.1.2 JSON schema validation                     │   │
+│   │  • GAS HTML integrity check (Story 6)                │   │
+│   │  • FAIL → BLOCK release                              │   │
+│   └──────────────────────────────────────────────────────┘   │
+│                          │                                   │
+│                          ▼ PASS                              │
+│   GATE 2: UI Smoke Tests                                     │
+│   ┌──────────────────────────────────────────────────────┐   │
+│   │  • Admin, Public, Display, Poster surfaces           │   │
+│   │  • Page loads, core UI elements                      │   │
+│   │  • No JavaScript errors                              │   │
+│   │  • FAIL → BLOCK release                              │   │
+│   └──────────────────────────────────────────────────────┘   │
+│                          │                                   │
+│                          ▼ PASS                              │
+│   VALIDATION GATE: Final Aggregation                         │
+│   ┌──────────────────────────────────────────────────────┐   │
+│   │  • All gates must PASS                               │   │
+│   │  • Creates detailed summary                          │   │
+│   │  • ANY FAIL → BLOCK release                          │   │
+│   │  • ALL PASS → Release ready ✅                       │   │
+│   └──────────────────────────────────────────────────────┘   │
+│                                                              │
+└──────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -546,6 +739,10 @@ npm run test:flows          # Flow tests (expensive)
 npm run test:pages          # Page tests (expensive)
 npm run test:ci:stage2      # Full Stage-2
 
+# Environment Alignment (Story 4)
+npm run test:api:smoke:env-alignment       # Run alignment tests locally
+npx playwright test tests/api/smoke/env-alignment.spec.ts  # Direct run
+
 # Environment-Specific
 npm run test:prod:smoke                    # Production smoke
 BASE_URL="https://stg..." npm run test:smoke  # Custom URL
@@ -560,7 +757,9 @@ TEST_BRAND=abc npm run test:smoke          # Brand-specific
 | **Stage-2 Workflow** | `.github/workflows/stage2.yml` ✅ Active |
 | **Security Workflow** | `.github/workflows/security-scan.yml` ✅ Active |
 | Environment Config | `config/environments.js` |
+| Deployment IDs | `config/deployment-ids.js` |
 | Cloudflare Config | `cloudflare-proxy/wrangler.toml` |
+| **Env Alignment Tests** | `tests/api/smoke/env-alignment.spec.ts` ← Story 4 |
 | QR Tests | `tests/api/smoke/qr.spec.ts` |
 | Stage-1 Script | `scripts/stage1-local.mjs` |
 | API Contract | `API_CONTRACT.md` |
@@ -571,6 +770,8 @@ TEST_BRAND=abc npm run test:smoke          # Brand-specific
 
 - [ ] Stage-1 passes before any deployment
 - [ ] No BASE_URL in Stage-1 (hermetic)
+- [ ] **Environment alignment passes (Story 4)** ← New
+- [ ] **Security scan passes (Story 4)** ← New
 - [ ] QR verification passes before production
 - [ ] All 4 brands tested
 - [ ] Production deploys only via CI (tag push)
