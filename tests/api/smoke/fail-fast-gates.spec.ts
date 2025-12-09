@@ -21,13 +21,6 @@ import { test, expect } from '@playwright/test';
 // Brand to test - uses root by default
 const BRAND = process.env.TEST_BRAND || 'root';
 
-// Critical endpoints that must be healthy
-const CRITICAL_ENDPOINTS = [
-  { name: 'Status', url: '/status' },
-  { name: 'Worker Env Status', url: '/env-status' },
-  { name: 'GAS Whoami', url: `/?page=whoami&brand=${BRAND}` },
-];
-
 // MVP Surfaces that must be accessible
 const MVP_SURFACES = [
   { name: 'Public', url: `/?page=public&brand=${BRAND}` },
@@ -218,22 +211,35 @@ test.describe('Fail-Fast Gates - CRITICAL (Story 5)', () => {
 
   test.describe('No GAS HTML Leak - Fail-Fast', () => {
 
+    // GAS HTML shell markers - these indicate Worker is not serving HTML templates
+    // and the request is falling through to raw GAS output
+    const GAS_HTML_MARKERS = [
+      'userCodeAppPanel',           // GAS iframe wrapper div ID
+      'Google Apps Script',         // GAS error page text
+      'macros/s/',                  // GAS deployment URL path segment
+    ];
+
     test('GATE: /events does not return GAS HTML shell', async ({ request }) => {
       const response = await request.get('/events');
       const content = await response.text();
 
-      if (content.includes('script.google.com') || content.includes('userCodeAppPanel')) {
+      // Check for GAS HTML shell markers
+      const detectedMarkers = GAS_HTML_MARKERS.filter(marker => content.includes(marker));
+
+      if (detectedMarkers.length > 0) {
         console.error('='.repeat(60));
         console.error('CRITICAL FAILURE: GAS HTML Shell Detected');
         console.error('URL: /events');
+        console.error(`Detected markers: ${detectedMarkers.join(', ')}`);
         console.error('Worker is not serving HTML templates - routing broken.');
         console.error('ABORTING TEST RUN - GAS HTML leak detected.');
         console.error('='.repeat(60));
       }
 
-      expect(content).not.toContain('script.google.com');
-      expect(content).not.toContain('userCodeAppPanel');
-      expect(content).not.toContain('Google Apps Script');
+      // Assert no GAS markers present
+      for (const marker of GAS_HTML_MARKERS) {
+        expect(content, `GAS marker "${marker}" found in response`).not.toContain(marker);
+      }
     });
 
   });
