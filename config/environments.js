@@ -17,20 +17,24 @@
  */
 
 // =============================================================================
-// Deployment IDs (sync with cloudflare-proxy/wrangler.toml)
+// Deployment IDs - Import from canonical source
 // =============================================================================
+const {
+  // Staging identifiers
+  STAGING_SCRIPT_ID,
+  STAGING_DEPLOYMENT_ID,
+  STAGING_WEB_APP_URL,
+  STAGING_GAS_EDIT_URL,
 
-/**
- * Production Google Apps Script deployment ID
- * Update this when creating new GAS deployments
- */
-const PRODUCTION_DEPLOYMENT_ID = 'AKfycbyS1cW9VhviR-Jr8AmYY_BAGrb1gzuKkrgEBP2M3bMdqAv4ktqHOZInWV8ogkpz5i8SYQ';
+  // Production identifiers
+  PROD_SCRIPT_ID,
+  PROD_DEPLOYMENT_ID,
+  PROD_WEB_APP_URL,
+  PROD_GAS_EDIT_URL
+} = require('./deployment-ids');
 
-/**
- * Staging Google Apps Script deployment ID
- * Set via STAGING_DEPLOYMENT_ID env var or use placeholder
- */
-const STAGING_DEPLOYMENT_ID = process.env.STAGING_DEPLOYMENT_ID || 'STAGING_DEPLOYMENT_ID_PLACEHOLDER';
+// Legacy aliases for backward compatibility
+const PRODUCTION_DEPLOYMENT_ID = PROD_DEPLOYMENT_ID;
 
 // =============================================================================
 // Environment URLs - Single Source of Truth
@@ -61,9 +65,10 @@ const LOCAL_URL = 'http://localhost:3000';
 
 /**
  * Direct Google Apps Script URL (for debugging)
+ * Using standardized web app URLs from deployment-ids.js
  */
-const GAS_PRODUCTION_URL = `https://script.google.com/macros/s/${PRODUCTION_DEPLOYMENT_ID}/exec`;
-const GAS_STAGING_URL = `https://script.google.com/macros/s/${STAGING_DEPLOYMENT_ID}/exec`;
+const GAS_PRODUCTION_URL = PROD_WEB_APP_URL;
+const GAS_STAGING_URL = STAGING_WEB_APP_URL;
 
 // =============================================================================
 // Brand Configuration
@@ -392,9 +397,18 @@ module.exports = {
   GAS_PRODUCTION_URL,
   GAS_STAGING_URL,
 
-  // Deployment IDs
-  PRODUCTION_DEPLOYMENT_ID,
+  // Deployment IDs (standardized naming)
+  STAGING_SCRIPT_ID,
   STAGING_DEPLOYMENT_ID,
+  STAGING_WEB_APP_URL,
+  STAGING_GAS_EDIT_URL,
+  PROD_SCRIPT_ID,
+  PROD_DEPLOYMENT_ID,
+  PROD_WEB_APP_URL,
+  PROD_GAS_EDIT_URL,
+
+  // Legacy aliases
+  PRODUCTION_DEPLOYMENT_ID,
 
   // Primary functions for tests
   getEnvironment,
