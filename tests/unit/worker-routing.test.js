@@ -965,7 +965,7 @@ describe('Embedded Templates (Story 1)', () => {
 
     for (const template of requiredTemplates) {
       // Check for ES module import
-      expect(workerContent).toMatch(new RegExp(`import\\s+\\w+\\s+from\\s+['\"].*${template}\\.html['\"]`));
+      expect(workerContent).toMatch(new RegExp(`import\\s+\\w+\\s+from\\s+['"].*${template}\\.html['"]`));
     }
   });
 
