@@ -27,15 +27,22 @@ const MODE = {
 };
 
 // Secret definitions with categories
+// Secret configuration using standardized naming convention (STAGING_*, PROD_*)
+// See config/deployment-ids.js and .github-secrets-required.json for canonical list
 const SECRETS = {
   stage1: {
     required: [
       { name: 'OAUTH_CREDENTIALS', env: 'OAUTH_CREDENTIALS', description: 'Clasp OAuth credentials' }
     ],
     optional: [
-      { name: 'DEPLOYMENT_ID', env: 'DEPLOYMENT_ID', description: 'Production deployment ID' },
+      { name: 'PROD_DEPLOYMENT_ID', env: 'PROD_DEPLOYMENT_ID', description: 'Production deployment ID (standardized)' },
+      { name: 'PROD_SCRIPT_ID', env: 'PROD_SCRIPT_ID', description: 'Production script ID (standardized)' },
+      { name: 'STAGING_SCRIPT_ID', env: 'STAGING_SCRIPT_ID', description: 'Staging script ID' },
+      { name: 'STAGING_DEPLOYMENT_ID', env: 'STAGING_DEPLOYMENT_ID', description: 'Staging deployment ID' },
       { name: 'CLOUDFLARE_API_TOKEN', env: 'CLOUDFLARE_API_TOKEN', description: 'Cloudflare API token' },
-      { name: 'CLOUDFLARE_ACCOUNT_ID', env: 'CLOUDFLARE_ACCOUNT_ID', description: 'Cloudflare account ID' }
+      { name: 'CLOUDFLARE_ACCOUNT_ID', env: 'CLOUDFLARE_ACCOUNT_ID', description: 'Cloudflare account ID' },
+      // Legacy (deprecated - use PROD_DEPLOYMENT_ID instead)
+      { name: 'DEPLOYMENT_ID', env: 'DEPLOYMENT_ID', description: 'Production deployment ID (legacy)' }
     ]
   },
   stage2: {
@@ -51,8 +58,7 @@ const SECRETS = {
       { name: 'SPREADSHEET_ID_ROOT', env: 'SPREADSHEET_ID_ROOT', description: 'Root spreadsheet ID' },
       { name: 'SPREADSHEET_ID_ABC', env: 'SPREADSHEET_ID_ABC', description: 'ABC spreadsheet ID' },
       { name: 'SPREADSHEET_ID_CBC', env: 'SPREADSHEET_ID_CBC', description: 'CBC spreadsheet ID' },
-      { name: 'SPREADSHEET_ID_CBL', env: 'SPREADSHEET_ID_CBL', description: 'CBL spreadsheet ID' },
-      { name: 'STAGING_SCRIPT_ID', env: 'STAGING_SCRIPT_ID', description: 'Staging script ID' }
+      { name: 'SPREADSHEET_ID_CBL', env: 'SPREADSHEET_ID_CBL', description: 'CBL spreadsheet ID' }
     ]
   }
 };

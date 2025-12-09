@@ -47,10 +47,16 @@ concurrency:
   group: stage1-validation-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
-# Environment configuration
+# Environment configuration - Standardized naming convention
+# See config/deployment-ids.js for canonical source of truth
 env:
+  # Staging environment (stg.eventangle.com)
   STAGING_URL: 'https://stg.eventangle.com'
   STAGING_SCRIPT_ID: '1gHiPuj7eXNk09dDyk17SJ6QsCJg7LMqXBRrkowljL3z2TaAKFIvBLhHJ'
+  # Production environment (www.eventangle.com)
+  PROD_URL: 'https://www.eventangle.com'
+  PROD_SCRIPT_ID: '1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l'
+  # Legacy aliases (keeping for backward compatibility)
   PRODUCTION_URL: 'https://www.eventangle.com'
   PRODUCTION_SCRIPT_ID: '1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l'
 
@@ -577,15 +583,16 @@ jobs:
 
           echo "Updating wrangler.toml with staging deployment ID..."
 
-          # Update STAGING_DEPLOYMENT_ID in the staging section
+          # Construct the web app URL
+          STAGING_WEB_APP_URL="https://script.google.com/macros/s/${DEPLOYMENT_ID}/exec"
+
+          # Update standardized variables (STAGING_*)
           sed -i "s|STAGING_DEPLOYMENT_ID = \"[^\"]*\"|STAGING_DEPLOYMENT_ID = \"${DEPLOYMENT_ID}\"|g" wrangler.toml
+          sed -i "s|STAGING_WEB_APP_URL = \"[^\"]*\"|STAGING_WEB_APP_URL = \"${STAGING_WEB_APP_URL}\"|g" wrangler.toml
 
-          # Update DEPLOYMENT_ID in the staging section (after STAGING_DEPLOYMENT_ID line)
+          # Update legacy aliases for backward compatibility
           sed -i "/\[env.staging.vars\]/,/\[env\.[^s]/ s|DEPLOYMENT_ID = \"[^\"]*\"|DEPLOYMENT_ID = \"${DEPLOYMENT_ID}\"|" wrangler.toml
-
-          # Update GAS_DEPLOYMENT_BASE_URL in staging section
-          GAS_URL="https://script.google.com/macros/s/${DEPLOYMENT_ID}/exec"
-          sed -i "s|GAS_DEPLOYMENT_BASE_URL = \"[^\"]*\"|GAS_DEPLOYMENT_BASE_URL = \"${GAS_URL}\"|g" wrangler.toml
+          sed -i "s|GAS_DEPLOYMENT_BASE_URL = \"[^\"]*\"|GAS_DEPLOYMENT_BASE_URL = \"${STAGING_WEB_APP_URL}\"|g" wrangler.toml
 
           echo "Updated wrangler.toml staging config:"
           grep -A 20 '\[env.staging.vars\]' wrangler.toml | head -10
@@ -600,7 +607,7 @@ jobs:
           echo "CLOUDFLARE WORKER DEPLOYED TO STAGING"
           echo "=============================================="
           echo "Staging URL: ${{ env.STAGING_URL }}"
-          echo "GAS URL: $GAS_URL"
+          echo "GAS Web App URL: $STAGING_WEB_APP_URL"
           echo "=============================================="
 
       - name: Emit staging URL artifact
@@ -1111,21 +1118,23 @@ jobs:
 
           echo "Updating wrangler.toml with production deployment ID..."
 
-          # Update DEPLOYMENT_ID in root vars (default/production)
+          # Construct the web app URL
+          PROD_WEB_APP_URL="https://script.google.com/macros/s/${DEPLOYMENT_ID}/exec"
+
+          # Update standardized variables (PROD_*)
+          sed -i "s|PROD_DEPLOYMENT_ID = \"[^\"]*\"|PROD_DEPLOYMENT_ID = \"${DEPLOYMENT_ID}\"|g" wrangler.toml
+          sed -i "s|PROD_WEB_APP_URL = \"[^\"]*\"|PROD_WEB_APP_URL = \"${PROD_WEB_APP_URL}\"|g" wrangler.toml
+
+          # Update legacy aliases for backward compatibility
           sed -i "s|^DEPLOYMENT_ID = \"[^\"]*\"|DEPLOYMENT_ID = \"${DEPLOYMENT_ID}\"|" wrangler.toml
-
-          # Update DEPLOYMENT_ID in production.vars section
           sed -i "/\[env.production.vars\]/,/\[env\.[^p]/ s|DEPLOYMENT_ID = \"[^\"]*\"|DEPLOYMENT_ID = \"${DEPLOYMENT_ID}\"|" wrangler.toml
-
-          # Update GAS_DEPLOYMENT_BASE_URL in events.vars section (used by some routes)
-          GAS_URL="https://script.google.com/macros/s/${DEPLOYMENT_ID}/exec"
-          sed -i "s|GAS_DEPLOYMENT_BASE_URL = \"https://script.google.com/macros/s/AKfycby[^\"]*\"|GAS_DEPLOYMENT_BASE_URL = \"${GAS_URL}\"|g" wrangler.toml
+          sed -i "s|GAS_DEPLOYMENT_BASE_URL = \"https://script.google.com/macros/s/AKfycb[^\"]*\"|GAS_DEPLOYMENT_BASE_URL = \"${PROD_WEB_APP_URL}\"|g" wrangler.toml
 
           echo "Updated wrangler.toml production config:"
           echo "--- Root vars ---"
-          grep "^DEPLOYMENT_ID" wrangler.toml | head -1
+          grep "^PROD_DEPLOYMENT_ID" wrangler.toml | head -1
           echo "--- Production vars ---"
-          grep -A 5 '\[env.production.vars\]' wrangler.toml | head -3
+          grep -A 5 '\[env.production.vars\]' wrangler.toml | head -5
 
           # Deploy to production environment
           echo ""
@@ -1136,8 +1145,8 @@ jobs:
           echo "=============================================="
           echo "CLOUDFLARE WORKER DEPLOYED TO PRODUCTION"
           echo "=============================================="
-          echo "Production URL: ${{ env.PRODUCTION_URL }}"
-          echo "GAS URL: $GAS_URL"
+          echo "Production URL: ${{ env.PROD_URL }}"
+          echo "GAS Web App URL: $PROD_WEB_APP_URL"
           echo ""
           echo "Worker routing now active:"
           echo "  - /events, /admin, /display, /poster → Worker HTML"

@@ -9,17 +9,32 @@ compatibility_date = "2024-01-01"
 # account_id = "your-account-id"
 
 # ============================================
-# Environment Variables
+# Environment Variables - Standardized Naming
 # ============================================
-# The deployment ID is updated by CI/CD after each Apps Script deployment
+# Deployment IDs are updated by CI/CD after each Apps Script deployment
 #
-# DEPLOYMENT_ID - Apps Script deployment ID (for building exec URL)
-# GAS_DEPLOYMENT_BASE_URL - Full Apps Script exec URL (preferred over DEPLOYMENT_ID)
+# Naming Convention:
+#   STAGING_* - Staging environment (stg.eventangle.com)
+#   PROD_*    - Production environment (www.eventangle.com)
+#
+# Variable Types:
+#   *_SCRIPT_ID        - Apps Script project ID (permanent, for clasp)
+#   *_DEPLOYMENT_ID    - Web app deployment ID (changes with each deploy)
+#   *_WEB_APP_URL      - Executable URL (runtime URL)
+#   *_GAS_EDIT_URL     - Project editor URL (for development)
+#
+# Production Script ID: 1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l
+# Staging Script ID: 1gHiPuj7eXNk09dDyk17SJ6QsCJg7LMqXBRrkowljL3z2TaAKFIvBLhHJ
+#
+# Other Variables:
 # ERROR_LOG_ENDPOINT - (Optional) URL for external error logging (POST JSON)
 # UPSTREAM_TIMEOUT_MS - (Optional) Timeout for upstream requests (default: 30000ms)
 #
 [vars]
-DEPLOYMENT_ID = "AKfycbyS1cW9VhviR-Jr8AmYY_BAGrb1gzuKkrgEBP2M3bMdqAv4ktqHOZInWV8ogkpz5i8SYQ"
+# Production deployment (used as default/fallback)
+PROD_DEPLOYMENT_ID = "AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw"
+# Legacy alias (keeping for backward compatibility)
+DEPLOYMENT_ID = "AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw"
 # ERROR_LOG_ENDPOINT = "https://your-logging-endpoint.com/errors"
 # UPSTREAM_TIMEOUT_MS = "30000"
 
@@ -41,7 +56,11 @@ routes = [
 ]
 
 [env.production.vars]
-DEPLOYMENT_ID = "AKfycbyS1cW9VhviR-Jr8AmYY_BAGrb1gzuKkrgEBP2M3bMdqAv4ktqHOZInWV8ogkpz5i8SYQ"
+PROD_DEPLOYMENT_ID = "AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw"
+PROD_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw/exec"
+# Legacy aliases (keeping for backward compatibility)
+DEPLOYMENT_ID = "AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw"
+GAS_DEPLOYMENT_BASE_URL = "https://script.google.com/macros/s/AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw/exec"
 
 # KV Namespace for HTML templates (production)
 # Created via: wrangler kv:namespace create "TEMPLATES_KV" --env production
@@ -89,19 +108,23 @@ routes = [
 # ============================================
 # STAGING DEPLOYMENT CONFIGURATION
 # ============================================
-# IMPORTANT: These values must point to the STAGING GAS deployment
-# NOT production! Run: npm run staging:configure --deployment-id=YOUR_ID
+# Uses standardized naming convention:
+#   STAGING_SCRIPT_ID      - Permanent project ID (for clasp)
+#   STAGING_DEPLOYMENT_ID  - Web app deployment ID (changes per deploy)
+#   STAGING_WEB_APP_URL    - Executable URL (runtime)
 #
-# To get your deployment ID:
+# Script ID: 1gHiPuj7eXNk09dDyk17SJ6QsCJg7LMqXBRrkowljL3z2TaAKFIvBLhHJ
+#
+# To update after deployment:
 # 1. Deploy staging GAS: npm run deploy:staging
 # 2. Copy the AKfycb... deployment ID from the output
 # 3. Run: npm run staging:configure --deployment-id=AKfycb...
-#
-# Placeholder value indicates staging is NOT configured.
 # ============================================
-STAGING_DEPLOYMENT_ID = "AKfycbxx2nN-zkU-Jke1ECl1C7RUwOyGmrZ6B-6-ViMIjXKrIT3Q1dLh5lf5LK5Ymdg-cbcJ"
-GAS_DEPLOYMENT_BASE_URL = "https://script.google.com/macros/s/AKfycbxx2nN-zkU-Jke1ECl1C7RUwOyGmrZ6B-6-ViMIjXKrIT3Q1dLh5lf5LK5Ymdg-cbcJ/exec"
-DEPLOYMENT_ID = "AKfycbxx2nN-zkU-Jke1ECl1C7RUwOyGmrZ6B-6-ViMIjXKrIT3Q1dLh5lf5LK5Ymdg-cbcJ"
+STAGING_DEPLOYMENT_ID = "AKfycbwwi0ta5UxNEMnOrU9PYE1Rj3fXRbAMhlPyvjernOA_COW_jIf1095mYTMoBqxHYCeg"
+STAGING_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwwi0ta5UxNEMnOrU9PYE1Rj3fXRbAMhlPyvjernOA_COW_jIf1095mYTMoBqxHYCeg/exec"
+# Legacy aliases (keeping for backward compatibility)
+DEPLOYMENT_ID = "AKfycbwwi0ta5UxNEMnOrU9PYE1Rj3fXRbAMhlPyvjernOA_COW_jIf1095mYTMoBqxHYCeg"
+GAS_DEPLOYMENT_BASE_URL = "https://script.google.com/macros/s/AKfycbwwi0ta5UxNEMnOrU9PYE1Rj3fXRbAMhlPyvjernOA_COW_jIf1095mYTMoBqxHYCeg/exec"
 # Enable debug endpoints (/__debug/template/*) for staging only
 # SECURITY: This should NEVER be enabled in production
 ENABLE_DEBUG_ENDPOINTS = "true"
@@ -129,7 +152,10 @@ routes = [
 ]
 
 [env.api-only.vars]
-DEPLOYMENT_ID = "AKfycbyS1cW9VhviR-Jr8AmYY_BAGrb1gzuKkrgEBP2M3bMdqAv4ktqHOZInWV8ogkpz5i8SYQ"
+PROD_DEPLOYMENT_ID = "AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw"
+PROD_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw/exec"
+# Legacy alias
+DEPLOYMENT_ID = "AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw"
 
 # ============================================
 # Friendly URLs (all app paths on main site)
@@ -214,10 +240,12 @@ routes = [
 ]
 
 [env.events.vars]
-# The full Google Apps Script exec URL - this is the production backend
-# Update this URL after each Apps Script deployment (see DEPLOYMENT.md)
-GAS_DEPLOYMENT_BASE_URL = "https://script.google.com/macros/s/AKfycbyS1cW9VhviR-Jr8AmYY_BAGrb1gzuKkrgEBP2M3bMdqAv4ktqHOZInWV8ogkpz5i8SYQ/exec"
-DEPLOYMENT_ID = "AKfycbyS1cW9VhviR-Jr8AmYY_BAGrb1gzuKkrgEBP2M3bMdqAv4ktqHOZInWV8ogkpz5i8SYQ"
+# Production GAS deployment (standardized naming)
+PROD_DEPLOYMENT_ID = "AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw"
+PROD_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw/exec"
+# Legacy aliases (keeping for backward compatibility)
+GAS_DEPLOYMENT_BASE_URL = "https://script.google.com/macros/s/AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw/exec"
+DEPLOYMENT_ID = "AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw"
 
 # ============================================
 # Development (workers.dev subdomain)
