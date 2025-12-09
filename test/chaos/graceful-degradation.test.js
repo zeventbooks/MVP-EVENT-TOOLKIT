@@ -372,7 +372,209 @@ function generateCorrIdMock() {
 }
 
 // =============================================================================
-// TEST 8: XSS Prevention in Error Messages
+// TEST 8: Story 7 - Friendly Offline Page Structure
+// =============================================================================
+
+async function testOfflinePageStructure() {
+  const testName = 'Story 7: Offline page has required elements';
+
+  const mockOfflineHtml = generateMockOfflinePage({
+    corrId: 'err_20250601120000_abc123',
+    isStaging: true,
+  });
+
+  try {
+    // Check for required elements per Story 7 AC
+    assert(mockOfflineHtml.includes('<!DOCTYPE html>'), 'Missing DOCTYPE');
+    assert(mockOfflineHtml.includes('EventAngle'), 'Missing brand name');
+    assert(mockOfflineHtml.includes('Staging'), 'Missing staging indicator');
+    assert(mockOfflineHtml.includes('temporarily offline'), 'Missing offline message');
+    assert(mockOfflineHtml.includes('redeploying'), 'Missing redeploying message');
+    assert(mockOfflineHtml.includes('role="alert"'), 'Missing accessibility role');
+    assert(mockOfflineHtml.includes('auto-refresh') || mockOfflineHtml.includes('countdown'), 'Missing auto-refresh');
+    assert(!mockOfflineHtml.includes('500'), 'Should not expose raw status code');
+    assert(!mockOfflineHtml.includes('Internal Server Error'), 'Should not expose raw error');
+
+    pass(testName);
+    passed++;
+  } catch (e) {
+    fail(testName, e.message);
+    failed++;
+  }
+}
+
+// =============================================================================
+// TEST 9: Story 7 - Staging-Specific Message
+// =============================================================================
+
+async function testStagingSpecificMessage() {
+  const testName = 'Story 7: Offline page shows correct staging message';
+
+  const stagingHtml = generateMockOfflinePage({ isStaging: true });
+  const prodHtml = generateMockOfflinePage({ isStaging: false });
+
+  try {
+    // Staging should have the specific message
+    assert(
+      stagingHtml.includes('Staging temporarily offline; build redeploying.'),
+      'Staging page missing required message'
+    );
+
+    // Production should have generic message
+    assert(
+      prodHtml.includes('Service temporarily unavailable'),
+      'Production page should have generic message'
+    );
+
+    // Staging should say "Staging Offline"
+    assert(stagingHtml.includes('Staging Offline'), 'Missing "Staging Offline" title');
+
+    // Production should say "Service Offline"
+    assert(prodHtml.includes('Service Offline'), 'Missing "Service Offline" title');
+
+    pass(testName);
+    passed++;
+  } catch (e) {
+    fail(testName, e.message);
+    failed++;
+  }
+}
+
+// =============================================================================
+// TEST 10: Story 7 - Offline Page Auto-Refresh
+// =============================================================================
+
+async function testOfflinePageAutoRefresh() {
+  const testName = 'Story 7: Offline page includes 15s auto-refresh';
+
+  const mockHtml = generateMockOfflinePage({ isStaging: true });
+
+  try {
+    // Should have countdown/auto-refresh
+    assert(mockHtml.includes('countdown'), 'Missing countdown element');
+    assert(mockHtml.includes('15'), 'Should default to 15 second refresh');
+    assert(mockHtml.includes('location.reload()'), 'Missing reload script');
+
+    pass(testName);
+    passed++;
+  } catch (e) {
+    fail(testName, e.message);
+    failed++;
+  }
+}
+
+// =============================================================================
+// TEST 11: Story 7 - No White Screen
+// =============================================================================
+
+async function testNoWhiteScreen() {
+  const testName = 'Story 7: Offline page is not a white screen';
+
+  const mockHtml = generateMockOfflinePage({ isStaging: true });
+
+  try {
+    // Should have visible content with styling
+    assert(mockHtml.includes('background'), 'Should have background styling');
+    assert(mockHtml.includes('color'), 'Should have color styling');
+    assert(mockHtml.includes('offline-container'), 'Should have container element');
+    assert(mockHtml.includes('offline-icon'), 'Should have visual icon');
+    assert(mockHtml.length > 1000, 'Page should have substantial content');
+
+    pass(testName);
+    passed++;
+  } catch (e) {
+    fail(testName, e.message);
+    failed++;
+  }
+}
+
+// Mock of the worker's generateOfflinePage function for testing (Story 7)
+function generateMockOfflinePage(options = {}) {
+  const {
+    corrId = '',
+    isStaging = true
+  } = options;
+
+  const envLabel = isStaging ? 'Staging' : 'Service';
+  const message = isStaging
+    ? 'Staging temporarily offline; build redeploying.'
+    : 'Service temporarily unavailable.';
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EventAngle - Offline</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    .offline-container {
+      background: rgba(30, 41, 59, 0.8);
+      border: 1px solid #334155;
+      border-radius: 16px;
+      padding: 48px 40px;
+      max-width: 480px;
+      width: 100%;
+      text-align: center;
+      backdrop-filter: blur(10px);
+    }
+    .offline-icon {
+      font-size: 56px;
+      margin-bottom: 20px;
+      animation: spin 3s linear infinite;
+    }
+    .auto-refresh {
+      margin-top: 24px;
+      font-size: 0.875rem;
+      color: #64748b;
+    }
+    .countdown {
+      color: #f59e0b;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="offline-container" role="alert" aria-live="polite">
+    <div class="offline-icon" aria-hidden="true">⚙️</div>
+    <h1>${envLabel} Offline</h1>
+    <p class="message">${message}</p>
+    <div class="status-badge">
+      <span class="pulse-dot" aria-hidden="true"></span>
+      <span>Redeploying...</span>
+    </div>
+    <p class="auto-refresh">Page will refresh in <span class="countdown" id="countdown">15</span>s</p>
+    ${corrId ? `<p class="corr-id">Reference: ${corrId}</p>` : ''}
+  </div>
+  <script>
+    let seconds = 15;
+    const countdownEl = document.getElementById('countdown');
+    const interval = setInterval(() => {
+      seconds--;
+      if (countdownEl) countdownEl.textContent = seconds;
+      if (seconds <= 0) {
+        clearInterval(interval);
+        location.reload();
+      }
+    }, 1000);
+  </script>
+</body>
+</html>`;
+}
+
+// =============================================================================
+// TEST 12: XSS Prevention in Error Messages
 // =============================================================================
 
 async function testXSSPrevention() {
@@ -420,6 +622,10 @@ async function runTests() {
   await testSafeAnalytics();
   await testTVModeAutoRefresh();
   await testCorrelationIdFormat();
+  await testOfflinePageStructure();        // Story 7
+  await testStagingSpecificMessage();      // Story 7
+  await testOfflinePageAutoRefresh();      // Story 7
+  await testNoWhiteScreen();               // Story 7
   await testXSSPrevention();
 
   // Summary
