@@ -120,6 +120,9 @@ routes = [
 # 2. Copy the AKfycb... deployment ID from the output
 # 3. Run: npm run staging:configure --deployment-id=AKfycb...
 # ============================================
+WORKER_ENV = "staging"
+# Story 2: Worker versioning - build version logged in X-Worker-Build-Version header
+WORKER_BUILD_VERSION = "stg-2025.12.09"
 STAGING_DEPLOYMENT_ID = "AKfycbwFneYCpkio7wCn7y08eDUb2PRCPc2Tdtbv20L4AbEHvuCvoqY9ks7-ONL0pzPPw4Hm"
 STAGING_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwFneYCpkio7wCn7y08eDUb2PRCPc2Tdtbv20L4AbEHvuCvoqY9ks7-ONL0pzPPw4Hm/exec"
 # Legacy aliases (keeping for backward compatibility)
