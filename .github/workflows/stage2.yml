@@ -145,21 +145,26 @@ jobs:
       environment: ${{ steps.extract.outputs.environment }}
 
     steps:
+      # Use dawidd6/action-download-artifact for cross-workflow artifact downloads
+      # The official actions/download-artifact@v4 does NOT support downloading
+      # artifacts from a different workflow run (even with run-id parameter).
       - name: Download staging artifact
         if: needs.check-stage1.outputs.is_production != 'true'
-        uses: actions/download-artifact@v4
+        uses: dawidd6/action-download-artifact@v6
         with:
           name: stg-base-url
-          run-id: ${{ github.event.workflow_run.id }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run_id: ${{ github.event.workflow_run.id }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          workflow: stage1.yml
 
       - name: Download production artifact
         if: needs.check-stage1.outputs.is_production == 'true'
-        uses: actions/download-artifact@v4
+        uses: dawidd6/action-download-artifact@v6
         with:
           name: prod-base-url
-          run-id: ${{ github.event.workflow_run.id }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run_id: ${{ github.event.workflow_run.id }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          workflow: stage1.yml
 
       - name: Extract and validate BASE_URL
         id: extract
