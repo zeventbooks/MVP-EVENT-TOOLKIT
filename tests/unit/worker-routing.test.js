@@ -941,3 +941,66 @@ describe('Template Bundles', () => {
     expect(content).toContain('Hash:');
   });
 });
+
+// =============================================================================
+// Embedded Templates Tests (Story 1)
+// =============================================================================
+// Verifies that worker.js has embedded templates configured correctly
+// to eliminate 503 errors when KV storage is not available.
+
+describe('Embedded Templates (Story 1)', () => {
+  const workerPath = path.join(__dirname, '../../cloudflare-proxy/worker.js');
+  let workerContent;
+
+  beforeAll(() => {
+    workerContent = fs.readFileSync(workerPath, 'utf8');
+  });
+
+  it('should have EMBEDDED_TEMPLATES object defined', () => {
+    expect(workerContent).toContain('const EMBEDDED_TEMPLATES = {');
+  });
+
+  it('should import all required templates', () => {
+    const requiredTemplates = ['public', 'admin', 'display', 'poster', 'report'];
+
+    for (const template of requiredTemplates) {
+      // Check for ES module import
+      expect(workerContent).toMatch(new RegExp(`import\\s+\\w+\\s+from\\s+['\"].*${template}\\.html['\"]`));
+    }
+  });
+
+  it('should have all templates in EMBEDDED_TEMPLATES map', () => {
+    const requiredTemplates = ['public', 'admin', 'display', 'poster', 'report'];
+
+    for (const template of requiredTemplates) {
+      // Check that template is included in the EMBEDDED_TEMPLATES map
+      expect(workerContent).toMatch(new RegExp(`['"]${template}['"]\\s*:\\s*\\w+`));
+    }
+  });
+
+  it('should check embedded templates in getTemplate function', () => {
+    // getTemplate should check EMBEDDED_TEMPLATES first
+    expect(workerContent).toContain('EMBEDDED_TEMPLATES[name]');
+    expect(workerContent).toContain('Template loaded from embedded source');
+  });
+
+  it('should have wrangler text import rules configured', () => {
+    const wranglerPath = path.join(__dirname, '../../cloudflare-proxy/wrangler.toml');
+    const wranglerContent = fs.readFileSync(wranglerPath, 'utf8');
+
+    // Check for text import rules
+    expect(wranglerContent).toContain('[[rules]]');
+    expect(wranglerContent).toContain('type = "Text"');
+    expect(wranglerContent).toContain('globs = ["**/*.html"]');
+  });
+
+  it('should have staging wrangler text import rules configured', () => {
+    const stagingWranglerPath = path.join(__dirname, '../../wrangler.toml');
+    const wranglerContent = fs.readFileSync(stagingWranglerPath, 'utf8');
+
+    // Check for text import rules in staging config
+    expect(wranglerContent).toContain('[[rules]]');
+    expect(wranglerContent).toContain('type = "Text"');
+    expect(wranglerContent).toContain('globs = ["**/*.html"]');
+  });
+});

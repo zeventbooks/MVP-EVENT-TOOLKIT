@@ -16,6 +16,16 @@ name = "eventangle-staging"
 main = "cloudflare-proxy/worker.js"
 compatibility_date = "2024-01-01"
 
+# ===========================================
+# Text Rules for Embedded Templates
+# ===========================================
+# Import HTML templates as text strings for embedding in the Worker.
+# This eliminates the need for KV storage for templates.
+[[rules]]
+type = "Text"
+globs = ["**/*.html"]
+fallthrough = true
+
 routes = [
   { pattern = "stg.eventangle.com/*", zone_name = "eventangle.com" },
   { pattern = "api-stg.eventangle.com/*", zone_name = "eventangle.com" }

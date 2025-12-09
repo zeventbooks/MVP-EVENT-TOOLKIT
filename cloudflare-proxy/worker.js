@@ -42,9 +42,37 @@
  * - DEPLOYMENT_ID: Apps Script deployment ID (fallback)
  */
 
+// =============================================================================
+// EMBEDDED TEMPLATES - Story 1 Implementation
+// =============================================================================
+// Import HTML templates directly into the Worker bundle.
+// This eliminates the need for KV storage and ensures templates are always
+// available, fixing 503 errors on staging routes.
+//
+// Templates are imported as text strings via wrangler's text import rules.
+// See wrangler.toml [[rules]] configuration.
+import publicHtml from './templates/public.html';
+import adminHtml from './templates/admin.html';
+import displayHtml from './templates/display.html';
+import posterHtml from './templates/poster.html';
+import reportHtml from './templates/report.html';
+
+/**
+ * Embedded templates map - templates bundled directly with the Worker.
+ * These are the primary source for HTML templates, eliminating KV dependency.
+ */
+const EMBEDDED_TEMPLATES = {
+  'public': publicHtml,
+  'admin': adminHtml,
+  'display': displayHtml,
+  'poster': posterHtml,
+  'report': reportHtml
+};
+
 // Worker version - used for transparency headers and debugging
+// Story 1: Embedded templates to fix 503 errors on staging routes
 // Story 2: Updated for staging env vars and versioning support
-const WORKER_VERSION = '2.3.0';
+const WORKER_VERSION = '2.4.0';
 
 // =============================================================================
 // OBSERVABILITY & LOGGING - Story 5 Implementation
@@ -412,13 +440,17 @@ function validateTemplate(templateName, content) {
 }
 
 /**
- * Get template content from KV storage with validation
+ * Get template content with validation
  *
+ * Story 1: Updated to use embedded templates as primary source.
  * Story 3: Enhanced version that throws if template is missing or empty.
- * Templates are stored in Cloudflare KV for production.
+ *
+ * Template source priority:
+ * 1. EMBEDDED_TEMPLATES (bundled with Worker - always available)
+ * 2. KV storage (TEMPLATES_KV binding - optional fallback)
  *
  * @param {string} templateName - Template name (admin, public, display, poster, report)
- * @param {Object} env - Worker environment with TEMPLATES_KV binding
+ * @param {Object} env - Worker environment with optional TEMPLATES_KV binding
  * @throws {TemplateError} If template is missing, empty, or invalid
  * @returns {Promise<string>} Template HTML content
  */
@@ -432,13 +464,23 @@ async function getTemplate(templateName, env) {
 
   const templateFile = `${name}.html`;
 
-  // Try KV storage first (for production deployments)
+  // Story 1: Try embedded templates first (bundled with Worker)
+  // This is the primary source and eliminates KV dependency
+  if (EMBEDDED_TEMPLATES[name]) {
+    const content = EMBEDDED_TEMPLATES[name];
+    if (content && typeof content === 'string' && content.trim().length > 0) {
+      console.log(`[EventAngle] Template loaded from embedded source: ${name}`);
+      return validateTemplate(name, content);
+    }
+  }
+
+  // Fallback: Try KV storage (for deployments with KV configured)
   if (env?.TEMPLATES_KV) {
     try {
       const content = await env.TEMPLATES_KV.get(templateFile);
 
       if (content) {
-        // Validate and return
+        console.log(`[EventAngle] Template loaded from KV: ${name}`);
         return validateTemplate(name, content);
       }
 
@@ -453,16 +495,17 @@ async function getTemplate(templateName, env) {
     }
   }
 
-  // No KV binding - return null for graceful degradation
-  // In production with KV, this shouldn't happen
-  console.warn(`[EventAngle] Template not found (no KV): ${templateFile}`);
+  // No embedded template and no KV binding - this shouldn't happen with proper bundling
+  console.error(`[EventAngle] Template not found (no embedded, no KV): ${templateFile}`);
   return null;
 }
 
 /**
  * Validate all required templates are available
  *
- * @param {Object} env - Worker environment with TEMPLATES_KV binding
+ * Story 1: Updated to report template source (embedded vs KV).
+ *
+ * @param {Object} env - Worker environment with optional TEMPLATES_KV binding
  * @returns {Promise<Object>} Validation result with status and details
  */
 async function validateAllTemplates(env) {
@@ -470,16 +513,20 @@ async function validateAllTemplates(env) {
     valid: true,
     templates: {},
     errors: [],
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    source: 'embedded' // Default source indicator
   };
 
   for (const name of VALID_TEMPLATE_NAMES) {
     try {
+      // Check if embedded template exists
+      const hasEmbedded = EMBEDDED_TEMPLATES[name] && typeof EMBEDDED_TEMPLATES[name] === 'string';
       const content = await getTemplate(name, env);
       result.templates[name] = {
         valid: true,
         size: content ? content.length : 0,
-        hasDoctype: content ? content.toLowerCase().includes('<!doctype html') : false
+        hasDoctype: content ? content.toLowerCase().includes('<!doctype html') : false,
+        source: hasEmbedded ? 'embedded' : 'kv'
       };
     } catch (e) {
       result.valid = false;
