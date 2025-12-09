@@ -91,30 +91,80 @@ const WORKER_VERSION = '2.4.0';
 
 /**
  * Get environment identifier from env object
+ * Story 2: Updated to prioritize explicit WORKER_ENV for consistent detection
  * @param {Object} env - Worker environment
  * @returns {string} Environment identifier (prod, stg, dev)
  */
 function getEnvironmentId(env) {
-  // Check for staging indicators
+  // Story 2: Prioritize explicit WORKER_ENV setting
+  if (env.WORKER_ENV) {
+    const workerEnv = env.WORKER_ENV.toLowerCase();
+    if (workerEnv === 'staging' || workerEnv === 'stg') {
+      return 'stg';
+    }
+    if (workerEnv === 'production' || workerEnv === 'prod') {
+      return 'prod';
+    }
+    if (workerEnv === 'development' || workerEnv === 'dev') {
+      return 'dev';
+    }
+  }
+  // Fallback: Check for staging indicators
   if (env.ENABLE_DEBUG_ENDPOINTS === 'true') {
     return 'stg';
   }
-  // Check if staging-specific variables are set (standardized naming)
+  // Fallback: Check if staging-specific variables are set (standardized naming)
   if (env.STAGING_DEPLOYMENT_ID || env.STAGING_WEB_APP_URL) {
     return 'stg';
   }
-  // Check deployment ID pattern (legacy detection)
+  // Fallback: Check deployment ID pattern (legacy detection)
   const deploymentId = env.STAGING_DEPLOYMENT_ID || env.DEPLOYMENT_ID || '';
   if (deploymentId.includes('xx2nN-zkU') || deploymentId.includes('wwi0ta5')) {
     return 'stg'; // Staging deployment ID patterns
   }
-  // Check GAS URL for staging (standardized or legacy)
+  // Fallback: Check GAS URL for staging (standardized or legacy)
   const gasUrl = env.STAGING_WEB_APP_URL || env.GAS_DEPLOYMENT_BASE_URL || '';
   if (gasUrl.includes('stg') || gasUrl.includes('staging')) {
     return 'stg';
   }
   // Default to prod
   return 'prod';
+}
+
+/**
+ * Get GAS (Google Apps Script) URL based on environment
+ * Story 2: Environment-aware URL resolution for consistent behavior
+ * @param {Object} env - Worker environment
+ * @returns {string} GAS base URL for the current environment
+ */
+function getGasUrl(env) {
+  const envId = getEnvironmentId(env);
+
+  if (envId === 'stg') {
+    // Staging: prefer STAGING_ prefixed vars, then legacy aliases
+    return env.STAGING_WEB_APP_URL || env.GAS_DEPLOYMENT_BASE_URL ||
+      `https://script.google.com/macros/s/${env.STAGING_DEPLOYMENT_ID || env.DEPLOYMENT_ID || 'unknown'}/exec`;
+  }
+
+  // Production (and other): prefer PROD_ prefixed vars, then legacy aliases
+  return env.PROD_WEB_APP_URL || env.GAS_DEPLOYMENT_BASE_URL ||
+    `https://script.google.com/macros/s/${env.PROD_DEPLOYMENT_ID || env.DEPLOYMENT_ID || 'unknown'}/exec`;
+}
+
+/**
+ * Get deployment ID based on environment
+ * Story 2: Environment-aware deployment ID resolution
+ * @param {Object} env - Worker environment
+ * @returns {string} Deployment ID for the current environment
+ */
+function getDeploymentId(env) {
+  const envId = getEnvironmentId(env);
+
+  if (envId === 'stg') {
+    return env.STAGING_DEPLOYMENT_ID || env.DEPLOYMENT_ID || 'unknown';
+  }
+
+  return env.PROD_DEPLOYMENT_ID || env.DEPLOYMENT_ID || 'unknown';
 }
 
 /**
@@ -336,9 +386,8 @@ function renderTemplate(templateContent, params, env) {
   } = params;
 
   // Get exec URL from environment (for API calls)
-  // Priority: Standardized names (PROD_WEB_APP_URL, STAGING_WEB_APP_URL) > Legacy (GAS_DEPLOYMENT_BASE_URL) > Constructed
-  const execUrl = env.PROD_WEB_APP_URL || env.STAGING_WEB_APP_URL || env.GAS_DEPLOYMENT_BASE_URL ||
-    `https://script.google.com/macros/s/${env.PROD_DEPLOYMENT_ID || env.STAGING_DEPLOYMENT_ID || env.DEPLOYMENT_ID || DEFAULT_DEPLOYMENT_ID}/exec`;
+  // Story 2: Use environment-aware URL resolution
+  const execUrl = getGasUrl(env);
 
   // Build app title
   const appTitle = `${brandName} · ${scope}`;
@@ -595,12 +644,9 @@ function handleEnvStatusEndpoint(url, env) {
   const envId = getEnvironmentId(env);
   const envName = envId === 'stg' ? 'staging' : 'production';
 
-  // Get GAS base URL (same logic as main fetch handler)
-  const gasBase = env.PROD_WEB_APP_URL || env.STAGING_WEB_APP_URL || env.GAS_DEPLOYMENT_BASE_URL ||
-    `https://script.google.com/macros/s/${env.PROD_DEPLOYMENT_ID || env.STAGING_DEPLOYMENT_ID || env.DEPLOYMENT_ID || 'unknown'}/exec`;
-
-  // Get deployment ID
-  const deploymentId = env.PROD_DEPLOYMENT_ID || env.STAGING_DEPLOYMENT_ID || env.DEPLOYMENT_ID || 'unknown';
+  // Story 2: Use environment-aware URL and deployment ID resolution
+  const gasBase = getGasUrl(env);
+  const deploymentId = getDeploymentId(env);
 
   // Get worker build version
   const workerBuild = env.WORKER_BUILD_VERSION || 'unknown';
@@ -1904,11 +1950,8 @@ export default {
   async fetch(request, env, ctx) {
     const startTime = Date.now();
 
-    // Get GAS base URL - Priority: Standardized names > Legacy names > Constructed
-    // Standardized: PROD_WEB_APP_URL, STAGING_WEB_APP_URL
-    // Legacy: GAS_DEPLOYMENT_BASE_URL, DEPLOYMENT_ID
-    const appsScriptBase = env.PROD_WEB_APP_URL || env.STAGING_WEB_APP_URL || env.GAS_DEPLOYMENT_BASE_URL ||
-      `https://script.google.com/macros/s/${env.PROD_DEPLOYMENT_ID || env.STAGING_DEPLOYMENT_ID || env.DEPLOYMENT_ID || DEFAULT_DEPLOYMENT_ID}/exec`;
+    // Story 2: Use environment-aware URL resolution
+    const appsScriptBase = getGasUrl(env);
 
     const url = new URL(request.url);
 
