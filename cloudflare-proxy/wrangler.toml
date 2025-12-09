@@ -66,6 +66,12 @@ routes = [
 ]
 
 [env.production.vars]
+# Story 2: Explicit environment identifier for consistent detection
+WORKER_ENV = "production"
+# Story 2: Worker versioning - build version logged in X-Worker-Build-Version header
+WORKER_BUILD_VERSION = "prod-2025.12.09"
+# Story 2: Debug level for observability (production uses 'error' for minimal logging)
+DEBUG_LEVEL = "error"
 PROD_DEPLOYMENT_ID = "AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw"
 PROD_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw/exec"
 # Legacy aliases (keeping for backward compatibility)
@@ -165,6 +171,11 @@ routes = [
 ]
 
 [env.api-only.vars]
+# Story 2: Explicit environment identifier for consistent detection
+WORKER_ENV = "production"
+# Story 2: Worker versioning - build version logged in X-Worker-Build-Version header
+WORKER_BUILD_VERSION = "prod-2025.12.09"
+DEBUG_LEVEL = "error"
 PROD_DEPLOYMENT_ID = "AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw"
 PROD_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw/exec"
 # Legacy alias
@@ -253,6 +264,11 @@ routes = [
 ]
 
 [env.events.vars]
+# Story 2: Explicit environment identifier for consistent detection
+WORKER_ENV = "production"
+# Story 2: Worker versioning - build version logged in X-Worker-Build-Version header
+WORKER_BUILD_VERSION = "prod-2025.12.09"
+DEBUG_LEVEL = "error"
 # Production GAS deployment (standardized naming)
 PROD_DEPLOYMENT_ID = "AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw"
 PROD_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw/exec"
