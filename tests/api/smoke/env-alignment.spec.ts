@@ -29,9 +29,21 @@ const EXPECTED_SCRIPT_IDS = {
   production: '1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l'
 };
 
-// Detect if running against production
+// Detect if running against production using proper URL hostname validation
+function isProductionUrl(url: string | undefined): boolean {
+  if (!url) return false;
+  try {
+    const parsedUrl = new URL(url);
+    // Only match exact production hostname (not substrings)
+    return parsedUrl.hostname === 'www.eventangle.com' ||
+           parsedUrl.hostname === 'eventangle.com';
+  } catch {
+    return false;
+  }
+}
+
 const IS_PRODUCTION = process.env.USE_PRODUCTION === 'true' ||
-  process.env.BASE_URL?.includes('www.eventangle.com');
+  isProductionUrl(process.env.BASE_URL);
 
 // Expected environment name based on deployment target
 const EXPECTED_ENV = IS_PRODUCTION ? 'production' : 'staging';
