@@ -518,6 +518,66 @@ async function getManifest(env) {
 }
 
 // =============================================================================
+// ENV STATUS ENDPOINT - Story 3 Implementation
+// =============================================================================
+// Public endpoint returning worker and GAS deployment information.
+// No authentication required - designed for CI consumption.
+
+/**
+ * Handle /env-status endpoint (no auth required)
+ * Returns worker and GAS deployment information for CI consumption.
+ *
+ * Accessible via:
+ * - GET /env-status
+ * - GET /?page=env-status
+ *
+ * @param {URL} url - Request URL
+ * @param {Object} env - Worker environment
+ * @returns {Response|null} JSON response if matched, null otherwise
+ */
+function handleEnvStatusEndpoint(url, env) {
+  const pathname = url.pathname;
+  const page = url.searchParams.get('page');
+
+  // Match /env-status path or ?page=env-status query
+  if (pathname !== '/env-status' && page !== 'env-status') {
+    return null;
+  }
+
+  // Determine environment
+  const envId = getEnvironmentId(env);
+  const envName = envId === 'stg' ? 'staging' : 'production';
+
+  // Get GAS base URL (same logic as main fetch handler)
+  const gasBase = env.PROD_WEB_APP_URL || env.STAGING_WEB_APP_URL || env.GAS_DEPLOYMENT_BASE_URL ||
+    `https://script.google.com/macros/s/${env.PROD_DEPLOYMENT_ID || env.STAGING_DEPLOYMENT_ID || env.DEPLOYMENT_ID || 'unknown'}/exec`;
+
+  // Get deployment ID
+  const deploymentId = env.PROD_DEPLOYMENT_ID || env.STAGING_DEPLOYMENT_ID || env.DEPLOYMENT_ID || 'unknown';
+
+  // Get worker build version
+  const workerBuild = env.WORKER_BUILD_VERSION || 'unknown';
+
+  const responseBody = {
+    env: envName,
+    gasBase: gasBase,
+    deploymentId: deploymentId,
+    workerBuild: workerBuild
+  };
+
+  return new Response(JSON.stringify(responseBody, null, 2), {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'X-Proxied-By': 'eventangle-worker',
+      'X-Worker-Version': WORKER_VERSION
+    }
+  });
+}
+
+// =============================================================================
 // DEBUG ENDPOINTS - Story 3 Implementation
 // =============================================================================
 // Staging-only debug endpoints for template inspection.
@@ -924,7 +984,8 @@ const CANONICAL_PAGES = Object.freeze({
   'ping': 'ping',
   'diagnostics': 'diagnostics',
   'shared-report': 'report',  // Alias
-  'test': 'test'              // Test page
+  'test': 'test',             // Test page
+  'env-status': 'env-status'  // Story 3: Environment status for CI
 });
 
 /**
@@ -1005,6 +1066,8 @@ const CANONICAL_PATH_TO_PAGE = Object.freeze({
   'status': 'status',
   'health': 'status',
   'ping': 'ping',
+  // Story 3: Environment status for CI
+  'env-status': 'env-status',
   // API path
   'api': 'api'
 });
@@ -1664,6 +1727,16 @@ export default {
     const debugResponse = await handleDebugEndpoint(url, env);
     if (debugResponse) {
       return addTransparencyHeaders(debugResponse, startTime, env);
+    }
+
+    // ==========================================================================
+    // ENV STATUS ENDPOINT - Story 3 Implementation
+    // ==========================================================================
+    // Public /env-status endpoint for CI consumption.
+    // No authentication required - returns worker and GAS deployment info.
+    const envStatusResponse = handleEnvStatusEndpoint(url, env);
+    if (envStatusResponse) {
+      return addTransparencyHeaders(envStatusResponse, startTime, env);
     }
 
     // ==========================================================================
