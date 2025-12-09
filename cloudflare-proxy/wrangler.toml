@@ -43,6 +43,12 @@ routes = [
 [env.production.vars]
 DEPLOYMENT_ID = "AKfycbyS1cW9VhviR-Jr8AmYY_BAGrb1gzuKkrgEBP2M3bMdqAv4ktqHOZInWV8ogkpz5i8SYQ"
 
+# KV Namespace for HTML templates (production)
+# Created via: wrangler kv:namespace create "TEMPLATES_KV" --env production
+[[env.production.kv_namespaces]]
+binding = "TEMPLATES_KV"
+id = "REPLACE_WITH_PRODUCTION_KV_NAMESPACE_ID"
+
 # ============================================
 # Staging Environment (stg.eventangle.com)
 # ============================================
@@ -100,6 +106,12 @@ ENABLE_DEBUG_ENDPOINTS = "true"
 # Staging uses 'debug' for full visibility, production uses 'error'
 # Note: NU SDK auto-detects based on hostname, this is for documentation
 DEBUG_LEVEL = "debug"
+
+# KV Namespace for HTML templates (staging)
+# Created via: wrangler kv:namespace create "TEMPLATES_KV" --env staging
+[[env.staging.kv_namespaces]]
+binding = "TEMPLATES_KV"
+id = "REPLACE_WITH_STAGING_KV_NAMESPACE_ID"
 
 # ============================================
 # API Only (subdomain only, no main site)

@@ -198,6 +198,8 @@
     "bundle:templates": "node scripts/bundle-worker-templates.js",
     "bundle:templates:check": "node scripts/bundle-worker-templates.js --check",
     "bundle:templates:validate": "node scripts/bundle-worker-templates.js --validate",
+    "upload:templates:staging": "node scripts/upload-templates-to-kv.js --env staging",
+    "upload:templates:production": "node scripts/upload-templates-to-kv.js --env production",
     "deploy": "node scripts/deploy-apps-script.js",
     "deploy:diagnose": "node scripts/diagnose-apps-script-access.js",
     "deploy:verify-secrets": "node scripts/verify-secrets.js",
