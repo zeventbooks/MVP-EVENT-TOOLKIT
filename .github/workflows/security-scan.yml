@@ -200,64 +200,129 @@ jobs:
       id: npm-audit
       run: |
         echo "=============================================="
-        echo "NPM DEPENDENCY AUDIT"
+        echo "NPM DEPENDENCY AUDIT (Story 2.4)"
         echo "=============================================="
         echo ""
+        echo "Policy: High and critical vulnerabilities BLOCK merges."
+        echo ""
 
-        # Run audit and capture output
+        # Create audit report directory
+        mkdir -p .security-reports
+
+        # Run audit and capture output in JSON format for processing
         set +e
-        AUDIT_OUTPUT=$(npm audit --audit-level=high 2>&1)
+        npm audit --json > .security-reports/npm-audit.json 2>&1
         AUDIT_EXIT_CODE=$?
+
+        # Also get human-readable output
+        AUDIT_OUTPUT=$(npm audit --audit-level=high 2>&1)
         set -e
 
         echo "$AUDIT_OUTPUT"
+        echo ""
 
-        # Check for critical/high vulnerabilities
-        if [ $AUDIT_EXIT_CODE -ne 0 ]; then
+        # Parse vulnerability counts from JSON
+        if [ -f .security-reports/npm-audit.json ]; then
+          CRITICAL=$(jq '.metadata.vulnerabilities.critical // 0' .security-reports/npm-audit.json 2>/dev/null || echo "0")
+          HIGH=$(jq '.metadata.vulnerabilities.high // 0' .security-reports/npm-audit.json 2>/dev/null || echo "0")
+          MODERATE=$(jq '.metadata.vulnerabilities.moderate // 0' .security-reports/npm-audit.json 2>/dev/null || echo "0")
+          LOW=$(jq '.metadata.vulnerabilities.low // 0' .security-reports/npm-audit.json 2>/dev/null || echo "0")
+          TOTAL=$(jq '.metadata.vulnerabilities.total // 0' .security-reports/npm-audit.json 2>/dev/null || echo "0")
+        else
+          CRITICAL=0
+          HIGH=0
+          MODERATE=0
+          LOW=0
+          TOTAL=0
+        fi
+
+        echo "critical_count=$CRITICAL" >> $GITHUB_OUTPUT
+        echo "high_count=$HIGH" >> $GITHUB_OUTPUT
+        echo "moderate_count=$MODERATE" >> $GITHUB_OUTPUT
+        echo "low_count=$LOW" >> $GITHUB_OUTPUT
+        echo "total_count=$TOTAL" >> $GITHUB_OUTPUT
+
+        # Determine if we should fail
+        BLOCKING_COUNT=$((CRITICAL + HIGH))
+
+        if [ "$BLOCKING_COUNT" -gt 0 ]; then
           echo ""
-          echo "⚠️ High or critical vulnerabilities found in dependencies!"
-          echo "audit_status=warning" >> $GITHUB_OUTPUT
-
-          # Extract vulnerability counts if present
-          CRITICAL=$(echo "$AUDIT_OUTPUT" | grep -oP '\d+ critical' | head -1 || echo "0 critical")
-          HIGH=$(echo "$AUDIT_OUTPUT" | grep -oP '\d+ high' | head -1 || echo "0 high")
-
-          echo "critical_count=$CRITICAL" >> $GITHUB_OUTPUT
-          echo "high_count=$HIGH" >> $GITHUB_OUTPUT
+          echo "=============================================="
+          echo "❌ BLOCKING VULNERABILITIES FOUND"
+          echo "=============================================="
+          echo "Critical: $CRITICAL"
+          echo "High: $HIGH"
+          echo ""
+          echo "These must be resolved before merging."
+          echo "See docs/SECURITY.md for remediation guidance."
+          echo "=============================================="
+          echo "audit_status=failed" >> $GITHUB_OUTPUT
+          # Story 2.4: High severity vulnerabilities result in non-passing status
+          exit 1
         else
           echo ""
           echo "✅ No high or critical vulnerabilities found"
           echo "audit_status=pass" >> $GITHUB_OUTPUT
+
+          if [ "$TOTAL" -gt 0 ]; then
+            echo ""
+            echo "Note: Found $MODERATE moderate and $LOW low severity issues."
+            echo "These don't block merging but should be addressed."
+          fi
+          exit 0
         fi
 
-        # Don't fail the job - just report (npm audit can be noisy)
-        # CodeQL is the authoritative security gate
-        exit 0
+    - name: Upload audit report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: dependency-audit-report
+        path: .security-reports/
+        retention-days: 30
 
     - name: Create audit summary
       if: always()
       run: |
-        echo "## 🔍 Dependency Vulnerability Audit" >> $GITHUB_STEP_SUMMARY
+        echo "## 🔍 Dependency Vulnerability Audit (Story 2.4)" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
 
         AUDIT_STATUS="${{ steps.npm-audit.outputs.audit_status }}"
+        CRITICAL="${{ steps.npm-audit.outputs.critical_count }}"
+        HIGH="${{ steps.npm-audit.outputs.high_count }}"
+        MODERATE="${{ steps.npm-audit.outputs.moderate_count }}"
+        LOW="${{ steps.npm-audit.outputs.low_count }}"
+        TOTAL="${{ steps.npm-audit.outputs.total_count }}"
 
         if [ "$AUDIT_STATUS" == "pass" ]; then
-          echo "### ✅ No Critical/High Vulnerabilities" >> $GITHUB_STEP_SUMMARY
+          echo "### ✅ No Blocking Vulnerabilities" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "All dependencies are clear of high and critical severity issues." >> $GITHUB_STEP_SUMMARY
         else
-          echo "### ⚠️ Vulnerabilities Detected" >> $GITHUB_STEP_SUMMARY
+          echo "### ❌ BLOCKING: Vulnerabilities Detected" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Found vulnerabilities in npm dependencies:" >> $GITHUB_STEP_SUMMARY
-          echo "- ${{ steps.npm-audit.outputs.critical_count }}" >> $GITHUB_STEP_SUMMARY
-          echo "- ${{ steps.npm-audit.outputs.high_count }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Run \`npm audit\` locally for details and fix recommendations." >> $GITHUB_STEP_SUMMARY
+          echo "High or critical vulnerabilities found. **Merge is blocked.**" >> $GITHUB_STEP_SUMMARY
         fi
 
         echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Vulnerability Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Severity | Count | Blocks Merge? |" >> $GITHUB_STEP_SUMMARY
+        echo "|----------|-------|---------------|" >> $GITHUB_STEP_SUMMARY
+        echo "| 🔴 Critical | $CRITICAL | Yes |" >> $GITHUB_STEP_SUMMARY
+        echo "| 🟠 High | $HIGH | Yes |" >> $GITHUB_STEP_SUMMARY
+        echo "| 🟡 Moderate | $MODERATE | No |" >> $GITHUB_STEP_SUMMARY
+        echo "| 🟢 Low | $LOW | No |" >> $GITHUB_STEP_SUMMARY
+        echo "| **Total** | **$TOTAL** | |" >> $GITHUB_STEP_SUMMARY
+
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Remediation" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "If vulnerabilities were found:" >> $GITHUB_STEP_SUMMARY
+        echo "1. Run \`npm audit\` locally to see details" >> $GITHUB_STEP_SUMMARY
+        echo "2. Run \`npm audit fix\` to auto-fix compatible updates" >> $GITHUB_STEP_SUMMARY
+        echo "3. See [docs/SECURITY.md](../docs/SECURITY.md) for manual fixes" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
         echo "---" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "**Note**: CodeQL is the authoritative security gate." >> $GITHUB_STEP_SUMMARY
-        echo "Dependency audit is informational but should be addressed." >> $GITHUB_STEP_SUMMARY
+        echo "**Story 2.4 Policy**: High severity vulnerabilities block merges." >> $GITHUB_STEP_SUMMARY
+        echo "**Artifact**: \`dependency-audit-report\` contains detailed JSON report." >> $GITHUB_STEP_SUMMARY
