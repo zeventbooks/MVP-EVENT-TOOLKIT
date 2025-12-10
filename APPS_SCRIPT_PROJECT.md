@@ -1,8 +1,56 @@
 # Apps Script Project Configuration
 
-**Last Updated:** 2025-12-05
+**Last Updated:** 2025-12-10
 **Status:** Production
 **Owner:** zeventbook@gmail.com (REQUIRED)
+**Story:** 1.3 - Separate Apps Script Environments for Staging and Production
+
+---
+
+## Story 1.3: Environment Separation
+
+Staging and production Apps Script projects are **fully separate** with distinct Script IDs. This ensures:
+
+1. **No Cross-Contamination** - Deploying to staging NEVER affects production
+2. **Safe Testing** - Test freely on staging without production risk
+3. **CI-Only Production** - Only the CI pipeline can deploy to production
+
+### Script ID Configuration
+
+| Environment | Script ID | Config File |
+|-------------|-----------|-------------|
+| **Staging** | `1gHiPuj7eXNk09dDyk17SJ6QsCJg7LMqXBRrkowljL3z2TaAKFIvBLhHJ` | `.clasp-staging.json` |
+| **Production** | `1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l` | `.clasp-production.json` |
+| **Default (safe)** | Staging | `.clasp.json` |
+
+### Configuration Files
+
+| File | Purpose | Safe for Local Use |
+|------|---------|-------------------|
+| `.clasp.json` | Default config - points to STAGING for safety | Yes |
+| `.clasp-staging.json` | Explicit staging config | Yes |
+| `.clasp-production.json` | Production reference - **CI-ONLY** | **NO** |
+
+### How CI Uses Script IDs
+
+1. **Staging Deploy** (push to `main`):
+   - Loads `STAGING_SCRIPT_ID` from GitHub secret (if set) or `deploy-manifest.json`
+   - Dynamically updates `.clasp.json` with staging Script ID
+   - Deploys to staging Apps Script project
+
+2. **Production Deploy** (tag `vX.Y.Z`):
+   - Loads `PROD_SCRIPT_ID` from `deploy-manifest.json`
+   - Dynamically updates `.clasp.json` with production Script ID
+   - Deploys to production Apps Script project
+
+### Verifying Deployment Separation
+
+After a deployment, verify the correct project was updated:
+
+| Environment | Manage Deployments URL |
+|-------------|----------------------|
+| Staging | https://script.google.com/home/projects/1gHiPuj7eXNk09dDyk17SJ6QsCJg7LMqXBRrkowljL3z2TaAKFIvBLhHJ/deployments |
+| Production | https://script.google.com/home/projects/1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l/deployments |
 
 ---
 
@@ -109,14 +157,16 @@ clasp deploy -d "Dev test deployment"
 | **Staging URL** | https://stg.eventangle.com |
 | **Owner** | `zeventbook@gmail.com` (REQUIRED) |
 
-### GitHub Secrets
+### GitHub Secrets (Story 1.3)
 
-| Secret | Purpose | Value |
-|--------|---------|-------|
-| `OAUTH_CREDENTIALS` | Production deployments | `~/.clasprc.json` content |
-| `STAGING_SCRIPT_ID` | Staging Script ID | `1gHiPuj7eXNk09dDyk17SJ6QsCJg7LMqXBRrkowljL3z2TaAKFIvBLhHJ` |
+| Secret | Purpose | Required | Default |
+|--------|---------|----------|---------|
+| `OAUTH_CREDENTIALS` | Clasp authentication | Yes | - |
+| `STAGING_SCRIPT_ID` | Override staging Script ID | Optional | From `deploy-manifest.json` |
 
-Note: The same `OAUTH_CREDENTIALS` works for both prod and staging since both scripts are owned by zeventbook@gmail.com.
+**Note:** `STAGING_SCRIPT_ID` is optional. If not set, the CI pipeline uses the value from `deploy-manifest.json`. This secret allows changing the staging Script ID without modifying code.
+
+The same `OAUTH_CREDENTIALS` works for both prod and staging since both scripts are owned by zeventbook@gmail.com.
 
 ---
 
