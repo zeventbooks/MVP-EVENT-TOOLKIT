@@ -1,14 +1,14 @@
 {
   "$schema": "./schemas/deploy-manifest.schema.json",
   "_comment": "Centralized Deployment Manifest - Single Source of Truth for Environment Configuration",
-  "_version": "1.0.0",
+  "_version": "1.1.0",
   "_lastUpdated": "2025-12-10",
-  "_story": "Story 1.2 (DevOps): Centralized deployment manifest for environment-specific settings",
+  "_story": "Story 1.4 (PO): Configuration parity and environment alignment - staging mirrors production",
 
   "environments": {
     "staging": {
       "name": "Staging",
-      "description": "Safe sandbox for testing and pre-production validation",
+      "description": "Safe sandbox for testing and pre-production validation (UAT proxy for production)",
 
       "appsScript": {
         "scriptId": "1gHiPuj7eXNk09dDyk17SJ6QsCJg7LMqXBRrkowljL3z2TaAKFIvBLhHJ",
@@ -36,6 +36,44 @@
         "workerEnv": "staging",
         "debugLevel": "debug",
         "enableDebugEndpoints": true
+      },
+
+      "featureFlags": {
+        "_comment": "Feature flags for staging: testing features ON by default, production features match prod",
+
+        "mvpFeatures": {
+          "_comment": "Core MVP features - must match production (always enabled)",
+          "EVENTS": true,
+          "SPONSORS": true,
+          "ANALYTICS": true,
+          "FORMS": true,
+          "SHORTLINKS": true,
+          "PORTFOLIO_ANALYTICS": true
+        },
+
+        "testingFeatures": {
+          "_comment": "Testing/development features - ON in staging, OFF in production",
+          "DEMO_MODE_ENABLED": true,
+          "DEBUG_PANEL": true,
+          "API_TIMING_LOGS": true,
+          "ERROR_DETAILS": true,
+          "SAMPLE_DATA_PREFILL": true,
+          "FEATURE_HIGHLIGHTING": true,
+          "CONSOLE_LOGGING": true
+        },
+
+        "v2Features": {
+          "_comment": "V2 deferred features - OFF in both environments until explicitly enabled",
+          "TEMPLATE_MANAGEMENT_V2": false,
+          "PORTFOLIO_V2": false
+        },
+
+        "experimentalFeatures": {
+          "_comment": "Experimental features for staging validation only - OFF in production",
+          "NEW_UI_COMPONENTS": true,
+          "ENHANCED_VALIDATION": true,
+          "PERFORMANCE_MONITORING": true
+        }
       }
     },
 
@@ -70,6 +108,44 @@
         "workerEnv": "production",
         "debugLevel": "error",
         "enableDebugEndpoints": false
+      },
+
+      "featureFlags": {
+        "_comment": "Feature flags for production: conservative defaults, testing features OFF",
+
+        "mvpFeatures": {
+          "_comment": "Core MVP features - always enabled in production",
+          "EVENTS": true,
+          "SPONSORS": true,
+          "ANALYTICS": true,
+          "FORMS": true,
+          "SHORTLINKS": true,
+          "PORTFOLIO_ANALYTICS": true
+        },
+
+        "testingFeatures": {
+          "_comment": "Testing/development features - OFF in production for security and performance",
+          "DEMO_MODE_ENABLED": false,
+          "DEBUG_PANEL": false,
+          "API_TIMING_LOGS": false,
+          "ERROR_DETAILS": false,
+          "SAMPLE_DATA_PREFILL": false,
+          "FEATURE_HIGHLIGHTING": false,
+          "CONSOLE_LOGGING": false
+        },
+
+        "v2Features": {
+          "_comment": "V2 deferred features - OFF until explicitly approved for production release",
+          "TEMPLATE_MANAGEMENT_V2": false,
+          "PORTFOLIO_V2": false
+        },
+
+        "experimentalFeatures": {
+          "_comment": "Experimental features - always OFF in production",
+          "NEW_UI_COMPONENTS": false,
+          "ENHANCED_VALIDATION": false,
+          "PERFORMANCE_MONITORING": false
+        }
       }
     }
   },
@@ -90,5 +166,32 @@
     "scriptIdPattern": "^[a-zA-Z0-9_-]{40,60}$",
     "deploymentIdPattern": "^AKfycb[a-zA-Z0-9_-]+$",
     "deploymentIdMinLength": 50
+  },
+
+  "parity": {
+    "_comment": "Story 1.4: Configuration parity requirements between staging and production",
+    "mustMatch": [
+      "appsScript.scriptId pattern validation",
+      "cloudflare.zoneName",
+      "featureFlags.mvpFeatures (all values)",
+      "featureFlags.v2Features (all values)",
+      "brands.validBrands",
+      "brands.defaultBrand"
+    ],
+    "allowedDifferences": [
+      "appsScript.scriptId (different projects)",
+      "appsScript.deploymentId (different deployments)",
+      "cloudflare.workerName (different workers)",
+      "cloudflare.routes (different domains)",
+      "urls.baseUrl (different domains)",
+      "urls.apiUrl (different domains)",
+      "flags.workerEnv (staging vs production)",
+      "flags.debugLevel (debug vs error)",
+      "flags.enableDebugEndpoints (true vs false)",
+      "featureFlags.testingFeatures (enabled in staging for UAT)",
+      "featureFlags.experimentalFeatures (enabled in staging for validation)"
+    ],
+    "lastAuditDate": "2025-12-10",
+    "auditedBy": "Story 1.4 Implementation"
   }
 }
