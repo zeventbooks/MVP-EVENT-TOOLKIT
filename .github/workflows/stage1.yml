@@ -61,13 +61,20 @@ concurrency:
   group: stage1-validation-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
-# Environment configuration - Standardized naming convention
-# See config/deployment-ids.js for canonical source of truth
+# Environment configuration - Story 1.2: Centralized Deployment Manifest
+# All environment values are loaded from deploy-manifest.json (single source of truth)
+# See deploy-manifest.json for canonical configuration
+# See scripts/read-manifest.js for helper utilities
+#
+# Note: Values are loaded dynamically in the 'load-manifest' step of each job
+# These defaults serve as fallbacks only if manifest loading fails
 env:
-  # Staging environment (stg.eventangle.com)
+  # Manifest file path
+  DEPLOY_MANIFEST: 'deploy-manifest.json'
+  # Staging environment (stg.eventangle.com) - loaded from manifest
   STAGING_URL: 'https://stg.eventangle.com'
   STAGING_SCRIPT_ID: '1gHiPuj7eXNk09dDyk17SJ6QsCJg7LMqXBRrkowljL3z2TaAKFIvBLhHJ'
-  # Production environment (www.eventangle.com)
+  # Production environment (www.eventangle.com) - loaded from manifest
   PROD_URL: 'https://www.eventangle.com'
   PROD_SCRIPT_ID: '1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l'
   # Legacy aliases (keeping for backward compatibility)
@@ -226,6 +233,46 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      # ========================================================================
+      # STORY 1.2: Load environment values from deploy-manifest.json
+      # ========================================================================
+      - name: Load deployment manifest
+        id: manifest
+        run: |
+          echo "=============================================="
+          echo "STORY 1.2: Loading deployment manifest"
+          echo "=============================================="
+
+          if [ ! -f "${{ env.DEPLOY_MANIFEST }}" ]; then
+            echo "::warning::Manifest file not found, using fallback values"
+            exit 0
+          fi
+
+          # Load staging values from manifest
+          STAGING_SCRIPT_ID=$(jq -r '.environments.staging.appsScript.scriptId' ${{ env.DEPLOY_MANIFEST }})
+          STAGING_URL=$(jq -r '.environments.staging.urls.baseUrl' ${{ env.DEPLOY_MANIFEST }})
+          STAGING_WORKER_NAME=$(jq -r '.environments.staging.cloudflare.workerName' ${{ env.DEPLOY_MANIFEST }})
+
+          # Validate loaded values
+          if [ "$STAGING_SCRIPT_ID" != "null" ] && [ -n "$STAGING_SCRIPT_ID" ]; then
+            echo "STAGING_SCRIPT_ID=$STAGING_SCRIPT_ID" >> $GITHUB_ENV
+            echo "  Loaded STAGING_SCRIPT_ID from manifest"
+          fi
+
+          if [ "$STAGING_URL" != "null" ] && [ -n "$STAGING_URL" ]; then
+            echo "STAGING_URL=$STAGING_URL" >> $GITHUB_ENV
+            echo "  Loaded STAGING_URL from manifest"
+          fi
+
+          if [ "$STAGING_WORKER_NAME" != "null" ] && [ -n "$STAGING_WORKER_NAME" ]; then
+            echo "STAGING_WORKER_NAME=$STAGING_WORKER_NAME" >> $GITHUB_ENV
+            echo "  Loaded STAGING_WORKER_NAME from manifest"
+          fi
+
+          echo ""
+          echo "Manifest values loaded for staging deployment"
+          echo "=============================================="
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -833,6 +880,56 @@ jobs:
 
       - name: Checkout code
         uses: actions/checkout@v4
+
+      # ========================================================================
+      # STORY 1.2: Load environment values from deploy-manifest.json
+      # ========================================================================
+      - name: Load deployment manifest
+        id: manifest
+        run: |
+          echo "=============================================="
+          echo "STORY 1.2: Loading deployment manifest"
+          echo "=============================================="
+
+          if [ ! -f "${{ env.DEPLOY_MANIFEST }}" ]; then
+            echo "::warning::Manifest file not found, using fallback values"
+            exit 0
+          fi
+
+          # Load production values from manifest
+          PROD_SCRIPT_ID=$(jq -r '.environments.production.appsScript.scriptId' ${{ env.DEPLOY_MANIFEST }})
+          PROD_URL=$(jq -r '.environments.production.urls.baseUrl' ${{ env.DEPLOY_MANIFEST }})
+          PROD_WORKER_NAME=$(jq -r '.environments.production.cloudflare.workerName' ${{ env.DEPLOY_MANIFEST }})
+
+          # Also load staging values for cross-contamination checks
+          STAGING_URL=$(jq -r '.environments.staging.urls.baseUrl' ${{ env.DEPLOY_MANIFEST }})
+
+          # Validate and export loaded values
+          if [ "$PROD_SCRIPT_ID" != "null" ] && [ -n "$PROD_SCRIPT_ID" ]; then
+            echo "PROD_SCRIPT_ID=$PROD_SCRIPT_ID" >> $GITHUB_ENV
+            echo "PRODUCTION_SCRIPT_ID=$PROD_SCRIPT_ID" >> $GITHUB_ENV
+            echo "  Loaded PROD_SCRIPT_ID from manifest"
+          fi
+
+          if [ "$PROD_URL" != "null" ] && [ -n "$PROD_URL" ]; then
+            echo "PROD_URL=$PROD_URL" >> $GITHUB_ENV
+            echo "PRODUCTION_URL=$PROD_URL" >> $GITHUB_ENV
+            echo "  Loaded PROD_URL from manifest"
+          fi
+
+          if [ "$PROD_WORKER_NAME" != "null" ] && [ -n "$PROD_WORKER_NAME" ]; then
+            echo "PROD_WORKER_NAME=$PROD_WORKER_NAME" >> $GITHUB_ENV
+            echo "  Loaded PROD_WORKER_NAME from manifest"
+          fi
+
+          if [ "$STAGING_URL" != "null" ] && [ -n "$STAGING_URL" ]; then
+            echo "STAGING_URL=$STAGING_URL" >> $GITHUB_ENV
+            echo "  Loaded STAGING_URL from manifest (for cross-check)"
+          fi
+
+          echo ""
+          echo "Manifest values loaded for production deployment"
+          echo "=============================================="
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

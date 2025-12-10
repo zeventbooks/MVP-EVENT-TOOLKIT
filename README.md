@@ -118,6 +118,78 @@ The application supports three environments: **Dev**, **Staging**, and **Product
 | **Production** | `https://www.eventangle.com` | Customer-facing | `npm run test:prod:smoke` |
 | **GAS Direct** | `https://script.google.com/macros/s/{ID}/exec` | Debugging | `BASE_URL="..." npm run test:smoke` |
 
+### Deployment Manifest (Story 1.2)
+
+All environment-specific settings are centralized in **`deploy-manifest.json`** - the single source of truth for deployment configuration.
+
+#### What's in the Manifest
+
+```json
+{
+  "environments": {
+    "staging": {
+      "appsScript": {
+        "scriptId": "...",      // Permanent Apps Script project ID
+        "deploymentId": "...",  // Current deployment ID (auto-updated by CI)
+        "webAppUrl": "..."      // Executable URL
+      },
+      "cloudflare": {
+        "workerName": "eventangle-staging",
+        "routes": ["stg.eventangle.com/*", "..."]
+      },
+      "urls": {
+        "baseUrl": "https://stg.eventangle.com"
+      },
+      "flags": {
+        "debugLevel": "debug",
+        "enableDebugEndpoints": true
+      }
+    },
+    "production": { /* ... */ }
+  }
+}
+```
+
+#### How to Update Environment Configuration
+
+**To change an environment setting (e.g., URL, Script ID):**
+
+1. Edit `deploy-manifest.json` directly
+2. Commit and push the change
+3. The CI/CD pipeline automatically loads values from the manifest
+
+**Example: Update staging Script ID**
+```bash
+# Edit deploy-manifest.json
+# Change: "scriptId": "NEW_SCRIPT_ID"
+# Commit and push
+```
+
+#### Helper Scripts
+
+```bash
+# Read a value from the manifest
+node scripts/read-manifest.js staging appsScript.scriptId
+node scripts/read-manifest.js production urls.baseUrl
+
+# Validate the manifest
+node scripts/read-manifest.js --validate
+
+# Export all values for an environment (CI format)
+node scripts/read-manifest.js --export-ci staging
+
+# Update a value (called by CI after deployment)
+node scripts/update-manifest.js staging appsScript.deploymentId "AKfycb..."
+```
+
+#### Configuration Priority
+
+The system uses this priority order for configuration values:
+
+1. **Environment variables** (highest priority) - CI secrets override everything
+2. **deploy-manifest.json** - centralized configuration
+3. **Hardcoded fallbacks** (lowest priority) - only if manifest is missing
+
 ### Brand Configuration
 
 #### Single Source of Truth

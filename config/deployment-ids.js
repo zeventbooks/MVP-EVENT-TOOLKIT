@@ -1,8 +1,8 @@
 /**
  * Deployment IDs Configuration - Single Source of Truth
  *
- * This module defines all Google Apps Script deployment identifiers
- * in a standardized, environment-prefixed naming convention.
+ * Story 1.2 (DevOps): This module reads from deploy-manifest.json as the
+ * centralized source of truth for environment-specific settings.
  *
  * Naming Convention:
  *   STAGING_* - Staging environment (stg.eventangle.com)
@@ -14,8 +14,57 @@
  *   *_WEB_APP_URL    - Executable URL (https://script.google.com/macros/s/{DEPLOYMENT_ID}/exec)
  *   *_GAS_EDIT_URL   - Project editor URL (for development access)
  *
+ * Priority:
+ *   1. Environment variables (highest priority)
+ *   2. deploy-manifest.json (centralized config)
+ *   3. Hardcoded fallback values (lowest priority)
+ *
  * @module config/deployment-ids
  */
+
+const fs = require('fs');
+const path = require('path');
+
+// =============================================================================
+// LOAD MANIFEST - Centralized Configuration (Story 1.2)
+// =============================================================================
+
+/**
+ * Load values from deploy-manifest.json
+ * @returns {Object|null} Manifest object or null if not found
+ */
+function loadManifest() {
+  try {
+    const manifestPath = path.join(__dirname, '..', 'deploy-manifest.json');
+    if (fs.existsSync(manifestPath)) {
+      return JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+    }
+  } catch (error) {
+    // Silent fallback to hardcoded values
+  }
+  return null;
+}
+
+const manifest = loadManifest();
+
+/**
+ * Get a value from manifest with fallback
+ * @param {string} env - Environment name (staging, production)
+ * @param {string} path - Dot notation path (e.g., 'appsScript.scriptId')
+ * @param {string} fallback - Fallback value
+ * @returns {string} Value from manifest or fallback
+ */
+function getManifestValue(env, pathStr, fallback) {
+  if (!manifest) return fallback;
+  try {
+    const envConfig = manifest.environments[env];
+    if (!envConfig) return fallback;
+    const value = pathStr.split('.').reduce((obj, key) => obj && obj[key], envConfig);
+    return value !== undefined ? value : fallback;
+  } catch {
+    return fallback;
+  }
+}
 
 // =============================================================================
 // STAGING ENVIRONMENT - stg.eventangle.com
@@ -25,17 +74,27 @@
  * Staging Google Apps Script project ID
  * This is the permanent project identifier - never changes
  * Used by clasp for deployment operations
+ * Source: deploy-manifest.json -> environments.staging.appsScript.scriptId
  */
-const STAGING_SCRIPT_ID = '1gHiPuj7eXNk09dDyk17SJ6QsCJg7LMqXBRrkowljL3z2TaAKFIvBLhHJ';
+const STAGING_SCRIPT_ID = getManifestValue(
+  'staging',
+  'appsScript.scriptId',
+  '1gHiPuj7eXNk09dDyk17SJ6QsCJg7LMqXBRrkowljL3z2TaAKFIvBLhHJ'
+);
 
 /**
  * Staging deployment ID
  * Changes with each new web app deployment
  * Updated automatically by CI/CD after successful deployment
- * Can be overridden via STAGING_DEPLOYMENT_ID environment variable
+ * Priority: env var > manifest > hardcoded fallback
+ * Source: deploy-manifest.json -> environments.staging.appsScript.deploymentId
  */
 const STAGING_DEPLOYMENT_ID = process.env.STAGING_DEPLOYMENT_ID ||
-  'AKfycbwFneYCpkio7wCn7y08eDUb2PRCPc2Tdtbv20L4AbEHvuCvoqY9ks7-ONL0pzPPw4Hm';
+  getManifestValue(
+    'staging',
+    'appsScript.deploymentId',
+    'AKfycbwFneYCpkio7wCn7y08eDUb2PRCPc2Tdtbv20L4AbEHvuCvoqY9ks7-ONL0pzPPw4Hm'
+  );
 
 /**
  * Staging web app executable URL
@@ -57,17 +116,27 @@ const STAGING_GAS_EDIT_URL = `https://script.google.com/u/1/home/projects/${STAG
  * Production Google Apps Script project ID
  * This is the permanent project identifier - never changes
  * Used by clasp for deployment operations
+ * Source: deploy-manifest.json -> environments.production.appsScript.scriptId
  */
-const PROD_SCRIPT_ID = '1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l';
+const PROD_SCRIPT_ID = getManifestValue(
+  'production',
+  'appsScript.scriptId',
+  '1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l'
+);
 
 /**
  * Production deployment ID
  * Changes with each new web app deployment
  * Updated automatically by CI/CD after successful deployment
- * Can be overridden via PROD_DEPLOYMENT_ID environment variable
+ * Priority: env var > manifest > hardcoded fallback
+ * Source: deploy-manifest.json -> environments.production.appsScript.deploymentId
  */
 const PROD_DEPLOYMENT_ID = process.env.PROD_DEPLOYMENT_ID ||
-  'AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw';
+  getManifestValue(
+    'production',
+    'appsScript.deploymentId',
+    'AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw'
+  );
 
 /**
  * Production web app executable URL
