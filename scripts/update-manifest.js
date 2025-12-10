@@ -140,7 +140,7 @@ Environment Variables:
 
 For CI/CD usage:
   After a successful deployment, update the manifest with the new deployment ID:
-  node scripts/update-manifest.js staging appsScript.deploymentId "\$NEW_DEPLOYMENT_ID"
+  node scripts/update-manifest.js staging appsScript.deploymentId "$NEW_DEPLOYMENT_ID"
 `);
     process.exit(0);
   }
