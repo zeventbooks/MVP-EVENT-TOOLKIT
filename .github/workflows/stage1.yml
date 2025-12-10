@@ -9,6 +9,12 @@
 #   - Deployment only occurs if ALL gates pass (no partial deploys)
 #   - Branch protection requires: "Lint", "Unit Tests", "Contract Tests", "CodeQL Security Scan"
 #
+# Story 2.5 (DevOps): Fail-Fast Pipeline Implementation
+#   - Critical gates (lint, unit tests) BLOCK subsequent stages on failure
+#   - Fail-fast strategy ensures immediate feedback
+#   - Team notification on pipeline gate failures
+#   - Resources not wasted on doomed deployments
+#
 # Story 1.1 (DevOps/Cloudflare): Automated Cloudflare Worker deployments
 #   - Merging to main: deploys eventangle-staging to stg.eventangle.com
 #   - Tagging vX.Y.Z: deploys eventangle-prod to eventangle.com
@@ -195,10 +201,15 @@ jobs:
   #   - Enforces >= 80% coverage threshold (branches, functions, lines, statements)
   #   - Pipeline fails if coverage drops below threshold
   #   - Coverage reports uploaded as artifacts
+  #
+  # Story 2.5: Fail-Fast
+  #   - DEPENDS ON LINT: If linting fails, unit tests are SKIPPED
+  #   - Provides immediate feedback without wasting resources
   # ============================================================================
   unit-tests:
     name: Unit Tests
     runs-on: ubuntu-latest
+    needs: [lint]  # Story 2.5: Fail-fast - unit tests skip if lint fails
 
     steps:
       - name: Checkout code
@@ -283,10 +294,15 @@ jobs:
   #   - Verifies required fields and envelope structure
   #   - Any schema mismatch or missing field causes test failure
   #   - Prevents deployment of breaking API changes
+  #
+  # Story 2.5: Fail-Fast
+  #   - DEPENDS ON LINT: If linting fails, contract tests are SKIPPED
+  #   - Runs in parallel with unit tests after lint passes
   # ============================================================================
   contract-tests:
     name: Contract Tests
     runs-on: ubuntu-latest
+    needs: [lint]  # Story 2.5: Fail-fast - skip if lint fails
 
     steps:
       - name: Checkout code
@@ -379,10 +395,15 @@ jobs:
   # ============================================================================
   # Required status check: "Guards"
   # Validates MVP integrity checks and V2 file guardrails
+  #
+  # Story 2.5: Fail-Fast
+  #   - DEPENDS ON LINT: If linting fails, guards are SKIPPED
+  #   - Runs in parallel with unit tests and contract tests after lint passes
   # ============================================================================
   guards:
     name: Guards
     runs-on: ubuntu-latest
+    needs: [lint]  # Story 2.5: Fail-fast - skip if lint fails
 
     steps:
       - name: Checkout code
@@ -583,6 +604,193 @@ jobs:
           needs.contract-tests.result != 'success' ||
           needs.guards.result != 'success'
         run: exit 1
+
+  # ============================================================================
+  # STORY 2.5: FAILURE NOTIFICATION (Quality Gates)
+  # ============================================================================
+  # Sends immediate notification when a critical gate fails.
+  # Configured via secrets:
+  #   - SLACK_WEBHOOK_URL: Slack incoming webhook for #deployments channel
+  #   - TEAMS_WEBHOOK_URL: Microsoft Teams webhook (optional)
+  #   - NOTIFICATION_EMAIL: Email address for failure alerts (optional)
+  #
+  # Trigger: Runs when any quality gate fails (fail-fast notification)
+  # ============================================================================
+  notify-stage1-failure:
+    name: 📢 Notify Gate Failure
+    runs-on: ubuntu-latest
+    needs: [lint, unit-tests, contract-tests, guards, quality-gates]
+    if: |
+      always() &&
+      (needs.lint.result == 'failure' ||
+       needs.unit-tests.result == 'failure' ||
+       needs.contract-tests.result == 'failure' ||
+       needs.guards.result == 'failure' ||
+       needs.quality-gates.result == 'failure')
+
+    steps:
+      - name: Determine failure reason
+        id: failure-info
+        run: |
+          # Determine which gate(s) failed
+          FAILED_GATES=""
+          FAILURE_EMOJI="🔴"
+
+          if [ "${{ needs.lint.result }}" == "failure" ]; then
+            FAILED_GATES="${FAILED_GATES}Lint, "
+          fi
+          if [ "${{ needs.unit-tests.result }}" == "failure" ]; then
+            FAILED_GATES="${FAILED_GATES}Unit Tests, "
+          fi
+          if [ "${{ needs.contract-tests.result }}" == "failure" ]; then
+            FAILED_GATES="${FAILED_GATES}Contract Tests, "
+          fi
+          if [ "${{ needs.guards.result }}" == "failure" ]; then
+            FAILED_GATES="${FAILED_GATES}Guards, "
+          fi
+
+          # If nothing explicitly failed but quality-gates failed
+          if [ -z "$FAILED_GATES" ] && [ "${{ needs.quality-gates.result }}" == "failure" ]; then
+            FAILED_GATES="Quality Gates Aggregation"
+          fi
+
+          # Remove trailing comma and space
+          FAILED_GATES="${FAILED_GATES%, }"
+
+          echo "failed_gates=$FAILED_GATES" >> $GITHUB_OUTPUT
+          echo "run_url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> $GITHUB_OUTPUT
+
+          # Determine trigger info
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            echo "trigger_info=PR #${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
+            echo "trigger_url=${{ github.event.pull_request.html_url }}" >> $GITHUB_OUTPUT
+          else
+            echo "trigger_info=Push to ${{ github.ref_name }}" >> $GITHUB_OUTPUT
+            echo "trigger_url=${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Send Slack notification
+        if: env.SLACK_WEBHOOK_URL != ''
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            echo "SLACK_WEBHOOK_URL not configured, skipping Slack notification"
+            exit 0
+          fi
+
+          curl -X POST -H 'Content-type: application/json' \
+            --data '{
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "🔴 Stage-1 Quality Gate Failed",
+                    "emoji": true
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Failed Gate(s):*\n${{ steps.failure-info.outputs.failed_gates }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Trigger:*\n${{ steps.failure-info.outputs.trigger_info }}"
+                    }
+                  ]
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Branch:*\n`${{ github.ref_name }}`"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Actor:*\n${{ github.actor }}"
+                    }
+                  ]
+                },
+                {
+                  "type": "actions",
+                  "elements": [
+                    {
+                      "type": "button",
+                      "text": {
+                        "type": "plain_text",
+                        "text": "View Workflow Run"
+                      },
+                      "url": "${{ steps.failure-info.outputs.run_url }}"
+                    }
+                  ]
+                }
+              ]
+            }' \
+            "$SLACK_WEBHOOK_URL" || echo "Slack notification failed (non-critical)"
+
+      - name: Send Microsoft Teams notification
+        if: env.TEAMS_WEBHOOK_URL != ''
+        env:
+          TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
+        run: |
+          if [ -z "$TEAMS_WEBHOOK_URL" ]; then
+            echo "TEAMS_WEBHOOK_URL not configured, skipping Teams notification"
+            exit 0
+          fi
+
+          curl -X POST -H 'Content-Type: application/json' \
+            --data '{
+              "@type": "MessageCard",
+              "@context": "http://schema.org/extensions",
+              "themeColor": "FF0000",
+              "summary": "Stage-1 Quality Gate Failed",
+              "sections": [{
+                "activityTitle": "🔴 Stage-1 Quality Gate Failed",
+                "facts": [
+                  {"name": "Failed Gate(s)", "value": "${{ steps.failure-info.outputs.failed_gates }}"},
+                  {"name": "Branch", "value": "${{ github.ref_name }}"},
+                  {"name": "Trigger", "value": "${{ steps.failure-info.outputs.trigger_info }}"},
+                  {"name": "Actor", "value": "${{ github.actor }}"}
+                ],
+                "markdown": true
+              }],
+              "potentialAction": [{
+                "@type": "OpenUri",
+                "name": "View Workflow Run",
+                "targets": [{"os": "default", "uri": "${{ steps.failure-info.outputs.run_url }}"}]
+              }]
+            }' \
+            "$TEAMS_WEBHOOK_URL" || echo "Teams notification failed (non-critical)"
+
+      - name: Create notification summary
+        run: |
+          echo "## 📢 Failure Notification Sent (Story 2.5)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Failed Gate(s):** ${{ steps.failure-info.outputs.failed_gates }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Channel | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|--------|" >> $GITHUB_STEP_SUMMARY
+          if [ -n "${{ secrets.SLACK_WEBHOOK_URL }}" ]; then
+            echo "| Slack | ✅ Sent |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Slack | ⚠️ Not configured |" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ -n "${{ secrets.TEAMS_WEBHOOK_URL }}" ]; then
+            echo "| Teams | ✅ Sent |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Teams | ⚠️ Not configured |" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Configure Notifications" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "To enable notifications, add these secrets to your repository:" >> $GITHUB_STEP_SUMMARY
+          echo "- \`SLACK_WEBHOOK_URL\`: Slack incoming webhook URL" >> $GITHUB_STEP_SUMMARY
+          echo "- \`TEAMS_WEBHOOK_URL\`: Microsoft Teams webhook URL" >> $GITHUB_STEP_SUMMARY
 
   # ============================================================================
   # STAGING DEPLOY (Push to main only)

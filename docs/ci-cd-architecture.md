@@ -2,7 +2,7 @@
 
 > **Purpose:** Anchor the CI/CD design for future maintainers and prevent architecture drift.
 > **Last Updated:** 2025-12-10
-> **Status:** MVP Production-Ready (Story 2.1 + Story 4 Enhanced)
+> **Status:** MVP Production-Ready (Story 2.1 + Story 2.5 + Story 4 Enhanced)
 
 ---
 
@@ -10,18 +10,20 @@
 
 1. [Overview](#overview)
 2. [Quality Gates (Story 2.1)](#quality-gates-story-21)
-3. [Branch Protection Rules](#branch-protection-rules)
-4. [Stage-1: Validate + Deploy](#stage-1-validate--deploy)
-5. [Stage-2: Environment Tests](#stage-2-environment-tests)
-6. [Environment Alignment Gate (Story 4)](#environment-alignment-gate-story-4)
-7. [Security Scanning (Story 4)](#security-scanning-story-4)
-8. [Environment Keys (stg/prod)](#environment-keys-stgprod)
-9. [Cloudflare Routing Alignment](#cloudflare-routing-alignment)
-10. [QR Verification Invariant](#qr-verification-invariant)
-11. [Contract Safety Rules](#contract-safety-rules)
-12. [Fail-Fast Philosophy](#fail-fast-philosophy)
-13. [Deployment Flow Diagram](#deployment-flow-diagram)
-14. [Quick Reference](#quick-reference)
+3. [Fail-Fast Pipeline (Story 2.5)](#fail-fast-pipeline-story-25)
+4. [Branch Protection Rules](#branch-protection-rules)
+5. [Stage-1: Validate + Deploy](#stage-1-validate--deploy)
+6. [Stage-2: Environment Tests](#stage-2-environment-tests)
+7. [Environment Alignment Gate (Story 4)](#environment-alignment-gate-story-4)
+8. [Security Scanning (Story 4)](#security-scanning-story-4)
+9. [Environment Keys (stg/prod)](#environment-keys-stgprod)
+10. [Cloudflare Routing Alignment](#cloudflare-routing-alignment)
+11. [QR Verification Invariant](#qr-verification-invariant)
+12. [Contract Safety Rules](#contract-safety-rules)
+13. [Fail-Fast Philosophy](#fail-fast-philosophy)
+14. [Pipeline Notifications](#pipeline-notifications)
+15. [Deployment Flow Diagram](#deployment-flow-diagram)
+16. [Quick Reference](#quick-reference)
 
 ---
 
@@ -104,6 +106,151 @@ production-deploy:
   needs: [quality-gates]
   if: needs.quality-gates.result == 'success'
 ```
+
+---
+
+## Fail-Fast Pipeline (Story 2.5)
+
+### Purpose
+
+The pipeline is configured to **fail fast at critical stages** and **skip subsequent stages** when failures occur. This provides immediate feedback and prevents wasted CI resources on doomed deployments.
+
+### Acceptance Criteria
+
+| Criteria | Implementation |
+|----------|----------------|
+| Stage-1 stops if lint/unit tests fail | Unit tests depend on lint passing (`needs: [lint]`) |
+| Stage-2 uses gating for post-deploy tests | API tests gate UI tests (`needs: [api-smoke]`) |
+| Staging failures block production | If Stage-2 staging validation fails, production is not marked successful |
+| E2E tests skip when earlier gates fail | UI smoke tests skip if API smoke tests fail |
+| Team notification on gate failure | Slack/Teams webhooks send alerts with failure reason |
+
+### Stage-1 Fail-Fast Structure
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              STAGE-1 FAIL-FAST (Story 2.5)                  │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│                     ┌──────────┐                            │
+│                     │   LINT   │  ← First Gate (fastest)    │
+│                     └────┬─────┘                            │
+│                          │                                  │
+│           ┌──────────────┼──────────────┐                   │
+│           │              │              │                   │
+│           ▼              ▼              ▼                   │
+│    ┌────────────┐ ┌────────────┐ ┌────────────┐            │
+│    │ Unit Tests │ │ Contract   │ │  Guards    │            │
+│    │            │ │ Tests      │ │            │            │
+│    └────────────┘ └────────────┘ └────────────┘            │
+│           │              │              │                   │
+│           └──────────────┼──────────────┘                   │
+│                          ▼                                  │
+│                  ┌──────────────┐                           │
+│                  │Quality Gates │                           │
+│                  └──────────────┘                           │
+│                          │                                  │
+│               ┌──────────┴──────────┐                       │
+│               ▼                     ▼                       │
+│        Lint FAIL?              All PASS?                    │
+│               │                     │                       │
+│               ▼                     ▼                       │
+│     Skip all tests           Deploy to staging              │
+│     + Notify team                                           │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Key Dependencies:**
+- `unit-tests` depends on `lint` (skipped if lint fails)
+- `contract-tests` depends on `lint` (skipped if lint fails)
+- `guards` depends on `lint` (skipped if lint fails)
+
+### Stage-2 Progressive Test Gates
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│           STAGE-2 PROGRESSIVE GATES (Story 2.5)             │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│   ┌──────────────────────────────────────────────────┐      │
+│   │  GATE 0: Environment Alignment (FIRST)           │      │
+│   │  • Worker /env-status matches GAS /whoami        │      │
+│   │  • FAIL → Skip ALL tests, BLOCK release          │      │
+│   └────────────────────────┬─────────────────────────┘      │
+│                            │ PASS                           │
+│                            ▼                                │
+│   ┌──────────────────────────────────────────────────┐      │
+│   │  GATE 1: API Smoke Tests (CRITICAL)              │      │
+│   │  • Status, events, qr, sharedreport endpoints    │      │
+│   │  • GAS HTML integrity check                      │      │
+│   │  • FAIL → Skip UI tests, BLOCK release           │      │
+│   └────────────────────────┬─────────────────────────┘      │
+│                            │ PASS                           │
+│                            ▼                                │
+│   ┌──────────────────────────────────────────────────┐      │
+│   │  GATE 2: UI Smoke Tests (GATED by API)           │      │
+│   │  • Admin, Public, Display, Poster surfaces       │      │
+│   │  • Only runs if API tests PASS                   │      │
+│   │  • FAIL → BLOCK release                          │      │
+│   └────────────────────────┬─────────────────────────┘      │
+│                            │                                │
+│                            ▼                                │
+│   ┌──────────────────────────────────────────────────┐      │
+│   │  Validation Gate (Final)                         │      │
+│   │  • Aggregates all results                        │      │
+│   │  • ANY FAIL → BLOCK release                      │      │
+│   │  • ALL PASS → Release ready ✅                   │      │
+│   └──────────────────────────────────────────────────┘      │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Key Dependencies:**
+- `api-smoke` depends on `env-alignment-gate` (skipped if alignment fails)
+- `ui-smoke` depends on `api-smoke` (skipped if API tests fail)
+
+### Example: Gate Stopping Later Jobs
+
+When lint fails, the GitHub Actions view shows:
+
+```
+Jobs
+────────────────────────────────────────────
+❌ Lint                    failed
+⏭️  Unit Tests              skipped (needs: lint)
+⏭️  Contract Tests          skipped (needs: lint)
+⏭️  Guards                  skipped (needs: lint)
+⏭️  Quality Gates           skipped (needs: all gates)
+⏭️  Deploy to Staging       skipped (needs: quality-gates)
+📢 Notify Gate Failure     triggered (sends alert)
+────────────────────────────────────────────
+```
+
+When API smoke tests fail in Stage-2:
+
+```
+Jobs
+────────────────────────────────────────────
+✅ Check Stage-1 Status
+✅ Download Base URL
+✅ Environment Alignment Gate
+❌ API Smoke Tests         failed
+⏭️  UI Smoke Tests         skipped (needs: api-smoke)
+❌ Validation Gate         failed
+📢 Notify Stage-2 Failure  triggered (sends alert)
+────────────────────────────────────────────
+```
+
+### Benefits
+
+| Benefit | Description |
+|---------|-------------|
+| **Immediate Feedback** | Failures are reported within minutes |
+| **Resource Efficiency** | Expensive tests don't run if cheap tests fail |
+| **Cost Optimization** | ~50% CI cost reduction on failing builds |
+| **Clear Audit Trail** | Each gate produces actionable status |
+| **Team Awareness** | Notifications ensure quick incident response |
 
 ---
 
@@ -744,6 +891,100 @@ The environment alignment gate is **the first check** in Stage-2. It verifies Wo
 | HTTP requests | 30s |
 | Playwright actions | 30s |
 | Full Stage-2 | 30 min |
+
+---
+
+## Pipeline Notifications
+
+### Overview (Story 2.5)
+
+The pipeline sends immediate notifications when critical gates fail, ensuring the team can respond quickly to issues.
+
+### Notification Triggers
+
+| Stage | Trigger | Notification |
+|-------|---------|--------------|
+| **Stage-1** | Lint fails | "Stage-1 Quality Gate Failed: Lint" |
+| **Stage-1** | Unit tests fail | "Stage-1 Quality Gate Failed: Unit Tests" |
+| **Stage-1** | Contract tests fail | "Stage-1 Quality Gate Failed: Contract Tests" |
+| **Stage-1** | Guards fail | "Stage-1 Quality Gate Failed: Guards" |
+| **Stage-2** | Env alignment fails | "Stage-2 Validation Failed: Environment Alignment (CRITICAL)" |
+| **Stage-2** | API smoke fails | "Stage-2 Validation Failed: API Smoke Tests" |
+| **Stage-2** | UI smoke fails | "Stage-2 Validation Failed: UI Smoke Tests" |
+| **Stage-2 (prod)** | Any failure | "PRODUCTION Stage-2 Validation Failed" (urgent) |
+
+### Supported Channels
+
+| Channel | Configuration | Secret Name |
+|---------|---------------|-------------|
+| **Slack** | Incoming webhook | `SLACK_WEBHOOK_URL` |
+| **Microsoft Teams** | Connector webhook | `TEAMS_WEBHOOK_URL` |
+
+### Slack Notification Format
+
+```
+┌─────────────────────────────────────────────────────┐
+│  🔴 Stage-1 Quality Gate Failed                    │
+├─────────────────────────────────────────────────────┤
+│  Failed Gate(s): Lint, Unit Tests                  │
+│  Trigger: PR #123                                  │
+│  Branch: feature/my-feature                        │
+│  Actor: developer                                   │
+│                                                     │
+│  [View Workflow Run]                               │
+└─────────────────────────────────────────────────────┘
+```
+
+### Teams Notification Format
+
+```
+🔴 Stage-1 Quality Gate Failed
+───────────────────────────────────────
+Failed Gate(s): Lint, Unit Tests
+Branch: feature/my-feature
+Trigger: PR #123
+Actor: developer
+[View Workflow Run]
+```
+
+### Configuration
+
+To enable notifications:
+
+1. **Slack:**
+   - Create an Incoming Webhook: [Slack API](https://api.slack.com/messaging/webhooks)
+   - Add `SLACK_WEBHOOK_URL` secret to repository
+
+2. **Teams:**
+   - Create a Connector webhook in your Teams channel
+   - Add `TEAMS_WEBHOOK_URL` secret to repository
+
+### Notification Jobs
+
+| Workflow | Job Name | Purpose |
+|----------|----------|---------|
+| `stage1.yml` | `notify-stage1-failure` | Alert on quality gate failures |
+| `stage2.yml` | `notify-stage2-failure` | Alert on validation failures |
+
+### Example: Production Failure Alert
+
+When a production Stage-2 validation fails:
+
+```
+┌─────────────────────────────────────────────────────┐
+│  🚨 PRODUCTION Stage-2 Validation Failed           │
+├─────────────────────────────────────────────────────┤
+│  Failed Test(s): API Smoke Tests                   │
+│  Environment: production                            │
+│  Target URL: https://www.eventangle.com            │
+│  Status: PRODUCTION BLOCKED                        │
+│                                                     │
+│  Story 2.5: Progressive test gates - API tests     │
+│  gate UI tests                                      │
+│                                                     │
+│  [View Workflow Run]                               │
+└─────────────────────────────────────────────────────┘
+```
 
 ---
 

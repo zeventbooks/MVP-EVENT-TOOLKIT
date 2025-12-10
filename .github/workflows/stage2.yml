@@ -9,10 +9,16 @@
 #   - Staging (push to main): Downloads stg-base-url, runs full validation
 #   - Production (tag push): Downloads prod-base-url, runs post-deploy sanity
 #   - Runs API smoke tests against the live URL
-#   - Runs UI smoke tests against the live URL
+#   - Runs UI smoke tests against the live URL (GATED by API tests)
 #   - Validates HTML integrity (Story 6: blocks GAS HTML leaks)
 #   - Validates Story 7 acceptance criteria for production
 #   - Blocks release on any failure (authoritative deployment validator)
+#
+# Story 2.5 (DevOps): Progressive Test Gates
+#   - API smoke tests run FIRST (critical gate)
+#   - If API tests fail, UI tests are SKIPPED (fail-fast)
+#   - If any staging test fails, production deployment is NOT successful
+#   - Team notification sent immediately on gate failure
 #
 # Story 6 - GAS HTML Guardrails:
 #   API smoke tests include gas-html-integrity.spec.ts which:
@@ -363,13 +369,18 @@ jobs:
           echo "| **IDs Match** | \`$([ \"$WORKER_ID\" == \"$GAS_ID\" ] && echo 'Yes ✅' || echo 'No ❌')\` |" >> $GITHUB_STEP_SUMMARY
 
   # ============================================================================
-  # API SMOKE TESTS
+  # API SMOKE TESTS (CRITICAL GATE)
   # ============================================================================
   # Validates API contract compliance against the live environment.
   # Tests: status, events, qr, sharedreport endpoints
   # Uses strict v4.1.2 JSON schema validation.
   #
   # DEPENDS ON: env-alignment-gate (fail-fast - skipped if alignment fails)
+  #
+  # Story 2.5: Progressive Test Gate
+  #   - API smoke tests are the FIRST test gate after env-alignment
+  #   - If API tests fail, UI tests are SKIPPED (gated)
+  #   - This saves resources and provides immediate feedback
   #
   # Story 6 GAS HTML Guardrails (gas-html-integrity.spec.ts):
   #   - Fetches /events and all HTML routes
@@ -384,9 +395,11 @@ jobs:
   #   - QR code resolution verification
   # ============================================================================
   api-smoke:
-    name: API Smoke Tests (${{ needs.download-artifact.outputs.environment }})
+    name: 🔥 API Smoke Tests (${{ needs.download-artifact.outputs.environment }})
     runs-on: ubuntu-latest
     needs: [check-stage1, download-artifact, env-alignment-gate]
+    outputs:
+      api_test_result: ${{ steps.api-tests.outcome }}
     env:
       BASE_URL: ${{ needs.download-artifact.outputs.base_url }}
       ENVIRONMENT: ${{ needs.download-artifact.outputs.environment }}
@@ -509,13 +522,19 @@ jobs:
           echo "| **API Tests** | \`${{ steps.api-tests.outcome }}\` |" >> $GITHUB_STEP_SUMMARY
 
   # ============================================================================
-  # UI SMOKE TESTS
+  # UI SMOKE TESTS (GATED BY API TESTS)
   # ============================================================================
   # Validates UI surfaces against the live environment.
   # Tests: Admin, Public, Display, Poster surfaces
   # Principle: "If you show it, it works"
   #
-  # DEPENDS ON: env-alignment-gate (fail-fast - skipped if alignment fails)
+  # DEPENDS ON: api-smoke (fail-fast - SKIPPED if API tests fail)
+  #
+  # Story 2.5: Progressive Test Gate
+  #   - UI smoke tests are GATED by API smoke tests
+  #   - If API tests fail, this job is SKIPPED (fail-fast)
+  #   - E2E tests don't run when earlier gates failed
+  #   - Saves CI resources on doomed deployments
   #
   # Story 7 Production Validation:
   #   - Admin UI visible on /admin
@@ -523,9 +542,10 @@ jobs:
   #   - QR codes render correctly on Poster
   # ============================================================================
   ui-smoke:
-    name: UI Smoke Tests (${{ needs.download-artifact.outputs.environment }})
+    name: 🖥️ UI Smoke Tests (${{ needs.download-artifact.outputs.environment }})
     runs-on: ubuntu-latest
-    needs: [check-stage1, download-artifact, env-alignment-gate]
+    needs: [check-stage1, download-artifact, env-alignment-gate, api-smoke]  # Story 2.5: Depends on API tests
+    if: needs.api-smoke.result == 'success'  # Story 2.5: Skip if API tests failed
     env:
       BASE_URL: ${{ needs.download-artifact.outputs.base_url }}
       ENVIRONMENT: ${{ needs.download-artifact.outputs.environment }}
@@ -622,6 +642,11 @@ jobs:
   # This is the authoritative deployment validator.
   # Failure here blocks the release and signals red in GitHub.
   #
+  # Story 2.5: Progressive Test Gates
+  #   - If API tests fail, UI tests are skipped (result = 'skipped')
+  #   - Skipped UI tests due to API failure = overall FAILURE
+  #   - This ensures production is blocked when staging tests fail
+  #
   # Story 4 Environment Alignment Gate:
   #   - Worker /env-status and GAS /whoami MUST return matching deploymentIds
   #   - Script ID must match expected staging/production Script ID
@@ -642,10 +667,13 @@ jobs:
   #   - No increase in Worker or GAS error rates
   # ============================================================================
   validation-gate:
-    name: Stage-2 Validation Gate (${{ needs.download-artifact.outputs.environment }})
+    name: 🚦 Stage-2 Validation Gate (${{ needs.download-artifact.outputs.environment }})
     runs-on: ubuntu-latest
     needs: [check-stage1, download-artifact, env-alignment-gate, api-smoke, ui-smoke]
     if: always() && needs.download-artifact.result == 'success'
+    outputs:
+      validation_status: ${{ steps.evaluate.outputs.status }}
+      failure_reason: ${{ steps.evaluate.outputs.failure_reason }}
 
     steps:
       - name: Evaluate validation results
@@ -659,33 +687,61 @@ jobs:
           UI_RESULT="${{ needs.ui-smoke.result }}"
 
           echo "=============================================="
-          echo "STAGE-2 VALIDATION GATE EVALUATION"
+          echo "STAGE-2 VALIDATION GATE EVALUATION (Story 2.5)"
           echo "=============================================="
           echo "Environment: $ENVIRONMENT"
           echo "Is Production: $IS_PRODUCTION"
           echo ""
           echo "Gate Results:"
           echo "  🔐 Environment Alignment: $ENV_ALIGNMENT_RESULT"
-          echo "  📡 API Smoke Tests: $API_RESULT"
+          echo "  🔥 API Smoke Tests: $API_RESULT"
           echo "  🖥️  UI Smoke Tests: $UI_RESULT"
           echo "=============================================="
 
-          # Fail-fast: If alignment failed, mark overall as failed
+          # Story 2.5: Fail-fast evaluation
+          # If alignment failed, mark overall as failed
           if [ "$ENV_ALIGNMENT_RESULT" != "success" ]; then
             echo ""
             echo "❌ CRITICAL: Environment alignment check failed!"
             echo "All downstream tests were skipped due to fail-fast."
             echo "status=failed" >> $GITHUB_OUTPUT
             echo "failure_reason=env_alignment" >> $GITHUB_OUTPUT
+
+          # Story 2.5: If API tests failed, UI tests should be skipped
+          elif [ "$API_RESULT" != "success" ]; then
+            echo ""
+            echo "❌ API smoke tests failed!"
+            echo "UI smoke tests were skipped (progressive gate)."
+            echo "status=failed" >> $GITHUB_OUTPUT
+            echo "failure_reason=api_tests" >> $GITHUB_OUTPUT
+
+          # Story 2.5: If UI tests were skipped (but API passed), something is wrong
+          elif [ "$UI_RESULT" == "skipped" ] && [ "$API_RESULT" == "success" ]; then
+            echo ""
+            echo "⚠️ UI tests skipped unexpectedly (API passed)"
+            echo "status=failed" >> $GITHUB_OUTPUT
+            echo "failure_reason=ui_skipped" >> $GITHUB_OUTPUT
+
+          # Normal success case: both API and UI passed
           elif [ "$API_RESULT" == "success" ] && [ "$UI_RESULT" == "success" ]; then
             echo ""
             echo "✅ Stage-2 validation PASSED"
             echo "status=passed" >> $GITHUB_OUTPUT
+            echo "failure_reason=" >> $GITHUB_OUTPUT
+
+          # UI tests failed
+          elif [ "$UI_RESULT" != "success" ]; then
+            echo ""
+            echo "❌ UI smoke tests failed!"
+            echo "status=failed" >> $GITHUB_OUTPUT
+            echo "failure_reason=ui_tests" >> $GITHUB_OUTPUT
+
+          # Catch-all failure
           else
             echo ""
-            echo "❌ Stage-2 validation FAILED"
+            echo "❌ Stage-2 validation FAILED (unexpected state)"
             echo "status=failed" >> $GITHUB_OUTPUT
-            echo "failure_reason=tests" >> $GITHUB_OUTPUT
+            echo "failure_reason=unknown" >> $GITHUB_OUTPUT
           fi
 
       - name: Create final summary
@@ -794,3 +850,253 @@ jobs:
           echo "Please review the test results and fix the issues."
           echo "=============================================="
           exit 1
+
+  # ============================================================================
+  # STORY 2.5: FAILURE NOTIFICATION (Stage-2)
+  # ============================================================================
+  # Sends immediate notification when Stage-2 validation fails.
+  # This ensures the team knows immediately when:
+  #   - API tests fail (critical - blocks UI tests)
+  #   - UI tests fail
+  #   - Environment alignment fails
+  #   - Production deployment would be blocked
+  #
+  # Configured via secrets:
+  #   - SLACK_WEBHOOK_URL: Slack incoming webhook for #deployments channel
+  #   - TEAMS_WEBHOOK_URL: Microsoft Teams webhook (optional)
+  # ============================================================================
+  notify-stage2-failure:
+    name: 📢 Notify Stage-2 Failure
+    runs-on: ubuntu-latest
+    needs: [check-stage1, download-artifact, env-alignment-gate, api-smoke, ui-smoke, validation-gate]
+    if: |
+      always() &&
+      needs.download-artifact.result == 'success' &&
+      (needs.env-alignment-gate.result == 'failure' ||
+       needs.api-smoke.result == 'failure' ||
+       needs.ui-smoke.result == 'failure' ||
+       needs.validation-gate.result == 'failure' ||
+       needs.validation-gate.outputs.validation_status == 'failed')
+
+    steps:
+      - name: Determine failure details
+        id: failure-info
+        env:
+          ENVIRONMENT: ${{ needs.download-artifact.outputs.environment }}
+          IS_PRODUCTION: ${{ needs.check-stage1.outputs.is_production }}
+        run: |
+          # Determine which test(s) failed
+          FAILED_TESTS=""
+          FAILURE_EMOJI="🔴"
+
+          if [ "${{ needs.env-alignment-gate.result }}" == "failure" ]; then
+            FAILED_TESTS="${FAILED_TESTS}Environment Alignment (CRITICAL), "
+            FAILURE_EMOJI="🚨"
+          fi
+          if [ "${{ needs.api-smoke.result }}" == "failure" ]; then
+            FAILED_TESTS="${FAILED_TESTS}API Smoke Tests, "
+          fi
+          if [ "${{ needs.ui-smoke.result }}" == "failure" ]; then
+            FAILED_TESTS="${FAILED_TESTS}UI Smoke Tests, "
+          fi
+          if [ "${{ needs.ui-smoke.result }}" == "skipped" ] && [ "${{ needs.api-smoke.result }}" != "success" ]; then
+            FAILED_TESTS="${FAILED_TESTS}UI Tests SKIPPED (gated by API), "
+          fi
+
+          # Remove trailing comma and space
+          FAILED_TESTS="${FAILED_TESTS%, }"
+
+          # If nothing explicit, check validation-gate failure reason
+          if [ -z "$FAILED_TESTS" ]; then
+            FAILURE_REASON="${{ needs.validation-gate.outputs.failure_reason }}"
+            case "$FAILURE_REASON" in
+              env_alignment) FAILED_TESTS="Environment Alignment" ;;
+              api_tests) FAILED_TESTS="API Smoke Tests" ;;
+              ui_tests) FAILED_TESTS="UI Smoke Tests" ;;
+              *) FAILED_TESTS="Validation Gate" ;;
+            esac
+          fi
+
+          echo "failed_tests=$FAILED_TESTS" >> $GITHUB_OUTPUT
+          echo "failure_emoji=$FAILURE_EMOJI" >> $GITHUB_OUTPUT
+          echo "run_url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> $GITHUB_OUTPUT
+
+          # Production flag for urgency
+          if [ "$IS_PRODUCTION" == "true" ]; then
+            echo "urgency=PRODUCTION BLOCKED" >> $GITHUB_OUTPUT
+          else
+            echo "urgency=Staging validation failed" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Send Slack notification
+        if: env.SLACK_WEBHOOK_URL != ''
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          ENVIRONMENT: ${{ needs.download-artifact.outputs.environment }}
+          IS_PRODUCTION: ${{ needs.check-stage1.outputs.is_production }}
+        run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            echo "SLACK_WEBHOOK_URL not configured, skipping Slack notification"
+            exit 0
+          fi
+
+          # Determine color based on production vs staging
+          if [ "$IS_PRODUCTION" == "true" ]; then
+            COLOR="#FF0000"
+            TITLE="🚨 PRODUCTION Stage-2 Validation Failed"
+          else
+            COLOR="#FFA500"
+            TITLE="🔴 Stage-2 Validation Failed (Staging)"
+          fi
+
+          curl -X POST -H 'Content-type: application/json' \
+            --data '{
+              "attachments": [{
+                "color": "'"$COLOR"'",
+                "blocks": [
+                  {
+                    "type": "header",
+                    "text": {
+                      "type": "plain_text",
+                      "text": "'"$TITLE"'",
+                      "emoji": true
+                    }
+                  },
+                  {
+                    "type": "section",
+                    "fields": [
+                      {
+                        "type": "mrkdwn",
+                        "text": "*Failed Test(s):*\n${{ steps.failure-info.outputs.failed_tests }}"
+                      },
+                      {
+                        "type": "mrkdwn",
+                        "text": "*Environment:*\n'"$ENVIRONMENT"'"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "section",
+                    "fields": [
+                      {
+                        "type": "mrkdwn",
+                        "text": "*Target URL:*\n`${{ needs.download-artifact.outputs.base_url }}`"
+                      },
+                      {
+                        "type": "mrkdwn",
+                        "text": "*Status:*\n${{ steps.failure-info.outputs.urgency }}"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "context",
+                    "elements": [
+                      {
+                        "type": "mrkdwn",
+                        "text": "Story 2.5: Progressive test gates - API tests gate UI tests"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "actions",
+                    "elements": [
+                      {
+                        "type": "button",
+                        "text": {
+                          "type": "plain_text",
+                          "text": "View Workflow Run"
+                        },
+                        "style": "danger",
+                        "url": "${{ steps.failure-info.outputs.run_url }}"
+                      }
+                    ]
+                  }
+                ]
+              }]
+            }' \
+            "$SLACK_WEBHOOK_URL" || echo "Slack notification failed (non-critical)"
+
+      - name: Send Microsoft Teams notification
+        if: env.TEAMS_WEBHOOK_URL != ''
+        env:
+          TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
+          ENVIRONMENT: ${{ needs.download-artifact.outputs.environment }}
+          IS_PRODUCTION: ${{ needs.check-stage1.outputs.is_production }}
+        run: |
+          if [ -z "$TEAMS_WEBHOOK_URL" ]; then
+            echo "TEAMS_WEBHOOK_URL not configured, skipping Teams notification"
+            exit 0
+          fi
+
+          # Determine color based on production vs staging
+          if [ "$IS_PRODUCTION" == "true" ]; then
+            COLOR="FF0000"
+            TITLE="🚨 PRODUCTION Stage-2 Validation Failed"
+          else
+            COLOR="FFA500"
+            TITLE="🔴 Stage-2 Validation Failed (Staging)"
+          fi
+
+          curl -X POST -H 'Content-Type: application/json' \
+            --data '{
+              "@type": "MessageCard",
+              "@context": "http://schema.org/extensions",
+              "themeColor": "'"$COLOR"'",
+              "summary": "'"$TITLE"'",
+              "sections": [{
+                "activityTitle": "'"$TITLE"'",
+                "facts": [
+                  {"name": "Failed Test(s)", "value": "${{ steps.failure-info.outputs.failed_tests }}"},
+                  {"name": "Environment", "value": "'"$ENVIRONMENT"'"},
+                  {"name": "Target URL", "value": "${{ needs.download-artifact.outputs.base_url }}"},
+                  {"name": "Status", "value": "${{ steps.failure-info.outputs.urgency }}"}
+                ],
+                "markdown": true
+              }],
+              "potentialAction": [{
+                "@type": "OpenUri",
+                "name": "View Workflow Run",
+                "targets": [{"os": "default", "uri": "${{ steps.failure-info.outputs.run_url }}"}]
+              }]
+            }' \
+            "$TEAMS_WEBHOOK_URL" || echo "Teams notification failed (non-critical)"
+
+      - name: Create notification summary
+        env:
+          ENVIRONMENT: ${{ needs.download-artifact.outputs.environment }}
+          IS_PRODUCTION: ${{ needs.check-stage1.outputs.is_production }}
+        run: |
+          echo "## 📢 Stage-2 Failure Notification Sent (Story 2.5)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$IS_PRODUCTION" == "true" ]; then
+            echo "### 🚨 PRODUCTION DEPLOYMENT BLOCKED" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### 🔴 Staging Validation Failed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Failed Test(s):** ${{ steps.failure-info.outputs.failed_tests }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** $ENVIRONMENT" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Channel | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|--------|" >> $GITHUB_STEP_SUMMARY
+          if [ -n "${{ secrets.SLACK_WEBHOOK_URL }}" ]; then
+            echo "| Slack | ✅ Sent |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Slack | ⚠️ Not configured |" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ -n "${{ secrets.TEAMS_WEBHOOK_URL }}" ]; then
+            echo "| Teams | ✅ Sent |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Teams | ⚠️ Not configured |" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Story 2.5: Progressive Test Gates" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "The pipeline uses progressive test gates:" >> $GITHUB_STEP_SUMMARY
+          echo "1. **Environment Alignment** - Verifies Worker ↔ GAS alignment" >> $GITHUB_STEP_SUMMARY
+          echo "2. **API Smoke Tests** - If fails, UI tests are SKIPPED" >> $GITHUB_STEP_SUMMARY
+          echo "3. **UI Smoke Tests** - Gated by API tests passing" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "This ensures immediate feedback and prevents wasted resources." >> $GITHUB_STEP_SUMMARY
