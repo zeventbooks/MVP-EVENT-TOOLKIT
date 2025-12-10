@@ -1,25 +1,27 @@
 # CI/CD Architecture & Enforcement Rules
 
 > **Purpose:** Anchor the CI/CD design for future maintainers and prevent architecture drift.
-> **Last Updated:** 2025-12-09
-> **Status:** MVP Production-Ready (Story 4 Enhanced)
+> **Last Updated:** 2025-12-10
+> **Status:** MVP Production-Ready (Story 2.1 + Story 4 Enhanced)
 
 ---
 
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [Stage-1: Validate + Deploy](#stage-1-validate--deploy)
-3. [Stage-2: Environment Tests](#stage-2-environment-tests)
-4. [Environment Alignment Gate (Story 4)](#environment-alignment-gate-story-4)
-5. [Security Scanning (Story 4)](#security-scanning-story-4)
-6. [Environment Keys (stg/prod)](#environment-keys-stgprod)
-7. [Cloudflare Routing Alignment](#cloudflare-routing-alignment)
-8. [QR Verification Invariant](#qr-verification-invariant)
-9. [Contract Safety Rules](#contract-safety-rules)
-10. [Fail-Fast Philosophy](#fail-fast-philosophy)
-11. [Deployment Flow Diagram](#deployment-flow-diagram)
-12. [Quick Reference](#quick-reference)
+2. [Quality Gates (Story 2.1)](#quality-gates-story-21)
+3. [Branch Protection Rules](#branch-protection-rules)
+4. [Stage-1: Validate + Deploy](#stage-1-validate--deploy)
+5. [Stage-2: Environment Tests](#stage-2-environment-tests)
+6. [Environment Alignment Gate (Story 4)](#environment-alignment-gate-story-4)
+7. [Security Scanning (Story 4)](#security-scanning-story-4)
+8. [Environment Keys (stg/prod)](#environment-keys-stgprod)
+9. [Cloudflare Routing Alignment](#cloudflare-routing-alignment)
+10. [QR Verification Invariant](#qr-verification-invariant)
+11. [Contract Safety Rules](#contract-safety-rules)
+12. [Fail-Fast Philosophy](#fail-fast-philosophy)
+13. [Deployment Flow Diagram](#deployment-flow-diagram)
+14. [Quick Reference](#quick-reference)
 
 ---
 
@@ -37,6 +39,149 @@ This repository uses a **two-stage CI/CD architecture**:
 - **Hermetic Stage-1** — Zero external HTTP dependencies (no BASE_URL)
 - **Progressive Failure Gates** — Stop early when critical tests fail
 - **Single Source of Truth** — `config/environments.js` for all URLs
+- **Visible Quality Gates (Story 2.1)** — Each gate shows as individual status check in PRs
+
+---
+
+## Quality Gates (Story 2.1)
+
+### Purpose
+
+Every code change must pass **all quality gates** before it can deploy. Each gate runs as a separate job in GitHub Actions, creating visible status checks in Pull Requests:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              QUALITY GATES (Visible in PRs)                  │
+├─────────────────────────────────────────────────────────────┤
+│  🔍 Lint           ✅ / ❌    ESLint code quality            │
+│  🧪 Unit Tests     ✅ / ❌    Jest unit tests + security     │
+│  📋 Contract Tests ✅ / ❌    Schema, API, bundles           │
+│  🛡️ Guards         ✅ / ❌    MVP guards, V2 files, bundle   │
+│  🔒 CodeQL Scan    ✅ / ❌    Security analysis              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Acceptance Criteria (Story 2.1)
+
+| Criteria | Implementation |
+|----------|----------------|
+| Visible status checks | Each gate is a separate job with its own status |
+| Block merge if ❌ | Branch protection requires all gates to pass |
+| No partial deploys | Deployment depends on `quality-gates` job passing |
+| Fail-fast | Individual gates fail immediately on errors |
+
+### Gate Details
+
+| Gate | Job Name | What It Checks | Status Check Name |
+|------|----------|----------------|-------------------|
+| **Lint** | `lint` | ESLint code quality and style | `Lint` |
+| **Unit Tests** | `unit-tests` | Jest unit tests + security tests | `Unit Tests` |
+| **Contract Tests** | `contract-tests` | Schema sync, API contracts, bundles, GAS HTML | `Contract Tests` |
+| **Guards** | `guards` | MVP surfaces, dead code, schema, V2 files, bundle | `Guards` |
+| **Security** | `analyze` | CodeQL security scan (in security-scan.yml) | `🔒 CodeQL Security Scan` |
+
+### Quality Gates Aggregator
+
+The `quality-gates` job aggregates all quality gates and serves as the final checkpoint before deployment:
+
+```yaml
+quality-gates:
+  name: Quality Gates
+  needs: [lint, unit-tests, contract-tests, guards]
+  # Deployment jobs depend on this passing
+```
+
+### Deployment Gating
+
+Deployment jobs only run if quality gates pass:
+
+```yaml
+staging-deploy:
+  needs: [quality-gates]
+  if: needs.quality-gates.result == 'success'
+
+production-deploy:
+  needs: [quality-gates]
+  if: needs.quality-gates.result == 'success'
+```
+
+---
+
+## Branch Protection Rules
+
+### Required Configuration
+
+To enforce quality gates as required status checks, configure branch protection:
+
+1. **Navigate to Settings:**
+   ```
+   Repository → Settings → Branches → Branch protection rules
+   ```
+
+2. **Create/Edit Rule for `main`:**
+   - Click "Add branch protection rule" or edit existing
+   - Branch name pattern: `main`
+
+3. **Enable Required Status Checks:**
+   - ✅ Require status checks to pass before merging
+   - ✅ Require branches to be up to date before merging
+
+4. **Select Required Checks:**
+
+   From `stage1.yml`:
+   - `Lint`
+   - `Unit Tests`
+   - `Contract Tests`
+   - `Guards`
+   - `Quality Gates`
+
+   From `security-scan.yml`:
+   - `🔒 CodeQL Security Scan`
+
+5. **Additional Recommended Settings:**
+   - ✅ Require conversation resolution before merging
+   - ✅ Do not allow bypassing the above settings
+
+### Visual Guide
+
+After configuration, PRs will show status checks like this:
+
+```
+Checks
+────────────────────────────────────────────
+✅ Lint                          Required
+✅ Unit Tests                    Required
+✅ Contract Tests                Required
+✅ Guards                        Required
+✅ Quality Gates                 Required
+✅ 🔒 CodeQL Security Scan       Required
+────────────────────────────────────────────
+All checks have passed
+```
+
+If any check fails:
+
+```
+Checks
+────────────────────────────────────────────
+✅ Lint                          Required
+❌ Unit Tests                    Required  ← Blocking
+✅ Contract Tests                Required
+✅ Guards                        Required
+⏸️ Quality Gates                 Required  ← Waiting
+✅ 🔒 CodeQL Security Scan       Required
+────────────────────────────────────────────
+Some checks were not successful
+1 failing check
+```
+
+### Policy
+
+> **No green, no deploy.**
+>
+> All quality gates must pass before code can be merged to main.
+> Merges to main trigger deployment to staging.
+> Tagged releases (vX.Y.Z) trigger deployment to production.
 
 ---
 
@@ -68,19 +213,34 @@ All other CI definitions have been archived under `.github/workflows/archive/`.
 | Push to main | ✅ | ✅ | ❌ |
 | Tag `vX.Y.Z` | ✅ | ❌ | ✅ |
 
-### Validation Steps
+### Validation Steps (Story 2.1 Quality Gates)
 
-All validation runs via `npm run stage1-local` (unified truth script):
+Each quality gate runs as a **separate job** for visible status checks in PRs:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    STAGE-1 VALIDATION                       │
+│           STAGE-1 QUALITY GATES (Visible Status Checks)     │
 ├─────────────────────────────────────────────────────────────┤
-│  1. ESLint          Code quality & style                    │
-│  2. Unit Tests      512+ tests (>80% coverage required)     │
-│  3. Contract Tests  155+ tests (schema + API + bundles)     │
-│  4. MVP Guards      5 automated enforcement checks          │
+│  Job: lint          → Status: "Lint"                        │
+│  Job: unit-tests    → Status: "Unit Tests"                  │
+│  Job: contract-tests → Status: "Contract Tests"             │
+│  Job: guards        → Status: "Guards"                      │
+│  Job: quality-gates → Status: "Quality Gates" (aggregator)  │
+├─────────────────────────────────────────────────────────────┤
+│  Parallel: security-scan.yml → Status: "🔒 CodeQL Scan"     │
 └─────────────────────────────────────────────────────────────┘
+```
+
+**Job Flow:**
+```
+lint, unit-tests, contract-tests, guards  ─┬─→ quality-gates ─→ staging-deploy
+(parallel)                                  │                   │
+                                           └──────────────────→ production-deploy (tags)
+```
+
+For local validation, use the unified truth script:
+```bash
+npm run stage1-local  # Runs all validation steps
 ```
 
 ### MVP Guards (Automated Enforcement)

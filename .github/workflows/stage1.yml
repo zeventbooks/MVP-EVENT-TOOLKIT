@@ -3,6 +3,12 @@
 # Purpose: Validate code quality, deploy to staging on main push,
 #          and deploy to production on tagged releases.
 #
+# Story 2.1 (Product Owner): Quality Gates Implementation
+#   - VISIBLE status checks: Lint ✅, Tests ✅, Security ✅ shown in each PR
+#   - Each quality gate runs as a SEPARATE JOB for individual status visibility
+#   - Deployment only occurs if ALL gates pass (no partial deploys)
+#   - Branch protection requires: "Lint", "Unit Tests", "Contract Tests", "CodeQL Security Scan"
+#
 # Story 1.1 (DevOps/Cloudflare): Automated Cloudflare Worker deployments
 #   - Merging to main: deploys eventangle-staging to stg.eventangle.com
 #   - Tagging vX.Y.Z: deploys eventangle-prod to eventangle.com
@@ -18,6 +24,14 @@
 #   - Push to main: validate + deploy to staging
 #   - Tag push (vX.Y.Z): validate + deploy to production
 #   - Guards eventbook data integrity by preventing accidental deploys
+#
+# Quality Gates (Story 2.1):
+#   Each gate is a separate job with its own status check visible in PRs:
+#   1. Lint           - ESLint code quality (required)
+#   2. Unit Tests     - Jest unit tests including security (required)
+#   3. Contract Tests - Schema, API, and bundle contract tests (required)
+#   4. Guards         - MVP surface, dead code, schema, API checks (required)
+#   5. CodeQL Scan    - Security analysis (runs in security-scan.yml, required)
 #
 # Acceptance Criteria (Story 1.1):
 #   - Merging to main triggers Cloudflare Worker deploy to staging
@@ -35,8 +49,14 @@
 #   - After production deployment, new version appears in production Apps Script project
 #   - Manual production deploys blocked (requires CI pipeline with vX.Y.Z tag)
 #
+# Acceptance Criteria (Story 2.1):
+#   - Visible status checks in each PR: Lint ✅, Tests ✅, Security ✅
+#   - Each check blocks merging if ❌
+#   - Deployment only occurs if ALL gates pass
+#   - PR cannot merge unless all required checks pass
+#
 # Acceptance Criteria (Stage-1):
-#   - PR to main triggers: checkout, npm ci, npm run stage1-local
+#   - PR to main triggers: checkout, npm ci, quality gates (lint, tests, guards)
 #   - Push to main triggers: validation + staging deploy
 #   - Tag push (vX.Y.Z) triggers: validation + production deploy
 #   - Emits artifact stg-base-url containing https://stg.eventangle.com
@@ -55,6 +75,7 @@
 # @see scripts/deploy-gas-stg.mjs - Staging deployment script
 # @see scripts/deploy-gas-prod.mjs - Production deployment script
 # @see cloudflare-proxy/wrangler.toml - Cloudflare Worker environment configs
+# @see .github/workflows/security-scan.yml - CodeQL security analysis
 
 name: Stage-1 Validation
 
@@ -96,51 +117,43 @@ env:
 
 jobs:
   # ============================================================================
-  # STAGE-1 VALIDATION
+  # STORY 2.1: QUALITY GATES - VISIBLE STATUS CHECKS
   # ============================================================================
-  # Runs the unified truth script: npm run stage1-local
+  # Each quality gate runs as a SEPARATE JOB so it appears as an individual
+  # status check in Pull Requests. This satisfies Story 2.1 acceptance criteria:
+  #   - Visible status checks in each PR (Lint ✅, Tests ✅, Security ✅)
+  #   - Each check blocks merging if ❌
+  #   - Deployment only occurs if ALL gates pass
   #
-  # This job is designed to be a REQUIRED STATUS CHECK for PR merges.
   # Configure in GitHub Settings > Branches > Branch protection rules:
   #   - Require status checks to pass before merging
-  #   - Select "Stage-1 Validation / validate"
+  #   - Select: "Lint", "Unit Tests", "Contract Tests", "Guards", "CodeQL Security Scan"
   #
-  # Components validated (via scripts/stage1-local.mjs):
-  #   - ESLint code quality
-  #   - Jest unit tests (MVP logic + security)
-  #   - Jest contract tests (schema + API + bundles + GAS HTML guardrails)
-  #   - Security-specific test validation
-  #   - MVP guards (surfaces, dead code, schema, API checks)
-  #   - V2 file guardrails (no V2 files in MVP directory)
-  #   - Bundle compilation verification
-  #
-  # HERMETIC: Stage-1 validation has ZERO external dependencies.
+  # HERMETIC: All Stage-1 validation has ZERO external dependencies.
   # No BASE_URL, no HTTP calls, no staging/prod access.
   # ============================================================================
-  validate:
-    name: Validate
+
+  # ============================================================================
+  # QUALITY GATE 1: LINT (ESLint Code Quality)
+  # ============================================================================
+  # Required status check: "Lint"
+  # Validates code style, best practices, and catches common errors
+  # ============================================================================
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # ========================================================================
-      # HERMETIC GUARD: Stage-1 must have zero BASE_URL dependency
-      # Ensures Stage-1 cannot be broken by staging/prod DNS or CF issues
-      # ========================================================================
       - name: Verify hermetic environment (no BASE_URL)
         run: |
           if [ -n "$BASE_URL" ]; then
-            echo "::error::BASE_URL is set in Stage-1 PR validation!"
-            echo ""
+            echo "::error::BASE_URL is set in Stage-1 validation!"
             echo "Stage-1 must be hermetic - it cannot depend on external URLs."
-            echo "BASE_URL should only be used in Stage-2 (post-deploy validation)."
-            echo ""
-            echo "Found BASE_URL: $BASE_URL"
             exit 1
           fi
-          echo "Hermetic guard passed: no BASE_URL dependency"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -151,77 +164,364 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run Stage-1 validation
+      - name: Run ESLint
         run: |
           echo "=================================================="
-          echo "STAGE-1 PR VALIDATION"
+          echo "QUALITY GATE: LINT (ESLint Code Quality)"
           echo "=================================================="
-          echo ""
-          echo "Running: npm run stage1-local"
-          echo ""
-          echo "This is the SINGLE SOURCE OF TRUTH for Stage-1."
-          echo "Same script runs locally and in CI - zero drift."
-          echo ""
-          echo "Components:"
-          echo "  - ESLint code quality"
-          echo "  - Jest unit tests (MVP logic + security)"
-          echo "  - Jest contract tests (schema + API + bundles + GAS HTML guardrails)"
-          echo "  - Security-specific test validation"
-          echo "  - MVP guards (surfaces, dead code, schema, API)"
-          echo "  - V2 file guardrails"
-          echo "  - Bundle compilation verification"
-          echo ""
-          echo "=================================================="
-          npm run stage1-local
+          npm run lint
 
-      - name: Create validation summary
+      - name: Create lint summary
         if: always()
         run: |
-          echo "## Stage-1 Validation" >> $GITHUB_STEP_SUMMARY
+          echo "## 🔍 Lint (ESLint)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "### ✅ PASSED" >> $GITHUB_STEP_SUMMARY
+            echo "Code style and quality checks passed." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "ESLint found issues. Run \`npm run lint\` locally to see details." >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # ============================================================================
+  # QUALITY GATE 2: UNIT TESTS (Jest)
+  # ============================================================================
+  # Required status check: "Unit Tests"
+  # Validates MVP logic and security-specific tests
+  # ============================================================================
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Verify hermetic environment (no BASE_URL)
+        run: |
+          if [ -n "$BASE_URL" ]; then
+            echo "::error::BASE_URL is set in Stage-1 validation!"
+            exit 1
+          fi
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: |
+          echo "=================================================="
+          echo "QUALITY GATE: UNIT TESTS"
+          echo "=================================================="
+          npm run test:unit
+
+      - name: Run security-specific tests
+        run: |
+          echo "=================================================="
+          echo "SECURITY-SPECIFIC TESTS"
+          echo "=================================================="
+          npm run test:unit -- tests/unit/security.test.js --verbose
+
+      - name: Create unit tests summary
+        if: always()
+        run: |
+          echo "## 🧪 Unit Tests" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "### ✅ PASSED" >> $GITHUB_STEP_SUMMARY
+            echo "All unit tests passed, including security tests." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "Unit tests failed. Run \`npm run test:unit\` locally to debug." >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # ============================================================================
+  # QUALITY GATE 3: CONTRACT TESTS (Jest)
+  # ============================================================================
+  # Required status check: "Contract Tests"
+  # Validates schema, API contracts, bundles, and GAS HTML guardrails
+  # ============================================================================
+  contract-tests:
+    name: Contract Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Verify hermetic environment (no BASE_URL)
+        run: |
+          if [ -n "$BASE_URL" ]; then
+            echo "::error::BASE_URL is set in Stage-1 validation!"
+            exit 1
+          fi
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run contract tests
+        run: |
+          echo "=================================================="
+          echo "QUALITY GATE: CONTRACT TESTS"
+          echo "=================================================="
+          echo "Testing: Schema, API contracts, Bundles, GAS HTML guardrails"
+          echo "=================================================="
+          npm run test:contract
+
+      - name: Create contract tests summary
+        if: always()
+        run: |
+          echo "## 📋 Contract Tests" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "### ✅ PASSED" >> $GITHUB_STEP_SUMMARY
+            echo "All contract tests passed." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Validated:**" >> $GITHUB_STEP_SUMMARY
+            echo "- Schema synchronization" >> $GITHUB_STEP_SUMMARY
+            echo "- API contracts" >> $GITHUB_STEP_SUMMARY
+            echo "- Bundle contracts" >> $GITHUB_STEP_SUMMARY
+            echo "- GAS HTML guardrails" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "Contract tests failed. Run \`npm run test:contract\` locally." >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # ============================================================================
+  # QUALITY GATE 4: GUARDS (MVP Surface, Dead Code, Schema, API)
+  # ============================================================================
+  # Required status check: "Guards"
+  # Validates MVP integrity checks and V2 file guardrails
+  # ============================================================================
+  guards:
+    name: Guards
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Verify hermetic environment (no BASE_URL)
+        run: |
+          if [ -n "$BASE_URL" ]; then
+            echo "::error::BASE_URL is set in Stage-1 validation!"
+            exit 1
+          fi
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run MVP guards
+        run: |
+          echo "=================================================="
+          echo "QUALITY GATE: MVP GUARDS"
+          echo "=================================================="
+          echo "Checking: Surfaces, Dead Code, Schema, API consistency"
+          echo "=================================================="
+          npm run check:guards
+
+      - name: Run V2 file guardrails
+        run: |
+          echo "=================================================="
+          echo "V2 FILE GUARDRAILS (No V2 in MVP)"
+          echo "=================================================="
+          node scripts/check-v2-files.js
+
+      - name: Verify bundle compilation
+        run: |
+          echo "=================================================="
+          echo "BUNDLE COMPILATION VERIFICATION"
+          echo "=================================================="
+          # Verify required MVP source files exist
+          for file in Code.gs ApiSchemas.gs Admin.html Public.html Display.html Poster.html; do
+            if [ ! -f "src/mvp/$file" ]; then
+              echo "::error::Missing required MVP file: src/mvp/$file"
+              exit 1
+            fi
+            echo "✓ src/mvp/$file exists"
+          done
+          echo ""
+          echo "All required MVP files verified."
+
+      - name: Create guards summary
+        if: always()
+        run: |
+          echo "## 🛡️ Guards" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "### ✅ PASSED" >> $GITHUB_STEP_SUMMARY
+            echo "All guards passed." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Validated:**" >> $GITHUB_STEP_SUMMARY
+            echo "- MVP Surfaces" >> $GITHUB_STEP_SUMMARY
+            echo "- Dead Code Check" >> $GITHUB_STEP_SUMMARY
+            echo "- Schema Fields" >> $GITHUB_STEP_SUMMARY
+            echo "- API vs Schema Consistency" >> $GITHUB_STEP_SUMMARY
+            echo "- V2 File Guardrails" >> $GITHUB_STEP_SUMMARY
+            echo "- Bundle Compilation" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "Guards failed. Run \`npm run check:guards\` locally." >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # ============================================================================
+  # QUALITY GATES AGGREGATOR
+  # ============================================================================
+  # This job aggregates all quality gates and serves as the final checkpoint
+  # before deployment. It depends on ALL quality gates passing.
+  #
+  # Configure as required status check: "Quality Gates"
+  # ============================================================================
+  quality-gates:
+    name: Quality Gates
+    runs-on: ubuntu-latest
+    needs: [lint, unit-tests, contract-tests, guards]
+    if: always()
+
+    steps:
+      - name: Check all quality gates
+        run: |
+          echo "=================================================="
+          echo "QUALITY GATES STATUS (Story 2.1)"
+          echo "=================================================="
+          echo ""
+          echo "Lint:           ${{ needs.lint.result }}"
+          echo "Unit Tests:     ${{ needs.unit-tests.result }}"
+          echo "Contract Tests: ${{ needs.contract-tests.result }}"
+          echo "Guards:         ${{ needs.guards.result }}"
+          echo ""
+
+          # Check if any gate failed
+          if [ "${{ needs.lint.result }}" != "success" ] || \
+             [ "${{ needs.unit-tests.result }}" != "success" ] || \
+             [ "${{ needs.contract-tests.result }}" != "success" ] || \
+             [ "${{ needs.guards.result }}" != "success" ]; then
+            echo "::error::One or more quality gates failed!"
+            echo ""
+            echo "❌ QUALITY GATES FAILED"
+            echo ""
+            echo "Deployment is BLOCKED until all gates pass."
+            echo "Fix the failing checks and push again."
+            exit 1
+          fi
+
+          echo "✅ ALL QUALITY GATES PASSED"
+          echo ""
+          echo "Code is ready for deployment."
+
+      - name: Create quality gates summary
+        if: always()
+        run: |
+          echo "# 🚦 Quality Gates Summary (Story 2.1)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          if [ "${{ job.status }}" == "success" ]; then
-            echo "### PASSED" >> $GITHUB_STEP_SUMMARY
+          # Overall status
+          if [ "${{ needs.lint.result }}" == "success" ] && \
+             [ "${{ needs.unit-tests.result }}" == "success" ] && \
+             [ "${{ needs.contract-tests.result }}" == "success" ] && \
+             [ "${{ needs.guards.result }}" == "success" ]; then
+            echo "## ✅ ALL GATES PASSED" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             if [ "${{ github.event_name }}" == "pull_request" ]; then
-              echo "All Stage-1 checks passed. PR is ready for review." >> $GITHUB_STEP_SUMMARY
+              echo "PR is ready for review and merge." >> $GITHUB_STEP_SUMMARY
             else
-              echo "All Stage-1 checks passed. Staging deploy will proceed." >> $GITHUB_STEP_SUMMARY
+              echo "Code is ready for deployment." >> $GITHUB_STEP_SUMMARY
             fi
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Validated Components:**" >> $GITHUB_STEP_SUMMARY
-            echo "- ESLint Code Quality" >> $GITHUB_STEP_SUMMARY
-            echo "- Jest Unit Tests (MVP Logic + Security)" >> $GITHUB_STEP_SUMMARY
-            echo "- Jest Contract Tests (Schema + API + Bundles)" >> $GITHUB_STEP_SUMMARY
-            echo "- Security-Specific Tests" >> $GITHUB_STEP_SUMMARY
-            echo "- MVP Guards (Surfaces, Dead Code, Schema, API)" >> $GITHUB_STEP_SUMMARY
-            echo "- V2 File Guardrails" >> $GITHUB_STEP_SUMMARY
-            echo "- Bundle Compilation Verification" >> $GITHUB_STEP_SUMMARY
           else
-            echo "### FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "## ❌ GATES FAILED - DEPLOYMENT BLOCKED" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            if [ "${{ github.event_name }}" == "pull_request" ]; then
-              echo "One or more Stage-1 checks failed. PR cannot be merged." >> $GITHUB_STEP_SUMMARY
-            else
-              echo "One or more Stage-1 checks failed. **Staging deploy aborted.**" >> $GITHUB_STEP_SUMMARY
-            fi
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**To reproduce locally:**" >> $GITHUB_STEP_SUMMARY
-            echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
-            echo "npm run stage1-local" >> $GITHUB_STEP_SUMMARY
-            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Fix the failing checks and push again." >> $GITHUB_STEP_SUMMARY
+            echo "One or more quality gates failed. Fix issues before merging." >> $GITHUB_STEP_SUMMARY
           fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Gate Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Gate | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
+
+          # Lint status
+          if [ "${{ needs.lint.result }}" == "success" ]; then
+            echo "| 🔍 Lint | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| 🔍 Lint | ❌ Failed |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Unit Tests status
+          if [ "${{ needs.unit-tests.result }}" == "success" ]; then
+            echo "| 🧪 Unit Tests | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| 🧪 Unit Tests | ❌ Failed |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Contract Tests status
+          if [ "${{ needs.contract-tests.result }}" == "success" ]; then
+            echo "| 📋 Contract Tests | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| 📋 Contract Tests | ❌ Failed |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Guards status
+          if [ "${{ needs.guards.result }}" == "success" ]; then
+            echo "| 🛡️ Guards | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| 🛡️ Guards | ❌ Failed |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "| 🔒 CodeQL Scan | _(See security-scan.yml)_ |" >> $GITHUB_STEP_SUMMARY
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Branch Protection Configuration" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "To enforce these gates, configure branch protection:" >> $GITHUB_STEP_SUMMARY
+          echo "1. Go to Settings > Branches > Branch protection rules" >> $GITHUB_STEP_SUMMARY
+          echo "2. Add rule for \`main\` branch" >> $GITHUB_STEP_SUMMARY
+          echo "3. Enable 'Require status checks to pass before merging'" >> $GITHUB_STEP_SUMMARY
+          echo "4. Select required checks:" >> $GITHUB_STEP_SUMMARY
+          echo "   - \`Lint\`" >> $GITHUB_STEP_SUMMARY
+          echo "   - \`Unit Tests\`" >> $GITHUB_STEP_SUMMARY
+          echo "   - \`Contract Tests\`" >> $GITHUB_STEP_SUMMARY
+          echo "   - \`Guards\`" >> $GITHUB_STEP_SUMMARY
+          echo "   - \`🔒 CodeQL Security Scan\` (from security-scan.yml)" >> $GITHUB_STEP_SUMMARY
+
+      - name: Fail if any gate failed
+        if: |
+          needs.lint.result != 'success' ||
+          needs.unit-tests.result != 'success' ||
+          needs.contract-tests.result != 'success' ||
+          needs.guards.result != 'success'
+        run: exit 1
 
   # ============================================================================
   # STAGING DEPLOY (Push to main only)
   # ============================================================================
-  # Deploys to staging environment after validation passes.
+  # Deploys to staging environment after ALL quality gates pass.
+  #
+  # Story 2.1: No partial or conditional deploys
+  #   - Deployment only occurs if ALL quality gates pass
+  #   - depends on quality-gates which aggregates: lint, unit-tests, contract-tests, guards
+  #   - CodeQL scan runs in parallel via security-scan.yml (also required)
   #
   # This job:
   #   - Only runs on push to main (not on PRs)
-  #   - Depends on validation passing (aborts if validation fails)
+  #   - Depends on ALL quality gates passing (aborts if any gate fails)
   #   - Deploys to Google Apps Script staging environment
   #   - Deploys Cloudflare Worker with new GAS deployment ID
   #   - Emits stg-base-url artifact for Stage-2 consumption
@@ -237,9 +537,9 @@ jobs:
   staging-deploy:
     name: Deploy to Staging
     runs-on: ubuntu-latest
-    needs: [validate]
-    # Only deploy on push to main, not on PRs
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [quality-gates]
+    # Only deploy on push to main, not on PRs, and only if quality gates passed
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.quality-gates.result == 'success'
     outputs:
       base_url: ${{ steps.emit-url.outputs.base_url }}
 
@@ -863,11 +1163,16 @@ jobs:
   # ============================================================================
   # PRODUCTION DEPLOY (Tag push only - vX.Y.Z)
   # ============================================================================
-  # Deploys to production environment after validation passes.
+  # Deploys to production environment after ALL quality gates pass.
+  #
+  # Story 2.1: No partial or conditional deploys
+  #   - Deployment only occurs if ALL quality gates pass
+  #   - depends on quality-gates which aggregates: lint, unit-tests, contract-tests, guards
+  #   - CodeQL scan runs in parallel via security-scan.yml (also required)
   #
   # This job:
   #   - Only runs on tag push matching v*.*.* pattern
-  #   - Depends on validation passing (aborts if validation fails)
+  #   - Depends on ALL quality gates passing (aborts if any gate fails)
   #   - Deploys to Google Apps Script production environment
   #   - Runs minimal production smoke tests (read-only health checks)
   #   - Runs QR verification test (critical invariant)
@@ -881,9 +1186,9 @@ jobs:
   production-deploy:
     name: Deploy to Production
     runs-on: ubuntu-latest
-    needs: [validate]
-    # Only deploy on tag push matching vX.Y.Z pattern
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: [quality-gates]
+    # Only deploy on tag push matching vX.Y.Z pattern, and only if quality gates passed
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && needs.quality-gates.result == 'success'
     outputs:
       base_url: ${{ steps.emit-url.outputs.base_url }}
       tag_version: ${{ steps.extract-version.outputs.version }}
