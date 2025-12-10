@@ -69,11 +69,24 @@ function detectEnvironment() {
     return 'production';
   }
 
-  // Detect from BASE_URL
+  // Detect from BASE_URL using proper URL parsing to avoid hostname spoofing
   const baseUrl = process.env.BASE_URL || process.env.APP_URL || '';
-  if (baseUrl.includes('www.eventangle.com') || baseUrl.includes('eventangle.com')) {
-    if (!baseUrl.includes('stg.')) {
-      return 'production';
+  if (baseUrl) {
+    try {
+      const parsedUrl = new URL(baseUrl);
+      const hostname = parsedUrl.hostname.toLowerCase();
+
+      // Check for staging hostname (must be exact match)
+      if (hostname === 'stg.eventangle.com' || hostname === 'api-stg.eventangle.com') {
+        return 'staging';
+      }
+
+      // Check for production hostname (must be exact match)
+      if (hostname === 'eventangle.com' || hostname === 'www.eventangle.com' || hostname === 'api.eventangle.com') {
+        return 'production';
+      }
+    } catch {
+      // Invalid URL format - fall through to default
     }
   }
 
