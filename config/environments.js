@@ -5,13 +5,18 @@
  * dev, staging, and production environments. All Node tests, Playwright tests,
  * and contract tests should import from this module.
  *
+ * Story 1.4 (PO): Configuration parity - This module now integrates with
+ * deploy-manifest.json and feature-flags.js for unified configuration.
+ *
  * Environment Priority:
  *   1. Environment variables (BASE_URL, TEST_ENV)
- *   2. Default values defined here
+ *   2. Manifest values (deploy-manifest.json)
+ *   3. Default values defined here
  *
  * Usage:
- *   const { getBaseUrl, getEnvironment, ENVIRONMENTS } = require('../config/environments');
+ *   const { getBaseUrl, getEnvironment, ENVIRONMENTS, isFeatureEnabled } = require('../config/environments');
  *   const BASE_URL = getBaseUrl(); // Returns current environment URL
+ *   if (isFeatureEnabled('DEMO_MODE_ENABLED')) { ... }
  *
  * @module config/environments
  */
@@ -378,6 +383,13 @@ function printEnvironmentInfo() {
 }
 
 // =============================================================================
+// Feature Flags Integration (Story 1.4)
+// =============================================================================
+// Re-export feature flags from the dedicated module for convenience
+
+const featureFlags = require('./feature-flags');
+
+// =============================================================================
 // Exports
 // =============================================================================
 
@@ -435,5 +447,15 @@ module.exports = {
   DEFAULT_STAGING_URL: STAGING_URL,
   CANONICAL_EVENTS_URL: `${PRODUCTION_URL}/events`,
   CANONICAL_STAGING_URL: `${STAGING_URL}/events`,
-  isEventangle: isProduction
+  isEventangle: isProduction,
+
+  // Feature Flags (Story 1.4) - Re-exported from feature-flags.js
+  isFeatureEnabled: featureFlags.isFeatureEnabled,
+  isFeatureEnabledWithOverride: featureFlags.isFeatureEnabledWithOverride,
+  getFeatureFlags: featureFlags.getFeatureFlags,
+  getFlatFeatureFlags: featureFlags.getFlatFeatureFlags,
+  getEnvironmentFlags: featureFlags.getEnvironmentFlags,
+  isDebugEnabled: featureFlags.isDebugEnabled,
+  areDebugEndpointsEnabled: featureFlags.areDebugEndpointsEnabled,
+  compareEnvironmentFlags: featureFlags.compareEnvironmentFlags
 };
