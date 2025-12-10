@@ -316,17 +316,10 @@ jobs:
           echo "Story 2.3: API schema/response validation"
           echo "=================================================="
           echo "Testing: Schema, API contracts, Bundles, GAS HTML guardrails"
+          echo "Note: tests/contract/* are hermetic (no network)"
+          echo "Note: Live API contracts run in Stage-2 after deployment"
           echo "=================================================="
           npm run test:contract -- --verbose
-
-      - name: Run API contract validation
-        run: |
-          echo "=================================================="
-          echo "API CONTRACT VALIDATION"
-          echo "=================================================="
-          echo "Validating: Response envelope, required fields, schema compliance"
-          echo "=================================================="
-          npm run test:api-contracts
 
       - name: Run schema synchronization tests
         run: |
