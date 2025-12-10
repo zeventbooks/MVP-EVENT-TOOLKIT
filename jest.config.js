@@ -37,14 +37,23 @@ module.exports = {
     'default',
     './tests/shared/jest-history-reporter.js'
   ],
-  // Coverage thresholds enabled (conservative initial values)
+  // Coverage thresholds enforced (Story 2.3: >= 80% threshold)
   // Mock Google Apps Script APIs in tests to achieve coverage
+  // Pipeline fails if coverage drops below threshold
   coverageThreshold: {
     global: {
-      branches: 50,      // Start conservative, increase gradually
-      functions: 50,
-      lines: 60,
-      statements: 60
+      branches: 80,
+      functions: 80,
+      lines: 80,
+      statements: 80
     }
-  }
+  },
+  // Generate coverage reports in multiple formats for CI
+  coverageReporters: [
+    'text',
+    'text-summary',
+    'lcov',
+    'json',
+    'html'
+  ]
 };
