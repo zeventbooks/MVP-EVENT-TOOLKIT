@@ -7,6 +7,8 @@
     "test": "jest --runInBand && npm run check:guards",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
+    "test:coverage:ci": "jest --coverage --coverageThreshold='{\"global\":{\"branches\":80,\"functions\":80,\"lines\":80,\"statements\":80}}'",
+    "test:unit:coverage": "jest --testMatch='**/tests/unit/**/*.test.js' --coverage --coverageThreshold='{\"global\":{\"branches\":80,\"functions\":80,\"lines\":80,\"statements\":80}}'",
     "test:unit": "jest --testMatch='**/tests/unit/**/*.test.js' --runInBand",
     "test:poster-qr": "jest tests/unit/poster-qr.test.js --runInBand",
     "test:services": "node scripts/test-services.js",
