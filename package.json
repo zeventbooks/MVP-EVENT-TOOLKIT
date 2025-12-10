@@ -209,6 +209,8 @@
     "qa:dashboard": "node tests/shared/generate-dashboard.js generate",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "lint:ci": "eslint . --max-warnings 0",
+    "lint:report": "eslint . --format json --output-file .test-results/eslint-report.json || true",
     "format": "prettier --write '**/*.{js,gs,html,json,md}'",
     "bundle:templates": "node scripts/bundle-worker-templates.js",
     "bundle:templates:check": "node scripts/bundle-worker-templates.js --check",
