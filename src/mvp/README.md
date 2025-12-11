@@ -43,6 +43,39 @@ V2 code has been moved out of `src/mvp/` to keep the MVP folder clean and deploy
 | **SponsorUtils** | Sponsor rendering, normalization, and analytics tracking. |
 | **Spinner** | Loading indicators (`.spinner`, `.spinner-sm`, `.loading-state`). |
 
+## Admin Modular Components (Story 4.1)
+
+The Admin surface has been refactored into modular components for better maintainability:
+
+| Module | Responsibility | Key Functions |
+|--------|----------------|---------------|
+| **AdminDiagnostics** | Diagnostics panel for SDK logging and debugging | `initDiagnosticsPanel`, `refreshDiagLogs`, `setDiagFilter` |
+| **AdminTemplates** | Event template picker and section defaults | `loadTemplates`, `selectTemplate`, `renderTemplatePicker` |
+| **AdminEvents** | Event selector, card display, checklist | `loadExistingEvents`, `showEventCard`, `updateChecklistStatus` |
+| **AdminDisplay** | Display config and sponsor management | `configureDisplay`, `saveDisplayConfig`, `saveEventPartial` |
+| **AdminForms** | Sign-up forms and Google Forms integration | `configureSignup`, `createFormTemplate`, `copyFormLink` |
+
+### Module Dependencies
+
+```
+Admin.html
+├── NUSDK.html (RPC client)
+├── SharedUtils.html (UI utilities)
+├── CollapsibleSections.html (UI component)
+├── AdminDiagnostics.html → depends on NUSDK
+├── AdminTemplates.html → depends on NUSDK
+├── AdminEvents.html → depends on NUSDK, SharedUtils
+├── AdminDisplay.html → depends on NUSDK, SharedUtils, AdminEvents
+└── AdminForms.html → depends on NUSDK, SharedUtils, AdminDisplay, AdminEvents
+```
+
+### Adding New Modules
+
+1. Create `Admin<Feature>.html` with IIFE pattern (see existing modules)
+2. Expose functions to `window` for HTML onclick handlers
+3. Add `<?!= include('Admin<Feature>'); ?>` to Admin.html head
+4. Document in this README
+
 ## Schemas
 
 | Schema | Used By | Purpose |

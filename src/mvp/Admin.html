@@ -110,6 +110,12 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
   <?!= include('NUSDK'); ?>
   <?!= include('SharedUtils'); ?>
   <?!= include('CollapsibleSections'); ?>
+  <!-- Story 4.1: Modularized Admin components for maintainability -->
+  <?!= include('AdminDiagnostics'); ?>
+  <?!= include('AdminTemplates'); ?>
+  <?!= include('AdminEvents'); ?>
+  <?!= include('AdminDisplay'); ?>
+  <?!= include('AdminForms'); ?>
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <meta name="referrer" content="no-referrer"/>
   <style>
@@ -2946,30 +2952,49 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
   <div id="overlay" class="loading-overlay"><div class="spinner"></div><p>Working…</p></div>
 
   <script>
-    const BRAND = '<?= brandId ?>';
-    const SCOPE = '<?= scope ?>';
+    // ==========================================================================
+    // ADMIN PAGE CONFIGURATION
+    // ==========================================================================
+    // Story 4.1: Core functionality extracted to modular components:
+    //   - AdminDiagnostics.html: Diagnostics panel (NU transport logs)
+    //   - AdminTemplates.html:   Template picker (event type selection)
+    //   - AdminEvents.html:      Event selector & card display
+    //   - AdminDisplay.html:     Display config & sponsor management
+    //   - AdminForms.html:       Sign-up forms & Google Forms templates
+    //
+    // This inline script contains page-specific configuration and any
+    // remaining functions not yet extracted to modules.
+    // ==========================================================================
+
+    // Page configuration - exposed to modules
+    window.BRAND = '<?= brandId ?>';
+    window.SCOPE = '<?= scope ?>';
+
+    // Shorthand for inline use
+    const BRAND = window.BRAND;
+    const SCOPE = window.SCOPE;
+
     // Dark Launch / Kill Switch: Brand feature flags
-    const BRAND_FEATURES = <?!= JSON.stringify(brandFeatures || {sharedReportEnabled: true, sponsorAnalyticsEnabled: true}) ?>;
-
-    // Event state for edit mode - tracks current event's immutable/server-set fields
-    const STATE = {
-      id: null,
-      slug: null,
-      createdAtISO: null
-    };
-
-    let currentEventId = null;  // Legacy compat - will migrate to STATE.id
-    let availableTemplates = [];
-    let defaultTemplateId = 'custom';
-    let loadedEvents = [];  // Cache of loaded events for dropdown
+    window.BRAND_FEATURES = <?!= JSON.stringify(brandFeatures || {sharedReportEnabled: true, sponsorAnalyticsEnabled: true}) ?>;
+    const BRAND_FEATURES = window.BRAND_FEATURES;
 
     // ==========================================================================
-    // DIAGNOSTICS PANEL - NU Transport Logs
-    // Story 6: Surface NU logs for debugging transport/routing issues
+    // NOTE: The following declarations are now handled by modular includes:
+    //   - STATE (AdminEvents.html)
+    //   - currentEventId (AdminEvents.html)
+    //   - availableTemplates (AdminTemplates.html)
+    //   - defaultTemplateId (AdminTemplates.html)
+    //   - loadedEvents (AdminEvents.html)
+    //   - DIAG_STATE (AdminDiagnostics.html)
     // ==========================================================================
 
-    // Diagnostics state
-    const DIAG_STATE = {
+    // ==========================================================================
+    // LEGACY CODE - Kept for backward compatibility
+    // TODO: Remove once modular components are fully validated
+    // ==========================================================================
+
+    // Diagnostics state (now in AdminDiagnostics.html, kept as fallback)
+    const DIAG_STATE = window.DIAG_STATE || {
       filter: 'all',          // 'all' | 'debug' | 'error'
       autoRefresh: false,
       autoRefreshInterval: null,

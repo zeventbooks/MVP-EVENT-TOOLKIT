@@ -1,0 +1,313 @@
+<!--
+================================================================================
+MODULE: AdminForms.html
+PURPOSE: Sign-up forms and Google Forms template integration for Admin dashboard
+INCLUDED BY: Admin.html
+DEPENDENCIES: NUSDK.html (NU.rpc), SharedUtils.html (showToast, esc), AdminDisplay.html (saveEventPartial, getAdminKey), AdminEvents.html (overlay, updateChecklistStatus)
+================================================================================
+Story 4.1: Extracted from Admin.html for modularization and maintainability.
+This module handles sign-up form configuration and Google Forms template creation.
+
+Functions exposed to global scope:
+  Sign-up Configuration:
+  - configureSignup()            → Open signup config panel
+  - loadSignupForms()            → Load signup forms from API
+  - saveAllSignupForms()         → Save signup forms to API
+  - closeSignupConfig()          → Close signup config panel
+
+  Google Forms Templates:
+  - openFormsTemplates()         → Open forms templates panel
+  - closeFormsTemplates()        → Close forms templates panel
+  - createFormTemplate(type)     → Create form from template
+  - copyFormLink(inputId)        → Copy form link to clipboard
+================================================================================
+-->
+<script>
+(function() {
+  'use strict';
+
+  // ==========================================================================
+  // SIGN-UP CONFIGURATION
+  // ==========================================================================
+
+  /**
+   * Open sign-up configuration panel.
+   */
+  function configureSignup() {
+    const card = document.getElementById('signupCard');
+    if (card) {
+      card.style.display = '';
+    }
+    loadSignupForms();
+  }
+
+  /**
+   * Load sign-up form URLs from API.
+   */
+  async function loadSignupForms() {
+    const BRAND = window.BRAND || 'root';
+    const SCOPE = window.SCOPE || 'events';
+    const currentEventId = window.currentEventId;
+
+    if (!currentEventId) return;
+
+    if (typeof window.overlay === 'function') {
+      window.overlay(true);
+    }
+
+    const res = await NU.rpc('api_get', { brandId: BRAND, scope: SCOPE, id: currentEventId });
+
+    if (typeof window.overlay === 'function') {
+      window.overlay(false);
+    }
+
+    if (res.ok && res.value) {
+      const data = res.value.data || {};
+
+      const registerUrl = document.getElementById('registerUrl');
+      const checkinUrl = document.getElementById('checkinUrl');
+      const walkinUrl = document.getElementById('walkinUrl');
+      const surveyUrl = document.getElementById('surveyUrl');
+
+      if (registerUrl) registerUrl.value = data.registerUrl || '';
+      if (checkinUrl) checkinUrl.value = data.checkinUrl || '';
+      if (walkinUrl) walkinUrl.value = data.walkinUrl || '';
+      if (surveyUrl) surveyUrl.value = data.surveyUrl || '';
+    }
+  }
+
+  /**
+   * Save all sign-up form URLs to API.
+   * Uses canonical api_saveEvent via saveEventPartial (ZEVENT-003).
+   */
+  async function saveAllSignupForms() {
+    const currentEventId = window.currentEventId;
+    if (!currentEventId) return;
+
+    const data = {
+      registerUrl: document.getElementById('registerUrl')?.value.trim() || '',
+      checkinUrl: document.getElementById('checkinUrl')?.value.trim() || '',
+      walkinUrl: document.getElementById('walkinUrl')?.value.trim() || '',
+      surveyUrl: document.getElementById('surveyUrl')?.value.trim() || ''
+    };
+
+    if (typeof window.overlay === 'function') {
+      window.overlay(true);
+    }
+
+    // Use saveEventPartial from AdminDisplay.html
+    const res = await window.saveEventPartial(currentEventId, { data });
+
+    if (typeof window.overlay === 'function') {
+      window.overlay(false);
+    }
+
+    if (res.ok) {
+      if (window.SharedUtils) {
+        SharedUtils.showToast('Sign-up forms saved!', 'success');
+      }
+      closeSignupConfig();
+
+      // Update checklist status with new form URLs
+      if (window.currentEventData) {
+        window.currentEventData.data = window.currentEventData.data || {};
+        Object.assign(window.currentEventData.data, data);
+        if (typeof window.updateChecklistStatus === 'function') {
+          window.updateChecklistStatus(window.currentEventData);
+        }
+      }
+    } else {
+      if (window.SharedUtils) {
+        SharedUtils.showToast(`Error: ${res.message}`, 'error');
+      }
+    }
+  }
+
+  /**
+   * Close sign-up configuration panel.
+   */
+  function closeSignupConfig() {
+    const card = document.getElementById('signupCard');
+    if (card) {
+      card.style.display = 'none';
+    }
+  }
+
+  // ==========================================================================
+  // GOOGLE FORMS TEMPLATES
+  // ==========================================================================
+
+  /**
+   * Open forms templates panel.
+   */
+  function openFormsTemplates() {
+    const card = document.getElementById('formsCard');
+    if (card) {
+      card.style.display = '';
+    }
+  }
+
+  /**
+   * Close forms templates panel.
+   */
+  function closeFormsTemplates() {
+    const card = document.getElementById('formsCard');
+    if (card) {
+      card.style.display = 'none';
+    }
+  }
+
+  /**
+   * Create a Google Form from template.
+   * @param {string} templateType - Type of form (check-in, walk-in, survey)
+   */
+  async function createFormTemplate(templateType) {
+    const BRAND = window.BRAND || 'root';
+    const SCOPE = window.SCOPE || 'events';
+    const currentEventId = window.currentEventId;
+
+    if (!currentEventId) {
+      if (window.SharedUtils) {
+        SharedUtils.showToast('Please select or create an event first.', 'warning');
+      }
+      return;
+    }
+
+    const displayMap = {
+      'check-in': 'checkin-form-display',
+      'walk-in': 'walkin-form-display',
+      'survey': 'survey-form-display'
+    };
+
+    const displayId = displayMap[templateType];
+    if (!displayId) return;
+
+    const displayDiv = document.getElementById(displayId);
+    if (displayDiv) {
+      displayDiv.innerHTML = '<p class="muted">Creating form...</p>';
+    }
+
+    if (typeof window.overlay === 'function') {
+      window.overlay(true);
+    }
+
+    // Get event data for context
+    const eventRes = await NU.rpc('api_get', {
+      brandId: BRAND,
+      scope: SCOPE,
+      id: currentEventId
+    });
+
+    const eventName = eventRes.ok && eventRes.value?.data?.name
+      ? eventRes.value.data.name
+      : 'Event';
+
+    // Get admin key using helper from AdminDisplay.html
+    const adminKey = typeof window.getAdminKey === 'function' ? window.getAdminKey() : '';
+
+    // Create form from template
+    const formRes = await NU.rpc('api_createFormFromTemplate', {
+      brandId: BRAND,
+      adminKey: adminKey,
+      templateType,
+      eventName,
+      eventId: currentEventId
+    });
+
+    if (!formRes.ok) {
+      if (typeof window.overlay === 'function') {
+        window.overlay(false);
+      }
+      // Use consistent inline error styling
+      if (displayDiv && window.SharedUtils) {
+        displayDiv.innerHTML = `<div class="error-card"><p>${SharedUtils.esc(formRes.message || 'Failed to create form')}</p></div>`;
+      }
+      return;
+    }
+
+    const { publishedUrl, editUrl, responseSheetUrl } = formRes.value;
+
+    // Generate shortlink for the published form
+    const shortlinkRes = await NU.rpc('api_generateFormShortlink', {
+      brandId: BRAND,
+      adminKey: adminKey,
+      formUrl: publishedUrl,
+      formType: templateType,
+      eventId: currentEventId
+    });
+
+    if (typeof window.overlay === 'function') {
+      window.overlay(false);
+    }
+
+    const shortlink = shortlinkRes.ok ? shortlinkRes.value.shortlink : publishedUrl;
+
+    // Display form links with copy buttons
+    if (displayDiv) {
+      displayDiv.innerHTML = `
+        <div style="background: #f1f5f9; padding: 12px; border-radius: 4px; margin-top: 8px;">
+          <div style="margin-bottom: 8px;">
+            <strong>Shortlink:</strong><br>
+            <input type="text" id="${templateType}-shortlink" value="${shortlink}" readonly
+                   style="width: 100%; margin-top: 4px; font-size: 12px;">
+            <button class="btn-secondary" onclick="copyFormLink('${templateType}-shortlink')"
+                    style="margin-top: 4px; width: 100%;">
+              Copy Shortlink
+            </button>
+          </div>
+          <div style="margin-top: 12px;">
+            <a href="${editUrl}" target="_blank" rel="noopener" class="btn-secondary"
+               style="display: inline-block; margin-right: 8px;">
+              Edit Form
+            </a>
+            <a href="${responseSheetUrl}" target="_blank" rel="noopener" class="btn-secondary"
+               style="display: inline-block;">
+              View Responses
+            </a>
+          </div>
+          <div style="margin-top: 8px; font-size: 12px; color: #64748b;">
+            Form created successfully! Share the shortlink with attendees.
+          </div>
+        </div>
+      `;
+    }
+  }
+
+  /**
+   * Copy form link to clipboard.
+   * @param {string} inputId - ID of input element containing link
+   */
+  function copyFormLink(inputId) {
+    const input = document.getElementById(inputId);
+    if (input) {
+      input.select();
+      input.setSelectionRange(0, 99999); // For mobile devices
+      document.execCommand('copy');
+
+      // Visual feedback
+      const originalValue = input.value;
+      input.value = 'Copied!';
+      setTimeout(() => {
+        input.value = originalValue;
+      }, 1000);
+    }
+  }
+
+  // ==========================================================================
+  // EXPOSE FUNCTIONS TO GLOBAL SCOPE
+  // ==========================================================================
+
+  // Sign-up configuration
+  window.configureSignup = configureSignup;
+  window.loadSignupForms = loadSignupForms;
+  window.saveAllSignupForms = saveAllSignupForms;
+  window.closeSignupConfig = closeSignupConfig;
+
+  // Google Forms templates
+  window.openFormsTemplates = openFormsTemplates;
+  window.closeFormsTemplates = closeFormsTemplates;
+  window.createFormTemplate = createFormTemplate;
+  window.copyFormLink = copyFormLink;
+
+})();
+</script>
