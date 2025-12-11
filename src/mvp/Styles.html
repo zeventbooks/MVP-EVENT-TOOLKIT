@@ -1393,6 +1393,121 @@
     word-break: break-all;
   }
 
+  /* ===== Story 4: Configuration Issue Card ===== */
+  /* Shows when backend is misconfigured (4xx errors, GAS_UPSTREAM_NON_JSON) */
+  .config-issue-state {
+    background: #fef9e7;
+    border: 1px solid #fcd34d;
+    border-left: 4px solid #f59e0b;
+    border-radius: var(--radius-md, 12px);
+    padding: var(--card-padding-tablet, 24px);
+    text-align: center;
+  }
+
+  .config-issue-state h3 {
+    color: #92400e;
+    margin-bottom: 8px;
+  }
+
+  .config-issue-state p {
+    color: #78350f;
+    margin-bottom: 16px;
+  }
+
+  .config-issue-state .btn-retry {
+    background: #f59e0b;
+    color: white;
+  }
+
+  .config-issue-state .btn-retry:hover {
+    background: #d97706;
+  }
+
+  /* ===== Story 4: Diagnostic Panel (Staging Only) ===== */
+  /* Expandable panel showing technical error details */
+  .diagnostic-panel {
+    margin-top: 16px;
+    text-align: left;
+    background: rgba(255, 255, 255, 0.8);
+    border: 1px solid #fcd34d;
+    border-radius: var(--radius-base, 8px);
+    overflow: hidden;
+  }
+
+  .diagnostic-toggle {
+    display: block;
+    padding: 10px 16px;
+    cursor: pointer;
+    font-size: var(--font-size-sm, 0.875rem);
+    font-weight: var(--font-weight-medium, 500);
+    color: #92400e;
+    background: rgba(252, 211, 77, 0.2);
+    user-select: none;
+    list-style: none;
+  }
+
+  .diagnostic-toggle::-webkit-details-marker {
+    display: none;
+  }
+
+  .diagnostic-toggle::before {
+    content: '▶';
+    display: inline-block;
+    margin-right: 8px;
+    font-size: 0.7em;
+    transition: transform var(--transition-base, 0.2s);
+  }
+
+  .diagnostic-panel[open] .diagnostic-toggle::before {
+    transform: rotate(90deg);
+  }
+
+  .diagnostic-content {
+    padding: 12px 16px;
+    font-size: var(--font-size-sm, 0.875rem);
+    background: white;
+  }
+
+  .diagnostic-row {
+    display: flex;
+    gap: 8px;
+    padding: 6px 0;
+    border-bottom: 1px solid #f3f4f6;
+  }
+
+  .diagnostic-row:last-child {
+    border-bottom: none;
+  }
+
+  .diagnostic-label {
+    color: #6b7280;
+    font-weight: var(--font-weight-medium, 500);
+    min-width: 100px;
+    flex-shrink: 0;
+  }
+
+  .diagnostic-content code {
+    background: #f3f4f6;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: var(--font-family-mono, monospace);
+    font-size: 0.85em;
+    color: #374151;
+    word-break: break-all;
+  }
+
+  /* Mobile adjustments for diagnostic panel */
+  @media (max-width: 640px) {
+    .diagnostic-row {
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .diagnostic-label {
+      min-width: auto;
+    }
+  }
+
   /* Sticky bottom action bar for mobile */
   .sticky-action-bar {
     position: fixed;
