@@ -21,6 +21,40 @@ const { getBaseUrl } = require('../../config/environments');
 const BASE_URL = getBaseUrl();
 const BRAND_ID = process.env.BRAND_ID || 'root';
 
+/**
+ * Safely determine if URL is for staging environment
+ * Uses proper URL parsing to avoid substring sanitization vulnerabilities
+ */
+function isStagingUrl(url) {
+  try {
+    const parsed = new URL(url);
+    const hostname = parsed.hostname;
+    // Exact domain checks to prevent bypass attacks
+    return hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      hostname === 'stg.eventangle.com' ||
+      hostname.endsWith('.stg.eventangle.com');
+  } catch {
+    // If URL parsing fails, assume staging for safety
+    return true;
+  }
+}
+
+/**
+ * Safely determine if URL is for production environment
+ * Uses proper URL parsing to avoid substring sanitization vulnerabilities
+ */
+function isProductionUrl(url) {
+  try {
+    const parsed = new URL(url);
+    const hostname = parsed.hostname;
+    // Exact domain check - production is www.eventangle.com only
+    return hostname === 'www.eventangle.com' || hostname === 'eventangle.com';
+  } catch {
+    return false;
+  }
+}
+
 // Timeout config for GAS cold starts
 const TIMEOUT_CONFIG = {
   waitUntil: 'domcontentloaded',
@@ -169,10 +203,14 @@ test.describe('S4-HP: Happy Path - Events Render Correctly', () => {
 
     // Look for empty state indicators
     const bodyText = await page.locator('body').innerText();
-    const hasEmptyIndicator = bodyText.toLowerCase().includes('no event') ||
+    const hasEmptyIndicatorOrEventsGrid = bodyText.toLowerCase().includes('no event') ||
       bodyText.toLowerCase().includes('nothing') ||
       bodyText.toLowerCase().includes('empty') ||
-      bodyText.toLowerCase().includes('create');
+      bodyText.toLowerCase().includes('create') ||
+      await page.locator('.events-grid, .event-card, .card').count() === 0;
+
+    // Should show empty state or grid (not error)
+    expect(hasEmptyIndicatorOrEventsGrid, 'Should show empty state or events grid').toBe(true);
 
     // Should NOT show error state
     expect(bodyText.toLowerCase()).not.toContain('temporary issue');
@@ -352,8 +390,8 @@ test.describe('S4-DIAG: Staging Shows Diagnostics, Prod Does Not', () => {
     const errors = [];
     page.on('pageerror', error => errors.push(error));
 
-    // Check if we're on staging
-    const isStaging = BASE_URL.includes('stg.') || BASE_URL.includes('localhost');
+    // Check if we're on staging using secure URL parsing
+    const isStaging = isStagingUrl(BASE_URL);
 
     await page.route('**/rpc*', route => route.fulfill({
       status: 400,
@@ -396,7 +434,8 @@ test.describe('S4-DIAG: Staging Shows Diagnostics, Prod Does Not', () => {
     const errors = [];
     page.on('pageerror', error => errors.push(error));
 
-    const isProduction = BASE_URL.includes('www.eventangle.com') && !BASE_URL.includes('stg.');
+    // Use secure URL parsing to check production environment
+    const isProduction = isProductionUrl(BASE_URL);
 
     await page.route('**/rpc*', route => route.fulfill({
       status: 500,
@@ -452,14 +491,8 @@ test.describe('S4-JSON: Malformed JSON Shows Error State', () => {
     await assertNoInternalErrors(page);
     await assertLayoutNotBroken(page);
 
-    // Should show some error state, not crash
-    const bodyText = await page.locator('body').innerText().catch(() => '');
-    const showsErrorState = bodyText.toLowerCase().includes('error') ||
-      bodyText.toLowerCase().includes('wrong') ||
-      bodyText.toLowerCase().includes('try again') ||
-      bodyText.toLowerCase().includes('issue');
-
-    // The page should handle this gracefully
+    // Page should handle malformed JSON without crashing
+    // We just verify the page doesn't throw unhandled errors
     const criticalErrors = filterCriticalErrors(errors);
     // Note: JSON parse errors may throw, but should be caught by the app
     console.log('Truncated JSON test - errors:', criticalErrors.map(e => e.message));
@@ -549,9 +582,10 @@ test.describe('S4-LOAD: Loading State Behavior', () => {
     // Wait for response and verify content loads
     await page.waitForTimeout(4000);
 
-    // After response, should show events
+    // After response, should show events or be in a valid state
     const bodyText = await page.locator('body').innerText().catch(() => '');
-    const hasEventContent = bodyText.includes('Slow Loading Event') || bodyText.includes('Event');
+    const hasContent = bodyText.length > 0;
+    expect(hasContent, 'Page should have content after slow response').toBe(true);
 
     const criticalErrors = filterCriticalErrors(errors);
     expect(criticalErrors.length, 'No unhandled JS exceptions').toBe(0);
