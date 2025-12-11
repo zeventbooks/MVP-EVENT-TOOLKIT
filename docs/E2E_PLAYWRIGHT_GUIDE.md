@@ -267,7 +267,11 @@ The `playwright.config.js` automatically adjusts for CI:
 
 ## Critical User Journeys
 
-### Journey 1: Event Creation Flow
+Journeys are organized by **event lifecycle phase**:
+
+### PRE-EVENT (Setup & Configuration)
+
+#### Journey 1: Event Creation Flow
 
 **Covers**: Admin creates event via API/UI, event appears in list, Sign-Up Form + QR validation
 
@@ -277,7 +281,7 @@ Admin → Create Event → API Validation → Public Page → Poster QR Verifica
 
 **Test**: `tests/e2e/story-3.3-critical-user-journeys.spec.js`
 
-### Journey 2: Sponsor Flow
+#### Journey 2: Sponsor Flow
 
 **Covers**: Sponsor configuration, QR codes, analytics reports
 
@@ -285,7 +289,7 @@ Admin → Create Event → API Validation → Public Page → Poster QR Verifica
 Configure Sponsors → Display Surface → Poster QR → SharedReport Analytics
 ```
 
-### Journey 3: Poster Surface
+#### Journey 3: Poster Surface
 
 **Covers**: Poster rendering with QR codes (active = available)
 
@@ -293,7 +297,9 @@ Configure Sponsors → Display Surface → Poster QR → SharedReport Analytics
 Poster Page → QR Codes (when configured) → Print Layout → API Bundle
 ```
 
-### Journey 4: Display Surface
+### EVENT (Live Surfaces)
+
+#### Journey 4: Display Surface
 
 **Covers**: TV/Kiosk rendering at 1920x1080
 
@@ -301,7 +307,7 @@ Poster Page → QR Codes (when configured) → Print Layout → API Bundle
 Display Page → TV Mode → Sponsor Rotation → API Bundle
 ```
 
-### Journey 5: Event Viewing Flow
+#### Journey 5: Event Viewing Flow
 
 **Covers**: Public page rendering, CTA visibility (active = available), mobile responsiveness
 
@@ -309,7 +315,9 @@ Display Page → TV Mode → Sponsor Rotation → API Bundle
 Public Page → Load Event → CTA when signupUrl → Mobile Viewport
 ```
 
-### Journey 6: Shared Report
+### POST-EVENT (Analytics)
+
+#### Journey 6: Shared Report
 
 **Covers**: Analytics dashboard rendering
 
@@ -317,7 +325,9 @@ Public Page → Load Event → CTA when signupUrl → Mobile Viewport
 Report Page → KPI Display → Mobile Responsiveness
 ```
 
-### Journey 7: Event Management
+### TOOLS (Infrastructure & Validation)
+
+#### Journey 7: Event Management
 
 **Covers**: CRUD operations via API with UI verification
 
@@ -325,7 +335,7 @@ Report Page → KPI Display → Mobile Responsiveness
 Create → Read → Update → Verify UI → Delete → Verify Deletion
 ```
 
-### Journey 8: Cross-Surface Integration
+#### Journey 8: Cross-Surface Integration
 
 **Covers**: Same event renders correctly on all surfaces
 
@@ -333,7 +343,7 @@ Create → Read → Update → Verify UI → Delete → Verify Deletion
 API Create → Public → Display → Poster → Report
 ```
 
-### Journey 9: System Health
+#### Journey 9: System Health
 
 **Covers**: API status, system endpoints
 
@@ -341,7 +351,7 @@ API Create → Public → Display → Poster → Report
 Status Endpoint → Events List → Main Page Load
 ```
 
-### Journey 10: Error Handling
+#### Journey 10: Error Handling
 
 **Covers**: Graceful degradation for errors
 

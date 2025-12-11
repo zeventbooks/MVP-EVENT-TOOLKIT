@@ -1,13 +1,25 @@
 /**
  * Story 3.3: End-to-End Testing of User Flows (Playwright)
  *
- * Critical user journey tests that validate:
- * - Event creation workflow (Admin)
- * - Event viewing (Public)
- * - Event management (Admin)
- * - TV Display functionality (Display)
- * - Report generation (SharedReport)
- * - API + UI integration
+ * Critical user journey tests organized by event lifecycle:
+ *
+ * PRE-EVENT (Setup & Configuration):
+ *   Journey 1: Event Creation Flow
+ *   Journey 2: Sponsor Flow
+ *   Journey 3: Poster Surface
+ *
+ * EVENT (Live Surfaces):
+ *   Journey 4: Display Surface (TV/Kiosk)
+ *   Journey 5: Event Viewing Flow (Public)
+ *
+ * POST-EVENT (Analytics):
+ *   Journey 6: Shared Report
+ *
+ * TOOLS (Infrastructure & Validation):
+ *   Journey 7: Event Management (CRUD)
+ *   Journey 8: Cross-Surface Integration
+ *   Journey 9: System Health
+ *   Journey 10: Error Handling
  *
  * BASE_URL-Aware Testing:
  * - Default: https://stg.eventangle.com (staging)
@@ -64,6 +76,10 @@ function generateTestEvent() {
     timeISO: '14:00',
   };
 }
+
+// #############################################################################
+// PRE-EVENT: Setup & Configuration
+// #############################################################################
 
 // =============================================================================
 // JOURNEY 1: Event Creation Flow (Admin → API → Verification)
@@ -795,6 +811,10 @@ test.describe('Journey 3: Poster Surface', () => {
   });
 });
 
+// #############################################################################
+// EVENT: Live Surfaces
+// #############################################################################
+
 // =============================================================================
 // JOURNEY 4: Display Surface (TV/Kiosk)
 // =============================================================================
@@ -999,6 +1019,10 @@ test.describe('Journey 5: Event Viewing Flow (Public)', () => {
   });
 });
 
+// #############################################################################
+// POST-EVENT: Analytics
+// #############################################################################
+
 // =============================================================================
 // JOURNEY 6: Shared Report (Analytics)
 // =============================================================================
@@ -1054,6 +1078,10 @@ test.describe('Journey 6: Shared Report (Analytics)', () => {
     expect(pageContent.length).toBeGreaterThan(100);
   });
 });
+
+// #############################################################################
+// TOOLS: Infrastructure & Validation
+// #############################################################################
 
 // =============================================================================
 // JOURNEY 7: Event Management (Admin Updates)
