@@ -3,8 +3,15 @@
   "rootDir": "./src/mvp",
   "_environment": "staging",
   "_comment": "STAGING environment configuration - safe for local development and testing",
-  "_owner": "zeventbook@gmail.com",
+  "_migration": {
+    "_status": "PENDING",
+    "_story": "Story 1.1.2 - Create new staging GAS backend owned by zeventbook",
+    "_instructions": "See docs/env/staging-migration.md",
+    "_deprecatedScriptId": "1gHiPuj7eXNk09dDyk17SJ6QsCJg7LMqXBRrkowljL3z2TaAKFIvBLhHJ",
+    "_action": "Replace scriptId with new zeventbook-owned project ID"
+  },
+  "_owner": "MIGRATE TO: zeventbook@gmail.com (currently mzdano@gmail.com)",
   "_projectUrl": "https://script.google.com/home/projects/1gHiPuj7eXNk09dDyk17SJ6QsCJg7LMqXBRrkowljL3z2TaAKFIvBLhHJ/edit",
   "_deploymentUrl": "https://stg.eventangle.com",
-  "_story": "Story 1.3: Separate Apps Script environments for staging and production"
+  "_story": "Story 1.1.2: Create new staging GAS backend owned by zeventbook"
 }

@@ -16,8 +16,10 @@ This document serves as the **single source of truth** for all Google Apps Scrip
 
 | Environment | Script ID | Project Name | Owner Email | Status |
 |-------------|-----------|--------------|-------------|--------|
-| **Staging** | `1gHiPuj7eXNk09dDyk17SJ6QsCJg7LMqXBRrkowljL3z2TaAKFIvBLhHJ` | EventAngle Staging | `zeventbook@gmail.com` | Correct |
+| **Staging** | `PENDING_NEW_SCRIPTID` | EA-MVP-Backend-Staging | `zeventbook@gmail.com` | **PENDING** (Story 1.1.2) |
 | **Production** | `1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l` | EventAngle Production | `zeventbook@gmail.com` | Correct |
+
+> **Note:** Staging is pending migration to new zeventbook-owned project. See [Deprecated Projects](#deprecated-projects) section and [`staging-migration.md`](./staging-migration.md) for details.
 
 ---
 
@@ -25,14 +27,26 @@ This document serves as the **single source of truth** for all Google Apps Scrip
 
 ### Staging Environment
 
+> **STATUS: PENDING MIGRATION (Story 1.1.2)**
+>
+> The current staging scriptId is DEPRECATED. A new project owned by zeventbook needs to be created.
+> See [`staging-migration.md`](./staging-migration.md) for step-by-step instructions.
+
 | Property | Value |
 |----------|-------|
-| **Script ID** | `1gHiPuj7eXNk09dDyk17SJ6QsCJg7LMqXBRrkowljL3z2TaAKFIvBLhHJ` |
-| **Deployment ID** | `AKfycbwFneYCpkio7wCn7y08eDUb2PRCPc2Tdtbv20L4AbEHvuCvoqY9ks7-ONL0pzPPw4Hm` |
-| **Owner** | `zeventbook@gmail.com` |
-| **Project Editor URL** | https://script.google.com/home/projects/1gHiPuj7eXNk09dDyk17SJ6QsCJg7LMqXBRrkowljL3z2TaAKFIvBLhHJ/edit |
-| **Web App URL** | `https://script.google.com/macros/s/AKfycbwFneYCpkio7wCn7y08eDUb2PRCPc2Tdtbv20L4AbEHvuCvoqY9ks7-ONL0pzPPw4Hm/exec` |
+| **Script ID** | `PENDING_NEW_SCRIPTID` - **TO BE UPDATED** |
+| **Deployment ID** | `PENDING_NEW_DEPLOYMENT_ID` - **TO BE UPDATED** |
+| **Owner** | `zeventbook@gmail.com` (required) |
+| **Project Editor URL** | TBD after new project creation |
+| **Web App URL** | TBD after new deployment |
 | **Public URL (Cloudflare)** | `https://stg.eventangle.com` |
+
+**Old (Deprecated) Values:**
+| Property | Value | Status |
+|----------|-------|--------|
+| Script ID | `1gHiPuj7eXNk09dDyk17SJ6QsCJg7LMqXBRrkowljL3z2TaAKFIvBLhHJ` | DEPRECATED |
+| Deployment ID | `AKfycbwFneYCpkio7wCn7y08eDUb2PRCPc2Tdtbv20L4AbEHvuCvoqY9ks7-ONL0pzPPw4Hm` | DEPRECATED |
+| Former Owner | `mzdano@gmail.com` | INCORRECT |
 
 ### Production Environment
 
@@ -102,7 +116,8 @@ zeventbook@gmail.com
 
 | Environment | Script ID | Current Owner | Expected Owner | Status |
 |-------------|-----------|---------------|----------------|--------|
-| Staging | `1gHiPuj7eXNk09dDyk17SJ6QsCJg7LMqXBRrkowljL3z2TaAKFIvBLhHJ` | `zeventbook@gmail.com` | `zeventbook@gmail.com` | OK |
+| Staging (OLD) | `1gHiPuj7eXNk09dDyk17SJ6QsCJg7LMqXBRrkowljL3z2TaAKFIvBLhHJ` | `mzdano@gmail.com` | N/A (deprecated) | **DEPRECATED** |
+| Staging (NEW) | `PENDING_NEW_SCRIPTID` | TBD | `zeventbook@gmail.com` | **PENDING** (Story 1.1.2) |
 | Production | `1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l` | `zeventbook@gmail.com` | `zeventbook@gmail.com` | OK |
 
 ### Accounts to Watch
@@ -140,10 +155,37 @@ npm run staging:status
 
 ---
 
+## Deprecated Projects
+
+> **IMPORTANT:** The following projects are deprecated and should NOT be used for new work.
+> See Story 1.1.2 for migration details.
+
+### DEPRECATED: Old Staging Backend (mzdano-owned)
+
+| Property | Value |
+|----------|-------|
+| **Script ID** | `1gHiPuj7eXNk09dDyk17SJ6QsCJg7LMqXBRrkowljL3z2TaAKFIvBLhHJ` |
+| **Former Owner** | `mzdano@gmail.com` |
+| **Status** | **DEPRECATED** - Do not use for new deployments |
+| **Deprecation Date** | 2025-12-11 |
+| **Reason** | Replaced by zeventbook-owned project (Story 1.1.2) |
+| **Migration Status** | Pending - awaiting new project creation |
+
+**Why Deprecated:**
+- Project ownership was under `mzdano@gmail.com` (personal account)
+- All EventAngle GAS projects must be owned by `zeventbook@gmail.com`
+- Clean separation required for proper identity consolidation
+
+**Migration Instructions:**
+See [`staging-migration.md`](./staging-migration.md) for complete migration guide.
+
+---
+
 ## Change Log
 
 | Date | Change | Author |
 |------|--------|--------|
+| 2025-12-11 | Added deprecated project tracking (Story 1.1.2) | Claude |
 | 2025-12-11 | Initial inventory created (Story 1.1.1) | Claude |
 
 ---
