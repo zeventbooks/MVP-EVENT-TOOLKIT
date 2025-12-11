@@ -1319,6 +1319,11 @@ function handleRestApiGet_(e, action, brand) {
     return jsonResponse_(api_status(brandId));
   }
 
+  // Story 5: Health check endpoint for CI/CD pipelines
+  if (action === 'health') {
+    return jsonResponse_(api_health(brandId));
+  }
+
   // Fixed: Bug #4 - CSRF token generation endpoint
   if (action === 'generateCSRFToken') {
     const token = generateCSRFToken_();
@@ -2854,6 +2859,105 @@ function checkSharedAnalyticsContract_() {
   } catch (e) {
     return { ok: false, reason: `Error validating contract: ${e.message}` };
   }
+}
+
+/**
+ * Health check endpoint for CI/CD pipelines
+ * Story 5: Lightweight health check that validates:
+ * - GAS connectivity (can read config/control sheet)
+ * - Events index is readable
+ *
+ * Returns a flat response suitable for quick CI health monitoring.
+ * The Worker will wrap this with status code and version info.
+ *
+ * @tier mvp
+ * @param {string} brandId - Brand identifier (defaults to 'root')
+ * @returns {Object} Health check result:
+ *   {
+ *     ok: boolean,
+ *     gasBuildId: string,
+ *     time: string,
+ *     checks: {
+ *       gas: "ok" | "error",
+ *       eventsIndex: "ok" | "error"
+ *     },
+ *     [errors]: string[] // Only present if checks failed
+ *   }
+ */
+function api_health(brandId) {
+  const startTime = Date.now();
+  const errors = [];
+  const checks = {
+    gas: 'error',
+    eventsIndex: 'error'
+  };
+
+  // Get brand - use root as default
+  const brand = brandId ? findBrand_(brandId) : findBrand_('root');
+
+  if (!brand) {
+    return {
+      ok: false,
+      gasBuildId: ZEB.BUILD_ID,
+      time: new Date().toISOString(),
+      durationMs: Date.now() - startTime,
+      checks: checks,
+      errors: [`Brand not found: ${brandId || 'root'}`]
+    };
+  }
+
+  // Check 1: GAS connectivity - verify we can access the spreadsheet
+  try {
+    if (!brand.store || !brand.store.spreadsheetId) {
+      errors.push('No spreadsheetId configured for brand');
+    } else {
+      const ss = SpreadsheetApp.openById(brand.store.spreadsheetId);
+      if (ss && ss.getId()) {
+        checks.gas = 'ok';
+      } else {
+        errors.push('Could not access spreadsheet');
+      }
+    }
+  } catch (e) {
+    errors.push(`GAS check failed: ${e.message || String(e)}`);
+  }
+
+  // Check 2: Events index - verify EVENTS sheet exists and is readable
+  try {
+    if (checks.gas === 'ok' && brand.store && brand.store.spreadsheetId) {
+      const ss = SpreadsheetApp.openById(brand.store.spreadsheetId);
+      const eventsSheet = ss.getSheetByName('EVENTS');
+      if (eventsSheet) {
+        // Quick read test - just get the last row
+        const lastRow = eventsSheet.getLastRow();
+        checks.eventsIndex = 'ok';
+      } else {
+        errors.push('EVENTS sheet not found');
+      }
+    } else if (checks.gas !== 'ok') {
+      errors.push('Skipped eventsIndex check due to GAS connectivity failure');
+    }
+  } catch (e) {
+    errors.push(`Events index check failed: ${e.message || String(e)}`);
+  }
+
+  const allOk = checks.gas === 'ok' && checks.eventsIndex === 'ok';
+
+  const result = {
+    ok: allOk,
+    gasBuildId: ZEB.BUILD_ID,
+    brandId: brand.id,
+    time: new Date().toISOString(),
+    durationMs: Date.now() - startTime,
+    checks: checks
+  };
+
+  // Only include errors array if there are errors
+  if (errors.length > 0) {
+    result.errors = errors;
+  }
+
+  return result;
 }
 
 /**

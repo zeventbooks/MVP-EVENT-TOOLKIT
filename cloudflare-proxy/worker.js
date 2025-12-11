@@ -73,7 +73,8 @@ const EMBEDDED_TEMPLATES = {
 // Story 1: Embedded templates to fix 503 errors on staging routes
 // Story 2: Updated for staging env vars and versioning support
 // Story 3: Defensive upstream response handling - honest JSON or structured errors
-const WORKER_VERSION = '2.5.0';
+// Story 5: Add /api/status health check endpoint for CI/CD pipelines
+const WORKER_VERSION = '2.6.0';
 
 // =============================================================================
 // OBSERVABILITY & LOGGING - Story 5 Implementation
@@ -1156,6 +1157,234 @@ function createStructuredErrorResponse(status, errorCode, message, options = {})
   return new Response(JSON.stringify(body), { status, headers });
 }
 
+// =============================================================================
+// HEALTH CHECK ENDPOINT - Story 5 Implementation
+// =============================================================================
+// Lightweight health check endpoint for CI/CD pipelines.
+// Returns structured JSON with GAS backend and eventsIndex health status.
+
+/**
+ * Health check timeout (shorter than normal API timeout for fast fail)
+ * @constant {number}
+ */
+const HEALTH_CHECK_TIMEOUT_MS = 15000; // 15 seconds
+
+/**
+ * Create a structured health check error response
+ *
+ * @param {number} status - HTTP status code (502, 503, 504)
+ * @param {string} errorCode - One of GAS_ERROR_CODES
+ * @param {string} message - Human-readable error message
+ * @param {Object} options - Additional options
+ * @param {string} options.corrId - Correlation ID
+ * @param {number} options.backendDurationMs - Upstream request duration (optional)
+ * @param {Object} options.env - Worker environment
+ * @returns {Response} JSON error response in health check format
+ */
+function createHealthCheckErrorResponse(status, errorCode, message, options = {}) {
+  const { corrId, backendDurationMs, env = {} } = options;
+  const workerBuild = env.WORKER_BUILD_VERSION || 'unknown';
+
+  const body = {
+    ok: false,
+    status,
+    errorCode,
+    message,
+    version: workerBuild,
+    checks: {
+      gas: 'error',
+      eventsIndex: 'error'
+    },
+    ...(corrId ? { corrId } : {}),
+    workerVersion: WORKER_VERSION
+  };
+
+  const headers = {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': '*',
+    'X-Proxied-By': 'eventangle-worker',
+    'X-Worker-Version': WORKER_VERSION,
+    ...(corrId ? { 'X-Error-CorrId': corrId } : {}),
+    ...(backendDurationMs !== undefined ? { 'X-Backend-Duration-Ms': String(backendDurationMs) } : {}),
+    'Cache-Control': 'no-cache, no-store, must-revalidate'
+  };
+
+  return new Response(JSON.stringify(body, null, 2), { status, headers });
+}
+
+/**
+ * Handle health check endpoint request
+ *
+ * Story 5 AC:
+ * - GET /api/status returns health check JSON
+ * - POST /api/status with { "method": "status" } also works
+ * - Response format:
+ *   {
+ *     "ok": true,
+ *     "status": 200,
+ *     "version": "stg-2025.12.09",
+ *     "checks": {
+ *       "gas": "ok",
+ *       "eventsIndex": "ok"
+ *     }
+ *   }
+ * - When GAS fails, returns 502 with ok:false and errorCode
+ * - Has strict timeout (15s) and cannot hang indefinitely
+ *
+ * @param {Request} request - The incoming request
+ * @param {string} appsScriptBase - GAS exec URL
+ * @param {Object} env - Worker environment
+ * @param {URL} url - Parsed request URL
+ * @returns {Response} Health check JSON response
+ */
+async function handleHealthCheckEndpoint(request, appsScriptBase, env, url) {
+  const origin = url.origin;
+  const workerBuild = env.WORKER_BUILD_VERSION || 'unknown';
+  const corrId = generateCorrId();
+
+  console.log(`[HEALTH] Health check request: ${request.method} ${url.pathname}`);
+
+  // Parse brandId from query params or body
+  let brandId = url.searchParams.get('brand') || url.searchParams.get('brandId') || 'root';
+
+  // For POST requests, check body for brandId
+  if (request.method === 'POST') {
+    try {
+      const bodyText = await request.clone().text();
+      if (bodyText) {
+        const body = JSON.parse(bodyText);
+        brandId = body.brandId || body.brand || brandId;
+      }
+    } catch (e) {
+      // Ignore parse errors, use default brandId
+    }
+  }
+
+  // Create AbortController for strict timeout
+  const controller = new AbortController();
+  const timeoutMs = Math.min(
+    env.HEALTH_CHECK_TIMEOUT_MS ? parseInt(env.HEALTH_CHECK_TIMEOUT_MS) : HEALTH_CHECK_TIMEOUT_MS,
+    HEALTH_CHECK_TIMEOUT_MS // Never exceed 15s for health checks
+  );
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  const fetchStartTime = Date.now();
+
+  try {
+    // Call GAS health endpoint
+    const gasBody = {
+      action: 'health',
+      brandId
+    };
+
+    const response = await fetch(appsScriptBase, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Origin': origin || 'https://eventangle.com',
+        'User-Agent': 'EventAngle-Worker-HealthCheck',
+        'X-Request-Id': corrId
+      },
+      body: JSON.stringify(gasBody),
+      redirect: 'follow',
+      signal: controller.signal
+    });
+
+    const backendDurationMs = Date.now() - fetchStartTime;
+    console.log(`[HEALTH] GAS response: ${response.status} in ${backendDurationMs}ms`);
+
+    const responseText = await response.text();
+
+    // Check for non-JSON response (GAS error page, permission denied, etc.)
+    const contentType = response.headers.get('content-type') || '';
+    if (contentType.includes('text/html') || response.status >= 400) {
+      console.log(`[HEALTH] GAS returned non-JSON or error: status=${response.status}, contentType=${contentType}`);
+      return createHealthCheckErrorResponse(
+        502,
+        GAS_ERROR_CODES.NON_JSON_RESPONSE,
+        'GAS health check returned non-JSON response. Backend may be misconfigured or unavailable.',
+        { corrId, backendDurationMs, env }
+      );
+    }
+
+    // Parse JSON response
+    let gasResult;
+    try {
+      gasResult = JSON.parse(responseText);
+    } catch (e) {
+      console.log(`[HEALTH] Failed to parse GAS response: ${e.message}`);
+      return createHealthCheckErrorResponse(
+        502,
+        GAS_ERROR_CODES.PARSE_ERROR,
+        'Failed to parse GAS health check response as JSON.',
+        { corrId, backendDurationMs, env }
+      );
+    }
+
+    // Build the final health check response
+    const healthResponse = {
+      ok: gasResult.ok === true,
+      status: gasResult.ok === true ? 200 : 502,
+      version: workerBuild,
+      gasBuildId: gasResult.gasBuildId || 'unknown',
+      brandId: gasResult.brandId || brandId,
+      time: gasResult.time || new Date().toISOString(),
+      checks: {
+        gas: gasResult.checks?.gas || (gasResult.ok ? 'ok' : 'error'),
+        eventsIndex: gasResult.checks?.eventsIndex || 'error'
+      },
+      durationMs: backendDurationMs,
+      corrId
+    };
+
+    // Include errors from GAS if present
+    if (gasResult.errors && gasResult.errors.length > 0) {
+      healthResponse.errors = gasResult.errors;
+    }
+
+    // Return with appropriate HTTP status
+    const httpStatus = healthResponse.ok ? 200 : 502;
+
+    return new Response(JSON.stringify(healthResponse, null, 2), {
+      status: httpStatus,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'X-Proxied-By': 'eventangle-worker',
+        'X-Worker-Version': WORKER_VERSION,
+        'X-Backend-Status': String(response.status),
+        'X-Backend-Duration-Ms': String(backendDurationMs),
+        'Cache-Control': 'no-cache, no-store, must-revalidate'
+      }
+    });
+
+  } catch (error) {
+    const backendDurationMs = Date.now() - fetchStartTime;
+    const isTimeout = error.name === 'AbortError';
+
+    console.log(`[HEALTH] Fetch error: ${error.message}, isTimeout=${isTimeout}`);
+
+    if (isTimeout) {
+      return createHealthCheckErrorResponse(
+        503,
+        GAS_ERROR_CODES.TIMEOUT,
+        `Health check timed out after ${timeoutMs}ms. GAS backend may be slow or unavailable.`,
+        { corrId, backendDurationMs, env }
+      );
+    }
+
+    return createHealthCheckErrorResponse(
+      503,
+      GAS_ERROR_CODES.NETWORK_ERROR,
+      `Health check failed to connect to GAS backend: ${error.message}`,
+      { corrId, backendDurationMs, env }
+    );
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 /**
  * Process upstream GAS response with defensive validation
  *
@@ -1371,6 +1600,7 @@ const CANONICAL_API_ACTIONS = Object.freeze([
   // Public API endpoints
   'api_status',
   'api_statusPure',
+  'health',        // Story 5: CI/CD health check endpoint
   'api_events',
   'api_eventById',
   'api_sponsors',
@@ -2283,6 +2513,30 @@ export default {
     const envStatusResponse = handleEnvStatusEndpoint(url, env);
     if (envStatusResponse) {
       return addTransparencyHeaders(envStatusResponse, startTime, env);
+    }
+
+    // ==========================================================================
+    // HEALTH CHECK ENDPOINT - Story 5 Implementation
+    // ==========================================================================
+    // GET /api/status (or POST with { "method": "status" })
+    // Lightweight health check for CI/CD pipelines.
+    // Returns structured JSON with GAS and eventsIndex health status.
+    if (url.pathname === '/api/status') {
+      try {
+        const response = await handleHealthCheckEndpoint(request, appsScriptBase, env, url);
+        return addTransparencyHeaders(addCORSHeaders(response), startTime, env);
+      } catch (error) {
+        const corrId = generateCorrId();
+        ctx.waitUntil(logError(env, {
+          corrId,
+          type: 'health_check_error',
+          error: error.message,
+          url: url.pathname,
+          duration: Date.now() - startTime
+        }));
+        return createHealthCheckErrorResponse(503, GAS_ERROR_CODES.SERVICE_UNAVAILABLE,
+          'Health check failed unexpectedly', { corrId });
+      }
     }
 
     // ==========================================================================
