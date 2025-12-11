@@ -195,7 +195,7 @@ async function checkHealth() {
 
   try {
     const response = await httpRequest(
-      `${CONFIG.baseUrl}/status`,
+      `${CONFIG.baseUrl}/?page=status`,
       { timeout: CONFIG.healthCheckTimeout }
     );
 

@@ -23,7 +23,7 @@ const crypto = require('crypto');
  * Returns true if status endpoint returns 200 with ok: true
  */
 async function checkDeploymentHealth(baseUrl, maxAttempts = 3) {
-  const statusUrl = `${baseUrl}/status`;
+  const statusUrl = `${baseUrl}/?page=status`;
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {
@@ -208,7 +208,7 @@ module.exports = async () => {
 
   if (shouldWarmup) {
     console.log('\n🔥 Checking deployment health before tests...');
-    console.log(`   URL: ${baseUrl}/status`);
+    console.log(`   URL: ${baseUrl}/?page=status`);
 
     const health = await checkDeploymentHealth(baseUrl);
 

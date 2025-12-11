@@ -84,7 +84,8 @@ jobs:
         run: |
           echo "Checking staging environment health..."
 
-          RESPONSE=$(curl -s -w "\n%{http_code}" "$BASE_URL/status" || echo "000")
+          # Use the correct URL format: ?page=status (matches existing workflows)
+          RESPONSE=$(curl -s -w "\n%{http_code}" "$BASE_URL/?page=status" || echo "000")
           HTTP_CODE=$(echo "$RESPONSE" | tail -1)
           BODY=$(echo "$RESPONSE" | head -n -1)
 
