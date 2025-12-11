@@ -241,7 +241,7 @@ test.describe('CLIENT-003: localStorage Unavailable', () => {
 
   test('Page works when localStorage.getItem throws', async ({ page }) => {
     await page.addInitScript(() => {
-      const originalStorage = window.localStorage;
+      // Override localStorage with throwing methods
       Object.defineProperty(window, 'localStorage', {
         value: {
           getItem: () => { throw new Error('getItem disabled'); },
@@ -542,13 +542,8 @@ test.describe('Error Recovery After Client Errors', () => {
       await page.waitForTimeout(200);
     }
 
-    // Check GlobalErrorHandler is still functional
-    const handlerAvailable = await page.evaluate(() => {
-      return typeof window.GlobalErrorHandler !== 'undefined' &&
-             typeof window.GlobalErrorHandler.showErrorDialog === 'function';
-    });
-
-    // Handler may or may not be loaded depending on page, but should not crash
+    // Page should still be functional after multiple errors
+    // (GlobalErrorHandler may or may not be loaded depending on page)
     await assertPageNotFrozen(page);
   });
 });

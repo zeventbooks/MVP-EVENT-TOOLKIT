@@ -21,7 +21,7 @@
 
 const { test, expect } = require('@playwright/test');
 const { getBaseUrl } = require('../../config/environments');
-const { COMMON, ADMIN_PAGE } = require('../selectors');
+const { ADMIN_PAGE } = require('../selectors');
 
 const BASE_URL = getBaseUrl();
 const BRAND_ID = 'root';
