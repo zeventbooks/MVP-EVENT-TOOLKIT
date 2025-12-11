@@ -1092,6 +1092,36 @@ jobs:
         run: |
           echo "Creating staging deployment..."
 
+          # Helper function to extract deployment ID with fallback methods
+          extract_deployment_id() {
+            local output="$1"
+            local id=""
+
+            # Method 1: grep -oP (Perl regex)
+            id=$(echo "$output" | grep -oP 'AKfycb[a-zA-Z0-9_-]+' 2>/dev/null | head -1) || true
+            if [ -n "$id" ]; then echo "$id"; return 0; fi
+
+            # Method 2: grep -oE (Extended regex - fallback)
+            id=$(echo "$output" | grep -oE 'AKfycb[a-zA-Z0-9_-]+' 2>/dev/null | head -1) || true
+            if [ -n "$id" ]; then echo "$id"; return 0; fi
+
+            # Method 3: sed extraction (last resort)
+            id=$(echo "$output" | sed -n 's/.*\(AKfycb[a-zA-Z0-9_-]*\).*/\1/p' 2>/dev/null | head -1) || true
+            if [ -n "$id" ]; then echo "$id"; return 0; fi
+
+            return 1
+          }
+
+          # Check for fatal clasp errors
+          check_fatal_error() {
+            local output="$1"
+            if echo "$output" | grep -qi "Could not read API credentials\|not logged in"; then
+              echo "FATAL: Authentication error - OAUTH_CREDENTIALS may be invalid/expired"
+              return 1
+            fi
+            return 0
+          }
+
           # Function to clean up old deployments when hitting the 20-deployment limit
           cleanup_old_deployments() {
             echo ""
@@ -1103,7 +1133,7 @@ jobs:
             echo "$DEPLOYMENTS"
 
             # Extract deployment IDs (AKfycb... format), excluding @HEAD
-            DEPLOYMENT_IDS=$(echo "$DEPLOYMENTS" | grep -oP 'AKfycb[a-zA-Z0-9_-]+' || true)
+            DEPLOYMENT_IDS=$(extract_deployment_id "$DEPLOYMENTS")
 
             if [ -z "$DEPLOYMENT_IDS" ]; then
               echo "WARNING: Could not extract deployment IDs for cleanup"
@@ -1158,12 +1188,13 @@ jobs:
             return 0
           }
 
-          MAX_RETRIES=4
+          MAX_RETRIES=5
           RETRY_DELAY=5
           DEPLOY_DESCRIPTION="Stage-1 staging deploy $(date -Iseconds)"
           CLEANUP_ATTEMPTED=false
 
           for attempt in $(seq 1 $MAX_RETRIES); do
+            echo ""
             echo "Deploy attempt $attempt of $MAX_RETRIES..."
 
             set +e
@@ -1172,13 +1203,18 @@ jobs:
             set -e
 
             echo "Exit code: $DEPLOY_EXIT_CODE"
-            echo "$DEPLOY_OUTPUT"
+            echo "Output: $DEPLOY_OUTPUT"
+
+            # Check for fatal auth errors first
+            if ! check_fatal_error "$DEPLOY_OUTPUT"; then
+              exit 1
+            fi
 
             if [ $DEPLOY_EXIT_CODE -eq 0 ]; then
-              # Extract deployment ID
-              DEPLOYMENT_ID=$(echo "$DEPLOY_OUTPUT" | grep -oP 'AKfycb[a-zA-Z0-9_-]+' | head -1)
+              # Extract deployment ID using fallback methods
+              DEPLOYMENT_ID=$(extract_deployment_id "$DEPLOY_OUTPUT")
 
-              if [ -n "$DEPLOYMENT_ID" ]; then
+              if [ -n "$DEPLOYMENT_ID" ] && [[ "$DEPLOYMENT_ID" =~ ^AKfycb.{40,}$ ]]; then
                 WEB_APP_URL="https://script.google.com/macros/s/${DEPLOYMENT_ID}/exec"
                 echo "deployment_id=$DEPLOYMENT_ID" >> $GITHUB_OUTPUT
                 echo "web_app_url=$WEB_APP_URL" >> $GITHUB_OUTPUT
@@ -1186,6 +1222,8 @@ jobs:
                 echo "Deployment ID: $DEPLOYMENT_ID"
                 echo "Web App URL: $WEB_APP_URL"
                 exit 0
+              else
+                echo "WARNING: Could not extract valid deployment ID from output"
               fi
             fi
 
@@ -1758,6 +1796,36 @@ jobs:
         run: |
           echo "Creating production deployment..."
 
+          # Helper function to extract deployment ID with fallback methods
+          extract_deployment_id() {
+            local output="$1"
+            local id=""
+
+            # Method 1: grep -oP (Perl regex)
+            id=$(echo "$output" | grep -oP 'AKfycb[a-zA-Z0-9_-]+' 2>/dev/null | head -1) || true
+            if [ -n "$id" ]; then echo "$id"; return 0; fi
+
+            # Method 2: grep -oE (Extended regex - fallback)
+            id=$(echo "$output" | grep -oE 'AKfycb[a-zA-Z0-9_-]+' 2>/dev/null | head -1) || true
+            if [ -n "$id" ]; then echo "$id"; return 0; fi
+
+            # Method 3: sed extraction (last resort)
+            id=$(echo "$output" | sed -n 's/.*\(AKfycb[a-zA-Z0-9_-]*\).*/\1/p' 2>/dev/null | head -1) || true
+            if [ -n "$id" ]; then echo "$id"; return 0; fi
+
+            return 1
+          }
+
+          # Check for fatal clasp errors
+          check_fatal_error() {
+            local output="$1"
+            if echo "$output" | grep -qi "Could not read API credentials\|not logged in"; then
+              echo "FATAL: Authentication error - OAUTH_CREDENTIALS may be invalid/expired"
+              return 1
+            fi
+            return 0
+          }
+
           # Function to clean up old deployments when hitting the 20-deployment limit
           cleanup_old_deployments() {
             echo ""
@@ -1769,7 +1837,7 @@ jobs:
             echo "$DEPLOYMENTS"
 
             # Extract deployment IDs (AKfycb... format), excluding @HEAD
-            DEPLOYMENT_IDS=$(echo "$DEPLOYMENTS" | grep -oP 'AKfycb[a-zA-Z0-9_-]+' || true)
+            DEPLOYMENT_IDS=$(extract_deployment_id "$DEPLOYMENTS")
 
             if [ -z "$DEPLOYMENT_IDS" ]; then
               echo "WARNING: Could not extract deployment IDs for cleanup"
@@ -1824,13 +1892,14 @@ jobs:
             return 0
           }
 
-          MAX_RETRIES=4
+          MAX_RETRIES=5
           RETRY_DELAY=5
           VERSION="${{ steps.extract-version.outputs.version }}"
           DEPLOY_DESCRIPTION="Production release ${VERSION} $(date -Iseconds)"
           CLEANUP_ATTEMPTED=false
 
           for attempt in $(seq 1 $MAX_RETRIES); do
+            echo ""
             echo "Deploy attempt $attempt of $MAX_RETRIES..."
 
             set +e
@@ -1839,13 +1908,18 @@ jobs:
             set -e
 
             echo "Exit code: $DEPLOY_EXIT_CODE"
-            echo "$DEPLOY_OUTPUT"
+            echo "Output: $DEPLOY_OUTPUT"
+
+            # Check for fatal auth errors first
+            if ! check_fatal_error "$DEPLOY_OUTPUT"; then
+              exit 1
+            fi
 
             if [ $DEPLOY_EXIT_CODE -eq 0 ]; then
-              # Extract deployment ID
-              DEPLOYMENT_ID=$(echo "$DEPLOY_OUTPUT" | grep -oP 'AKfycb[a-zA-Z0-9_-]+' | head -1)
+              # Extract deployment ID using fallback methods
+              DEPLOYMENT_ID=$(extract_deployment_id "$DEPLOY_OUTPUT")
 
-              if [ -n "$DEPLOYMENT_ID" ]; then
+              if [ -n "$DEPLOYMENT_ID" ] && [[ "$DEPLOYMENT_ID" =~ ^AKfycb.{40,}$ ]]; then
                 WEB_APP_URL="https://script.google.com/macros/s/${DEPLOYMENT_ID}/exec"
                 echo "deployment_id=$DEPLOYMENT_ID" >> $GITHUB_OUTPUT
                 echo "web_app_url=$WEB_APP_URL" >> $GITHUB_OUTPUT
@@ -1853,6 +1927,8 @@ jobs:
                 echo "Deployment ID: $DEPLOYMENT_ID"
                 echo "Web App URL: $WEB_APP_URL"
                 exit 0
+              else
+                echo "WARNING: Could not extract valid deployment ID from output"
               fi
             fi
 

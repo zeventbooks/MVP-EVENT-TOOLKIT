@@ -191,17 +191,85 @@ jobs:
           echo "      and CANNOT be changed. We must create a NEW deployment."
           echo ""
 
+          # Helper function to extract deployment ID with multiple fallback methods
+          extract_deployment_id() {
+            local output="$1"
+            local id=""
+
+            # Method 1: grep -oP (Perl regex - most reliable)
+            id=$(echo "$output" | grep -oP 'AKfycb[a-zA-Z0-9_-]+' 2>/dev/null | head -1) || true
+            if [ -n "$id" ]; then
+              echo "$id"
+              return 0
+            fi
+
+            # Method 2: grep -oE (Extended regex - fallback)
+            id=$(echo "$output" | grep -oE 'AKfycb[a-zA-Z0-9_-]+' 2>/dev/null | head -1) || true
+            if [ -n "$id" ]; then
+              echo "$id"
+              return 0
+            fi
+
+            # Method 3: sed extraction (last resort)
+            id=$(echo "$output" | sed -n 's/.*\(AKfycb[a-zA-Z0-9_-]*\).*/\1/p' 2>/dev/null | head -1) || true
+            if [ -n "$id" ]; then
+              echo "$id"
+              return 0
+            fi
+
+            return 1
+          }
+
+          # Helper function to check for clasp errors
+          check_clasp_error() {
+            local output="$1"
+
+            # Check for common clasp error patterns
+            if echo "$output" | grep -qi "Could not read API credentials"; then
+              echo "ERROR: OAuth credentials are invalid or expired"
+              return 1
+            fi
+            if echo "$output" | grep -qi "not logged in"; then
+              echo "ERROR: Not logged in to clasp"
+              return 1
+            fi
+            if echo "$output" | grep -qi "Permission denied"; then
+              echo "ERROR: Permission denied to Apps Script project"
+              return 1
+            fi
+            if echo "$output" | grep -qi "ECONNRESET\|ETIMEDOUT\|network"; then
+              echo "WARNING: Network error detected (will retry)"
+              return 2
+            fi
+            if echo "$output" | grep -qi "Error:"; then
+              echo "WARNING: clasp reported an error"
+              return 2
+            fi
+
+            return 0
+          }
+
           # Clean up old deployments if needed
           cleanup_deployments() {
-            DEPLOYMENTS=$(clasp deployments 2>&1)
-            DEPLOY_IDS=$(echo "$DEPLOYMENTS" | grep -oP 'AKfycb[a-zA-Z0-9_-]+' || true)
+            echo "Checking existing deployments..."
+            DEPLOYMENTS=$(clasp deployments 2>&1) || true
+
+            # Check for auth errors
+            if ! check_clasp_error "$DEPLOYMENTS"; then
+              echo "Cannot list deployments due to error"
+              return 1
+            fi
+
+            DEPLOY_IDS=$(extract_deployment_id "$DEPLOYMENTS")
 
             if [ -z "$DEPLOY_IDS" ]; then
+              echo "No existing deployments found"
               return 0
             fi
 
             readarray -t DEPLOY_ARRAY <<< "$DEPLOY_IDS"
             COUNT=${#DEPLOY_ARRAY[@]}
+            echo "Found $COUNT existing deployment(s)"
 
             if [ "$COUNT" -ge 18 ]; then
               echo "Cleaning up old deployments ($COUNT found)..."
@@ -210,6 +278,7 @@ jobs:
 
               for (( i=0; i<DELETE; i++ )); do
                 ID="${DEPLOY_ARRAY[$i]}"
+                echo "  Removing: ${ID:0:20}..."
                 clasp undeploy "$ID" 2>/dev/null || true
                 sleep 1
               done
@@ -222,38 +291,105 @@ jobs:
           # Create deployment
           DESCRIPTION="Permission fix - $(date -Iseconds) - ${{ github.sha }}"
 
-          MAX_RETRIES=3
+          MAX_RETRIES=5
+          DEPLOYMENT_ID=""
+          DEPLOY_SUCCESS=false
+
           for attempt in $(seq 1 $MAX_RETRIES); do
-            echo "Deploy attempt $attempt..."
+            echo ""
+            echo "Deploy attempt $attempt of $MAX_RETRIES..."
+            echo "----------------------------------------"
 
-            DEPLOY_OUTPUT=$(clasp deploy -d "$DESCRIPTION" 2>&1) || true
+            # Run clasp deploy and capture both output and exit code
+            set +e
+            DEPLOY_OUTPUT=$(clasp deploy -d "$DESCRIPTION" 2>&1)
+            DEPLOY_EXIT_CODE=$?
+            set -e
+
+            echo "clasp exit code: $DEPLOY_EXIT_CODE"
+            echo "clasp output:"
+            echo "---"
             echo "$DEPLOY_OUTPUT"
+            echo "---"
 
-            # Check for limit
-            if echo "$DEPLOY_OUTPUT" | grep -q "20 versioned"; then
-              cleanup_deployments
-              continue
-            fi
-
-            DEPLOYMENT_ID=$(echo "$DEPLOY_OUTPUT" | grep -oP 'AKfycb[a-zA-Z0-9_-]+' | head -1)
-
-            if [ -n "$DEPLOYMENT_ID" ]; then
+            # Check for authentication/permission errors (fatal - don't retry)
+            check_clasp_error "$DEPLOY_OUTPUT"
+            ERROR_CODE=$?
+            if [ $ERROR_CODE -eq 1 ]; then
               echo ""
-              echo "✓ NEW deployment created!"
-              echo "  ID: $DEPLOYMENT_ID"
-              echo ""
-              echo "deployment_id=$DEPLOYMENT_ID" >> $GITHUB_OUTPUT
-              echo "web_app_url=https://script.google.com/macros/s/${DEPLOYMENT_ID}/exec" >> $GITHUB_OUTPUT
-              break
-            fi
-
-            if [ $attempt -eq $MAX_RETRIES ]; then
-              echo "ERROR: Deploy failed"
+              echo "FATAL: Authentication or permission error detected"
+              echo "Please verify OAUTH_CREDENTIALS secret is valid and not expired"
               exit 1
             fi
 
-            sleep 5
+            # Check for deployment limit (recoverable)
+            if echo "$DEPLOY_OUTPUT" | grep -q "20 versioned"; then
+              echo "Hit 20-deployment limit - cleaning up..."
+              cleanup_deployments
+              sleep 2
+              continue
+            fi
+
+            # Try to extract deployment ID
+            DEPLOYMENT_ID=$(extract_deployment_id "$DEPLOY_OUTPUT")
+
+            if [ -n "$DEPLOYMENT_ID" ]; then
+              # Validate deployment ID format
+              if [[ "$DEPLOYMENT_ID" =~ ^AKfycb.{40,}$ ]]; then
+                echo ""
+                echo "=============================================="
+                echo "✓ NEW deployment created successfully!"
+                echo "=============================================="
+                echo "  Deployment ID: $DEPLOYMENT_ID"
+                echo "  ID Length: ${#DEPLOYMENT_ID} characters"
+                echo ""
+                DEPLOY_SUCCESS=true
+                break
+              else
+                echo "WARNING: Extracted ID looks malformed: $DEPLOYMENT_ID"
+                DEPLOYMENT_ID=""
+              fi
+            fi
+
+            # Check if this was the last attempt
+            if [ $attempt -eq $MAX_RETRIES ]; then
+              echo ""
+              echo "=============================================="
+              echo "ERROR: All $MAX_RETRIES deployment attempts failed"
+              echo "=============================================="
+              echo ""
+              echo "Troubleshooting:"
+              echo "  1. Check OAUTH_CREDENTIALS secret is valid"
+              echo "  2. Run 'clasp login' locally and update the secret"
+              echo "  3. Verify the Script ID is correct"
+              echo "  4. Check Apps Script quotas: https://script.google.com/home"
+              echo ""
+              exit 1
+            fi
+
+            echo "Waiting before retry..."
+            sleep $((attempt * 3))
           done
+
+          # Final safety check - ensure we have a valid deployment ID
+          if [ "$DEPLOY_SUCCESS" != "true" ] || [ -z "$DEPLOYMENT_ID" ]; then
+            echo ""
+            echo "ERROR: Deployment loop completed but no valid deployment ID captured"
+            echo "  DEPLOY_SUCCESS: $DEPLOY_SUCCESS"
+            echo "  DEPLOYMENT_ID: '${DEPLOYMENT_ID:-empty}'"
+            exit 1
+          fi
+
+          # Set outputs for downstream steps
+          WEB_APP_URL="https://script.google.com/macros/s/${DEPLOYMENT_ID}/exec"
+
+          echo "deployment_id=$DEPLOYMENT_ID" >> $GITHUB_OUTPUT
+          echo "web_app_url=$WEB_APP_URL" >> $GITHUB_OUTPUT
+
+          echo ""
+          echo "Outputs set:"
+          echo "  deployment_id=$DEPLOYMENT_ID"
+          echo "  web_app_url=$WEB_APP_URL"
 
           # Restore original .clasp.json
           [ -f .clasp.json.backup ] && mv .clasp.json.backup .clasp.json || true
