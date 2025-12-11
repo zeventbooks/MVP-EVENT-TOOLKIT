@@ -439,13 +439,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "fix(${{ inputs.environment }}): update deployment ID with correct permissions
-
-Deployment ID: ${{ steps.deploy.outputs.deployment_id }}
-Web App URL: ${{ steps.deploy.outputs.web_app_url }}
-
-This fixes the GAS permission error on POST requests by creating
-a new deployment with ANYONE_ANONYMOUS access."
+            git commit -m "fix(${{ inputs.environment }}): update GAS deployment ID with correct permissions"
 
             git push
             echo "✓ Changes committed and pushed"
