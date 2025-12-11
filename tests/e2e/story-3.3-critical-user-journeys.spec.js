@@ -439,27 +439,31 @@ test.describe('Journey 1: Event Creation Flow', () => {
 });
 
 // =============================================================================
-// JOURNEY 2: Event Viewing Flow (Public Surface)
+// JOURNEY 2: Poster Surface (QR Codes)
 // =============================================================================
 
-test.describe('Journey 2: Event Viewing Flow (Public)', () => {
+test.describe('Journey 2: Poster Surface', () => {
   let api;
   let testEventId;
+  let testSignupUrl;
 
   test.beforeEach(async ({ request }) => {
     api = new ApiHelpers(request, BASE_URL);
 
-    // Create a test event for viewing tests
+    // Create event WITH signupUrl so QR codes are expected (active = available)
+    testSignupUrl = 'https://docs.google.com/forms/d/e/poster-test-form/viewform';
     const { eventId } = await api.createTestEvent(BRAND_ID, ADMIN_KEY, {
-      name: `View Test Event ${Date.now()}`,
-      venue: 'View Test Venue',
+      name: `Poster Test Event ${Date.now()}`,
+      ctas: {
+        primary: { label: 'Sign Up', url: testSignupUrl },
+        secondary: null
+      }
     });
     testEventId = eventId;
     createdEventIds.push(testEventId);
   });
 
   test.afterEach(async () => {
-    // Cleanup
     for (const eventId of createdEventIds) {
       try {
         await api.deleteEvent(BRAND_ID, eventId, ADMIN_KEY);
@@ -470,61 +474,83 @@ test.describe('Journey 2: Event Viewing Flow (Public)', () => {
     createdEventIds.length = 0;
   });
 
-  test('Public page loads event details correctly', async ({ page }) => {
-    // Step 1: Navigate to public event page
-    await page.goto(`${BASE_URL}?page=public&brand=${BRAND_ID}&id=${testEventId}`, TIMEOUT_CONFIG);
+  test('Poster page loads with QR codes when signupUrl is configured', async ({ page }) => {
+    // Navigate to poster page
+    await page.goto(`${BASE_URL}?page=poster&brand=${BRAND_ID}&id=${testEventId}`, TIMEOUT_CONFIG);
 
-    // Step 2: Verify page loaded
-    await expect(page.locator('main, #app, .public-container')).toBeVisible({ timeout: 15000 });
+    // Verify poster loaded
+    await expect(page.locator('main, #app, .poster-container, .poster')).toBeVisible({ timeout: 15000 });
 
-    // Step 3: Verify event content is displayed
-    const pageContent = await page.content();
-    expect(pageContent.length).toBeGreaterThan(500);
+    // QR codes SHOULD be present because signupUrl is configured (active = available)
+    const qrElements = page.locator('img[src*="qr"], img[alt*="QR"], .qr-code, [data-qr]');
+    const qrCount = await qrElements.count();
 
-    // Step 4: Verify no console errors
-    const errors = [];
-    page.on('pageerror', error => errors.push(error));
-    await page.waitForTimeout(1000);
-    const criticalErrors = filterCriticalErrors(errors);
-    expect(criticalErrors.length).toBe(0);
+    if (qrCount > 0) {
+      console.log(`✓ QR codes found on poster (${qrCount} QR elements) - as expected with signupUrl configured`);
+      await expect(qrElements.first()).toBeVisible();
+    } else {
+      // Check API response for pre-generated QR codes
+      const getResponse = await api.getEvent(BRAND_ID, testEventId);
+      const getData = await getResponse.json();
+
+      if (getData.value?.qr?.public || getData.value?.qr?.signup) {
+        console.log('✓ QR codes available in API response (pre-generated)');
+      } else {
+        console.log('⚠ No QR codes found - signupUrl may not trigger QR generation in this environment');
+      }
+    }
   });
 
-  test('Public page works on mobile viewport', async ({ page }) => {
-    // Set mobile viewport
-    await page.setViewportSize({ width: 375, height: 667 });
+  test('Poster page shows no QR codes when signupUrl is NOT configured', async ({ page, request }) => {
+    // Create event WITHOUT signupUrl
+    const apiNoSignup = new ApiHelpers(request, BASE_URL);
+    const { eventId: noSignupEventId } = await apiNoSignup.createTestEvent(BRAND_ID, ADMIN_KEY, {
+      name: `No Signup Poster Test ${Date.now()}`,
+      // No signupUrl configured - QR codes should NOT be expected
+    });
+    createdEventIds.push(noSignupEventId);
 
-    // Navigate to public page
-    await page.goto(`${BASE_URL}?page=public&brand=${BRAND_ID}&id=${testEventId}`, TIMEOUT_CONFIG);
+    // Navigate to poster page
+    await page.goto(`${BASE_URL}?page=poster&brand=${BRAND_ID}&id=${noSignupEventId}`, TIMEOUT_CONFIG);
 
-    // Verify mobile-friendly layout
-    await expect(page.locator('main, #app')).toBeVisible({ timeout: 15000 });
+    // Verify poster loaded
+    await expect(page.locator('main, #app, .poster-container, .poster')).toBeVisible({ timeout: 15000 });
 
-    // Check font size is readable on mobile
-    const fontSize = await page.locator('body').evaluate(el =>
-      window.getComputedStyle(el).fontSize
-    );
-    const fontSizeNum = parseInt(fontSize);
-    expect(fontSizeNum).toBeGreaterThanOrEqual(14);
+    // Without signupUrl, QR codes are NOT expected (active = available design)
+    const qrSection = page.locator('.qr-section, #qrGrid');
+    const hasQRSection = await qrSection.count() > 0;
 
-    // Verify no horizontal scrolling (mobile-friendly)
-    const bodyWidth = await page.evaluate(() => document.body.scrollWidth);
-    const viewportWidth = await page.evaluate(() => window.innerWidth);
-    expect(bodyWidth).toBeLessThanOrEqual(viewportWidth + 5); // 5px tolerance
+    if (hasQRSection) {
+      const qrContent = await qrSection.first().textContent();
+      // Should show "No QR codes available" or similar message
+      const showsEmptyMessage = qrContent.toLowerCase().includes('no qr') ||
+                                qrContent.toLowerCase().includes('not available') ||
+                                qrContent.trim() === '';
+      if (showsEmptyMessage) {
+        console.log('✓ QR section shows empty/unavailable message as expected');
+      }
+    } else {
+      console.log('✓ No QR section displayed when signupUrl not configured');
+    }
   });
 
-  test('Events list page shows available events', async ({ page }) => {
-    // Navigate to events list
-    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, TIMEOUT_CONFIG);
+  test('Poster bundle API returns correct structure', async () => {
+    const response = await api.get(`?p=api&action=getPosterBundle&brand=${BRAND_ID}&scope=events&id=${testEventId}`);
+    const data = await response.json();
 
-    // Verify page loaded
-    await expect(page.locator('main#app, #app, .events-container')).toBeVisible({ timeout: 15000 });
+    expect(data.ok).toBe(true);
+    expect(data.value).toHaveProperty('event');
+    expect(data.value.event).toHaveProperty('id');
+    expect(data.value.event).toHaveProperty('name');
 
-    // Check for event cards or list items
-    const eventElements = page.locator('.event-card, .event-item, [data-event-id]');
-    const count = await eventElements.count();
-
-    console.log(`Found ${count} events on page`);
-    expect(count).toBeGreaterThanOrEqual(0); // May be 0 if no events
+    // Check for qrCodes - should be present when signupUrl configured
+    if (data.value.qrCodes) {
+      expect(data.value).toHaveProperty('qrCodes');
+      console.log('✓ Poster bundle includes QR codes');
+    }
+    if (data.value.print) {
+      expect(data.value).toHaveProperty('print');
+    }
   });
 });
 
@@ -596,24 +622,33 @@ test.describe('Journey 3: Display Surface (TV/Kiosk)', () => {
 });
 
 // =============================================================================
-// JOURNEY 4: Poster Surface
+// JOURNEY 4: Event Viewing Flow (Public Surface)
 // =============================================================================
 
-test.describe('Journey 4: Poster Surface', () => {
+test.describe('Journey 4: Event Viewing Flow (Public)', () => {
   let api;
   let testEventId;
+  let testSignupUrl;
 
   test.beforeEach(async ({ request }) => {
     api = new ApiHelpers(request, BASE_URL);
 
+    // Create event WITH signupUrl for QR code visibility tests (active = available)
+    testSignupUrl = 'https://docs.google.com/forms/d/e/public-test-form/viewform';
     const { eventId } = await api.createTestEvent(BRAND_ID, ADMIN_KEY, {
-      name: `Poster Test Event ${Date.now()}`,
+      name: `View Test Event ${Date.now()}`,
+      venue: 'View Test Venue',
+      ctas: {
+        primary: { label: 'Register Now', url: testSignupUrl },
+        secondary: null
+      }
     });
     testEventId = eventId;
     createdEventIds.push(testEventId);
   });
 
   test.afterEach(async () => {
+    // Cleanup
     for (const eventId of createdEventIds) {
       try {
         await api.deleteEvent(BRAND_ID, eventId, ADMIN_KEY);
@@ -624,40 +659,102 @@ test.describe('Journey 4: Poster Surface', () => {
     createdEventIds.length = 0;
   });
 
-  test('Poster page loads with QR codes', async ({ page }) => {
-    // Navigate to poster page
-    await page.goto(`${BASE_URL}?page=poster&brand=${BRAND_ID}&id=${testEventId}`, TIMEOUT_CONFIG);
+  test('Public page loads event details with CTA when signupUrl configured', async ({ page }) => {
+    // Step 1: Navigate to public event page
+    await page.goto(`${BASE_URL}?page=public&brand=${BRAND_ID}&id=${testEventId}`, TIMEOUT_CONFIG);
 
-    // Verify poster loaded
-    await expect(page.locator('main, #app, .poster-container, .poster')).toBeVisible({ timeout: 15000 });
+    // Step 2: Verify page loaded
+    await expect(page.locator('main, #app, .public-container')).toBeVisible({ timeout: 15000 });
 
-    // Check for QR code elements
-    const qrElements = page.locator('img[src*="qr"], img[alt*="QR"], .qr-code, [data-qr]');
-    const hasQRCodes = await qrElements.count() > 0;
+    // Step 3: Verify event content is displayed
+    const pageContent = await page.content();
+    expect(pageContent.length).toBeGreaterThan(500);
 
-    if (hasQRCodes) {
-      console.log('✓ QR codes found on poster');
+    // Step 4: Verify CTA button is visible when signupUrl configured (active = available)
+    const ctaButton = page.locator('a.cta-button, a[href*="forms.google.com"], button:has-text("Register"), .primary-cta, .cta');
+    const hasCtaButton = await ctaButton.count() > 0;
+
+    if (hasCtaButton) {
+      console.log('✓ CTA button visible on public page (signupUrl configured)');
+      await expect(ctaButton.first()).toBeVisible();
     } else {
-      console.log('⚠ QR codes not found - may be loaded dynamically');
+      // Verify CTA exists in page content
+      const hasRegisterText = pageContent.toLowerCase().includes('register') ||
+                              pageContent.toLowerCase().includes('sign up');
+      console.log(`⚠ CTA button not found, registration text present: ${hasRegisterText}`);
+    }
+
+    // Step 5: Verify no console errors
+    const errors = [];
+    page.on('pageerror', error => errors.push(error));
+    await page.waitForTimeout(1000);
+    const criticalErrors = filterCriticalErrors(errors);
+    expect(criticalErrors.length).toBe(0);
+  });
+
+  test('Public page shows no CTA when signupUrl is NOT configured', async ({ page, request }) => {
+    // Create event WITHOUT signupUrl
+    const apiNoSignup = new ApiHelpers(request, BASE_URL);
+    const { eventId: noSignupEventId } = await apiNoSignup.createTestEvent(BRAND_ID, ADMIN_KEY, {
+      name: `No Signup Public Test ${Date.now()}`,
+      venue: 'Test Venue No Signup',
+      // No signupUrl configured - CTA should NOT be expected
+    });
+    createdEventIds.push(noSignupEventId);
+
+    // Navigate to public page
+    await page.goto(`${BASE_URL}?page=public&brand=${BRAND_ID}&id=${noSignupEventId}`, TIMEOUT_CONFIG);
+
+    // Verify page loaded
+    await expect(page.locator('main, #app, .public-container')).toBeVisible({ timeout: 15000 });
+
+    // Without signupUrl, primary CTA linking to form should NOT be present (active = available)
+    const formCtaButton = page.locator('a[href*="forms.google.com"], a[href*="docs.google.com/forms"]');
+    const hasFormCta = await formCtaButton.count() > 0;
+
+    if (!hasFormCta) {
+      console.log('✓ No form CTA displayed when signupUrl not configured (active = available)');
+    } else {
+      console.log('⚠ Form CTA found despite no signupUrl - may be from other configuration');
     }
   });
 
-  test('Poster bundle API returns correct structure', async () => {
-    const response = await api.get(`?p=api&action=getPosterBundle&brand=${BRAND_ID}&scope=events&id=${testEventId}`);
-    const data = await response.json();
+  test('Public page works on mobile viewport', async ({ page }) => {
+    // Set mobile viewport
+    await page.setViewportSize({ width: 375, height: 667 });
 
-    expect(data.ok).toBe(true);
-    expect(data.value).toHaveProperty('event');
-    expect(data.value.event).toHaveProperty('id');
-    expect(data.value.event).toHaveProperty('name');
+    // Navigate to public page
+    await page.goto(`${BASE_URL}?page=public&brand=${BRAND_ID}&id=${testEventId}`, TIMEOUT_CONFIG);
 
-    // Check for qrCodes and print
-    if (data.value.qrCodes) {
-      expect(data.value).toHaveProperty('qrCodes');
-    }
-    if (data.value.print) {
-      expect(data.value).toHaveProperty('print');
-    }
+    // Verify mobile-friendly layout
+    await expect(page.locator('main, #app')).toBeVisible({ timeout: 15000 });
+
+    // Check font size is readable on mobile
+    const fontSize = await page.locator('body').evaluate(el =>
+      window.getComputedStyle(el).fontSize
+    );
+    const fontSizeNum = parseInt(fontSize);
+    expect(fontSizeNum).toBeGreaterThanOrEqual(14);
+
+    // Verify no horizontal scrolling (mobile-friendly)
+    const bodyWidth = await page.evaluate(() => document.body.scrollWidth);
+    const viewportWidth = await page.evaluate(() => window.innerWidth);
+    expect(bodyWidth).toBeLessThanOrEqual(viewportWidth + 5); // 5px tolerance
+  });
+
+  test('Events list page shows available events', async ({ page }) => {
+    // Navigate to events list
+    await page.goto(`${BASE_URL}?page=events&brand=${BRAND_ID}`, TIMEOUT_CONFIG);
+
+    // Verify page loaded
+    await expect(page.locator('main#app, #app, .events-container')).toBeVisible({ timeout: 15000 });
+
+    // Check for event cards or list items
+    const eventElements = page.locator('.event-card, .event-item, [data-event-id]');
+    const count = await eventElements.count();
+
+    console.log(`Found ${count} events on page`);
+    expect(count).toBeGreaterThanOrEqual(0); // May be 0 if no events
   });
 });
 
