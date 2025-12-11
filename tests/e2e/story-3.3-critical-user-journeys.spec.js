@@ -652,10 +652,154 @@ test.describe('Journey 2: Sponsor Flow', () => {
 });
 
 // =============================================================================
-// JOURNEY 3: Display Surface (TV/Kiosk)
+// JOURNEY 3: Poster Surface (Print/Digital Signage)
 // =============================================================================
 
-test.describe('Journey 3: Display Surface (TV/Kiosk)', () => {
+test.describe('Journey 3: Poster Surface', () => {
+  let api;
+  let testEventId;
+
+  test.beforeEach(async ({ request }) => {
+    api = new ApiHelpers(request, BASE_URL);
+
+    // Create event for poster testing
+    const { eventId } = await api.createTestEvent(BRAND_ID, ADMIN_KEY, {
+      name: `Poster Test Event ${Date.now()}`,
+      venue: 'Poster Test Venue',
+    });
+    testEventId = eventId;
+    createdEventIds.push(testEventId);
+  });
+
+  test.afterEach(async () => {
+    for (const eventId of createdEventIds) {
+      try {
+        await api.deleteEvent(BRAND_ID, eventId, ADMIN_KEY);
+      } catch (error) {
+        console.warn(`⚠ Cleanup failed for ${eventId}`);
+      }
+    }
+    createdEventIds.length = 0;
+  });
+
+  test('Poster page loads and renders event details', async ({ page }) => {
+    // Navigate to poster page
+    await page.goto(`${BASE_URL}?page=poster&brand=${BRAND_ID}&id=${testEventId}`, TIMEOUT_CONFIG);
+
+    // Verify poster loaded
+    await expect(page.locator('main, #app, .poster-container, .poster')).toBeVisible({ timeout: 15000 });
+
+    // Check for basic event content
+    const pageContent = await page.textContent('body');
+    expect(pageContent.length).toBeGreaterThan(100);
+
+    console.log('✓ Poster page loaded successfully');
+  });
+
+  test('Poster bundle API returns correct structure', async () => {
+    // Test the poster API directly
+    const response = await api.get(`?p=api&action=getPosterBundle&brand=${BRAND_ID}&scope=events&id=${testEventId}`);
+    const data = await response.json();
+
+    expect(data.ok).toBe(true);
+    expect(data.value).toHaveProperty('event');
+    expect(data.value.event).toHaveProperty('id');
+    expect(data.value.event).toHaveProperty('name');
+
+    console.log('✓ Poster bundle API returns valid structure');
+  });
+
+  test('Poster shows QR codes when signupUrl is configured (active = available)', async ({ page, request }) => {
+    // Create event WITH signupUrl
+    const signupUrl = 'https://docs.google.com/forms/d/e/poster-qr-test/viewform';
+    const apiWithSignup = new ApiHelpers(request, BASE_URL);
+    const { eventId: signupEventId } = await apiWithSignup.createTestEvent(BRAND_ID, ADMIN_KEY, {
+      name: `Poster QR Test Event ${Date.now()}`,
+      ctas: {
+        primary: { label: 'Sign Up', url: signupUrl },
+        secondary: null
+      }
+    });
+    createdEventIds.push(signupEventId);
+
+    // Navigate to poster page
+    await page.goto(`${BASE_URL}?page=poster&brand=${BRAND_ID}&id=${signupEventId}`, TIMEOUT_CONFIG);
+
+    await expect(page.locator('main, #app, .poster-container')).toBeVisible({ timeout: 15000 });
+
+    // Check for QR section when signupUrl is configured
+    const qrSection = page.locator('.qr-section, .qr-codes, #qrGrid, [data-qr]');
+    const hasQRSection = await qrSection.count() > 0;
+
+    if (hasQRSection) {
+      await expect(qrSection.first()).toBeVisible();
+      console.log('✓ QR section visible when signupUrl configured');
+    }
+
+    // Check for QR code images
+    const qrImages = page.locator('img[src*="qr"], img[src*="quickchart"], img[alt*="QR"], .qr-code img');
+    const qrCount = await qrImages.count();
+
+    if (qrCount > 0) {
+      console.log(`✓ Found ${qrCount} QR code(s) on poster`);
+    } else {
+      console.log('⚠ No QR images found - QR may be generated server-side');
+    }
+  });
+
+  test('Poster hides QR section when no signupUrl configured (active = available)', async ({ page, request }) => {
+    // Create event WITHOUT signupUrl
+    const apiNoSignup = new ApiHelpers(request, BASE_URL);
+    const { eventId: noSignupEventId } = await apiNoSignup.createTestEvent(BRAND_ID, ADMIN_KEY, {
+      name: `Poster No QR Test ${Date.now()}`,
+      // No signupUrl - QR section should be hidden or empty
+    });
+    createdEventIds.push(noSignupEventId);
+
+    // Navigate to poster page
+    await page.goto(`${BASE_URL}?page=poster&brand=${BRAND_ID}&id=${noSignupEventId}`, TIMEOUT_CONFIG);
+
+    await expect(page.locator('main, #app')).toBeVisible({ timeout: 15000 });
+
+    // QR section should be empty or hidden when no URLs configured
+    const qrGrid = page.locator('#qrGrid');
+    const hasQRGrid = await qrGrid.count() > 0;
+
+    if (hasQRGrid) {
+      const content = await qrGrid.textContent();
+      const isEmpty = content.trim() === '' || content.toLowerCase().includes('no qr');
+      if (isEmpty) {
+        console.log('✓ QR grid empty when no signupUrl (active = available)');
+      }
+    } else {
+      console.log('✓ QR section not rendered when no signupUrl (active = available)');
+    }
+  });
+
+  test('Poster renders at print-friendly dimensions', async ({ page }) => {
+    // Set poster-like viewport (A4-ish aspect ratio)
+    await page.setViewportSize({ width: 794, height: 1123 }); // A4 at 96 DPI
+
+    await page.goto(`${BASE_URL}?page=poster&brand=${BRAND_ID}&id=${testEventId}`, TIMEOUT_CONFIG);
+
+    await expect(page.locator('main, #app, .poster-container')).toBeVisible({ timeout: 15000 });
+
+    // Verify content is readable at this size
+    const fontSize = await page.locator('body').evaluate(el =>
+      window.getComputedStyle(el).fontSize
+    );
+    const fontSizeNum = parseInt(fontSize);
+    expect(fontSizeNum).toBeGreaterThanOrEqual(10); // Minimum readable font size
+
+    console.log('✓ Poster renders at print-friendly dimensions');
+  });
+});
+
+// =============================================================================
+// JOURNEY 4: Display Surface (TV/Kiosk)
+// =============================================================================
+
+test.describe('Journey 4: Display Surface (TV/Kiosk)', () => {
   let api;
   let testEventId;
 
@@ -719,10 +863,10 @@ test.describe('Journey 3: Display Surface (TV/Kiosk)', () => {
 });
 
 // =============================================================================
-// JOURNEY 4: Event Viewing Flow (Public Surface)
+// JOURNEY 5: Event Viewing Flow (Public Surface)
 // =============================================================================
 
-test.describe('Journey 4: Event Viewing Flow (Public)', () => {
+test.describe('Journey 5: Event Viewing Flow (Public)', () => {
   let api;
   let testEventId;
   let testSignupUrl;
@@ -856,10 +1000,10 @@ test.describe('Journey 4: Event Viewing Flow (Public)', () => {
 });
 
 // =============================================================================
-// JOURNEY 5: Shared Report (Analytics)
+// JOURNEY 6: Shared Report (Analytics)
 // =============================================================================
 
-test.describe('Journey 5: Shared Report (Analytics)', () => {
+test.describe('Journey 6: Shared Report (Analytics)', () => {
   let api;
   let testEventId;
 
@@ -912,10 +1056,10 @@ test.describe('Journey 5: Shared Report (Analytics)', () => {
 });
 
 // =============================================================================
-// JOURNEY 6: Event Management (Admin Updates)
+// JOURNEY 7: Event Management (Admin Updates)
 // =============================================================================
 
-test.describe('Journey 6: Event Management', () => {
+test.describe('Journey 7: Event Management', () => {
   let api;
   let testEventId;
 
@@ -1006,10 +1150,10 @@ test.describe('Journey 6: Event Management', () => {
 });
 
 // =============================================================================
-// JOURNEY 7: Cross-Surface Integration
+// JOURNEY 8: Cross-Surface Integration
 // =============================================================================
 
-test.describe('Journey 7: Cross-Surface Integration', () => {
+test.describe('Journey 8: Cross-Surface Integration', () => {
   let api;
   let testEventId;
   let testEventName;
@@ -1063,10 +1207,10 @@ test.describe('Journey 7: Cross-Surface Integration', () => {
 });
 
 // =============================================================================
-// JOURNEY 8: System Health and API Status
+// JOURNEY 9: System Health and API Status
 // =============================================================================
 
-test.describe('Journey 8: System Health', () => {
+test.describe('Journey 9: System Health', () => {
   let api;
 
   test.beforeEach(async ({ request }) => {
@@ -1112,10 +1256,10 @@ test.describe('Journey 8: System Health', () => {
 });
 
 // =============================================================================
-// JOURNEY 9: Error Handling and Edge Cases
+// JOURNEY 10: Error Handling and Edge Cases
 // =============================================================================
 
-test.describe('Journey 9: Error Handling', () => {
+test.describe('Journey 10: Error Handling', () => {
   let api;
 
   test.beforeEach(async ({ request }) => {

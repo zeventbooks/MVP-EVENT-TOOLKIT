@@ -269,23 +269,31 @@ The `playwright.config.js` automatically adjusts for CI:
 
 ### Journey 1: Event Creation Flow
 
-**Covers**: Admin creates event via API/UI, event appears in list
+**Covers**: Admin creates event via API/UI, event appears in list, Sign-Up Form + QR validation
 
 ```
-Admin → Create Event → API Validation → Public Page Verification
+Admin → Create Event → API Validation → Public Page → Poster QR Verification
 ```
 
 **Test**: `tests/e2e/story-3.3-critical-user-journeys.spec.js`
 
-### Journey 2: Event Viewing Flow
+### Journey 2: Sponsor Flow
 
-**Covers**: Public page rendering, mobile responsiveness
+**Covers**: Sponsor configuration, QR codes, analytics reports
 
 ```
-Public Page → Load Event → Verify Content → Mobile Viewport
+Configure Sponsors → Display Surface → Poster QR → SharedReport Analytics
 ```
 
-### Journey 3: Display Surface
+### Journey 3: Poster Surface
+
+**Covers**: Poster rendering with QR codes (active = available)
+
+```
+Poster Page → QR Codes (when configured) → Print Layout → API Bundle
+```
+
+### Journey 4: Display Surface
 
 **Covers**: TV/Kiosk rendering at 1920x1080
 
@@ -293,15 +301,15 @@ Public Page → Load Event → Verify Content → Mobile Viewport
 Display Page → TV Mode → Sponsor Rotation → API Bundle
 ```
 
-### Journey 4: Poster Surface
+### Journey 5: Event Viewing Flow
 
-**Covers**: Poster rendering with QR codes
+**Covers**: Public page rendering, CTA visibility (active = available), mobile responsiveness
 
 ```
-Poster Page → QR Codes → Print Layout → API Bundle
+Public Page → Load Event → CTA when signupUrl → Mobile Viewport
 ```
 
-### Journey 5: Shared Report
+### Journey 6: Shared Report
 
 **Covers**: Analytics dashboard rendering
 
@@ -309,7 +317,7 @@ Poster Page → QR Codes → Print Layout → API Bundle
 Report Page → KPI Display → Mobile Responsiveness
 ```
 
-### Journey 6: Event Management
+### Journey 7: Event Management
 
 **Covers**: CRUD operations via API with UI verification
 
@@ -317,7 +325,7 @@ Report Page → KPI Display → Mobile Responsiveness
 Create → Read → Update → Verify UI → Delete → Verify Deletion
 ```
 
-### Journey 7: Cross-Surface Integration
+### Journey 8: Cross-Surface Integration
 
 **Covers**: Same event renders correctly on all surfaces
 
@@ -325,7 +333,7 @@ Create → Read → Update → Verify UI → Delete → Verify Deletion
 API Create → Public → Display → Poster → Report
 ```
 
-### Journey 8: System Health
+### Journey 9: System Health
 
 **Covers**: API status, system endpoints
 
@@ -333,7 +341,7 @@ API Create → Public → Display → Poster → Report
 Status Endpoint → Events List → Main Page Load
 ```
 
-### Journey 9: Error Handling
+### Journey 10: Error Handling
 
 **Covers**: Graceful degradation for errors
 
