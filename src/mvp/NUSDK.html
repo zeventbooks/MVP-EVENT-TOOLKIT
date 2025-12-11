@@ -541,6 +541,203 @@ window.NU = {
    */
   getConfig() {
     return { ...NU._config, version: NU.VERSION };
+  },
+
+  // =============================================================================
+  // Story 4.3: Enhanced API Wrappers with Global Error Handling
+  // =============================================================================
+
+  /**
+   * Enhanced RPC with automatic retry and user feedback
+   * Integrates with GlobalErrorHandler for comprehensive error handling
+   *
+   * @param {string} path - API path
+   * @param {object} payload - Request parameters
+   * @param {object} options - Enhanced options
+   * @returns {Promise<{ok: boolean, value?: any, code?: string, message?: string}>}
+   */
+  async resilientRpc(path, payload = {}, options = {}) {
+    const {
+      retry = true,
+      maxAttempts = 3,
+      showToast = true,
+      showDialog = false,
+      onError = null,
+      onRetryAttempt = null,
+      context = path
+    } = options;
+
+    // Use GlobalErrorHandler if available
+    const handler = window.GlobalErrorHandler;
+
+    const makeRequest = async () => {
+      const res = await NU.rpc(path, payload);
+      if (!res.ok) {
+        // Convert to throwable error for retry logic
+        const err = new Error(res.message || 'Request failed');
+        err.code = res.code;
+        err.corrId = res.corrId;
+        err.response = res;
+        throw err;
+      }
+      return res;
+    };
+
+    try {
+      if (retry && handler) {
+        // Use GlobalErrorHandler's retry with exponential backoff
+        return await handler.withRetry(makeRequest, {
+          attempts: maxAttempts,
+          shouldRetry: (err) => {
+            // Only retry network and transient errors
+            const code = err?.code || err?.response?.code;
+            return ['NETWORK_ERROR', 'TIMEOUT', 'SERVICE_UNAVAILABLE'].includes(code);
+          },
+          onRetryAttempt: (attempt, total, delay, err) => {
+            NU._log('debug', 'retry', { path, attempt, total, delay, code: err?.code });
+            if (onRetryAttempt) onRetryAttempt(attempt, total, delay, err);
+          }
+        });
+      } else {
+        return await makeRequest();
+      }
+    } catch (err) {
+      // Return the original error response if available
+      if (err.response) {
+        if (onError) onError(err.response);
+
+        if (handler) {
+          if (showDialog) {
+            handler.showErrorDialog({
+              title: 'Unable to Complete Request',
+              message: `We couldn't ${context}. Please try again.`,
+              corrId: err.corrId,
+              onRetry: () => NU.resilientRpc(path, payload, options)
+            });
+          } else if (showToast) {
+            handler.showErrorToast(`Unable to ${context}. Please try again.`);
+          }
+        }
+
+        return err.response;
+      }
+
+      // Network error without response
+      const errorResponse = {
+        ok: false,
+        code: 'NETWORK_ERROR',
+        message: 'Cannot connect to server. Please check your connection.'
+      };
+
+      if (onError) onError(errorResponse);
+
+      if (handler && showToast) {
+        handler.showErrorToast('Connection error. Please check your network.');
+      }
+
+      return errorResponse;
+    }
+  },
+
+  /**
+   * Load data with comprehensive error handling and UI state management
+   * Perfect for initial page loads and data refresh
+   *
+   * @param {string} path - API path
+   * @param {object} payload - Request parameters
+   * @param {object} options - Load options
+   * @returns {Promise<{ok: boolean, value?: any, code?: string, message?: string}>}
+   */
+  async loadData(path, payload = {}, options = {}) {
+    const {
+      container = null,
+      onSuccess = null,
+      onError = null,
+      showLoading = true,
+      retry = true,
+      context = 'load data'
+    } = options;
+
+    const StateRenderer = window.SharedUtils?.StateRenderer;
+
+    // Show loading state
+    if (showLoading && container && StateRenderer) {
+      StateRenderer.showLoading(container, { message: 'Loading...' });
+    }
+
+    const res = await NU.resilientRpc(path, payload, {
+      retry,
+      showToast: false,
+      context
+    });
+
+    if (res.ok) {
+      if (onSuccess) onSuccess(res.value);
+    } else {
+      // Show error state in container
+      if (container && StateRenderer) {
+        StateRenderer.showFromError(container, res, {
+          onRetry: () => NU.loadData(path, payload, options)
+        });
+      }
+      if (onError) onError(res);
+    }
+
+    return res;
+  },
+
+  /**
+   * Submit data with user feedback (for forms, saves, etc.)
+   * Shows appropriate toast/dialog feedback
+   *
+   * @param {string} path - API path
+   * @param {object} payload - Request parameters
+   * @param {object} options - Submit options
+   * @returns {Promise<{ok: boolean, value?: any, code?: string, message?: string}>}
+   */
+  async submitData(path, payload = {}, options = {}) {
+    const {
+      successMessage = 'Saved successfully!',
+      errorMessage = 'Unable to save. Please try again.',
+      onSuccess = null,
+      onError = null,
+      button = null,
+      context = 'save'
+    } = options;
+
+    const showToast = window.SharedUtils?.showToast;
+
+    // Disable button during submit
+    if (button) {
+      button.disabled = true;
+      button.dataset.originalText = button.textContent;
+      button.textContent = 'Saving...';
+    }
+
+    try {
+      const res = await NU.resilientRpc(path, payload, {
+        retry: true,
+        showToast: false,
+        context
+      });
+
+      if (res.ok) {
+        if (showToast) showToast(successMessage, 'success');
+        if (onSuccess) onSuccess(res.value);
+      } else {
+        if (showToast) showToast(errorMessage, 'error');
+        if (onError) onError(res);
+      }
+
+      return res;
+
+    } finally {
+      // Re-enable button
+      if (button) {
+        button.disabled = false;
+        button.textContent = button.dataset.originalText || 'Save';
+      }
+    }
   }
 };
 
