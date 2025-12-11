@@ -413,7 +413,7 @@ const getAvailableSchemas = () => {
  * @returns {boolean}
  */
 const schemaExists = (schemaId) => {
-  return SCHEMA_REGISTRY.hasOwnProperty(schemaId);
+  return Object.prototype.hasOwnProperty.call(SCHEMA_REGISTRY, schemaId);
 };
 
 /**
