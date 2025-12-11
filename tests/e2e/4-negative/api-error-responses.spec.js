@@ -74,39 +74,6 @@ async function assertLayoutNotBroken(page) {
   expect(hasContent, 'Page should have content (not blank)').toBe(true);
 }
 
-/**
- * Check if error banner/dialog is visible
- */
-async function assertErrorUIVisible(page) {
-  // Check for various error UI elements
-  const errorSelectors = [
-    '.global-error-overlay',           // GlobalErrorHandler dialog
-    '.global-error-dialog',            // GlobalErrorHandler dialog content
-    '[role="alert"]',                  // ARIA alert
-    '.error-message',                  // Generic error message
-    '.alert-error',                    // Bootstrap-style error
-    '[data-testid="error-banner"]',    // Test ID error banner
-    '.toast-error',                    // Toast notification
-  ];
-
-  let errorVisible = false;
-  for (const selector of errorSelectors) {
-    if (await page.locator(selector).isVisible().catch(() => false)) {
-      errorVisible = true;
-      break;
-    }
-  }
-
-  // If no visible error UI, check for error text in body
-  if (!errorVisible) {
-    const bodyText = await page.locator('body').innerText().catch(() => '');
-    const hasErrorText = /error|failed|unable|try again|went wrong/i.test(bodyText);
-    errorVisible = hasErrorText;
-  }
-
-  return errorVisible;
-}
-
 // =============================================================================
 // HTTP 500 INTERNAL SERVER ERROR TESTS
 // =============================================================================

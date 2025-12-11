@@ -293,7 +293,8 @@ test.describe('DATA-003: Unexpected Schema', () => {
               venue: 'Test Venue',
               unexpectedField: 'some value',
               anotherUnexpected: { nested: true },
-              __proto__: 'attack', // Prototype pollution attempt
+              constructor: { prototype: 'ignored' }, // Suspicious-looking field
+              toString: 'override attempt', // Another suspicious field
             }
           ],
           extraTopLevel: 'ignored',

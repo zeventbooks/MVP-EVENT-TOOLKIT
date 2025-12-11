@@ -60,24 +60,6 @@ async function assertPageNotFrozen(page) {
   }
 }
 
-/**
- * Check if error handler caught the error (via logs)
- */
-async function assertErrorHandlerCaughtError(page) {
-  const logs = await page.evaluate(() => {
-    return window.__NU_LOGS__ || [];
-  });
-
-  // Check if there are any error entries
-  const hasErrorLog = logs.some(log =>
-    log.level === 'error' ||
-    log.type === 'global_error' ||
-    log.type === 'network_fail'
-  );
-
-  return hasErrorLog;
-}
-
 // =============================================================================
 // JAVASCRIPT RUNTIME ERROR TESTS
 // =============================================================================
