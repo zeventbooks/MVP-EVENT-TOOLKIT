@@ -305,7 +305,8 @@ describe('Story 4: showConfigurationIssue()', () => {
       });
 
       expect(mockContainer.innerHTML).toContain('Configuration Issue');
-      expect(mockContainer.innerHTML).toContain("We're setting this event up");
+      // Apostrophe gets HTML encoded as &#39;
+      expect(mockContainer.innerHTML).toContain("We&#39;re setting this event up");
     });
 
     test('should NOT show diagnostic panel in production', () => {
@@ -427,7 +428,9 @@ describe('Story 4: showConfigurationIssue()', () => {
       });
 
       expect(mockContainer.innerHTML).toContain('&lt;img');
-      expect(mockContainer.innerHTML).not.toContain('onerror=');
+      // The quotes should be escaped as &quot; not left as raw "
+      expect(mockContainer.innerHTML).not.toContain('onerror="alert');
+      expect(mockContainer.innerHTML).toContain('onerror=&quot;');
     });
   });
 });
