@@ -1,23 +1,29 @@
 /**
- * Playwright Global Setup
+ * Playwright Global Setup (Story 3.5 Enhanced)
  * Runs once before all tests
  *
  * Features:
  * - Prints environment configuration
  * - Optional deployment warmup (set WARMUP_BEFORE_TESTS=true)
  * - Validates deployment is responding before tests run
+ * - Generates unique session ID for test run tracking
+ * - Initializes test data tracking for cleanup
+ * - Sets up graceful error handling hooks
  */
 
 const { printEnvironmentInfo, getBaseUrl } = require('./environments');
 const https = require('https');
 const http = require('http');
+const fs = require('fs').promises;
+const path = require('path');
+const crypto = require('crypto');
 
 /**
  * Quick health check to verify deployment is responding
  * Returns true if status endpoint returns 200 with ok: true
  */
 async function checkDeploymentHealth(baseUrl, maxAttempts = 3) {
-  const statusUrl = `${baseUrl}/status`;
+  const statusUrl = `${baseUrl}/?page=status`;
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {
@@ -84,18 +90,125 @@ function fetchWithTimeout(url, timeoutMs) {
   });
 }
 
+/**
+ * Generate unique session ID for test run tracking
+ * Uses crypto.randomBytes for secure randomness (CodeQL compliant)
+ */
+function generateSessionId() {
+  const timestamp = Date.now();
+  const random = crypto.randomBytes(4).toString('hex');
+  return `SESSION_${timestamp}_${random}`;
+}
+
+/**
+ * Initialize test data tracking
+ */
+async function initializeTestTracking(sessionId) {
+  const dataDir = path.join(process.cwd(), '.test-data');
+  const trackingFile = path.join(dataDir, 'test-run-tracking.json');
+
+  const tracking = {
+    sessionId,
+    startTime: new Date().toISOString(),
+    environment: getBaseUrl(),
+    qaBrand: process.env.QA_BRAND_ID || 'qa-testing',
+    createdResources: {
+      events: [],
+      sponsors: [],
+    },
+    pid: process.pid,
+    ci: !!process.env.CI,
+  };
+
+  try {
+    await fs.mkdir(dataDir, { recursive: true });
+    await fs.writeFile(trackingFile, JSON.stringify(tracking, null, 2));
+    return true;
+  } catch (error) {
+    console.log(`   ⚠️ Could not initialize tracking: ${error.message}`);
+    return false;
+  }
+}
+
+/**
+ * Set up graceful shutdown handlers
+ */
+function setupGracefulShutdown(sessionId) {
+  // Handle unexpected termination
+  const shutdownHandler = async (signal) => {
+    console.log(`\n⚠️ Received ${signal} - initiating graceful shutdown...`);
+
+    const dataDir = path.join(process.cwd(), '.test-data');
+    const trackingFile = path.join(dataDir, 'test-run-tracking.json');
+
+    try {
+      const content = await fs.readFile(trackingFile, 'utf8');
+      const tracking = JSON.parse(content);
+      tracking.endTime = new Date().toISOString();
+      tracking.terminatedBy = signal;
+      tracking.status = 'terminated';
+      await fs.writeFile(trackingFile, JSON.stringify(tracking, null, 2));
+    } catch {
+      // Ignore errors during shutdown
+    }
+
+    // Allow other handlers to run
+    setTimeout(() => process.exit(signal === 'SIGTERM' ? 0 : 1), 1000);
+  };
+
+  // Register shutdown handlers (only once)
+  if (!process.env._SHUTDOWN_HANDLERS_REGISTERED) {
+    process.on('SIGINT', () => shutdownHandler('SIGINT'));
+    process.on('SIGTERM', () => shutdownHandler('SIGTERM'));
+    process.env._SHUTDOWN_HANDLERS_REGISTERED = 'true';
+  }
+}
+
+/**
+ * Print setup banner
+ */
+function printSetupBanner(sessionId) {
+  console.log('\n' + '='.repeat(60));
+  console.log('  GLOBAL SETUP (Story 3.5)');
+  console.log('='.repeat(60));
+  console.log(`  Session ID: ${sessionId}`);
+  console.log(`  Time: ${new Date().toISOString()}`);
+  console.log('='.repeat(60) + '\n');
+}
+
 module.exports = async () => {
+  // Generate session ID for this test run
+  const sessionId = generateSessionId();
+
+  // Store session ID in environment for access by tests
+  process.env.TEST_SESSION_ID = sessionId;
+
+  // Print setup banner
+  printSetupBanner(sessionId);
+
   // Print environment configuration
   printEnvironmentInfo();
 
   const baseUrl = getBaseUrl();
 
+  // Initialize test data tracking
+  console.log('\n📋 Initializing test tracking...');
+  const trackingInitialized = await initializeTestTracking(sessionId);
+  if (trackingInitialized) {
+    console.log(`   ✅ Tracking initialized`);
+  }
+
+  // Set up graceful shutdown handlers
+  console.log('\n🛡️ Setting up graceful shutdown handlers...');
+  setupGracefulShutdown(sessionId);
+  console.log('   ✅ Shutdown handlers registered');
+
   // Optional: Run warmup before tests (set WARMUP_BEFORE_TESTS=true or CI=true)
   const shouldWarmup = process.env.WARMUP_BEFORE_TESTS === 'true' || process.env.CI === 'true';
 
   if (shouldWarmup) {
-    console.log('🔥 Checking deployment health before tests...');
-    console.log(`   URL: ${baseUrl}/status`);
+    console.log('\n🔥 Checking deployment health before tests...');
+    console.log(`   URL: ${baseUrl}/?page=status`);
 
     const health = await checkDeploymentHealth(baseUrl);
 
@@ -105,7 +218,9 @@ module.exports = async () => {
       console.log('   ⚠️ Deployment may not be fully ready - tests might experience cold start delays');
       console.log('   💡 Run "npm run warmup" before tests to avoid cold starts');
     }
-
-    console.log('');
   }
+
+  console.log('\n' + '='.repeat(60));
+  console.log('  SETUP COMPLETE - Starting tests...');
+  console.log('='.repeat(60) + '\n');
 };

@@ -73,8 +73,11 @@ module.exports = defineConfig({
     ignoreHTTPSErrors: true,
   },
 
-  // Global setup - print environment info before tests
+  // Global setup - print environment info before tests, initialize tracking (Story 3.5)
   globalSetup: require.resolve('./tests/config/global-setup.js'),
+
+  // Global teardown - cleanup test data after tests complete (Story 3.5)
+  globalTeardown: require.resolve('./tests/config/global-teardown.js'),
 
   // CI and Local now use the same browser matrix for consistent coverage
   // Both chromium (Chrome/Edge) and webkit (Safari/iOS) are tested
