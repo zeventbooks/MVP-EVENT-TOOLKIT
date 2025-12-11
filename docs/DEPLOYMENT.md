@@ -209,20 +209,68 @@ Push to main
 └────────┬────────┘
          │
          ▼
-┌─────────────────┐
-│  Verify Deploy  │  Health check
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│   E2E Tests     │  Smoke → Pages → Flows
-└────────┬────────┘
+┌─────────────────────────────────────────────────────────┐
+│                    STAGE-2 VALIDATION                    │
+├─────────────────────────────────────────────────────────┤
+│  1. Environment Alignment Gate (Worker ↔ GAS)           │
+│  2. API Smoke Tests (contract validation)               │
+│  3. UI Smoke Tests (all surfaces load)                  │
+│  4. E2E Critical Journeys (staging only)                │
+│  5. Validation Gate (blocks release on failure)         │
+└────────┬────────────────────────────────────────────────┘
          │
          ▼
 ┌─────────────────┐
 │  Quality Gate   │  All must pass
 └─────────────────┘
 ```
+
+### E2E Pipeline Step (Story 3.4)
+
+The Stage-2 workflow runs comprehensive E2E tests after each staging deployment:
+
+| Test Suite | Description | Environment |
+|------------|-------------|-------------|
+| **Environment Alignment** | Verifies Worker ↔ GAS deployment IDs match | Staging + Production |
+| **API Smoke Tests** | Validates API contracts, status endpoints | Staging + Production |
+| **UI Smoke Tests** | All 5 surfaces load correctly | Staging + Production |
+| **E2E Critical Journeys** | 10 user journeys (creates test data) | Staging only |
+
+**Progressive Test Gates:**
+- Tests run in sequence with fail-fast behavior
+- If API tests fail → UI tests are SKIPPED
+- If any test fails → Deployment is marked FAILED
+- Notifications sent via Slack/Teams on failure
+
+**Artifacts Captured:**
+- Screenshots (all tests)
+- Videos (on failure)
+- Traces (on failure)
+- HTML reports with detailed failure info
+
+**Interpreting Failures:**
+
+1. Download the `e2e-test-artifacts` from the workflow run
+2. Open `playwright-report/index.html` for the HTML report
+3. For failed tests, download `e2e-failure-debug` for videos and traces
+4. Check the workflow summary for quick failure overview
+
+**Common Failure Causes:**
+- GAS cold start timeouts (retries usually handle this)
+- Test data conflicts (tests use unique timestamps)
+- UI selector changes not reflected in tests
+- API contract changes
+
+See [E2E_PLAYWRIGHT_GUIDE.md](./E2E_PLAYWRIGHT_GUIDE.md) for detailed debugging.
+
+### Nightly Production Tests
+
+A separate workflow runs read-only E2E tests against production nightly:
+
+- **Schedule:** 2:00 AM UTC daily
+- **Tests:** API smoke + UI smoke (no data modification)
+- **Purpose:** Catch production issues without blocking deployments
+- **Workflow:** `.github/workflows/e2e-nightly-production.yml`
 
 ### Quality Gate Requirements
 
