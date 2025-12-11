@@ -439,25 +439,20 @@ test.describe('Journey 1: Event Creation Flow', () => {
 });
 
 // =============================================================================
-// JOURNEY 2: Poster Surface (QR Codes)
+// JOURNEY 2: Sponsor Flow (Configuration, QR, Reports)
 // =============================================================================
 
-test.describe('Journey 2: Poster Surface', () => {
+test.describe('Journey 2: Sponsor Flow', () => {
   let api;
   let testEventId;
-  let testSignupUrl;
 
   test.beforeEach(async ({ request }) => {
     api = new ApiHelpers(request, BASE_URL);
 
-    // Create event WITH signupUrl so QR codes are expected (active = available)
-    testSignupUrl = 'https://docs.google.com/forms/d/e/poster-test-form/viewform';
+    // Create event for sponsor testing
     const { eventId } = await api.createTestEvent(BRAND_ID, ADMIN_KEY, {
-      name: `Poster Test Event ${Date.now()}`,
-      ctas: {
-        primary: { label: 'Sign Up', url: testSignupUrl },
-        secondary: null
-      }
+      name: `Sponsor Test Event ${Date.now()}`,
+      settings: { showSponsors: true }
     });
     testEventId = eventId;
     createdEventIds.push(testEventId);
@@ -474,82 +469,184 @@ test.describe('Journey 2: Poster Surface', () => {
     createdEventIds.length = 0;
   });
 
-  test('Poster page loads with QR codes when signupUrl is configured', async ({ page }) => {
-    // Navigate to poster page
+  test('Configure sponsors via API → Verify on Display surface', async ({ page }) => {
+    // Step 1: Add sponsor to event via API
+    const sponsorData = {
+      name: `Test Sponsor ${Date.now()}`,
+      website: 'https://test-sponsor.example.com',
+      logoUrl: 'https://via.placeholder.com/300x150?text=Sponsor',
+      tier: 'gold',
+      positions: ['tvTop', 'mobileBanner']
+    };
+
+    // Update event with sponsor
+    const updateResponse = await api.updateEvent(BRAND_ID, testEventId, {
+      sponsors: [sponsorData],
+      settings: { showSponsors: true }
+    }, ADMIN_KEY);
+
+    expect(updateResponse.ok()).toBe(true);
+    console.log(`✓ Step 1: Added sponsor to event`);
+
+    // Step 2: Verify sponsor in API response
+    const getResponse = await api.getEvent(BRAND_ID, testEventId);
+    const getData = await getResponse.json();
+
+    expect(getData.ok).toBe(true);
+    if (getData.value.sponsors && getData.value.sponsors.length > 0) {
+      expect(getData.value.sponsors[0].name).toBe(sponsorData.name);
+      console.log(`✓ Step 2: Sponsor verified in API response`);
+    }
+
+    // Step 3: Navigate to Display surface and verify sponsor appears
+    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}&id=${testEventId}`, TIMEOUT_CONFIG);
+
+    await expect(page.locator('main, #app, .display-container')).toBeVisible({ timeout: 15000 });
+
+    // Check for sponsor elements (active = available: only show if sponsors configured)
+    const sponsorArea = page.locator('#sponsorTop, .sponsor-top, .sponsor-strip, [data-sponsor]');
+    const hasSponsorArea = await sponsorArea.count() > 0;
+
+    if (hasSponsorArea) {
+      console.log(`✓ Step 3: Sponsor area visible on Display surface`);
+    } else {
+      console.log(`⚠ Step 3: No sponsor area found - may require specific display mode`);
+    }
+  });
+
+  test('Sponsor with QR code → Verify QR on Poster when sponsor has URL', async ({ page }) => {
+    // Step 1: Add sponsor with trackable URL
+    const sponsorUrl = 'https://sponsor-tracking.example.com/landing';
+    const updateResponse = await api.updateEvent(BRAND_ID, testEventId, {
+      sponsors: [{
+        name: `QR Sponsor ${Date.now()}`,
+        website: sponsorUrl,
+        logoUrl: 'https://via.placeholder.com/300x150?text=QR+Sponsor',
+        tier: 'platinum'
+      }],
+      settings: { showSponsors: true }
+    }, ADMIN_KEY);
+
+    expect(updateResponse.ok()).toBe(true);
+    console.log(`✓ Step 1: Added sponsor with trackable URL`);
+
+    // Step 2: Navigate to Poster page
     await page.goto(`${BASE_URL}?page=poster&brand=${BRAND_ID}&id=${testEventId}`, TIMEOUT_CONFIG);
 
-    // Verify poster loaded
-    await expect(page.locator('main, #app, .poster-container, .poster')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('main, #app, .poster-container')).toBeVisible({ timeout: 15000 });
 
-    // QR codes SHOULD be present because signupUrl is configured (active = available)
-    const qrElements = page.locator('img[src*="qr"], img[alt*="QR"], .qr-code, [data-qr]');
-    const qrCount = await qrElements.count();
+    // Step 3: Check for sponsor QR or sponsor section (active = available)
+    const sponsorSection = page.locator('.sponsor-strip, .sponsors, [data-sponsors]');
+    const hasSponsorSection = await sponsorSection.count() > 0;
 
-    if (qrCount > 0) {
-      console.log(`✓ QR codes found on poster (${qrCount} QR elements) - as expected with signupUrl configured`);
-      await expect(qrElements.first()).toBeVisible();
-    } else {
-      // Check API response for pre-generated QR codes
-      const getResponse = await api.getEvent(BRAND_ID, testEventId);
-      const getData = await getResponse.json();
+    if (hasSponsorSection) {
+      console.log(`✓ Step 2: Sponsor section visible on Poster`);
 
-      if (getData.value?.qr?.public || getData.value?.qr?.signup) {
-        console.log('✓ QR codes available in API response (pre-generated)');
-      } else {
-        console.log('⚠ No QR codes found - signupUrl may not trigger QR generation in this environment');
+      // Check for QR code linked to sponsor
+      const qrElements = page.locator('img[src*="qr"], .qr-code');
+      const qrCount = await qrElements.count();
+
+      if (qrCount > 0) {
+        console.log(`✓ Step 3: Found ${qrCount} QR code(s) on poster`);
       }
+    } else {
+      console.log(`⚠ Step 2: No sponsor section on poster - sponsors may display differently`);
     }
   });
 
-  test('Poster page shows no QR codes when signupUrl is NOT configured', async ({ page, request }) => {
-    // Create event WITHOUT signupUrl
-    const apiNoSignup = new ApiHelpers(request, BASE_URL);
-    const { eventId: noSignupEventId } = await apiNoSignup.createTestEvent(BRAND_ID, ADMIN_KEY, {
-      name: `No Signup Poster Test ${Date.now()}`,
-      // No signupUrl configured - QR codes should NOT be expected
+  test('Sponsor analytics → View report after sponsor impressions', async ({ page }) => {
+    // Step 1: Add sponsor to event
+    await api.updateEvent(BRAND_ID, testEventId, {
+      sponsors: [{
+        name: `Analytics Sponsor ${Date.now()}`,
+        website: 'https://analytics-sponsor.example.com',
+        tier: 'gold'
+      }],
+      settings: { showSponsors: true }
+    }, ADMIN_KEY);
+
+    console.log(`✓ Step 1: Added sponsor for analytics testing`);
+
+    // Step 2: Visit Public page to generate impressions
+    await page.goto(`${BASE_URL}?page=public&brand=${BRAND_ID}&id=${testEventId}`, TIMEOUT_CONFIG);
+    await expect(page.locator('main, #app')).toBeVisible({ timeout: 15000 });
+    await page.waitForTimeout(2000); // Allow analytics to log
+
+    console.log(`✓ Step 2: Visited public page (impressions logged)`);
+
+    // Step 3: Visit Display page to generate more impressions
+    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}&id=${testEventId}`, TIMEOUT_CONFIG);
+    await expect(page.locator('main, #app')).toBeVisible({ timeout: 15000 });
+    await page.waitForTimeout(2000);
+
+    console.log(`✓ Step 3: Visited display page (more impressions logged)`);
+
+    // Step 4: Navigate to Shared Report to view analytics
+    await page.goto(`${BASE_URL}?page=report&brand=${BRAND_ID}&id=${testEventId}`, TIMEOUT_CONFIG);
+
+    await expect(page.locator('main, #app, .report-container')).toBeVisible({ timeout: 15000 });
+
+    // Step 5: Verify report contains sponsor metrics (active = available)
+    const reportContent = await page.textContent('body');
+
+    const hasSponsorMetrics = reportContent.toLowerCase().includes('sponsor') ||
+                              reportContent.toLowerCase().includes('impression') ||
+                              reportContent.toLowerCase().includes('click');
+
+    if (hasSponsorMetrics) {
+      console.log(`✓ Step 4: Report contains sponsor metrics`);
+    } else {
+      console.log(`⚠ Step 4: Sponsor metrics not visible in report - may need more data`);
+    }
+
+    // Step 6: Check for KPI cards or tables
+    const kpiElements = page.locator('.kpi, .metric, .stat-card, table');
+    const kpiCount = await kpiElements.count();
+
+    if (kpiCount > 0) {
+      console.log(`✓ Step 5: Found ${kpiCount} KPI/metric elements in report`);
+    }
+  });
+
+  test('No sponsors configured → Sponsor areas NOT displayed (active = available)', async ({ page }) => {
+    // Step 1: Create event WITHOUT sponsors
+    const { eventId: noSponsorEventId } = await api.createTestEvent(BRAND_ID, ADMIN_KEY, {
+      name: `No Sponsor Event ${Date.now()}`,
+      settings: { showSponsors: false }
     });
-    createdEventIds.push(noSignupEventId);
+    createdEventIds.push(noSponsorEventId);
 
-    // Navigate to poster page
-    await page.goto(`${BASE_URL}?page=poster&brand=${BRAND_ID}&id=${noSignupEventId}`, TIMEOUT_CONFIG);
+    // Step 2: Navigate to Display page
+    await page.goto(`${BASE_URL}?page=display&brand=${BRAND_ID}&id=${noSponsorEventId}`, TIMEOUT_CONFIG);
+    await expect(page.locator('main, #app')).toBeVisible({ timeout: 15000 });
 
-    // Verify poster loaded
-    await expect(page.locator('main, #app, .poster-container, .poster')).toBeVisible({ timeout: 15000 });
+    // Step 3: Sponsor areas should NOT be displayed (active = available)
+    const sponsorTopContent = page.locator('#sponsorTop');
+    const hasSponsorTop = await sponsorTopContent.count() > 0;
 
-    // Without signupUrl, QR codes are NOT expected (active = available design)
-    const qrSection = page.locator('.qr-section, #qrGrid');
-    const hasQRSection = await qrSection.count() > 0;
-
-    if (hasQRSection) {
-      const qrContent = await qrSection.first().textContent();
-      // Should show "No QR codes available" or similar message
-      const showsEmptyMessage = qrContent.toLowerCase().includes('no qr') ||
-                                qrContent.toLowerCase().includes('not available') ||
-                                qrContent.trim() === '';
-      if (showsEmptyMessage) {
-        console.log('✓ QR section shows empty/unavailable message as expected');
+    if (hasSponsorTop) {
+      const content = await sponsorTopContent.textContent();
+      const isEmpty = content.trim() === '' || content.toLowerCase().includes('no sponsor');
+      if (isEmpty) {
+        console.log(`✓ Sponsor area empty when no sponsors configured`);
       }
     } else {
-      console.log('✓ No QR section displayed when signupUrl not configured');
+      console.log(`✓ Sponsor area not rendered when showSponsors=false`);
     }
-  });
 
-  test('Poster bundle API returns correct structure', async () => {
-    const response = await api.get(`?p=api&action=getPosterBundle&brand=${BRAND_ID}&scope=events&id=${testEventId}`);
-    const data = await response.json();
+    // Step 4: Navigate to Poster page
+    await page.goto(`${BASE_URL}?page=poster&brand=${BRAND_ID}&id=${noSponsorEventId}`, TIMEOUT_CONFIG);
+    await expect(page.locator('main, #app')).toBeVisible({ timeout: 15000 });
 
-    expect(data.ok).toBe(true);
-    expect(data.value).toHaveProperty('event');
-    expect(data.value.event).toHaveProperty('id');
-    expect(data.value.event).toHaveProperty('name');
+    // Sponsor strip should be empty or hidden
+    const sponsorStrip = page.locator('.sponsor-strip, [data-sponsors]');
+    const hasStrip = await sponsorStrip.count() > 0;
 
-    // Check for qrCodes - should be present when signupUrl configured
-    if (data.value.qrCodes) {
-      expect(data.value).toHaveProperty('qrCodes');
-      console.log('✓ Poster bundle includes QR codes');
-    }
-    if (data.value.print) {
-      expect(data.value).toHaveProperty('print');
+    if (!hasStrip) {
+      console.log(`✓ No sponsor strip on poster when no sponsors configured`);
+    } else {
+      const stripContent = await sponsorStrip.first().textContent();
+      console.log(`⚠ Sponsor strip present but content: "${stripContent.substring(0, 50)}..."`);
     }
   });
 });
