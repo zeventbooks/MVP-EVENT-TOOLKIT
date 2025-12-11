@@ -94,6 +94,7 @@ const WHITELIST = {
   'api_status': 'System status endpoint - returns health/config data',
   'api_statusPure': 'Pure function version of api_status for testing',
   'api_statusMvp': 'MVP status endpoint - returns MVP-specific health data',
+  'api_health': 'Story 5: CI/CD health check - validates GAS connectivity and events index',
   'api_whoami': 'Story 4: Deployment/account info for CI comparison with Worker /env-status',
   'api_setupCheck': 'Admin setup verification - internal use only',
   'api_checkPermissions': 'Permission check endpoint - internal diagnostics',
