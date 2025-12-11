@@ -16,6 +16,7 @@ const https = require('https');
 const http = require('http');
 const fs = require('fs').promises;
 const path = require('path');
+const crypto = require('crypto');
 
 /**
  * Quick health check to verify deployment is responding
@@ -91,10 +92,11 @@ function fetchWithTimeout(url, timeoutMs) {
 
 /**
  * Generate unique session ID for test run tracking
+ * Uses crypto.randomBytes for secure randomness (CodeQL compliant)
  */
 function generateSessionId() {
   const timestamp = Date.now();
-  const random = Math.random().toString(36).substring(2, 8);
+  const random = crypto.randomBytes(4).toString('hex');
   return `SESSION_${timestamp}_${random}`;
 }
 

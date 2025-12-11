@@ -13,7 +13,7 @@
  */
 
 const { defineConfig, devices } = require('@playwright/test');
-const { getCurrentEnvironment, STAGING_URL } = require('./tests/config/environments');
+const { STAGING_URL } = require('./tests/config/environments');
 
 // Staging-specific environment settings
 const stagingEnv = {
