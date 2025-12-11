@@ -636,6 +636,187 @@ jobs:
           echo "| **Result** | \`${{ steps.ui-tests.outcome }}\` |" >> $GITHUB_STEP_SUMMARY
 
   # ============================================================================
+  # E2E TESTS - CRITICAL USER JOURNEYS (Story 3.4)
+  # ============================================================================
+  # Runs the comprehensive end-to-end test suite (Story 3.3) after smoke tests.
+  # Tests all 10 critical user journeys organized by event lifecycle:
+  #
+  # PRE-EVENT (Setup & Configuration):
+  #   - Journey 1: Event Creation Flow
+  #   - Journey 2: Sponsor Flow
+  #   - Journey 3: Poster Surface
+  #
+  # EVENT (Live Surfaces):
+  #   - Journey 4: Display Surface (TV/Kiosk)
+  #   - Journey 5: Event Viewing Flow (Public)
+  #
+  # POST-EVENT (Analytics):
+  #   - Journey 6: Shared Report
+  #
+  # TOOLS (Infrastructure & Validation):
+  #   - Journeys 7-10: CRUD, Cross-Surface, Health, Error Handling
+  #
+  # STAGING ONLY: These tests create/modify data, so only run on staging.
+  # Production uses the nightly read-only workflow (e2e-nightly-production.yml)
+  #
+  # Artifacts captured on failure:
+  #   - Screenshots (all tests)
+  #   - Videos (on failure)
+  #   - Traces (on failure)
+  #   - HTML reports
+  #
+  # @see tests/e2e/story-3.3-critical-user-journeys.spec.js
+  # ============================================================================
+  e2e-tests:
+    name: 🧪 E2E Critical Journeys (${{ needs.download-artifact.outputs.environment }})
+    runs-on: ubuntu-latest
+    needs: [check-stage1, download-artifact, env-alignment-gate, api-smoke, ui-smoke]
+    # Story 3.4: Run E2E tests only on staging (they create/modify data)
+    # Also skip if UI smoke tests failed (progressive gates)
+    if: |
+      needs.ui-smoke.result == 'success' &&
+      needs.check-stage1.outputs.is_production != 'true'
+    outputs:
+      e2e_test_result: ${{ steps.e2e-tests.outcome }}
+    env:
+      BASE_URL: ${{ needs.download-artifact.outputs.base_url }}
+      ENVIRONMENT: ${{ needs.download-artifact.outputs.environment }}
+      IS_PRODUCTION: ${{ needs.check-stage1.outputs.is_production }}
+      CI: true
+      # Admin key for test data setup (create events, sponsors, etc.)
+      ADMIN_KEY: ${{ secrets.ADMIN_KEY_ROOT }}
+      BRAND_ID: 'root'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium --with-deps
+
+      - name: Display E2E test configuration
+        run: |
+          echo "=============================================="
+          echo "E2E CRITICAL USER JOURNEYS (Story 3.4)"
+          echo "=============================================="
+          echo "Environment: $ENVIRONMENT"
+          echo "BASE_URL: $BASE_URL"
+          echo "Brand ID: $BRAND_ID"
+          echo "Admin Key: ${ADMIN_KEY:+[CONFIGURED]}"
+          echo "Node version: $(node --version)"
+          echo "npm version: $(npm --version)"
+          echo ""
+          echo "This runs the comprehensive E2E test suite:"
+          echo "  - 10 critical user journeys"
+          echo "  - Organized by event lifecycle phases"
+          echo "  - Self-cleaning test data"
+          echo "  - Retries enabled for transient failures"
+          echo "=============================================="
+
+      - name: Run E2E critical user journeys
+        id: e2e-tests
+        run: |
+          echo "Running E2E critical user journeys against: $BASE_URL ($ENVIRONMENT)"
+          npm run test:story3.3
+        continue-on-error: true
+
+      - name: Upload E2E test artifacts (screenshots, videos, traces)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-test-artifacts-${{ env.ENVIRONMENT }}
+          path: |
+            playwright-report/
+            .test-results/playwright-results.json
+            .test-results/junit.xml
+            test-results/
+          retention-days: 14
+
+      - name: Upload failure artifacts (videos and traces on failure)
+        uses: actions/upload-artifact@v4
+        if: steps.e2e-tests.outcome == 'failure'
+        with:
+          name: e2e-failure-debug-${{ env.ENVIRONMENT }}-${{ github.run_number }}
+          path: |
+            test-results/**/trace.zip
+            test-results/**/*.webm
+            test-results/**/*.png
+            playwright-report/
+          retention-days: 30
+
+      - name: Check E2E test result
+        if: steps.e2e-tests.outcome == 'failure'
+        run: |
+          echo "::error::E2E critical user journey tests failed against $BASE_URL ($ENVIRONMENT)"
+          echo ""
+          echo "=============================================="
+          echo "E2E TESTS FAILED"
+          echo "=============================================="
+          echo ""
+          echo "One or more critical user journeys failed."
+          echo "Check the 'e2e-test-artifacts' and 'e2e-failure-debug' artifacts for:"
+          echo "  - Screenshots (all tests)"
+          echo "  - Videos (failed tests)"
+          echo "  - Traces (failed tests)"
+          echo "  - HTML report with detailed failure info"
+          echo ""
+          echo "Common causes:"
+          echo "  - GAS cold start timeouts (retries should handle)"
+          echo "  - Test data conflicts (tests use unique timestamps)"
+          echo "  - UI changes not reflected in selectors"
+          echo "  - API contract changes"
+          echo ""
+          echo "See docs/E2E_PLAYWRIGHT_GUIDE.md for debugging tips."
+          echo "=============================================="
+          exit 1
+
+      - name: Create E2E test summary
+        if: always()
+        run: |
+          echo "## 🧪 E2E Critical User Journeys ($ENVIRONMENT)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ steps.e2e-tests.outcome }}" == "success" ]; then
+            echo "### ✅ PASSED" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "All 10 critical user journeys passed against $ENVIRONMENT." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Journeys Tested:**" >> $GITHUB_STEP_SUMMARY
+            echo "- PRE-EVENT: Event Creation, Sponsor Flow, Poster Surface" >> $GITHUB_STEP_SUMMARY
+            echo "- EVENT: Display Surface, Event Viewing" >> $GITHUB_STEP_SUMMARY
+            echo "- POST-EVENT: Shared Report" >> $GITHUB_STEP_SUMMARY
+            echo "- TOOLS: CRUD, Cross-Surface, Health, Error Handling" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "E2E critical user journey tests failed." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Debugging Resources:**" >> $GITHUB_STEP_SUMMARY
+            echo "- Download 'e2e-test-artifacts' for HTML report" >> $GITHUB_STEP_SUMMARY
+            echo "- Download 'e2e-failure-debug' for videos & traces" >> $GITHUB_STEP_SUMMARY
+            echo "- See [E2E Playwright Guide](../docs/E2E_PLAYWRIGHT_GUIDE.md)" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Environment** | \`$ENVIRONMENT\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Target URL** | \`$BASE_URL\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Result** | \`${{ steps.e2e-tests.outcome }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Test Suite** | Story 3.3 Critical User Journeys |" >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================================
   # FINAL VALIDATION GATE
   # ============================================================================
   # Aggregates results from all Stage-2 tests.
@@ -646,6 +827,12 @@ jobs:
   #   - If API tests fail, UI tests are skipped (result = 'skipped')
   #   - Skipped UI tests due to API failure = overall FAILURE
   #   - This ensures production is blocked when staging tests fail
+  #
+  # Story 3.4: E2E Critical Journeys (Staging Only)
+  #   - Runs after smoke tests pass
+  #   - Tests all 10 critical user journeys
+  #   - Creates/modifies test data (hence staging only)
+  #   - Production uses nightly read-only workflow
   #
   # Story 4 Environment Alignment Gate:
   #   - Worker /env-status and GAS /whoami MUST return matching deploymentIds
@@ -669,7 +856,7 @@ jobs:
   validation-gate:
     name: 🚦 Stage-2 Validation Gate (${{ needs.download-artifact.outputs.environment }})
     runs-on: ubuntu-latest
-    needs: [check-stage1, download-artifact, env-alignment-gate, api-smoke, ui-smoke]
+    needs: [check-stage1, download-artifact, env-alignment-gate, api-smoke, ui-smoke, e2e-tests]
     if: always() && needs.download-artifact.result == 'success'
     outputs:
       validation_status: ${{ steps.evaluate.outputs.status }}
@@ -685,9 +872,10 @@ jobs:
           ENV_ALIGNMENT_RESULT="${{ needs.env-alignment-gate.result }}"
           API_RESULT="${{ needs.api-smoke.result }}"
           UI_RESULT="${{ needs.ui-smoke.result }}"
+          E2E_RESULT="${{ needs.e2e-tests.result }}"
 
           echo "=============================================="
-          echo "STAGE-2 VALIDATION GATE EVALUATION (Story 2.5)"
+          echo "STAGE-2 VALIDATION GATE EVALUATION (Story 2.5 + 3.4)"
           echo "=============================================="
           echo "Environment: $ENVIRONMENT"
           echo "Is Production: $IS_PRODUCTION"
@@ -696,6 +884,7 @@ jobs:
           echo "  🔐 Environment Alignment: $ENV_ALIGNMENT_RESULT"
           echo "  🔥 API Smoke Tests: $API_RESULT"
           echo "  🖥️  UI Smoke Tests: $UI_RESULT"
+          echo "  🧪 E2E Critical Journeys: $E2E_RESULT"
           echo "=============================================="
 
           # Story 2.5: Fail-fast evaluation
@@ -722,19 +911,37 @@ jobs:
             echo "status=failed" >> $GITHUB_OUTPUT
             echo "failure_reason=ui_skipped" >> $GITHUB_OUTPUT
 
-          # Normal success case: both API and UI passed
-          elif [ "$API_RESULT" == "success" ] && [ "$UI_RESULT" == "success" ]; then
-            echo ""
-            echo "✅ Stage-2 validation PASSED"
-            echo "status=passed" >> $GITHUB_OUTPUT
-            echo "failure_reason=" >> $GITHUB_OUTPUT
-
           # UI tests failed
           elif [ "$UI_RESULT" != "success" ]; then
             echo ""
             echo "❌ UI smoke tests failed!"
             echo "status=failed" >> $GITHUB_OUTPUT
             echo "failure_reason=ui_tests" >> $GITHUB_OUTPUT
+
+          # Story 3.4: E2E tests failed (staging only)
+          elif [ "$E2E_RESULT" == "failure" ]; then
+            echo ""
+            echo "❌ E2E critical user journey tests failed!"
+            echo "status=failed" >> $GITHUB_OUTPUT
+            echo "failure_reason=e2e_tests" >> $GITHUB_OUTPUT
+
+          # Success case: All tests passed (E2E skipped is OK for production)
+          elif [ "$API_RESULT" == "success" ] && [ "$UI_RESULT" == "success" ]; then
+            # E2E tests are skipped on production (expected), or passed on staging
+            if [ "$E2E_RESULT" == "success" ] || [ "$E2E_RESULT" == "skipped" ]; then
+              echo ""
+              echo "✅ Stage-2 validation PASSED"
+              if [ "$E2E_RESULT" == "skipped" ]; then
+                echo "(E2E tests skipped - production deploy uses nightly workflow)"
+              fi
+              echo "status=passed" >> $GITHUB_OUTPUT
+              echo "failure_reason=" >> $GITHUB_OUTPUT
+            else
+              echo ""
+              echo "❌ E2E tests in unexpected state: $E2E_RESULT"
+              echo "status=failed" >> $GITHUB_OUTPUT
+              echo "failure_reason=e2e_tests" >> $GITHUB_OUTPUT
+            fi
 
           # Catch-all failure
           else
@@ -753,6 +960,7 @@ jobs:
           ENV_ALIGNMENT_RESULT="${{ needs.env-alignment-gate.result }}"
           API_RESULT="${{ needs.api-smoke.result }}"
           UI_RESULT="${{ needs.ui-smoke.result }}"
+          E2E_RESULT="${{ needs.e2e-tests.result }}"
           STATUS="${{ steps.evaluate.outputs.status }}"
           FAILURE_REASON="${{ steps.evaluate.outputs.failure_reason }}"
 
@@ -771,6 +979,15 @@ jobs:
             echo "- Script ID matches expected for $ENVIRONMENT" >> $GITHUB_STEP_SUMMARY
             echo "- Environment name is consistent" >> $GITHUB_STEP_SUMMARY
 
+            if [ "$IS_PRODUCTION" != "true" ]; then
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "### Story 3.4 E2E Critical Journeys (Verified)" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "- All 10 critical user journeys passed" >> $GITHUB_STEP_SUMMARY
+              echo "- Event lifecycle validated (PRE-EVENT, EVENT, POST-EVENT)" >> $GITHUB_STEP_SUMMARY
+              echo "- Test data cleanup successful" >> $GITHUB_STEP_SUMMARY
+            fi
+
             if [ "$IS_PRODUCTION" == "true" ]; then
               echo "" >> $GITHUB_STEP_SUMMARY
               echo "### Story 7 Production Acceptance Criteria" >> $GITHUB_STEP_SUMMARY
@@ -780,6 +997,8 @@ jobs:
               echo "- Worker HTML routing active" >> $GITHUB_STEP_SUMMARY
               echo "- /api/* used for JSON data only" >> $GITHUB_STEP_SUMMARY
               echo "- QR codes resolve correctly" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "ℹ️ **Note:** E2E critical journeys skipped for production (uses nightly workflow)." >> $GITHUB_STEP_SUMMARY
             fi
           else
             echo "## ❌ DEPLOYMENT BLOCKED" >> $GITHUB_STEP_SUMMARY
@@ -797,6 +1016,15 @@ jobs:
               echo "1. Check Cloudflare Worker deployment configuration" >> $GITHUB_STEP_SUMMARY
               echo "2. Verify STAGING_DEPLOYMENT_ID or PROD_DEPLOYMENT_ID in wrangler.toml" >> $GITHUB_STEP_SUMMARY
               echo "3. Ensure CI deployed the Worker with the correct deployment ID" >> $GITHUB_STEP_SUMMARY
+            elif [ "$FAILURE_REASON" == "e2e_tests" ]; then
+              echo "### 🧪 E2E Critical Journeys Failed" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "One or more critical user journeys failed." >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "**Debugging:**" >> $GITHUB_STEP_SUMMARY
+              echo "1. Download 'e2e-test-artifacts' for the HTML report" >> $GITHUB_STEP_SUMMARY
+              echo "2. Download 'e2e-failure-debug' for videos and traces" >> $GITHUB_STEP_SUMMARY
+              echo "3. See [E2E Playwright Guide](../docs/E2E_PLAYWRIGHT_GUIDE.md)" >> $GITHUB_STEP_SUMMARY
             else
               echo "Stage-2 validation failed. Release is blocked until issues are resolved." >> $GITHUB_STEP_SUMMARY
             fi
@@ -817,6 +1045,7 @@ jobs:
           echo "| **🔐 Environment Alignment** | \`$ENV_ALIGNMENT_RESULT\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **📡 API Smoke Tests** | \`$API_RESULT\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **🖥️ UI Smoke Tests** | \`$UI_RESULT\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **🧪 E2E Critical Journeys** | \`$E2E_RESULT\` |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Configuration" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -868,13 +1097,14 @@ jobs:
   notify-stage2-failure:
     name: 📢 Notify Stage-2 Failure
     runs-on: ubuntu-latest
-    needs: [check-stage1, download-artifact, env-alignment-gate, api-smoke, ui-smoke, validation-gate]
+    needs: [check-stage1, download-artifact, env-alignment-gate, api-smoke, ui-smoke, e2e-tests, validation-gate]
     if: |
       always() &&
       needs.download-artifact.result == 'success' &&
       (needs.env-alignment-gate.result == 'failure' ||
        needs.api-smoke.result == 'failure' ||
        needs.ui-smoke.result == 'failure' ||
+       needs.e2e-tests.result == 'failure' ||
        needs.validation-gate.result == 'failure' ||
        needs.validation-gate.outputs.validation_status == 'failed')
 
@@ -902,6 +1132,9 @@ jobs:
           if [ "${{ needs.ui-smoke.result }}" == "skipped" ] && [ "${{ needs.api-smoke.result }}" != "success" ]; then
             FAILED_TESTS="${FAILED_TESTS}UI Tests SKIPPED (gated by API), "
           fi
+          if [ "${{ needs.e2e-tests.result }}" == "failure" ]; then
+            FAILED_TESTS="${FAILED_TESTS}E2E Critical Journeys, "
+          fi
 
           # Remove trailing comma and space
           FAILED_TESTS="${FAILED_TESTS%, }"
@@ -913,6 +1146,7 @@ jobs:
               env_alignment) FAILED_TESTS="Environment Alignment" ;;
               api_tests) FAILED_TESTS="API Smoke Tests" ;;
               ui_tests) FAILED_TESTS="UI Smoke Tests" ;;
+              e2e_tests) FAILED_TESTS="E2E Critical Journeys" ;;
               *) FAILED_TESTS="Validation Gate" ;;
             esac
           fi
