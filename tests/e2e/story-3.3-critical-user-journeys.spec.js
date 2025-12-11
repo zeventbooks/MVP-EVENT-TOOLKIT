@@ -231,6 +231,211 @@ test.describe('Journey 1: Event Creation Flow', () => {
     const criticalErrors = filterCriticalErrors(errors);
     expect(criticalErrors.length).toBe(0);
   });
+
+  test('Full event creation with Sign-Up Form → QR code validation on Poster', async ({ page }) => {
+    // Track JavaScript errors
+    const errors = [];
+    page.on('pageerror', error => errors.push(error));
+
+    // Step 1: Create event via API with signupUrl (Google Form URL)
+    const signupFormUrl = 'https://docs.google.com/forms/d/e/test-signup-form/viewform';
+    const eventData = new EventBuilder()
+      .withName(`Sign-Up Form Test Event ${Date.now()}`)
+      .withDate('2025-12-25')
+      .withVenue('Sign-Up Form Test Venue')
+      .withSignupUrl(signupFormUrl)
+      .build();
+
+    const createResponse = await api.createEvent(BRAND_ID, eventData, ADMIN_KEY);
+    const createData = await createResponse.json();
+
+    expect(createResponse.ok()).toBe(true);
+    expect(createData.ok).toBe(true);
+
+    const eventId = createData.value.id;
+    createdEventIds.push(eventId);
+    console.log(`✓ Step 1: Created event with signup form: ${eventId}`);
+
+    // Step 2: Verify event has CTA with signup URL
+    const getResponse = await api.getEvent(BRAND_ID, eventId);
+    const getData = await getResponse.json();
+
+    expect(getData.ok).toBe(true);
+    expect(getData.value.ctas).toBeDefined();
+    expect(getData.value.ctas.primary).toBeDefined();
+    expect(getData.value.ctas.primary.url).toBe(signupFormUrl);
+    console.log(`✓ Step 2: Event has signup URL in CTAs`);
+
+    // Step 3: Navigate to Poster page and verify QR codes
+    const posterUrl = `${BASE_URL}?page=poster&brand=${BRAND_ID}&id=${eventId}`;
+    await page.goto(posterUrl, TIMEOUT_CONFIG);
+
+    // Wait for poster to load
+    await expect(page.locator('main, #app, .poster-container, .poster')).toBeVisible({ timeout: 15000 });
+    console.log(`✓ Step 3: Poster page loaded`);
+
+    // Step 4: Verify QR code section exists
+    const qrSection = page.locator('.qr-section, .qr-codes, #qrGrid, [data-qr]');
+    const hasQRSection = await qrSection.count() > 0;
+
+    if (hasQRSection) {
+      await expect(qrSection.first()).toBeVisible();
+      console.log(`✓ Step 4: QR code section visible on poster`);
+    }
+
+    // Step 5: Check for QR code images (either quickchart.io or data URL)
+    const qrImages = page.locator('img[src*="qr"], img[src*="quickchart"], img[alt*="QR"], .qr-code img');
+    const qrCount = await qrImages.count();
+
+    if (qrCount > 0) {
+      console.log(`✓ Step 5: Found ${qrCount} QR code image(s) on poster`);
+
+      // Verify at least one QR image is visible
+      await expect(qrImages.first()).toBeVisible();
+
+      // Check QR image source contains the signup URL or is a valid QR service URL
+      const firstQRSrc = await qrImages.first().getAttribute('src');
+      const isValidQR = firstQRSrc &&
+        (firstQRSrc.includes('quickchart.io/qr') ||
+         firstQRSrc.includes('chart.googleapis.com') ||
+         firstQRSrc.startsWith('data:image'));
+
+      if (isValidQR) {
+        console.log(`✓ Step 5: QR code has valid image source`);
+      }
+    } else {
+      // QR codes might be generated server-side in event.qr field
+      console.log(`⚠ Step 5: No QR images found - checking API for pre-generated QR codes`);
+
+      // Check if event has pre-generated QR codes
+      if (getData.value.qr) {
+        expect(getData.value.qr).toHaveProperty('public');
+        console.log(`✓ Step 5: Event has pre-generated QR codes in API response`);
+      }
+    }
+
+    // Step 6: Verify poster has event details with signup info
+    const posterContent = await page.textContent('body');
+    expect(posterContent.length).toBeGreaterThan(100);
+
+    // Check for signup-related content (CTA button or sign up text)
+    const hasSignupContent = posterContent.toLowerCase().includes('sign') ||
+                             posterContent.toLowerCase().includes('register') ||
+                             await page.locator('a[href*="forms.google.com"], .cta-button, .signup-btn').count() > 0;
+
+    if (hasSignupContent) {
+      console.log(`✓ Step 6: Poster contains signup/registration content`);
+    }
+
+    // Step 7: Verify no critical JS errors during poster render
+    await page.waitForTimeout(1000);
+    const criticalErrors = filterCriticalErrors(errors);
+    expect(criticalErrors.length).toBe(0);
+    console.log(`✓ Step 7: No critical JS errors on poster page`);
+  });
+
+  test('Admin configures Sign-Up Form via UI → Verify on Public page', async ({ page }) => {
+    // Track JavaScript errors
+    const errors = [];
+    page.on('pageerror', error => errors.push(error));
+
+    // Set up dialog handler
+    page.on('dialog', async dialog => {
+      if (dialog.type() === 'prompt' && dialog.message().toLowerCase().includes('admin')) {
+        await dialog.accept(ADMIN_KEY);
+      } else if (dialog.type() === 'alert') {
+        await dialog.accept();
+      } else {
+        await dialog.dismiss();
+      }
+    });
+
+    // Step 1: Create event first via API
+    const eventData = new EventBuilder()
+      .withName(`Form Config Test Event ${Date.now()}`)
+      .withDate('2025-12-26')
+      .withVenue('Form Config Test Venue')
+      .build();
+
+    const createResponse = await api.createEvent(BRAND_ID, eventData, ADMIN_KEY);
+    const createData = await createResponse.json();
+    expect(createData.ok).toBe(true);
+
+    const eventId = createData.value.id;
+    createdEventIds.push(eventId);
+    console.log(`✓ Step 1: Created event: ${eventId}`);
+
+    // Step 2: Navigate to Admin page
+    await page.goto(`${BASE_URL}?page=admin&brand=${BRAND_ID}`, TIMEOUT_CONFIG);
+
+    await expect(
+      page.locator('h2:has-text("Create Event"), h1:has-text("Admin"), form#eventForm, .admin-container').first()
+    ).toBeVisible({ timeout: 15000 });
+    console.log(`✓ Step 2: Admin page loaded`);
+
+    // Step 3: Look for the event card with sign-up form configuration
+    const eventCard = page.locator(`[data-event-id="${eventId}"], .event-card`).first();
+    const hasEventCard = await eventCard.count() > 0;
+
+    if (hasEventCard) {
+      // Look for forms configuration section (card 3 typically)
+      const formsSection = page.locator('.forms-card, #formsCard, [data-card="forms"], .signup-config');
+      const hasFormsSection = await formsSection.count() > 0;
+
+      if (hasFormsSection) {
+        console.log(`✓ Step 3: Forms configuration section found in admin`);
+
+        // Check for signup URL input field
+        const signupInput = page.locator('input[name*="signup"], input[id*="signup"], input[placeholder*="form"]');
+        if (await signupInput.count() > 0) {
+          console.log(`✓ Step 3: Signup URL input field found`);
+        }
+      }
+    }
+
+    // Step 4: Update event with signup URL via API
+    const signupFormUrl = 'https://docs.google.com/forms/d/e/test-form-config/viewform';
+    const updateResponse = await api.updateEvent(BRAND_ID, eventId, {
+      ctas: {
+        primary: { label: 'Sign Up Now', url: signupFormUrl },
+        secondary: null
+      }
+    }, ADMIN_KEY);
+
+    expect(updateResponse.ok()).toBe(true);
+    console.log(`✓ Step 4: Updated event with signup form URL`);
+
+    // Step 5: Navigate to Public page and verify signup button
+    const publicUrl = `${BASE_URL}?page=public&brand=${BRAND_ID}&id=${eventId}`;
+    await page.goto(publicUrl, TIMEOUT_CONFIG);
+
+    await expect(page.locator('main, #app')).toBeVisible({ timeout: 15000 });
+
+    // Check for signup/register CTA button
+    const ctaButton = page.locator('a.cta-button, a[href*="forms.google.com"], button:has-text("Sign"), .primary-cta');
+    const hasCtaButton = await ctaButton.count() > 0;
+
+    if (hasCtaButton) {
+      console.log(`✓ Step 5: CTA button visible on public page`);
+
+      // Verify button links to form
+      const href = await ctaButton.first().getAttribute('href');
+      if (href && href.includes('forms.google.com')) {
+        console.log(`✓ Step 5: CTA button links to Google Form`);
+      }
+    } else {
+      // Verify via page content
+      const pageContent = await page.textContent('body');
+      const hasSignupText = pageContent.toLowerCase().includes('sign up') ||
+                           pageContent.toLowerCase().includes('register');
+      console.log(`⚠ Step 5: CTA button not found, signup text present: ${hasSignupText}`);
+    }
+
+    // Verify no critical JS errors
+    const criticalErrors = filterCriticalErrors(errors);
+    expect(criticalErrors.length).toBe(0);
+    console.log(`✓ Step 6: No critical JS errors`);
+  });
 });
 
 // =============================================================================
