@@ -106,11 +106,18 @@ concurrency:
 # See deploy-manifest.json for canonical configuration
 # See scripts/read-manifest.js for helper utilities
 #
+# Story 6 - CI Environment Configuration:
+#   STG_BASE_URL: Used by Stage-2 tests against staging
+#   PROD_BASE_URL: Used by Stage-2 tests against production
+#
 # Note: Values are loaded dynamically in the 'load-manifest' step of each job
 # These defaults serve as fallbacks only if manifest loading fails
 env:
   # Manifest file path
   DEPLOY_MANIFEST: 'deploy-manifest.json'
+  # Story 6 CI config - Base URLs for tests
+  STG_BASE_URL: 'https://stg.eventangle.com'
+  PROD_BASE_URL: 'https://www.eventangle.com'
   # Staging environment (stg.eventangle.com) - loaded from manifest
   STAGING_URL: 'https://stg.eventangle.com'
   STAGING_SCRIPT_ID: '1gHiPuj7eXNk09dDyk17SJ6QsCJg7LMqXBRrkowljL3z2TaAKFIvBLhHJ'
