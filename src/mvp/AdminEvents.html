@@ -132,6 +132,7 @@ Functions exposed to global scope:
   /**
    * Load existing events into the dropdown.
    * Called on page init and after event creation.
+   * Story 4: Use safeRpc for consistent error handling with status/errorCode
    */
   async function loadExistingEvents() {
     const dropdown = document.getElementById('eventDropdown');
@@ -141,10 +142,24 @@ Functions exposed to global scope:
 
     try {
       console.log('[EventSelector] Loading events for brand:', BRAND);
-      const res = await NU.rpc('api_getEventsSafe', { brandId: BRAND });
+      const res = await NU.safeRpc('api_getEventsSafe', { brandId: BRAND });
 
       if (!res.ok) {
-        console.warn('[EventSelector] Failed to load events:', res.message || res.error);
+        // Story 4: Enhanced error logging with status and errorCode
+        console.warn('[EventSelector] Failed to load events:', {
+          code: res.code,
+          message: res.message,
+          status: res.status,
+          errorCode: res.errorCode
+        });
+        // Show detailed error in staging, simple message in prod
+        if (window.SharedUtils) {
+          const isStaging = SharedUtils.isStaging();
+          const errorMsg = isStaging && (res.status || res.errorCode)
+            ? `Could not load events (${res.status || res.errorCode})`
+            : 'Could not load events';
+          SharedUtils.showToast(errorMsg, 'error');
+        }
         return;
       }
 
@@ -202,6 +217,7 @@ Functions exposed to global scope:
 
   /**
    * Load a specific event by ID and show in the dashboard.
+   * Story 4: Use safeRpc for consistent error handling with status/errorCode
    */
   async function loadSelectedEvent(eventId) {
     if (!eventId) return;
@@ -213,15 +229,30 @@ Functions exposed to global scope:
       overlay(true);
       console.log('[EventSelector] Loading event:', eventId);
 
-      const res = await NU.rpc('api_get', {
+      const res = await NU.safeRpc('api_get', {
         brandId: BRAND,
         scope: SCOPE,
         id: eventId
       });
 
       if (!res.ok) {
+        // Story 4: Enhanced error logging and messaging
+        console.error('[EventSelector] Failed to load event:', {
+          code: res.code,
+          message: res.message,
+          status: res.status,
+          errorCode: res.errorCode
+        });
         if (window.SharedUtils) {
-          SharedUtils.showToast('Failed to load event: ' + (res.message || 'Unknown error'), 'error');
+          const isStaging = SharedUtils.isStaging();
+          // Show diagnostic details in staging
+          let errorMsg = 'Failed to load event';
+          if (isStaging && (res.status || res.errorCode)) {
+            errorMsg += ` (${res.status || ''} ${res.errorCode || res.code || ''})`.trim();
+          } else if (res.message) {
+            errorMsg += ': ' + res.message;
+          }
+          SharedUtils.showToast(errorMsg, 'error');
         }
         overlay(false);
         return;

@@ -408,6 +408,7 @@ window.SharedUtils = (function() {
    * Standard error types for consistent UX across all surfaces
    * S12: Error & Empty State Polish
    * S13: Graceful Degradation - added SERVICE_UNAVAILABLE, TIMEOUT
+   * Story 4: Added CONFIG_ERROR for 4xx/GAS_UPSTREAM_NON_JSON errors
    */
   const ERROR_TYPES = {
     EVENT_NOT_FOUND: 'event_not_found',
@@ -416,6 +417,7 @@ window.SharedUtils = (function() {
     UNAUTHORIZED: 'unauthorized',
     SERVICE_UNAVAILABLE: 'service_unavailable',
     TIMEOUT: 'timeout',
+    CONFIG_ERROR: 'config_error',
     GENERIC: 'generic'
   };
 
@@ -423,14 +425,43 @@ window.SharedUtils = (function() {
    * Maps raw error messages/codes to user-friendly error types
    * Prevents leaking internal details (JSON, stack traces, etc.)
    * S13: Added SERVICE_UNAVAILABLE, TIMEOUT detection
+   * Story 4: Added CONFIG_ERROR for 4xx status and GAS_UPSTREAM_NON_JSON
    *
-   * @param {string|Error|Object} error - Raw error message, Error object, or {code, message}
+   * @param {string|Error|Object} error - Raw error message, Error object, or {code, message, status, errorCode}
    * @returns {string} User-friendly error type from ERROR_TYPES
    */
   function classifyError(error) {
     // Handle error objects with code property (from NU.safeRpc)
     const code = String(error?.code || '').toUpperCase();
+    const errorCode = String(error?.errorCode || '').toUpperCase();
+    const status = Number(error?.status) || 0;
     const msg = String(error?.message || error || '').toLowerCase();
+
+    // Story 4: Check errorCode for configuration issues
+    if (errorCode === 'GAS_UPSTREAM_NON_JSON') {
+      return ERROR_TYPES.CONFIG_ERROR;
+    }
+
+    // Story 4: Check status code ranges
+    // 4xx errors (except 404/401/403) indicate configuration issues
+    if (status >= 400 && status < 500) {
+      if (status === 404) {
+        return ERROR_TYPES.EVENT_NOT_FOUND;
+      }
+      if (status === 401 || status === 403) {
+        return ERROR_TYPES.UNAUTHORIZED;
+      }
+      // Other 4xx errors indicate configuration problems
+      return ERROR_TYPES.CONFIG_ERROR;
+    }
+
+    // 5xx errors indicate temporary service issues
+    if (status >= 500 && status < 600) {
+      if (status === 504) {
+        return ERROR_TYPES.TIMEOUT;
+      }
+      return ERROR_TYPES.SERVICE_UNAVAILABLE;
+    }
 
     // Check error codes first (most reliable)
     if (code === 'SERVICE_UNAVAILABLE' || code === 'INTERNAL') {
@@ -447,6 +478,9 @@ window.SharedUtils = (function() {
     }
     if (code === 'NETWORK_ERROR') {
       return ERROR_TYPES.NETWORK_ERROR;
+    }
+    if (code === 'BAD_INPUT' || code === 'BAD_REQUEST' || code === 'CONFIG_ERROR') {
+      return ERROR_TYPES.CONFIG_ERROR;
     }
 
     // Fallback to message-based detection
@@ -467,6 +501,9 @@ window.SharedUtils = (function() {
     }
     if (msg.includes('no data') || msg.includes('empty') || msg.includes('nothing')) {
       return ERROR_TYPES.NO_DATA;
+    }
+    if (msg.includes('configuration') || msg.includes('misconfigured') || msg.includes('setup')) {
+      return ERROR_TYPES.CONFIG_ERROR;
     }
     return ERROR_TYPES.GENERIC;
   }
@@ -669,17 +706,81 @@ window.SharedUtils = (function() {
     },
 
     /**
+     * Show configuration issue state (Story 4: Tighten frontend error handling)
+     * For 4xx errors or GAS_UPSTREAM_NON_JSON indicating backend misconfiguration.
+     * Shows user-friendly message in prod, expanded diagnostics in staging.
+     * @param {HTMLElement} container - Target container
+     * @param {Object} options - { onRetry, tvMode, isStaging, status, errorCode, corrId }
+     */
+    showConfigurationIssue(container, options = {}) {
+      const {
+        onRetry = null,
+        tvMode = false,
+        isStaging = false,
+        status = null,
+        errorCode = null,
+        corrId = null
+      } = options;
+
+      // User-friendly message for production
+      const prodTitle = 'Setting Up';
+      const prodMessage = 'We\'re setting this event up. Try again later.';
+      const prodHint = 'This page should be available shortly.';
+
+      // Staging gets richer diagnostics
+      const stagingTitle = 'Configuration Issue';
+      const stagingMessage = 'The backend may be misconfigured for this request.';
+
+      // Build diagnostic info for staging
+      let diagnosticHtml = '';
+      if (isStaging && (status || errorCode || corrId)) {
+        const diagParts = [];
+        if (status) diagParts.push(`Status: ${status}`);
+        if (errorCode) diagParts.push(`Error: ${errorCode}`);
+        if (corrId) diagParts.push(`Ref: ${corrId}`);
+        diagnosticHtml = `
+          <details style="margin-top: 12px; text-align: left;">
+            <summary style="cursor: pointer; color: #64748b; font-size: 0.85rem;">Diagnostic Info</summary>
+            <pre style="background: #f1f5f9; padding: 8px; border-radius: 4px; font-size: 0.75rem; margin-top: 8px; overflow-x: auto;">${esc(diagParts.join('\n'))}</pre>
+          </details>
+        `;
+      }
+
+      const stateClass = tvMode ? 'error-state-tv' : 'error-state config-error-state';
+      const iconClass = tvMode ? 'error-icon' : 'error-state-icon';
+
+      container.innerHTML = `
+        <div class="${stateClass}" data-testid="config-error-state">
+          <div class="${iconClass}">⚙️</div>
+          <h3>${esc(isStaging ? stagingTitle : prodTitle)}</h3>
+          <p>${esc(isStaging ? stagingMessage : prodMessage)}</p>
+          <p style="font-size: 0.85rem; color: ${tvMode ? '#9ca3af' : '#991b1b'}; margin-top: 8px;">
+            ${esc(isStaging ? 'Check backend logs and configuration.' : prodHint)}
+          </p>
+          ${diagnosticHtml}
+          ${onRetry ? '<button class="btn-retry">🔄 Try Again</button>' : ''}
+        </div>
+      `;
+      if (onRetry) {
+        container.querySelector('.btn-retry')?.addEventListener('click', onRetry);
+      }
+    },
+
+    /**
      * Auto-detect error type and show appropriate state
      * S13: Updated to handle SERVICE_UNAVAILABLE, TIMEOUT
+     * Story 4: Added CONFIG_ERROR handling
      *
      * @param {HTMLElement} container - Target container
-     * @param {string|Error|Object} error - Raw error, Error object, or {code, message, corrId}
-     * @param {Object} options - { onRetry, backUrl, tvMode }
+     * @param {string|Error|Object} error - Raw error, Error object, or {code, message, corrId, status, errorCode}
+     * @param {Object} options - { onRetry, backUrl, tvMode, isStaging }
      */
     showFromError(container, error, options = {}) {
-      const { onRetry = null, backUrl = null, tvMode = false } = options;
+      const { onRetry = null, backUrl = null, tvMode = false, isStaging = false } = options;
       const errorType = classifyError(error);
       const corrId = error?.corrId || null;
+      const status = error?.status || null;
+      const errorCode = error?.errorCode || null;
 
       switch (errorType) {
         case ERROR_TYPES.EVENT_NOT_FOUND:
@@ -699,6 +800,9 @@ window.SharedUtils = (function() {
           break;
         case ERROR_TYPES.TIMEOUT:
           this.showTimeout(container, { onRetry, tvMode });
+          break;
+        case ERROR_TYPES.CONFIG_ERROR:
+          this.showConfigurationIssue(container, { onRetry, tvMode, isStaging, status, errorCode, corrId });
           break;
         default:
           this.showError(container, {
@@ -743,6 +847,40 @@ window.SharedUtils = (function() {
     }
   }
 
+  // === Environment Detection (Story 4) ===
+
+  /**
+   * Detects if the current environment is staging.
+   * Story 4: Used to show richer diagnostics on staging without leaking in prod.
+   *
+   * Detection logic (matches NUSDK.html):
+   * - stg.eventangle.com → staging
+   * - localhost, 127.0.0.1 → staging (for local dev)
+   * - eventangle.com (without stg.) → production
+   *
+   * @returns {boolean} True if running in staging environment
+   */
+  function isStaging() {
+    const hostname = window.location?.hostname || '';
+
+    // Helper for safe domain suffix check
+    const isDomain = (host, domain) =>
+      host === domain || host.endsWith('.' + domain);
+
+    // Staging indicators
+    if (isDomain(hostname, 'stg.eventangle.com')) return true;
+    if (hostname === 'localhost' || hostname === '127.0.0.1') return true;
+
+    // Production indicator (eventangle.com without stg.)
+    if (isDomain(hostname, 'eventangle.com') && !hostname.includes('stg')) {
+      return false;
+    }
+
+    // Default to staging for safety (show more info rather than less)
+    // This ensures unknown environments don't hide diagnostic info
+    return true;
+  }
+
   // === Public API ===
   return {
     // Alerts
@@ -781,7 +919,10 @@ window.SharedUtils = (function() {
     throttle,
 
     // EVENT_CONTRACT helpers
-    sectionEnabled
+    sectionEnabled,
+
+    // Environment detection (Story 4)
+    isStaging
   };
 })();
 </script>

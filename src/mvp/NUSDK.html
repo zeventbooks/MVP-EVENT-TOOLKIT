@@ -245,6 +245,7 @@ window.NU = {
       });
 
       // Handle HTTP errors
+      // Story 4: Include status and errorCode in response for frontend error classification
       if (!response.ok) {
         let errorData;
         try {
@@ -258,10 +259,19 @@ window.NU = {
           requestId,
           status: response.status,
           code: errorData.code,
+          errorCode: errorData.errorCode,
           startTime
         });
 
-        return errorData;
+        // Story 4: Ensure status and errorCode are passed through for error classification
+        // The frontend uses these to show appropriate error states:
+        // - status 500-599 → "Temporary Issue" card
+        // - status 400-499 or errorCode === "GAS_UPSTREAM_NON_JSON" → "Configuration Issue" card
+        return {
+          ...errorData,
+          status: response.status,
+          errorCode: errorData.errorCode || errorData.code
+        };
       }
 
       // Parse JSON response
@@ -389,11 +399,12 @@ window.NU = {
   /**
    * Safe RPC wrapper with graceful error handling for UI display
    * Normalizes all error types to a consistent format for StateRenderer
+   * Story 4: Now passes through status and errorCode for frontend error classification
    *
    * @param {string} path - API path
    * @param {object} payload - Request parameters
    * @param {object} options - { onError, silent }
-   * @returns {Promise<{ok: boolean, value?: any, code?: string, message?: string}>}
+   * @returns {Promise<{ok: boolean, value?: any, code?: string, message?: string, status?: number, errorCode?: string}>}
    */
   async safeRpc(path, payload, options = {}) {
     const { onError, silent = false } = options;
@@ -403,11 +414,17 @@ window.NU = {
 
       // Handle backend error responses (ok: false)
       if (!res.ok) {
+        // Story 4: Preserve status and errorCode for frontend error classification
+        // These are used by StateRenderer.showFromError() to show appropriate error states:
+        // - status 500-599 → "Temporary Issue" card
+        // - status 400-499 or errorCode === "GAS_UPSTREAM_NON_JSON" → "Configuration Issue" card
         const errorInfo = {
           ok: false,
           code: res.code || 'UNKNOWN',
           message: res.message || 'An unexpected error occurred',
-          corrId: res.corrId
+          corrId: res.corrId,
+          status: res.status,
+          errorCode: res.errorCode
         };
 
         // Log error (with deduplication)
@@ -416,7 +433,9 @@ window.NU = {
             path,
             code: errorInfo.code,
             message: errorInfo.message,
-            corrId: errorInfo.corrId
+            corrId: errorInfo.corrId,
+            status: errorInfo.status,
+            errorCode: errorInfo.errorCode
           });
         }
 

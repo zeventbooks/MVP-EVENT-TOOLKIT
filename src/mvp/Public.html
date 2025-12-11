@@ -1933,16 +1933,23 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
 
     // S12/S13: Error state renderer using shared StateRenderer for consistent UX
     // Accepts either a type string or error object from safeRpc
+    // Story 4: Enhanced to pass isStaging for richer diagnostics on staging
     function showError(typeOrError = 'load') {
       const root = document.getElementById('list');
       const backUrl = `${EXEC_URL}?p=events&brand=${BRAND}`;
+      const isStaging = SharedUtils.isStaging();
 
-      // S13: Handle error objects from safeRpc (has code/message properties)
-      if (typeOrError && typeof typeOrError === 'object' && typeOrError.code) {
-        // Use showFromError which handles SERVICE_UNAVAILABLE, TIMEOUT, etc.
+      // Story 4: Handle error objects from safeRpc (has code/message/status/errorCode properties)
+      // Classifies errors by status code and errorCode for appropriate UI states:
+      // - ok: true → events rendered or clean empty state
+      // - ok: false + status 500-599 → "Temporary Issue" card
+      // - ok: false + status 400-499 or errorCode === "GAS_UPSTREAM_NON_JSON" → "Configuration Issue" card
+      if (typeOrError && typeof typeOrError === 'object' && (typeOrError.code || typeOrError.status || typeOrError.errorCode)) {
+        // Use showFromError which handles all error types including CONFIG_ERROR
         SharedUtils.StateRenderer.showFromError(root, typeOrError, {
           onRetry: () => location.reload(),
-          backUrl
+          backUrl,
+          isStaging
         });
       } else if (typeOrError === 'notfound') {
         SharedUtils.StateRenderer.showEventNotFound(root, { backUrl });
