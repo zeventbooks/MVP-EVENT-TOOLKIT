@@ -61,6 +61,22 @@ function filterCriticalErrors(errors) {
 }
 
 /**
+ * Safely check if a URL belongs to an allowed host
+ * Uses proper URL parsing to prevent subdomain/TLD attacks
+ */
+function isAllowedHost(urlString, allowedHosts) {
+  if (!urlString) return false;
+  // Data URLs are always allowed for QR codes
+  if (urlString.startsWith('data:')) return true;
+  try {
+    const url = new URL(urlString);
+    return allowedHosts.some(host => url.hostname === host || url.hostname.endsWith('.' + host));
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Generate unique test event data
  */
 function generateTestEvent() {
@@ -221,9 +237,6 @@ test.describe('Journey 1: Event Creation Flow', () => {
 
     // Try to find event ID in the page
     const eventIdAttr = await page.locator('[data-event-id]').first().getAttribute('data-event-id');
-    if (eventIdAttr) {
-      eventId = eventIdAttr;
-    }
 
     // Step 5: Verify via API
     const listResponse = await api.listEvents(BRAND_ID);
@@ -232,7 +245,7 @@ test.describe('Journey 1: Event Creation Flow', () => {
     expect(listData.ok).toBe(true);
     expect(listData.value).toBeInstanceOf(Array);
 
-    // Find the created event
+    // Find the created event - prefer API result, fallback to DOM attribute
     const createdEvent = listData.value.find(e => e.name === testEvent.name);
     if (createdEvent) {
       eventId = createdEvent.id;
@@ -241,6 +254,10 @@ test.describe('Journey 1: Event Creation Flow', () => {
 
       expect(createdEvent.venue).toBe(testEvent.venue);
       expect(createdEvent.startDateISO).toBe(testEvent.startDateISO);
+    } else if (eventIdAttr) {
+      eventId = eventIdAttr;
+      createdEventIds.push(eventId);
+      console.log(`✓ Created event via UI (from DOM): ${eventId}`);
     }
 
     // Verify no critical JS errors
@@ -309,12 +326,10 @@ test.describe('Journey 1: Event Creation Flow', () => {
       // Verify at least one QR image is visible
       await expect(qrImages.first()).toBeVisible();
 
-      // Check QR image source contains the signup URL or is a valid QR service URL
+      // Check QR image source is from a valid QR service (proper URL validation)
       const firstQRSrc = await qrImages.first().getAttribute('src');
-      const isValidQR = firstQRSrc &&
-        (firstQRSrc.includes('quickchart.io/qr') ||
-         firstQRSrc.includes('chart.googleapis.com') ||
-         firstQRSrc.startsWith('data:image'));
+      const allowedQRHosts = ['quickchart.io', 'chart.googleapis.com', 'chart.apis.google.com'];
+      const isValidQR = isAllowedHost(firstQRSrc, allowedQRHosts);
 
       if (isValidQR) {
         console.log(`✓ Step 5: QR code has valid image source`);
@@ -434,9 +449,10 @@ test.describe('Journey 1: Event Creation Flow', () => {
     if (hasCtaButton) {
       console.log(`✓ Step 5: CTA button visible on public page`);
 
-      // Verify button links to form
+      // Verify button links to form (proper URL validation)
       const href = await ctaButton.first().getAttribute('href');
-      if (href && href.includes('forms.google.com')) {
+      const allowedFormHosts = ['forms.google.com', 'docs.google.com'];
+      if (isAllowedHost(href, allowedFormHosts)) {
         console.log(`✓ Step 5: CTA button links to Google Form`);
       }
     } else {
