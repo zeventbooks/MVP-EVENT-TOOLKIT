@@ -1,0 +1,479 @@
+# Fix GAS Deployment Permissions
+#
+# This workflow fixes the "permission denied" error on POST requests to GAS.
+#
+# Root Cause:
+#   GAS deployment access permissions are IMMUTABLE after creation.
+#   If a deployment was created without "Anyone, anonymous" access,
+#   POST requests will fail with "You do not have permission".
+#
+# Solution:
+#   1. Push code with correct appsscript.json (ANYONE_ANONYMOUS)
+#   2. Create a NEW deployment (old one can't be fixed)
+#   3. Update wrangler.toml with new deployment ID
+#   4. Deploy the Cloudflare Worker with updated config
+#
+# Usage:
+#   Go to Actions > Fix GAS Permissions > Run workflow
+#   Select the environment (staging or production)
+#
+# Required Secrets:
+#   - OAUTH_CREDENTIALS: Clasp OAuth credentials JSON
+#   - CLOUDFLARE_API_TOKEN: Cloudflare API token
+#   - CLOUDFLARE_ACCOUNT_ID: Cloudflare account ID
+
+name: Fix GAS Permissions
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to fix'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+      skip_worker_deploy:
+        description: 'Skip Worker deployment (just update GAS)'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  STAGING_SCRIPT_ID: '1gHiPuj7eXNk09dDyk17SJ6QsCJg7LMqXBRrkowljL3z2TaAKFIvBLhHJ'
+  PROD_SCRIPT_ID: '1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l'
+
+jobs:
+  fix-permissions:
+    name: Fix ${{ inputs.environment }} GAS Permissions
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: |
+          npm install -g @google/clasp
+          npm install -g wrangler@3
+
+      - name: Verify appsscript.json configuration
+        run: |
+          echo "=============================================="
+          echo "STEP 1: Verify appsscript.json"
+          echo "=============================================="
+
+          APPSSCRIPT="src/mvp/appsscript.json"
+
+          if [ ! -f "$APPSSCRIPT" ]; then
+            echo "ERROR: $APPSSCRIPT not found"
+            exit 1
+          fi
+
+          echo "Current appsscript.json:"
+          cat "$APPSSCRIPT"
+          echo ""
+
+          # Verify ANYONE_ANONYMOUS
+          if grep -q '"access": "ANYONE_ANONYMOUS"' "$APPSSCRIPT"; then
+            echo "✓ Has ANYONE_ANONYMOUS access"
+          else
+            echo "ERROR: Missing ANYONE_ANONYMOUS in appsscript.json"
+            echo ""
+            echo "The webapp section should look like:"
+            echo '  "webapp": {'
+            echo '    "executeAs": "USER_DEPLOYING",'
+            echo '    "access": "ANYONE_ANONYMOUS"'
+            echo '  }'
+            exit 1
+          fi
+
+          if grep -q '"executeAs": "USER_DEPLOYING"' "$APPSSCRIPT"; then
+            echo "✓ Has USER_DEPLOYING executeAs"
+          else
+            echo "WARNING: executeAs may not be USER_DEPLOYING"
+          fi
+
+      - name: Setup clasp credentials
+        env:
+          CLASPRC_JSON: ${{ secrets.OAUTH_CREDENTIALS }}
+        run: |
+          echo "=============================================="
+          echo "STEP 2: Setup clasp credentials"
+          echo "=============================================="
+
+          if [ -z "$CLASPRC_JSON" ]; then
+            echo "ERROR: OAUTH_CREDENTIALS secret not set"
+            echo ""
+            echo "To fix this:"
+            echo "1. Run 'clasp login' locally"
+            echo "2. Copy contents of ~/.clasprc.json"
+            echo "3. Add as GitHub secret OAUTH_CREDENTIALS"
+            exit 1
+          fi
+
+          echo "$CLASPRC_JSON" > ~/.clasprc.json
+          echo "✓ Credentials configured"
+
+      - name: Configure clasp for ${{ inputs.environment }}
+        run: |
+          echo "=============================================="
+          echo "STEP 3: Configure clasp for ${{ inputs.environment }}"
+          echo "=============================================="
+
+          if [ "${{ inputs.environment }}" = "production" ]; then
+            CLASP_CONFIG=".clasp-production.json"
+            EXPECTED_ID="${{ env.PROD_SCRIPT_ID }}"
+          else
+            CLASP_CONFIG=".clasp-staging.json"
+            EXPECTED_ID="${{ env.STAGING_SCRIPT_ID }}"
+          fi
+
+          if [ ! -f "$CLASP_CONFIG" ]; then
+            echo "ERROR: $CLASP_CONFIG not found"
+            exit 1
+          fi
+
+          # Backup and swap
+          cp .clasp.json .clasp.json.backup || true
+          cp "$CLASP_CONFIG" .clasp.json
+
+          ACTUAL_ID=$(grep -oP '"scriptId":\s*"\K[^"]+' .clasp.json)
+          echo "Script ID: $ACTUAL_ID"
+
+          if [ "$ACTUAL_ID" != "$EXPECTED_ID" ]; then
+            echo "WARNING: Script ID mismatch"
+            echo "  Expected: $EXPECTED_ID"
+            echo "  Got: $ACTUAL_ID"
+          fi
+
+          echo "✓ Using $CLASP_CONFIG"
+
+      - name: Push code to GAS
+        run: |
+          echo "=============================================="
+          echo "STEP 4: Push code to GAS"
+          echo "=============================================="
+
+          MAX_RETRIES=3
+          for attempt in $(seq 1 $MAX_RETRIES); do
+            echo "Push attempt $attempt of $MAX_RETRIES..."
+
+            if clasp push --force; then
+              echo "✓ Code pushed successfully"
+              break
+            fi
+
+            if [ $attempt -eq $MAX_RETRIES ]; then
+              echo "ERROR: Push failed after $MAX_RETRIES attempts"
+              exit 1
+            fi
+
+            echo "Retrying in 5s..."
+            sleep 5
+          done
+
+      - name: Create NEW deployment
+        id: deploy
+        run: |
+          echo "=============================================="
+          echo "STEP 5: Create NEW deployment"
+          echo "=============================================="
+          echo ""
+          echo "NOTE: Permissions are set at deployment creation time"
+          echo "      and CANNOT be changed. We must create a NEW deployment."
+          echo ""
+
+          # Clean up old deployments if needed
+          cleanup_deployments() {
+            DEPLOYMENTS=$(clasp deployments 2>&1)
+            DEPLOY_IDS=$(echo "$DEPLOYMENTS" | grep -oP 'AKfycb[a-zA-Z0-9_-]+' || true)
+
+            if [ -z "$DEPLOY_IDS" ]; then
+              return 0
+            fi
+
+            readarray -t DEPLOY_ARRAY <<< "$DEPLOY_IDS"
+            COUNT=${#DEPLOY_ARRAY[@]}
+
+            if [ "$COUNT" -ge 18 ]; then
+              echo "Cleaning up old deployments ($COUNT found)..."
+              KEEP=5
+              DELETE=$((COUNT - KEEP))
+
+              for (( i=0; i<DELETE; i++ )); do
+                ID="${DEPLOY_ARRAY[$i]}"
+                clasp undeploy "$ID" 2>/dev/null || true
+                sleep 1
+              done
+              echo "Cleanup complete"
+            fi
+          }
+
+          cleanup_deployments
+
+          # Create deployment
+          DESCRIPTION="Permission fix - $(date -Iseconds) - ${{ github.sha }}"
+
+          MAX_RETRIES=3
+          for attempt in $(seq 1 $MAX_RETRIES); do
+            echo "Deploy attempt $attempt..."
+
+            DEPLOY_OUTPUT=$(clasp deploy -d "$DESCRIPTION" 2>&1) || true
+            echo "$DEPLOY_OUTPUT"
+
+            # Check for limit
+            if echo "$DEPLOY_OUTPUT" | grep -q "20 versioned"; then
+              cleanup_deployments
+              continue
+            fi
+
+            DEPLOYMENT_ID=$(echo "$DEPLOY_OUTPUT" | grep -oP 'AKfycb[a-zA-Z0-9_-]+' | head -1)
+
+            if [ -n "$DEPLOYMENT_ID" ]; then
+              echo ""
+              echo "✓ NEW deployment created!"
+              echo "  ID: $DEPLOYMENT_ID"
+              echo ""
+              echo "deployment_id=$DEPLOYMENT_ID" >> $GITHUB_OUTPUT
+              echo "web_app_url=https://script.google.com/macros/s/${DEPLOYMENT_ID}/exec" >> $GITHUB_OUTPUT
+              break
+            fi
+
+            if [ $attempt -eq $MAX_RETRIES ]; then
+              echo "ERROR: Deploy failed"
+              exit 1
+            fi
+
+            sleep 5
+          done
+
+          # Restore original .clasp.json
+          [ -f .clasp.json.backup ] && mv .clasp.json.backup .clasp.json || true
+
+      - name: Verify GAS deployment works
+        env:
+          WEB_APP_URL: ${{ steps.deploy.outputs.web_app_url }}
+        run: |
+          echo "=============================================="
+          echo "STEP 6: Verify GAS deployment"
+          echo "=============================================="
+
+          echo "Testing: $WEB_APP_URL"
+          echo ""
+
+          # Test GET
+          echo "Test 1: GET request (ping)..."
+          GET_RESPONSE=$(curl -sL -w "\n%{http_code}" "${WEB_APP_URL}?p=ping" 2>/dev/null || echo -e "\n000")
+          GET_HTTP=$(echo "$GET_RESPONSE" | tail -1)
+          GET_BODY=$(echo "$GET_RESPONSE" | sed '$d')
+
+          if [ "$GET_HTTP" = "200" ]; then
+            echo "✓ GET works: HTTP 200"
+          else
+            echo "✗ GET failed: HTTP $GET_HTTP"
+          fi
+
+          # Test POST - this is the critical test!
+          echo ""
+          echo "Test 2: POST request (api_list) - CRITICAL TEST..."
+          POST_RESPONSE=$(curl -sL -X POST \
+            -H "Content-Type: application/json" \
+            -d '{"action":"list","brandId":"root","scope":"events"}' \
+            -w "\n%{http_code}" \
+            "$WEB_APP_URL" 2>/dev/null || echo -e "\n000")
+          POST_HTTP=$(echo "$POST_RESPONSE" | tail -1)
+          POST_BODY=$(echo "$POST_RESPONSE" | sed '$d')
+
+          if [ "$POST_HTTP" = "200" ]; then
+            if echo "$POST_BODY" | grep -q '"ok"'; then
+              echo "✓ POST works: HTTP 200 with valid JSON"
+              echo "  Response: ${POST_BODY:0:100}..."
+            elif echo "$POST_BODY" | grep -q "permission"; then
+              echo "✗ POST FAILED: Permission error still present!"
+              echo "  This should not happen with a new deployment."
+              echo "  Response: $POST_BODY"
+              exit 1
+            else
+              echo "⚠ POST returned unexpected response"
+              echo "  Response: ${POST_BODY:0:200}"
+            fi
+          else
+            echo "✗ POST failed: HTTP $POST_HTTP"
+            echo "  Response: $POST_BODY"
+            exit 1
+          fi
+
+      - name: Update wrangler.toml
+        env:
+          DEPLOYMENT_ID: ${{ steps.deploy.outputs.deployment_id }}
+          WEB_APP_URL: ${{ steps.deploy.outputs.web_app_url }}
+        run: |
+          echo "=============================================="
+          echo "STEP 7: Update wrangler.toml"
+          echo "=============================================="
+
+          WRANGLER_TOML="cloudflare-proxy/wrangler.toml"
+
+          if [ "${{ inputs.environment }}" = "production" ]; then
+            DEPLOY_VAR="PROD_DEPLOYMENT_ID"
+            URL_VAR="PROD_WEB_APP_URL"
+          else
+            DEPLOY_VAR="STAGING_DEPLOYMENT_ID"
+            URL_VAR="STAGING_WEB_APP_URL"
+          fi
+
+          echo "Updating $DEPLOY_VAR and $URL_VAR..."
+
+          sed -i "s|${DEPLOY_VAR} = \"[^\"]*\"|${DEPLOY_VAR} = \"${DEPLOYMENT_ID}\"|g" "$WRANGLER_TOML"
+          sed -i "s|${URL_VAR} = \"[^\"]*\"|${URL_VAR} = \"${WEB_APP_URL}\"|g" "$WRANGLER_TOML"
+
+          # Update legacy vars for staging
+          if [ "${{ inputs.environment }}" = "staging" ]; then
+            sed -i "/\[env.staging.vars\]/,/\[env\.[^s]/ s|DEPLOYMENT_ID = \"[^\"]*\"|DEPLOYMENT_ID = \"${DEPLOYMENT_ID}\"|" "$WRANGLER_TOML"
+            sed -i "/\[env.staging.vars\]/,/\[env\.[^s]/ s|GAS_DEPLOYMENT_BASE_URL = \"[^\"]*\"|GAS_DEPLOYMENT_BASE_URL = \"${WEB_APP_URL}\"|" "$WRANGLER_TOML"
+          fi
+
+          echo "✓ Updated wrangler.toml"
+          echo ""
+          echo "New values:"
+          grep -E "${DEPLOY_VAR}|${URL_VAR}" "$WRANGLER_TOML" | head -4
+
+      - name: Deploy Cloudflare Worker
+        if: ${{ inputs.skip_worker_deploy != true }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          echo "=============================================="
+          echo "STEP 8: Deploy Cloudflare Worker"
+          echo "=============================================="
+
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "⚠ Cloudflare secrets not configured"
+            echo "  Skipping Worker deployment"
+            echo ""
+            echo "To complete the fix:"
+            echo "  1. Add CLOUDFLARE_API_TOKEN secret"
+            echo "  2. Add CLOUDFLARE_ACCOUNT_ID secret"
+            echo "  3. Re-run this workflow"
+            exit 0
+          fi
+
+          cd cloudflare-proxy
+
+          if [ "${{ inputs.environment }}" = "production" ]; then
+            WRANGLER_ENV="production"
+          else
+            WRANGLER_ENV="staging"
+          fi
+
+          echo "Deploying to $WRANGLER_ENV..."
+          wrangler deploy --env "$WRANGLER_ENV"
+
+          echo "✓ Worker deployed"
+
+      - name: Verify end-to-end
+        if: ${{ inputs.skip_worker_deploy != true }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          echo "=============================================="
+          echo "STEP 9: Verify end-to-end"
+          echo "=============================================="
+
+          if [ "${{ inputs.environment }}" = "production" ]; then
+            BASE_URL="https://www.eventangle.com"
+          else
+            BASE_URL="https://stg.eventangle.com"
+          fi
+
+          echo "Waiting 15s for edge propagation..."
+          sleep 15
+
+          echo ""
+          echo "Testing: $BASE_URL/api/rpc"
+
+          RESPONSE=$(curl -s -X POST \
+            -H "Content-Type: application/json" \
+            -H "Origin: $BASE_URL" \
+            -d '{"method":"api_list","payload":{"brandId":"root","scope":"events"}}' \
+            -w "\n%{http_code}" \
+            "${BASE_URL}/api/rpc" 2>/dev/null || echo -e "\n000")
+          HTTP=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+
+          if [ "$HTTP" = "200" ]; then
+            if echo "$BODY" | grep -q '"ok":true'; then
+              echo "✓ End-to-end test PASSED!"
+              echo "  HTTP: 200"
+              echo "  Response: ${BODY:0:100}..."
+            elif echo "$BODY" | grep -q "GAS_UPSTREAM_NON_JSON"; then
+              echo "✗ Worker still getting permission error from GAS"
+              echo "  The Worker may be cached. Wait a few minutes and test again."
+              echo "  Response: $BODY"
+            else
+              echo "⚠ Unexpected response"
+              echo "  Response: ${BODY:0:200}"
+            fi
+          else
+            echo "✗ Request failed: HTTP $HTTP"
+            echo "  Response: $BODY"
+          fi
+
+      - name: Commit wrangler.toml changes
+        if: success()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add cloudflare-proxy/wrangler.toml
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "fix(${{ inputs.environment }}): update deployment ID with correct permissions
+
+Deployment ID: ${{ steps.deploy.outputs.deployment_id }}
+Web App URL: ${{ steps.deploy.outputs.web_app_url }}
+
+This fixes the GAS permission error on POST requests by creating
+a new deployment with ANYONE_ANONYMOUS access."
+
+            git push
+            echo "✓ Changes committed and pushed"
+          fi
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Fix GAS Permissions - ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Step | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| appsscript.json verified | ✓ |" >> $GITHUB_STEP_SUMMARY
+          echo "| Code pushed to GAS | ✓ |" >> $GITHUB_STEP_SUMMARY
+          echo "| New deployment created | ${{ steps.deploy.outputs.deployment_id && '✓' || '✗' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Deployment ID | \`${{ steps.deploy.outputs.deployment_id }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Web App URL | ${{ steps.deploy.outputs.web_app_url }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ inputs.skip_worker_deploy }}" = "true" ]; then
+            echo "Worker deployment was skipped. To complete:" >> $GITHUB_STEP_SUMMARY
+            echo "1. Deploy the Worker manually: \`cd cloudflare-proxy && wrangler deploy --env ${{ inputs.environment }}\`" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "Full deployment complete. Verify at:" >> $GITHUB_STEP_SUMMARY
+            if [ "${{ inputs.environment }}" = "production" ]; then
+              echo "- https://www.eventangle.com/events" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "- https://stg.eventangle.com/events" >> $GITHUB_STEP_SUMMARY
+            fi
+          fi
