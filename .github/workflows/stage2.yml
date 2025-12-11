@@ -7,7 +7,7 @@
 #
 # What it does:
 #   - Staging (push to main): Downloads stg-base-url, runs full validation
-#   - Production (tag push): Downloads prod-base-url, runs post-deploy sanity
+#   - Production (tag push): Downloads prod-base-url, requires approval, runs post-deploy sanity
 #   - Runs API smoke tests against the live URL
 #   - Runs UI smoke tests against the live URL (GATED by API tests)
 #   - Validates HTML integrity (Story 6: blocks GAS HTML leaks)
@@ -27,13 +27,34 @@
 #   - Saves HTML artifacts on failure for debugging
 #   - Blocks promotion if GAS HTML is detected
 #
-# Story 7 - Production Promotion & Sanity:
-#   Post-deploy production validation includes:
-#   - Same HTML integrity checks used for staging
+# Story 7 - Mirror Fixed Pipeline & Backend Wiring to Production:
+#   Purpose: Bring prod to parity with staging so https://www.eventangle.com/events
+#   behaves identically to staging.
+#
+#   Acceptance Criteria (CI):
+#   - After manual approval, prod Stage-2 leg can:
+#     - Hit https://www.eventangle.com/api/status
+#     - Run lightweight /events smoke test (events.smoke.prod.spec.ts)
+#     - Fail if prod /events is broken
+#   - Prod Stage-2 blocks marking deployment as "live good" if /events fails
+#
+#   Production Tests:
+#   - events.smoke.prod.spec.ts: Lightweight /events validation
+#   - prod-sanity.spec.ts: Full production sanity checks
 #   - No GAS blue banner on /events
 #   - Admin UI visible
 #   - Network calls use /api/* for JSON only
 #   - QR codes still resolve to correct pages
+#
+#   Negative Path Handling:
+#   - If prod deployment fails or /api/status not OK:
+#     - Pipeline leaves current prod untouched
+#     - Raises red flag with clear log output
+#     - See docs/ROLLBACK.md for recovery procedures
+#
+#   Manual Approval Gate:
+#   - Production tests require manual approval via GitHub Environment
+#   - Setup: Settings > Environments > "production" > Required reviewers
 #
 # Contract Boundaries:
 #   - Uses strict JSON schema checks from v4.1.2
@@ -146,17 +167,82 @@ jobs:
           echo "| **Head SHA** | \`${{ github.event.workflow_run.head_sha }}\` |" >> $GITHUB_STEP_SUMMARY
 
   # ============================================================================
+  # STORY 7: PRODUCTION APPROVAL GATE
+  # ============================================================================
+  # Requires manual approval before production Stage-2 tests can run.
+  # Uses GitHub Environment protection rules for the "production" environment.
+  #
+  # Setup Required (GitHub Settings):
+  #   1. Go to Settings > Environments
+  #   2. Create environment named "production"
+  #   3. Enable "Required reviewers" and add approvers
+  #   4. Optionally add deployment branch restrictions (tags only)
+  #
+  # This gate ensures:
+  #   - Production deployments are reviewed before validation
+  #   - Accidental production testing is prevented
+  #   - Clear audit trail of who approved production validation
+  #
+  # For staging: This job is skipped (no approval needed)
+  # For production: Requires manual approval via GitHub environment
+  # ============================================================================
+  prod-approval-gate:
+    name: 🔐 Production Approval Gate
+    runs-on: ubuntu-latest
+    needs: check-stage1
+    if: needs.check-stage1.outputs.should_run == 'true' && needs.check-stage1.outputs.is_production == 'true'
+    environment:
+      name: production
+      url: https://www.eventangle.com
+
+    steps:
+      - name: Production deployment approved
+        run: |
+          echo "=============================================="
+          echo "STORY 7: PRODUCTION APPROVAL GATE PASSED"
+          echo "=============================================="
+          echo ""
+          echo "Production Stage-2 validation has been approved."
+          echo ""
+          echo "Environment: production"
+          echo "Target URL: https://www.eventangle.com"
+          echo "Tag: ${{ github.event.workflow_run.head_branch }}"
+          echo ""
+          echo "Proceeding with production smoke tests..."
+          echo "=============================================="
+
+      - name: Create approval summary
+        run: |
+          echo "## 🔐 Production Approval Gate" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### ✅ APPROVED" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Production Stage-2 validation has been manually approved." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Environment** | \`production\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Target URL** | \`https://www.eventangle.com\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Tag** | \`${{ github.event.workflow_run.head_branch }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Approver** | \`${{ github.actor }}\` |" >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================================
   # ARTIFACT DOWNLOAD
   # ============================================================================
   # Downloads the appropriate base-url artifact from Stage-1:
   #   - Staging deploy (main push): stg-base-url
   #   - Production deploy (tag push): prod-base-url
+  #
+  # Story 7: For production, this waits for manual approval first.
   # ============================================================================
   download-artifact:
     name: Download Base URL
     runs-on: ubuntu-latest
-    needs: check-stage1
-    if: needs.check-stage1.outputs.should_run == 'true'
+    needs: [check-stage1, prod-approval-gate]
+    # Run if: staging (approval skipped) OR production (approval passed)
+    if: |
+      needs.check-stage1.outputs.should_run == 'true' &&
+      (needs.check-stage1.outputs.is_production != 'true' || needs.prod-approval-gate.result == 'success')
     outputs:
       base_url: ${{ steps.extract.outputs.base_url }}
       environment: ${{ steps.extract.outputs.environment }}
@@ -653,6 +739,27 @@ jobs:
           npm run test:api:smoke
         continue-on-error: true
 
+      - name: Run lightweight production events smoke test (Story 7)
+        id: prod-events-smoke
+        if: env.IS_PRODUCTION == 'true'
+        run: |
+          echo "=============================================="
+          echo "STORY 7 - LIGHTWEIGHT PRODUCTION EVENTS TEST"
+          echo "=============================================="
+          echo "Running minimal /events smoke test..."
+          echo "Target: $BASE_URL"
+          echo "=============================================="
+
+          # Run lightweight events.smoke.prod.spec.ts
+          if [ -f "tests/api/smoke/events.smoke.prod.spec.ts" ]; then
+            npx playwright test tests/api/smoke/events.smoke.prod.spec.ts --project=chromium --reporter=list
+          else
+            echo "events.smoke.prod.spec.ts not found"
+            echo "Falling back to standard events test"
+            npx playwright test tests/api/smoke/events.spec.ts --project=chromium --reporter=list
+          fi
+        continue-on-error: true
+
       - name: Run production sanity tests (Story 7)
         id: prod-sanity
         if: env.IS_PRODUCTION == 'true'
@@ -694,6 +801,15 @@ jobs:
           echo "Check the API smoke test results artifact for details."
           exit 1
 
+      - name: Check production events smoke result (Story 7)
+        if: env.IS_PRODUCTION == 'true' && steps.prod-events-smoke.outcome == 'failure'
+        run: |
+          echo "::error::Production /events smoke test failed (Story 7)"
+          echo ""
+          echo "Production /events endpoint is broken. This blocks the release."
+          echo "See docs/ROLLBACK.md for recovery procedures."
+          exit 1
+
       - name: Check production sanity result (Story 7)
         if: env.IS_PRODUCTION == 'true' && steps.prod-sanity.outcome == 'failure'
         run: |
@@ -721,7 +837,9 @@ jobs:
 
           if [ "$IS_PRODUCTION" == "true" ]; then
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Story 7 Production Sanity:** \`${{ steps.prod-sanity.outcome }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "**Story 7 Production Tests:**" >> $GITHUB_STEP_SUMMARY
+            echo "- Events Smoke: \`${{ steps.prod-events-smoke.outcome }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "- Sanity Tests: \`${{ steps.prod-sanity.outcome }}\`" >> $GITHUB_STEP_SUMMARY
           fi
 
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -730,6 +848,10 @@ jobs:
           echo "| **Environment** | \`$ENVIRONMENT\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **Target URL** | \`$BASE_URL\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **API Tests** | \`${{ steps.api-tests.outcome }}\` |" >> $GITHUB_STEP_SUMMARY
+          if [ "$IS_PRODUCTION" == "true" ]; then
+            echo "| **Prod Events Smoke** | \`${{ steps.prod-events-smoke.outcome }}\` |" >> $GITHUB_STEP_SUMMARY
+            echo "| **Prod Sanity** | \`${{ steps.prod-sanity.outcome }}\` |" >> $GITHUB_STEP_SUMMARY
+          fi
 
   # ============================================================================
   # UI SMOKE TESTS (GATED BY API TESTS)
@@ -1066,7 +1188,8 @@ jobs:
   validation-gate:
     name: 🚦 Stage-2 Validation Gate (${{ needs.download-artifact.outputs.environment }})
     runs-on: ubuntu-latest
-    needs: [check-stage1, download-artifact, preflight-health-check, env-alignment-gate, api-smoke, ui-smoke, e2e-tests]
+    needs: [check-stage1, prod-approval-gate, download-artifact, preflight-health-check, env-alignment-gate, api-smoke, ui-smoke, e2e-tests]
+    # Story 7: For production, requires approval gate to have succeeded or been skipped (staging)
     if: always() && needs.download-artifact.result == 'success'
     outputs:
       validation_status: ${{ steps.evaluate.outputs.status }}
@@ -1341,17 +1464,19 @@ jobs:
   notify-stage2-failure:
     name: 📢 Notify Stage-2 Failure
     runs-on: ubuntu-latest
-    needs: [check-stage1, download-artifact, preflight-health-check, env-alignment-gate, api-smoke, ui-smoke, e2e-tests, validation-gate]
+    needs: [check-stage1, prod-approval-gate, download-artifact, preflight-health-check, env-alignment-gate, api-smoke, ui-smoke, e2e-tests, validation-gate]
+    # Story 7: Include production approval gate in notification conditions
     if: |
       always() &&
-      needs.download-artifact.result == 'success' &&
+      (needs.download-artifact.result == 'success' || needs.prod-approval-gate.result == 'failure') &&
       (needs.preflight-health-check.result == 'failure' ||
        needs.env-alignment-gate.result == 'failure' ||
        needs.api-smoke.result == 'failure' ||
        needs.ui-smoke.result == 'failure' ||
        needs.e2e-tests.result == 'failure' ||
        needs.validation-gate.result == 'failure' ||
-       needs.validation-gate.outputs.validation_status == 'failed')
+       needs.validation-gate.outputs.validation_status == 'failed' ||
+       needs.prod-approval-gate.result == 'failure')
 
     steps:
       - name: Determine failure details
