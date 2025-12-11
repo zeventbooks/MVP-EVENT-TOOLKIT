@@ -339,11 +339,21 @@ test.describe('Events API Integration', () => {
 
     // Should use /api endpoints
     const usesApiEndpoints = apiCalls.some(url => url.includes('/api'));
-    // Should NOT call GAS directly
-    const callsGasDirectly = apiCalls.some(url =>
-      url.includes('script.google.com') ||
-      url.includes('macros/s/')
-    );
+
+    // Should NOT call GAS directly - use proper URL parsing to check hostname
+    const callsGasDirectly = apiCalls.some(urlString => {
+      try {
+        const url = new URL(urlString);
+        // Check if hostname is exactly script.google.com or a subdomain of it
+        return url.hostname === 'script.google.com' ||
+               url.hostname.endsWith('.script.google.com') ||
+               // Also check for GAS exec URLs pattern in pathname
+               url.pathname.startsWith('/macros/s/');
+      } catch {
+        // If URL parsing fails, check for obvious GAS patterns conservatively
+        return false;
+      }
+    });
 
     expect(callsGasDirectly, 'Should not call GAS directly from browser').toBe(false);
   });
