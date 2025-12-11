@@ -64,10 +64,16 @@ on:
 
 # Environment configuration - Standardized naming convention
 # See config/deployment-ids.js for canonical source of truth
+#
+# Story 6 - CI Environment Configuration:
+#   STG_BASE_URL: Used by Stage-2 tests against staging
+#   PROD_BASE_URL: Used by Stage-2 tests against production
 env:
-  # Staging environment
+  # Staging environment (Story 6 CI config)
+  STG_BASE_URL: 'https://stg.eventangle.com'
   STAGING_URL: 'https://stg.eventangle.com'
-  # Production environment (standardized naming)
+  # Production environment (Story 6 CI config)
+  PROD_BASE_URL: 'https://www.eventangle.com'
   PROD_URL: 'https://www.eventangle.com'
   # Legacy alias (keeping for backward compatibility)
   PRODUCTION_URL: 'https://www.eventangle.com'
@@ -222,6 +228,208 @@ jobs:
           echo "| **Source Workflow Run** | \`${{ github.event.workflow_run.id }}\` |" >> $GITHUB_STEP_SUMMARY
 
   # ============================================================================
+  # STORY 6: PRE-FLIGHT HEALTH CHECK
+  # ============================================================================
+  # Quick health check before running full test suite.
+  # Validates that staging/production is reachable and responsive.
+  #
+  # Story 6 Requirements:
+  #   - Hit /api/status first - abort if ok:false
+  #   - Hit /events and assert HTTP 200
+  #   - Fail cleanly with "staging unavailable" message instead of noisy timeouts
+  #
+  # This runs BEFORE env-alignment-gate to catch global outages early.
+  # ============================================================================
+  preflight-health-check:
+    name: 🏥 Pre-Flight Health Check (${{ needs.download-artifact.outputs.environment }})
+    runs-on: ubuntu-latest
+    needs: [check-stage1, download-artifact]
+    if: needs.check-stage1.outputs.should_run == 'true'
+    outputs:
+      health_status: ${{ steps.health-check.outputs.status }}
+      api_status_ok: ${{ steps.health-check.outputs.api_status_ok }}
+      events_ok: ${{ steps.health-check.outputs.events_ok }}
+    env:
+      BASE_URL: ${{ needs.download-artifact.outputs.base_url }}
+      ENVIRONMENT: ${{ needs.download-artifact.outputs.environment }}
+
+    steps:
+      - name: Pre-flight health check
+        id: health-check
+        run: |
+          echo "=============================================="
+          echo "STORY 6: PRE-FLIGHT HEALTH CHECK"
+          echo "=============================================="
+          echo "Environment: $ENVIRONMENT"
+          echo "BASE_URL: $BASE_URL"
+          echo ""
+
+          FAILED=false
+          API_STATUS_OK="false"
+          EVENTS_OK="false"
+
+          # Step 1: Check /api/status endpoint
+          echo ">> Checking /api/status..."
+          HTTP_CODE=$(curl -s -o /tmp/api-status.json -w "%{http_code}" \
+            --connect-timeout 30 \
+            --max-time 60 \
+            "$BASE_URL/api/status" 2>&1) || HTTP_CODE="000"
+
+          if [ "$HTTP_CODE" = "000" ]; then
+            echo ""
+            echo "=============================================="
+            echo "❌ STAGING UNAVAILABLE"
+            echo "=============================================="
+            echo ""
+            echo "Could not connect to $BASE_URL"
+            echo "The staging environment appears to be globally down."
+            echo ""
+            echo "This is NOT a test failure - the environment is unreachable."
+            echo ""
+            echo "Possible causes:"
+            echo "  - Cloudflare Worker is not responding"
+            echo "  - DNS resolution failure"
+            echo "  - Network connectivity issue"
+            echo ""
+            echo "Please check:"
+            echo "  1. Cloudflare dashboard for Worker status"
+            echo "  2. DNS configuration for $ENVIRONMENT"
+            echo "  3. Recent deployment logs"
+            echo "=============================================="
+            echo ""
+            echo "status=unavailable" >> $GITHUB_OUTPUT
+            echo "api_status_ok=false" >> $GITHUB_OUTPUT
+            echo "events_ok=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+          echo "  HTTP status: $HTTP_CODE"
+
+          if [ "$HTTP_CODE" = "200" ]; then
+            # Check if ok:true in response
+            if [ -f /tmp/api-status.json ]; then
+              OK_VALUE=$(jq -r '.ok // "null"' /tmp/api-status.json 2>/dev/null || echo "null")
+              if [ "$OK_VALUE" = "true" ]; then
+                echo "  /api/status: OK (ok: true)"
+                API_STATUS_OK="true"
+              else
+                echo "  /api/status: UNHEALTHY (ok: $OK_VALUE)"
+                cat /tmp/api-status.json
+                echo ""
+                echo "=============================================="
+                echo "❌ HEALTH CHECK FAILED"
+                echo "=============================================="
+                echo "/api/status returned ok:false"
+                echo "The backend (GAS) is not healthy."
+                echo ""
+                echo "Aborting Stage-2 tests - fix backend first."
+                echo "=============================================="
+                FAILED=true
+              fi
+            fi
+          elif [ "$HTTP_CODE" = "502" ] || [ "$HTTP_CODE" = "503" ]; then
+            echo ""
+            echo "=============================================="
+            echo "❌ STAGING UNAVAILABLE (HTTP $HTTP_CODE)"
+            echo "=============================================="
+            echo ""
+            echo "/api/status returned HTTP $HTTP_CODE"
+            echo "The staging environment is experiencing issues."
+            echo ""
+            echo "This indicates a backend (GAS) problem."
+            echo "Aborting Stage-2 tests."
+            echo "=============================================="
+            FAILED=true
+          else
+            echo "  Unexpected status: $HTTP_CODE"
+            FAILED=true
+          fi
+
+          # Step 2: Check /events endpoint
+          echo ""
+          echo ">> Checking /events..."
+          EVENTS_CODE=$(curl -s -o /tmp/events.html -w "%{http_code}" \
+            --connect-timeout 30 \
+            --max-time 60 \
+            "$BASE_URL/events" 2>&1) || EVENTS_CODE="000"
+
+          echo "  HTTP status: $EVENTS_CODE"
+
+          if [ "$EVENTS_CODE" = "200" ]; then
+            echo "  /events: OK (HTTP 200)"
+            EVENTS_OK="true"
+          elif [ "$EVENTS_CODE" = "000" ]; then
+            echo "  /events: UNAVAILABLE (connection failed)"
+            FAILED=true
+          else
+            echo "  /events: UNEXPECTED (HTTP $EVENTS_CODE)"
+            FAILED=true
+          fi
+
+          echo ""
+          echo "api_status_ok=$API_STATUS_OK" >> $GITHUB_OUTPUT
+          echo "events_ok=$EVENTS_OK" >> $GITHUB_OUTPUT
+
+          if [ "$FAILED" = "true" ]; then
+            echo "status=failed" >> $GITHUB_OUTPUT
+            exit 1
+          else
+            echo "status=passed" >> $GITHUB_OUTPUT
+            echo ""
+            echo "=============================================="
+            echo "✅ PRE-FLIGHT HEALTH CHECK PASSED"
+            echo "=============================================="
+            echo "  /api/status: OK"
+            echo "  /events: OK"
+            echo ""
+            echo "Proceeding with full Stage-2 test suite..."
+            echo "=============================================="
+          fi
+
+      - name: Create pre-flight summary
+        if: always()
+        run: |
+          echo "## 🏥 Pre-Flight Health Check ($ENVIRONMENT)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          STATUS="${{ steps.health-check.outputs.status }}"
+          API_OK="${{ steps.health-check.outputs.api_status_ok }}"
+          EVENTS_OK="${{ steps.health-check.outputs.events_ok }}"
+
+          if [ "$STATUS" = "passed" ]; then
+            echo "### ✅ ENVIRONMENT HEALTHY" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Pre-flight checks passed. Proceeding with Stage-2 validation." >> $GITHUB_STEP_SUMMARY
+          elif [ "$STATUS" = "unavailable" ]; then
+            echo "### ❌ STAGING UNAVAILABLE" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**The staging environment is globally down.**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "This is not a test failure - the environment cannot be reached." >> $GITHUB_STEP_SUMMARY
+            echo "All downstream Stage-2 tests will be skipped." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Action Required:**" >> $GITHUB_STEP_SUMMARY
+            echo "1. Check Cloudflare dashboard for Worker status" >> $GITHUB_STEP_SUMMARY
+            echo "2. Verify DNS configuration" >> $GITHUB_STEP_SUMMARY
+            echo "3. Review recent deployment logs" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ HEALTH CHECK FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "One or more health checks failed. See details below." >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **/api/status** | \`$([ \"$API_OK\" = \"true\" ] && echo '✅ OK' || echo '❌ FAILED')\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **/events** | \`$([ \"$EVENTS_OK\" = \"true\" ] && echo '✅ OK' || echo '❌ FAILED')\` |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Environment** | \`$ENVIRONMENT\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Target URL** | \`$BASE_URL\` |" >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================================
   # ENVIRONMENT ALIGNMENT GATE (Story 4 - Critical First Gate)
   # ============================================================================
   # MUST run FIRST before any other tests. Verifies Worker ↔ GAS alignment.
@@ -244,7 +452,9 @@ jobs:
   env-alignment-gate:
     name: 🔐 Environment Alignment Gate (${{ needs.download-artifact.outputs.environment }})
     runs-on: ubuntu-latest
-    needs: [check-stage1, download-artifact]
+    needs: [check-stage1, download-artifact, preflight-health-check]
+    # Story 6: Only run if pre-flight health check passed
+    if: needs.preflight-health-check.result == 'success'
     outputs:
       alignment_status: ${{ steps.alignment-check.outputs.status }}
       worker_deployment_id: ${{ steps.alignment-check.outputs.worker_deployment_id }}
@@ -856,7 +1066,7 @@ jobs:
   validation-gate:
     name: 🚦 Stage-2 Validation Gate (${{ needs.download-artifact.outputs.environment }})
     runs-on: ubuntu-latest
-    needs: [check-stage1, download-artifact, env-alignment-gate, api-smoke, ui-smoke, e2e-tests]
+    needs: [check-stage1, download-artifact, preflight-health-check, env-alignment-gate, api-smoke, ui-smoke, e2e-tests]
     if: always() && needs.download-artifact.result == 'success'
     outputs:
       validation_status: ${{ steps.evaluate.outputs.status }}
@@ -869,27 +1079,38 @@ jobs:
           IS_PRODUCTION: ${{ needs.check-stage1.outputs.is_production }}
           ENVIRONMENT: ${{ needs.download-artifact.outputs.environment }}
         run: |
+          PREFLIGHT_RESULT="${{ needs.preflight-health-check.result }}"
           ENV_ALIGNMENT_RESULT="${{ needs.env-alignment-gate.result }}"
           API_RESULT="${{ needs.api-smoke.result }}"
           UI_RESULT="${{ needs.ui-smoke.result }}"
           E2E_RESULT="${{ needs.e2e-tests.result }}"
 
           echo "=============================================="
-          echo "STAGE-2 VALIDATION GATE EVALUATION (Story 2.5 + 3.4)"
+          echo "STAGE-2 VALIDATION GATE EVALUATION (Story 2.5 + 3.4 + 6)"
           echo "=============================================="
           echo "Environment: $ENVIRONMENT"
           echo "Is Production: $IS_PRODUCTION"
           echo ""
           echo "Gate Results:"
+          echo "  🏥 Pre-Flight Health: $PREFLIGHT_RESULT"
           echo "  🔐 Environment Alignment: $ENV_ALIGNMENT_RESULT"
           echo "  🔥 API Smoke Tests: $API_RESULT"
           echo "  🖥️  UI Smoke Tests: $UI_RESULT"
           echo "  🧪 E2E Critical Journeys: $E2E_RESULT"
           echo "=============================================="
 
+          # Story 6: Check pre-flight health first
+          if [ "$PREFLIGHT_RESULT" != "success" ]; then
+            echo ""
+            echo "❌ CRITICAL: Pre-flight health check failed!"
+            echo "Staging/production environment is unavailable or unhealthy."
+            echo "All downstream tests were skipped."
+            echo "status=failed" >> $GITHUB_OUTPUT
+            echo "failure_reason=preflight_health" >> $GITHUB_OUTPUT
+
           # Story 2.5: Fail-fast evaluation
           # If alignment failed, mark overall as failed
-          if [ "$ENV_ALIGNMENT_RESULT" != "success" ]; then
+          elif [ "$ENV_ALIGNMENT_RESULT" != "success" ]; then
             echo ""
             echo "❌ CRITICAL: Environment alignment check failed!"
             echo "All downstream tests were skipped due to fail-fast."
@@ -957,6 +1178,7 @@ jobs:
           ENVIRONMENT: ${{ needs.download-artifact.outputs.environment }}
         run: |
           BASE_URL="${{ needs.download-artifact.outputs.base_url }}"
+          PREFLIGHT_RESULT="${{ needs.preflight-health-check.result }}"
           ENV_ALIGNMENT_RESULT="${{ needs.env-alignment-gate.result }}"
           API_RESULT="${{ needs.api-smoke.result }}"
           UI_RESULT="${{ needs.ui-smoke.result }}"
@@ -971,6 +1193,12 @@ jobs:
             echo "## ✅ DEPLOYMENT VALIDATED" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "Stage-2 validation passed. The $ENVIRONMENT deployment is verified." >> $GITHUB_STEP_SUMMARY
+
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Story 6: /events Verified" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "- /api/status returns ok:true" >> $GITHUB_STEP_SUMMARY
+            echo "- /events returns HTTP 200" >> $GITHUB_STEP_SUMMARY
 
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "### Story 4 Environment Alignment (Verified)" >> $GITHUB_STEP_SUMMARY
@@ -1004,7 +1232,22 @@ jobs:
             echo "## ❌ DEPLOYMENT BLOCKED" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
 
-            if [ "$FAILURE_REASON" == "env_alignment" ]; then
+            if [ "$FAILURE_REASON" == "preflight_health" ]; then
+              echo "### 🏥 STAGING/PRODUCTION UNAVAILABLE" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "**The environment is globally down or unhealthy.**" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "This is NOT a test failure - the environment cannot be reached" >> $GITHUB_STEP_SUMMARY
+              echo "or /api/status returned ok:false." >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "All downstream Stage-2 tests were skipped." >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "**Action Required:**" >> $GITHUB_STEP_SUMMARY
+              echo "1. Check Cloudflare dashboard for Worker status" >> $GITHUB_STEP_SUMMARY
+              echo "2. Verify DNS configuration for $ENVIRONMENT" >> $GITHUB_STEP_SUMMARY
+              echo "3. Review recent deployment logs" >> $GITHUB_STEP_SUMMARY
+              echo "4. Check GAS backend health" >> $GITHUB_STEP_SUMMARY
+            elif [ "$FAILURE_REASON" == "env_alignment" ]; then
               echo "### 🚨 CRITICAL: Environment Alignment Failed" >> $GITHUB_STEP_SUMMARY
               echo "" >> $GITHUB_STEP_SUMMARY
               echo "**The Cloudflare Worker is pointing to the wrong GAS deployment!**" >> $GITHUB_STEP_SUMMARY
@@ -1042,6 +1285,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Test Suite | Result |" >> $GITHUB_STEP_SUMMARY
           echo "|------------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **🏥 Pre-Flight Health** | \`$PREFLIGHT_RESULT\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **🔐 Environment Alignment** | \`$ENV_ALIGNMENT_RESULT\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **📡 API Smoke Tests** | \`$API_RESULT\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **🖥️ UI Smoke Tests** | \`$UI_RESULT\` |" >> $GITHUB_STEP_SUMMARY
@@ -1097,11 +1341,12 @@ jobs:
   notify-stage2-failure:
     name: 📢 Notify Stage-2 Failure
     runs-on: ubuntu-latest
-    needs: [check-stage1, download-artifact, env-alignment-gate, api-smoke, ui-smoke, e2e-tests, validation-gate]
+    needs: [check-stage1, download-artifact, preflight-health-check, env-alignment-gate, api-smoke, ui-smoke, e2e-tests, validation-gate]
     if: |
       always() &&
       needs.download-artifact.result == 'success' &&
-      (needs.env-alignment-gate.result == 'failure' ||
+      (needs.preflight-health-check.result == 'failure' ||
+       needs.env-alignment-gate.result == 'failure' ||
        needs.api-smoke.result == 'failure' ||
        needs.ui-smoke.result == 'failure' ||
        needs.e2e-tests.result == 'failure' ||
@@ -1119,6 +1364,11 @@ jobs:
           FAILED_TESTS=""
           FAILURE_EMOJI="🔴"
 
+          # Story 6: Pre-flight health check failure
+          if [ "${{ needs.preflight-health-check.result }}" == "failure" ]; then
+            FAILED_TESTS="${FAILED_TESTS}Pre-Flight Health (STAGING UNAVAILABLE), "
+            FAILURE_EMOJI="🏥"
+          fi
           if [ "${{ needs.env-alignment-gate.result }}" == "failure" ]; then
             FAILED_TESTS="${FAILED_TESTS}Environment Alignment (CRITICAL), "
             FAILURE_EMOJI="🚨"
