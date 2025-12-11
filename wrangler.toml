@@ -45,9 +45,17 @@ WORKER_ENV = "staging"
 # Story 2: Worker versioning - build version logged in X-Worker-Build-Version header
 WORKER_BUILD_VERSION = "stg-2025.12.09"
 UPSTREAM_TIMEOUT_MS = "30000"
-# Standardized naming (primary)
+# ============================================
+# Story 2: Primary env vars (use these)
+# ============================================
+# STAGING_WEB_APP_URL is the SINGLE SOURCE OF TRUTH for staging
+# The Worker uses this URL directly to call GAS backend
 STAGING_DEPLOYMENT_ID = "AKfycbwFneYCpkio7wCn7y08eDUb2PRCPc2Tdtbv20L4AbEHvuCvoqY9ks7-ONL0pzPPw4Hm"
 STAGING_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwFneYCpkio7wCn7y08eDUb2PRCPc2Tdtbv20L4AbEHvuCvoqY9ks7-ONL0pzPPw4Hm/exec"
-# Legacy aliases (keeping for backward compatibility)
+# ============================================
+# DEPRECATED: Legacy aliases (do not use for new code)
+# ============================================
+# These are kept ONLY for backward compatibility with older code paths
+# Will be removed in a future release - migrate to STAGING_* vars
 DEPLOYMENT_ID = "AKfycbwFneYCpkio7wCn7y08eDUb2PRCPc2Tdtbv20L4AbEHvuCvoqY9ks7-ONL0pzPPw4Hm"
 GAS_DEPLOYMENT_BASE_URL = "https://script.google.com/macros/s/AKfycbwFneYCpkio7wCn7y08eDUb2PRCPc2Tdtbv20L4AbEHvuCvoqY9ks7-ONL0pzPPw4Hm/exec"
