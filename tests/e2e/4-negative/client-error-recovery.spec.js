@@ -73,10 +73,9 @@ test.describe('CLIENT-001: JavaScript Runtime Errors', () => {
     await page.waitForTimeout(2000);
 
     // Inject a runtime error - this will throw TypeError
-    // Use dynamic value to avoid static analysis warnings while still testing error handling
+    // Use JSON.parse to create null dynamically (avoids static analysis)
     await page.evaluate(() => {
-      const getNull = () => null;
-      const obj = getNull();
+      const obj = JSON.parse('null');
       obj.someMethod(); // TypeError: Cannot read property of null
     }).catch(() => {}); // Expected to throw
 
