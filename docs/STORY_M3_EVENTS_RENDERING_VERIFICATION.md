@@ -154,24 +154,54 @@ The Google Apps Script deployment is configured incorrectly for POST requests. T
 
 ## Required Fix
 
-### Option 1: Redeploy GAS with Correct Permissions
+**Key Insight:** GAS deployment permissions are **IMMUTABLE** after creation. You cannot fix an existing deployment - you must create a NEW one.
 
-1. Open Google Apps Script project
-2. Go to **Deploy > Manage deployments**
-3. Create a **New deployment**:
-   - Type: Web app
-   - Execute as: **Me**
-   - Who has access: **Anyone** (not "Anyone with Google account")
-4. Copy new deployment ID
-5. Update `wrangler.toml` with new ID
-6. Deploy Worker: `wrangler deploy --env staging`
+### Option 1: GitHub Actions Workflow (Recommended)
 
-### Option 2: Verify Existing Deployment Settings
+A new workflow has been created to automate this fix:
+
+1. Go to **Actions** > **Fix GAS Permissions**
+2. Click **Run workflow**
+3. Select environment (`staging` or `production`)
+4. The workflow will:
+   - Push code with correct `appsscript.json`
+   - Create a NEW deployment with `ANYONE_ANONYMOUS` access
+   - Update `wrangler.toml` with the new deployment ID
+   - Deploy the Cloudflare Worker
+   - Verify end-to-end functionality
+
+**Required Secrets:**
+- `OAUTH_CREDENTIALS` - Clasp OAuth credentials (from `~/.clasprc.json`)
+- `CLOUDFLARE_API_TOKEN` - Cloudflare API token
+- `CLOUDFLARE_ACCOUNT_ID` - Cloudflare account ID
+
+### Option 2: Manual Script
+
+Run locally with clasp authenticated:
+
+```bash
+./scripts/redeploy-with-permissions.sh staging
+# or
+./scripts/redeploy-with-permissions.sh production
+```
+
+### Option 3: Manual UI Steps
 
 1. Open GAS project: https://script.google.com/home/projects/1gHiPuj7eXNk09dDyk17SJ6QsCJg7LMqXBRrkowljL3z2TaAKFIvBLhHJ/edit
-2. Go to **Deploy > Manage deployments**
-3. Check current deployment settings
-4. If incorrect, create new deployment with correct settings
+2. Verify `appsscript.json` has:
+   ```json
+   "webapp": {
+     "executeAs": "USER_DEPLOYING",
+     "access": "ANYONE_ANONYMOUS"
+   }
+   ```
+3. Go to **Deploy > New deployment**
+4. Create with:
+   - Execute as: **Me**
+   - Who has access: **Anyone** (anonymous)
+5. Copy new deployment ID
+6. Update `cloudflare-proxy/wrangler.toml`
+7. Deploy Worker: `cd cloudflare-proxy && wrangler deploy --env staging`
 
 ---
 
