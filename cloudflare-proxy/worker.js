@@ -72,7 +72,8 @@ const EMBEDDED_TEMPLATES = {
 // Worker version - used for transparency headers and debugging
 // Story 1: Embedded templates to fix 503 errors on staging routes
 // Story 2: Updated for staging env vars and versioning support
-const WORKER_VERSION = '2.4.0';
+// Story 3: Defensive upstream response handling - honest JSON or structured errors
+const WORKER_VERSION = '2.5.0';
 
 // =============================================================================
 // OBSERVABILITY & LOGGING - Story 5 Implementation
@@ -1057,6 +1058,273 @@ async function handleShortlinkRedirect(request, url, appsScriptBase, env) {
 
 // Timeout for upstream requests (ms)
 const UPSTREAM_TIMEOUT_MS = 30000;
+
+// =============================================================================
+// DEFENSIVE UPSTREAM RESPONSE HANDLING - Story 3 Implementation
+// =============================================================================
+// Guarantees that:
+// - If GAS fails or responds with non-JSON, the Worker surfaces a 5xx + structured error JSON
+// - Only real JSON from GAS is ever labeled application/json
+// - Frontend can reliably distinguish transient outage (503), misconfig (502), bad input (4xx)
+
+/**
+ * GAS Upstream Error Codes
+ * Used to distinguish different failure modes for the frontend
+ */
+const GAS_ERROR_CODES = Object.freeze({
+  NON_JSON_RESPONSE: 'GAS_UPSTREAM_NON_JSON',
+  PARSE_ERROR: 'GAS_UPSTREAM_PARSE_ERROR',
+  INVALID_SHAPE: 'GAS_UPSTREAM_INVALID_SHAPE',
+  HTTP_ERROR: 'GAS_UPSTREAM_HTTP_ERROR',
+  TIMEOUT: 'TIMEOUT',
+  SERVICE_UNAVAILABLE: 'SERVICE_UNAVAILABLE',
+  NETWORK_ERROR: 'NETWORK_ERROR'
+});
+
+/**
+ * Check if DEBUG_LEVEL is enabled for verbose logging
+ * @param {Object} env - Worker environment
+ * @returns {boolean} True if debug logging is enabled
+ */
+function isDebugEnabled(env) {
+  return env.DEBUG_LEVEL === 'debug' || env.DEBUG_LEVEL === 'verbose';
+}
+
+/**
+ * Log debug information (only when DEBUG_LEVEL=debug)
+ * @param {string} message - Log message
+ * @param {Object} data - Optional data to log
+ * @param {Object} env - Worker environment
+ */
+function debugLog(message, data, env) {
+  if (isDebugEnabled(env)) {
+    if (data) {
+      console.log(`[DEBUG] ${message}`, JSON.stringify(data, null, 2));
+    } else {
+      console.log(`[DEBUG] ${message}`);
+    }
+  }
+}
+
+/**
+ * Extract first N characters of body for logging (truncates HTML/long responses)
+ * @param {string} body - Response body
+ * @param {number} maxLength - Maximum length (default 500)
+ * @returns {string} Truncated body
+ */
+function truncateForLog(body, maxLength = 500) {
+  if (!body) return '(empty)';
+  if (body.length <= maxLength) return body;
+  return body.slice(0, maxLength) + '... (truncated)';
+}
+
+/**
+ * Create a structured error response for API failures
+ *
+ * @param {number} status - HTTP status code (502, 503, etc.)
+ * @param {string} errorCode - One of GAS_ERROR_CODES
+ * @param {string} message - Human-readable error message
+ * @param {Object} options - Additional options
+ * @param {string} options.corrId - Correlation ID
+ * @param {number} options.backendStatus - Upstream HTTP status (optional)
+ * @param {number} options.backendDurationMs - Upstream request duration (optional)
+ * @returns {Response} JSON error response
+ */
+function createStructuredErrorResponse(status, errorCode, message, options = {}) {
+  const { corrId, backendStatus, backendDurationMs } = options;
+
+  const body = {
+    ok: false,
+    status,
+    errorCode,
+    message,
+    ...(corrId ? { corrId } : {}),
+    workerVersion: WORKER_VERSION
+  };
+
+  const headers = {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': '*',
+    'X-Proxied-By': 'eventangle-worker',
+    'X-Worker-Version': WORKER_VERSION,
+    ...(corrId ? { 'X-Error-CorrId': corrId } : {}),
+    ...(backendStatus !== undefined ? { 'X-Backend-Status': String(backendStatus) } : {}),
+    ...(backendDurationMs !== undefined ? { 'X-Backend-Duration-Ms': String(backendDurationMs) } : {}),
+    'Retry-After': status === 503 ? '15' : '30'
+  };
+
+  return new Response(JSON.stringify(body), { status, headers });
+}
+
+/**
+ * Process upstream GAS response with defensive validation
+ *
+ * Story 3 AC:
+ * - Inspect upstream HTTP status and content-type from GAS
+ * - Try to parse JSON
+ * - If parse succeeds and response shape matches contract → return 200 + JSON
+ * - If parse fails or content-type is not JSON → return 502 with structured error
+ * - Add x-backend-status and x-backend-duration-ms headers
+ * - Only set content-type: application/json when body actually is JSON
+ *
+ * @param {Response} upstreamResponse - Raw response from GAS
+ * @param {string} responseText - Response body as text
+ * @param {Object} options - Processing options
+ * @param {number} options.startTime - Request start timestamp (for duration calc)
+ * @param {string} options.action - The API action being called (for logging)
+ * @param {Object} options.env - Worker environment (for debug logging)
+ * @returns {Response} Validated JSON response or structured error
+ */
+function processUpstreamResponse(upstreamResponse, responseText, options = {}) {
+  const { startTime, action, env = {} } = options;
+  const backendDurationMs = startTime ? Date.now() - startTime : undefined;
+  const backendStatus = upstreamResponse.status;
+  const contentType = upstreamResponse.headers.get('content-type') || '';
+  const corrId = generateCorrId();
+
+  // Debug logging for staging
+  debugLog(`Upstream response for action=${action}`, {
+    status: backendStatus,
+    contentType,
+    bodyLength: responseText?.length,
+    bodyPreview: truncateForLog(responseText, 200)
+  }, env);
+
+  // Check if upstream returned an error status
+  if (backendStatus >= 400) {
+    console.log(`[API_ERROR] Upstream returned HTTP ${backendStatus} for action=${action}`);
+    debugLog('Upstream error response body', { body: truncateForLog(responseText) }, env);
+
+    // Try to parse error response as JSON
+    try {
+      const errorData = JSON.parse(responseText);
+      // If it's valid JSON, pass it through with the original status
+      return new Response(JSON.stringify(errorData), {
+        status: backendStatus,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Backend-Status': String(backendStatus),
+          ...(backendDurationMs !== undefined ? { 'X-Backend-Duration-Ms': String(backendDurationMs) } : {})
+        }
+      });
+    } catch {
+      // Not JSON - return structured error
+      return createStructuredErrorResponse(
+        backendStatus >= 500 ? 502 : backendStatus,
+        GAS_ERROR_CODES.HTTP_ERROR,
+        `Upstream returned HTTP ${backendStatus}`,
+        { corrId, backendStatus, backendDurationMs }
+      );
+    }
+  }
+
+  // Check content-type - if it's explicitly HTML, this is an error (e.g., permission page)
+  if (contentType.includes('text/html')) {
+    console.log(`[API_ERROR] Upstream returned HTML instead of JSON for action=${action}, corrId=${corrId}`);
+    debugLog('HTML response body', { body: truncateForLog(responseText) }, env);
+
+    // Detect common GAS error patterns
+    let message = 'Upstream Apps Script returned non-JSON response.';
+    if (responseText.includes('You do not have permission') ||
+        responseText.includes('requires access') ||
+        responseText.includes('Sign in')) {
+      message = 'Upstream Apps Script returned permission error (misconfiguration or auth required).';
+    } else if (responseText.includes('Error') || responseText.includes('error')) {
+      message = 'Upstream Apps Script returned an error page.';
+    }
+
+    return createStructuredErrorResponse(
+      502,
+      GAS_ERROR_CODES.NON_JSON_RESPONSE,
+      message,
+      { corrId, backendStatus, backendDurationMs }
+    );
+  }
+
+  // Try to parse JSON
+  let parsedJson;
+  try {
+    parsedJson = JSON.parse(responseText);
+  } catch (parseError) {
+    console.log(`[API_ERROR] Failed to parse upstream response as JSON for action=${action}, corrId=${corrId}`);
+    debugLog('Parse error details', {
+      error: parseError.message,
+      body: truncateForLog(responseText)
+    }, env);
+
+    return createStructuredErrorResponse(
+      502,
+      GAS_ERROR_CODES.PARSE_ERROR,
+      'Upstream Apps Script returned invalid JSON.',
+      { corrId, backendStatus, backendDurationMs }
+    );
+  }
+
+  // Validate response shape - must have 'ok' field (our contract)
+  // Note: We're lenient here - we just check for basic validity
+  // The actual contract validation can be done by the frontend
+  if (typeof parsedJson !== 'object' || parsedJson === null) {
+    console.log(`[API_ERROR] Upstream response is not a JSON object for action=${action}, corrId=${corrId}`);
+    debugLog('Invalid shape', { parsed: parsedJson }, env);
+
+    return createStructuredErrorResponse(
+      502,
+      GAS_ERROR_CODES.INVALID_SHAPE,
+      'Upstream Apps Script returned non-object JSON.',
+      { corrId, backendStatus, backendDurationMs }
+    );
+  }
+
+  // Valid JSON response - return with transparency headers
+  debugLog(`Valid JSON response for action=${action}`, { ok: parsedJson.ok }, env);
+
+  return new Response(JSON.stringify(parsedJson), {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Backend-Status': String(backendStatus),
+      ...(backendDurationMs !== undefined ? { 'X-Backend-Duration-Ms': String(backendDurationMs) } : {})
+    }
+  });
+}
+
+/**
+ * Handle upstream fetch errors (timeouts, network errors)
+ *
+ * @param {Error} error - The caught error
+ * @param {string} action - The API action being called
+ * @param {number} startTime - Request start timestamp
+ * @param {Object} env - Worker environment
+ * @returns {Response} Structured error response
+ */
+function handleUpstreamFetchError(error, action, startTime, env = {}) {
+  const backendDurationMs = startTime ? Date.now() - startTime : undefined;
+  const corrId = generateCorrId();
+  const isTimeout = error.name === 'AbortError';
+
+  console.log(`[API_ERROR] Upstream fetch failed for action=${action}: ${error.message}, corrId=${corrId}`);
+  debugLog('Fetch error details', {
+    name: error.name,
+    message: error.message,
+    isTimeout
+  }, env);
+
+  if (isTimeout) {
+    return createStructuredErrorResponse(
+      504,
+      GAS_ERROR_CODES.TIMEOUT,
+      'Upstream Apps Script request timed out.',
+      { corrId, backendDurationMs }
+    );
+  }
+
+  return createStructuredErrorResponse(
+    503,
+    GAS_ERROR_CODES.NETWORK_ERROR,
+    'Failed to connect to upstream Apps Script.',
+    { corrId, backendDurationMs }
+  );
+}
 
 // =============================================================================
 // CANONICAL ROUTES - Single Source of Truth
@@ -2425,6 +2693,9 @@ async function handleApiRequest(request, appsScriptBase, env, url) {
   const timeoutMs = env.UPSTREAM_TIMEOUT_MS ? parseInt(env.UPSTREAM_TIMEOUT_MS) : UPSTREAM_TIMEOUT_MS;
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
+  // Track request start time for duration headers
+  const fetchStartTime = Date.now();
+
   try {
     // Forward to GAS doPost
     const response = await fetch(appsScriptBase, {
@@ -2445,12 +2716,16 @@ async function handleApiRequest(request, appsScriptBase, env, url) {
 
     const responseText = await response.text();
 
-    return new Response(responseText, {
-      status: response.status,
-      headers: {
-        'Content-Type': 'application/json'
-      }
+    // Story 3: Use defensive response processing
+    // Validates JSON, adds transparency headers, returns structured errors for non-JSON
+    return processUpstreamResponse(response, responseText, {
+      startTime: fetchStartTime,
+      action,
+      env
     });
+  } catch (error) {
+    // Story 3: Handle fetch errors (timeout, network) with structured responses
+    return handleUpstreamFetchError(error, action, fetchStartTime, env);
   } finally {
     clearTimeout(timeoutId);
   }
@@ -2502,6 +2777,9 @@ async function handleRpcRequest(request, appsScriptBase, env, origin) {
   const timeoutMs = env.UPSTREAM_TIMEOUT_MS ? parseInt(env.UPSTREAM_TIMEOUT_MS) : UPSTREAM_TIMEOUT_MS;
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
+  // Track request start time for duration headers
+  const fetchStartTime = Date.now();
+
   try {
     // Forward to GAS doPost
     const response = await fetch(appsScriptBase, {
@@ -2521,15 +2799,18 @@ async function handleRpcRequest(request, appsScriptBase, env, origin) {
 
     console.log(`[EventAngle] RPC response: ${response.status}`);
 
-    // Return the response (GAS returns JSON)
+    // Story 3: Use defensive response processing
+    // Validates JSON, adds transparency headers, returns structured errors for non-JSON
     const responseText = await response.text();
 
-    return new Response(responseText, {
-      status: response.status,
-      headers: {
-        'Content-Type': 'application/json'
-      }
+    return processUpstreamResponse(response, responseText, {
+      startTime: fetchStartTime,
+      action,
+      env
     });
+  } catch (error) {
+    // Story 3: Handle fetch errors (timeout, network) with structured responses
+    return handleUpstreamFetchError(error, action, fetchStartTime, env);
   } finally {
     clearTimeout(timeoutId);
   }
