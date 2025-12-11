@@ -39,6 +39,7 @@ playwright-report/
 playwright-report-*/
 test-results/
 .test-results/
+.test-data/
 test-dashboard/
 
 # Test history database (keep local, contains all historical test runs)
