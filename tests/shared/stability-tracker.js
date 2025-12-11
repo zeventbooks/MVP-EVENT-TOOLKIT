@@ -425,12 +425,13 @@ async function main() {
       tracker.printFlakyTests();
       break;
 
-    case 'json':
+    case 'json': {
       const report = tracker.generateJsonReport();
       console.log(JSON.stringify(report, null, 2));
       break;
+    }
 
-    case 'ci-check':
+    case 'ci-check': {
       // Check if stability goal is met (for CI/CD gates)
       const metrics = tracker.calculateMetrics();
       if (metrics.currentStreak >= STABILITY_GOAL) {
@@ -441,6 +442,7 @@ async function main() {
         process.exit(1);
       }
       break;
+    }
 
     default:
       console.log(`

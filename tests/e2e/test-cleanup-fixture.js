@@ -241,7 +241,7 @@ export const test = base.extend({
    * Test data helper fixture
    * Provides convenient test data generation
    */
-  testData: async ({}, use) => {
+  testData: async (_, use) => {
     const helpers = {
       /**
        * Generate unique test event name
