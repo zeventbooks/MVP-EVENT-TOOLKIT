@@ -433,7 +433,8 @@ const BRANDS = [
   {
     id: 'root',
     name: 'Zeventbook',
-    hostnames: ['zeventbook.io','www.zeventbook.io','eventangle.com','www.eventangle.com'],
+    // Story 2: Added stg.eventangle.com for staging environment
+    hostnames: ['zeventbook.io','www.zeventbook.io','eventangle.com','www.eventangle.com','stg.eventangle.com','api-stg.eventangle.com'],
     logoUrl: '', // Set to empty or use a valid HTTP/HTTPS URL
     // adminSecret: moved to Script Properties as 'ADMIN_SECRET_ROOT'
     store: { type: 'workbook', spreadsheetId: '1SV1oZMq4GbZBaRc0YmTeV02Tl5KXWD8R6FZXC7TwVCQ' },

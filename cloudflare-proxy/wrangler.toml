@@ -139,9 +139,10 @@ routes = [
 WORKER_ENV = "staging"
 # Story 2: Worker versioning - build version logged in X-Worker-Build-Version header
 WORKER_BUILD_VERSION = "stg-2025.12.09"
+# Story 2: STAGING_WEB_APP_URL is the SINGLE SOURCE OF TRUTH
 STAGING_DEPLOYMENT_ID = "AKfycbwFneYCpkio7wCn7y08eDUb2PRCPc2Tdtbv20L4AbEHvuCvoqY9ks7-ONL0pzPPw4Hm"
 STAGING_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwFneYCpkio7wCn7y08eDUb2PRCPc2Tdtbv20L4AbEHvuCvoqY9ks7-ONL0pzPPw4Hm/exec"
-# Legacy aliases (keeping for backward compatibility)
+# DEPRECATED: Legacy aliases - migrate to STAGING_* vars
 DEPLOYMENT_ID = "AKfycbwFneYCpkio7wCn7y08eDUb2PRCPc2Tdtbv20L4AbEHvuCvoqY9ks7-ONL0pzPPw4Hm"
 GAS_DEPLOYMENT_BASE_URL = "https://script.google.com/macros/s/AKfycbwFneYCpkio7wCn7y08eDUb2PRCPc2Tdtbv20L4AbEHvuCvoqY9ks7-ONL0pzPPw4Hm/exec"
 # Enable debug endpoints (/__debug/template/*) for staging only
