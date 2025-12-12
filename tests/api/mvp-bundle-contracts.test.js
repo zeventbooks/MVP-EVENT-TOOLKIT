@@ -23,6 +23,24 @@
 
 const { getBaseUrl } = require('../config/environments');
 
+// ============================================================================
+// CI DETECTION - Skip network tests in CI environment
+// ============================================================================
+// These tests make HTTP calls to staging/production and require network access.
+// In CI, network is not available, so we skip these tests.
+// Run locally with: npm run test:api-contracts:legacy
+
+const isCI = process.env.CI === 'true' || process.env.CI === true;
+const skipNetworkTests = isCI || process.env.SKIP_NETWORK_TESTS === 'true';
+
+// Use describe.skip to skip all network tests in CI
+const describeNetworkTests = skipNetworkTests ? describe.skip : describe;
+
+if (skipNetworkTests) {
+  console.log('⚠️  MVP Bundle API Contract Tests SKIPPED (CI environment detected)');
+  console.log('   Run locally with: npm run test:api-contracts:legacy');
+}
+
 // Get BASE_URL from environment configuration
 const BASE_URL = getBaseUrl();
 const BRAND_ID = process.env.TEST_BRAND_ID || 'root';
@@ -272,7 +290,7 @@ async function apiRequest(action, params = {}) {
 // TEST SUITES
 // ============================================================================
 
-describe('MVP Bundle API Contract Tests', () => {
+describeNetworkTests('MVP Bundle API Contract Tests', () => {
   let fixtureEventId = null;
 
   // Before all tests, get a valid event ID to use for testing

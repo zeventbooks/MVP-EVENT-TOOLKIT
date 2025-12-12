@@ -94,6 +94,22 @@ WORKER_ENV = "production"
 WORKER_BUILD_VERSION = "prod-2025.12.09"
 # Story 2: Debug level for observability (production uses 'error' for minimal logging)
 DEBUG_LEVEL = "error"
+# ============================================
+# Story 6.1: DNS Cutover - Worker-Only Mode
+# ============================================
+# BACKEND_MODE controls which backend handles requests:
+#   - 'gas'    : All routes use GAS backend (legacy)
+#   - 'worker' : All routes use Worker-native backend (CURRENT)
+#   - 'mixed'  : Per-route selection based on backendConfig.js
+#
+# As of Story 6.1, production routes ALL traffic through Worker.
+# GAS is only called for:
+#   - Shortlink resolution (/r, /redirect) - proxied through Worker
+#   - Legacy RPC (/api/rpc) - proxied through Worker
+#
+# To rollback to GAS-first routing, change to 'gas' and redeploy.
+# ============================================
+BACKEND_MODE = "worker"
 PROD_DEPLOYMENT_ID = "AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw"
 PROD_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw/exec"
 # Legacy aliases (keeping for backward compatibility)
@@ -216,6 +232,8 @@ WORKER_ENV = "production"
 # Story 2: Worker versioning - build version logged in X-Worker-Build-Version header
 WORKER_BUILD_VERSION = "prod-2025.12.09"
 DEBUG_LEVEL = "error"
+# Story 6.1: Worker-only mode for production
+BACKEND_MODE = "worker"
 PROD_DEPLOYMENT_ID = "AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw"
 PROD_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw/exec"
 # Legacy alias
@@ -309,6 +327,8 @@ WORKER_ENV = "production"
 # Story 2: Worker versioning - build version logged in X-Worker-Build-Version header
 WORKER_BUILD_VERSION = "prod-2025.12.09"
 DEBUG_LEVEL = "error"
+# Story 6.1: Worker-only mode for production
+BACKEND_MODE = "worker"
 # Production GAS deployment (standardized naming)
 PROD_DEPLOYMENT_ID = "AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw"
 PROD_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw/exec"

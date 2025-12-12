@@ -1,14 +1,14 @@
 /**
- * Backend Configuration Module (Story 0.1)
+ * Backend Configuration Module (Story 0.1, updated Story 6.1)
  *
  * Provides versioned backend routing configuration for gradual GAS → Worker migration.
  * Allows routing requests to either GAS (Google Apps Script) or Worker-native
  * implementations on a per-route basis.
  *
  * BACKEND_MODE values:
- *   - 'gas'    : All routes use GAS backend (current production behavior)
- *   - 'worker' : All routes use Worker-native backend
- *   - 'mixed'  : Per-route selection based on BACKEND_ROUTE_MAP
+ *   - 'gas'    : All routes use GAS backend (legacy, for rollback only)
+ *   - 'worker' : All routes use Worker-native backend (PRODUCTION DEFAULT)
+ *   - 'mixed'  : Per-route selection based on BACKEND_ROUTE_MAP (staging)
  *
  * Environment Variables:
  *   - BACKEND_MODE: 'gas' | 'worker' | 'mixed' (default: 'gas')
@@ -16,8 +16,15 @@
  * Query Parameter Override (staging only):
  *   - ?backend=gas|worker forces a specific backend for testing
  *
+ * Production Status (Story 6.1):
+ *   - Production uses BACKEND_MODE='worker' as of Story 6.1 DNS cutover
+ *   - GAS is only used for shortlinks (/r, /redirect) and legacy RPC (/api/rpc)
+ *   - These are proxied through the Worker, not accessed directly
+ *
  * @module backendConfig
  * @see Story 0.1 - Introduce Versioned Backend Routing
+ * @see Story 6.1 - Confirm Prod Worker Parity & DNS Cutover
+ * @see docs/DNS_CUTOVER.md - Cutover documentation
  */
 
 // =============================================================================
@@ -53,10 +60,15 @@ export const DEFAULT_BACKEND_MODE = BACKEND_MODES.GAS;
  *
  * Routes not listed here use the default backend (GAS).
  *
- * Migration Strategy:
- *   1. Start with all routes on 'gas'
- *   2. Flip individual routes to 'worker' as implementations are verified
- *   3. Once all routes are 'worker', switch BACKEND_MODE to 'worker'
+ * Migration Strategy (COMPLETED as of Story 6.1):
+ *   1. Start with all routes on 'gas' ✓
+ *   2. Flip individual routes to 'worker' as implementations are verified ✓
+ *   3. Once all routes are 'worker', switch BACKEND_MODE to 'worker' ✓
+ *
+ * Current Status:
+ *   - Production: BACKEND_MODE='worker' (all routes use Worker)
+ *   - Staging: BACKEND_MODE='mixed' (for testing individual routes)
+ *   - GAS routes below are only used when BACKEND_MODE='mixed'
  *
  * @type {Object<string, string>}
  */

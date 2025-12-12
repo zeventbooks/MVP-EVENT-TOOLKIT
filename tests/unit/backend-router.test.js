@@ -370,12 +370,10 @@ describe('Backend Router (Story 0.1)', () => {
       expect(wranglerContent).toMatch(/\[env\.staging\.vars\][\s\S]*?BACKEND_MODE\s*=\s*["']mixed["']/);
     });
 
-    it('should NOT have BACKEND_MODE in production', () => {
-      // Production section should not override BACKEND_MODE (defaults to gas)
-      const prodSection = wranglerContent.match(/\[env\.production\.vars\][\s\S]*?(?=\[env\.|$)/);
-      if (prodSection) {
-        expect(prodSection[0]).not.toContain('BACKEND_MODE');
-      }
+    it('should have BACKEND_MODE set to worker in production (Story 6.1)', () => {
+      // Story 6.1: Production uses BACKEND_MODE=worker for DNS cutover
+      // All production traffic routes through Worker
+      expect(wranglerContent).toMatch(/\[env\.production\.vars\][\s\S]*?BACKEND_MODE\s*=\s*["']worker["']/);
     });
   });
 
@@ -561,14 +559,16 @@ describe('Story 0.1 Acceptance Criteria', () => {
       expect(wranglerContent).toMatch(/\[env\.staging\.vars\][\s\S]*?BACKEND_MODE/);
     });
 
-    it('should default to gas in production (no explicit setting)', () => {
-      // Production should not have BACKEND_MODE set, defaulting to 'gas'
+    it('should have BACKEND_MODE=worker in production (Story 6.1 DNS cutover)', () => {
+      // Story 6.1: Production now uses BACKEND_MODE=worker for full DNS cutover
+      // This enables all traffic to route through Worker-native implementations
       const prodVarsMatch = wranglerContent.match(/\[env\.production\.vars\]([\s\S]*?)(?=\[|$)/);
+      expect(prodVarsMatch).not.toBeNull();
       if (prodVarsMatch) {
         const prodVars = prodVarsMatch[1];
-        // BACKEND_MODE should not be present OR should be 'gas'
-        const hasMixedOrWorker = /BACKEND_MODE\s*=\s*["'](mixed|worker)["']/.test(prodVars);
-        expect(hasMixedOrWorker).toBe(false);
+        // BACKEND_MODE should be 'worker' for Story 6.1 cutover
+        const hasWorkerMode = /BACKEND_MODE\s*=\s*["']worker["']/.test(prodVars);
+        expect(hasWorkerMode).toBe(true);
       }
     });
   });
