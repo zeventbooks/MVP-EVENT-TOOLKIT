@@ -103,8 +103,8 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
 <!DOCTYPE html>
 <!--
   Template: Admin
-  Bundled: 2025-12-08T21:37:59.497Z
-  Hash: af889d15
+  Bundled: 2025-12-12T04:37:29.450Z
+  Hash: 831d5cb8
   Source: GAS templates (src/mvp/)
   Generator: scripts/bundle-worker-templates.js
 
@@ -1514,6 +1514,121 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
     word-break: break-all;
   }
 
+  /* ===== Story 4: Configuration Issue Card ===== */
+  /* Shows when backend is misconfigured (4xx errors, GAS_UPSTREAM_NON_JSON) */
+  .config-issue-state {
+    background: #fef9e7;
+    border: 1px solid #fcd34d;
+    border-left: 4px solid #f59e0b;
+    border-radius: var(--radius-md, 12px);
+    padding: var(--card-padding-tablet, 24px);
+    text-align: center;
+  }
+
+  .config-issue-state h3 {
+    color: #92400e;
+    margin-bottom: 8px;
+  }
+
+  .config-issue-state p {
+    color: #78350f;
+    margin-bottom: 16px;
+  }
+
+  .config-issue-state .btn-retry {
+    background: #f59e0b;
+    color: white;
+  }
+
+  .config-issue-state .btn-retry:hover {
+    background: #d97706;
+  }
+
+  /* ===== Story 4: Diagnostic Panel (Staging Only) ===== */
+  /* Expandable panel showing technical error details */
+  .diagnostic-panel {
+    margin-top: 16px;
+    text-align: left;
+    background: rgba(255, 255, 255, 0.8);
+    border: 1px solid #fcd34d;
+    border-radius: var(--radius-base, 8px);
+    overflow: hidden;
+  }
+
+  .diagnostic-toggle {
+    display: block;
+    padding: 10px 16px;
+    cursor: pointer;
+    font-size: var(--font-size-sm, 0.875rem);
+    font-weight: var(--font-weight-medium, 500);
+    color: #92400e;
+    background: rgba(252, 211, 77, 0.2);
+    user-select: none;
+    list-style: none;
+  }
+
+  .diagnostic-toggle::-webkit-details-marker {
+    display: none;
+  }
+
+  .diagnostic-toggle::before {
+    content: '▶';
+    display: inline-block;
+    margin-right: 8px;
+    font-size: 0.7em;
+    transition: transform var(--transition-base, 0.2s);
+  }
+
+  .diagnostic-panel[open] .diagnostic-toggle::before {
+    transform: rotate(90deg);
+  }
+
+  .diagnostic-content {
+    padding: 12px 16px;
+    font-size: var(--font-size-sm, 0.875rem);
+    background: white;
+  }
+
+  .diagnostic-row {
+    display: flex;
+    gap: 8px;
+    padding: 6px 0;
+    border-bottom: 1px solid #f3f4f6;
+  }
+
+  .diagnostic-row:last-child {
+    border-bottom: none;
+  }
+
+  .diagnostic-label {
+    color: #6b7280;
+    font-weight: var(--font-weight-medium, 500);
+    min-width: 100px;
+    flex-shrink: 0;
+  }
+
+  .diagnostic-content code {
+    background: #f3f4f6;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: var(--font-family-mono, monospace);
+    font-size: 0.85em;
+    color: #374151;
+    word-break: break-all;
+  }
+
+  /* Mobile adjustments for diagnostic panel */
+  @media (max-width: 640px) {
+    .diagnostic-row {
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .diagnostic-label {
+      min-width: auto;
+    }
+  }
+
   /* Sticky bottom action bar for mobile */
   .sticky-action-bar {
     position: fixed;
@@ -1641,7 +1756,7 @@ window.SKIN = {
 
   <!--
 ═══════════════════════════════════════════════════════════════════════════════
-NUSDK v2.0 - Fetch-Based NU SDK for Google Apps Script
+NUSDK v2.2 - Fetch-Based NU SDK for Google Apps Script
 ═══════════════════════════════════════════════════════════════════════════════
 
 RESPONSIBILITY: This file provides the RPC client for frontend→backend calls ONLY.
@@ -1652,7 +1767,19 @@ WINDOW ADDITIONS:
 - window.__NU_LOGS__ - Rolling log buffer for diagnostics
 - window.NU_DIAG   - Diagnostic helper for Test.html
 
-TRANSPORT: Fetch-based (/api/<path>) with google.script.run fallback
+INITIALIZATION:
+Call NU.init({ execUrl, brand }) early in page setup to configure transport.
+Falls back to template variables when available:
+  NU.init({ execUrl: '<?= execUrl ?>', brand: '<?= brandId ?>' });
+
+TRANSPORT OPTIONS:
+1. Worker Proxy (default): Fetch-based (/api/<path>) through Cloudflare Worker
+   - Used when: NU.init() called with no execUrl or empty execUrl
+2. Direct GAS Transport: Fetch-based ({execUrl}?action={method}&brand={brand})
+   - Used when: NU.init({ execUrl: '...', brand: '...' }) called with valid URL
+   - Legacy enable: NU.configureDirectTransport(execUrl, brand)
+   - Includes retry logic with exponential backoff
+   - Includes correlation ID for distributed tracing
 
 LOGGING LEVELS:
 - Staging: 'debug' (all logs)
@@ -1699,7 +1826,7 @@ window.NU = {
   /**
    * SDK Version
    */
-  VERSION: '2.0.0',
+  VERSION: '2.2.0',
 
   /**
    * Configuration
@@ -1710,6 +1837,18 @@ window.NU = {
     maxLogs: 100,      // Max entries in rolling log buffer
     apiBase: '/api',   // Base path for API endpoints
     dedupeWindow: 5000 // Error deduplication window (ms)
+  },
+
+  /**
+   * Direct transport configuration (for direct GAS exec URL calls)
+   * @private
+   */
+  _directTransport: {
+    enabled: false,    // Whether to use direct GAS transport instead of Worker proxy
+    execUrl: null,     // GAS web app exec URL
+    brand: null,       // Brand identifier for multi-tenant routing
+    maxRetries: 3,     // Max retry attempts for transient failures
+    retryDelayMs: 1000 // Base delay for exponential backoff (doubles each retry)
   },
 
   /**
@@ -1731,6 +1870,16 @@ window.NU = {
   _errorDedupeMap: new Map(),
 
   /**
+   * Environment flags - detected once at init
+   * @private
+   */
+  _env: {
+    isStaging: false,
+    isProduction: false,
+    hostname: ''
+  },
+
+  /**
    * Initialize SDK - auto-detect environment and set log level
    * @private
    */
@@ -1749,6 +1898,9 @@ window.NU = {
                       hostname === '127.0.0.1';
     const isProduction = isDomain(hostname, 'eventangle.com') && !isStaging;
 
+    // Store environment flags for use by other components
+    NU._env = { isStaging, isProduction, hostname };
+
     // Set log level based on environment
     if (isProduction) {
       NU._config.logLevel = 'error';
@@ -1763,6 +1915,130 @@ window.NU = {
       isStaging,
       isProduction
     });
+  },
+
+  /**
+   * Initialization state tracking
+   * @private
+   */
+  _initialized: false,
+
+  /**
+   * Initialize the SDK with configuration
+   *
+   * Call this method early in your page initialization to configure the SDK.
+   * If execUrl is provided, the SDK will use direct GAS transport.
+   * If not provided (or empty), the SDK will use the Cloudflare Worker proxy.
+   *
+   * Fallback behavior:
+   * - In GAS-hosted pages: Pass template vars: NU.init({ execUrl: '<?= execUrl ?>', brand: '<?= brandId ?>' })
+   * - In proxy contexts: Call with no args or empty config to use Worker proxy
+   *
+   * @param {object} config - Configuration object
+   * @param {string} [config.execUrl] - GAS web app exec URL for direct transport
+   * @param {string} [config.brand] - Brand identifier for multi-tenant routing
+   * @param {object} [config.directTransportOptions] - Optional direct transport settings { maxRetries?, retryDelayMs? }
+   * @returns {void}
+   *
+   * @example
+   * // Initialize with direct GAS transport (from GAS-hosted template)
+   * NU.init({
+   *   execUrl: '<?= execUrl ?>',  // Template var from GAS
+   *   brand: '<?= brandId ?>'     // Template var from GAS
+   * });
+   *
+   * @example
+   * // Initialize with proxy transport (default, no config needed)
+   * NU.init(); // or NU.init({})
+   *
+   * @example
+   * // Initialize with custom retry settings
+   * NU.init({
+   *   execUrl: 'https://script.google.com/macros/s/ABC123/exec',
+   *   brand: 'eventangle',
+   *   directTransportOptions: { maxRetries: 5, retryDelayMs: 500 }
+   * });
+   */
+  init(config = {}) {
+    const { execUrl, brand, directTransportOptions = {} } = config;
+
+    // Determine if we have a valid execUrl for direct transport
+    // Empty strings from unpopulated template vars (<?= execUrl ?>) should be treated as falsy
+    const hasValidExecUrl = execUrl && typeof execUrl === 'string' && execUrl.trim() !== '';
+
+    if (hasValidExecUrl) {
+      // Validate URL format before enabling direct transport
+      try {
+        new URL(execUrl);
+
+        // Configure and enable direct transport
+        NU._directTransport = {
+          enabled: true,
+          execUrl: execUrl.trim(),
+          brand: brand || null,
+          maxRetries: directTransportOptions.maxRetries ?? 3,
+          retryDelayMs: directTransportOptions.retryDelayMs ?? 1000
+        };
+
+        NU._log('debug', 'init_config', {
+          transport: 'direct',
+          execUrl: execUrl.substring(0, 50) + (execUrl.length > 50 ? '...' : ''),
+          brand: brand || '(none)',
+          maxRetries: NU._directTransport.maxRetries,
+          retryDelayMs: NU._directTransport.retryDelayMs
+        });
+
+      } catch {
+        // Invalid URL - fall back to proxy transport
+        NU._log('error', 'init_config', {
+          error: 'Invalid execUrl format, falling back to proxy transport',
+          execUrl: execUrl.substring(0, 50)
+        });
+        // Keep direct transport disabled (default)
+      }
+    } else {
+      // No execUrl provided - use Worker proxy (default)
+      NU._log('debug', 'init_config', {
+        transport: 'proxy',
+        apiBase: NU._config.apiBase,
+        reason: hasValidExecUrl === false ? 'execUrl not provided' : 'execUrl empty'
+      });
+    }
+
+    NU._initialized = true;
+  },
+
+  /**
+   * Check if SDK has been initialized via init()
+   * @returns {boolean} True if init() has been called
+   */
+  isInitialized() {
+    return NU._initialized;
+  },
+
+  /**
+   * Get current transport mode
+   * @returns {'direct' | 'proxy'} Current transport mode
+   */
+  getTransportMode() {
+    return NU._directTransport.enabled ? 'direct' : 'proxy';
+  },
+
+  /**
+   * Check if running in staging environment
+   * Useful for showing diagnostic information in staging only
+   * @returns {boolean} True if staging environment
+   */
+  isStaging() {
+    return NU._env.isStaging;
+  },
+
+  /**
+   * Check if running in production environment
+   * @returns {boolean} True if production environment
+   */
+  isProduction() {
+    return NU._env.isProduction;
   },
 
   /**
@@ -1840,16 +2116,249 @@ window.NU = {
   },
 
   /**
+   * Generate a correlation ID for distributed tracing
+   * Format: timestamp-randomhex (e.g., "1702345678901-a3f2b1c9")
+   * @private
+   * @returns {string} Correlation ID
+   */
+  _generateCorrId() {
+    const timestamp = Date.now();
+    const randomPart = Math.random().toString(16).slice(2, 10);
+    return `${timestamp}-${randomPart}`;
+  },
+
+  /**
+   * Sleep helper for retry delays
+   * @private
+   * @param {number} ms - Milliseconds to sleep
+   * @returns {Promise<void>}
+   */
+  _sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  },
+
+  /**
+   * Direct GAS transport via exec URL
+   * Calls {execUrl}?action={method}&brand={brand} with POST body
+   *
+   * Features:
+   * - Retry logic with exponential backoff for transient failures
+   * - Correlation ID header for distributed tracing
+   * - Consistent error envelope: { ok, value?, code?, message? }
+   *
+   * @private
+   * @param {string} method - API method name (e.g., 'events/list', 'getPublicBundle')
+   * @param {object} payload - Request payload
+   * @returns {Promise<{ok: boolean, value?: any, code?: string, message?: string, corrId?: string}>}
+   */
+  async _fetchTransport(method, payload = {}) {
+    const { execUrl, brand, maxRetries, retryDelayMs } = NU._directTransport;
+    const corrId = NU._generateCorrId();
+    const startTime = Date.now();
+
+    // Validate configuration
+    if (!execUrl) {
+      NU._log('error', 'transport_error', {
+        method,
+        corrId,
+        error: 'Direct transport not configured: execUrl is required'
+      });
+      return {
+        ok: false,
+        code: 'CONFIG_ERROR',
+        message: 'Direct transport not configured',
+        corrId
+      };
+    }
+
+    // Build URL with query parameters
+    const url = new URL(execUrl);
+    url.searchParams.set('action', method);
+    if (brand) {
+      url.searchParams.set('brand', brand);
+    }
+
+    NU._log('debug', 'transport_start', {
+      method,
+      corrId,
+      url: url.toString(),
+      payloadKeys: Object.keys(payload)
+    });
+
+    let lastError = null;
+    let attempt = 0;
+
+    while (attempt <= maxRetries) {
+      try {
+        const response = await fetch(url.toString(), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-Correlation-Id': corrId
+          },
+          body: JSON.stringify(payload)
+        });
+
+        // Handle HTTP errors
+        if (!response.ok) {
+          const httpError = {
+            ok: false,
+            code: 'HTTP_ERROR',
+            message: `HTTP ${response.status}`,
+            status: response.status,
+            corrId
+          };
+
+          // Try to parse error body for more details
+          try {
+            const errorBody = await response.json();
+            if (errorBody.code) httpError.code = errorBody.code;
+            if (errorBody.message) httpError.message = errorBody.message;
+          } catch {
+            // Ignore JSON parse errors for error responses
+          }
+
+          // Don't retry client errors (4xx), only server errors (5xx)
+          if (response.status >= 400 && response.status < 500) {
+            NU._log('error', 'http_fail', {
+              method,
+              corrId,
+              status: response.status,
+              code: httpError.code,
+              attempt,
+              startTime
+            });
+            return httpError;
+          }
+
+          // Server error - retry if we have attempts left
+          lastError = httpError;
+          if (attempt < maxRetries) {
+            const delay = retryDelayMs * Math.pow(2, attempt);
+            NU._log('debug', 'transport_retry', {
+              method,
+              corrId,
+              attempt: attempt + 1,
+              maxRetries,
+              delayMs: delay,
+              status: response.status
+            });
+            await NU._sleep(delay);
+            attempt++;
+            continue;
+          }
+
+          NU._log('error', 'http_fail', {
+            method,
+            corrId,
+            status: response.status,
+            code: httpError.code,
+            attempt,
+            startTime
+          });
+          return httpError;
+        }
+
+        // Parse successful response
+        let data;
+        try {
+          data = await response.json();
+        } catch (jsonError) {
+          NU._log('error', 'json_fail', {
+            method,
+            corrId,
+            error: jsonError.message,
+            attempt,
+            startTime
+          });
+          return {
+            ok: false,
+            code: 'PARSE_ERROR',
+            message: 'Invalid JSON response from server',
+            corrId
+          };
+        }
+
+        // Add corrId to response for tracing
+        if (typeof data === 'object' && data !== null) {
+          data.corrId = corrId;
+        }
+
+        NU._log('debug', 'transport_ok', {
+          method,
+          corrId,
+          hasValue: !!data?.value,
+          attempt,
+          startTime
+        });
+
+        return data;
+
+      } catch (networkError) {
+        // Network error (DNS, connection refused, timeout, etc.)
+        lastError = {
+          ok: false,
+          code: 'NETWORK_ERROR',
+          message: String(networkError.message || networkError),
+          corrId
+        };
+
+        if (attempt < maxRetries) {
+          const delay = retryDelayMs * Math.pow(2, attempt);
+          NU._log('debug', 'transport_retry', {
+            method,
+            corrId,
+            attempt: attempt + 1,
+            maxRetries,
+            delayMs: delay,
+            error: networkError.message
+          });
+          await NU._sleep(delay);
+          attempt++;
+          continue;
+        }
+
+        NU._log('error', 'network_fail', {
+          method,
+          corrId,
+          error: networkError.message,
+          attempt,
+          startTime
+        });
+        return lastError;
+      }
+    }
+
+    // Should not reach here, but return last error just in case
+    return lastError || {
+      ok: false,
+      code: 'UNKNOWN_ERROR',
+      message: 'Request failed after retries',
+      corrId
+    };
+  },
+
+  /**
    * Make an RPC call to the backend
    *
-   * Uses fetch('/api/<path>') when available (Cloudflare Worker proxy),
-   * falls back to google.script.run for direct GAS serving.
+   * Transport selection:
+   * - If direct transport is enabled: uses {execUrl}?action={path}&brand={brand}
+   * - Otherwise: uses Cloudflare Worker proxy at /api/{path}
+   *
+   * Uses fetch for all requests. NO google.script.run fallback
+   * as it fails when proxied through Cloudflare.
    *
    * @param {string} path - API path (e.g., 'events/list', 'getPublicBundle')
    * @param {object} payload - Request parameters
    * @returns {Promise<{ok: boolean, value?: any, code?: string, message?: string}>}
    */
   async rpc(path, payload = {}) {
+    // Use direct GAS transport if configured and enabled
+    if (NU._directTransport.enabled) {
+      return NU._fetchTransport(path, payload);
+    }
+
     const startTime = Date.now();
     const requestId = Math.random().toString(36).slice(2, 10);
 
@@ -1873,7 +2382,7 @@ window.NU = {
         ? JSON.stringify({ method: path, payload })
         : JSON.stringify(payload);
 
-      // Make fetch request
+      // Make fetch request (NO google.script.run fallback - fails through Cloudflare)
       const response = await fetch(url, {
         method: 'POST',
         headers: {
@@ -1886,6 +2395,7 @@ window.NU = {
       });
 
       // Handle HTTP errors
+      // Story 4: Preserve status and errorCode from Worker for frontend error classification
       if (!response.ok) {
         let errorData;
         try {
@@ -1894,11 +2404,18 @@ window.NU = {
           errorData = { ok: false, code: 'INTERNAL', message: `HTTP ${response.status}` };
         }
 
+        // Ensure status is always present for error classification
+        // Story 4: Worker may return { ok, errorCode, status, message }
+        if (!errorData.status) {
+          errorData.status = response.status;
+        }
+
         NU._log('error', 'http_fail', {
           path,
           requestId,
-          status: response.status,
-          code: errorData.code,
+          status: errorData.status,
+          code: errorData.code || errorData.errorCode,
+          errorCode: errorData.errorCode,
           startTime
         });
 
@@ -1930,21 +2447,7 @@ window.NU = {
       return data;
 
     } catch (fetchError) {
-      // Network error - try google.script.run fallback
-      NU._log('debug', 'network_fail', {
-        path,
-        requestId,
-        error: fetchError.message,
-        fallback: 'google.script.run',
-        startTime: startTime
-      });
-
-      // For legacy methods, try google.script.run
-      if (path.startsWith('api_') || path.includes('/')) {
-        return NU._fallbackToGAS(path, payload, requestId, startTime);
-      }
-
-      // Non-legacy path with no GAS fallback
+      // Network error - NO fallback to google.script.run (fails through Cloudflare)
       NU._log('error', 'network_fail', {
         path,
         requestId,
@@ -1962,68 +2465,6 @@ window.NU = {
       const idx = NU._pending.indexOf(pendingEntry);
       if (idx > -1) NU._pending.splice(idx, 1);
     }
-  },
-
-  /**
-   * Fallback to google.script.run for direct GAS serving
-   * @private
-   */
-  _fallbackToGAS(path, payload, requestId, startTime) {
-    return new Promise((resolve) => {
-      // Check if google.script.run is available
-      if (!window.google?.script?.run) {
-        NU._log('error', 'network_fail', {
-          path,
-          requestId,
-          error: 'Neither fetch nor google.script.run available',
-          startTime
-        });
-        resolve({
-          ok: false,
-          code: 'NETWORK_ERROR',
-          message: 'Cannot connect to backend. Check your connection.'
-        });
-        return;
-      }
-
-      // Convert path to method name for GAS
-      // 'events/list' -> 'api_list' (if needed)
-      // 'api_getPublicBundle' -> 'api_getPublicBundle' (as-is)
-      const method = path.startsWith('api_') ? path : `api_${path.replace('/', '_')}`;
-
-      try {
-        google.script.run
-          .withSuccessHandler(res => {
-            NU._log('debug', 'ok', {
-              path,
-              requestId,
-              transport: 'google.script.run',
-              hasValue: !!res?.value,
-              startTime
-            });
-            resolve(res);
-          })
-          .withFailureHandler(err => {
-            NU._log('error', 'error', {
-              path,
-              requestId,
-              transport: 'google.script.run',
-              error: String(err),
-              startTime
-            });
-            resolve({ ok: false, code: 'INTERNAL', message: String(err) });
-          })
-          [method](payload);
-      } catch (e) {
-        NU._log('error', 'error', {
-          path,
-          requestId,
-          error: e.message,
-          startTime
-        });
-        resolve({ ok: false, code: 'INTERNAL', message: String(e) });
-      }
-    });
   },
 
   /**
@@ -2107,10 +2548,14 @@ window.NU = {
    * Safe RPC wrapper with graceful error handling for UI display
    * Normalizes all error types to a consistent format for StateRenderer
    *
+   * Story 4: Preserves status and errorCode from Worker for error classification:
+   * - status: HTTP status code (400-599)
+   * - errorCode: Specific error code like 'GAS_UPSTREAM_NON_JSON'
+   *
    * @param {string} path - API path
    * @param {object} payload - Request parameters
    * @param {object} options - { onError, silent }
-   * @returns {Promise<{ok: boolean, value?: any, code?: string, message?: string}>}
+   * @returns {Promise<{ok: boolean, value?: any, code?: string, message?: string, status?: number, errorCode?: string}>}
    */
   async safeRpc(path, payload, options = {}) {
     const { onError, silent = false } = options;
@@ -2120,9 +2565,12 @@ window.NU = {
 
       // Handle backend error responses (ok: false)
       if (!res.ok) {
+        // Story 4: Preserve status and errorCode for frontend error classification
         const errorInfo = {
           ok: false,
-          code: res.code || 'UNKNOWN',
+          code: res.code || res.errorCode || 'UNKNOWN',
+          errorCode: res.errorCode,  // Specific error code from Worker (e.g., GAS_UPSTREAM_NON_JSON)
+          status: res.status,         // HTTP status code for classification
           message: res.message || 'An unexpected error occurred',
           corrId: res.corrId
         };
@@ -2132,6 +2580,8 @@ window.NU = {
           NU._log('error', 'error', {
             path,
             code: errorInfo.code,
+            errorCode: errorInfo.errorCode,
+            status: errorInfo.status,
             message: errorInfo.message,
             corrId: errorInfo.corrId
           });
@@ -2254,10 +2704,290 @@ window.NU = {
   /**
    * Get current configuration (for diagnostics)
    *
-   * @returns {object} Current SDK configuration
+   * @returns {object} Current SDK configuration including transport state
    */
   getConfig() {
-    return { ...NU._config, version: NU.VERSION };
+    return {
+      ...NU._config,
+      version: NU.VERSION,
+      initialized: NU._initialized,
+      transportMode: NU.getTransportMode(),
+      directTransport: {
+        enabled: NU._directTransport.enabled,
+        hasExecUrl: !!NU._directTransport.execUrl,
+        hasBrand: !!NU._directTransport.brand
+      }
+    };
+  },
+
+  /**
+   * Configure and enable direct GAS transport
+   * When enabled, rpc() calls will use the direct exec URL instead of Worker proxy
+   *
+   * @param {string} execUrl - GAS web app exec URL (required)
+   * @param {string} brand - Brand identifier for multi-tenant routing (optional)
+   * @param {object} options - Additional options { maxRetries?, retryDelayMs? }
+   * @returns {void}
+   *
+   * @example
+   * // Enable direct transport
+   * NU.configureDirectTransport(
+   *   'https://script.google.com/macros/s/ABC123/exec',
+   *   'eventangle'
+   * );
+   *
+   * // With custom retry settings
+   * NU.configureDirectTransport(
+   *   'https://script.google.com/macros/s/ABC123/exec',
+   *   'eventangle',
+   *   { maxRetries: 5, retryDelayMs: 500 }
+   * );
+   */
+  configureDirectTransport(execUrl, brand = null, options = {}) {
+    if (!execUrl) {
+      NU._log('error', 'config', { error: 'execUrl is required for direct transport' });
+      throw new Error('execUrl is required for configureDirectTransport');
+    }
+
+    // Validate URL format
+    try {
+      new URL(execUrl);
+    } catch {
+      NU._log('error', 'config', { error: 'Invalid execUrl format', execUrl });
+      throw new Error('Invalid execUrl format');
+    }
+
+    const { maxRetries = 3, retryDelayMs = 1000 } = options;
+
+    NU._directTransport = {
+      enabled: true,
+      execUrl,
+      brand,
+      maxRetries,
+      retryDelayMs
+    };
+
+    NU._log('debug', 'config', {
+      type: 'direct_transport_configured',
+      execUrl: execUrl.substring(0, 50) + '...', // Truncate for logging
+      brand,
+      maxRetries,
+      retryDelayMs
+    });
+  },
+
+  /**
+   * Disable direct transport and revert to Worker proxy
+   * @returns {void}
+   */
+  disableDirectTransport() {
+    NU._directTransport.enabled = false;
+    NU._log('debug', 'config', { type: 'direct_transport_disabled' });
+  },
+
+  /**
+   * Check if direct transport is enabled
+   * @returns {boolean}
+   */
+  isDirectTransportEnabled() {
+    return NU._directTransport.enabled;
+  },
+
+  // =============================================================================
+  // Story 4.3: Enhanced API Wrappers with Global Error Handling
+  // =============================================================================
+
+  /**
+   * Enhanced RPC with automatic retry and user feedback
+   * Integrates with GlobalErrorHandler for comprehensive error handling
+   *
+   * @param {string} path - API path
+   * @param {object} payload - Request parameters
+   * @param {object} options - Enhanced options
+   * @returns {Promise<{ok: boolean, value?: any, code?: string, message?: string}>}
+   */
+  async resilientRpc(path, payload = {}, options = {}) {
+    const {
+      retry = true,
+      maxAttempts = 3,
+      showToast = true,
+      showDialog = false,
+      onError = null,
+      onRetryAttempt = null,
+      context = path
+    } = options;
+
+    // Use GlobalErrorHandler if available
+    const handler = window.GlobalErrorHandler;
+
+    const makeRequest = async () => {
+      const res = await NU.rpc(path, payload);
+      if (!res.ok) {
+        // Convert to throwable error for retry logic
+        const err = new Error(res.message || 'Request failed');
+        err.code = res.code;
+        err.corrId = res.corrId;
+        err.response = res;
+        throw err;
+      }
+      return res;
+    };
+
+    try {
+      if (retry && handler) {
+        // Use GlobalErrorHandler's retry with exponential backoff
+        return await handler.withRetry(makeRequest, {
+          attempts: maxAttempts,
+          shouldRetry: (err) => {
+            // Only retry network and transient errors
+            const code = err?.code || err?.response?.code;
+            return ['NETWORK_ERROR', 'TIMEOUT', 'SERVICE_UNAVAILABLE'].includes(code);
+          },
+          onRetryAttempt: (attempt, total, delay, err) => {
+            NU._log('debug', 'retry', { path, attempt, total, delay, code: err?.code });
+            if (onRetryAttempt) onRetryAttempt(attempt, total, delay, err);
+          }
+        });
+      } else {
+        return await makeRequest();
+      }
+    } catch (err) {
+      // Return the original error response if available
+      if (err.response) {
+        if (onError) onError(err.response);
+
+        if (handler) {
+          if (showDialog) {
+            handler.showErrorDialog({
+              title: 'Unable to Complete Request',
+              message: `We couldn't ${context}. Please try again.`,
+              corrId: err.corrId,
+              onRetry: () => NU.resilientRpc(path, payload, options)
+            });
+          } else if (showToast) {
+            handler.showErrorToast(`Unable to ${context}. Please try again.`);
+          }
+        }
+
+        return err.response;
+      }
+
+      // Network error without response
+      const errorResponse = {
+        ok: false,
+        code: 'NETWORK_ERROR',
+        message: 'Cannot connect to server. Please check your connection.'
+      };
+
+      if (onError) onError(errorResponse);
+
+      if (handler && showToast) {
+        handler.showErrorToast('Connection error. Please check your network.');
+      }
+
+      return errorResponse;
+    }
+  },
+
+  /**
+   * Load data with comprehensive error handling and UI state management
+   * Perfect for initial page loads and data refresh
+   *
+   * @param {string} path - API path
+   * @param {object} payload - Request parameters
+   * @param {object} options - Load options
+   * @returns {Promise<{ok: boolean, value?: any, code?: string, message?: string}>}
+   */
+  async loadData(path, payload = {}, options = {}) {
+    const {
+      container = null,
+      onSuccess = null,
+      onError = null,
+      showLoading = true,
+      retry = true,
+      context = 'load data'
+    } = options;
+
+    const StateRenderer = window.SharedUtils?.StateRenderer;
+
+    // Show loading state
+    if (showLoading && container && StateRenderer) {
+      StateRenderer.showLoading(container, { message: 'Loading...' });
+    }
+
+    const res = await NU.resilientRpc(path, payload, {
+      retry,
+      showToast: false,
+      context
+    });
+
+    if (res.ok) {
+      if (onSuccess) onSuccess(res.value);
+    } else {
+      // Show error state in container
+      if (container && StateRenderer) {
+        StateRenderer.showFromError(container, res, {
+          onRetry: () => NU.loadData(path, payload, options)
+        });
+      }
+      if (onError) onError(res);
+    }
+
+    return res;
+  },
+
+  /**
+   * Submit data with user feedback (for forms, saves, etc.)
+   * Shows appropriate toast/dialog feedback
+   *
+   * @param {string} path - API path
+   * @param {object} payload - Request parameters
+   * @param {object} options - Submit options
+   * @returns {Promise<{ok: boolean, value?: any, code?: string, message?: string}>}
+   */
+  async submitData(path, payload = {}, options = {}) {
+    const {
+      successMessage = 'Saved successfully!',
+      errorMessage = 'Unable to save. Please try again.',
+      onSuccess = null,
+      onError = null,
+      button = null,
+      context = 'save'
+    } = options;
+
+    const showToast = window.SharedUtils?.showToast;
+
+    // Disable button during submit
+    if (button) {
+      button.disabled = true;
+      button.dataset.originalText = button.textContent;
+      button.textContent = 'Saving...';
+    }
+
+    try {
+      const res = await NU.resilientRpc(path, payload, {
+        retry: true,
+        showToast: false,
+        context
+      });
+
+      if (res.ok) {
+        if (showToast) showToast(successMessage, 'success');
+        if (onSuccess) onSuccess(res.value);
+      } else {
+        if (showToast) showToast(errorMessage, 'error');
+        if (onError) onError(res);
+      }
+
+      return res;
+
+    } finally {
+      // Re-enable button
+      if (button) {
+        button.disabled = false;
+        button.textContent = button.dataset.originalText || 'Save';
+      }
+    }
   }
 };
 
@@ -2902,6 +3632,7 @@ window.SharedUtils = (function() {
    * Standard error types for consistent UX across all surfaces
    * S12: Error & Empty State Polish
    * S13: Graceful Degradation - added SERVICE_UNAVAILABLE, TIMEOUT
+   * Story 4: Added CONFIGURATION_ISSUE for 4xx errors and GAS_UPSTREAM_NON_JSON
    */
   const ERROR_TYPES = {
     EVENT_NOT_FOUND: 'event_not_found',
@@ -2910,6 +3641,7 @@ window.SharedUtils = (function() {
     UNAUTHORIZED: 'unauthorized',
     SERVICE_UNAVAILABLE: 'service_unavailable',
     TIMEOUT: 'timeout',
+    CONFIGURATION_ISSUE: 'configuration_issue',  // Story 4: Backend misconfiguration
     GENERIC: 'generic'
   };
 
@@ -2917,16 +3649,44 @@ window.SharedUtils = (function() {
    * Maps raw error messages/codes to user-friendly error types
    * Prevents leaking internal details (JSON, stack traces, etc.)
    * S13: Added SERVICE_UNAVAILABLE, TIMEOUT detection
+   * Story 4: Added CONFIGURATION_ISSUE detection for 4xx and GAS errors
    *
-   * @param {string|Error|Object} error - Raw error message, Error object, or {code, message}
+   * @param {string|Error|Object} error - Raw error message, Error object, or {code, message, status, errorCode}
    * @returns {string} User-friendly error type from ERROR_TYPES
    */
   function classifyError(error) {
     // Handle error objects with code property (from NU.safeRpc)
     const code = String(error?.code || '').toUpperCase();
+    const errorCode = String(error?.errorCode || '').toUpperCase();
+    const status = error?.status;
     const msg = String(error?.message || error || '').toLowerCase();
 
-    // Check error codes first (most reliable)
+    // Story 4: Check for configuration issues first (GAS upstream errors or 4xx status)
+    // GAS_UPSTREAM_NON_JSON indicates backend returned non-JSON (likely misconfigured)
+    if (errorCode === 'GAS_UPSTREAM_NON_JSON' || code === 'GAS_UPSTREAM_NON_JSON') {
+      return ERROR_TYPES.CONFIGURATION_ISSUE;
+    }
+
+    // Story 4: 4xx status codes indicate client/configuration errors
+    if (status && status >= 400 && status < 500) {
+      // 404 is special - treat as not found
+      if (status === 404) {
+        return ERROR_TYPES.EVENT_NOT_FOUND;
+      }
+      // 401/403 are auth errors
+      if (status === 401 || status === 403) {
+        return ERROR_TYPES.UNAUTHORIZED;
+      }
+      // Other 4xx are configuration issues
+      return ERROR_TYPES.CONFIGURATION_ISSUE;
+    }
+
+    // Story 4: 5xx status codes are temporary server issues
+    if (status && status >= 500 && status < 600) {
+      return ERROR_TYPES.SERVICE_UNAVAILABLE;
+    }
+
+    // Check error codes (most reliable)
     if (code === 'SERVICE_UNAVAILABLE' || code === 'INTERNAL') {
       return ERROR_TYPES.SERVICE_UNAVAILABLE;
     }
@@ -2961,6 +3721,10 @@ window.SharedUtils = (function() {
     }
     if (msg.includes('no data') || msg.includes('empty') || msg.includes('nothing')) {
       return ERROR_TYPES.NO_DATA;
+    }
+    // Story 4: Check for configuration-related keywords
+    if (msg.includes('configuration') || msg.includes('config') || msg.includes('misconfigured')) {
+      return ERROR_TYPES.CONFIGURATION_ISSUE;
     }
     return ERROR_TYPES.GENERIC;
   }
@@ -3163,11 +3927,69 @@ window.SharedUtils = (function() {
     },
 
     /**
-     * Auto-detect error type and show appropriate state
-     * S13: Updated to handle SERVICE_UNAVAILABLE, TIMEOUT
+     * Show configuration issue state (Story 4: Frontend Error Handling)
+     * For 4xx errors and GAS_UPSTREAM_NON_JSON - indicates backend misconfiguration
+     *
+     * Behavior:
+     * - Production: Shows user-friendly message without technical details
+     * - Staging: Shows expandable diagnostic panel with status, errorCode
      *
      * @param {HTMLElement} container - Target container
-     * @param {string|Error|Object} error - Raw error, Error object, or {code, message, corrId}
+     * @param {Object} options - { onRetry, tvMode, error }
+     */
+    showConfigurationIssue(container, options = {}) {
+      const { onRetry = null, tvMode = false, error = {} } = options;
+      const isStaging = window.NU?.isStaging?.() || false;
+
+      const stateClass = tvMode ? 'error-state-tv' : 'error-state config-issue-state';
+      const iconClass = tvMode ? 'error-icon' : 'error-state-icon';
+
+      // User-friendly message for all environments
+      const title = 'Configuration Issue';
+      const message = 'We\'re setting this event up. Try again later.';
+
+      // Build diagnostic info for staging only
+      let diagnosticHtml = '';
+      if (isStaging && (error.status || error.errorCode || error.code)) {
+        const status = error.status || 'N/A';
+        const errorCode = error.errorCode || error.code || 'N/A';
+        const corrId = error.corrId || 'N/A';
+
+        diagnosticHtml = `
+          <details class="diagnostic-panel" data-testid="diagnostic-panel">
+            <summary class="diagnostic-toggle">Show Diagnostics</summary>
+            <div class="diagnostic-content">
+              <div class="diagnostic-row"><span class="diagnostic-label">Status:</span> <code>${esc(String(status))}</code></div>
+              <div class="diagnostic-row"><span class="diagnostic-label">Error Code:</span> <code>${esc(String(errorCode))}</code></div>
+              ${corrId !== 'N/A' ? `<div class="diagnostic-row"><span class="diagnostic-label">Correlation ID:</span> <code>${esc(String(corrId))}</code></div>` : ''}
+              ${error.message ? `<div class="diagnostic-row"><span class="diagnostic-label">Message:</span> <code>${esc(String(error.message))}</code></div>` : ''}
+            </div>
+          </details>
+        `;
+      }
+
+      container.innerHTML = `
+        <div class="${stateClass}" data-testid="config-issue-card">
+          <div class="${iconClass}">⚙️</div>
+          <h3>${esc(title)}</h3>
+          <p>${esc(message)}</p>
+          ${diagnosticHtml}
+          ${onRetry ? '<button class="btn-retry">🔄 Try Again</button>' : ''}
+        </div>
+      `;
+
+      if (onRetry) {
+        container.querySelector('.btn-retry')?.addEventListener('click', onRetry);
+      }
+    },
+
+    /**
+     * Auto-detect error type and show appropriate state
+     * S13: Updated to handle SERVICE_UNAVAILABLE, TIMEOUT
+     * Story 4: Added CONFIGURATION_ISSUE handling with staging diagnostics
+     *
+     * @param {HTMLElement} container - Target container
+     * @param {string|Error|Object} error - Raw error, Error object, or {code, message, corrId, status, errorCode}
      * @param {Object} options - { onRetry, backUrl, tvMode }
      */
     showFromError(container, error, options = {}) {
@@ -3193,6 +4015,10 @@ window.SharedUtils = (function() {
           break;
         case ERROR_TYPES.TIMEOUT:
           this.showTimeout(container, { onRetry, tvMode });
+          break;
+        case ERROR_TYPES.CONFIGURATION_ISSUE:
+          // Story 4: Show configuration issue with staging diagnostics
+          this.showConfigurationIssue(container, { onRetry, tvMode, error });
           break;
         default:
           this.showError(container, {
@@ -3277,6 +4103,751 @@ window.SharedUtils = (function() {
     // EVENT_CONTRACT helpers
     sectionEnabled
   };
+})();
+</script>
+
+  <!--
+================================================================================
+GlobalErrorHandler.html - Global Error Handling for MVP Surfaces
+================================================================================
+Story 4.3: Graceful Error Handling in UI
+
+RESPONSIBILITY: This file provides global error handling for client-side JavaScript.
+- Catches uncaught exceptions (window.onerror)
+- Catches unhandled promise rejections (unhandledrejection)
+- Provides error boundary wrapper for async operations
+- Shows user-friendly error dialogs
+- Implements retry logic with exponential backoff
+- Logs errors for developer diagnostics
+
+WINDOW ADDITIONS:
+- window.GlobalErrorHandler - Main error handler object
+
+Dependencies: NUSDK.html (for NU._log), SharedUtils.html (for showToast)
+Used by: Admin.html, Public.html, Display.html, Poster.html, SharedReport.html
+
+USAGE:
+  // Wrap async operations with error boundary
+  await GlobalErrorHandler.withErrorBoundary(async () => {
+    const res = await NU.rpc('api_getData', payload);
+    if (!res.ok) throw res;
+    return res.value;
+  }, {
+    context: 'loading events',
+    onError: (err) => SharedUtils.StateRenderer.showFromError(container, err),
+    retry: true
+  });
+
+  // Manual error reporting
+  GlobalErrorHandler.reportError(error, { context: 'user action', userId: '123' });
+
+  // Show error dialog
+  GlobalErrorHandler.showErrorDialog({
+    title: 'Unable to Save',
+    message: 'Your changes could not be saved. Please try again.',
+    onRetry: () => saveData()
+  });
+
+================================================================================
+-->
+<script>
+(function() {
+  'use strict';
+
+  // =============================================================================
+  // Configuration
+  // =============================================================================
+  const CONFIG = {
+    // Maximum errors to log before throttling (prevent log spam)
+    maxErrorsPerMinute: 10,
+    // Error throttle window in ms
+    throttleWindow: 60000,
+    // Default retry attempts
+    defaultRetryAttempts: 3,
+    // Base delay for exponential backoff (ms)
+    baseRetryDelay: 1000,
+    // Maximum retry delay (ms)
+    maxRetryDelay: 16000,
+    // Errors to ignore (browser extensions, etc.)
+    ignoredErrorPatterns: [
+      /script error/i,
+      /extension/i,
+      /chrome-extension/i,
+      /moz-extension/i,
+      /ResizeObserver loop/i,
+      /Loading chunk/i
+    ],
+    // Auto-dismiss toast errors after this many ms (0 = don't auto-dismiss)
+    toastDuration: 5000
+  };
+
+  // =============================================================================
+  // Error Tracking State
+  // =============================================================================
+  const errorState = {
+    errorCount: 0,
+    lastErrorReset: Date.now(),
+    recentErrors: [], // Rolling buffer of recent errors for diagnostics
+    maxRecentErrors: 50,
+    isDialogOpen: false
+  };
+
+  // =============================================================================
+  // Helper Functions
+  // =============================================================================
+
+  /**
+   * Check if error should be ignored (browser extensions, etc.)
+   * @param {string} message - Error message
+   * @param {string} source - Error source URL
+   * @returns {boolean} True if error should be ignored
+   */
+  function shouldIgnoreError(message, source) {
+    const combined = `${message || ''} ${source || ''}`;
+    return CONFIG.ignoredErrorPatterns.some(pattern => pattern.test(combined));
+  }
+
+  /**
+   * Check if we're being throttled due to too many errors
+   * @returns {boolean} True if throttled
+   */
+  function isThrottled() {
+    const now = Date.now();
+    if (now - errorState.lastErrorReset > CONFIG.throttleWindow) {
+      errorState.errorCount = 0;
+      errorState.lastErrorReset = now;
+    }
+    return errorState.errorCount >= CONFIG.maxErrorsPerMinute;
+  }
+
+  /**
+   * Sanitize error message for user display (remove internal details)
+   * @param {string} message - Raw error message
+   * @returns {string} Sanitized message
+   */
+  function sanitizeMessage(message) {
+    if (!message) return 'An unexpected error occurred';
+
+    // Remove file paths, line numbers, stack traces
+    let sanitized = String(message)
+      .replace(/at\s+[\w.]+\s+\([^)]+\)/g, '') // Remove stack trace lines
+      .replace(/https?:\/\/[^\s]+/g, '[url]')   // Remove URLs
+      .replace(/:\d+:\d+/g, '')                  // Remove line:col numbers
+      .replace(/\s+/g, ' ')                      // Normalize whitespace
+      .trim();
+
+    // If message is too technical, use generic message
+    if (sanitized.length > 200 || /\{.*\}/.test(sanitized) || /\[.*\]/.test(sanitized)) {
+      return 'An unexpected error occurred';
+    }
+
+    return sanitized || 'An unexpected error occurred';
+  }
+
+  /**
+   * Extract error details for logging (internal use only)
+   * @param {Error|string|Object} error - Error to extract details from
+   * @returns {Object} Error details
+   */
+  function extractErrorDetails(error) {
+    if (!error) {
+      return { message: 'Unknown error', code: 'UNKNOWN', stack: null };
+    }
+
+    if (typeof error === 'string') {
+      return { message: error, code: 'STRING_ERROR', stack: null };
+    }
+
+    return {
+      message: error.message || error.msg || String(error),
+      code: error.code || 'UNKNOWN',
+      corrId: error.corrId || null,
+      stack: error.stack || null,
+      name: error.name || 'Error'
+    };
+  }
+
+  /**
+   * Log error to NUSDK rolling buffer
+   * @param {Object} errorDetails - Error details
+   * @param {Object} context - Additional context
+   */
+  function logError(errorDetails, context = {}) {
+    // Check throttling
+    if (isThrottled()) {
+      console.warn('[GlobalErrorHandler] Error logging throttled due to high error rate');
+      return;
+    }
+
+    errorState.errorCount++;
+
+    const entry = {
+      timestamp: new Date().toISOString(),
+      type: 'global_error',
+      ...errorDetails,
+      context,
+      userAgent: navigator.userAgent,
+      url: window.location.href
+    };
+
+    // Add to recent errors buffer
+    errorState.recentErrors.push(entry);
+    if (errorState.recentErrors.length > errorState.maxRecentErrors) {
+      errorState.recentErrors.shift();
+    }
+
+    // Log via NUSDK if available
+    if (window.NU && typeof window.NU._log === 'function') {
+      window.NU._log('error', 'global_error', entry);
+    } else {
+      console.error('[GlobalErrorHandler]', entry);
+    }
+  }
+
+  // =============================================================================
+  // Error Dialog UI
+  // =============================================================================
+
+  /**
+   * Inject error dialog styles (once)
+   */
+  function injectDialogStyles() {
+    if (document.getElementById('global-error-dialog-styles')) return;
+
+    const style = document.createElement('style');
+    style.id = 'global-error-dialog-styles';
+    style.textContent = `
+      .global-error-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        animation: fade-in 0.2s ease;
+      }
+
+      .global-error-dialog {
+        background: #fff;
+        border-radius: 16px;
+        padding: 32px;
+        max-width: 420px;
+        width: 90%;
+        text-align: center;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        animation: slide-up 0.3s ease;
+      }
+
+      .global-error-icon {
+        font-size: 48px;
+        margin-bottom: 16px;
+      }
+
+      .global-error-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #1e293b;
+        margin: 0 0 12px;
+      }
+
+      .global-error-message {
+        font-size: 1rem;
+        color: #64748b;
+        margin: 0 0 24px;
+        line-height: 1.5;
+      }
+
+      .global-error-details {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 12px;
+        font-family: monospace;
+        font-size: 0.8rem;
+        color: #64748b;
+        margin-bottom: 24px;
+        text-align: left;
+        word-break: break-word;
+      }
+
+      .global-error-actions {
+        display: flex;
+        gap: 12px;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+
+      .global-error-btn {
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: none;
+      }
+
+      .global-error-btn-primary {
+        background: #2563eb;
+        color: #fff;
+      }
+
+      .global-error-btn-primary:hover {
+        background: #1d4ed8;
+      }
+
+      .global-error-btn-secondary {
+        background: #f1f5f9;
+        color: #475569;
+      }
+
+      .global-error-btn-secondary:hover {
+        background: #e2e8f0;
+      }
+
+      .global-error-support {
+        margin-top: 16px;
+        font-size: 0.85rem;
+        color: #94a3b8;
+      }
+
+      .global-error-support a {
+        color: #2563eb;
+        text-decoration: none;
+      }
+
+      .global-error-support a:hover {
+        text-decoration: underline;
+      }
+
+      @keyframes fade-in {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+
+      @keyframes slide-up {
+        from { transform: translateY(20px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  /**
+   * Show error dialog to user
+   * @param {Object} options - Dialog options
+   */
+  function showErrorDialog(options = {}) {
+    const {
+      title = 'Oops, Something Went Wrong',
+      message = 'We encountered an unexpected error. Please try again.',
+      icon = '😕',
+      showRetry = true,
+      showDismiss = true,
+      showDetails = false,
+      details = null,
+      corrId = null,
+      onRetry = null,
+      onDismiss = null,
+      supportEmail = null
+    } = options;
+
+    // Don't show multiple dialogs
+    if (errorState.isDialogOpen) return;
+    errorState.isDialogOpen = true;
+
+    injectDialogStyles();
+
+    const overlay = document.createElement('div');
+    overlay.className = 'global-error-overlay';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-labelledby', 'error-dialog-title');
+
+    let detailsHtml = '';
+    if (showDetails && (details || corrId)) {
+      const detailText = corrId ? `Reference: ${corrId}` : details;
+      detailsHtml = `<div class="global-error-details">${escapeHtml(detailText)}</div>`;
+    }
+
+    let actionsHtml = '';
+    if (showRetry) {
+      actionsHtml += '<button class="global-error-btn global-error-btn-primary" data-action="retry">Try Again</button>';
+    }
+    if (showDismiss) {
+      actionsHtml += '<button class="global-error-btn global-error-btn-secondary" data-action="dismiss">Dismiss</button>';
+    }
+
+    let supportHtml = '';
+    if (supportEmail || corrId) {
+      supportHtml = '<div class="global-error-support">';
+      if (corrId) {
+        supportHtml += `Reference: <code>${escapeHtml(corrId)}</code>`;
+      }
+      if (supportEmail) {
+        supportHtml += corrId ? '<br>' : '';
+        supportHtml += `Need help? <a href="mailto:${escapeHtml(supportEmail)}">Contact support</a>`;
+      }
+      supportHtml += '</div>';
+    }
+
+    overlay.innerHTML = `
+      <div class="global-error-dialog">
+        <div class="global-error-icon">${icon}</div>
+        <h2 class="global-error-title" id="error-dialog-title">${escapeHtml(title)}</h2>
+        <p class="global-error-message">${escapeHtml(message)}</p>
+        ${detailsHtml}
+        <div class="global-error-actions">${actionsHtml}</div>
+        ${supportHtml}
+      </div>
+    `;
+
+    // Handle button clicks
+    overlay.addEventListener('click', (e) => {
+      const action = e.target.dataset.action;
+      if (action === 'retry') {
+        closeDialog();
+        if (onRetry) onRetry();
+      } else if (action === 'dismiss' || e.target === overlay) {
+        closeDialog();
+        if (onDismiss) onDismiss();
+      }
+    });
+
+    // Handle escape key
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+        closeDialog();
+        if (onDismiss) onDismiss();
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+
+    function closeDialog() {
+      errorState.isDialogOpen = false;
+      document.removeEventListener('keydown', handleEscape);
+      overlay.remove();
+    }
+
+    document.body.appendChild(overlay);
+
+    // Focus the first button for accessibility
+    const firstBtn = overlay.querySelector('button');
+    if (firstBtn) firstBtn.focus();
+  }
+
+  /**
+   * Show error toast (non-modal notification)
+   * @param {string} message - Error message
+   * @param {Object} options - Toast options
+   */
+  function showErrorToast(message, options = {}) {
+    const { duration = CONFIG.toastDuration } = options;
+
+    // Use SharedUtils.showToast if available
+    if (window.SharedUtils && typeof window.SharedUtils.showToast === 'function') {
+      window.SharedUtils.showToast(sanitizeMessage(message), 'error', duration);
+    } else {
+      // Fallback to console
+      console.error('[GlobalErrorHandler Toast]', message);
+    }
+  }
+
+  /**
+   * Escape HTML for safe display
+   * @param {string} str - String to escape
+   * @returns {string} Escaped string
+   */
+  function escapeHtml(str) {
+    if (window.NU && typeof window.NU.esc === 'function') {
+      return window.NU.esc(str);
+    }
+    if (!str) return '';
+    return String(str).replace(/[&<>"']/g, m => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    }[m]));
+  }
+
+  // =============================================================================
+  // Retry Logic
+  // =============================================================================
+
+  /**
+   * Execute with retry and exponential backoff
+   * @param {Function} fn - Async function to execute
+   * @param {Object} options - Retry options
+   * @returns {Promise<any>} Result of fn
+   */
+  async function withRetry(fn, options = {}) {
+    const {
+      attempts = CONFIG.defaultRetryAttempts,
+      baseDelay = CONFIG.baseRetryDelay,
+      maxDelay = CONFIG.maxRetryDelay,
+      shouldRetry = (err) => err?.code === 'NETWORK_ERROR' || err?.code === 'TIMEOUT',
+      onRetryAttempt = null
+    } = options;
+
+    let lastError;
+
+    for (let attempt = 1; attempt <= attempts; attempt++) {
+      try {
+        return await fn();
+      } catch (err) {
+        lastError = err;
+
+        // Check if we should retry
+        if (attempt === attempts || !shouldRetry(err)) {
+          throw err;
+        }
+
+        // Calculate delay with exponential backoff + jitter
+        const delay = Math.min(
+          baseDelay * Math.pow(2, attempt - 1) + Math.random() * 1000,
+          maxDelay
+        );
+
+        if (onRetryAttempt) {
+          onRetryAttempt(attempt, attempts, delay, err);
+        }
+
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+
+    throw lastError;
+  }
+
+  // =============================================================================
+  // Error Boundary Wrapper
+  // =============================================================================
+
+  /**
+   * Wrap async operations with error boundary
+   * @param {Function} fn - Async function to execute
+   * @param {Object} options - Error boundary options
+   * @returns {Promise<any>} Result of fn or null on error
+   */
+  async function withErrorBoundary(fn, options = {}) {
+    const {
+      context = 'operation',
+      onError = null,
+      showToast = true,
+      showDialog = false,
+      retry = false,
+      retryOptions = {},
+      fallbackValue = null,
+      rethrow = false
+    } = options;
+
+    try {
+      if (retry) {
+        return await withRetry(fn, retryOptions);
+      }
+      return await fn();
+
+    } catch (err) {
+      const errorDetails = extractErrorDetails(err);
+
+      // Log the error
+      logError(errorDetails, { context, retry });
+
+      // Notify via callback
+      if (onError) {
+        onError(err);
+      }
+
+      // Show UI notification
+      if (showDialog) {
+        showErrorDialog({
+          title: 'Unable to Complete Action',
+          message: `We couldn't complete ${context}. Please try again.`,
+          corrId: errorDetails.corrId,
+          onRetry: retry ? () => withErrorBoundary(fn, options) : null
+        });
+      } else if (showToast) {
+        showErrorToast(`Unable to ${context}. Please try again.`);
+      }
+
+      if (rethrow) {
+        throw err;
+      }
+
+      return fallbackValue;
+    }
+  }
+
+  // =============================================================================
+  // Global Error Handlers
+  // =============================================================================
+
+  /**
+   * Global error handler for uncaught exceptions
+   */
+  function handleGlobalError(message, source, lineno, colno, error) {
+    // Check if we should ignore this error
+    if (shouldIgnoreError(message, source)) {
+      return false; // Let browser handle it
+    }
+
+    const errorDetails = {
+      message: String(message),
+      source,
+      lineno,
+      colno,
+      stack: error?.stack || null
+    };
+
+    logError(errorDetails, { handler: 'window.onerror' });
+
+    // Don't show UI for minor errors that don't affect functionality
+    // Only show for critical errors that break the page
+    if (error && error.name !== 'SyntaxError') {
+      showErrorToast('Something went wrong. Please refresh if the page isn\'t working correctly.');
+    }
+
+    return false; // Let error propagate to console for debugging
+  }
+
+  /**
+   * Global handler for unhandled promise rejections
+   */
+  function handleUnhandledRejection(event) {
+    const error = event.reason;
+
+    // Check if we should ignore this error
+    const message = error?.message || String(error);
+    if (shouldIgnoreError(message, '')) {
+      return;
+    }
+
+    const errorDetails = extractErrorDetails(error);
+    logError(errorDetails, { handler: 'unhandledrejection' });
+
+    // Show toast for unhandled rejections
+    showErrorToast('An unexpected error occurred. Please try again.');
+  }
+
+  // =============================================================================
+  // Install Global Handlers
+  // =============================================================================
+
+  // Only install if not already installed
+  if (!window.__GLOBAL_ERROR_HANDLER_INSTALLED__) {
+    window.__GLOBAL_ERROR_HANDLER_INSTALLED__ = true;
+
+    // Install window.onerror
+    const originalOnError = window.onerror;
+    window.onerror = function(message, source, lineno, colno, error) {
+      handleGlobalError(message, source, lineno, colno, error);
+      if (originalOnError) {
+        return originalOnError.call(this, message, source, lineno, colno, error);
+      }
+      return false;
+    };
+
+    // Install unhandledrejection handler
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+
+    // Log initialization
+    if (window.NU && typeof window.NU._log === 'function') {
+      window.NU._log('debug', 'init', { module: 'GlobalErrorHandler', version: '1.0.0' });
+    }
+  }
+
+  // =============================================================================
+  // Public API
+  // =============================================================================
+
+  window.GlobalErrorHandler = {
+    /**
+     * Version
+     */
+    VERSION: '1.0.0',
+
+    /**
+     * Wrap async operations with error boundary
+     * @param {Function} fn - Async function to execute
+     * @param {Object} options - Error boundary options
+     * @returns {Promise<any>} Result of fn or fallbackValue on error
+     */
+    withErrorBoundary,
+
+    /**
+     * Execute with retry and exponential backoff
+     * @param {Function} fn - Async function to execute
+     * @param {Object} options - Retry options
+     * @returns {Promise<any>} Result of fn
+     */
+    withRetry,
+
+    /**
+     * Show error dialog to user
+     * @param {Object} options - Dialog options
+     */
+    showErrorDialog,
+
+    /**
+     * Show error toast notification
+     * @param {string} message - Error message
+     * @param {Object} options - Toast options
+     */
+    showErrorToast,
+
+    /**
+     * Report an error manually
+     * @param {Error|string|Object} error - Error to report
+     * @param {Object} context - Additional context
+     */
+    reportError(error, context = {}) {
+      const errorDetails = extractErrorDetails(error);
+      logError(errorDetails, context);
+    },
+
+    /**
+     * Get recent errors for diagnostics
+     * @returns {Array} Recent error entries
+     */
+    getRecentErrors() {
+      return [...errorState.recentErrors];
+    },
+
+    /**
+     * Clear recent errors
+     */
+    clearRecentErrors() {
+      errorState.recentErrors.length = 0;
+    },
+
+    /**
+     * Get error statistics
+     * @returns {Object} Error statistics
+     */
+    getStats() {
+      return {
+        totalRecentErrors: errorState.recentErrors.length,
+        errorsThisMinute: errorState.errorCount,
+        isThrottled: isThrottled(),
+        lastErrorReset: new Date(errorState.lastErrorReset).toISOString()
+      };
+    },
+
+    /**
+     * Configure error handler
+     * @param {Object} options - Configuration options
+     */
+    configure(options = {}) {
+      Object.assign(CONFIG, options);
+    }
+  };
+
 })();
 </script>
 
@@ -3468,6 +5039,1971 @@ window.SharedUtils = (function() {
   } else {
     initializeCollapsibleSections();
   }
+</script>
+
+  <!-- Story 4.1: Modularized Admin components for maintainability -->
+  <!--
+================================================================================
+MODULE: AdminDiagnostics.html
+PURPOSE: Diagnostics panel for Admin dashboard - SDK logging and debugging
+INCLUDED BY: Admin.html
+DEPENDENCIES: NUSDK.html (NU, NU_DIAG)
+================================================================================
+Story 4.1: Extracted from Admin.html for modularization and maintainability.
+This module provides real-time transport log visualization and debugging tools.
+
+Functions exposed to global scope:
+  - initDiagnosticsPanel()    → Initialize panel, detect environment
+  - toggleDiagDebugMode(bool) → Enable/disable debug mode in production
+  - refreshDiagLogs()         → Refresh log display
+  - setDiagFilter(filter)     → Filter logs by level (all/debug/error)
+  - clearDiagLogs()           → Clear all logs
+  - toggleDiagAutoRefresh(bool) → Toggle auto-refresh
+================================================================================
+-->
+<script>
+(function() {
+  'use strict';
+
+  // Diagnostics state - module-scoped
+  const DIAG_STATE = {
+    filter: 'all',          // 'all' | 'debug' | 'error'
+    autoRefresh: false,
+    autoRefreshInterval: null,
+    debugModeEnabled: false,
+    isProduction: false,
+    isStaging: false
+  };
+
+  /**
+   * Initialize the diagnostics panel.
+   * Auto-detects environment and shows/hides debug toggle accordingly.
+   */
+  function initDiagnosticsPanel() {
+    if (!window.NU || !window.NU_DIAG) {
+      console.warn('[Diag] NU SDK not available');
+      return;
+    }
+
+    // Get environment from NU SDK config
+    const config = NU.getConfig();
+    const hostname = window.location?.hostname || '';
+
+    // Environment detection (matching NUSDK.html logic)
+    const isDomain = (host, domain) =>
+      host === domain || host.endsWith('.' + domain);
+
+    DIAG_STATE.isStaging = isDomain(hostname, 'stg.eventangle.com') ||
+                            hostname === 'localhost' ||
+                            hostname === '127.0.0.1';
+    DIAG_STATE.isProduction = isDomain(hostname, 'eventangle.com') && !DIAG_STATE.isStaging;
+
+    // Set SDK version display
+    const versionEl = document.getElementById('diagSdkVersion');
+    if (versionEl) {
+      versionEl.textContent = NU.VERSION || '?';
+    }
+
+    // Show panel in staging by default, hide in production unless debug enabled
+    const panelWrapper = document.getElementById('diagPanelWrapper');
+    const debugToggle = document.getElementById('diagDebugToggle');
+
+    if (DIAG_STATE.isProduction) {
+      // Production: Show debug toggle, hide panel until debug is enabled
+      if (debugToggle) debugToggle.style.display = 'flex';
+      if (panelWrapper) panelWrapper.style.display = 'none';
+    } else {
+      // Staging/localhost: Show panel directly, hide toggle
+      if (debugToggle) debugToggle.style.display = 'none';
+      if (panelWrapper) panelWrapper.style.display = 'block';
+      // Auto-refresh on load for staging
+      refreshDiagLogs();
+    }
+
+    console.log('[Diag] Panel initialized', {
+      isProduction: DIAG_STATE.isProduction,
+      isStaging: DIAG_STATE.isStaging,
+      logLevel: config.logLevel
+    });
+  }
+
+  /**
+   * Toggle debug mode in production.
+   * When enabled, sets log level to 'debug' and shows the panel.
+   */
+  function toggleDiagDebugMode(enabled) {
+    DIAG_STATE.debugModeEnabled = enabled;
+
+    const panelWrapper = document.getElementById('diagPanelWrapper');
+
+    if (enabled) {
+      // Enable debug logging
+      NU.setLogLevel('debug');
+      if (panelWrapper) panelWrapper.style.display = 'block';
+      refreshDiagLogs();
+      console.log('[Diag] Debug mode enabled');
+    } else {
+      // Restore error-only logging
+      NU.setLogLevel('error');
+      if (panelWrapper) panelWrapper.style.display = 'none';
+      stopDiagAutoRefresh();
+      console.log('[Diag] Debug mode disabled');
+    }
+  }
+
+  /**
+   * Refresh the diagnostics log display.
+   */
+  function refreshDiagLogs() {
+    if (!window.NU_DIAG) {
+      console.warn('[Diag] NU_DIAG not available');
+      return;
+    }
+
+    const container = document.getElementById('diagLogContainer');
+    const statsEl = document.getElementById('diagStats');
+    if (!container) return;
+
+    // Get logs based on filter
+    const options = { limit: 100 };
+    if (DIAG_STATE.filter !== 'all') {
+      options.level = DIAG_STATE.filter;
+    }
+
+    const logs = NU_DIAG.getLogs(options);
+    const stats = NU_DIAG.getStats();
+
+    // Update stats display
+    if (statsEl) {
+      const errorCount = stats.byLevel?.error || 0;
+      const okCount = stats.byType?.ok || 0;
+      statsEl.innerHTML = `
+        <span>Total: ${stats.totalLogs}</span>
+        <span style="color: #4ade80;">OK: ${okCount}</span>
+        ${errorCount > 0 ? `<span style="color: #f87171;">Errors: ${errorCount}</span>` : ''}
+        ${stats.avgDurationMs > 0 ? `<span>Avg: ${stats.avgDurationMs}ms</span>` : ''}
+      `;
+    }
+
+    // Render logs
+    if (logs.length === 0) {
+      container.innerHTML = '<div class="diag-empty">No logs yet. Make an action to see transport logs.</div>';
+      return;
+    }
+
+    // Render logs in reverse chronological order (newest first)
+    const logsReversed = [...logs].reverse();
+    container.innerHTML = logsReversed.map(log => renderDiagLogEntry(log)).join('');
+  }
+
+  /**
+   * Render a single log entry as HTML.
+   * @private
+   */
+  function renderDiagLogEntry(log) {
+    const time = formatDiagTime(log.timestamp);
+    const levelClass = `level-${log.level || 'debug'}`;
+    const typeClass = `type-${log.type || 'unknown'}`;
+
+    // Build details string
+    const details = [];
+    if (log.path) details.push(`<span class="diag-log-path">${escapeHtml(log.path)}</span>`);
+    if (log.durationMs) details.push(`<span class="diag-log-duration">${log.durationMs}ms</span>`);
+    if (log.code) details.push(`code:${escapeHtml(log.code)}`);
+    if (log.error) details.push(`err:${escapeHtml(truncate(log.error, 50))}`);
+    if (log.message && log.type !== 'init') details.push(escapeHtml(truncate(log.message, 60)));
+    if (log.transport) details.push(`via:${log.transport}`);
+    if (log.hasValue !== undefined) details.push(log.hasValue ? 'has-value' : 'no-value');
+    if (log.payloadKeys?.length) details.push(`keys:[${log.payloadKeys.join(',')}]`);
+
+    // For init logs, show environment info
+    if (log.type === 'init') {
+      details.push(`env:${log.isProduction ? 'prod' : log.isStaging ? 'staging' : 'dev'}`);
+      details.push(`level:${log.logLevel || '?'}`);
+    }
+
+    return `
+      <div class="diag-log-entry ${levelClass}" data-testid="diag-log-entry">
+        <span class="diag-log-time">${time}</span>
+        <span class="diag-log-type ${typeClass}">${log.type || '?'}</span>
+        <span class="diag-log-details">${details.join(' ')}</span>
+      </div>
+    `;
+  }
+
+  /**
+   * Format timestamp for display.
+   * @private
+   */
+  function formatDiagTime(isoString) {
+    if (!isoString) return '--:--:--';
+    try {
+      const date = new Date(isoString);
+      return date.toLocaleTimeString('en-US', {
+        hour12: false,
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+    } catch {
+      return '--:--:--';
+    }
+  }
+
+  /**
+   * Truncate string for display.
+   * @private
+   */
+  function truncate(str, maxLen) {
+    if (!str || str.length <= maxLen) return str || '';
+    return str.slice(0, maxLen) + '...';
+  }
+
+  /**
+   * Escape HTML special characters.
+   * @private
+   */
+  function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  /**
+   * Set log filter.
+   */
+  function setDiagFilter(filter) {
+    DIAG_STATE.filter = filter;
+
+    // Update button states
+    ['All', 'Debug', 'Error'].forEach(f => {
+      const btn = document.getElementById(`diagFilter${f}`);
+      if (btn) {
+        btn.classList.toggle('active', f.toLowerCase() === filter || (f === 'All' && filter === 'all'));
+      }
+    });
+
+    refreshDiagLogs();
+  }
+
+  /**
+   * Clear all logs.
+   */
+  function clearDiagLogs() {
+    if (window.NU_DIAG) {
+      NU_DIAG.clearLogs();
+      refreshDiagLogs();
+    }
+  }
+
+  /**
+   * Toggle auto-refresh.
+   */
+  function toggleDiagAutoRefresh(enabled) {
+    DIAG_STATE.autoRefresh = enabled;
+
+    if (enabled) {
+      // Refresh every 2 seconds
+      DIAG_STATE.autoRefreshInterval = setInterval(refreshDiagLogs, 2000);
+      console.log('[Diag] Auto-refresh enabled');
+    } else {
+      stopDiagAutoRefresh();
+    }
+  }
+
+  /**
+   * Stop auto-refresh.
+   * @private
+   */
+  function stopDiagAutoRefresh() {
+    if (DIAG_STATE.autoRefreshInterval) {
+      clearInterval(DIAG_STATE.autoRefreshInterval);
+      DIAG_STATE.autoRefreshInterval = null;
+    }
+    DIAG_STATE.autoRefresh = false;
+    const checkbox = document.getElementById('diagAutoRefresh');
+    if (checkbox) checkbox.checked = false;
+    console.log('[Diag] Auto-refresh stopped');
+  }
+
+  // Expose functions to global scope for HTML onclick handlers
+  window.initDiagnosticsPanel = initDiagnosticsPanel;
+  window.toggleDiagDebugMode = toggleDiagDebugMode;
+  window.refreshDiagLogs = refreshDiagLogs;
+  window.setDiagFilter = setDiagFilter;
+  window.clearDiagLogs = clearDiagLogs;
+  window.toggleDiagAutoRefresh = toggleDiagAutoRefresh;
+
+  // Initialize diagnostics panel when DOM is ready
+  document.addEventListener('DOMContentLoaded', initDiagnosticsPanel);
+
+})();
+</script>
+
+  <!--
+================================================================================
+MODULE: AdminTemplates.html
+PURPOSE: Template picker system for Admin dashboard - event type selection
+INCLUDED BY: Admin.html
+DEPENDENCIES: NUSDK.html (NU.rpc, NU.esc)
+================================================================================
+Story 4.1: Extracted from Admin.html for modularization and maintainability.
+This module handles event template loading, rendering, and selection.
+
+Functions exposed to global scope:
+  - loadTemplates()              → Load templates from API
+  - renderTemplatePicker()       → Render template grid
+  - selectTemplate(templateId)   → Select a template
+  - updateTemplatePanelVisibility(id) → Show/hide template-specific panels
+
+State exposed to global scope:
+  - availableTemplates[]         → Loaded templates
+  - templateGroups[]             → Template categories/groups
+  - defaultTemplateId            → Default template ID
+================================================================================
+-->
+<script>
+(function() {
+  'use strict';
+
+  // Module state - exposed to global scope for Admin.html access
+  window.availableTemplates = [];
+  window.templateGroups = [];
+  window.defaultTemplateId = 'custom';
+
+  // Track current template sections for modification detection
+  let currentTemplateSections = null;
+
+  /**
+   * Load templates from API.
+   * Called on page load.
+   */
+  async function loadTemplates() {
+    const BRAND = window.BRAND || 'root';
+
+    try {
+      console.log('[Templates] Loading templates for brand:', BRAND);
+      const res = await NU.rpc('api_getEventTemplates', { brandId: BRAND });
+      console.log('[Templates] Response:', res);
+
+      if (res.ok && res.value) {
+        window.availableTemplates = res.value.items || [];
+        window.templateGroups = res.value.groups || [];
+        window.defaultTemplateId = res.value.defaultTemplateId || 'custom';
+        console.log('[Templates] Loaded', window.availableTemplates.length, 'templates in', window.templateGroups.length, 'groups, default:', window.defaultTemplateId);
+        console.log('[Templates] Tier filter:', res.value.tier || 'none');
+        renderTemplatePicker();
+        // Select default template
+        selectTemplate(window.defaultTemplateId);
+      } else {
+        console.warn('[Templates] API returned error:', res.code, res.message);
+        const picker = document.getElementById('templatePicker');
+        if (picker) {
+          picker.innerHTML = `<p class="muted">Could not load templates. ${res.message || 'Using defaults.'}</p>`;
+        }
+        updateTemplatePanelVisibility('custom'); // Show league panel for custom fallback
+      }
+    } catch (e) {
+      console.error('[Templates] Exception loading templates:', e);
+      const picker = document.getElementById('templatePicker');
+      if (picker) {
+        picker.innerHTML = '<p class="muted">Could not load templates. Using defaults.</p>';
+      }
+      updateTemplatePanelVisibility('custom'); // Show league panel for custom fallback
+    }
+  }
+
+  /**
+   * Render the template picker grid.
+   * Supports grouped templates (Stage-Gate UI) or flat grid.
+   */
+  function renderTemplatePicker() {
+    const picker = document.getElementById('templatePicker');
+    if (!picker) return;
+
+    if (!window.availableTemplates.length) {
+      picker.innerHTML = '<p class="muted">No templates available.</p>';
+      return;
+    }
+
+    const sectionIcons = { video: '🎬', map: '📍', schedule: '📅', sponsors: '🤝', notes: '📝', gallery: '🖼️' };
+
+    // Render grouped templates if groups are available
+    if (window.templateGroups.length > 0) {
+      picker.innerHTML = window.templateGroups.map(group => {
+        const groupTemplates = group.templates.map(t => renderTemplateCard(t, sectionIcons)).join('');
+        return `
+          <div class="template-group" data-group-id="${NU.esc(group.id)}">
+            <div class="template-group-header">
+              <span class="template-group-icon">${group.icon || '📁'}</span>
+              <span class="template-group-label">${NU.esc(group.label || group.id)}</span>
+              <span class="template-group-desc">${NU.esc(group.description || '')}</span>
+            </div>
+            <div class="template-group-grid">${groupTemplates}</div>
+          </div>
+        `;
+      }).join('');
+    } else {
+      // Fallback to flat grid (backward compatibility)
+      picker.innerHTML = `<div class="template-grid">${window.availableTemplates.map(t => renderTemplateCard(t, sectionIcons)).join('')}</div>`;
+    }
+  }
+
+  /**
+   * Render a single template card.
+   * @private
+   */
+  function renderTemplateCard(t, sectionIcons) {
+    const isRecommended = t.id === window.defaultTemplateId;
+    const sectionPreview = Object.keys(sectionIcons).map(key => {
+      const on = t.sections && t.sections[key];
+      return `<span class="${on ? '' : 'off'}">${sectionIcons[key]}</span>`;
+    }).join('');
+
+    return `
+      <div class="template-card" data-template-id="${NU.esc(t.id)}" onclick="selectTemplate('${NU.esc(t.id)}')">
+        ${isRecommended ? '<span class="recommended-badge">Recommended</span>' : ''}
+        <div class="template-icon">${t.icon || '📋'}</div>
+        <div class="template-name">${NU.esc(t.label || t.id)}</div>
+        <div class="template-desc">${NU.esc(t.description || '')}</div>
+        <div class="template-sections">${sectionPreview}</div>
+      </div>
+    `;
+  }
+
+  /**
+   * Select a template and apply its defaults.
+   */
+  function selectTemplate(templateId) {
+    // Update hidden input
+    const templateInput = document.getElementById('templateId');
+    if (templateInput) {
+      templateInput.value = templateId;
+    }
+
+    // Update visual selection
+    document.querySelectorAll('.template-card').forEach(card => {
+      card.classList.toggle('selected', card.dataset.templateId === templateId);
+    });
+
+    // Find template and apply section defaults
+    const tpl = window.availableTemplates.find(t => t.id === templateId);
+    if (tpl && tpl.sections) {
+      currentTemplateSections = { ...tpl.sections };
+      applySectionDefaults(tpl.sections);
+      checkSectionsModified(); // Reset notice
+    }
+
+    // Feature 4: Apply template-specific defaults (standings, bracket for league templates)
+    applyTemplateSpecificDefaults(templateId);
+
+    // Update template-filtered panel visibility
+    updateTemplatePanelVisibility(templateId);
+  }
+
+  /**
+   * Show/hide panels based on data-template-filter attribute.
+   * Panels with data-template-filter="rec_league,custom" only show for those templates.
+   */
+  function updateTemplatePanelVisibility(templateId) {
+    document.querySelectorAll('[data-template-filter]').forEach(panel => {
+      const allowedTemplates = panel.dataset.templateFilter.split(',').map(t => t.trim());
+      const shouldShow = allowedTemplates.includes(templateId);
+      panel.style.display = shouldShow ? '' : 'none';
+    });
+  }
+
+  /**
+   * Check if sections have been modified from template defaults.
+   * Shows/hides modification notice.
+   */
+  function checkSectionsModified() {
+    if (!currentTemplateSections) return;
+    const current = getSectionsFromForm();
+    const modified = Object.keys(currentTemplateSections).some(
+      key => current[key] !== currentTemplateSections[key]
+    );
+    const notice = document.getElementById('sectionsModifiedNotice');
+    if (notice) {
+      notice.classList.toggle('visible', modified);
+    }
+  }
+
+  /**
+   * Apply template section defaults to form checkboxes.
+   * Feature 4: Template-Aware Section Toggles
+   * @private
+   */
+  function applySectionDefaults(sections) {
+    // Legacy section checkboxes (v2SectionsTogglePanel - hidden in MVP)
+    const legacySectionMap = {
+      video: 'sectionVideo',
+      map: 'sectionMap',
+      schedule: 'sectionSchedule',
+      sponsors: 'sectionSponsors',
+      notes: 'sectionNotes',
+      gallery: 'sectionGallery'
+    };
+    Object.keys(legacySectionMap).forEach(key => {
+      const checkbox = document.getElementById(legacySectionMap[key]);
+      if (checkbox && Object.prototype.hasOwnProperty.call(sections, key)) {
+        checkbox.checked = !!sections[key];
+      }
+    });
+
+    // Display Settings checkboxes (template-aware toggles - Feature 4)
+    const settingsMap = {
+      video: 'showVideo',
+      map: 'showMap',
+      gallery: 'showGallery',
+      schedule: 'showSchedule',
+      sponsors: 'showSponsors'
+    };
+    Object.keys(settingsMap).forEach(key => {
+      const checkbox = document.getElementById(settingsMap[key]);
+      if (checkbox && Object.prototype.hasOwnProperty.call(sections, key)) {
+        checkbox.checked = !!sections[key];
+      }
+    });
+  }
+
+  /**
+   * Apply template-specific defaults for standings and bracket.
+   * Called from selectTemplate() after applySectionDefaults().
+   * @private
+   */
+  function applyTemplateSpecificDefaults(templateId) {
+    // League templates default to showing standings
+    const leagueTemplates = ['rec_league', 'darts', 'bags', 'pinball'];
+    const showStandingsCheckbox = document.getElementById('showStandings');
+    if (showStandingsCheckbox) {
+      showStandingsCheckbox.checked = leagueTemplates.includes(templateId);
+    }
+
+    // Tournament templates default to showing bracket
+    const bracketTemplates = ['rec_league', 'bags'];
+    const showBracketCheckbox = document.getElementById('showBracket');
+    if (showBracketCheckbox) {
+      showBracketCheckbox.checked = bracketTemplates.includes(templateId);
+    }
+  }
+
+  /**
+   * Get current section states from form checkboxes.
+   * @private
+   */
+  function getSectionsFromForm() {
+    return {
+      video: document.getElementById('sectionVideo')?.checked ?? false,
+      map: document.getElementById('sectionMap')?.checked ?? false,
+      schedule: document.getElementById('sectionSchedule')?.checked ?? false,
+      sponsors: document.getElementById('sectionSponsors')?.checked ?? false,
+      notes: document.getElementById('sectionNotes')?.checked ?? false,
+      gallery: document.getElementById('sectionGallery')?.checked ?? false
+    };
+  }
+
+  // Expose functions to global scope for HTML onclick handlers
+  window.loadTemplates = loadTemplates;
+  window.renderTemplatePicker = renderTemplatePicker;
+  window.selectTemplate = selectTemplate;
+  window.updateTemplatePanelVisibility = updateTemplatePanelVisibility;
+  window.checkSectionsModified = checkSectionsModified;
+
+  // Add change listeners to section checkboxes when DOM is ready
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('#sectionsGrid input[type="checkbox"]').forEach(cb => {
+      cb.addEventListener('change', checkSectionsModified);
+    });
+  });
+
+  // Load templates when page loads
+  document.addEventListener('DOMContentLoaded', loadTemplates);
+
+})();
+</script>
+
+  <!--
+================================================================================
+MODULE: AdminEvents.html
+PURPOSE: Event selector, event card display, and checklist for Admin dashboard
+INCLUDED BY: Admin.html
+DEPENDENCIES: NUSDK.html (NU.rpc, NU.esc), SharedUtils.html (showToast)
+================================================================================
+Story 4.1: Extracted from Admin.html for modularization and maintainability.
+This module handles event loading, selection, card display, and checklist.
+
+Functions exposed to global scope:
+  Event Selector:
+  - loadExistingEvents()         → Load events into dropdown
+  - onEventDropdownChange()      → Handle dropdown selection
+  - loadSelectedEvent(eventId)   → Load and display specific event
+  - refreshEventList()           → Refresh the event list
+  - selectEventInDropdown(id)    → Select event in dropdown
+
+  Event Card:
+  - showEventCard(event)         → Display event in dashboard
+  - showWizard()                 → Show create wizard
+  - hideWizard()                 → Hide wizard
+  - clearForm()                  → Reset form for new event
+
+  Helpers:
+  - generateId()                 → Generate UUID v4
+  - slugify(text)                → Convert text to slug
+  - computeLifecyclePhase(date)  → Compute event lifecycle phase
+  - overlay(on)                  → Show/hide loading overlay
+  - copy(id)                     → Copy link to clipboard
+  - copyUrl(url)                 → Copy URL to clipboard
+
+  Checklist:
+  - scrollToCard(cardId)         → Scroll to card section
+  - updateChecklistStatus(event) → Update checklist from event data
+================================================================================
+-->
+<script>
+(function() {
+  'use strict';
+
+  // Module state - exposed to global scope
+  window.loadedEvents = [];
+  window.currentEventId = null;
+  window.currentEventData = null;
+
+  // STATE object for edit mode - preserves id, slug, createdAtISO
+  window.STATE = {
+    id: null,
+    slug: null,
+    createdAtISO: null
+  };
+
+  // ==========================================================================
+  // HELPER FUNCTIONS
+  // ==========================================================================
+
+  /**
+   * Generate UUID v4-like ID.
+   */
+  function generateId() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = (crypto.getRandomValues(new Uint8Array(1))[0] & 15) >> (c === 'x' ? 0 : 3);
+      return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+    });
+  }
+
+  /**
+   * Convert text to URL-friendly slug.
+   */
+  function slugify(text) {
+    return text.toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .substring(0, 50);
+  }
+
+  /**
+   * Compute lifecycle phase from startDateISO.
+   * Mirrors backend computeLifecyclePhase_() for parity across surfaces.
+   * Same labels used by Admin, Public, Display, Poster, SharedReport.
+   *
+   * @param {string} startDateISO - Event start date in ISO format (YYYY-MM-DD)
+   * @returns {Object} { phase: string, label: string, isLive: boolean }
+   */
+  function computeLifecyclePhase(startDateISO) {
+    const LIFECYCLE_LABELS = {
+      'pre-event': 'Pre-Event Preparation',
+      'event-day': 'Event Day - Live',
+      'post-event': 'Post-Event Analytics'
+    };
+
+    if (!startDateISO) {
+      return { phase: 'pre-event', label: LIFECYCLE_LABELS['pre-event'], isLive: false };
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const eventDate = new Date(startDateISO);
+    eventDate.setHours(0, 0, 0, 0);
+
+    let phase = 'pre-event';
+    if (eventDate.getTime() === today.getTime()) {
+      phase = 'event-day';
+    } else if (eventDate < today) {
+      phase = 'post-event';
+    }
+
+    return {
+      phase: phase,
+      label: LIFECYCLE_LABELS[phase],
+      isLive: phase === 'event-day'
+    };
+  }
+
+  /**
+   * Show/hide loading overlay.
+   */
+  function overlay(on) {
+    const el = document.getElementById('overlay');
+    if (el) {
+      el.style.display = on ? 'flex' : 'none';
+    }
+  }
+
+  // ==========================================================================
+  // EVENT SELECTOR
+  // ==========================================================================
+
+  /**
+   * Load existing events into the dropdown.
+   * Called on page init and after event creation.
+   */
+  async function loadExistingEvents() {
+    const dropdown = document.getElementById('eventDropdown');
+    if (!dropdown) return;
+
+    const BRAND = window.BRAND || 'root';
+
+    try {
+      console.log('[EventSelector] Loading events for brand:', BRAND);
+      const res = await NU.rpc('api_getEventsSafe', { brandId: BRAND });
+
+      if (!res.ok) {
+        console.warn('[EventSelector] Failed to load events:', res.message || res.error);
+        return;
+      }
+
+      window.loadedEvents = res.value?.items || [];
+      console.log('[EventSelector] Loaded', window.loadedEvents.length, 'events');
+
+      // Clear existing options (keep placeholder and create option)
+      while (dropdown.options.length > 2) {
+        dropdown.remove(2);
+      }
+
+      // Sort by date descending (newest first)
+      window.loadedEvents.sort((a, b) => {
+        const dateA = a.startDateISO || '';
+        const dateB = b.startDateISO || '';
+        return dateB.localeCompare(dateA);
+      });
+
+      // Add events to dropdown
+      window.loadedEvents.forEach(event => {
+        const option = document.createElement('option');
+        option.value = event.id;
+        const dateStr = event.startDateISO || 'No date';
+        option.textContent = `${event.name || 'Unnamed'} (${dateStr})`;
+        dropdown.appendChild(option);
+      });
+
+    } catch (err) {
+      console.error('[EventSelector] Error loading events:', err);
+      if (window.SharedUtils) {
+        SharedUtils.showToast('Could not load events', 'error');
+      }
+    }
+  }
+
+  /**
+   * Handle dropdown selection change.
+   */
+  async function onEventDropdownChange() {
+    const dropdown = document.getElementById('eventDropdown');
+    const value = dropdown.value;
+
+    if (value === '__create__') {
+      showWizard();
+      return;
+    }
+
+    if (!value) {
+      showWizard();
+      return;
+    }
+
+    await loadSelectedEvent(value);
+  }
+
+  /**
+   * Load a specific event by ID and show in the dashboard.
+   */
+  async function loadSelectedEvent(eventId) {
+    if (!eventId) return;
+
+    const BRAND = window.BRAND || 'root';
+    const SCOPE = window.SCOPE || 'events';
+
+    try {
+      overlay(true);
+      console.log('[EventSelector] Loading event:', eventId);
+
+      const res = await NU.rpc('api_get', {
+        brandId: BRAND,
+        scope: SCOPE,
+        id: eventId
+      });
+
+      if (!res.ok) {
+        if (window.SharedUtils) {
+          SharedUtils.showToast('Failed to load event: ' + (res.message || 'Unknown error'), 'error');
+        }
+        overlay(false);
+        return;
+      }
+
+      const event = res.value;
+      console.log('[EventSelector] Loaded event:', event.name);
+
+      // Set current event ID
+      window.currentEventId = event.id;
+      window.STATE.id = event.id;
+      window.STATE.slug = event.slug;
+      window.STATE.createdAtISO = event.createdAtISO;
+
+      // Hide wizard, show event card
+      hideWizard();
+
+      // Update quick links
+      updateQuickLinks(event);
+
+      // Show the event card
+      showEventCard(event);
+
+      overlay(false);
+
+    } catch (err) {
+      console.error('[EventSelector] Error loading event:', err);
+      if (window.SharedUtils) {
+        SharedUtils.showToast('Error loading event', 'error');
+      }
+      overlay(false);
+    }
+  }
+
+  /**
+   * Update quick links with event URLs.
+   */
+  function updateQuickLinks(event) {
+    const quickLinksContainer = document.getElementById('eventQuickLinks');
+    const publicLink = document.getElementById('quickLinkPublic');
+    const displayLink = document.getElementById('quickLinkDisplay');
+
+    if (event && event.links) {
+      if (publicLink) publicLink.href = event.links.publicUrl || '#';
+      if (displayLink) displayLink.href = event.links.displayUrl || '#';
+      if (quickLinksContainer) quickLinksContainer.style.display = 'flex';
+    } else {
+      if (quickLinksContainer) quickLinksContainer.style.display = 'none';
+    }
+  }
+
+  /**
+   * Show the create wizard and hide event card.
+   */
+  function showWizard() {
+    const wizard = document.getElementById('launchWizard');
+    const eventCard = document.getElementById('eventCard');
+    const quickLinks = document.getElementById('eventQuickLinks');
+
+    if (wizard) wizard.style.display = 'block';
+    if (eventCard) eventCard.style.display = 'none';
+    if (quickLinks) quickLinks.style.display = 'none';
+
+    // Reset dropdown to placeholder
+    const dropdown = document.getElementById('eventDropdown');
+    if (dropdown) dropdown.value = '__create__';
+  }
+
+  /**
+   * Hide the wizard (when viewing an existing event).
+   */
+  function hideWizard() {
+    const wizard = document.getElementById('launchWizard');
+    if (wizard) wizard.style.display = 'none';
+  }
+
+  /**
+   * Refresh the event list.
+   */
+  async function refreshEventList() {
+    await loadExistingEvents();
+    if (window.SharedUtils) {
+      SharedUtils.showToast('Event list refreshed', 'info');
+    }
+  }
+
+  /**
+   * Select an event in the dropdown by ID.
+   * Used after creating a new event to auto-select it.
+   */
+  function selectEventInDropdown(eventId) {
+    const dropdown = document.getElementById('eventDropdown');
+    if (dropdown) {
+      dropdown.value = eventId;
+    }
+  }
+
+  // ==========================================================================
+  // EVENT CARD DISPLAY
+  // ==========================================================================
+
+  /**
+   * Show event card with canonical event data.
+   * SCHEMA: /schemas/event.schema.json
+   * Simplified UX: Clean summary + output cards
+   */
+  function showEventCard(event) {
+    // Update STATE for edit mode - preserve id, slug, createdAtISO
+    window.STATE.id = event.id || null;
+    window.STATE.slug = event.slug || null;
+    window.STATE.createdAtISO = event.createdAtISO || null;
+
+    // Also sync legacy currentEventId
+    window.currentEventId = event.id || null;
+
+    // Schema: event.links at top level
+    const links = event.links || {};
+
+    // Set links for the output cards
+    setLink('lnkPublic', links.publicUrl);
+    setLink('lnkDisplay', links.displayUrl);
+    setLink('lnkPoster', links.posterUrl);
+    // Set report link (uses sharedReportUrl or falls back to constructing it)
+    const reportUrl = links.sharedReportUrl || (links.publicUrl ? links.publicUrl.replace('page=public', 'page=report') : '');
+    setLink('lnkReport', reportUrl);
+
+    // Show the event card, hide the Quick Start Guide and create form
+    const eventCard = document.getElementById('eventCard');
+    const quickStartGuide = document.getElementById('quickStartGuide');
+    const createCard = document.getElementById('createCard');
+
+    if (eventCard) eventCard.style.display = '';
+    if (quickStartGuide) quickStartGuide.style.display = 'none';
+    if (createCard) createCard.style.display = 'none';
+
+    // Format date for display
+    const dateStr = event.startDateISO || '';
+    const eventDate = new Date(dateStr + 'T00:00:00');
+    let dateDisplay = dateStr;
+    if (dateStr && !isNaN(eventDate.getTime())) {
+      dateDisplay = eventDate.toLocaleDateString('en-US', {
+        weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
+      });
+    }
+
+    // Compute lifecycle phase for consistent display across surfaces
+    const lifecycle = computeLifecyclePhase(event.startDateISO);
+
+    // Clean, simple event summary with lifecycle phase indicator
+    const info = `
+      <p style="font-size: 1.1rem; color: var(--color-gray-700, #334155); margin: 0 0 8px 0;">
+        <strong>${NU.esc(event.name || 'Your Event')}</strong>
+        <span style="color: var(--color-gray-400, #94a3b8); margin: 0 8px;">|</span>
+        ${NU.esc(dateDisplay)}
+        <span style="color: var(--color-gray-400, #94a3b8); margin: 0 8px;">|</span>
+        ${NU.esc(event.venue || '')}
+      </p>
+      <div style="margin-top: 8px;">
+        <span class="phase-indicator ${lifecycle.phase}" data-testid="lifecycle-indicator" data-phase="${lifecycle.phase}">
+          ${NU.esc(lifecycle.label)}
+        </span>
+      </div>
+    `;
+
+    const eventInfo = document.getElementById('eventInfo');
+    if (eventInfo) {
+      eventInfo.innerHTML = info;
+    }
+
+    // Display event ID in diagnostics section
+    const eventIdDisplay = document.getElementById('eventIdDisplay');
+    if (eventIdDisplay) {
+      eventIdDisplay.textContent = event.id || 'N/A';
+    }
+
+    // Render QR previews if functions exist
+    if (typeof window.renderPublicQRPreview === 'function') {
+      window.renderPublicQRPreview(links.publicUrl);
+    }
+    if (typeof window.renderPosterQRPreview === 'function') {
+      window.renderPosterQRPreview(links.posterUrl);
+    }
+
+    // Feature 2: Render SharedReport QR Code
+    const BRAND_FEATURES = window.BRAND_FEATURES || {};
+    if (BRAND_FEATURES.sharedReportEnabled !== false && typeof window.renderSharedReportQR === 'function') {
+      window.renderSharedReportQR(event);
+    }
+
+    // Feature 1: Render Sponsor Performance Links
+    if (typeof window.renderSponsorReports === 'function') {
+      window.renderSponsorReports(event);
+    }
+
+    // Update Happy Path checklist status based on event data
+    updateChecklistStatus(event);
+
+    // Scroll to the checklist at the top
+    const checklist = document.getElementById('happyPathChecklist');
+    if (checklist) {
+      checklist.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
+  /**
+   * Set link text and href.
+   */
+  function setLink(id, url) {
+    const a = document.getElementById(id);
+    if (!a) return;
+    a.textContent = url || '';
+    a.href = url || '#';
+  }
+
+  /**
+   * Copy link by element ID.
+   */
+  async function copy(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const url = el.textContent;
+    await navigator.clipboard.writeText(url);
+    if (window.SharedUtils) {
+      SharedUtils.showToast('Link copied!', 'success');
+    }
+  }
+
+  /**
+   * Copy URL directly.
+   */
+  async function copyUrl(url) {
+    try {
+      await navigator.clipboard.writeText(url);
+      if (window.SharedUtils) {
+        SharedUtils.showToast('Link copied!', 'success');
+      }
+    } catch (e) {
+      // Fallback for older browsers
+      const ta = document.createElement('textarea');
+      ta.value = url;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      if (window.SharedUtils) {
+        SharedUtils.showToast('Link copied!', 'success');
+      }
+    }
+  }
+
+  /**
+   * Clear form and reset for new event creation.
+   */
+  function clearForm() {
+    const createForm = document.getElementById('createForm');
+    if (createForm) createForm.reset();
+
+    // Hide cards
+    ['dashboardCard', 'eventCard', 'signupCard', 'displayCard', 'formsCard'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    });
+
+    // Clear STATE for new event creation
+    window.STATE.id = null;
+    window.STATE.slug = null;
+    window.STATE.createdAtISO = null;
+    window.currentEventId = null;
+
+    // Reset to default template
+    if (typeof window.selectTemplate === 'function' && window.defaultTemplateId) {
+      window.selectTemplate(window.defaultTemplateId);
+    }
+
+    // Show the create card
+    const createCard = document.getElementById('createCard');
+    if (createCard) createCard.style.display = '';
+  }
+
+  // ==========================================================================
+  // HAPPY PATH CHECKLIST
+  // ==========================================================================
+
+  /**
+   * Scroll to a specific card section.
+   */
+  function scrollToCard(cardId) {
+    const card = document.getElementById(cardId);
+    if (!card) return;
+
+    // If it's a collapsed mobile card, expand it first
+    if (card.classList.contains('mobile-collapsed') && typeof window.toggleMobileCard === 'function') {
+      window.toggleMobileCard(card);
+    }
+
+    // Smooth scroll to the card with offset for fixed header
+    const headerOffset = 20;
+    const elementPosition = card.getBoundingClientRect().top;
+    const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+
+    window.scrollTo({
+      top: offsetPosition,
+      behavior: 'smooth'
+    });
+
+    // Brief highlight effect
+    card.style.transition = 'box-shadow 0.3s ease';
+    card.style.boxShadow = '0 0 0 3px rgba(37, 99, 235, 0.3)';
+    setTimeout(() => {
+      card.style.boxShadow = '';
+    }, 1500);
+  }
+
+  /**
+   * Update a single checklist item's visual state.
+   */
+  function setChecklistItemStatus(itemId, status, isOptional = false) {
+    const item = document.getElementById(itemId);
+    if (!item) return;
+
+    const indicator = item.querySelector('.check-indicator');
+    if (!indicator) return;
+
+    // Remove all state classes
+    item.classList.remove('done', 'optional-pending');
+    indicator.classList.remove('done', 'pending', 'optional');
+
+    if (status === 'done') {
+      item.classList.add('done');
+      indicator.classList.add('done');
+      indicator.textContent = '✓';
+    } else if (isOptional) {
+      item.classList.add('optional-pending');
+      indicator.classList.add('optional');
+      indicator.textContent = '~';
+    } else {
+      indicator.classList.add('pending');
+      indicator.textContent = '';
+    }
+  }
+
+  /**
+   * Update all checklist items based on event data.
+   * Time estimates: event=2min, signup=2min, poster=1min, display=1min, public=2min
+   */
+  function updateChecklistStatus(event) {
+    window.currentEventData = event;
+    const links = event.links || {};
+    const ctas = event.ctas || {};
+    const sponsors = event.sponsors || [];
+
+    // Track completed count and remaining time
+    let completed = 0;
+    let remainingMinutes = 0;
+    const total = 6;
+
+    // Time estimates per task (minutes)
+    const timeEstimates = {
+      event: 2,
+      signup: 2,
+      poster: 1,
+      display: 1,
+      public: 2
+    };
+
+    // 1. Event name & date - always done if we're showing the event card
+    setChecklistItemStatus('checklist-event', 'done');
+    completed++;
+
+    // 2. Signup form - done if signupUrl is configured
+    const hasFormUrl = links.signupUrl || ctas.primary?.url;
+    if (hasFormUrl) {
+      setChecklistItemStatus('checklist-signup', 'done');
+      completed++;
+    } else {
+      setChecklistItemStatus('checklist-signup', 'pending');
+      remainingMinutes += timeEstimates.signup;
+    }
+
+    // 3. Poster - done if posterUrl exists
+    if (links.posterUrl) {
+      setChecklistItemStatus('checklist-poster', 'done');
+      completed++;
+    } else {
+      setChecklistItemStatus('checklist-poster', 'pending');
+      remainingMinutes += timeEstimates.poster;
+    }
+
+    // 4. TV Display - done if displayUrl exists
+    if (links.displayUrl) {
+      setChecklistItemStatus('checklist-display', 'done');
+      completed++;
+    } else {
+      setChecklistItemStatus('checklist-display', 'pending');
+      remainingMinutes += timeEstimates.display;
+    }
+
+    // 5. Public link - done if publicUrl exists
+    if (links.publicUrl) {
+      setChecklistItemStatus('checklist-public', 'done');
+      completed++;
+    } else {
+      setChecklistItemStatus('checklist-public', 'pending');
+      remainingMinutes += timeEstimates.public;
+    }
+
+    // 6. Sponsors - optional, done if sponsors array has items
+    if (sponsors.length > 0) {
+      setChecklistItemStatus('checklist-sponsors', 'done');
+      completed++;
+    } else {
+      setChecklistItemStatus('checklist-sponsors', 'pending', true);
+    }
+
+    // Update progress text
+    const progressEl = document.getElementById('checklistProgress');
+    if (progressEl) {
+      progressEl.textContent = `${completed} of ${total} done`;
+    }
+
+    // Update header with remaining time
+    const headerH3 = document.querySelector('#happyPathChecklist .happy-path-header h3');
+    if (headerH3) {
+      if (completed >= 5) {
+        headerH3.textContent = 'All Set!';
+      } else if (remainingMinutes > 0) {
+        headerH3.textContent = `Finish Setup (~${remainingMinutes} min left)`;
+      } else {
+        headerH3.textContent = 'Get Your Event Ready';
+      }
+    }
+  }
+
+  // ==========================================================================
+  // EXPOSE FUNCTIONS TO GLOBAL SCOPE
+  // ==========================================================================
+
+  // Helpers
+  window.generateId = generateId;
+  window.slugify = slugify;
+  window.computeLifecyclePhase = computeLifecyclePhase;
+  window.overlay = overlay;
+
+  // Event selector
+  window.loadExistingEvents = loadExistingEvents;
+  window.onEventDropdownChange = onEventDropdownChange;
+  window.loadSelectedEvent = loadSelectedEvent;
+  window.refreshEventList = refreshEventList;
+  window.selectEventInDropdown = selectEventInDropdown;
+
+  // Event card
+  window.showEventCard = showEventCard;
+  window.showWizard = showWizard;
+  window.hideWizard = hideWizard;
+  window.clearForm = clearForm;
+  window.setLink = setLink;
+  window.copy = copy;
+  window.copyUrl = copyUrl;
+  window.updateQuickLinks = updateQuickLinks;
+
+  // Checklist
+  window.scrollToCard = scrollToCard;
+  window.setChecklistItemStatus = setChecklistItemStatus;
+  window.updateChecklistStatus = updateChecklistStatus;
+
+})();
+</script>
+
+  <!--
+================================================================================
+MODULE: AdminDisplay.html
+PURPOSE: Display configuration and sponsor management for Admin dashboard
+INCLUDED BY: Admin.html
+DEPENDENCIES: NUSDK.html (NU.rpc), SharedUtils.html (showToast), AdminEvents.html (overlay)
+================================================================================
+Story 4.1: Extracted from Admin.html for modularization and maintainability.
+This module handles display mode configuration, URL rotation, and sponsor settings.
+
+Functions exposed to global scope:
+  Display Configuration:
+  - configureDisplay()           → Open display config panel
+  - loadDisplayConfig()          → Load display config from API
+  - toggleDisplayMode()          → Toggle dynamic/public mode
+  - saveDisplayConfig()          → Save display config to API
+  - closeDisplayConfig()         → Close display config panel
+
+  URL Management:
+  - renderUrls(urls)             → Render URL rotation list
+  - addUrl()                     → Add new URL to list
+
+  Sponsor Management:
+  - renderSponsors(sponsors)     → Render sponsor list
+  - addSponsor()                 → Add new sponsor
+
+  Helpers:
+  - getAdminKey()                → Get/prompt for admin key
+  - saveEventPartial(id, data)   → Load-merge-save helper
+  - deepMerge_(target, source)   → Deep merge objects
+================================================================================
+-->
+<script>
+(function() {
+  'use strict';
+
+  // ==========================================================================
+  // DISPLAY CONFIGURATION
+  // ==========================================================================
+
+  /**
+   * Open display configuration panel.
+   */
+  function configureDisplay() {
+    const card = document.getElementById('displayCard');
+    if (card) {
+      card.style.display = '';
+    }
+    loadDisplayConfig();
+  }
+
+  /**
+   * Load display configuration from API.
+   */
+  async function loadDisplayConfig() {
+    const BRAND = window.BRAND || 'root';
+    const SCOPE = window.SCOPE || 'events';
+    const currentEventId = window.currentEventId;
+
+    if (!currentEventId) return;
+
+    if (typeof window.overlay === 'function') {
+      window.overlay(true);
+    }
+
+    const res = await NU.rpc('api_get', { brandId: BRAND, scope: SCOPE, id: currentEventId });
+
+    if (typeof window.overlay === 'function') {
+      window.overlay(false);
+    }
+
+    if (res.ok && res.value) {
+      const data = res.value.data || {};
+      const display = data.display || {};
+      const sponsors = data.sponsors || [];
+
+      const displayModeEl = document.getElementById('displayMode');
+      if (displayModeEl) {
+        displayModeEl.value = display.mode || 'public';
+        toggleDisplayMode();
+      }
+
+      if (display.urls) {
+        renderUrls(display.urls);
+      }
+
+      renderSponsors(sponsors);
+    }
+  }
+
+  /**
+   * Toggle between public and dynamic display modes.
+   */
+  function toggleDisplayMode() {
+    const modeEl = document.getElementById('displayMode');
+    const dynamicConfig = document.getElementById('dynamicConfig');
+    if (modeEl && dynamicConfig) {
+      const mode = modeEl.value;
+      dynamicConfig.style.display = mode === 'dynamic' ? '' : 'none';
+    }
+  }
+
+  /**
+   * Save display configuration to API.
+   * Uses canonical api_saveEvent via saveEventPartial (ZEVENT-003).
+   */
+  async function saveDisplayConfig() {
+    const currentEventId = window.currentEventId;
+    if (!currentEventId) return;
+
+    const modeEl = document.getElementById('displayMode');
+    const mode = modeEl ? modeEl.value : 'public';
+    const urls = [];
+
+    if (mode === 'dynamic') {
+      document.querySelectorAll('#urlList .form-group').forEach(row => {
+        const urlInput = row.querySelector('.url-input');
+        const secondsInput = row.querySelector('.url-seconds');
+        const url = urlInput ? urlInput.value.trim() : '';
+        const seconds = secondsInput ? Number(secondsInput.value || 10) : 10;
+        if (url) urls.push({ url, seconds });
+      });
+    }
+
+    const sponsors = [];
+    document.querySelectorAll('#sponsorList .event-card').forEach(row => {
+      const nameInput = row.querySelector('.sp-name');
+      const name = nameInput ? nameInput.value.trim() : '';
+      if (!name) return;
+
+      sponsors.push({
+        id: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `sp-${Date.now()}`,
+        name,
+        url: row.querySelector('.sp-url')?.value.trim() || '',
+        img: row.querySelector('.sp-img')?.value.trim() || '',
+        isPrimary: row.querySelector('.sp-isPrimary')?.checked || false,
+        placements: {
+          posterTop: row.querySelector('.sp-posterTop')?.checked || false,
+          tvTop: row.querySelector('.sp-tvTop')?.checked || false,
+          tvSide: row.querySelector('.sp-tvSide')?.checked || false,
+          mobileBanner: row.querySelector('.sp-mobileBanner')?.checked || false
+        }
+      });
+    });
+
+    if (typeof window.overlay === 'function') {
+      window.overlay(true);
+    }
+
+    const res = await saveEventPartial(currentEventId, {
+      data: { display: { mode, urls }, sponsors }
+    });
+
+    if (typeof window.overlay === 'function') {
+      window.overlay(false);
+    }
+
+    if (res.ok) {
+      if (window.SharedUtils) {
+        SharedUtils.showToast('Display configuration saved!', 'success');
+      }
+    } else {
+      if (window.SharedUtils) {
+        SharedUtils.showToast(`Error: ${res.message}`, 'error');
+      }
+    }
+  }
+
+  /**
+   * Close display configuration panel.
+   */
+  function closeDisplayConfig() {
+    const card = document.getElementById('displayCard');
+    if (card) {
+      card.style.display = 'none';
+    }
+  }
+
+  // ==========================================================================
+  // URL MANAGEMENT
+  // ==========================================================================
+
+  /**
+   * Render URL rotation list.
+   */
+  function renderUrls(urls) {
+    const list = document.getElementById('urlList');
+    if (!list) return;
+
+    list.innerHTML = '';
+    urls.forEach((item, i) => {
+      const div = document.createElement('div');
+      div.className = 'form-group';
+      div.innerHTML = `
+        <label>URL ${i + 1}</label>
+        <input type="url" value="${item.url || ''}" class="url-input">
+        <input type="number" value="${item.seconds || 10}" min="5" max="300" placeholder="Seconds" class="url-seconds" style="width:100px;margin-top:4px;">
+      `;
+      list.appendChild(div);
+    });
+  }
+
+  /**
+   * Add new URL to rotation list.
+   */
+  function addUrl() {
+    const list = document.getElementById('urlList');
+    if (!list) return;
+
+    const div = document.createElement('div');
+    div.className = 'form-group';
+    div.innerHTML = `
+      <label>New URL</label>
+      <input type="url" placeholder="https://..." class="url-input">
+      <input type="number" value="10" min="5" max="300" placeholder="Seconds" class="url-seconds" style="width:100px;margin-top:4px;">
+    `;
+    list.appendChild(div);
+  }
+
+  // ==========================================================================
+  // SPONSOR MANAGEMENT
+  // ==========================================================================
+
+  /**
+   * Render sponsor list.
+   */
+  function renderSponsors(sponsors) {
+    const list = document.getElementById('sponsorList');
+    if (!list) return;
+
+    list.innerHTML = '';
+    sponsors.forEach((sp, i) => {
+      const div = document.createElement('div');
+      div.className = 'event-card';
+      const placements = sp.placements || {};
+      div.innerHTML = `
+        <h4>Sponsor ${i + 1} ${sp.isPrimary ? '<span style="background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:8px;font-size:0.7rem;">PRIMARY</span>' : ''}</h4>
+        <input type="text" placeholder="Name" value="${sp.name || ''}" class="sp-name" style="width:100%;margin-bottom:4px;">
+        <input type="url" placeholder="URL" value="${sp.url || ''}" class="sp-url" style="width:100%;margin-bottom:4px;">
+        <input type="url" placeholder="Image URL" value="${sp.img || ''}" class="sp-img" style="width:100%;margin-bottom:8px;">
+        <label style="display:block;margin-bottom:8px;padding:8px;background:#fef3c7;border-radius:6px;"><input type="checkbox" class="sp-isPrimary" ${sp.isPrimary ? 'checked' : ''}> <strong>Primary Sponsor</strong> <span style="font-size:0.8em;color:#92400e;">(Bigger rendering)</span></label>
+        <label><input type="checkbox" class="sp-posterTop" ${placements.posterTop ? 'checked' : ''}> Poster Top</label><br>
+        <label><input type="checkbox" class="sp-tvTop" ${placements.tvTop ? 'checked' : ''}> TV Top</label><br>
+        <label><input type="checkbox" class="sp-tvSide" ${placements.tvSide ? 'checked' : ''}> TV Side</label><br>
+        <label><input type="checkbox" class="sp-mobileBanner" ${placements.mobileBanner ? 'checked' : ''}> Mobile Banner</label>
+      `;
+      list.appendChild(div);
+    });
+  }
+
+  /**
+   * Add new sponsor to list.
+   */
+  function addSponsor() {
+    const list = document.getElementById('sponsorList');
+    if (!list) return;
+
+    const div = document.createElement('div');
+    div.className = 'event-card';
+    div.innerHTML = `
+      <h4>New Sponsor</h4>
+      <input type="text" placeholder="Name" class="sp-name" style="width:100%;margin-bottom:4px;">
+      <input type="url" placeholder="URL" class="sp-url" style="width:100%;margin-bottom:4px;">
+      <input type="url" placeholder="Image URL" class="sp-img" style="width:100%;margin-bottom:8px;">
+      <label style="display:block;margin-bottom:8px;padding:8px;background:#fef3c7;border-radius:6px;"><input type="checkbox" class="sp-isPrimary"> <strong>Primary Sponsor</strong> <span style="font-size:0.8em;color:#92400e;">(Bigger rendering)</span></label>
+      <label><input type="checkbox" class="sp-posterTop"> Poster Top</label><br>
+      <label><input type="checkbox" class="sp-tvTop"> TV Top</label><br>
+      <label><input type="checkbox" class="sp-tvSide"> TV Side</label><br>
+      <label><input type="checkbox" class="sp-mobileBanner"> Mobile Banner</label>
+    `;
+    list.appendChild(div);
+  }
+
+  // ==========================================================================
+  // HELPER FUNCTIONS
+  // ==========================================================================
+
+  /**
+   * Get admin key from session storage or prompt user.
+   */
+  function getAdminKey() {
+    const BRAND = window.BRAND || 'root';
+    const k = sessionStorage.getItem('ADMIN_KEY:' + BRAND) || prompt('Admin key for ' + BRAND);
+    if (k) sessionStorage.setItem('ADMIN_KEY:' + BRAND, k);
+    return k || '';
+  }
+
+  /**
+   * CANONICAL WRITE API HELPER (ZEVENT-003)
+   * Load-Merge-Save pattern using only api_saveEvent (canonical write endpoint).
+   *
+   * @param {string} eventId - Event ID to update
+   * @param {Object} partialData - Partial data to merge into event
+   * @returns {Object} Result from api_saveEvent { ok, value, message }
+   */
+  async function saveEventPartial(eventId, partialData) {
+    const BRAND = window.BRAND || 'root';
+    const SCOPE = window.SCOPE || 'events';
+
+    // Step 1: Load current event via api_get
+    const getRes = await NU.rpc('api_get', {
+      brandId: BRAND,
+      scope: SCOPE,
+      id: eventId
+    });
+
+    if (!getRes.ok) {
+      return { ok: false, message: `Failed to load event: ${getRes.message}` };
+    }
+
+    // Step 2: Merge partial data into the full event object
+    const currentEvent = getRes.value;
+    const mergedEvent = deepMerge_(currentEvent, partialData);
+
+    // Step 3: Save via canonical api_saveEvent
+    const saveRes = await NU.rpc('api_saveEvent', {
+      brandId: BRAND,
+      adminKey: getAdminKey(),
+      event: mergedEvent,
+      scope: SCOPE
+    });
+
+    return saveRes;
+  }
+
+  /**
+   * Deep merge helper for event objects.
+   * Merges source into target, handling nested objects.
+   * Arrays are replaced, not merged.
+   */
+  function deepMerge_(target, source) {
+    const result = { ...target };
+    for (const key of Object.keys(source)) {
+      if (source[key] !== null && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+        // Nested object - recurse
+        result[key] = deepMerge_(result[key] || {}, source[key]);
+      } else {
+        // Primitive, array, or null - replace
+        result[key] = source[key];
+      }
+    }
+    // Update timestamp on every save
+    result.updatedAtISO = new Date().toISOString();
+    return result;
+  }
+
+  // ==========================================================================
+  // EXPOSE FUNCTIONS TO GLOBAL SCOPE
+  // ==========================================================================
+
+  // Display configuration
+  window.configureDisplay = configureDisplay;
+  window.loadDisplayConfig = loadDisplayConfig;
+  window.toggleDisplayMode = toggleDisplayMode;
+  window.saveDisplayConfig = saveDisplayConfig;
+  window.closeDisplayConfig = closeDisplayConfig;
+
+  // URL management
+  window.renderUrls = renderUrls;
+  window.addUrl = addUrl;
+
+  // Sponsor management
+  window.renderSponsors = renderSponsors;
+  window.addSponsor = addSponsor;
+
+  // Helpers
+  window.getAdminKey = getAdminKey;
+  window.saveEventPartial = saveEventPartial;
+  window.deepMerge_ = deepMerge_;
+
+})();
+</script>
+
+  <!--
+================================================================================
+MODULE: AdminForms.html
+PURPOSE: Sign-up forms and Google Forms template integration for Admin dashboard
+INCLUDED BY: Admin.html
+DEPENDENCIES: NUSDK.html (NU.rpc), SharedUtils.html (showToast, esc), AdminDisplay.html (saveEventPartial, getAdminKey), AdminEvents.html (overlay, updateChecklistStatus)
+================================================================================
+Story 4.1: Extracted from Admin.html for modularization and maintainability.
+This module handles sign-up form configuration and Google Forms template creation.
+
+Functions exposed to global scope:
+  Sign-up Configuration:
+  - configureSignup()            → Open signup config panel
+  - loadSignupForms()            → Load signup forms from API
+  - saveAllSignupForms()         → Save signup forms to API
+  - closeSignupConfig()          → Close signup config panel
+
+  Google Forms Templates:
+  - openFormsTemplates()         → Open forms templates panel
+  - closeFormsTemplates()        → Close forms templates panel
+  - createFormTemplate(type)     → Create form from template
+  - copyFormLink(inputId)        → Copy form link to clipboard
+================================================================================
+-->
+<script>
+(function() {
+  'use strict';
+
+  // ==========================================================================
+  // SIGN-UP CONFIGURATION
+  // ==========================================================================
+
+  /**
+   * Open sign-up configuration panel.
+   */
+  function configureSignup() {
+    const card = document.getElementById('signupCard');
+    if (card) {
+      card.style.display = '';
+    }
+    loadSignupForms();
+  }
+
+  /**
+   * Load sign-up form URLs from API.
+   */
+  async function loadSignupForms() {
+    const BRAND = window.BRAND || 'root';
+    const SCOPE = window.SCOPE || 'events';
+    const currentEventId = window.currentEventId;
+
+    if (!currentEventId) return;
+
+    if (typeof window.overlay === 'function') {
+      window.overlay(true);
+    }
+
+    const res = await NU.rpc('api_get', { brandId: BRAND, scope: SCOPE, id: currentEventId });
+
+    if (typeof window.overlay === 'function') {
+      window.overlay(false);
+    }
+
+    if (res.ok && res.value) {
+      const data = res.value.data || {};
+
+      const registerUrl = document.getElementById('registerUrl');
+      const checkinUrl = document.getElementById('checkinUrl');
+      const walkinUrl = document.getElementById('walkinUrl');
+      const surveyUrl = document.getElementById('surveyUrl');
+
+      if (registerUrl) registerUrl.value = data.registerUrl || '';
+      if (checkinUrl) checkinUrl.value = data.checkinUrl || '';
+      if (walkinUrl) walkinUrl.value = data.walkinUrl || '';
+      if (surveyUrl) surveyUrl.value = data.surveyUrl || '';
+    }
+  }
+
+  /**
+   * Save all sign-up form URLs to API.
+   * Uses canonical api_saveEvent via saveEventPartial (ZEVENT-003).
+   */
+  async function saveAllSignupForms() {
+    const currentEventId = window.currentEventId;
+    if (!currentEventId) return;
+
+    const data = {
+      registerUrl: document.getElementById('registerUrl')?.value.trim() || '',
+      checkinUrl: document.getElementById('checkinUrl')?.value.trim() || '',
+      walkinUrl: document.getElementById('walkinUrl')?.value.trim() || '',
+      surveyUrl: document.getElementById('surveyUrl')?.value.trim() || ''
+    };
+
+    if (typeof window.overlay === 'function') {
+      window.overlay(true);
+    }
+
+    // Use saveEventPartial from AdminDisplay.html
+    const res = await window.saveEventPartial(currentEventId, { data });
+
+    if (typeof window.overlay === 'function') {
+      window.overlay(false);
+    }
+
+    if (res.ok) {
+      if (window.SharedUtils) {
+        SharedUtils.showToast('Sign-up forms saved!', 'success');
+      }
+      closeSignupConfig();
+
+      // Update checklist status with new form URLs
+      if (window.currentEventData) {
+        window.currentEventData.data = window.currentEventData.data || {};
+        Object.assign(window.currentEventData.data, data);
+        if (typeof window.updateChecklistStatus === 'function') {
+          window.updateChecklistStatus(window.currentEventData);
+        }
+      }
+    } else {
+      if (window.SharedUtils) {
+        SharedUtils.showToast(`Error: ${res.message}`, 'error');
+      }
+    }
+  }
+
+  /**
+   * Close sign-up configuration panel.
+   */
+  function closeSignupConfig() {
+    const card = document.getElementById('signupCard');
+    if (card) {
+      card.style.display = 'none';
+    }
+  }
+
+  // ==========================================================================
+  // GOOGLE FORMS TEMPLATES
+  // ==========================================================================
+
+  /**
+   * Open forms templates panel.
+   */
+  function openFormsTemplates() {
+    const card = document.getElementById('formsCard');
+    if (card) {
+      card.style.display = '';
+    }
+  }
+
+  /**
+   * Close forms templates panel.
+   */
+  function closeFormsTemplates() {
+    const card = document.getElementById('formsCard');
+    if (card) {
+      card.style.display = 'none';
+    }
+  }
+
+  /**
+   * Create a Google Form from template.
+   * @param {string} templateType - Type of form (check-in, walk-in, survey)
+   */
+  async function createFormTemplate(templateType) {
+    const BRAND = window.BRAND || 'root';
+    const SCOPE = window.SCOPE || 'events';
+    const currentEventId = window.currentEventId;
+
+    if (!currentEventId) {
+      if (window.SharedUtils) {
+        SharedUtils.showToast('Please select or create an event first.', 'warning');
+      }
+      return;
+    }
+
+    const displayMap = {
+      'check-in': 'checkin-form-display',
+      'walk-in': 'walkin-form-display',
+      'survey': 'survey-form-display'
+    };
+
+    const displayId = displayMap[templateType];
+    if (!displayId) return;
+
+    const displayDiv = document.getElementById(displayId);
+    if (displayDiv) {
+      displayDiv.innerHTML = '<p class="muted">Creating form...</p>';
+    }
+
+    if (typeof window.overlay === 'function') {
+      window.overlay(true);
+    }
+
+    // Get event data for context
+    const eventRes = await NU.rpc('api_get', {
+      brandId: BRAND,
+      scope: SCOPE,
+      id: currentEventId
+    });
+
+    const eventName = eventRes.ok && eventRes.value?.data?.name
+      ? eventRes.value.data.name
+      : 'Event';
+
+    // Get admin key using helper from AdminDisplay.html
+    const adminKey = typeof window.getAdminKey === 'function' ? window.getAdminKey() : '';
+
+    // Create form from template
+    const formRes = await NU.rpc('api_createFormFromTemplate', {
+      brandId: BRAND,
+      adminKey: adminKey,
+      templateType,
+      eventName,
+      eventId: currentEventId
+    });
+
+    if (!formRes.ok) {
+      if (typeof window.overlay === 'function') {
+        window.overlay(false);
+      }
+      // Use consistent inline error styling
+      if (displayDiv && window.SharedUtils) {
+        displayDiv.innerHTML = `<div class="error-card"><p>${SharedUtils.esc(formRes.message || 'Failed to create form')}</p></div>`;
+      }
+      return;
+    }
+
+    const { publishedUrl, editUrl, responseSheetUrl } = formRes.value;
+
+    // Generate shortlink for the published form
+    const shortlinkRes = await NU.rpc('api_generateFormShortlink', {
+      brandId: BRAND,
+      adminKey: adminKey,
+      formUrl: publishedUrl,
+      formType: templateType,
+      eventId: currentEventId
+    });
+
+    if (typeof window.overlay === 'function') {
+      window.overlay(false);
+    }
+
+    const shortlink = shortlinkRes.ok ? shortlinkRes.value.shortlink : publishedUrl;
+
+    // Display form links with copy buttons
+    if (displayDiv) {
+      displayDiv.innerHTML = `
+        <div style="background: #f1f5f9; padding: 12px; border-radius: 4px; margin-top: 8px;">
+          <div style="margin-bottom: 8px;">
+            <strong>Shortlink:</strong><br>
+            <input type="text" id="${templateType}-shortlink" value="${shortlink}" readonly
+                   style="width: 100%; margin-top: 4px; font-size: 12px;">
+            <button class="btn-secondary" onclick="copyFormLink('${templateType}-shortlink')"
+                    style="margin-top: 4px; width: 100%;">
+              Copy Shortlink
+            </button>
+          </div>
+          <div style="margin-top: 12px;">
+            <a href="${editUrl}" target="_blank" rel="noopener" class="btn-secondary"
+               style="display: inline-block; margin-right: 8px;">
+              Edit Form
+            </a>
+            <a href="${responseSheetUrl}" target="_blank" rel="noopener" class="btn-secondary"
+               style="display: inline-block;">
+              View Responses
+            </a>
+          </div>
+          <div style="margin-top: 8px; font-size: 12px; color: #64748b;">
+            Form created successfully! Share the shortlink with attendees.
+          </div>
+        </div>
+      `;
+    }
+  }
+
+  /**
+   * Copy form link to clipboard.
+   * @param {string} inputId - ID of input element containing link
+   */
+  function copyFormLink(inputId) {
+    const input = document.getElementById(inputId);
+    if (input) {
+      input.select();
+      input.setSelectionRange(0, 99999); // For mobile devices
+      document.execCommand('copy');
+
+      // Visual feedback
+      const originalValue = input.value;
+      input.value = 'Copied!';
+      setTimeout(() => {
+        input.value = originalValue;
+      }, 1000);
+    }
+  }
+
+  // ==========================================================================
+  // EXPOSE FUNCTIONS TO GLOBAL SCOPE
+  // ==========================================================================
+
+  // Sign-up configuration
+  window.configureSignup = configureSignup;
+  window.loadSignupForms = loadSignupForms;
+  window.saveAllSignupForms = saveAllSignupForms;
+  window.closeSignupConfig = closeSignupConfig;
+
+  // Google Forms templates
+  window.openFormsTemplates = openFormsTemplates;
+  window.closeFormsTemplates = closeFormsTemplates;
+  window.createFormTemplate = createFormTemplate;
+  window.copyFormLink = copyFormLink;
+
+})();
 </script>
 
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
@@ -6348,30 +9884,49 @@ window.SharedUtils = (function() {
   <div id="overlay" class="loading-overlay"><div class="spinner"></div><p>Working…</p></div>
 
   <script>
-    const BRAND = '<?= brandId ?>';
-    const SCOPE = '<?= scope ?>';
+    // ==========================================================================
+    // ADMIN PAGE CONFIGURATION
+    // ==========================================================================
+    // Story 4.1: Core functionality extracted to modular components:
+    //   - AdminDiagnostics.html: Diagnostics panel (NU transport logs)
+    //   - AdminTemplates.html:   Template picker (event type selection)
+    //   - AdminEvents.html:      Event selector & card display
+    //   - AdminDisplay.html:     Display config & sponsor management
+    //   - AdminForms.html:       Sign-up forms & Google Forms templates
+    //
+    // This inline script contains page-specific configuration and any
+    // remaining functions not yet extracted to modules.
+    // ==========================================================================
+
+    // Page configuration - exposed to modules
+    window.BRAND = '<?= brandId ?>';
+    window.SCOPE = '<?= scope ?>';
+
+    // Shorthand for inline use
+    const BRAND = window.BRAND;
+    const SCOPE = window.SCOPE;
+
     // Dark Launch / Kill Switch: Brand feature flags
-    const BRAND_FEATURES = {};
-
-    // Event state for edit mode - tracks current event's immutable/server-set fields
-    const STATE = {
-      id: null,
-      slug: null,
-      createdAtISO: null
-    };
-
-    let currentEventId = null;  // Legacy compat - will migrate to STATE.id
-    let availableTemplates = [];
-    let defaultTemplateId = 'custom';
-    let loadedEvents = [];  // Cache of loaded events for dropdown
+    window.BRAND_FEATURES = {};
+    const BRAND_FEATURES = window.BRAND_FEATURES;
 
     // ==========================================================================
-    // DIAGNOSTICS PANEL - NU Transport Logs
-    // Story 6: Surface NU logs for debugging transport/routing issues
+    // NOTE: The following declarations are now handled by modular includes:
+    //   - STATE (AdminEvents.html)
+    //   - currentEventId (AdminEvents.html)
+    //   - availableTemplates (AdminTemplates.html)
+    //   - defaultTemplateId (AdminTemplates.html)
+    //   - loadedEvents (AdminEvents.html)
+    //   - DIAG_STATE (AdminDiagnostics.html)
     // ==========================================================================
 
-    // Diagnostics state
-    const DIAG_STATE = {
+    // ==========================================================================
+    // LEGACY CODE - Kept for backward compatibility
+    // TODO: Remove once modular components are fully validated
+    // ==========================================================================
+
+    // Diagnostics state (now in AdminDiagnostics.html, kept as fallback)
+    const DIAG_STATE = window.DIAG_STATE || {
       filter: 'all',          // 'all' | 'debug' | 'error'
       autoRefresh: false,
       autoRefreshInterval: null,

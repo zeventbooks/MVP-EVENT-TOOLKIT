@@ -102,9 +102,7 @@ window.SponsorUtils = (function() {
   function flush() {
     if (!logBatch.length) return;
     const copy = logBatch.splice(0, logBatch.length);
-    if (window.google?.script?.run) {
-      google.script.run.withFailureHandler(() => {}).api_logEvents({ items: copy });
-    }
+    NU.safeAnalytics('api_logEvents', { items: copy });
   }
 
   function initLogging() {

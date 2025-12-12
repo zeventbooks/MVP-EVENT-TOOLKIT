@@ -1,31 +1,31 @@
 {
   "version": "1.0.0",
-  "generated": "2025-12-08T21:37:59.522Z",
+  "generated": "2025-12-12T04:37:29.479Z",
   "templates": {
     "public": {
       "file": "public.html",
-      "size": 178743,
-      "hash": "72e52680"
+      "size": 226081,
+      "hash": "1dcd4384"
     },
     "admin": {
       "file": "admin.html",
-      "size": 303491,
-      "hash": "0af368e1"
+      "size": 417714,
+      "hash": "00e20b3a"
     },
     "display": {
       "file": "display.html",
-      "size": 168501,
-      "hash": "a31402fb"
+      "size": 215839,
+      "hash": "06b80aa9"
     },
     "poster": {
       "file": "poster.html",
-      "size": 142084,
-      "hash": "e1567774"
+      "size": 189422,
+      "hash": "727dfeab"
     },
     "report": {
       "file": "report.html",
-      "size": 170077,
-      "hash": "a22a72ff"
+      "size": 217488,
+      "hash": "26509d8e"
     }
   }
 }
