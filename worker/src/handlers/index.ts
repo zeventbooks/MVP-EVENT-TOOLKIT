@@ -5,6 +5,7 @@
  *
  * @module handlers
  * @see Story 1.3 - Port api_status + Simple Read-Only api_listEvents
+ * @see Story 2.1 - Worker getPublicBundle from Sheets
  */
 
 // Status Handler
@@ -25,3 +26,13 @@ export {
   type EventsListResponse,
   type EventsErrorResponse,
 } from './eventsList';
+
+// Public Bundle Handler (Story 2.1)
+export {
+  handleGetPublicBundle,
+  parseEventIdFromPath,
+  type PublicBundleEnv,
+  type PublicBundleResponse,
+  type PublicBundleNotModifiedResponse,
+  type PublicBundleErrorResponse,
+} from './publicBundle';
