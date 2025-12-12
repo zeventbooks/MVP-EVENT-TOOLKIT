@@ -159,6 +159,23 @@ routes = [
 # 3. Run: npm run staging:configure --deployment-id=AKfycb...
 # ============================================
 WORKER_ENV = "staging"
+# ============================================
+# Story 0.1: Versioned Backend Routing
+# ============================================
+# BACKEND_MODE controls which backend handles requests:
+#   - 'gas'    : All routes use GAS backend (current production behavior)
+#   - 'worker' : All routes use Worker-native backend
+#   - 'mixed'  : Per-route selection based on backendConfig.js
+#
+# Migration Strategy:
+#   1. Start with 'gas' (default)
+#   2. Switch to 'mixed' to test individual routes on Worker
+#   3. Once all routes verified, switch to 'worker'
+#
+# Query Param Override (staging only):
+#   Add ?backend=gas or ?backend=worker to any request to force a backend
+# ============================================
+BACKEND_MODE = "mixed"
 # Story 2: Worker versioning - build version logged in X-Worker-Build-Version header
 WORKER_BUILD_VERSION = "stg-2025.12.09"
 # Story 2: STAGING_WEB_APP_URL is the SINGLE SOURCE OF TRUTH

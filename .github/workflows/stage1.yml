@@ -486,6 +486,79 @@ jobs:
           fi
 
   # ============================================================================
+  # QUALITY GATE 5: BACKEND ROUTER TESTS (Story 0.1)
+  # ============================================================================
+  # Required status check: "Backend Router Tests"
+  # Validates versioned backend routing configuration and parity
+  #
+  # Story 0.1: Versioned Backend Routing
+  #   - Unit tests for router selection logic (BACKEND_MODE, route mapping)
+  #   - Contract tests for /api/status response shape parity
+  #   - Ensures GAS and Worker backends return compatible responses
+  #
+  # Story 2.5: Fail-Fast
+  #   - DEPENDS ON LINT: If linting fails, router tests are SKIPPED
+  # ============================================================================
+  backend-router-tests:
+    name: Backend Router Tests
+    runs-on: ubuntu-latest
+    needs: [lint]  # Story 2.5: Fail-fast - skip if lint fails
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Verify hermetic environment (no BASE_URL)
+        run: |
+          if [ -n "$BASE_URL" ]; then
+            echo "::error::BASE_URL is set in Stage-1 validation!"
+            exit 1
+          fi
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run backend router tests (Story 0.1)
+        id: backend-router-tests
+        run: |
+          echo "=================================================="
+          echo "QUALITY GATE: BACKEND ROUTER TESTS (Story 0.1)"
+          echo "=================================================="
+          echo "Testing: Versioned backend routing configuration"
+          echo "Testing: Backend selection logic (gas, worker, mixed)"
+          echo "Testing: Response shape parity between backends"
+          echo "=================================================="
+          npm run test:story0.1
+
+      - name: Create backend router tests summary
+        if: always()
+        run: |
+          echo "## 🔀 Backend Router Tests (Story 0.1)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "### ✅ PASSED" >> $GITHUB_STEP_SUMMARY
+            echo "Versioned backend routing tests passed." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Story 0.1 Acceptance Criteria Met:**" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ BACKEND_MODE config (gas|worker|mixed)" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ Per-route backend mapping" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ Query param override (?backend=gas|worker)" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ Backend error handling (BACKEND_ERROR)" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ Response shape parity for /api/status" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "Backend router tests failed." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Run \`npm run test:story0.1\` locally to debug." >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # ============================================================================
   # QUALITY GATES AGGREGATOR
   # ============================================================================
   # This job aggregates all quality gates and serves as the final checkpoint
@@ -496,7 +569,7 @@ jobs:
   quality-gates:
     name: Quality Gates
     runs-on: ubuntu-latest
-    needs: [lint, unit-tests, contract-tests, guards]
+    needs: [lint, unit-tests, contract-tests, guards, backend-router-tests]
     if: always()
 
     steps:
@@ -506,17 +579,19 @@ jobs:
           echo "QUALITY GATES STATUS (Story 2.1)"
           echo "=================================================="
           echo ""
-          echo "Lint:           ${{ needs.lint.result }}"
-          echo "Unit Tests:     ${{ needs.unit-tests.result }}"
-          echo "Contract Tests: ${{ needs.contract-tests.result }}"
-          echo "Guards:         ${{ needs.guards.result }}"
+          echo "Lint:                ${{ needs.lint.result }}"
+          echo "Unit Tests:          ${{ needs.unit-tests.result }}"
+          echo "Contract Tests:      ${{ needs.contract-tests.result }}"
+          echo "Guards:              ${{ needs.guards.result }}"
+          echo "Backend Router:      ${{ needs.backend-router-tests.result }}"
           echo ""
 
           # Check if any gate failed
           if [ "${{ needs.lint.result }}" != "success" ] || \
              [ "${{ needs.unit-tests.result }}" != "success" ] || \
              [ "${{ needs.contract-tests.result }}" != "success" ] || \
-             [ "${{ needs.guards.result }}" != "success" ]; then
+             [ "${{ needs.guards.result }}" != "success" ] || \
+             [ "${{ needs.backend-router-tests.result }}" != "success" ]; then
             echo "::error::One or more quality gates failed!"
             echo ""
             echo "❌ QUALITY GATES FAILED"
@@ -540,7 +615,8 @@ jobs:
           if [ "${{ needs.lint.result }}" == "success" ] && \
              [ "${{ needs.unit-tests.result }}" == "success" ] && \
              [ "${{ needs.contract-tests.result }}" == "success" ] && \
-             [ "${{ needs.guards.result }}" == "success" ]; then
+             [ "${{ needs.guards.result }}" == "success" ] && \
+             [ "${{ needs.backend-router-tests.result }}" == "success" ]; then
             echo "## ✅ ALL GATES PASSED" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             if [ "${{ github.event_name }}" == "pull_request" ]; then
@@ -588,6 +664,13 @@ jobs:
             echo "| 🛡️ Guards | ❌ Failed |" >> $GITHUB_STEP_SUMMARY
           fi
 
+          # Backend Router Tests status (Story 0.1)
+          if [ "${{ needs.backend-router-tests.result }}" == "success" ]; then
+            echo "| 🔀 Backend Router | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| 🔀 Backend Router | ❌ Failed |" >> $GITHUB_STEP_SUMMARY
+          fi
+
           echo "| 🔒 CodeQL Scan | _(See security-scan.yml)_ |" >> $GITHUB_STEP_SUMMARY
 
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -602,6 +685,7 @@ jobs:
           echo "   - \`Unit Tests\`" >> $GITHUB_STEP_SUMMARY
           echo "   - \`Contract Tests\`" >> $GITHUB_STEP_SUMMARY
           echo "   - \`Guards\`" >> $GITHUB_STEP_SUMMARY
+          echo "   - \`Backend Router Tests\` (Story 0.1)" >> $GITHUB_STEP_SUMMARY
           echo "   - \`🔒 CodeQL Security Scan\` (from security-scan.yml)" >> $GITHUB_STEP_SUMMARY
 
       - name: Fail if any gate failed
@@ -609,7 +693,8 @@ jobs:
           needs.lint.result != 'success' ||
           needs.unit-tests.result != 'success' ||
           needs.contract-tests.result != 'success' ||
-          needs.guards.result != 'success'
+          needs.guards.result != 'success' ||
+          needs.backend-router-tests.result != 'success'
         run: exit 1
 
   # ============================================================================
