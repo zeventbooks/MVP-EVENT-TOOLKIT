@@ -101,12 +101,10 @@ import {
 // Configuration module for routing requests to GAS or Worker-native backends.
 // Supports per-route configuration and query param override for staging.
 import {
-  getBackendMode,
   getBackendForRoute,
   createBackendError500,
   logBackendDecision,
-  BACKEND_MODES,
-  BACKEND_ERROR_CODE
+  BACKEND_MODES
 } from './src/config/backendConfig.js';
 
 /**

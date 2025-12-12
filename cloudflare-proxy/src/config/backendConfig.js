@@ -244,6 +244,18 @@ function findMatchingRoutePattern(pathname) {
 }
 
 /**
+ * Escape special regex characters in a string.
+ * This prevents regex injection attacks.
+ *
+ * @param {string} str - String to escape
+ * @returns {string} Escaped string safe for use in RegExp
+ */
+function escapeRegex(str) {
+  // Escape all regex special characters: \ ^ $ . | ? * + ( ) [ ] { }
+  return str.replace(/[\\^$.|?*+()[\]{}]/g, '\\$&');
+}
+
+/**
  * Match a route pattern against a pathname.
  *
  * @param {string} pattern - Route pattern (e.g., '/api/v2/events/:id')
@@ -251,11 +263,22 @@ function findMatchingRoutePattern(pathname) {
  * @returns {boolean}
  */
 function matchRoutePattern(pattern, pathname) {
-  // Convert pattern to regex
-  // :param becomes [^/]+ (matches any segment)
-  const regexPattern = pattern
-    .replace(/:[^/]+/g, '[^/]+')
-    .replace(/\//g, '\\/');
+  // Convert pattern to regex safely:
+  // 1. First, replace :param placeholders with a temporary marker
+  // 2. Escape all regex special characters in the remaining string
+  // 3. Replace the temporary marker with the actual regex pattern
+  // 4. Replace escaped forward slashes back (they're path separators)
+
+  const PARAM_MARKER = '\x00PARAM\x00';
+
+  // Step 1: Replace :param with temporary marker
+  const withMarkers = pattern.replace(/:[^/]+/g, PARAM_MARKER);
+
+  // Step 2: Escape all regex special characters
+  const escaped = escapeRegex(withMarkers);
+
+  // Step 3: Replace markers with regex pattern for path segments
+  const regexPattern = escaped.replace(new RegExp(escapeRegex(PARAM_MARKER), 'g'), '[^/]+');
 
   const regex = new RegExp(`^${regexPattern}$`, 'i');
   return regex.test(pathname);
