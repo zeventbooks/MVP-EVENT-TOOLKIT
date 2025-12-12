@@ -1,0 +1,566 @@
+# Stage-1 CI: Validate + Build + Deploy (Staging)
+#
+# EPIC 5 - Story 5.1: Stage-1 Staging-First Pipeline
+#
+# Purpose / Value:
+#   Every main branch change passes a real, predictable path into staging.
+#   No more random GAS deploys - the pipeline owns clones and deploys.
+#
+# Flow:
+#   1. Checkout + Install
+#   2. Lint / Format Check
+#   3. Unit Tests
+#   4. Contract Tests (API shapes)
+#   5. Sheets Connectivity Test (service account)
+#   6. Build Worker (wrangler build)
+#   7. Deploy to Staging (wrangler deploy --env staging)
+#
+# Acceptance Criteria:
+#   - If any job fails → no deploy
+#   - On success, stg.eventangle.com is updated using the built worker
+#
+# Negative Paths:
+#   - Misconfigured secrets → pipeline fails with clear error logs
+#
+# Required Secrets:
+#   - CLOUDFLARE_API_TOKEN: Cloudflare API token for Worker deployment
+#   - GOOGLE_CLIENT_EMAIL: Service account email for Sheets connectivity
+#   - GOOGLE_PRIVATE_KEY: Service account private key (PEM format)
+#   - SHEETS_SPREADSHEET_ID: Staging spreadsheet ID for connectivity test
+
+name: Stage-1 CI
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      skip_deploy:
+        description: 'Skip deployment (validation only)'
+        required: false
+        default: 'false'
+        type: boolean
+
+# Prevent duplicate runs: cancel in-progress runs for the same branch
+concurrency:
+  group: stage1-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '18'
+  STG_BASE_URL: 'https://stg.eventangle.com'
+
+jobs:
+  # ==========================================================================
+  # JOB 1: CHECKOUT + INSTALL
+  # ==========================================================================
+  # Checkout code and install dependencies, cached for subsequent jobs
+  # ==========================================================================
+  install:
+    name: 📦 Checkout + Install
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+  # ==========================================================================
+  # JOB 2: LINT / FORMAT CHECK
+  # ==========================================================================
+  # ESLint code quality validation
+  # ==========================================================================
+  lint:
+    name: 🔍 Lint / Format Check
+    runs-on: ubuntu-latest
+    needs: [install]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Restore node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install dependencies (fallback)
+        run: npm ci
+        if: steps.cache.outputs.cache-hit != 'true'
+
+      - name: Run ESLint
+        run: |
+          echo "=================================================="
+          echo "STAGE-1: LINT / FORMAT CHECK"
+          echo "=================================================="
+          npm run lint
+
+      - name: Create summary
+        if: always()
+        run: |
+          echo "## 🔍 Lint / Format Check" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "### ✅ PASSED" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "Run \`npm run lint\` locally to see details." >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # ==========================================================================
+  # JOB 3: UNIT TESTS
+  # ==========================================================================
+  # Jest unit tests with coverage threshold
+  # ==========================================================================
+  unit-tests:
+    name: 🧪 Unit Tests
+    runs-on: ubuntu-latest
+    needs: [lint]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Restore node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install dependencies (fallback)
+        run: npm ci
+        if: steps.cache.outputs.cache-hit != 'true'
+
+      - name: Run unit tests
+        run: |
+          echo "=================================================="
+          echo "STAGE-1: UNIT TESTS"
+          echo "=================================================="
+          npm run test:unit
+
+      - name: Create summary
+        if: always()
+        run: |
+          echo "## 🧪 Unit Tests" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "### ✅ PASSED" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "Run \`npm run test:unit\` locally to debug." >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # ==========================================================================
+  # JOB 4: CONTRACT TESTS (API Shapes)
+  # ==========================================================================
+  # Schema, API contract, and bundle validation tests
+  # ==========================================================================
+  contract-tests:
+    name: 📜 Contract Tests
+    runs-on: ubuntu-latest
+    needs: [lint]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Restore node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install dependencies (fallback)
+        run: npm ci
+        if: steps.cache.outputs.cache-hit != 'true'
+
+      - name: Run contract tests
+        run: |
+          echo "=================================================="
+          echo "STAGE-1: CONTRACT TESTS (API Shapes)"
+          echo "=================================================="
+          npm run test:contract
+
+      - name: Create summary
+        if: always()
+        run: |
+          echo "## 📜 Contract Tests (API Shapes)" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "### ✅ PASSED" >> $GITHUB_STEP_SUMMARY
+            echo "API response schemas validated against v4.1.2 contract." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "Run \`npm run test:contract\` locally to debug." >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # ==========================================================================
+  # JOB 5: SHEETS CONNECTIVITY TEST
+  # ==========================================================================
+  # Story 1.1: Verify service account can read/write to Google Sheets
+  # ==========================================================================
+  sheets-connectivity:
+    name: 📊 Sheets Connectivity Test
+    runs-on: ubuntu-latest
+    needs: [lint]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Restore node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install dependencies (fallback)
+        run: npm ci
+        if: steps.cache.outputs.cache-hit != 'true'
+
+      - name: Validate Sheets secrets
+        run: |
+          echo "=================================================="
+          echo "STAGE-1: VALIDATING SHEETS SECRETS"
+          echo "=================================================="
+
+          ERRORS=0
+
+          if [ -z "${{ secrets.GOOGLE_CLIENT_EMAIL }}" ]; then
+            echo "::error::Missing required secret: GOOGLE_CLIENT_EMAIL"
+            echo "  Configure in: Settings → Secrets → Actions → New repository secret"
+            echo "  Value: Service account email (e.g., worker@project.iam.gserviceaccount.com)"
+            ERRORS=$((ERRORS + 1))
+          else
+            echo "✓ GOOGLE_CLIENT_EMAIL is set"
+          fi
+
+          if [ -z "${{ secrets.GOOGLE_PRIVATE_KEY }}" ]; then
+            echo "::error::Missing required secret: GOOGLE_PRIVATE_KEY"
+            echo "  Configure in: Settings → Secrets → Actions → New repository secret"
+            echo "  Value: Service account private key (full PEM content including headers)"
+            ERRORS=$((ERRORS + 1))
+          else
+            echo "✓ GOOGLE_PRIVATE_KEY is set"
+          fi
+
+          if [ -z "${{ secrets.SHEETS_SPREADSHEET_ID }}" ]; then
+            echo "::error::Missing required secret: SHEETS_SPREADSHEET_ID"
+            echo "  Configure in: Settings → Secrets → Actions → New repository secret"
+            echo "  Value: Google Sheets spreadsheet ID for staging"
+            ERRORS=$((ERRORS + 1))
+          else
+            echo "✓ SHEETS_SPREADSHEET_ID is set"
+          fi
+
+          if [ $ERRORS -gt 0 ]; then
+            echo ""
+            echo "::error::$ERRORS required secret(s) missing. See: docs/env/GOOGLE_SERVICE_ACCOUNT_SETUP.md"
+            exit 1
+          fi
+
+          echo ""
+          echo "All required Sheets secrets are configured."
+
+      - name: Run Sheets connectivity test
+        env:
+          GOOGLE_CLIENT_EMAIL: ${{ secrets.GOOGLE_CLIENT_EMAIL }}
+          GOOGLE_PRIVATE_KEY: ${{ secrets.GOOGLE_PRIVATE_KEY }}
+          SHEETS_SPREADSHEET_ID: ${{ secrets.SHEETS_SPREADSHEET_ID }}
+        run: |
+          echo "=================================================="
+          echo "STAGE-1: SHEETS CONNECTIVITY TEST"
+          echo "=================================================="
+          npm run test:story1.1
+
+      - name: Create summary
+        if: always()
+        run: |
+          echo "## 📊 Sheets Connectivity Test" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "### ✅ PASSED" >> $GITHUB_STEP_SUMMARY
+            echo "Service account successfully authenticated and read/write verified." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "Check secrets configuration in GitHub Settings." >> $GITHUB_STEP_SUMMARY
+            echo "See: \`docs/env/GOOGLE_SERVICE_ACCOUNT_SETUP.md\`" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # ==========================================================================
+  # JOB 6: BUILD WORKER
+  # ==========================================================================
+  # Build the Cloudflare Worker using wrangler
+  # ==========================================================================
+  build-worker:
+    name: 🔨 Build Worker
+    runs-on: ubuntu-latest
+    needs: [unit-tests, contract-tests, sheets-connectivity]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Restore node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install dependencies (fallback)
+        run: npm ci
+        if: steps.cache.outputs.cache-hit != 'true'
+
+      - name: Install Wrangler
+        run: npm install -g wrangler@3
+
+      - name: Build Worker
+        working-directory: cloudflare-proxy
+        run: |
+          echo "=================================================="
+          echo "STAGE-1: BUILD WORKER"
+          echo "=================================================="
+          wrangler deploy --dry-run --outdir=dist --env staging
+          echo ""
+          echo "Worker build artifacts:"
+          ls -la dist/ || echo "No dist directory (dry-run mode)"
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: worker-build
+          path: cloudflare-proxy/dist/
+          retention-days: 1
+          if-no-files-found: ignore
+
+      - name: Create summary
+        if: always()
+        run: |
+          echo "## 🔨 Build Worker" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "### ✅ PASSED" >> $GITHUB_STEP_SUMMARY
+            echo "Worker built successfully for staging environment." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "Worker build failed. Check wrangler configuration." >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # ==========================================================================
+  # JOB 7: DEPLOY TO STAGING
+  # ==========================================================================
+  # Deploy the Worker to stg.eventangle.com
+  # Only runs if ALL previous jobs pass
+  # ==========================================================================
+  deploy-staging:
+    name: 🚀 Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [build-worker]
+    if: github.event.inputs.skip_deploy != 'true'
+    environment:
+      name: staging
+      url: https://stg.eventangle.com
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Restore node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install dependencies (fallback)
+        run: npm ci
+        if: steps.cache.outputs.cache-hit != 'true'
+
+      - name: Validate Cloudflare secrets
+        run: |
+          echo "=================================================="
+          echo "STAGE-1: VALIDATING CLOUDFLARE SECRETS"
+          echo "=================================================="
+
+          if [ -z "${{ secrets.CLOUDFLARE_API_TOKEN }}" ]; then
+            echo "::error::Missing required secret: CLOUDFLARE_API_TOKEN"
+            echo "  Configure in: Settings → Secrets → Actions → New repository secret"
+            echo "  Value: Cloudflare API token with Workers deployment permissions"
+            echo ""
+            echo "  Required permissions:"
+            echo "    - Account: Cloudflare Workers Scripts:Edit"
+            echo "    - Zone: Zone:Read, DNS:Edit"
+            exit 1
+          fi
+
+          echo "✓ CLOUDFLARE_API_TOKEN is set"
+
+      - name: Install Wrangler
+        run: npm install -g wrangler@3
+
+      - name: Deploy Worker to Staging
+        working-directory: cloudflare-proxy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          echo "=================================================="
+          echo "STAGE-1: DEPLOYING TO STAGING"
+          echo "=================================================="
+          echo "Target: stg.eventangle.com"
+          echo "Environment: staging"
+          echo ""
+
+          wrangler deploy --env staging
+
+          echo ""
+          echo "=================================================="
+          echo "✅ WORKER DEPLOYED TO STAGING"
+          echo "=================================================="
+          echo "URL: https://stg.eventangle.com"
+          echo ""
+
+      - name: Verify staging deployment
+        run: |
+          echo "=================================================="
+          echo "VERIFYING STAGING DEPLOYMENT"
+          echo "=================================================="
+
+          # Wait for edge propagation
+          sleep 10
+
+          # Test /api/status endpoint
+          echo "Testing /api/status endpoint..."
+          RESPONSE=$(curl -s -w "\n%{http_code}" "${{ env.STG_BASE_URL }}/api/status" || echo "CURL_FAILED")
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "✓ /api/status returned HTTP 200"
+            echo "Response: $BODY" | head -c 200
+          else
+            echo "::warning::Staging verification: /api/status returned HTTP $HTTP_CODE"
+            echo "Response: $BODY"
+          fi
+
+          echo ""
+          echo "Staging deployment complete."
+
+      - name: Create summary
+        if: always()
+        run: |
+          echo "## 🚀 Deploy to Staging" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "### ✅ DEPLOYED" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Staging URL:** https://stg.eventangle.com" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "The Worker has been deployed to the staging environment." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Deployment to staging failed. Check the logs above for details." >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Create staging URL artifact
+        run: |
+          mkdir -p artifacts
+          echo "https://stg.eventangle.com" > artifacts/stg-base-url.txt
+
+      - name: Upload staging URL artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: stg-base-url
+          path: artifacts/stg-base-url.txt
+          retention-days: 1
+
+  # ==========================================================================
+  # PIPELINE SUMMARY
+  # ==========================================================================
+  # Final job that creates an overall summary of the pipeline run
+  # ==========================================================================
+  pipeline-summary:
+    name: 📋 Pipeline Summary
+    runs-on: ubuntu-latest
+    needs: [lint, unit-tests, contract-tests, sheets-connectivity, build-worker, deploy-staging]
+    if: always()
+
+    steps:
+      - name: Create pipeline summary
+        run: |
+          echo "# 🔄 Stage-1 CI Pipeline Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Story 5.1**: Stage-1: Validate + Build + Deploy (Staging)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔍 Lint / Format Check | ${{ needs.lint.result == 'success' && '✅ Passed' || needs.lint.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🧪 Unit Tests | ${{ needs.unit-tests.result == 'success' && '✅ Passed' || needs.unit-tests.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 📜 Contract Tests | ${{ needs.contract-tests.result == 'success' && '✅ Passed' || needs.contract-tests.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 📊 Sheets Connectivity | ${{ needs.sheets-connectivity.result == 'success' && '✅ Passed' || needs.sheets-connectivity.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔨 Build Worker | ${{ needs.build-worker.result == 'success' && '✅ Passed' || needs.build-worker.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🚀 Deploy to Staging | ${{ needs.deploy-staging.result == 'success' && '✅ Deployed' || needs.deploy-staging.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Overall status
+          if [ "${{ needs.deploy-staging.result }}" == "success" ]; then
+            echo "## ✅ Pipeline Complete" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Staging URL: https://stg.eventangle.com" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.lint.result }}" != "success" ] || \
+               [ "${{ needs.unit-tests.result }}" != "success" ] || \
+               [ "${{ needs.contract-tests.result }}" != "success" ] || \
+               [ "${{ needs.sheets-connectivity.result }}" != "success" ] || \
+               [ "${{ needs.build-worker.result }}" != "success" ]; then
+            echo "## ❌ Pipeline Failed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Deployment blocked due to validation failures." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## ⏭️ Deployment Skipped" >> $GITHUB_STEP_SUMMARY
+          fi
