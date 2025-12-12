@@ -220,6 +220,8 @@
     "test:load:bundles:staging": "BASE_URL=https://stg.eventangle.com k6 run tests/load/bundle-load.js",
     "test:load:all": "npm run test:load:smoke && npm run test:load:average",
     "test:health": "node scripts/health-check.js",
+    "test:sheets:connectivity": "node scripts/test-sheets-connectivity.js",
+    "test:sheets:connectivity:verbose": "VERBOSE=true node scripts/test-sheets-connectivity.js",
     "test:api:health": "node scripts/api-health-check.js",
     "test:api:health:staging": "BASE_URL=https://stg.eventangle.com node scripts/api-health-check.js",
     "test:api:health:prod": "BASE_URL=https://www.eventangle.com node scripts/api-health-check.js",
