@@ -885,6 +885,135 @@ jobs:
           echo "- \`TEAMS_WEBHOOK_URL\`: Microsoft Teams webhook URL" >> $GITHUB_STEP_SUMMARY
 
   # ============================================================================
+  # STORY 1.1: SHEETS CONNECTIVITY TEST
+  # ============================================================================
+  # Validates that the Google Service Account can read/write to Google Sheets.
+  # This is a pre-deployment gate that ensures the Sheets pipeline is functional.
+  #
+  # Story 1.1 Acceptance Criteria:
+  #   - Service account can read/write the test sheet using CI credentials
+  #   - No user OAuth flows required
+  #   - If service account is missing permissions, test fails fast with clear error
+  #
+  # Required secrets:
+  #   - GOOGLE_CLIENT_EMAIL: Service account email
+  #   - GOOGLE_PRIVATE_KEY: Service account private key (PEM format)
+  #   - SHEETS_SPREADSHEET_ID_TEST: Test spreadsheet ID (dedicated for CI)
+  #
+  # This job:
+  #   - Only runs on push to main (not on PRs - requires secrets)
+  #   - Validates service account authentication
+  #   - Tests read/write to a dedicated test spreadsheet
+  #   - Blocks staging deployment if connectivity fails
+  #
+  # @see docs/env/GOOGLE_SERVICE_ACCOUNT_SETUP.md
+  # @see scripts/test-sheets-connectivity.js
+  # ============================================================================
+  sheets-connectivity:
+    name: Sheets Connectivity
+    runs-on: ubuntu-latest
+    needs: [quality-gates]
+    # Only run on push to main (secrets not available in PRs from forks)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.quality-gates.result == 'success'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify Sheets secrets are configured
+        id: check-secrets
+        env:
+          GOOGLE_CLIENT_EMAIL: ${{ secrets.GOOGLE_CLIENT_EMAIL }}
+          GOOGLE_PRIVATE_KEY: ${{ secrets.GOOGLE_PRIVATE_KEY }}
+          SHEETS_SPREADSHEET_ID_TEST: ${{ secrets.SHEETS_SPREADSHEET_ID_TEST }}
+        run: |
+          echo "=================================================="
+          echo "STORY 1.1: Verifying Sheets Configuration"
+          echo "=================================================="
+
+          MISSING=""
+
+          if [ -z "$GOOGLE_CLIENT_EMAIL" ]; then
+            MISSING="${MISSING}GOOGLE_CLIENT_EMAIL, "
+            echo "::warning::GOOGLE_CLIENT_EMAIL secret not configured"
+          else
+            echo "  GOOGLE_CLIENT_EMAIL: configured"
+          fi
+
+          if [ -z "$GOOGLE_PRIVATE_KEY" ]; then
+            MISSING="${MISSING}GOOGLE_PRIVATE_KEY, "
+            echo "::warning::GOOGLE_PRIVATE_KEY secret not configured"
+          else
+            echo "  GOOGLE_PRIVATE_KEY: configured (length: ${#GOOGLE_PRIVATE_KEY} chars)"
+          fi
+
+          if [ -z "$SHEETS_SPREADSHEET_ID_TEST" ]; then
+            MISSING="${MISSING}SHEETS_SPREADSHEET_ID_TEST, "
+            echo "::warning::SHEETS_SPREADSHEET_ID_TEST secret not configured"
+          else
+            echo "  SHEETS_SPREADSHEET_ID_TEST: configured"
+          fi
+
+          if [ -n "$MISSING" ]; then
+            MISSING="${MISSING%, }"
+            echo ""
+            echo "::error::Missing required secrets: $MISSING"
+            echo "See docs/env/GOOGLE_SERVICE_ACCOUNT_SETUP.md for setup instructions."
+            echo "secrets_configured=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+          echo ""
+          echo "All required Sheets secrets are configured."
+          echo "secrets_configured=true" >> $GITHUB_OUTPUT
+
+      - name: Run Sheets connectivity test
+        env:
+          GOOGLE_CLIENT_EMAIL: ${{ secrets.GOOGLE_CLIENT_EMAIL }}
+          GOOGLE_PRIVATE_KEY: ${{ secrets.GOOGLE_PRIVATE_KEY }}
+          SHEETS_SPREADSHEET_ID: ${{ secrets.SHEETS_SPREADSHEET_ID_TEST }}
+          VERBOSE: 'true'
+        run: |
+          echo "=================================================="
+          echo "STORY 1.1: Sheets Connectivity Test"
+          echo "=================================================="
+          echo ""
+          npm run test:sheets:connectivity
+
+      - name: Create connectivity summary
+        if: always()
+        run: |
+          echo "## 📊 Sheets Connectivity (Story 1.1)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "### ✅ PASSED" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Story 1.1 Acceptance Criteria Met:**" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ Service account authenticated successfully" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ Read from test spreadsheet succeeded" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ Write to test spreadsheet succeeded" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ No user OAuth flows required" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Possible Issues:**" >> $GITHUB_STEP_SUMMARY
+            echo "- Service account credentials may be invalid or expired" >> $GITHUB_STEP_SUMMARY
+            echo "- Test spreadsheet may not be shared with service account" >> $GITHUB_STEP_SUMMARY
+            echo "- Google Sheets API may not be enabled in the project" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "See [docs/env/GOOGLE_SERVICE_ACCOUNT_SETUP.md](../docs/env/GOOGLE_SERVICE_ACCOUNT_SETUP.md) for troubleshooting." >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # ============================================================================
   # STAGING DEPLOY (Push to main only)
   # ============================================================================
   # Deploys to staging environment after ALL quality gates pass.
@@ -894,9 +1023,14 @@ jobs:
   #   - depends on quality-gates which aggregates: lint, unit-tests, contract-tests, guards
   #   - CodeQL scan runs in parallel via security-scan.yml (also required)
   #
+  # Story 1.1: Sheets connectivity must pass
+  #   - sheets-connectivity job validates service account before deployment
+  #   - Staging deployment blocked if Sheets connectivity fails
+  #
   # This job:
   #   - Only runs on push to main (not on PRs)
   #   - Depends on ALL quality gates passing (aborts if any gate fails)
+  #   - Depends on Sheets connectivity passing (Story 1.1)
   #   - Deploys to Google Apps Script staging environment
   #   - Deploys Cloudflare Worker with new GAS deployment ID
   #   - Emits stg-base-url artifact for Stage-2 consumption
@@ -912,9 +1046,9 @@ jobs:
   staging-deploy:
     name: Deploy to Staging
     runs-on: ubuntu-latest
-    needs: [quality-gates]
-    # Only deploy on push to main, not on PRs, and only if quality gates passed
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.quality-gates.result == 'success'
+    needs: [quality-gates, sheets-connectivity]
+    # Only deploy on push to main, not on PRs, and only if all gates passed
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.quality-gates.result == 'success' && needs.sheets-connectivity.result == 'success'
     outputs:
       base_url: ${{ steps.emit-url.outputs.base_url }}
 
