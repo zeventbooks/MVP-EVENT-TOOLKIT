@@ -16,6 +16,10 @@ import {
   ApiErrorResponse,
   ErrorUIHandler,
 } from './base';
+import {
+  getEnvConfig,
+  buildWorkerV2BundlePath,
+} from './env';
 
 // =============================================================================
 // Types
@@ -187,10 +191,14 @@ export interface AnalyticsPayload {
 
 /**
  * API client for the Display surface
+ *
+ * Story 4.2: Supports both GAS (production) and Worker v2 (staging) backends.
+ * Uses environment detection to automatically route to the correct backend.
  */
 export class DisplayApiClient extends BaseApiClient {
   private brandId: string;
   private scope: string;
+  private useWorkerV2: boolean;
 
   constructor(
     brandId: string,
@@ -201,12 +209,30 @@ export class DisplayApiClient extends BaseApiClient {
     super(config, onError);
     this.brandId = brandId;
     this.scope = scope;
+    // Story 4.2: Auto-detect backend based on environment
+    this.useWorkerV2 = getEnvConfig().useWorkerV2;
+  }
+
+  /**
+   * Force use of Worker v2 endpoints (for testing)
+   */
+  setUseWorkerV2(useV2: boolean): void {
+    this.useWorkerV2 = useV2;
   }
 
   /**
    * Get display bundle for a specific event
+   *
+   * Story 4.2: Uses Worker v2 in staging, GAS in production
    */
   async getDisplayBundle(eventId: string): Promise<ApiResponse<DisplayBundleValue>> {
+    if (this.useWorkerV2) {
+      return this.get<DisplayBundleValue>(
+        buildWorkerV2BundlePath(eventId, 'display', this.brandId)
+      );
+    }
+
+    // GAS fallback
     return this.post<DisplayBundleValue>('api_getDisplayBundle', {
       brandId: this.brandId,
       scope: this.scope,
@@ -216,11 +242,21 @@ export class DisplayApiClient extends BaseApiClient {
 
   /**
    * Get display bundle with etag for conditional requests (SWR pattern)
+   *
+   * Story 4.2: Uses Worker v2 in staging, GAS in production
    */
   async getDisplayBundleIfModified(
     eventId: string,
     etag: string
   ): Promise<ApiResponse<DisplayBundleValue>> {
+    if (this.useWorkerV2) {
+      return this.get<DisplayBundleValue>(
+        buildWorkerV2BundlePath(eventId, 'display', this.brandId),
+        { ifNoneMatch: etag }
+      );
+    }
+
+    // GAS fallback
     return this.post<DisplayBundleValue>('api_getDisplayBundle', {
       brandId: this.brandId,
       scope: this.scope,

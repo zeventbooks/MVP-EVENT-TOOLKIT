@@ -129,3 +129,26 @@ export {
   type PosterBundleValue,
   type AnalyticsPayload as PosterAnalyticsPayload,
 } from './poster';
+
+// =============================================================================
+// Environment Detection (Story 4.2)
+// =============================================================================
+
+export {
+  // Types
+  type Environment,
+  type ApiBackend,
+  type EnvironmentConfig,
+  // Detection functions
+  detectEnvironment,
+  getApiBackend,
+  shouldUseWorkerV2,
+  getBaseApiUrl,
+  getEnvironmentConfig,
+  getEnvConfig,
+  isStaging,
+  isProduction,
+  // Path builders
+  buildWorkerV2BundlePath,
+  buildWorkerV2EventsPath,
+} from './env';

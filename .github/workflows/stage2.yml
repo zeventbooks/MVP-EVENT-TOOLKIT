@@ -1311,6 +1311,154 @@ jobs:
           echo "| **Test Suite** | Story 3.3 Critical User Journeys |" >> $GITHUB_STEP_SUMMARY
 
   # ============================================================================
+  # STORY 4.2: WORKER CUTOVER VALIDATION (STAGING ONLY)
+  # ============================================================================
+  # Validates that staging is fully Worker-backed before production cutover.
+  # Tests all surfaces (Public, Display, Poster) via Worker v2 API endpoints.
+  #
+  # Story 4.2 Requirements:
+  #   - All stg URLs function: /admin, /public, /display, /poster
+  #   - QR codes in staging hit Worker and produce valid pages
+  #   - Worker failures show "Temporarily unavailable" not blank pages
+  #   - Cross-surface navigation works (public → display → poster)
+  #   - Worker v2 API endpoints respond correctly with X-Backend header
+  #
+  # STAGING ONLY: This validates Worker cutover readiness for production.
+  # Production cutover is gated by this test passing.
+  #
+  # @see tests/e2e/stage-2/staging-worker-cutover.spec.js
+  # ============================================================================
+  worker-cutover-validation:
+    name: 🔄 Worker Cutover Validation (${{ needs.download-artifact.outputs.environment }})
+    runs-on: ubuntu-latest
+    needs: [check-stage1, download-artifact, env-alignment-gate, api-smoke, ui-smoke]
+    # Story 4.2: Only run on staging (validates Worker readiness for prod cutover)
+    if: |
+      needs.ui-smoke.result == 'success' &&
+      needs.check-stage1.outputs.is_production != 'true'
+    outputs:
+      worker_cutover_result: ${{ steps.worker-cutover-tests.outcome }}
+    env:
+      BASE_URL: ${{ needs.download-artifact.outputs.base_url }}
+      ENVIRONMENT: ${{ needs.download-artifact.outputs.environment }}
+      CI: true
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium --with-deps
+
+      - name: Display Worker cutover test configuration
+        run: |
+          echo "=============================================="
+          echo "STORY 4.2: WORKER CUTOVER VALIDATION"
+          echo "=============================================="
+          echo "Environment: $ENVIRONMENT"
+          echo "BASE_URL: $BASE_URL"
+          echo "Node version: $(node --version)"
+          echo ""
+          echo "This validates staging is fully Worker-backed:"
+          echo "  - All surfaces served by Worker (not GAS)"
+          echo "  - Worker v2 API endpoints functional"
+          echo "  - Cross-surface navigation works"
+          echo "  - QR codes hit Worker endpoints"
+          echo "  - Graceful error handling on Worker failures"
+          echo ""
+          echo "PASS = Production cutover is safe to proceed"
+          echo "FAIL = Block production cutover until fixed"
+          echo "=============================================="
+
+      - name: Run Worker cutover validation tests
+        id: worker-cutover-tests
+        run: |
+          echo "Running Worker cutover validation against: $BASE_URL ($ENVIRONMENT)"
+          npx playwright test tests/e2e/stage-2/staging-worker-cutover.spec.js --project=chromium --reporter=list
+        continue-on-error: true
+
+      - name: Upload Worker cutover test artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: worker-cutover-results-${{ env.ENVIRONMENT }}
+          path: |
+            playwright-report/
+            .test-results/
+            test-results/
+          retention-days: 14
+
+      - name: Check Worker cutover test result
+        if: steps.worker-cutover-tests.outcome == 'failure'
+        run: |
+          echo "::error::Worker cutover validation failed against $BASE_URL ($ENVIRONMENT)"
+          echo ""
+          echo "=============================================="
+          echo "STORY 4.2: WORKER CUTOVER VALIDATION FAILED"
+          echo "=============================================="
+          echo ""
+          echo "Staging is NOT fully Worker-backed."
+          echo "Production cutover is BLOCKED until this passes."
+          echo ""
+          echo "Possible issues:"
+          echo "  - Worker v2 API endpoints not responding"
+          echo "  - X-Backend header not showing 'worker'"
+          echo "  - Cross-surface navigation broken"
+          echo "  - Error pages not rendering correctly"
+          echo ""
+          echo "Check the 'worker-cutover-results' artifact for details."
+          echo "=============================================="
+          exit 1
+
+      - name: Create Worker cutover summary
+        if: always()
+        run: |
+          echo "## 🔄 Worker Cutover Validation ($ENVIRONMENT) - Story 4.2" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ steps.worker-cutover-tests.outcome }}" == "success" ]; then
+            echo "### ✅ STAGING FULLY WORKER-BACKED" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "All Worker cutover validation tests passed." >> $GITHUB_STEP_SUMMARY
+            echo "Production cutover is safe to proceed." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Verified:**" >> $GITHUB_STEP_SUMMARY
+            echo "- All surfaces (Public, Display, Poster) served by Worker" >> $GITHUB_STEP_SUMMARY
+            echo "- Worker v2 API endpoints functional" >> $GITHUB_STEP_SUMMARY
+            echo "- Cross-surface navigation works" >> $GITHUB_STEP_SUMMARY
+            echo "- QR codes hit Worker endpoints" >> $GITHUB_STEP_SUMMARY
+            echo "- Graceful error handling configured" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ WORKER CUTOVER BLOCKED" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Worker cutover validation failed." >> $GITHUB_STEP_SUMMARY
+            echo "**Production cutover is BLOCKED.**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Debugging:**" >> $GITHUB_STEP_SUMMARY
+            echo "1. Download 'worker-cutover-results' artifact" >> $GITHUB_STEP_SUMMARY
+            echo "2. Check Worker deployment configuration" >> $GITHUB_STEP_SUMMARY
+            echo "3. Verify Worker v2 API routes are deployed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Environment** | \`$ENVIRONMENT\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Target URL** | \`$BASE_URL\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Result** | \`${{ steps.worker-cutover-tests.outcome }}\` |" >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================================
   # FINAL VALIDATION GATE
   # ============================================================================
   # Aggregates results from all Stage-2 tests.
@@ -1350,7 +1498,7 @@ jobs:
   validation-gate:
     name: 🚦 Stage-2 Validation Gate (${{ needs.download-artifact.outputs.environment }})
     runs-on: ubuntu-latest
-    needs: [check-stage1, prod-approval-gate, download-artifact, preflight-health-check, env-alignment-gate, api-smoke, ui-smoke, e2e-tests]
+    needs: [check-stage1, prod-approval-gate, download-artifact, preflight-health-check, env-alignment-gate, api-smoke, ui-smoke, e2e-tests, worker-cutover-validation]
     # Story 7: For production, requires approval gate to have succeeded or been skipped (staging)
     if: always() && needs.download-artifact.result == 'success'
     outputs:
@@ -1369,9 +1517,10 @@ jobs:
           API_RESULT="${{ needs.api-smoke.result }}"
           UI_RESULT="${{ needs.ui-smoke.result }}"
           E2E_RESULT="${{ needs.e2e-tests.result }}"
+          WORKER_CUTOVER_RESULT="${{ needs.worker-cutover-validation.result }}"
 
           echo "=============================================="
-          echo "STAGE-2 VALIDATION GATE EVALUATION (Story 2.5 + 3.4 + 6)"
+          echo "STAGE-2 VALIDATION GATE EVALUATION (Story 2.5 + 3.4 + 4.2 + 6)"
           echo "=============================================="
           echo "Environment: $ENVIRONMENT"
           echo "Is Production: $IS_PRODUCTION"
@@ -1382,6 +1531,7 @@ jobs:
           echo "  🔥 API Smoke Tests: $API_RESULT"
           echo "  🖥️  UI Smoke Tests: $UI_RESULT"
           echo "  🧪 E2E Critical Journeys: $E2E_RESULT"
+          echo "  🔄 Worker Cutover (4.2): $WORKER_CUTOVER_RESULT"
           echo "=============================================="
 
           # Story 6: Check pre-flight health first
@@ -1431,22 +1581,35 @@ jobs:
             echo "status=failed" >> $GITHUB_OUTPUT
             echo "failure_reason=e2e_tests" >> $GITHUB_OUTPUT
 
-          # Success case: All tests passed (E2E skipped is OK for production)
+          # Story 4.2: Worker cutover validation failed (staging only)
+          elif [ "$WORKER_CUTOVER_RESULT" == "failure" ]; then
+            echo ""
+            echo "❌ Worker cutover validation failed!"
+            echo "Production cutover is BLOCKED."
+            echo "status=failed" >> $GITHUB_OUTPUT
+            echo "failure_reason=worker_cutover" >> $GITHUB_OUTPUT
+
+          # Success case: All tests passed (E2E/Worker cutover skipped is OK for production)
           elif [ "$API_RESULT" == "success" ] && [ "$UI_RESULT" == "success" ]; then
             # E2E tests are skipped on production (expected), or passed on staging
-            if [ "$E2E_RESULT" == "success" ] || [ "$E2E_RESULT" == "skipped" ]; then
+            # Worker cutover validation is skipped on production (expected), or passed on staging
+            if ([ "$E2E_RESULT" == "success" ] || [ "$E2E_RESULT" == "skipped" ]) && \
+               ([ "$WORKER_CUTOVER_RESULT" == "success" ] || [ "$WORKER_CUTOVER_RESULT" == "skipped" ]); then
               echo ""
               echo "✅ Stage-2 validation PASSED"
               if [ "$E2E_RESULT" == "skipped" ]; then
                 echo "(E2E tests skipped - production deploy uses nightly workflow)"
               fi
+              if [ "$WORKER_CUTOVER_RESULT" == "skipped" ]; then
+                echo "(Worker cutover validation skipped - production uses existing Worker)"
+              fi
               echo "status=passed" >> $GITHUB_OUTPUT
               echo "failure_reason=" >> $GITHUB_OUTPUT
             else
               echo ""
-              echo "❌ E2E tests in unexpected state: $E2E_RESULT"
+              echo "❌ Tests in unexpected state: E2E=$E2E_RESULT, WorkerCutover=$WORKER_CUTOVER_RESULT"
               echo "status=failed" >> $GITHUB_OUTPUT
-              echo "failure_reason=e2e_tests" >> $GITHUB_OUTPUT
+              echo "failure_reason=unexpected_state" >> $GITHUB_OUTPUT
             fi
 
           # Catch-all failure
@@ -1468,6 +1631,7 @@ jobs:
           API_RESULT="${{ needs.api-smoke.result }}"
           UI_RESULT="${{ needs.ui-smoke.result }}"
           E2E_RESULT="${{ needs.e2e-tests.result }}"
+          WORKER_CUTOVER_RESULT="${{ needs.worker-cutover-validation.result }}"
           STATUS="${{ steps.evaluate.outputs.status }}"
           FAILURE_REASON="${{ steps.evaluate.outputs.failure_reason }}"
 
@@ -1499,6 +1663,14 @@ jobs:
               echo "- All 10 critical user journeys passed" >> $GITHUB_STEP_SUMMARY
               echo "- Event lifecycle validated (PRE-EVENT, EVENT, POST-EVENT)" >> $GITHUB_STEP_SUMMARY
               echo "- Test data cleanup successful" >> $GITHUB_STEP_SUMMARY
+
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "### Story 4.2 Worker Cutover Validation (Verified)" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "- All surfaces (Public, Display, Poster) served by Worker" >> $GITHUB_STEP_SUMMARY
+              echo "- Worker v2 API endpoints functional" >> $GITHUB_STEP_SUMMARY
+              echo "- Cross-surface navigation works" >> $GITHUB_STEP_SUMMARY
+              echo "- Production cutover is safe to proceed" >> $GITHUB_STEP_SUMMARY
             fi
 
             if [ "$IS_PRODUCTION" == "true" ]; then
@@ -1553,6 +1725,16 @@ jobs:
               echo "1. Download 'e2e-test-artifacts' for the HTML report" >> $GITHUB_STEP_SUMMARY
               echo "2. Download 'e2e-failure-debug' for videos and traces" >> $GITHUB_STEP_SUMMARY
               echo "3. See [E2E Playwright Guide](../docs/E2E_PLAYWRIGHT_GUIDE.md)" >> $GITHUB_STEP_SUMMARY
+            elif [ "$FAILURE_REASON" == "worker_cutover" ]; then
+              echo "### 🔄 Worker Cutover Validation Failed (Story 4.2)" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "**Staging is NOT fully Worker-backed. Production cutover is BLOCKED.**" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "**Debugging:**" >> $GITHUB_STEP_SUMMARY
+              echo "1. Download 'worker-cutover-results' artifact for details" >> $GITHUB_STEP_SUMMARY
+              echo "2. Check Worker deployment configuration" >> $GITHUB_STEP_SUMMARY
+              echo "3. Verify Worker v2 API routes are deployed" >> $GITHUB_STEP_SUMMARY
+              echo "4. Check X-Backend headers on staging responses" >> $GITHUB_STEP_SUMMARY
             else
               echo "Stage-2 validation failed. Release is blocked until issues are resolved." >> $GITHUB_STEP_SUMMARY
             fi
@@ -1575,6 +1757,7 @@ jobs:
           echo "| **📡 API Smoke Tests** | \`$API_RESULT\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **🖥️ UI Smoke Tests** | \`$UI_RESULT\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **🧪 E2E Critical Journeys** | \`$E2E_RESULT\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **🔄 Worker Cutover (4.2)** | \`$WORKER_CUTOVER_RESULT\` |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Configuration" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -1626,8 +1809,9 @@ jobs:
   notify-stage2-failure:
     name: 📢 Notify Stage-2 Failure
     runs-on: ubuntu-latest
-    needs: [check-stage1, prod-approval-gate, download-artifact, preflight-health-check, env-alignment-gate, api-smoke, ui-smoke, e2e-tests, validation-gate]
+    needs: [check-stage1, prod-approval-gate, download-artifact, preflight-health-check, env-alignment-gate, api-smoke, ui-smoke, e2e-tests, worker-cutover-validation, validation-gate]
     # Story 7: Include production approval gate in notification conditions
+    # Story 4.2: Include worker-cutover-validation in notification conditions
     if: |
       always() &&
       (needs.download-artifact.result == 'success' || needs.prod-approval-gate.result == 'failure') &&
@@ -1636,6 +1820,7 @@ jobs:
        needs.api-smoke.result == 'failure' ||
        needs.ui-smoke.result == 'failure' ||
        needs.e2e-tests.result == 'failure' ||
+       needs.worker-cutover-validation.result == 'failure' ||
        needs.validation-gate.result == 'failure' ||
        needs.validation-gate.outputs.validation_status == 'failed' ||
        needs.prod-approval-gate.result == 'failure')
@@ -1672,6 +1857,9 @@ jobs:
           if [ "${{ needs.e2e-tests.result }}" == "failure" ]; then
             FAILED_TESTS="${FAILED_TESTS}E2E Critical Journeys, "
           fi
+          if [ "${{ needs.worker-cutover-validation.result }}" == "failure" ]; then
+            FAILED_TESTS="${FAILED_TESTS}Worker Cutover (4.2), "
+          fi
 
           # Remove trailing comma and space
           FAILED_TESTS="${FAILED_TESTS%, }"
@@ -1684,6 +1872,7 @@ jobs:
               api_tests) FAILED_TESTS="API Smoke Tests" ;;
               ui_tests) FAILED_TESTS="UI Smoke Tests" ;;
               e2e_tests) FAILED_TESTS="E2E Critical Journeys" ;;
+              worker_cutover) FAILED_TESTS="Worker Cutover (4.2)" ;;
               *) FAILED_TESTS="Validation Gate" ;;
             esac
           fi

@@ -17,6 +17,11 @@ import {
   ErrorUIHandler,
   isSuccess,
 } from './base';
+import {
+  getEnvConfig,
+  buildWorkerV2BundlePath,
+  buildWorkerV2EventsPath,
+} from './env';
 
 // =============================================================================
 // Types
@@ -242,10 +247,14 @@ export interface ExternalClickPayload {
 
 /**
  * API client for the Public surface
+ *
+ * Story 4.2: Supports both GAS (production) and Worker v2 (staging) backends.
+ * Uses environment detection to automatically route to the correct backend.
  */
 export class PublicApiClient extends BaseApiClient {
   private brandId: string;
   private scope: string;
+  private useWorkerV2: boolean;
 
   constructor(
     brandId: string,
@@ -256,12 +265,30 @@ export class PublicApiClient extends BaseApiClient {
     super(config, onError);
     this.brandId = brandId;
     this.scope = scope;
+    // Story 4.2: Auto-detect backend based on environment
+    this.useWorkerV2 = getEnvConfig().useWorkerV2;
+  }
+
+  /**
+   * Force use of Worker v2 endpoints (for testing)
+   */
+  setUseWorkerV2(useV2: boolean): void {
+    this.useWorkerV2 = useV2;
   }
 
   /**
    * Get list of events
+   *
+   * Story 4.2: Uses Worker v2 in staging, GAS in production
    */
   async getEventList(): Promise<ApiResponse<EventListResponse>> {
+    if (this.useWorkerV2) {
+      return this.get<EventListResponse>(
+        buildWorkerV2EventsPath(undefined, this.brandId)
+      );
+    }
+
+    // GAS fallback
     return this.post<EventListResponse>('api_list', {
       brandId: this.brandId,
       scope: this.scope,
@@ -270,8 +297,17 @@ export class PublicApiClient extends BaseApiClient {
 
   /**
    * Get public bundle for a specific event
+   *
+   * Story 4.2: Uses Worker v2 in staging, GAS in production
    */
   async getPublicBundle(eventId: string): Promise<ApiResponse<PublicBundleValue>> {
+    if (this.useWorkerV2) {
+      return this.get<PublicBundleValue>(
+        buildWorkerV2BundlePath(eventId, 'public', this.brandId)
+      );
+    }
+
+    // GAS fallback
     return this.post<PublicBundleValue>('api_getPublicBundle', {
       brandId: this.brandId,
       scope: this.scope,
@@ -281,11 +317,21 @@ export class PublicApiClient extends BaseApiClient {
 
   /**
    * Get public bundle with etag for conditional requests
+   *
+   * Story 4.2: Uses Worker v2 in staging, GAS in production
    */
   async getPublicBundleIfModified(
     eventId: string,
     etag: string
   ): Promise<ApiResponse<PublicBundleValue>> {
+    if (this.useWorkerV2) {
+      return this.get<PublicBundleValue>(
+        buildWorkerV2BundlePath(eventId, 'public', this.brandId),
+        { ifNoneMatch: etag }
+      );
+    }
+
+    // GAS fallback
     return this.post<PublicBundleValue>('api_getPublicBundle', {
       brandId: this.brandId,
       scope: this.scope,
