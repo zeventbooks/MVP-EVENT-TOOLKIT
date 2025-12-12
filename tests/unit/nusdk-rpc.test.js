@@ -990,6 +990,252 @@ describe('NU SDK v2.0 Fetch Transport', () => {
 });
 
 // =============================================================================
+// NU.init() INITIALIZATION TESTS (NUSDK v2.2)
+// =============================================================================
+// Story 2: NUSDK Initialization Refactor
+// NU.init({ execUrl, brand }) configures transport at startup
+// Falls back to template variables and works in both GAS-direct and proxy contexts
+
+describe('NU.init()', () => {
+  let NU;
+
+  beforeEach(() => {
+    // Create a fresh NU mock for each test
+    NU = {
+      VERSION: '2.2.0',
+      _initialized: false,
+      _config: {
+        logLevel: 'debug',
+        maxLogs: 100,
+        apiBase: '/api',
+        dedupeWindow: 5000
+      },
+      _directTransport: {
+        enabled: false,
+        execUrl: null,
+        brand: null,
+        maxRetries: 3,
+        retryDelayMs: 1000
+      },
+      _log: jest.fn(),
+
+      init(config = {}) {
+        const { execUrl, brand, directTransportOptions = {} } = config;
+        const hasValidExecUrl = execUrl && typeof execUrl === 'string' && execUrl.trim() !== '';
+
+        if (hasValidExecUrl) {
+          try {
+            new URL(execUrl);
+            NU._directTransport = {
+              enabled: true,
+              execUrl: execUrl.trim(),
+              brand: brand || null,
+              maxRetries: directTransportOptions.maxRetries ?? 3,
+              retryDelayMs: directTransportOptions.retryDelayMs ?? 1000
+            };
+            NU._log('debug', 'init_config', { transport: 'direct' });
+          } catch {
+            NU._log('error', 'init_config', { error: 'Invalid execUrl format' });
+          }
+        } else {
+          NU._log('debug', 'init_config', { transport: 'proxy' });
+        }
+        NU._initialized = true;
+      },
+
+      isInitialized() {
+        return NU._initialized;
+      },
+
+      getTransportMode() {
+        return NU._directTransport.enabled ? 'direct' : 'proxy';
+      },
+
+      getConfig() {
+        return {
+          ...NU._config,
+          version: NU.VERSION,
+          initialized: NU._initialized,
+          transportMode: NU.getTransportMode(),
+          directTransport: {
+            enabled: NU._directTransport.enabled,
+            hasExecUrl: !!NU._directTransport.execUrl,
+            hasBrand: !!NU._directTransport.brand
+          }
+        };
+      }
+    };
+  });
+
+  describe('Direct transport mode (with execUrl)', () => {
+    test('should enable direct transport when valid execUrl is provided', () => {
+      const execUrl = 'https://script.google.com/macros/s/ABC123/exec';
+      const brand = 'eventangle';
+
+      NU.init({ execUrl, brand });
+
+      expect(NU.isInitialized()).toBe(true);
+      expect(NU.getTransportMode()).toBe('direct');
+      expect(NU._directTransport.enabled).toBe(true);
+      expect(NU._directTransport.execUrl).toBe(execUrl);
+      expect(NU._directTransport.brand).toBe(brand);
+    });
+
+    test('should work with only execUrl (no brand)', () => {
+      const execUrl = 'https://script.google.com/macros/s/ABC123/exec';
+
+      NU.init({ execUrl });
+
+      expect(NU.getTransportMode()).toBe('direct');
+      expect(NU._directTransport.enabled).toBe(true);
+      expect(NU._directTransport.brand).toBeNull();
+    });
+
+    test('should accept custom directTransportOptions', () => {
+      const execUrl = 'https://script.google.com/macros/s/ABC123/exec';
+
+      NU.init({
+        execUrl,
+        brand: 'abc',
+        directTransportOptions: { maxRetries: 5, retryDelayMs: 500 }
+      });
+
+      expect(NU._directTransport.maxRetries).toBe(5);
+      expect(NU._directTransport.retryDelayMs).toBe(500);
+    });
+
+    test('should trim whitespace from execUrl', () => {
+      const execUrl = '  https://script.google.com/macros/s/ABC123/exec  ';
+
+      NU.init({ execUrl });
+
+      expect(NU._directTransport.execUrl).toBe(execUrl.trim());
+    });
+  });
+
+  describe('Proxy transport mode (without execUrl)', () => {
+    test('should use proxy transport when no config is provided', () => {
+      NU.init();
+
+      expect(NU.isInitialized()).toBe(true);
+      expect(NU.getTransportMode()).toBe('proxy');
+      expect(NU._directTransport.enabled).toBe(false);
+    });
+
+    test('should use proxy transport when empty config is provided', () => {
+      NU.init({});
+
+      expect(NU.getTransportMode()).toBe('proxy');
+    });
+
+    test('should use proxy transport when execUrl is empty string', () => {
+      NU.init({ execUrl: '' });
+
+      expect(NU.getTransportMode()).toBe('proxy');
+    });
+
+    test('should use proxy transport when execUrl is whitespace-only', () => {
+      NU.init({ execUrl: '   ' });
+
+      expect(NU.getTransportMode()).toBe('proxy');
+    });
+
+    test('should use proxy transport when execUrl is null', () => {
+      NU.init({ execUrl: null });
+
+      expect(NU.getTransportMode()).toBe('proxy');
+    });
+
+    test('should use proxy transport when execUrl is undefined', () => {
+      NU.init({ execUrl: undefined });
+
+      expect(NU.getTransportMode()).toBe('proxy');
+    });
+  });
+
+  describe('Template variable fallback behavior', () => {
+    // These tests simulate what happens with GAS template variables
+    // When template vars aren't populated, they render as empty strings
+
+    test('should fall back to proxy when template var renders as empty string', () => {
+      // Simulates: NU.init({ execUrl: '<?= execUrl ?>' }) when execUrl var is not set
+      const templateRenderedExecUrl = ''; // Empty string from unpopulated template var
+
+      NU.init({ execUrl: templateRenderedExecUrl });
+
+      expect(NU.getTransportMode()).toBe('proxy');
+    });
+
+    test('should use direct transport when template var renders as valid URL', () => {
+      // Simulates: NU.init({ execUrl: '<?= execUrl ?>' }) when execUrl var IS set
+      const templateRenderedExecUrl = 'https://script.google.com/macros/s/ABC123/exec';
+
+      NU.init({ execUrl: templateRenderedExecUrl });
+
+      expect(NU.getTransportMode()).toBe('direct');
+    });
+  });
+
+  describe('Invalid URL handling', () => {
+    test('should fall back to proxy when execUrl is malformed', () => {
+      NU.init({ execUrl: 'not-a-valid-url' });
+
+      expect(NU.getTransportMode()).toBe('proxy');
+      expect(NU._log).toHaveBeenCalledWith('error', 'init_config', expect.objectContaining({
+        error: 'Invalid execUrl format'
+      }));
+    });
+
+    test('should fall back to proxy when execUrl is a number', () => {
+      NU.init({ execUrl: 12345 });
+
+      expect(NU.getTransportMode()).toBe('proxy');
+    });
+
+    test('should fall back to proxy when execUrl is an object', () => {
+      NU.init({ execUrl: { url: 'https://example.com' } });
+
+      expect(NU.getTransportMode()).toBe('proxy');
+    });
+  });
+
+  describe('getConfig() with initialization state', () => {
+    test('should include initialized state in getConfig()', () => {
+      NU.init({ execUrl: 'https://example.com/exec' });
+
+      const config = NU.getConfig();
+
+      expect(config.initialized).toBe(true);
+      expect(config.transportMode).toBe('direct');
+      expect(config.directTransport.enabled).toBe(true);
+      expect(config.directTransport.hasExecUrl).toBe(true);
+    });
+
+    test('should show proxy mode in getConfig() when no execUrl', () => {
+      NU.init();
+
+      const config = NU.getConfig();
+
+      expect(config.transportMode).toBe('proxy');
+      expect(config.directTransport.enabled).toBe(false);
+      expect(config.directTransport.hasExecUrl).toBe(false);
+    });
+  });
+
+  describe('Multiple init calls', () => {
+    test('should allow re-initialization with different config', () => {
+      // First init with proxy
+      NU.init();
+      expect(NU.getTransportMode()).toBe('proxy');
+
+      // Re-init with direct transport
+      NU.init({ execUrl: 'https://script.google.com/macros/s/ABC123/exec' });
+      expect(NU.getTransportMode()).toBe('direct');
+    });
+  });
+});
+
+// =============================================================================
 // RAW FETCH USAGE DETECTION (Static Analysis)
 // =============================================================================
 
@@ -1053,7 +1299,7 @@ describe('Raw Fetch Ban Enforcement', () => {
     expect(content).toMatch(/rpc\s*\(\s*path\s*,/);
   });
 
-  test('NUSDK.html should define v2.0 features', () => {
+  test('NUSDK.html should define v2.x features', () => {
     const nusdkPath = path.join(srcDir, 'NUSDK.html');
 
     if (!fs.existsSync(nusdkPath)) {
@@ -1062,10 +1308,15 @@ describe('Raw Fetch Ban Enforcement', () => {
 
     const content = fs.readFileSync(nusdkPath, 'utf8');
 
-    // v2.0 features
+    // v2.x features
     expect(content).toContain('window.__NU_LOGS__');
     expect(content).toContain('window.NU_DIAG');
     expect(content).toMatch(/VERSION:\s*['"]2\./);  // Version 2.x
     expect(content).toContain('flush()');
+
+    // v2.2 features (NU.init)
+    expect(content).toMatch(/init\s*\(\s*config\s*=/);  // init(config = {})
+    expect(content).toContain('isInitialized()');
+    expect(content).toContain('getTransportMode()');
   });
 });
