@@ -314,6 +314,7 @@
   "author": "Zeventbooks",
   "license": "MIT",
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20251212.0",
     "@eslint/js": "^8.57.1",
     "@google/clasp": "^2.4.2",
     "@playwright/test": "^1.56.1",
