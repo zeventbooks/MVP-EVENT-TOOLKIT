@@ -51,6 +51,7 @@ node scripts/rollback-worker.mjs staging --verify
 | GAS HTML leak (blue banner) | Previous Worker | `npm run rollback:prod` |
 | API/RPC errors | Previous GAS deployment | Use Apps Script Editor |
 | Worker routing broken | Previous Worker | `npm run rollback:prod` |
+| Worker-only mode issues | Backend mode rollback | See "Backend Mode Rollback" below |
 | Everything broken | Both GAS + Worker | Full rollback (see below) |
 
 ## When to Rollback
@@ -142,7 +143,56 @@ cd cloudflare-proxy
 wrangler deploy --env production
 ```
 
-### Option C: Full Rollback (Both GAS + Worker)
+### Option C: Backend Mode Rollback (Story 6.1)
+
+Use when Worker-only mode (`BACKEND_MODE=worker`) is causing issues but the Worker itself is working.
+
+**Symptoms that indicate Backend Mode rollback:**
+- API endpoints return errors from Worker-native code
+- Google Sheets API rate limits or auth issues
+- Features work on staging (mixed mode) but fail on production (worker mode)
+
+**Step 1: Change BACKEND_MODE**
+
+Edit `cloudflare-proxy/wrangler.toml`:
+
+```toml
+[env.production.vars]
+# Change from 'worker' to 'mixed' or 'gas'
+BACKEND_MODE = "mixed"  # Per-route selection (safer)
+# or
+BACKEND_MODE = "gas"    # All routes use GAS (full rollback)
+```
+
+**Step 2: Deploy the change**
+
+```bash
+cd cloudflare-proxy
+wrangler deploy --env production
+```
+
+**Step 3: Verify**
+
+```bash
+# Check backend mode
+curl -s https://www.eventangle.com/api/status | jq '.backendMode'
+# Expected: "mixed" or "gas"
+
+# Run smoke tests
+BASE_URL="https://www.eventangle.com" npm run test:api:smoke
+```
+
+**Backend Mode Values:**
+
+| Mode | Behavior | When to Use |
+|------|----------|-------------|
+| `worker` | All routes use Worker-native code | Normal production (Story 6.1+) |
+| `mixed` | Per-route selection based on config | Gradual rollback, testing |
+| `gas` | All routes use GAS | Emergency full rollback |
+
+**Note**: Even with `BACKEND_MODE=gas`, requests still go through the Worker - they're just proxied to GAS instead of handled natively.
+
+### Option D: Full Rollback (Both GAS + Worker)
 
 Use when everything is broken.
 
