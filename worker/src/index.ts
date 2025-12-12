@@ -4,6 +4,7 @@
  * Barrel file for exporting all worker modules.
  *
  * @module worker
+ * @see Story 1.1 - Create Central Worker Router
  * @see Story 1.2 - Implement sheetsClient.ts for Workers
  * @see Story 1.3 - Port api_status + Simple Read-Only api_listEvents
  * @see Story 2.1 - Worker getPublicBundle from Sheets
@@ -12,6 +13,22 @@
  * @see Story 3.2 - Port createEvent to Worker
  * @see Story 3.3 - Port recordResult to Worker
  */
+
+// Central Router (Story 1.1)
+export {
+  handleRequest,
+  ROUTER_VERSION,
+  type RouterEnv,
+} from './router';
+
+// Structured Logger (Story 1.1)
+export {
+  RouterLogger,
+  createLogger,
+  type LogLevel,
+  type LogEntry,
+  type LoggerConfig,
+} from './logger';
 
 // Google Authentication
 export {
