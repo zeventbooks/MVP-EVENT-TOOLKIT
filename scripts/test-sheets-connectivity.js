@@ -29,7 +29,6 @@
  */
 
 const { google } = require('googleapis');
-const crypto = require('crypto');
 
 // Configuration
 const TEST_RANGE = process.env.SHEETS_TEST_RANGE || 'TEST!A1:B2';
@@ -73,10 +72,11 @@ function validateEnvironment() {
     }
   }
 
-  // Validate email format
+  // Validate email format - use endsWith() to prevent URL substring bypass attacks
+  // Service account emails must end with .iam.gserviceaccount.com
   if (process.env.GOOGLE_CLIENT_EMAIL) {
     const email = process.env.GOOGLE_CLIENT_EMAIL;
-    if (!email.includes('@') || !email.includes('.iam.gserviceaccount.com')) {
+    if (!email.includes('@') || !email.endsWith('.iam.gserviceaccount.com')) {
       errors.push('GOOGLE_CLIENT_EMAIL should be a service account email (*.iam.gserviceaccount.com)');
     }
   }
