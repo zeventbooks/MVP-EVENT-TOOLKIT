@@ -8,6 +8,7 @@
  * @see Story 2.1 - Worker getPublicBundle from Sheets
  * @see Story 2.2 - Worker getAdminBundle from Sheets
  * @see Story 3.2 - Port createEvent to Worker
+ * @see Story 3.3 - Port recordResult to Worker
  */
 
 // Status Handler
@@ -57,3 +58,13 @@ export {
   type AdminCreateEventResponse,
   type AdminCreateEventErrorResponse,
 } from './adminCreateEvent';
+
+// Admin Record Result Handler (Story 3.3)
+export {
+  handleAdminRecordResult,
+  parseEventIdFromResultPath,
+  type AdminRecordResultEnv,
+  type RecordResultRequestBody,
+  type AdminRecordResultResponse,
+  type AdminRecordResultErrorResponse,
+} from './adminRecordResult';
