@@ -10,6 +10,7 @@
  * @see Story 2.2 - Worker getAdminBundle from Sheets
  * @see Story 3.1 - Define Admin Auth Model for Worker API
  * @see Story 3.2 - Port createEvent to Worker
+ * @see Story 3.3 - Port recordResult to Worker
  */
 
 // Google Authentication
@@ -178,6 +179,16 @@ export {
   type AdminCreateEventErrorResponse,
 } from './handlers';
 
+// API Handlers (Story 3.3 - Admin Record Result)
+export {
+  handleAdminRecordResult,
+  parseEventIdFromResultPath,
+  type AdminRecordResultEnv,
+  type RecordResultRequestBody,
+  type AdminRecordResultResponse,
+  type AdminRecordResultErrorResponse,
+} from './handlers';
+
 // Sheets Module (Story 3.2 - Event Writer)
 export {
   // Functions
@@ -198,4 +209,54 @@ export {
 
   // Constants (aliased to avoid conflict with mappers/EVENT_COL)
   EVENT_COL as SHEETS_EVENT_COL,
+} from './sheets';
+
+// Sheets Module (Story 3.3 - Result Writer)
+export {
+  // Functions
+  findEventById,
+  mergeResultUpdates,
+  saveEventRow,
+  recordResult,
+  updateSchedule,
+  updateStandings,
+  updateBracket,
+
+  // Types
+  type ScheduleItem,
+  type StandingsItem,
+  type BracketMatch,
+  type Bracket,
+  type RecordResultInput,
+  type EventData,
+  type LoadEventResult,
+  type RecordResultResult,
+} from './sheets';
+
+// Sheets Module (Story 3.3 - Analytics Writer)
+export {
+  // Functions
+  getEnvironmentString,
+  isValidSurface,
+  isValidMetric,
+  sanitizeSpreadsheetValue,
+  buildAnalyticsRow,
+  logAnalyticsEvent,
+  logAnalyticsEvents,
+  logResultUpdate,
+
+  // Types
+  type AnalyticsWriterEnv,
+  type AnalyticsLogInput,
+  type AnalyticsLogResult,
+  type AnalyticsBatchLogResult,
+  type Surface,
+  type Metric,
+
+  // Constants
+  ANALYTICS_COL,
+  ANALYTICS_SOURCE,
+  ANALYTICS_ENV,
+  VALID_SURFACES,
+  VALID_METRICS,
 } from './sheets';
