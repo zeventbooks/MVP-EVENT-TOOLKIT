@@ -891,22 +891,9 @@ window.NU = {
         }
 
       } catch (fetchError) {
-        // Fallback to google.script.run
-        try {
-          if (!window.google?.script?.run) {
-            NU._log('debug', 'analytics_skip', { path, reason: 'no backend' });
-            return;
-          }
-
-          const method = path.startsWith('api_') ? path : `api_${path.replace('/', '_')}`;
-          google.script.run
-            .withSuccessHandler(() => {})
-            .withFailureHandler(() => {})
-            [method](payload);
-
-        } catch {
-          // Silently ignore analytics failures
-        }
+        // Story 4.1: No google.script.run fallback - fetch is the only transport
+        // Analytics failures are silently ignored (fire-and-forget pattern)
+        NU._log('debug', 'analytics_skip', { path, reason: 'fetch_failed', error: fetchError?.message });
       }
     })();
   },
