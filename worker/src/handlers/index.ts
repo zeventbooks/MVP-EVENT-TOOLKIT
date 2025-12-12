@@ -6,6 +6,7 @@
  * @module handlers
  * @see Story 1.3 - Port api_status + Simple Read-Only api_listEvents
  * @see Story 2.1 - Worker getPublicBundle from Sheets
+ * @see Story 2.2 - Worker getAdminBundle from Sheets
  */
 
 // Status Handler
@@ -36,3 +37,13 @@ export {
   type PublicBundleNotModifiedResponse,
   type PublicBundleErrorResponse,
 } from './publicBundle';
+
+// Admin Bundle Handler (Story 2.2)
+export {
+  handleGetAdminBundle,
+  parseAdminEventIdFromPath,
+  type AdminBundleEnv,
+  type AdminBundleResponse,
+  type AdminBundleNotModifiedResponse,
+  type AdminBundleErrorResponse,
+} from './adminBundle';
