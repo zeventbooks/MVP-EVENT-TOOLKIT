@@ -95,6 +95,20 @@ import {
   isSheetsConfigured
 } from './src/sheets/client.js';
 
+// =============================================================================
+// STORY 0.1: VERSIONED BACKEND ROUTING
+// =============================================================================
+// Configuration module for routing requests to GAS or Worker-native backends.
+// Supports per-route configuration and query param override for staging.
+import {
+  getBackendMode,
+  getBackendForRoute,
+  createBackendError500,
+  logBackendDecision,
+  BACKEND_MODES,
+  BACKEND_ERROR_CODE
+} from './src/config/backendConfig.js';
+
 /**
  * Embedded templates map - templates bundled directly with the Worker.
  * These are the primary source for HTML templates, eliminating KV dependency.
@@ -2681,26 +2695,69 @@ export default {
     }
 
     // ==========================================================================
-    // HEALTH CHECK ENDPOINT - Story 5 Implementation
+    // HEALTH CHECK ENDPOINT - Story 5 Implementation + Story 0.1 Versioned Routing
     // ==========================================================================
     // GET /api/status (or POST with { "method": "status" })
     // Lightweight health check for CI/CD pipelines.
     // Returns structured JSON with GAS and eventsIndex health status.
+    //
+    // Story 0.1: Versioned Backend Routing
+    // - Uses backendConfig to decide whether to use GAS or Worker-native
+    // - Supports ?backend=gas|worker query param override for staging
+    // - Worker-native uses handleWorkerStatusRequest from src/api/status.js
+    // - GAS uses handleHealthCheckEndpoint (legacy)
     if (url.pathname === '/api/status') {
       try {
-        const response = await handleHealthCheckEndpoint(request, appsScriptBase, env, url);
+        // Story 0.1: Determine which backend to use
+        const { backend, source } = getBackendForRoute(url.pathname, url.searchParams, env);
+        logBackendDecision(url.pathname, backend, source, env);
+
+        let response;
+
+        if (backend === BACKEND_MODES.WORKER) {
+          // Worker-native implementation (Story 6)
+          response = await handleWorkerStatusRequest(request, env);
+
+          // Add X-Backend header for debugging
+          response = new Response(response.body, {
+            status: response.status,
+            headers: response.headers
+          });
+          response.headers.set('X-Backend', 'worker');
+          response.headers.set('X-Backend-Source', source);
+        } else {
+          // GAS backend (legacy)
+          response = await handleHealthCheckEndpoint(request, appsScriptBase, env, url);
+
+          // Add X-Backend header for debugging
+          response = new Response(response.body, {
+            status: response.status,
+            headers: response.headers
+          });
+          response.headers.set('X-Backend', 'gas');
+          response.headers.set('X-Backend-Source', source);
+        }
+
         return addTransparencyHeaders(addCORSHeaders(response), startTime, env);
+
       } catch (error) {
         const corrId = generateCorrId();
         ctx.waitUntil(logError(env, {
           corrId,
           type: 'health_check_error',
+          backend: getBackendMode(env),
           error: error.message,
+          stack: error.stack?.slice(0, 500),
           url: url.pathname,
           duration: Date.now() - startTime
         }));
-        return createHealthCheckErrorResponse(503, GAS_ERROR_CODES.SERVICE_UNAVAILABLE,
-          'Health check failed unexpectedly', { corrId });
+
+        // Story 0.1: Return structured BACKEND_ERROR response
+        const errorResponse = createBackendError500(
+          'Health check failed unexpectedly',
+          { corrId, backend: getBackendMode(env) }
+        );
+        return addTransparencyHeaders(addCORSHeaders(errorResponse), startTime, env);
       }
     }
 
