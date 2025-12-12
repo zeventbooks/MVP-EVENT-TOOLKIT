@@ -40,6 +40,28 @@ fallthrough = true
 # ERROR_LOG_ENDPOINT - (Optional) URL for external error logging (POST JSON)
 # UPSTREAM_TIMEOUT_MS - (Optional) Timeout for upstream requests (default: 30000ms)
 #
+# ============================================
+# SECRETS - Worker-Native API (Story 6)
+# ============================================
+# These secrets enable direct Google Sheets API access from the Worker,
+# bypassing GAS entirely. Set via: wrangler secret put <NAME> --env <env>
+#
+# Required for /api/v2/* endpoints:
+#   GOOGLE_CLIENT_EMAIL  - Service account email (e.g., worker@project.iam.gserviceaccount.com)
+#   GOOGLE_PRIVATE_KEY   - Service account private key (PEM format, with newlines)
+#   SHEETS_SPREADSHEET_ID - Google Sheets spreadsheet ID
+#   ADMIN_TOKEN          - Bearer token for admin authentication
+#
+# Setup commands:
+#   wrangler secret put GOOGLE_CLIENT_EMAIL --env staging
+#   wrangler secret put GOOGLE_PRIVATE_KEY --env staging
+#   wrangler secret put SHEETS_SPREADSHEET_ID --env staging
+#   wrangler secret put ADMIN_TOKEN --env staging
+#
+# Note: GOOGLE_PRIVATE_KEY should be the full PEM content including
+# -----BEGIN PRIVATE KEY----- and -----END PRIVATE KEY-----
+# When using wrangler secret put, paste the entire key including newlines.
+#
 [vars]
 # Production deployment (used as default/fallback)
 PROD_DEPLOYMENT_ID = "AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw"

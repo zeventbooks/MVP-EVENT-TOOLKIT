@@ -57,6 +57,44 @@ import displayHtml from './templates/display.html';
 import posterHtml from './templates/poster.html';
 import reportHtml from './templates/report.html';
 
+// =============================================================================
+// WORKER-NATIVE API MODULES - Story 6: Cloudflare Worker Migration
+// =============================================================================
+// These modules implement the new Worker-native API endpoints that talk
+// directly to Google Sheets, bypassing GAS.
+//
+// Feature flag USE_WORKER_API controls whether to use these endpoints.
+// Routes: /api/v2/* for new endpoints, /api/* for legacy GAS proxy
+import {
+  handleStatusRequest as handleWorkerStatusRequest,
+  handleSheetsStatusRequest,
+  handlePingRequest as handleWorkerPingRequest
+} from './src/api/status.js';
+import {
+  routeEventsApi,
+  handleListEvents,
+  handleGetEvent,
+  handleCreateEvent,
+  handleUpdateEvent
+} from './src/api/events.js';
+import {
+  routeBundlesApi,
+  handlePublicBundle,
+  handleDisplayBundle,
+  handlePosterBundle,
+  handleAdminBundle
+} from './src/api/bundles.js';
+import {
+  requireAdminAuth
+} from './src/middleware/auth.js';
+import {
+  addCorsHeaders as addWorkerCorsHeaders,
+  handleCorsPreflightRequest
+} from './src/middleware/cors.js';
+import {
+  isSheetsConfigured
+} from './src/sheets/client.js';
+
 /**
  * Embedded templates map - templates bundled directly with the Worker.
  * These are the primary source for HTML templates, eliminating KV dependency.
@@ -74,7 +112,8 @@ const EMBEDDED_TEMPLATES = {
 // Story 2: Updated for staging env vars and versioning support
 // Story 3: Defensive upstream response handling - honest JSON or structured errors
 // Story 5: Add /api/status health check endpoint for CI/CD pipelines
-const WORKER_VERSION = '2.6.0';
+// Story 6: Cloudflare Worker Migration - direct Sheets API access
+const WORKER_VERSION = '3.0.0';
 
 // =============================================================================
 // OBSERVABILITY & LOGGING - Story 5 Implementation
@@ -2513,6 +2552,132 @@ export default {
     const envStatusResponse = handleEnvStatusEndpoint(url, env);
     if (envStatusResponse) {
       return addTransparencyHeaders(envStatusResponse, startTime, env);
+    }
+
+    // ==========================================================================
+    // WORKER-NATIVE API V2 ENDPOINTS - Story 6 Implementation
+    // ==========================================================================
+    // New Worker-native API endpoints that talk directly to Google Sheets.
+    // These bypass GAS entirely and are the future of the API.
+    //
+    // Routes:
+    //   GET  /api/v2/status           - Worker health check (no GAS)
+    //   GET  /api/v2/status/sheets    - Sheets connection check
+    //   GET  /api/v2/ping             - Simple ping
+    //   GET  /api/v2/events           - List events
+    //   GET  /api/v2/events/:id       - Get single event
+    //   POST /api/v2/events           - Create event (requires auth)
+    //   PUT  /api/v2/events/:id       - Update event (requires auth)
+    //   GET  /api/v2/events/:id/bundle/public  - Public bundle
+    //   GET  /api/v2/events/:id/bundle/display - Display bundle
+    //   GET  /api/v2/events/:id/bundle/poster  - Poster bundle
+    //   GET  /api/v2/events/:id/bundle/admin   - Admin bundle (requires auth)
+    //
+    if (url.pathname.startsWith('/api/v2/')) {
+      try {
+        const v2Path = url.pathname.slice('/api/v2/'.length);
+        const pathSegments = v2Path.split('/').filter(Boolean);
+        let response;
+
+        // Handle CORS preflight
+        if (request.method === 'OPTIONS') {
+          response = handleCorsPreflightRequest(request, env);
+          return addTransparencyHeaders(response, startTime, env);
+        }
+
+        // Route: GET /api/v2/status
+        if (v2Path === 'status' && request.method === 'GET') {
+          response = await handleWorkerStatusRequest(request, env);
+        }
+        // Route: GET /api/v2/status/sheets
+        else if (v2Path === 'status/sheets' && request.method === 'GET') {
+          response = await handleSheetsStatusRequest(request, env);
+        }
+        // Route: GET /api/v2/ping
+        else if (v2Path === 'ping' && request.method === 'GET') {
+          response = handleWorkerPingRequest();
+        }
+        // Route: /api/v2/events/...
+        else if (pathSegments[0] === 'events') {
+          // Check if this is a bundle request: /api/v2/events/:id/bundle/:type
+          if (pathSegments.length >= 4 && pathSegments[2] === 'bundle') {
+            const eventId = pathSegments[1];
+            const bundleType = pathSegments[3];
+
+            // Admin bundle requires auth
+            if (bundleType === 'admin') {
+              const authError = requireAdminAuth(request, env);
+              if (authError) {
+                response = authError;
+              } else {
+                response = await routeBundlesApi(request, env, eventId, bundleType);
+              }
+            } else {
+              response = await routeBundlesApi(request, env, eventId, bundleType);
+            }
+          }
+          // Route: /api/v2/events or /api/v2/events/:id
+          else {
+            const eventId = pathSegments[1] || null;
+
+            // Create/Update require auth
+            if (request.method === 'POST' || request.method === 'PUT') {
+              const authError = requireAdminAuth(request, env);
+              if (authError) {
+                response = authError;
+              } else {
+                response = await routeEventsApi(request, env, eventId);
+              }
+            } else {
+              response = await routeEventsApi(request, env, eventId);
+            }
+          }
+        }
+        // Unknown v2 route
+        else {
+          response = new Response(JSON.stringify({
+            ok: false,
+            code: 'NOT_FOUND',
+            message: `API v2 endpoint not found: ${v2Path}`
+          }), {
+            status: 404,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+
+        // Add CORS headers and return
+        response = addWorkerCorsHeaders(response, request, env);
+        return addTransparencyHeaders(response, startTime, env);
+
+      } catch (error) {
+        const corrId = generateCorrId();
+        console.error(`[API_V2_ERROR] ${corrId}:`, error);
+
+        ctx.waitUntil(logError(env, {
+          corrId,
+          type: 'api_v2_error',
+          error: error.message,
+          stack: error.stack?.slice(0, 500),
+          url: url.pathname,
+          duration: Date.now() - startTime
+        }));
+
+        const errorResponse = new Response(JSON.stringify({
+          ok: false,
+          code: 'INTERNAL',
+          message: 'An internal error occurred',
+          corrId
+        }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' }
+        });
+
+        return addTransparencyHeaders(
+          addWorkerCorsHeaders(errorResponse, request, env),
+          startTime,
+          env
+        );
+      }
     }
 
     // ==========================================================================
