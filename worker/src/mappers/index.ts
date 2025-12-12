@@ -5,6 +5,7 @@
  *
  * @module mappers
  * @see Story 2.1 - Worker getPublicBundle from Sheets
+ * @see Story 2.2 - Worker getAdminBundle from Sheets
  */
 
 // Public Bundle Mapper
@@ -49,3 +50,28 @@ export {
   buildPublicBundleValue,
   buildPublicBundleResponse,
 } from './publicBundleMapper';
+
+// Admin Bundle Mapper (Story 2.2)
+export {
+  // Types
+  type AdminTemplate,
+  type AdminBrandConfig,
+  type EventDiagnostics,
+  type AdminSponsor,
+  type AdminBundleValue,
+  type AdminBundleResponse,
+  type AdminBundleNotModifiedResponse,
+
+  // Constants
+  TEMPLATES,
+  BRAND_TEMPLATE_CONFIG,
+
+  // Functions
+  getAdminBrandConfig,
+  getTemplatesForBrand,
+  buildEventDiagnostics,
+  mapSponsorsForAdmin,
+  generateAdminBundleEtag,
+  buildAdminBundleValue,
+  buildAdminBundleResponse,
+} from './adminBundleMapper';

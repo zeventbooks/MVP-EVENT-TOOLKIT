@@ -7,6 +7,7 @@
  * @see Story 1.2 - Implement sheetsClient.ts for Workers
  * @see Story 1.3 - Port api_status + Simple Read-Only api_listEvents
  * @see Story 2.1 - Worker getPublicBundle from Sheets
+ * @see Story 2.2 - Worker getAdminBundle from Sheets
  */
 
 // Google Authentication
@@ -69,6 +70,16 @@ export {
   type PublicBundleErrorResponse,
 } from './handlers';
 
+// API Handlers (Story 2.2 - Admin Bundle)
+export {
+  handleGetAdminBundle,
+  parseAdminEventIdFromPath,
+  type AdminBundleEnv,
+  type AdminBundleResponse,
+  type AdminBundleNotModifiedResponse,
+  type AdminBundleErrorResponse,
+} from './handlers';
+
 // Mappers (Story 2.1)
 export {
   // Types
@@ -108,4 +119,27 @@ export {
   parseEventRow,
   buildPublicBundleValue,
   buildPublicBundleResponse,
+} from './mappers';
+
+// Mappers (Story 2.2 - Admin Bundle)
+export {
+  // Types
+  type AdminTemplate,
+  type AdminBrandConfig,
+  type EventDiagnostics,
+  type AdminSponsor,
+  type AdminBundleValue,
+
+  // Constants
+  TEMPLATES,
+  BRAND_TEMPLATE_CONFIG,
+
+  // Functions
+  getAdminBrandConfig,
+  getTemplatesForBrand,
+  buildEventDiagnostics,
+  mapSponsorsForAdmin,
+  generateAdminBundleEtag,
+  buildAdminBundleValue,
+  buildAdminBundleResponse,
 } from './mappers';
