@@ -59,3 +59,31 @@ STAGING_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwFneYCpkio7wCn7y
 # Will be removed in a future release - migrate to STAGING_* vars
 DEPLOYMENT_ID = "AKfycbwFneYCpkio7wCn7y08eDUb2PRCPc2Tdtbv20L4AbEHvuCvoqY9ks7-ONL0pzPPw4Hm"
 GAS_DEPLOYMENT_BASE_URL = "https://script.google.com/macros/s/AKfycbwFneYCpkio7wCn7y08eDUb2PRCPc2Tdtbv20L4AbEHvuCvoqY9ks7-ONL0pzPPw4Hm/exec"
+
+# ============================================
+# SECRETS - Worker Admin Authentication (Story 3.1)
+# ============================================
+# Admin API endpoints require authentication via Bearer token.
+# Configure ADMIN_TOKEN as a Cloudflare secret:
+#
+#   wrangler secret put ADMIN_TOKEN
+#
+# Clients must send the token in the Authorization header:
+#   Authorization: Bearer <ADMIN_TOKEN>
+#
+# Or as a query parameter (legacy, for backward compatibility):
+#   ?adminKey=<ADMIN_TOKEN>
+#
+# Protected endpoints (return 401 without valid token):
+#   - /api/admin/*
+#   - /api/v2/admin/*
+#   - /api/events/:id/adminBundle
+#
+# Note: In dev mode (ADMIN_TOKEN not set), admin endpoints allow access
+# with a warning logged. In production, ADMIN_TOKEN MUST be configured.
+#
+# Security Notes:
+#   - Rotate tokens periodically
+#   - Never log tokens (even in error messages)
+#   - Phase 2 will add scoped keys and JWT support
+# ============================================

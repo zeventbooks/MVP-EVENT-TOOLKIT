@@ -8,6 +8,7 @@
  * @see Story 1.3 - Port api_status + Simple Read-Only api_listEvents
  * @see Story 2.1 - Worker getPublicBundle from Sheets
  * @see Story 2.2 - Worker getAdminBundle from Sheets
+ * @see Story 3.1 - Define Admin Auth Model for Worker API
  */
 
 // Google Authentication
@@ -143,3 +144,26 @@ export {
   buildAdminBundleValue,
   buildAdminBundleResponse,
 } from './mappers';
+
+// Admin Authentication (Story 3.1)
+export {
+  // Functions
+  checkAdminAuth,
+  requireAdminAuth,
+  createAuthErrorResponse,
+  isAuthConfigured,
+  isAdminRoute,
+  guardAdminRoute,
+  logAuthAttempt,
+
+  // Types
+  type AdminAuthEnv,
+  type AuthResult,
+  type AuthContext,
+  type AuthErrorCode,
+  type AdminAuthErrorResponse,
+
+  // Constants
+  AUTH_ERROR_MESSAGES,
+  AUTH_STATUS_CODES,
+} from './auth';
