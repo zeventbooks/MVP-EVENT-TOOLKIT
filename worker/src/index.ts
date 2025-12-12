@@ -9,6 +9,7 @@
  * @see Story 2.1 - Worker getPublicBundle from Sheets
  * @see Story 2.2 - Worker getAdminBundle from Sheets
  * @see Story 3.1 - Define Admin Auth Model for Worker API
+ * @see Story 3.2 - Port createEvent to Worker
  */
 
 // Google Authentication
@@ -21,7 +22,7 @@ export {
   AuthError,
   AUTH_ERROR_CODES,
   type GoogleAuthEnv,
-  type AuthErrorCode,
+  type AuthErrorCode as GoogleAuthErrorCode,
 } from './googleAuth';
 
 // Google Sheets Client
@@ -167,3 +168,34 @@ export {
   AUTH_ERROR_MESSAGES,
   AUTH_STATUS_CODES,
 } from './auth';
+
+// API Handlers (Story 3.2 - Admin Create Event)
+export {
+  handleAdminCreateEvent,
+  type AdminCreateEventEnv,
+  type CreateEventRequestBody,
+  type AdminCreateEventResponse,
+  type AdminCreateEventErrorResponse,
+} from './handlers';
+
+// Sheets Module (Story 3.2 - Event Writer)
+export {
+  // Functions
+  generateEventId,
+  generateEventTag,
+  toSlug,
+  slugExists,
+  generateUniqueSlug,
+  generateUniqueSlugFromRows,
+  generateIdempotencyKey,
+  findDuplicateEvent,
+  createEvent,
+
+  // Types
+  type CreateEventInput,
+  type CreatedEvent,
+  type CreateEventResult,
+
+  // Constants (aliased to avoid conflict with mappers/EVENT_COL)
+  EVENT_COL as SHEETS_EVENT_COL,
+} from './sheets';
