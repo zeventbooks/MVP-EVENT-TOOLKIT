@@ -5,6 +5,7 @@
  *
  * @module worker
  * @see Story 1.2 - Implement sheetsClient.ts for Workers
+ * @see Story 1.3 - Port api_status + Simple Read-Only api_listEvents
  */
 
 // Google Authentication
@@ -41,3 +42,18 @@ export {
   type UpdateResult,
   type AppendResult,
 } from './sheetsClient';
+
+// API Handlers (Story 1.3)
+export {
+  handleStatus,
+  createSheetsDownResponse,
+  handleListEvents,
+  type StatusEnv,
+  type StatusResponse,
+  type StatusErrorResponse,
+  type EventsEnv,
+  type EventSummary,
+  type EventFull,
+  type EventsListResponse,
+  type EventsErrorResponse,
+} from './handlers';
