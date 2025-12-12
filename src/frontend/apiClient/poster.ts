@@ -16,6 +16,10 @@ import {
   ApiErrorResponse,
   ErrorUIHandler,
 } from './base';
+import {
+  getEnvConfig,
+  buildWorkerV2BundlePath,
+} from './env';
 
 // =============================================================================
 // Types
@@ -135,10 +139,14 @@ export interface AnalyticsPayload {
 
 /**
  * API client for the Poster surface
+ *
+ * Story 4.2: Supports both GAS (production) and Worker v2 (staging) backends.
+ * Uses environment detection to automatically route to the correct backend.
  */
 export class PosterApiClient extends BaseApiClient {
   private brandId: string;
   private scope: string;
+  private useWorkerV2: boolean;
 
   constructor(
     brandId: string,
@@ -149,12 +157,30 @@ export class PosterApiClient extends BaseApiClient {
     super(config, onError);
     this.brandId = brandId;
     this.scope = scope;
+    // Story 4.2: Auto-detect backend based on environment
+    this.useWorkerV2 = getEnvConfig().useWorkerV2;
+  }
+
+  /**
+   * Force use of Worker v2 endpoints (for testing)
+   */
+  setUseWorkerV2(useV2: boolean): void {
+    this.useWorkerV2 = useV2;
   }
 
   /**
    * Get poster bundle for a specific event
+   *
+   * Story 4.2: Uses Worker v2 in staging, GAS in production
    */
   async getPosterBundle(eventId: string): Promise<ApiResponse<PosterBundleValue>> {
+    if (this.useWorkerV2) {
+      return this.get<PosterBundleValue>(
+        buildWorkerV2BundlePath(eventId, 'poster', this.brandId)
+      );
+    }
+
+    // GAS fallback
     return this.post<PosterBundleValue>('api_getPosterBundle', {
       brandId: this.brandId,
       scope: this.scope,
@@ -164,11 +190,21 @@ export class PosterApiClient extends BaseApiClient {
 
   /**
    * Get poster bundle with etag for conditional requests
+   *
+   * Story 4.2: Uses Worker v2 in staging, GAS in production
    */
   async getPosterBundleIfModified(
     eventId: string,
     etag: string
   ): Promise<ApiResponse<PosterBundleValue>> {
+    if (this.useWorkerV2) {
+      return this.get<PosterBundleValue>(
+        buildWorkerV2BundlePath(eventId, 'poster', this.brandId),
+        { ifNoneMatch: etag }
+      );
+    }
+
+    // GAS fallback
     return this.post<PosterBundleValue>('api_getPosterBundle', {
       brandId: this.brandId,
       scope: this.scope,
