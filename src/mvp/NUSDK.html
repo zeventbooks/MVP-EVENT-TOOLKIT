@@ -1,6 +1,6 @@
 <!--
 ═══════════════════════════════════════════════════════════════════════════════
-NUSDK v2.0 - Fetch-Based NU SDK for Google Apps Script
+NUSDK v2.1 - Fetch-Based NU SDK for Google Apps Script
 ═══════════════════════════════════════════════════════════════════════════════
 
 RESPONSIBILITY: This file provides the RPC client for frontend→backend calls ONLY.
@@ -11,7 +11,12 @@ WINDOW ADDITIONS:
 - window.__NU_LOGS__ - Rolling log buffer for diagnostics
 - window.NU_DIAG   - Diagnostic helper for Test.html
 
-TRANSPORT: Fetch-based (/api/<path>) with google.script.run fallback
+TRANSPORT OPTIONS:
+1. Worker Proxy (default): Fetch-based (/api/<path>) through Cloudflare Worker
+2. Direct GAS Transport: Fetch-based ({execUrl}?action={method}&brand={brand})
+   - Enable with: NU.configureDirectTransport(execUrl, brand)
+   - Includes retry logic with exponential backoff
+   - Includes correlation ID for distributed tracing
 
 LOGGING LEVELS:
 - Staging: 'debug' (all logs)
@@ -58,7 +63,7 @@ window.NU = {
   /**
    * SDK Version
    */
-  VERSION: '2.0.0',
+  VERSION: '2.1.0',
 
   /**
    * Configuration
@@ -69,6 +74,18 @@ window.NU = {
     maxLogs: 100,      // Max entries in rolling log buffer
     apiBase: '/api',   // Base path for API endpoints
     dedupeWindow: 5000 // Error deduplication window (ms)
+  },
+
+  /**
+   * Direct transport configuration (for direct GAS exec URL calls)
+   * @private
+   */
+  _directTransport: {
+    enabled: false,    // Whether to use direct GAS transport instead of Worker proxy
+    execUrl: null,     // GAS web app exec URL
+    brand: null,       // Brand identifier for multi-tenant routing
+    maxRetries: 3,     // Max retry attempts for transient failures
+    retryDelayMs: 1000 // Base delay for exponential backoff (doubles each retry)
   },
 
   /**
@@ -229,9 +246,237 @@ window.NU = {
   },
 
   /**
-   * Make an RPC call to the backend via Cloudflare Worker proxy
+   * Generate a correlation ID for distributed tracing
+   * Format: timestamp-randomhex (e.g., "1702345678901-a3f2b1c9")
+   * @private
+   * @returns {string} Correlation ID
+   */
+  _generateCorrId() {
+    const timestamp = Date.now();
+    const randomPart = Math.random().toString(16).slice(2, 10);
+    return `${timestamp}-${randomPart}`;
+  },
+
+  /**
+   * Sleep helper for retry delays
+   * @private
+   * @param {number} ms - Milliseconds to sleep
+   * @returns {Promise<void>}
+   */
+  _sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  },
+
+  /**
+   * Direct GAS transport via exec URL
+   * Calls {execUrl}?action={method}&brand={brand} with POST body
    *
-   * Uses fetch('/api/<path>') for all requests. NO google.script.run fallback
+   * Features:
+   * - Retry logic with exponential backoff for transient failures
+   * - Correlation ID header for distributed tracing
+   * - Consistent error envelope: { ok, value?, code?, message? }
+   *
+   * @private
+   * @param {string} method - API method name (e.g., 'events/list', 'getPublicBundle')
+   * @param {object} payload - Request payload
+   * @returns {Promise<{ok: boolean, value?: any, code?: string, message?: string, corrId?: string}>}
+   */
+  async _fetchTransport(method, payload = {}) {
+    const { execUrl, brand, maxRetries, retryDelayMs } = NU._directTransport;
+    const corrId = NU._generateCorrId();
+    const startTime = Date.now();
+
+    // Validate configuration
+    if (!execUrl) {
+      NU._log('error', 'transport_error', {
+        method,
+        corrId,
+        error: 'Direct transport not configured: execUrl is required'
+      });
+      return {
+        ok: false,
+        code: 'CONFIG_ERROR',
+        message: 'Direct transport not configured',
+        corrId
+      };
+    }
+
+    // Build URL with query parameters
+    const url = new URL(execUrl);
+    url.searchParams.set('action', method);
+    if (brand) {
+      url.searchParams.set('brand', brand);
+    }
+
+    NU._log('debug', 'transport_start', {
+      method,
+      corrId,
+      url: url.toString(),
+      payloadKeys: Object.keys(payload)
+    });
+
+    let lastError = null;
+    let attempt = 0;
+
+    while (attempt <= maxRetries) {
+      try {
+        const response = await fetch(url.toString(), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-Correlation-Id': corrId
+          },
+          body: JSON.stringify(payload)
+        });
+
+        // Handle HTTP errors
+        if (!response.ok) {
+          const httpError = {
+            ok: false,
+            code: 'HTTP_ERROR',
+            message: `HTTP ${response.status}`,
+            status: response.status,
+            corrId
+          };
+
+          // Try to parse error body for more details
+          try {
+            const errorBody = await response.json();
+            if (errorBody.code) httpError.code = errorBody.code;
+            if (errorBody.message) httpError.message = errorBody.message;
+          } catch {
+            // Ignore JSON parse errors for error responses
+          }
+
+          // Don't retry client errors (4xx), only server errors (5xx)
+          if (response.status >= 400 && response.status < 500) {
+            NU._log('error', 'http_fail', {
+              method,
+              corrId,
+              status: response.status,
+              code: httpError.code,
+              attempt,
+              startTime
+            });
+            return httpError;
+          }
+
+          // Server error - retry if we have attempts left
+          lastError = httpError;
+          if (attempt < maxRetries) {
+            const delay = retryDelayMs * Math.pow(2, attempt);
+            NU._log('debug', 'transport_retry', {
+              method,
+              corrId,
+              attempt: attempt + 1,
+              maxRetries,
+              delayMs: delay,
+              status: response.status
+            });
+            await NU._sleep(delay);
+            attempt++;
+            continue;
+          }
+
+          NU._log('error', 'http_fail', {
+            method,
+            corrId,
+            status: response.status,
+            code: httpError.code,
+            attempt,
+            startTime
+          });
+          return httpError;
+        }
+
+        // Parse successful response
+        let data;
+        try {
+          data = await response.json();
+        } catch (jsonError) {
+          NU._log('error', 'json_fail', {
+            method,
+            corrId,
+            error: jsonError.message,
+            attempt,
+            startTime
+          });
+          return {
+            ok: false,
+            code: 'PARSE_ERROR',
+            message: 'Invalid JSON response from server',
+            corrId
+          };
+        }
+
+        // Add corrId to response for tracing
+        if (typeof data === 'object' && data !== null) {
+          data.corrId = corrId;
+        }
+
+        NU._log('debug', 'transport_ok', {
+          method,
+          corrId,
+          hasValue: !!data?.value,
+          attempt,
+          startTime
+        });
+
+        return data;
+
+      } catch (networkError) {
+        // Network error (DNS, connection refused, timeout, etc.)
+        lastError = {
+          ok: false,
+          code: 'NETWORK_ERROR',
+          message: String(networkError.message || networkError),
+          corrId
+        };
+
+        if (attempt < maxRetries) {
+          const delay = retryDelayMs * Math.pow(2, attempt);
+          NU._log('debug', 'transport_retry', {
+            method,
+            corrId,
+            attempt: attempt + 1,
+            maxRetries,
+            delayMs: delay,
+            error: networkError.message
+          });
+          await NU._sleep(delay);
+          attempt++;
+          continue;
+        }
+
+        NU._log('error', 'network_fail', {
+          method,
+          corrId,
+          error: networkError.message,
+          attempt,
+          startTime
+        });
+        return lastError;
+      }
+    }
+
+    // Should not reach here, but return last error just in case
+    return lastError || {
+      ok: false,
+      code: 'UNKNOWN_ERROR',
+      message: 'Request failed after retries',
+      corrId
+    };
+  },
+
+  /**
+   * Make an RPC call to the backend
+   *
+   * Transport selection:
+   * - If direct transport is enabled: uses {execUrl}?action={path}&brand={brand}
+   * - Otherwise: uses Cloudflare Worker proxy at /api/{path}
+   *
+   * Uses fetch for all requests. NO google.script.run fallback
    * as it fails when proxied through Cloudflare.
    *
    * @param {string} path - API path (e.g., 'events/list', 'getPublicBundle')
@@ -239,6 +484,11 @@ window.NU = {
    * @returns {Promise<{ok: boolean, value?: any, code?: string, message?: string}>}
    */
   async rpc(path, payload = {}) {
+    // Use direct GAS transport if configured and enabled
+    if (NU._directTransport.enabled) {
+      return NU._fetchTransport(path, payload);
+    }
+
     const startTime = Date.now();
     const requestId = Math.random().toString(36).slice(2, 10);
 
@@ -588,6 +838,79 @@ window.NU = {
    */
   getConfig() {
     return { ...NU._config, version: NU.VERSION };
+  },
+
+  /**
+   * Configure and enable direct GAS transport
+   * When enabled, rpc() calls will use the direct exec URL instead of Worker proxy
+   *
+   * @param {string} execUrl - GAS web app exec URL (required)
+   * @param {string} brand - Brand identifier for multi-tenant routing (optional)
+   * @param {object} options - Additional options { maxRetries?, retryDelayMs? }
+   * @returns {void}
+   *
+   * @example
+   * // Enable direct transport
+   * NU.configureDirectTransport(
+   *   'https://script.google.com/macros/s/ABC123/exec',
+   *   'eventangle'
+   * );
+   *
+   * // With custom retry settings
+   * NU.configureDirectTransport(
+   *   'https://script.google.com/macros/s/ABC123/exec',
+   *   'eventangle',
+   *   { maxRetries: 5, retryDelayMs: 500 }
+   * );
+   */
+  configureDirectTransport(execUrl, brand = null, options = {}) {
+    if (!execUrl) {
+      NU._log('error', 'config', { error: 'execUrl is required for direct transport' });
+      throw new Error('execUrl is required for configureDirectTransport');
+    }
+
+    // Validate URL format
+    try {
+      new URL(execUrl);
+    } catch {
+      NU._log('error', 'config', { error: 'Invalid execUrl format', execUrl });
+      throw new Error('Invalid execUrl format');
+    }
+
+    const { maxRetries = 3, retryDelayMs = 1000 } = options;
+
+    NU._directTransport = {
+      enabled: true,
+      execUrl,
+      brand,
+      maxRetries,
+      retryDelayMs
+    };
+
+    NU._log('debug', 'config', {
+      type: 'direct_transport_configured',
+      execUrl: execUrl.substring(0, 50) + '...', // Truncate for logging
+      brand,
+      maxRetries,
+      retryDelayMs
+    });
+  },
+
+  /**
+   * Disable direct transport and revert to Worker proxy
+   * @returns {void}
+   */
+  disableDirectTransport() {
+    NU._directTransport.enabled = false;
+    NU._log('debug', 'config', { type: 'direct_transport_disabled' });
+  },
+
+  /**
+   * Check if direct transport is enabled
+   * @returns {boolean}
+   */
+  isDirectTransportEnabled() {
+    return NU._directTransport.enabled;
   },
 
   // =============================================================================
