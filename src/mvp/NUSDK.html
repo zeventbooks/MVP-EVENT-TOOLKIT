@@ -1,6 +1,6 @@
 <!--
 ═══════════════════════════════════════════════════════════════════════════════
-NUSDK v2.1 - Fetch-Based NU SDK for Google Apps Script
+NUSDK v2.2 - Fetch-Based NU SDK for Google Apps Script
 ═══════════════════════════════════════════════════════════════════════════════
 
 RESPONSIBILITY: This file provides the RPC client for frontend→backend calls ONLY.
@@ -11,10 +11,17 @@ WINDOW ADDITIONS:
 - window.__NU_LOGS__ - Rolling log buffer for diagnostics
 - window.NU_DIAG   - Diagnostic helper for Test.html
 
+INITIALIZATION:
+Call NU.init({ execUrl, brand }) early in page setup to configure transport.
+Falls back to template variables when available:
+  NU.init({ execUrl: '<?= execUrl ?>', brand: '<?= brandId ?>' });
+
 TRANSPORT OPTIONS:
 1. Worker Proxy (default): Fetch-based (/api/<path>) through Cloudflare Worker
+   - Used when: NU.init() called with no execUrl or empty execUrl
 2. Direct GAS Transport: Fetch-based ({execUrl}?action={method}&brand={brand})
-   - Enable with: NU.configureDirectTransport(execUrl, brand)
+   - Used when: NU.init({ execUrl: '...', brand: '...' }) called with valid URL
+   - Legacy enable: NU.configureDirectTransport(execUrl, brand)
    - Includes retry logic with exponential backoff
    - Includes correlation ID for distributed tracing
 
@@ -63,7 +70,7 @@ window.NU = {
   /**
    * SDK Version
    */
-  VERSION: '2.1.0',
+  VERSION: '2.2.0',
 
   /**
    * Configuration
@@ -152,6 +159,113 @@ window.NU = {
       isStaging,
       isProduction
     });
+  },
+
+  /**
+   * Initialization state tracking
+   * @private
+   */
+  _initialized: false,
+
+  /**
+   * Initialize the SDK with configuration
+   *
+   * Call this method early in your page initialization to configure the SDK.
+   * If execUrl is provided, the SDK will use direct GAS transport.
+   * If not provided (or empty), the SDK will use the Cloudflare Worker proxy.
+   *
+   * Fallback behavior:
+   * - In GAS-hosted pages: Pass template vars: NU.init({ execUrl: '<?= execUrl ?>', brand: '<?= brandId ?>' })
+   * - In proxy contexts: Call with no args or empty config to use Worker proxy
+   *
+   * @param {object} config - Configuration object
+   * @param {string} [config.execUrl] - GAS web app exec URL for direct transport
+   * @param {string} [config.brand] - Brand identifier for multi-tenant routing
+   * @param {object} [config.directTransportOptions] - Optional direct transport settings { maxRetries?, retryDelayMs? }
+   * @returns {void}
+   *
+   * @example
+   * // Initialize with direct GAS transport (from GAS-hosted template)
+   * NU.init({
+   *   execUrl: '<?= execUrl ?>',  // Template var from GAS
+   *   brand: '<?= brandId ?>'     // Template var from GAS
+   * });
+   *
+   * @example
+   * // Initialize with proxy transport (default, no config needed)
+   * NU.init(); // or NU.init({})
+   *
+   * @example
+   * // Initialize with custom retry settings
+   * NU.init({
+   *   execUrl: 'https://script.google.com/macros/s/ABC123/exec',
+   *   brand: 'eventangle',
+   *   directTransportOptions: { maxRetries: 5, retryDelayMs: 500 }
+   * });
+   */
+  init(config = {}) {
+    const { execUrl, brand, directTransportOptions = {} } = config;
+
+    // Determine if we have a valid execUrl for direct transport
+    // Empty strings from unpopulated template vars (<?= execUrl ?>) should be treated as falsy
+    const hasValidExecUrl = execUrl && typeof execUrl === 'string' && execUrl.trim() !== '';
+
+    if (hasValidExecUrl) {
+      // Validate URL format before enabling direct transport
+      try {
+        new URL(execUrl);
+
+        // Configure and enable direct transport
+        NU._directTransport = {
+          enabled: true,
+          execUrl: execUrl.trim(),
+          brand: brand || null,
+          maxRetries: directTransportOptions.maxRetries ?? 3,
+          retryDelayMs: directTransportOptions.retryDelayMs ?? 1000
+        };
+
+        NU._log('debug', 'init_config', {
+          transport: 'direct',
+          execUrl: execUrl.substring(0, 50) + (execUrl.length > 50 ? '...' : ''),
+          brand: brand || '(none)',
+          maxRetries: NU._directTransport.maxRetries,
+          retryDelayMs: NU._directTransport.retryDelayMs
+        });
+
+      } catch {
+        // Invalid URL - fall back to proxy transport
+        NU._log('error', 'init_config', {
+          error: 'Invalid execUrl format, falling back to proxy transport',
+          execUrl: execUrl.substring(0, 50)
+        });
+        // Keep direct transport disabled (default)
+      }
+    } else {
+      // No execUrl provided - use Worker proxy (default)
+      NU._log('debug', 'init_config', {
+        transport: 'proxy',
+        apiBase: NU._config.apiBase,
+        reason: hasValidExecUrl === false ? 'execUrl not provided' : 'execUrl empty'
+      });
+    }
+
+    NU._initialized = true;
+  },
+
+  /**
+   * Check if SDK has been initialized via init()
+   * @returns {boolean} True if init() has been called
+   */
+  isInitialized() {
+    return NU._initialized;
+  },
+
+  /**
+   * Get current transport mode
+   * @returns {'direct' | 'proxy'} Current transport mode
+   */
+  getTransportMode() {
+    return NU._directTransport.enabled ? 'direct' : 'proxy';
   },
 
   /**
@@ -834,10 +948,20 @@ window.NU = {
   /**
    * Get current configuration (for diagnostics)
    *
-   * @returns {object} Current SDK configuration
+   * @returns {object} Current SDK configuration including transport state
    */
   getConfig() {
-    return { ...NU._config, version: NU.VERSION };
+    return {
+      ...NU._config,
+      version: NU.VERSION,
+      initialized: NU._initialized,
+      transportMode: NU.getTransportMode(),
+      directTransport: {
+        enabled: NU._directTransport.enabled,
+        hasExecUrl: !!NU._directTransport.execUrl,
+        hasBrand: !!NU._directTransport.brand
+      }
+    };
   },
 
   /**
