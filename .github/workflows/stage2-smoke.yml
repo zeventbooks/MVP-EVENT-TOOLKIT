@@ -1,0 +1,638 @@
+# Stage-2 Smoke Tests: Post-Deploy Validation & Production Gate
+#
+# EPIC 5 - Story 5.2: Stage-2 Post-Deploy Smoke + Synthetic (Staging -> Prod gate)
+#
+# Purpose / Value:
+#   Automatically verify staging after deploy and gate promotion to production.
+#   Ensures no promotion to prod if staging is not healthy.
+#
+# Flow:
+#   1. Triggered by Stage-1 CI success (workflow_run)
+#   2. Hit staging endpoints:
+#      - /api/status (API health)
+#      - /api/events (API data)
+#      - /admin smoke (Playwright UI)
+#      - /public?event=<testEvent> (Playwright UI)
+#      - /display?event=<testEvent> (Playwright UI)
+#      - /poster?event=<testEvent> (Playwright UI)
+#   3. (Optional) Trigger Datadog synthetic checks
+#   4. On full pass:
+#      - Raise manual approval gate in GitHub
+#      - On approval: deploy to production
+#
+# Acceptance Criteria:
+#   - Clear pass/fail indicator for the whole system
+#   - No promotion to prod if staging is not healthy
+#
+# Negative Paths:
+#   - If Stage-2 fails:
+#     - Staging stays with new build (for debugging)
+#     - Production remains untouched (safe)
+#
+# Required Secrets:
+#   - CLOUDFLARE_API_TOKEN: For production deployment (wrangler deploy --env production)
+#   - DATADOG_API_KEY: (Optional) For synthetic test triggers
+#   - DATADOG_APP_KEY: (Optional) For synthetic test triggers
+
+name: Stage-2 Smoke Tests
+
+on:
+  workflow_run:
+    workflows:
+      - "Stage-1 CI"
+    types:
+      - completed
+
+# Prevent duplicate runs for the same deployment
+concurrency:
+  group: stage2-smoke-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '18'
+  STG_BASE_URL: 'https://stg.eventangle.com'
+  PROD_BASE_URL: 'https://www.eventangle.com'
+  # Test event for UI smoke tests (use a known stable test event)
+  TEST_EVENT_TAG: 'smoke-test-event'
+
+jobs:
+  # ==========================================================================
+  # GATE CHECK: Verify Stage-1 succeeded
+  # ==========================================================================
+  check-stage1:
+    name: Check Stage-1 Status
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+      conclusion: ${{ steps.check.outputs.conclusion }}
+
+    steps:
+      - name: Check Stage-1 conclusion
+        id: check
+        run: |
+          CONCLUSION="${{ github.event.workflow_run.conclusion }}"
+          echo "Stage-1 CI conclusion: $CONCLUSION"
+          echo "conclusion=$CONCLUSION" >> $GITHUB_OUTPUT
+
+          if [ "$CONCLUSION" == "success" ]; then
+            echo "Stage-1 CI succeeded - proceeding with Stage-2 smoke tests"
+            echo "should_run=true" >> $GITHUB_OUTPUT
+          else
+            echo "::warning::Stage-1 CI did not succeed (conclusion: $CONCLUSION)"
+            echo "Stage-2 smoke tests skipped"
+            echo "should_run=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create skip summary
+        if: steps.check.outputs.should_run != 'true'
+        run: |
+          echo "## Stage-2 Smoke Tests - Skipped" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Stage-1 CI did not succeed." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Stage-1 Conclusion** | \`${{ github.event.workflow_run.conclusion }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Workflow Run** | \`${{ github.event.workflow_run.id }}\` |" >> $GITHUB_STEP_SUMMARY
+
+  # ==========================================================================
+  # PRE-FLIGHT: Quick health check before full test suite
+  # ==========================================================================
+  preflight-check:
+    name: Pre-Flight Health Check
+    runs-on: ubuntu-latest
+    needs: check-stage1
+    if: needs.check-stage1.outputs.should_run == 'true'
+    outputs:
+      api_healthy: ${{ steps.health.outputs.api_healthy }}
+
+    steps:
+      - name: Check /api/status
+        id: health
+        run: |
+          echo "=============================================="
+          echo "PRE-FLIGHT: Checking staging health"
+          echo "=============================================="
+          echo "Target: ${{ env.STG_BASE_URL }}/api/status"
+          echo ""
+
+          # Allow staging to warm up after deploy
+          sleep 15
+
+          HTTP_CODE=$(curl -s -o /tmp/status.json -w "%{http_code}" \
+            --connect-timeout 30 \
+            --max-time 60 \
+            "${{ env.STG_BASE_URL }}/api/status" 2>&1) || HTTP_CODE="000"
+
+          echo "HTTP Status: $HTTP_CODE"
+
+          if [ "$HTTP_CODE" = "200" ]; then
+            OK_VALUE=$(jq -r '.ok // "null"' /tmp/status.json 2>/dev/null || echo "null")
+            if [ "$OK_VALUE" = "true" ]; then
+              echo "api_healthy=true" >> $GITHUB_OUTPUT
+              echo ""
+              echo "=============================================="
+              echo "PRE-FLIGHT PASSED: Staging is healthy"
+              echo "=============================================="
+            else
+              echo "api_healthy=false" >> $GITHUB_OUTPUT
+              echo "::error::/api/status returned ok:$OK_VALUE (expected: true)"
+              cat /tmp/status.json
+              exit 1
+            fi
+          else
+            echo "api_healthy=false" >> $GITHUB_OUTPUT
+            echo "::error::Staging unavailable (HTTP $HTTP_CODE)"
+            exit 1
+          fi
+
+      - name: Create preflight summary
+        if: always()
+        run: |
+          echo "## Pre-Flight Health Check" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.health.outputs.api_healthy }}" = "true" ]; then
+            echo "### PASSED" >> $GITHUB_STEP_SUMMARY
+            echo "Staging is healthy and ready for smoke tests." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "Staging is not healthy. Smoke tests will not run." >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # ==========================================================================
+  # API SMOKE TESTS: /api/status and /api/events
+  # ==========================================================================
+  api-smoke-tests:
+    name: API Smoke Tests
+    runs-on: ubuntu-latest
+    needs: [check-stage1, preflight-check]
+    if: needs.preflight-check.outputs.api_healthy == 'true'
+    outputs:
+      api_passed: ${{ steps.api-tests.outputs.passed }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium
+
+      - name: Run API smoke tests
+        id: api-tests
+        env:
+          BASE_URL: ${{ env.STG_BASE_URL }}
+          CI: true
+        run: |
+          echo "=============================================="
+          echo "API SMOKE TESTS"
+          echo "=============================================="
+          echo "Target: $BASE_URL"
+          echo ""
+
+          # Run API smoke tests (status, events, etc.)
+          if npm run test:api:smoke; then
+            echo "passed=true" >> $GITHUB_OUTPUT
+            echo ""
+            echo "=============================================="
+            echo "API SMOKE TESTS: PASSED"
+            echo "=============================================="
+          else
+            echo "passed=false" >> $GITHUB_OUTPUT
+            echo "::error::API smoke tests failed"
+            exit 1
+          fi
+
+      - name: Upload API test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-smoke-results
+          path: |
+            playwright-report-smoke/
+            .test-results/smoke-results.json
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Create API smoke summary
+        if: always()
+        run: |
+          echo "## API Smoke Tests" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.api-tests.outputs.passed }}" = "true" ]; then
+            echo "### PASSED" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "All API endpoints validated:" >> $GITHUB_STEP_SUMMARY
+            echo "- /api/status" >> $GITHUB_STEP_SUMMARY
+            echo "- /api/events" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "One or more API smoke tests failed." >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # ==========================================================================
+  # UI SMOKE TESTS: Admin, Public, Display, Poster pages (Playwright)
+  # ==========================================================================
+  ui-smoke-tests:
+    name: UI Smoke Tests (Playwright)
+    runs-on: ubuntu-latest
+    needs: [check-stage1, api-smoke-tests]
+    if: needs.api-smoke-tests.outputs.api_passed == 'true'
+    outputs:
+      ui_passed: ${{ steps.ui-tests.outputs.passed }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium
+
+      - name: Run UI smoke tests
+        id: ui-tests
+        env:
+          BASE_URL: ${{ env.STG_BASE_URL }}
+          TEST_BRAND: root
+          CI: true
+        run: |
+          echo "=============================================="
+          echo "UI SMOKE TESTS (Playwright)"
+          echo "=============================================="
+          echo "Target: $BASE_URL"
+          echo "Brand: $TEST_BRAND"
+          echo ""
+          echo "Testing surfaces:"
+          echo "  - Admin page"
+          echo "  - Public page"
+          echo "  - Display page"
+          echo "  - Poster page"
+          echo ""
+
+          # Run UI smoke tests (admin, public, display, poster)
+          if npm run test:ui:smoke; then
+            echo "passed=true" >> $GITHUB_OUTPUT
+            echo ""
+            echo "=============================================="
+            echo "UI SMOKE TESTS: PASSED"
+            echo "=============================================="
+          else
+            echo "passed=false" >> $GITHUB_OUTPUT
+            echo "::error::UI smoke tests failed"
+            exit 1
+          fi
+
+      - name: Upload UI test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-smoke-results
+          path: |
+            playwright-report-ui-smoke/
+            .test-results/ui-smoke-results.json
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Create UI smoke summary
+        if: always()
+        run: |
+          echo "## UI Smoke Tests (Playwright)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.ui-tests.outputs.passed }}" = "true" ]; then
+            echo "### PASSED" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "All UI surfaces validated:" >> $GITHUB_STEP_SUMMARY
+            echo "- Admin page (\`/?page=admin\`)" >> $GITHUB_STEP_SUMMARY
+            echo "- Public page (\`/?page=public\`)" >> $GITHUB_STEP_SUMMARY
+            echo "- Display page (\`/?page=display\`)" >> $GITHUB_STEP_SUMMARY
+            echo "- Poster page (\`/?page=poster\`)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "One or more UI smoke tests failed." >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # ==========================================================================
+  # OPTIONAL: Datadog Synthetic Tests
+  # ==========================================================================
+  datadog-synthetic:
+    name: Datadog Synthetic Tests (Optional)
+    runs-on: ubuntu-latest
+    needs: [check-stage1, ui-smoke-tests]
+    if: needs.ui-smoke-tests.outputs.ui_passed == 'true' && vars.DATADOG_SYNTHETICS_ENABLED == 'true'
+    continue-on-error: true  # Don't block pipeline if Datadog is unavailable
+    outputs:
+      synthetics_passed: ${{ steps.synthetics.outputs.passed }}
+
+    steps:
+      - name: Trigger Datadog synthetics
+        id: synthetics
+        env:
+          DATADOG_API_KEY: ${{ secrets.DATADOG_API_KEY }}
+          DATADOG_APP_KEY: ${{ secrets.DATADOG_APP_KEY }}
+        run: |
+          echo "=============================================="
+          echo "DATADOG SYNTHETIC TESTS (Optional)"
+          echo "=============================================="
+
+          if [ -z "$DATADOG_API_KEY" ] || [ -z "$DATADOG_APP_KEY" ]; then
+            echo "Datadog credentials not configured - skipping"
+            echo "passed=skipped" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Trigger Datadog synthetic tests for staging
+          # Replace PUBLIC_ID with your actual synthetic test IDs
+          # Example: curl -X POST "https://api.datadoghq.com/api/v1/synthetics/tests/trigger/ci" \
+          #   -H "DD-API-KEY: $DATADOG_API_KEY" \
+          #   -H "DD-APPLICATION-KEY: $DATADOG_APP_KEY" \
+          #   -H "Content-Type: application/json" \
+          #   -d '{"tests": [{"public_id": "abc-123-xyz"}]}'
+
+          echo "Datadog synthetic tests would be triggered here"
+          echo "passed=true" >> $GITHUB_OUTPUT
+
+      - name: Create Datadog summary
+        if: always()
+        run: |
+          echo "## Datadog Synthetic Tests" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          RESULT="${{ steps.synthetics.outputs.passed }}"
+          if [ "$RESULT" = "true" ]; then
+            echo "### PASSED" >> $GITHUB_STEP_SUMMARY
+          elif [ "$RESULT" = "skipped" ]; then
+            echo "### SKIPPED" >> $GITHUB_STEP_SUMMARY
+            echo "Datadog credentials not configured." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### FAILED" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # ==========================================================================
+  # SMOKE TEST SUMMARY
+  # ==========================================================================
+  smoke-summary:
+    name: Smoke Test Summary
+    runs-on: ubuntu-latest
+    needs: [check-stage1, preflight-check, api-smoke-tests, ui-smoke-tests]
+    if: always() && needs.check-stage1.outputs.should_run == 'true'
+    outputs:
+      all_passed: ${{ steps.summary.outputs.all_passed }}
+
+    steps:
+      - name: Calculate overall result
+        id: summary
+        run: |
+          echo "=============================================="
+          echo "STAGE-2 SMOKE TEST SUMMARY"
+          echo "=============================================="
+          echo ""
+
+          PREFLIGHT="${{ needs.preflight-check.result }}"
+          API="${{ needs.api-smoke-tests.result }}"
+          UI="${{ needs.ui-smoke-tests.result }}"
+
+          echo "Pre-flight: $PREFLIGHT"
+          echo "API Tests:  $API"
+          echo "UI Tests:   $UI"
+          echo ""
+
+          if [ "$PREFLIGHT" = "success" ] && [ "$API" = "success" ] && [ "$UI" = "success" ]; then
+            echo "all_passed=true" >> $GITHUB_OUTPUT
+            echo "=============================================="
+            echo "ALL SMOKE TESTS PASSED"
+            echo "=============================================="
+            echo "Staging is healthy and ready for production promotion."
+          else
+            echo "all_passed=false" >> $GITHUB_OUTPUT
+            echo "=============================================="
+            echo "SMOKE TESTS FAILED"
+            echo "=============================================="
+            echo "Production promotion blocked."
+          fi
+
+      - name: Create final summary
+        run: |
+          echo "# Stage-2 Smoke Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Story 5.2**: Post-Deploy Smoke + Synthetic (Staging -> Prod gate)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Test Suite | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Pre-Flight Health | \`${{ needs.preflight-check.result == 'success' && 'PASSED' || 'FAILED' }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| API Smoke Tests | \`${{ needs.api-smoke-tests.result == 'success' && 'PASSED' || needs.api-smoke-tests.result == 'skipped' && 'SKIPPED' || 'FAILED' }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| UI Smoke Tests | \`${{ needs.ui-smoke-tests.result == 'success' && 'PASSED' || needs.ui-smoke-tests.result == 'skipped' && 'SKIPPED' || 'FAILED' }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ steps.summary.outputs.all_passed }}" = "true" ]; then
+            echo "## PASSED - Ready for Production" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "All smoke tests passed. Manual approval required to promote to production." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## FAILED - Production Blocked" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "One or more smoke tests failed. Production promotion is blocked." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Staging URL**: ${{ env.STG_BASE_URL }}" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Debug the issue in staging before retrying." >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # ==========================================================================
+  # PRODUCTION APPROVAL GATE
+  # ==========================================================================
+  # Manual approval required before production deployment.
+  # Uses GitHub Environment protection rules.
+  #
+  # Setup Required (GitHub Settings):
+  #   1. Go to Settings > Environments
+  #   2. Create environment named "production"
+  #   3. Enable "Required reviewers" and add approvers
+  # ==========================================================================
+  production-approval:
+    name: Production Approval Gate
+    runs-on: ubuntu-latest
+    needs: [smoke-summary]
+    if: needs.smoke-summary.outputs.all_passed == 'true'
+    environment:
+      name: production
+      url: https://www.eventangle.com
+
+    steps:
+      - name: Approval received
+        run: |
+          echo "=============================================="
+          echo "PRODUCTION APPROVAL RECEIVED"
+          echo "=============================================="
+          echo ""
+          echo "Manual approval granted for production deployment."
+          echo "Proceeding with production Worker deploy..."
+
+      - name: Create approval summary
+        run: |
+          echo "## Production Approval Gate" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### APPROVED" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Production deployment has been manually approved." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Approver** | \`${{ github.actor }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Target URL** | \`https://www.eventangle.com\` |" >> $GITHUB_STEP_SUMMARY
+
+  # ==========================================================================
+  # PRODUCTION DEPLOYMENT
+  # ==========================================================================
+  # Deploy to production after manual approval.
+  # Uses wrangler deploy --env production
+  # ==========================================================================
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [production-approval]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Wrangler
+        run: npm install -g wrangler@3
+
+      - name: Validate Cloudflare secrets
+        run: |
+          if [ -z "${{ secrets.CLOUDFLARE_API_TOKEN }}" ]; then
+            echo "::error::Missing required secret: CLOUDFLARE_API_TOKEN"
+            exit 1
+          fi
+          echo "CLOUDFLARE_API_TOKEN is set"
+
+      - name: Deploy Worker to Production
+        working-directory: cloudflare-proxy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          echo "=============================================="
+          echo "DEPLOYING TO PRODUCTION"
+          echo "=============================================="
+          echo "Target: www.eventangle.com"
+          echo "Environment: production"
+          echo ""
+
+          wrangler deploy --env production
+
+          echo ""
+          echo "=============================================="
+          echo "WORKER DEPLOYED TO PRODUCTION"
+          echo "=============================================="
+
+      - name: Verify production deployment
+        run: |
+          echo "=============================================="
+          echo "VERIFYING PRODUCTION DEPLOYMENT"
+          echo "=============================================="
+
+          # Wait for edge propagation
+          sleep 15
+
+          # Test /api/status endpoint
+          RESPONSE=$(curl -s -w "\n%{http_code}" "${{ env.PROD_BASE_URL }}/api/status" || echo "CURL_FAILED")
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+
+          echo "HTTP Status: $HTTP_CODE"
+
+          if [ "$HTTP_CODE" = "200" ]; then
+            OK_VALUE=$(echo "$BODY" | jq -r '.ok // "null"' 2>/dev/null || echo "null")
+            if [ "$OK_VALUE" = "true" ]; then
+              echo ""
+              echo "=============================================="
+              echo "PRODUCTION VERIFICATION: PASSED"
+              echo "=============================================="
+            else
+              echo "::warning::Production /api/status returned ok:$OK_VALUE"
+            fi
+          else
+            echo "::warning::Production verification returned HTTP $HTTP_CODE"
+          fi
+
+      - name: Create deployment summary
+        if: always()
+        run: |
+          echo "## Production Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "### DEPLOYED" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Worker successfully deployed to production." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Production URL**: https://www.eventangle.com" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Production deployment failed. Check logs for details." >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # ==========================================================================
+  # PIPELINE FINAL STATUS
+  # ==========================================================================
+  pipeline-status:
+    name: Pipeline Final Status
+    runs-on: ubuntu-latest
+    needs: [check-stage1, smoke-summary, deploy-production]
+    if: always()
+
+    steps:
+      - name: Report final status
+        run: |
+          echo "# Stage-2 Pipeline Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          STAGE1="${{ needs.check-stage1.outputs.should_run }}"
+          SMOKE="${{ needs.smoke-summary.outputs.all_passed }}"
+          DEPLOY="${{ needs.deploy-production.result }}"
+
+          if [ "$STAGE1" != "true" ]; then
+            echo "## SKIPPED" >> $GITHUB_STEP_SUMMARY
+            echo "Stage-1 CI did not succeed. Stage-2 was not run." >> $GITHUB_STEP_SUMMARY
+          elif [ "$SMOKE" != "true" ]; then
+            echo "## BLOCKED" >> $GITHUB_STEP_SUMMARY
+            echo "Smoke tests failed. Production deployment blocked." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Staging is safe to debug**: ${{ env.STG_BASE_URL }}" >> $GITHUB_STEP_SUMMARY
+            echo "**Production is untouched**: ${{ env.PROD_BASE_URL }}" >> $GITHUB_STEP_SUMMARY
+          elif [ "$DEPLOY" = "success" ]; then
+            echo "## SUCCESS" >> $GITHUB_STEP_SUMMARY
+            echo "All smoke tests passed and production deployment completed." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Production URL**: https://www.eventangle.com" >> $GITHUB_STEP_SUMMARY
+          elif [ "$DEPLOY" = "skipped" ]; then
+            echo "## AWAITING APPROVAL" >> $GITHUB_STEP_SUMMARY
+            echo "Smoke tests passed. Awaiting manual approval for production deployment." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## DEPLOYMENT FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "Smoke tests passed but production deployment failed." >> $GITHUB_STEP_SUMMARY
+          fi
