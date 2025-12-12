@@ -69,12 +69,23 @@ function getManifestValue(env, pathStr, fallback) {
 // =============================================================================
 // STAGING ENVIRONMENT - stg.eventangle.com
 // =============================================================================
+//
+// MIGRATION PENDING (Story 1.1.2):
+// The current staging scriptId is DEPRECATED (owned by mzdano@gmail.com).
+// A new project owned by zeventbook@gmail.com needs to be created.
+// See docs/env/staging-migration.md for migration instructions.
+//
+// After migration, update deploy-manifest.json with the new scriptId and
+// deploymentId - this file will automatically pick up the new values.
+// =============================================================================
 
 /**
  * Staging Google Apps Script project ID
  * This is the permanent project identifier - never changes
  * Used by clasp for deployment operations
  * Source: deploy-manifest.json -> environments.staging.appsScript.scriptId
+ *
+ * @deprecated Current value pending migration to zeventbook-owned project (Story 1.1.2)
  */
 const STAGING_SCRIPT_ID = getManifestValue(
   'staging',

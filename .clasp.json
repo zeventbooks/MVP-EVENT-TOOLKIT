@@ -3,6 +3,11 @@
   "rootDir": "./src/mvp",
   "_environment": "staging",
   "_comment": "DEFAULT SAFE: Points to STAGING for local development safety. CI dynamically updates to correct environment.",
-  "_owner": "zeventbook@gmail.com",
-  "_story": "Story 1.3: Separate Apps Script environments for staging and production"
+  "_migration": {
+    "_status": "PENDING",
+    "_story": "Story 1.1.2",
+    "_instructions": "See docs/env/staging-migration.md"
+  },
+  "_owner": "MIGRATE TO: zeventbook@gmail.com",
+  "_story": "Story 1.1.2: Create new staging GAS backend owned by zeventbook"
 }
