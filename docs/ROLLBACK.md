@@ -2,13 +2,55 @@
 
 This document describes rollback procedures for production deployments when Story 7 sanity checks fail or other deployment issues occur.
 
+## Quick Rollback (Story 5.3)
+
+**Single-command rollback to N-1 deployment:**
+
+```bash
+# Rollback staging to previous version
+npm run rollback:staging
+
+# Rollback production to previous version
+npm run rollback:prod
+
+# Rollback BOTH staging and production
+npm run rollback:all
+```
+
+**List deployments to see version history:**
+
+```bash
+# List all environments
+npm run rollback:list
+
+# List specific environment
+npm run rollback:list:staging
+npm run rollback:list:prod
+```
+
+**Additional options:**
+
+```bash
+# Dry run (see what would happen)
+node scripts/rollback-worker.mjs production --dry-run
+
+# Force rollback (skip confirmation)
+node scripts/rollback-worker.mjs production --force
+
+# Rollback with health verification
+node scripts/rollback-worker.mjs staging --verify
+```
+
 ## Quick Reference
 
 | Issue | Rollback Target | Command |
 |-------|-----------------|---------|
-| GAS HTML leak (blue banner) | Previous Worker | `wrangler deploy --env production` with old ID |
+| Worker issue (staging) | Previous Worker | `npm run rollback:staging` |
+| Worker issue (production) | Previous Worker | `npm run rollback:prod` |
+| Worker issue (both envs) | Previous Workers | `npm run rollback:all` |
+| GAS HTML leak (blue banner) | Previous Worker | `npm run rollback:prod` |
 | API/RPC errors | Previous GAS deployment | Use Apps Script Editor |
-| Worker routing broken | Previous Worker | Cloudflare Dashboard or wrangler |
+| Worker routing broken | Previous Worker | `npm run rollback:prod` |
 | Everything broken | Both GAS + Worker | Full rollback (see below) |
 
 ## When to Rollback
@@ -33,11 +75,24 @@ Rollback is required when any of these conditions occur:
 
 ## Rollback Procedures
 
-### Option A: Cloudflare Worker Rollback (Fast)
+### Option A: Cloudflare Worker Rollback (Fast) - RECOMMENDED
 
 Use this when Worker routing is broken but GAS is working.
 
-**Via Wrangler CLI:**
+**Via npm script (Story 5.3 - Single Command):**
+
+```bash
+# Staging rollback
+npm run rollback:staging
+
+# Production rollback
+npm run rollback:prod
+
+# Both environments
+npm run rollback:all
+```
+
+**Via Wrangler CLI (Manual):**
 
 ```bash
 # 1. Check current deployment
@@ -47,7 +102,7 @@ wrangler deployments list --env production
 # Note the deployment ID (e.g., abc123)
 
 # 3. Rollback to previous version
-wrangler rollback --env production <deployment-id>
+wrangler rollback --env production
 
 # 4. Verify rollback
 curl -s https://www.eventangle.com/events -I | grep x-worker-version
@@ -224,3 +279,4 @@ If rollback fails or issues persist:
 - [DEPLOYMENT.md](./DEPLOYMENT.md) - Deployment procedures
 - [worker-routing.md](./worker-routing.md) - Worker routing architecture
 - [ci-cd-architecture.md](./ci-cd-architecture.md) - CI/CD pipeline details
+- [scripts/rollback-worker.mjs](../scripts/rollback-worker.mjs) - Rollback script (Story 5.3)
