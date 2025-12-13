@@ -268,6 +268,34 @@ test.describe('Events Page Tests - Story 6', () => {
       await expect(viewport).toBeAttached();
     });
 
+    /**
+     * Story 1.2 - CI/CD Gate Impact
+     *
+     * Critical smoke test: /events must render the events-root marker.
+     * This is a Stage-1 build gate - if this test fails, the build fails.
+     *
+     * Acceptance Criteria:
+     * - GET /events returns HTTP 200
+     * - Page renders data-testid="events-root" marker
+     * - First navigation is always to staging Cloudflare origin (not GAS)
+     */
+    test('renders data-testid="events-root" marker (Story 1.2 CI Gate)', async ({ page }) => {
+      const response = await page.goto(`/events`);
+
+      // Must return HTTP 200
+      expect(response?.status(), '/events must return HTTP 200').toBe(200);
+
+      // Wait for page to fully render
+      await page.waitForLoadState('networkidle');
+
+      // Story 1.2: Critical marker check - events-root must be present
+      // This validates the page rendered correctly via Cloudflare Worker
+      const eventsRoot = page.locator('[data-testid="events-root"]');
+      await expect(eventsRoot, 'Page must render data-testid="events-root" marker').toBeAttached({
+        timeout: 15000 // Allow time for JS rendering
+      });
+    });
+
   });
 
   test.describe('Brand Parameter Support', () => {
