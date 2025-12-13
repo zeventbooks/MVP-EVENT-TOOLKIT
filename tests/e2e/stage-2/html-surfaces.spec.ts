@@ -70,15 +70,30 @@ async function collectNetworkRequests(page: Page, url: string): Promise<Response
 
 /**
  * Check if any request went to Google Apps Script
+ * Uses proper URL parsing to check hostname (not substring matching)
  */
 function hasGasRequest(responses: Response[]): boolean {
+  const GAS_HOSTNAMES = [
+    'script.google.com',
+    'script.googleusercontent.com',
+  ];
+
   return responses.some((response) => {
-    const url = response.url();
-    return (
-      url.includes('script.google.com') ||
-      url.includes('script.googleusercontent.com') ||
-      url.includes('macros/s/')
-    );
+    try {
+      const parsedUrl = new URL(response.url());
+      // Check if hostname matches GAS domains
+      if (GAS_HOSTNAMES.includes(parsedUrl.hostname)) {
+        return true;
+      }
+      // Also check for macros/s/ in the pathname (GAS deployment URLs)
+      if (parsedUrl.pathname.includes('/macros/s/')) {
+        return true;
+      }
+      return false;
+    } catch {
+      // Invalid URL - not a GAS request
+      return false;
+    }
   });
 }
 
