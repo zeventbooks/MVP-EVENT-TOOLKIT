@@ -26,6 +26,7 @@ import { handleListEvents } from './handlers/eventsList';
 import { handleGetPublicBundle } from './handlers/publicBundle';
 import { handleGetAdminBundle } from './handlers/adminBundle';
 import { handleAdminCreateEvent } from './handlers/adminCreateEvent';
+import { handleAdminRecordResult } from './handlers/adminRecordResult';
 import { guardAdminRoute, type AdminAuthEnv } from './auth';
 
 // =============================================================================
@@ -38,8 +39,9 @@ import { guardAdminRoute, type AdminAuthEnv } from './auth';
  * 1.2.0 - Wired up publicBundle and adminBundle handlers (Story 2.2)
  * 1.3.0 - Wired up events list handler for Admin migration (Story 2.3)
  * 1.4.0 - Added admin createEvent endpoint (Story 3.2)
+ * 1.5.0 - Added admin recordResult endpoint (Story 3.3)
  */
-export const ROUTER_VERSION = '1.4.0';
+export const ROUTER_VERSION = '1.5.0';
 
 /**
  * Valid brands for routing
@@ -210,6 +212,12 @@ function matchRoute(url: URL): RouteMatch {
     // /api/admin/events - create event (Story 3.2)
     if (apiPath === '/admin/events' || apiPath === '/admin/events/') {
       return { type: 'api', handler: 'adminCreateEvent', brand };
+    }
+
+    // /api/admin/events/:id/results - record result (Story 3.3)
+    const adminResultsMatch = apiPath.match(/^\/admin\/events\/([^/]+)\/results$/);
+    if (adminResultsMatch) {
+      return { type: 'api', handler: 'adminRecordResult', brand, eventId: adminResultsMatch[1] };
     }
 
     // Unknown API route - return 404
@@ -608,6 +616,50 @@ async function handleApiAdminCreateEvent(
   }
 }
 
+/**
+ * Handle admin record result request
+ * POST /api/admin/events/:id/results
+ * @see Story 3.3 - Port recordResult to Worker
+ */
+async function handleApiAdminRecordResult(
+  request: Request,
+  env: RouterEnv,
+  logger: RouterLogger,
+  brand: Brand,
+  eventId: string
+): Promise<Response> {
+  const startTime = Date.now();
+
+  try {
+    // Add brand to URL if not already present (for handler to extract)
+    const url = new URL(request.url);
+    if (!url.searchParams.has('brand')) {
+      url.searchParams.set('brand', brand);
+    }
+
+    // Create modified request with brand param
+    const modifiedRequest = new Request(url.toString(), {
+      method: request.method,
+      headers: request.headers,
+      body: request.body,
+    });
+
+    const response = await handleAdminRecordResult(modifiedRequest, env);
+    const durationMs = Date.now() - startTime;
+
+    logger.apiRequest(request.method, `/api/admin/events/${eventId}/results`, response.status, durationMs, {
+      brand,
+      eventId,
+      operation: 'recordResult',
+    });
+
+    return addStandardHeaders(response, logger);
+  } catch (error) {
+    logger.error('Failed to handle admin recordResult', error);
+    return create500Response(error instanceof Error ? error : new Error(String(error)), logger);
+  }
+}
+
 // =============================================================================
 // Page Handlers
 // =============================================================================
@@ -784,6 +836,16 @@ export async function handleRequest(
               env,
               logger,
               match.brand || 'root'
+            );
+            break;
+
+          case 'adminRecordResult':
+            response = await handleApiAdminRecordResult(
+              request,
+              env,
+              logger,
+              match.brand || 'root',
+              match.eventId!
             );
             break;
 
