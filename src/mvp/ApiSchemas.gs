@@ -313,6 +313,25 @@ const SCHEMAS = {
       }
     },
 
+    // Display Configuration (V2 Optional)
+    _displayConfig: {
+      type: ['object', 'null'],
+      properties: {
+        mode: { type: 'string', enum: ['public', 'dynamic'] },
+        urls: {
+          type: ['array', 'null'],
+          items: {
+            type: 'object',
+            required: ['url'],
+            properties: {
+              url: { type: 'string', pattern: '^https?://.+' },
+              seconds: { type: 'number', minimum: 5, maximum: 300 }
+            }
+          }
+        }
+      }
+    },
+
     // Analytics (Reserved)
     _analytics: {
       type: ['object', 'null'],
@@ -453,6 +472,14 @@ const SCHEMAS = {
 
         // External Data (V2 Optional)
         externalData: { $ref: '#/schemas/events/_externalData' },
+
+        // Form URLs (V2 Optional)
+        checkinUrl: { type: ['string', 'null'], pattern: '^https?://.+' },
+        walkinUrl: { type: ['string', 'null'], pattern: '^https?://.+' },
+        surveyUrl: { type: ['string', 'null'], pattern: '^https?://.+' },
+
+        // Display Configuration (V2 Optional)
+        display: { $ref: '#/schemas/events/_displayConfig' },
 
         // Analytics (Reserved)
         analytics: { $ref: '#/schemas/events/_analytics' },
