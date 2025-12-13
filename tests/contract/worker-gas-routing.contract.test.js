@@ -13,11 +13,17 @@
  *   - Validates source code contracts
  *   - Runs in CI without staging environment
  *
+ * NOTE (Story 2.1):
+ *   GAS routing has been deprecated. Worker now operates in worker-only mode.
+ *   Tests for GAS deployment IDs have been updated to verify their ABSENCE
+ *   from active configuration (they should only exist in deploy-manifest.json
+ *   for historical reference).
+ *
  * Acceptance Criteria Validated:
- *   - Correct GAS_DEPLOYMENT_ID env var for staging Worker
  *   - Worker handles JSON POST properly (/api/* → JSON responses)
  *   - Worker never returns HTML on /api/*
  *   - CORS rules are defined correctly
+ *   - BACKEND_MODE is set to "worker" (not "gas")
  *
  * @see cloudflare-proxy/worker.js - Worker implementation
  * @see wrangler.toml - Staging deployment configuration
@@ -67,7 +73,7 @@ function extractFromWorker(content, pattern) {
 
 describe('Worker → GAS Routing Contract', () => {
 
-  describe('GAS Deployment ID Configuration', () => {
+  describe('Worker-Only Mode Configuration (Story 2.1)', () => {
     let rootWranglerContent;
     let proxyWranglerContent;
 
@@ -76,16 +82,16 @@ describe('Worker → GAS Routing Contract', () => {
       proxyWranglerContent = readFileContent(PROXY_WRANGLER_PATH);
     });
 
-    test('root wrangler.toml has correct staging STAGING_DEPLOYMENT_ID', () => {
-      // Staging deployment should use standardized STAGING_DEPLOYMENT_ID
-      expect(rootWranglerContent).toContain(`STAGING_DEPLOYMENT_ID = "${STAGING_DEPLOYMENT_ID}"`);
-      // Should NOT contain production deployment ID
-      expect(rootWranglerContent).not.toContain(PRODUCTION_DEPLOYMENT_ID);
+    test('root wrangler.toml uses worker-only backend mode', () => {
+      // Story 2.1: Worker-only mode - GAS URLs removed
+      expect(rootWranglerContent).toContain('BACKEND_MODE = "worker"');
     });
 
-    test('root wrangler.toml has correct STAGING_WEB_APP_URL', () => {
-      const expectedUrl = `https://script.google.com/macros/s/${STAGING_DEPLOYMENT_ID}/exec`;
-      expect(rootWranglerContent).toContain(`STAGING_WEB_APP_URL = "${expectedUrl}"`);
+    test('root wrangler.toml does NOT contain active GAS URLs', () => {
+      // Story 2.1: GAS URLs should be removed from active config
+      // Only commented documentation should remain
+      const uncommentedGasUrl = /^[^#]*https:\/\/script\.google\.com\/macros\/s\/AKfycb/m;
+      expect(rootWranglerContent).not.toMatch(uncommentedGasUrl);
     });
 
     test('root wrangler.toml points to correct worker path', () => {
@@ -97,20 +103,22 @@ describe('Worker → GAS Routing Contract', () => {
       expect(rootWranglerContent).toContain('stg.eventangle.com');
     });
 
-    test('proxy wrangler.toml [env.staging] has correct deployment ID', () => {
-      expect(proxyWranglerContent).toContain(`STAGING_DEPLOYMENT_ID = "${STAGING_DEPLOYMENT_ID}"`);
+    test('proxy wrangler.toml [env.production] uses worker-only backend mode', () => {
+      // Story 2.1: Worker-only mode - GAS URLs removed
+      expect(proxyWranglerContent).toContain('BACKEND_MODE = "worker"');
     });
 
-    test('proxy wrangler.toml [env.production] has correct PROD_DEPLOYMENT_ID', () => {
-      // Production section should have standardized PROD_DEPLOYMENT_ID
-      expect(proxyWranglerContent).toContain(`PROD_DEPLOYMENT_ID = "${PRODUCTION_DEPLOYMENT_ID}"`);
-      // Should also have PROD_WEB_APP_URL
-      const expectedUrl = `https://script.google.com/macros/s/${PRODUCTION_DEPLOYMENT_ID}/exec`;
-      expect(proxyWranglerContent).toContain(`PROD_WEB_APP_URL = "${expectedUrl}"`);
+    test('proxy wrangler.toml does NOT contain active GAS URLs', () => {
+      // Story 2.1: GAS URLs should be removed from active config
+      const uncommentedGasUrl = /^[^#]*https:\/\/script\.google\.com\/macros\/s\/AKfycb/m;
+      expect(proxyWranglerContent).not.toMatch(uncommentedGasUrl);
     });
 
-    test('staging and production deployment IDs are different', () => {
+    test('staging and production deployment IDs are still defined in config', () => {
+      // These are still needed for reference in deploy-manifest.json
       expect(STAGING_DEPLOYMENT_ID).not.toBe(PRODUCTION_DEPLOYMENT_ID);
+      expect(STAGING_DEPLOYMENT_ID).toMatch(/^AKfycb/);
+      expect(PRODUCTION_DEPLOYMENT_ID).toMatch(/^AKfycb/);
     });
 
   });
@@ -328,22 +336,41 @@ describe('Worker → GAS Routing Contract', () => {
 });
 
 // =============================================================================
-// Snapshot Tests
+// Worker-Only Mode Verification (Story 2.1)
 // =============================================================================
 
-describe('Worker Configuration Snapshots', () => {
+describe('Worker-Only Mode Verification', () => {
 
-  test('staging deployment ID matches expected value', () => {
+  test('root wrangler.toml has BACKEND_MODE = worker', () => {
     const rootWrangler = readFileContent(ROOT_WRANGLER_PATH);
-    const idMatch = rootWrangler.match(/DEPLOYMENT_ID = "([^"]+)"/);
-    expect(idMatch).toBeTruthy();
-    expect(idMatch[1]).toBe(STAGING_DEPLOYMENT_ID);
+    expect(rootWrangler).toContain('BACKEND_MODE = "worker"');
   });
 
-  test('staging GAS URL is properly constructed', () => {
+  test('GAS URLs only exist in allowlisted locations', () => {
+    // Story 2.1: GAS URLs should only exist in:
+    // - deploy-manifest.json (historical record)
+    // - .clasp*.json (Google CLI config)
+    // - Documentation (*.md)
+    // - Commented code (for migration reference)
+    const deployManifest = readFileContent(path.join(__dirname, '../../deploy-manifest.json'));
+
+    // deploy-manifest.json SHOULD contain GAS URLs (historical record)
+    expect(deployManifest).toContain('script.google.com');
+
+    // Wrangler configs should NOT have uncommented GAS URLs
     const rootWrangler = readFileContent(ROOT_WRANGLER_PATH);
-    const expectedUrl = `https://script.google.com/macros/s/${STAGING_DEPLOYMENT_ID}/exec`;
-    expect(rootWrangler).toContain(expectedUrl);
+    const proxyWrangler = readFileContent(PROXY_WRANGLER_PATH);
+
+    // Check that any GAS URL lines are commented out
+    const gasUrlPattern = /script\.google\.com\/macros\/s\/AKfycb/;
+    const lines = [...rootWrangler.split('\n'), ...proxyWrangler.split('\n')];
+
+    lines.forEach(line => {
+      if (gasUrlPattern.test(line)) {
+        // If a line contains a GAS URL, it must be commented
+        expect(line.trim().startsWith('#')).toBe(true);
+      }
+    });
   });
 
 });
