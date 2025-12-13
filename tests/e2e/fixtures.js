@@ -4,18 +4,48 @@
  * Sustainability: Eliminates code duplication across 20+ test files
  * Easy to understand: Clear fixture names describe what they provide
  * Mobile support: Handles mobile-specific behaviors automatically
+ *
+ * Story 1.3: Includes request logging for first navigation and first API request
  */
 
 import { test as base, expect } from '@playwright/test';
 import { config, getPageUrl, isMobile } from './config';
+
+// Story 1.3: Import request logger for tracking origins
+const { createRequestLogger } = require('../config/runtime-logger');
 
 /**
  * Extended test with custom fixtures
  */
 export const test = base.extend({
   /**
+   * Request logger fixture (Story 1.3)
+   * Tracks first navigation URL and first API request host
+   *
+   * Usage:
+   *   test('tracks requests', async ({ page, requestLogger }) => {
+   *     await page.goto(url);
+   *     requestLogger.logSummary(); // Logs first navigation and API request
+   *   });
+   */
+  requestLogger: async ({ page }, use) => {
+    const logger = createRequestLogger();
+
+    // Attach request/response handlers
+    page.on('request', (request) => logger.onRequest(request));
+    page.on('response', (response) => logger.onResponse(response));
+
+    // Provide logger to test
+    await use(logger);
+
+    // Log summary after test completes (Story 1.3 requirement)
+    logger.logSummary();
+  },
+
+  /**
    * Authenticated admin page fixture
    * Handles dialog prompts automatically and navigates to admin page
+   * Story 1.3: Includes request logging
    *
    * Usage:
    *   test('create event', async ({ authenticatedAdminPage }) => {
@@ -23,6 +53,11 @@ export const test = base.extend({
    *   });
    */
   authenticatedAdminPage: async ({ page }, use) => {
+    // Story 1.3: Set up request logging
+    const logger = createRequestLogger();
+    page.on('request', (request) => logger.onRequest(request));
+    page.on('response', (response) => logger.onResponse(response));
+
     // Set up dialog handler BEFORE any interactions
     page.on('dialog', async (dialog) => {
       if (dialog.type() === 'prompt') {
@@ -39,6 +74,9 @@ export const test = base.extend({
     // Wait for page to be ready (auto-waits for network idle)
     await page.waitForLoadState('networkidle');
 
+    // Story 1.3: Log first navigation and API request
+    logger.logSummary();
+
     // Provide page to test
     await use(page);
 
@@ -48,6 +86,7 @@ export const test = base.extend({
   /**
    * Public events page fixture
    * No authentication needed
+   * Story 1.3: Includes request logging
    *
    * Usage:
    *   test('view events', async ({ publicPage }) => {
@@ -55,15 +94,25 @@ export const test = base.extend({
    *   });
    */
   publicPage: async ({ page }, use) => {
+    // Story 1.3: Set up request logging
+    const logger = createRequestLogger();
+    page.on('request', (request) => logger.onRequest(request));
+    page.on('response', (response) => logger.onResponse(response));
+
     const url = getPageUrl('events');
     await page.goto(url);
     await page.waitForLoadState('networkidle');
+
+    // Story 1.3: Log first navigation and API request
+    logger.logSummary();
+
     await use(page);
   },
 
   /**
    * Display/TV page fixture
    * For testing digital signage views
+   * Story 1.3: Includes request logging
    *
    * Usage:
    *   test('display carousel', async ({ displayPage }) => {
@@ -71,9 +120,18 @@ export const test = base.extend({
    *   });
    */
   displayPage: async ({ page }, use) => {
+    // Story 1.3: Set up request logging
+    const logger = createRequestLogger();
+    page.on('request', (request) => logger.onRequest(request));
+    page.on('response', (response) => logger.onResponse(response));
+
     const url = getPageUrl('display');
     await page.goto(url);
     await page.waitForLoadState('networkidle');
+
+    // Story 1.3: Log first navigation and API request
+    logger.logSummary();
+
     await use(page);
   },
 
