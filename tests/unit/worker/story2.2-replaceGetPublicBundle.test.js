@@ -123,8 +123,13 @@ describe('Router Handler Wiring (Story 2.2)', () => {
   });
 
   describe('Router Version', () => {
-    it('should be version 1.2.0 for Story 2.2', () => {
-      expect(routerSource).toContain("export const ROUTER_VERSION = '1.2.0'");
+    it('should be at least version 1.2.0 for Story 2.2+', () => {
+      // Story 2.2 introduced version 1.2.0, Story 2.3 bumped to 1.3.0
+      const versionMatch = routerSource.match(/export const ROUTER_VERSION = '(\d+)\.(\d+)\.(\d+)'/);
+      expect(versionMatch).not.toBeNull();
+      const [, major, minor] = versionMatch;
+      expect(Number(major)).toBeGreaterThanOrEqual(1);
+      expect(Number(minor)).toBeGreaterThanOrEqual(2);
     });
 
     it('should document Story 2.2 in version history', () => {
