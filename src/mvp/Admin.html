@@ -3266,7 +3266,7 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
      * Load existing events into the dropdown.
      * Called on page init and after event creation.
      *
-     * Story 2.3: Uses Worker /api/events endpoint via fetchEventsListFromWorker
+     * Story 2.3/5.3: Uses Worker /api/v2/events via fetchEventsListFromWorker (GAS retired)
      */
     async function loadExistingEvents() {
       const dropdown = document.getElementById('eventDropdown');
@@ -3339,7 +3339,7 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
     /**
      * Load a specific event by ID and show in the dashboard.
      *
-     * Story 2.3: Uses Worker /api/events/:id/adminBundle endpoint
+     * Story 2.3/5.3: Uses Worker /api/v2/events/:id/bundle/admin (GAS retired)
      */
     async function loadSelectedEvent(eventId) {
       if (!eventId) return;
@@ -3868,8 +3868,8 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
         const selectedTemplateId = document.getElementById('templateId').value || 'custom';
         console.log('[CreateEvent] Selected template:', selectedTemplateId);
 
-        // Story 3.2: Use Worker endpoint for event creation
-        // POST /api/admin/events via createEventViaWorker()
+        // Story 3.2/5.3: Use Worker endpoint for event creation
+        // POST /api/v2/events via createEventViaWorker() (GAS retired)
         console.log('[CreateEvent] Calling Worker createEvent...');
         const res = await window.createEventViaWorker({
           name: eventData.name,
@@ -5460,7 +5460,7 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
 
     /**
      * Create event via wizard (Step 3 → 4 transition)
-     * Story 3.2: Uses Worker POST /api/admin/events via createEventViaWorker()
+     * Story 3.2/5.3: Uses Worker POST /api/v2/events via createEventViaWorker() (GAS retired)
      */
     async function createWizardEvent() {
       overlay(true);

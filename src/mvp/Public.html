@@ -2061,8 +2061,8 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
     }
 
     // Load event data
-    // SCHEMA: /schemas/event.schema.json via Worker /api/events/:id/publicBundle
-    // Story 2.2: Now uses Worker endpoint instead of GAS api_getPublicBundle
+    // SCHEMA: /schemas/event.schema.json via Worker /api/v2/events/:id/bundle/public
+    // Story 2.2/5.3: Uses Worker v2 endpoint (GAS retired)
     if (ID) {
       (async () => {
         // Story 2.2: Fetch from Worker endpoint (no GAS calls)

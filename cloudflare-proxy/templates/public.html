@@ -68,8 +68,8 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
 <!DOCTYPE html>
 <!--
   Template: Public
-  Bundled: 2025-12-13T14:47:36.197Z
-  Hash: d749752e
+  Bundled: 2025-12-13T18:30:37.085Z
+  Hash: 30e932a1
   Source: GAS templates (src/mvp/)
   Generator: scripts/bundle-worker-templates.js
 
@@ -7401,8 +7401,8 @@ DO NOT modify this component's structure without updating:
     }
 
     // Load event data
-    // SCHEMA: /schemas/event.schema.json via Worker /api/events/:id/publicBundle
-    // Story 2.2: Now uses Worker endpoint instead of GAS api_getPublicBundle
+    // SCHEMA: /schemas/event.schema.json via Worker /api/v2/events/:id/bundle/public
+    // Story 2.2/5.3: Uses Worker v2 endpoint (GAS retired)
     if (ID) {
       (async () => {
         // Story 2.2: Fetch from Worker endpoint (no GAS calls)
