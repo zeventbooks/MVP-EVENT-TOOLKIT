@@ -46,6 +46,9 @@ export function isConfigured(env) {
   return hasCredentials(env) && !!env.SHEETS_SPREADSHEET_ID;
 }
 
+// Alias for backward compatibility with worker.js import
+export const isSheetsConfigured = isConfigured;
+
 /**
  * Get spreadsheet ID from environment
  * @param {Object} env - Worker environment
