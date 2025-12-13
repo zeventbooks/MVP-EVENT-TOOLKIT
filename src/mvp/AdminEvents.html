@@ -6,15 +6,20 @@ INCLUDED BY: Admin.html
 DEPENDENCIES: NUSDK.html (NU.rpc, NU.esc), SharedUtils.html (showToast)
 ================================================================================
 Story 4.1: Extracted from Admin.html for modularization and maintainability.
-This module handles event loading, selection, card display, and checklist.
+Story 2.3: Migrated from GAS to Worker endpoints for all read operations.
+         All event loading now uses Worker /api/events and /api/events/:id/adminBundle
 
 Functions exposed to global scope:
   Event Selector:
-  - loadExistingEvents()         → Load events into dropdown
+  - loadExistingEvents()         → Load events into dropdown (Worker)
   - onEventDropdownChange()      → Handle dropdown selection
-  - loadSelectedEvent(eventId)   → Load and display specific event
+  - loadSelectedEvent(eventId)   → Load and display specific event (Worker)
   - refreshEventList()           → Refresh the event list
   - selectEventInDropdown(id)    → Select event in dropdown
+
+  Worker Fetch Functions:
+  - fetchEventsListFromWorker()    → GET /api/events
+  - fetchAdminBundleFromWorker()   → GET /api/events/:id/adminBundle
 
   Event Card:
   - showEventCard(event)         → Display event in dashboard
@@ -50,6 +55,125 @@ Functions exposed to global scope:
     slug: null,
     createdAtISO: null
   };
+
+  // ==========================================================================
+  // WORKER ENDPOINT FUNCTIONS (Story 2.3)
+  // ==========================================================================
+
+  /**
+   * Get Worker base URL for API calls
+   * Uses current origin for same-domain Worker deployment
+   */
+  function getWorkerBaseUrl() {
+    return window.location.origin;
+  }
+
+  /**
+   * Fetch events list from Worker endpoint
+   * GET /api/events?brand=:brand
+   *
+   * Story 2.3: Replaces GAS api_getEventsSafe
+   *
+   * @param {string} brandId - Brand identifier
+   * @returns {Promise<{ok: boolean, items?: object[], code?: string, message?: string}>}
+   */
+  async function fetchEventsListFromWorker(brandId) {
+    const baseUrl = getWorkerBaseUrl();
+    const endpoint = `${baseUrl}/api/events`;
+    const url = new URL(endpoint);
+    url.searchParams.set('brand', brandId);
+
+    try {
+      const response = await fetch(url.toString(), {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' },
+        credentials: 'same-origin'
+      });
+
+      const data = await response.json();
+
+      // Normalize response shape for compatibility
+      // Worker returns { ok, items } but old code expects { ok, value: { items } }
+      if (data.ok && data.items) {
+        return {
+          ok: true,
+          value: { items: data.items }
+        };
+      }
+
+      return data;
+
+    } catch (error) {
+      console.error('[AdminEvents] Worker fetch failed:', error);
+      return {
+        ok: false,
+        code: 'NETWORK_ERROR',
+        message: 'Unable to connect to server. Please check your connection.'
+      };
+    }
+  }
+
+  /**
+   * Fetch admin bundle from Worker endpoint
+   * GET /api/events/:id/adminBundle?brand=:brand
+   *
+   * Story 2.3: Replaces GAS api_get for admin context
+   *
+   * @param {string} eventId - Event ID or slug
+   * @param {string} brandId - Brand identifier
+   * @param {object} options - { ifNoneMatch?: string } for conditional requests
+   * @returns {Promise<{ok: boolean, value?: object, code?: string, message?: string}>}
+   */
+  async function fetchAdminBundleFromWorker(eventId, brandId, options = {}) {
+    const baseUrl = getWorkerBaseUrl();
+    const endpoint = `${baseUrl}/api/events/${encodeURIComponent(eventId)}/adminBundle`;
+    const url = new URL(endpoint);
+    url.searchParams.set('brand', brandId);
+
+    const headers = {
+      'Accept': 'application/json'
+    };
+
+    // Support conditional requests (ETag)
+    if (options.ifNoneMatch) {
+      headers['If-None-Match'] = options.ifNoneMatch;
+    }
+
+    try {
+      const response = await fetch(url.toString(), {
+        method: 'GET',
+        headers,
+        credentials: 'same-origin'
+      });
+
+      // Handle 304 Not Modified
+      if (response.status === 304) {
+        return {
+          ok: true,
+          notModified: true,
+          etag: response.headers.get('ETag')
+        };
+      }
+
+      // Parse JSON response
+      const data = await response.json();
+
+      // Pass through response (Worker returns standard envelope)
+      return data;
+
+    } catch (error) {
+      console.error('[AdminEvents] Worker fetch failed:', error);
+      return {
+        ok: false,
+        code: 'NETWORK_ERROR',
+        message: 'Unable to connect to server. Please check your connection.'
+      };
+    }
+  }
+
+  // Expose Worker functions to global scope
+  window.fetchEventsListFromWorker = fetchEventsListFromWorker;
+  window.fetchAdminBundleFromWorker = fetchAdminBundleFromWorker;
 
   // ==========================================================================
   // HELPER FUNCTIONS
@@ -132,6 +256,8 @@ Functions exposed to global scope:
   /**
    * Load existing events into the dropdown.
    * Called on page init and after event creation.
+   *
+   * Story 2.3: Now uses Worker /api/events endpoint instead of GAS api_getEventsSafe
    */
   async function loadExistingEvents() {
     const dropdown = document.getElementById('eventDropdown');
@@ -140,8 +266,10 @@ Functions exposed to global scope:
     const BRAND = window.BRAND || 'root';
 
     try {
-      console.log('[EventSelector] Loading events for brand:', BRAND);
-      const res = await NU.rpc('api_getEventsSafe', { brandId: BRAND });
+      console.log('[EventSelector] Loading events from Worker for brand:', BRAND);
+
+      // Story 2.3: Use Worker endpoint instead of GAS
+      const res = await fetchEventsListFromWorker(BRAND);
 
       if (!res.ok) {
         console.warn('[EventSelector] Failed to load events:', res.message || res.error);
@@ -149,7 +277,7 @@ Functions exposed to global scope:
       }
 
       window.loadedEvents = res.value?.items || [];
-      console.log('[EventSelector] Loaded', window.loadedEvents.length, 'events');
+      console.log('[EventSelector] Loaded', window.loadedEvents.length, 'events from Worker');
 
       // Clear existing options (keep placeholder and create option)
       while (dropdown.options.length > 2) {
@@ -202,22 +330,22 @@ Functions exposed to global scope:
 
   /**
    * Load a specific event by ID and show in the dashboard.
+   *
+   * Story 2.3: Now uses Worker /api/events/:id/adminBundle endpoint
+   * instead of GAS api_get. The admin bundle includes full event data
+   * plus admin-specific fields (brandConfig, templates, diagnostics).
    */
   async function loadSelectedEvent(eventId) {
     if (!eventId) return;
 
     const BRAND = window.BRAND || 'root';
-    const SCOPE = window.SCOPE || 'events';
 
     try {
       overlay(true);
-      console.log('[EventSelector] Loading event:', eventId);
+      console.log('[EventSelector] Loading event from Worker:', eventId);
 
-      const res = await NU.rpc('api_get', {
-        brandId: BRAND,
-        scope: SCOPE,
-        id: eventId
-      });
+      // Story 2.3: Use Worker adminBundle endpoint instead of GAS
+      const res = await fetchAdminBundleFromWorker(eventId, BRAND);
 
       if (!res.ok) {
         if (window.SharedUtils) {
@@ -227,8 +355,19 @@ Functions exposed to global scope:
         return;
       }
 
-      const event = res.value;
-      console.log('[EventSelector] Loaded event:', event.name);
+      // Admin bundle returns { event, brandConfig, templates, diagnostics, allSponsors, lifecyclePhase }
+      const bundle = res.value;
+      const event = bundle.event;
+      console.log('[EventSelector] Loaded event from Worker:', event.name);
+
+      // Store templates and diagnostics for use by other modules
+      window.currentAdminBundle = bundle;
+      if (bundle.templates) {
+        window.availableTemplates = bundle.templates;
+      }
+      if (bundle.brandConfig) {
+        window.currentBrandConfig = bundle.brandConfig;
+      }
 
       // Set current event ID
       window.currentEventId = event.id;

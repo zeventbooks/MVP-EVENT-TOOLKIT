@@ -6,10 +6,11 @@ INCLUDED BY: Admin.html
 DEPENDENCIES: NUSDK.html (NU.rpc, NU.esc)
 ================================================================================
 Story 4.1: Extracted from Admin.html for modularization and maintainability.
-This module handles event template loading, rendering, and selection.
+Story 2.3: Templates now loaded from Worker admin bundle via AdminEvents.html
+         Falls back to static defaults if bundle not available
 
 Functions exposed to global scope:
-  - loadTemplates()              → Load templates from API
+  - loadTemplates()              → Load templates from admin bundle or defaults
   - renderTemplatePicker()       → Render template grid
   - selectTemplate(templateId)   → Select a template
   - updateTemplatePanelVisibility(id) → Show/hide template-specific panels
@@ -32,42 +33,61 @@ State exposed to global scope:
   // Track current template sections for modification detection
   let currentTemplateSections = null;
 
+  // Static template definitions for fallback
+  // Story 2.3: These are used when admin bundle hasn't loaded yet
+  const STATIC_TEMPLATES = [
+    { id: 'event', label: 'Standard Event', description: 'Basic event template' },
+    { id: 'tournament', label: 'Tournament', description: 'Bracket-style tournament' },
+    { id: 'league', label: 'League', description: 'League with standings' },
+    { id: 'rec_league', label: 'Recreational League', description: 'Casual league format' }
+  ];
+
   /**
-   * Load templates from API.
+   * Load templates from admin bundle or static defaults.
    * Called on page load.
+   *
+   * Story 2.3: Templates are now included in the admin bundle
+   * (fetched by AdminEvents.html). This function checks if templates
+   * are already available from the bundle, otherwise uses static defaults.
+   * No GAS api_getEventTemplates call is made.
    */
   async function loadTemplates() {
     const BRAND = window.BRAND || 'root';
 
     try {
       console.log('[Templates] Loading templates for brand:', BRAND);
-      const res = await NU.rpc('api_getEventTemplates', { brandId: BRAND });
-      console.log('[Templates] Response:', res);
 
-      if (res.ok && res.value) {
-        window.availableTemplates = res.value.items || [];
-        window.templateGroups = res.value.groups || [];
-        window.defaultTemplateId = res.value.defaultTemplateId || 'custom';
-        console.log('[Templates] Loaded', window.availableTemplates.length, 'templates in', window.templateGroups.length, 'groups, default:', window.defaultTemplateId);
-        console.log('[Templates] Tier filter:', res.value.tier || 'none');
-        renderTemplatePicker();
-        // Select default template
-        selectTemplate(window.defaultTemplateId);
+      // Story 2.3: Check if templates are available from admin bundle
+      // (loaded by loadSelectedEvent in AdminEvents.html)
+      if (window.currentAdminBundle && window.currentAdminBundle.templates) {
+        window.availableTemplates = window.currentAdminBundle.templates;
+        window.defaultTemplateId = window.currentAdminBundle.brandConfig?.defaultTemplateId || 'event';
+        console.log('[Templates] Using templates from admin bundle:', window.availableTemplates.length, 'templates');
+      } else if (window.availableTemplates && window.availableTemplates.length > 0) {
+        // Templates already loaded (e.g., from previous bundle)
+        console.log('[Templates] Using cached templates:', window.availableTemplates.length, 'templates');
       } else {
-        console.warn('[Templates] API returned error:', res.code, res.message);
-        const picker = document.getElementById('templatePicker');
-        if (picker) {
-          picker.innerHTML = `<p class="muted">Could not load templates. ${res.message || 'Using defaults.'}</p>`;
-        }
-        updateTemplatePanelVisibility('custom'); // Show league panel for custom fallback
+        // Use static defaults (no GAS call - Story 2.3)
+        window.availableTemplates = STATIC_TEMPLATES;
+        window.defaultTemplateId = 'event';
+        console.log('[Templates] Using static default templates');
       }
+
+      // Groups are optional - use empty array if not available
+      window.templateGroups = [];
+
+      console.log('[Templates] Loaded', window.availableTemplates.length, 'templates, default:', window.defaultTemplateId);
+      renderTemplatePicker();
+      // Select default template
+      selectTemplate(window.defaultTemplateId);
+
     } catch (e) {
       console.error('[Templates] Exception loading templates:', e);
-      const picker = document.getElementById('templatePicker');
-      if (picker) {
-        picker.innerHTML = '<p class="muted">Could not load templates. Using defaults.</p>';
-      }
-      updateTemplatePanelVisibility('custom'); // Show league panel for custom fallback
+      // Fallback to static templates
+      window.availableTemplates = STATIC_TEMPLATES;
+      window.defaultTemplateId = 'event';
+      renderTemplatePicker();
+      selectTemplate(window.defaultTemplateId);
     }
   }
 
