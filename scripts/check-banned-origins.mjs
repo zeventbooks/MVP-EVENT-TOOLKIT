@@ -60,20 +60,25 @@ const ROOT_DIR = join(__dirname, '..');
  * - Placeholder IDs (ABC123, XXXX, etc.) - allowed in docs/examples
  * - Real deployment IDs (AKfycb...) - BANNED in active code
  *
- * Note: These patterns use word boundaries or specific prefixes to avoid
- * matching unintended substrings. CodeQL analysis verified.
+ * Note: All patterns use specific URL prefixes (https://) to ensure
+ * we match complete URLs rather than partial strings.
  */
 const BANNED_PATTERNS = [
   // GAS Web App execution URLs with REAL deployment IDs (AKfycb... pattern)
   // Real IDs are 50+ chars starting with AKfycb
-  // The https:// prefix ensures we match actual URLs, not partial strings
   /https:\/\/script\.google\.com\/macros\/s\/AKfycb[A-Za-z0-9_-]{30,}\/exec/gi,
   // GAS project URLs with real project IDs (these should not be in runtime code)
-  // The https:// prefix ensures we match actual URLs, not partial strings
   /https:\/\/script\.google\.com\/home\/projects\/[A-Za-z0-9_-]{40,}/gi,
+];
+
+/**
+ * Simple string patterns for banned domains
+ * These are checked via string includes() rather than regex to avoid
+ * CodeQL regex anchor warnings while still detecting banned patterns.
+ */
+const BANNED_STRINGS = [
   // googleusercontent.com macros exec (legacy GAS pattern)
-  // Word boundary \b ensures we don't match partial domain names
-  /\bgoogleusercontent\.com\/macros\b/gi,
+  'googleusercontent.com/macros',
 ];
 
 /**
@@ -254,19 +259,16 @@ function scanFile(filePath) {
       return violations; // Skip - this is a test checking for absence of banned patterns
     }
 
-    // Check each banned pattern
+    const lines = content.split('\n');
+
+    // Check each banned regex pattern
     for (const pattern of BANNED_PATTERNS) {
-      // Reset regex state
-      pattern.lastIndex = 0;
-
-      let match;
-      const lines = content.split('\n');
-
       for (let lineNum = 0; lineNum < lines.length; lineNum++) {
         const line = lines[lineNum];
-        // Reset for each line
+        // Reset regex state for each line
         pattern.lastIndex = 0;
 
+        let match;
         while ((match = pattern.exec(line)) !== null) {
           // Check if this line is a comment explaining the pattern (not actual usage)
           const trimmedLine = line.trim();
@@ -292,6 +294,43 @@ function scanFile(filePath) {
             line: lineNum + 1,
             column: match.index + 1,
             match: match[0],
+            context: line.trim().substring(0, 100),
+          });
+        }
+      }
+    }
+
+    // Check each banned string pattern (simple includes check)
+    for (const bannedString of BANNED_STRINGS) {
+      for (let lineNum = 0; lineNum < lines.length; lineNum++) {
+        const line = lines[lineNum];
+        const index = line.indexOf(bannedString);
+
+        if (index !== -1) {
+          // Check if this line is a comment explaining the pattern (not actual usage)
+          const trimmedLine = line.trim();
+          const isComment = trimmedLine.startsWith('//') ||
+                           trimmedLine.startsWith('#') ||
+                           trimmedLine.startsWith('*') ||
+                           trimmedLine.startsWith('<!--');
+
+          // Allow comments that are documenting the migration
+          if (isComment && (
+            trimmedLine.includes('LEGACY') ||
+            trimmedLine.includes('migration') ||
+            trimmedLine.includes('removed') ||
+            trimmedLine.includes('deprecated') ||
+            trimmedLine.includes('no longer') ||
+            trimmedLine.includes('not supported')
+          )) {
+            continue;
+          }
+
+          violations.push({
+            file: relativePath,
+            line: lineNum + 1,
+            column: index + 1,
+            match: bannedString,
             context: line.trim().substring(0, 100),
           });
         }
