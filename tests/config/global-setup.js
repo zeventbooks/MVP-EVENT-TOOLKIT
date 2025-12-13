@@ -1,9 +1,10 @@
 /**
- * Playwright Global Setup (Story 3.5 Enhanced)
+ * Playwright Global Setup (Story 3.5 Enhanced, Story 1.3)
  * Runs once before all tests
  *
  * Features:
  * - Prints environment configuration
+ * - Logs runtime environment with origin detection (Story 1.3)
  * - Optional deployment warmup (set WARMUP_BEFORE_TESTS=true)
  * - Validates deployment is responding before tests run
  * - Generates unique session ID for test run tracking
@@ -12,6 +13,7 @@
  */
 
 const { printEnvironmentInfo, getBaseUrl } = require('./environments');
+const { logRuntimeEnv } = require('./runtime-logger');
 const https = require('https');
 const http = require('http');
 const fs = require('fs').promises;
@@ -188,6 +190,10 @@ module.exports = async () => {
 
   // Print environment configuration
   printEnvironmentInfo();
+
+  // Log runtime environment with origin detection (Story 1.3)
+  // This shows the actual origin tests will hit, helping debug 410/404/500 issues
+  logRuntimeEnv();
 
   const baseUrl = getBaseUrl();
 
