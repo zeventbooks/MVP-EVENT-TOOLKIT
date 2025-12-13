@@ -107,29 +107,36 @@ describe('Story 5: Worker Observability & Logging', () => {
     });
   });
 
-  describe('GAS Proxy Logging', () => {
-    it('should have logGasProxy function', () => {
+  describe('GAS Proxy Logging (DEPRECATED - Story 5.2)', () => {
+    // Story 5.2: GAS proxy is deprecated. All routes use Worker-native implementations.
+    // These tests verify the legacy logging functions still exist but are no longer called.
+
+    it('should have logGasProxy function (kept for reference)', () => {
       expect(workerContent).toContain('function logGasProxy(proxyType, path, env)');
     });
 
-    it('should log GAS proxy with [GAS_PROXY] prefix', () => {
+    it('should log GAS proxy with [GAS_PROXY] prefix (function exists)', () => {
       expect(workerContent).toContain('[GAS_PROXY]');
     });
 
-    it('should include proxy type in GAS proxy logs', () => {
+    it('should include proxy type in GAS proxy logs (function format)', () => {
       expect(workerContent).toContain('type=${proxyType}');
     });
 
-    it('should log API requests as GAS proxy', () => {
-      expect(workerContent).toContain("logGasProxy('api', url.pathname, env)");
+    // Story 5.2: These routes no longer call logGasProxy
+    it('should NOT log API requests as GAS proxy (Story 5.2: deprecated, returns 410)', () => {
+      // Legacy API now returns 410 Gone, not proxied to GAS
+      expect(workerContent).toContain('[API_DEPRECATED]');
     });
 
-    it('should log shortlinks as GAS proxy', () => {
-      expect(workerContent).toContain("logGasProxy('shortlink', url.pathname, env)");
+    it('should NOT log shortlinks as GAS proxy (Story 5.2: Worker-native)', () => {
+      // Shortlinks now use Worker-native Sheets API
+      expect(workerContent).toContain('[SHORTLINK] Worker-native resolution');
     });
 
-    it('should log JSON pages as GAS proxy', () => {
-      expect(workerContent).toContain("logGasProxy('json_page', url.pathname, env)");
+    it('should NOT log JSON pages as GAS proxy (Story 5.2: redirects to /api/v2)', () => {
+      // JSON pages now redirect to /api/v2/*
+      expect(workerContent).toContain('[JSON_REDIRECT]');
     });
   });
 
@@ -143,8 +150,9 @@ describe('Story 5: Worker Observability & Logging', () => {
       expect(routingMatch[0]).not.toContain('logGasProxy');
     });
 
-    it('should comment that HTML routes NEVER call fetch(GAS_WEBAPP_URL)', () => {
-      expect(workerContent).toContain('NEVER calls fetch(GAS_WEBAPP_URL)');
+    it('should document that NO routes call GAS (Story 5.2)', () => {
+      // Story 5.2: NO routes proxy to GAS - all Worker-native
+      expect(workerContent).toContain('NO routes proxy to GAS');
     });
 
     it('should have Story 5 comment in HTML route section', () => {
@@ -406,14 +414,16 @@ describe('Story 5: Log Aggregation Alerting', () => {
       // These prefixes allow log aggregation tools to create alerts
       expect(workerContent).toContain('[ROUTE]');
       expect(workerContent).toContain('[404]');
+      // Story 5.2: GAS_PROXY still exists for legacy reference
       expect(workerContent).toContain('[GAS_PROXY]');
+      // Story 5.2: New log prefixes for Worker-native routes
+      expect(workerContent).toContain('[SHORTLINK]');
+      expect(workerContent).toContain('[API_DEPRECATED]');
     });
 
     it('should NOT have "proxied to GAS" for HTML routes', () => {
       // DevOps requirement: No log should say HTML was proxied to GAS
-      // This is ensured by:
-      // 1. HTML routes use logRouteResolution, not logGasProxy
-      // 2. Only API, shortlinks, and JSON pages use logGasProxy
+      // Story 5.2: NO routes proxy to GAS anymore - all Worker-native
 
       // Extract handleHtmlPageRequest and verify no GAS proxy logging
       const htmlHandlerMatch = workerContent.match(/async function handleHtmlPageRequest[\s\S]*?return new Response\(html/);

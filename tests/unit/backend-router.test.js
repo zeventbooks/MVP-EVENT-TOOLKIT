@@ -129,8 +129,9 @@ describe('Backend Router (Story 0.1)', () => {
       expect(configContent).toContain("export const BACKEND_ERROR_CODE = 'BACKEND_ERROR'");
     });
 
-    it('should have default backend mode as GAS', () => {
-      expect(configContent).toContain("export const DEFAULT_BACKEND_MODE = BACKEND_MODES.GAS");
+    it('should have default backend mode as WORKER (Story 5.2)', () => {
+      // Story 5.2: Full DNS cutover - default is now Worker
+      expect(configContent).toContain("export const DEFAULT_BACKEND_MODE = BACKEND_MODES.WORKER");
     });
   });
 
@@ -160,13 +161,15 @@ describe('Backend Router (Story 0.1)', () => {
       expect(configContent).toMatch(/['"]\/poster['"]:\s*['"]worker['"]/);
     });
 
-    it('should keep shortlinks on GAS', () => {
-      expect(configContent).toMatch(/['"]\/r['"]:\s*['"]gas['"]/);
-      expect(configContent).toMatch(/['"]\/redirect['"]:\s*['"]gas['"]/);
+    it('should map shortlinks to Worker (Story 5.2)', () => {
+      // Story 5.2: Shortlinks now use Worker-native Sheets API
+      expect(configContent).toMatch(/['"]\/r['"]:\s*['"]worker['"]/);
+      expect(configContent).toMatch(/['"]\/redirect['"]:\s*['"]worker['"]/);
     });
 
-    it('should keep legacy /api/rpc on GAS', () => {
-      expect(configContent).toMatch(/['"]\/api\/rpc['"]:\s*['"]gas['"]/);
+    it('should map legacy /api/rpc to Worker (Story 5.2)', () => {
+      // Story 5.2: Legacy API returns 410 Gone via Worker
+      expect(configContent).toMatch(/['"]\/api\/rpc['"]:\s*['"]worker['"]/);
     });
   });
 
@@ -365,14 +368,14 @@ describe('Backend Router (Story 0.1)', () => {
       expect(wranglerContent).toContain('BACKEND_MODE');
     });
 
-    it('should have staging BACKEND_MODE set to mixed', () => {
-      // In staging section, should be mixed for gradual migration
-      expect(wranglerContent).toMatch(/\[env\.staging\.vars\][\s\S]*?BACKEND_MODE\s*=\s*["']mixed["']/);
+    it('should have staging BACKEND_MODE set to worker (Story 5.2)', () => {
+      // Story 5.2: Full DNS cutover - staging uses worker mode
+      expect(wranglerContent).toMatch(/\[env\.staging\.vars\][\s\S]*?BACKEND_MODE\s*=\s*["']worker["']/);
     });
 
-    it('should have BACKEND_MODE set to worker in production (Story 6.1)', () => {
-      // Story 6.1: Production uses BACKEND_MODE=worker for DNS cutover
-      // All production traffic routes through Worker
+    it('should have BACKEND_MODE set to worker in production (Story 5.2)', () => {
+      // Story 5.2: Full DNS cutover - production uses worker mode
+      // All traffic routes through Worker - no GAS backend calls
       expect(wranglerContent).toMatch(/\[env\.production\.vars\][\s\S]*?BACKEND_MODE\s*=\s*["']worker["']/);
     });
   });

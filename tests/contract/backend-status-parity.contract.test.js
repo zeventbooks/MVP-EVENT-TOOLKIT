@@ -1,21 +1,22 @@
 /**
- * Backend Status Parity Contract Tests (Story 0.1)
+ * Backend Status Parity Contract Tests (Story 0.1, updated Story 5.2)
  *
- * Validates that /api/status returns the same response shape from both
- * GAS and Worker backends. This ensures seamless migration between backends.
+ * Story 5.2: GAS backend is DEPRECATED. All traffic uses Worker backend.
  *
- * Story 0.1 Acceptance Criteria:
- * - Contract test: /api/status returns same shape from both backends
+ * Originally validated that /api/status returns the same response from both
+ * GAS and Worker backends. With Story 5.2 (full DNS cutover), GAS backend
+ * is no longer available - all requests use Worker-native implementations.
  *
- * These tests verify:
- * - Response structure is identical (or compatible) between backends
- * - Required fields exist in both implementations
- * - X-Backend header indicates which backend served the request
- * - Query param ?backend=gas|worker correctly routes to specified backend
+ * This file is preserved for reference but GAS-specific tests are skipped.
+ *
+ * Current tests verify:
+ * - Worker-native /api/v2/status endpoint works correctly
+ * - Response structure meets CI/CD requirements
+ * - X-Backend header indicates 'worker'
  *
  * @see cloudflare-proxy/src/config/backendConfig.js
  * @see cloudflare-proxy/src/api/status.js (Worker implementation)
- * @see cloudflare-proxy/worker.js (GAS proxy implementation)
+ * @see docs/DNS_CUTOVER.md (Story 5.2 migration details)
  */
 
 const fs = require('fs');
@@ -263,7 +264,8 @@ describeNetwork('Backend Status Parity - Live Tests (Staging)', () => {
     }, TIMEOUT_MS);
   });
 
-  describe('GAS Backend Response (?backend=gas)', () => {
+  // Story 5.2: GAS backend is DEPRECATED - skip these tests
+  describe.skip('GAS Backend Response (?backend=gas) - DEPRECATED Story 5.2', () => {
 
     it('should return 200 status for ?backend=gas', async () => {
       const response = await fetchStatus('gas');
@@ -363,7 +365,8 @@ describeNetwork('Backend Status Parity - Live Tests (Staging)', () => {
     }, TIMEOUT_MS);
   });
 
-  describe('Response Shape Parity', () => {
+  // Story 5.2: GAS backend is DEPRECATED - skip parity tests
+  describe.skip('Response Shape Parity - DEPRECATED Story 5.2', () => {
 
     it('should have ok field in both backends', async () => {
       const [gasResponse, workerResponse] = await Promise.all([
@@ -418,7 +421,8 @@ describeNetwork('Backend Status Parity - Live Tests (Staging)', () => {
       expect(response.body.ok).toBe(true);
     }, TIMEOUT_MS);
 
-    it('should work with ?backend=gas for A/B testing', async () => {
+    // Story 5.2: GAS backend is DEPRECATED - skip this test
+    it.skip('should work with ?backend=gas for A/B testing - DEPRECATED Story 5.2', async () => {
       const response = await fetchStatus('gas');
 
       expect(response.status).toBe(200);

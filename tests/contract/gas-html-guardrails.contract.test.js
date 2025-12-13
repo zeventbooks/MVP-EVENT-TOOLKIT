@@ -278,10 +278,12 @@ describe('GAS HTML Guardrails Contract', () => {
       expect(workerContent).toContain('logRouteResolution(url.pathname, templateName, env)');
     });
 
-    test('GAS proxy routes are logged via logGasProxy', () => {
-      expect(workerContent).toContain("logGasProxy('shortlink'");
-      expect(workerContent).toContain("logGasProxy('json_page'");
-      expect(workerContent).toContain("logGasProxy('api'");
+    test('Story 5.2: GAS proxy is deprecated - Worker-native routes use new logging', () => {
+      // Story 5.2: GAS proxy is deprecated. logGasProxy function exists but is no longer called.
+      // New routes use Worker-native implementations with their own logging.
+      expect(workerContent).toContain('[SHORTLINK] Worker-native resolution');
+      expect(workerContent).toContain('[JSON_REDIRECT]');
+      expect(workerContent).toContain('[API_DEPRECATED]');
     });
 
   });

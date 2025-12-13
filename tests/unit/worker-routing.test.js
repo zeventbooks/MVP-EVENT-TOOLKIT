@@ -787,28 +787,32 @@ describe('Story 2: Explicit HTML Route Map', () => {
       expect(content).toContain("response = await handleHtmlPageRequest(url, routeParams, env)");
     });
 
-    it('should route JSON pages through handleJsonPageRequest', () => {
+    it('should route JSON pages via redirect to /api/v2 (Story 5.2)', () => {
       const workerPath = path.join(__dirname, '../../cloudflare-proxy/worker.js');
       const content = fs.readFileSync(workerPath, 'utf8');
 
+      // Story 5.2: JSON pages redirect to /api/v2/*
       expect(content).toContain("Object.hasOwn(JSON_ROUTE_MAP, routeParams.page)");
-      expect(content).toContain("response = await handleJsonPageRequest(request, url, routeParams, appsScriptBase, env)");
+      expect(content).toContain("[JSON_REDIRECT]");
     });
 
-    it('should route shortlinks through handleShortlinkRedirect', () => {
+    it('should route shortlinks through Worker-native handler (Story 5.2)', () => {
       const workerPath = path.join(__dirname, '../../cloudflare-proxy/worker.js');
       const content = fs.readFileSync(workerPath, 'utf8');
 
+      // Story 5.2: Shortlinks use Worker-native Sheets API
       expect(content).toContain("Object.hasOwn(GAS_PROXY_ROUTES, routeParams.p)");
-      expect(content).toContain("response = await handleShortlinkRedirect(request, url, appsScriptBase, env)");
+      expect(content).toContain("response = await handleWorkerShortlinkRedirect(request, url, env)");
     });
 
-    it('should route API requests through proxyToAppsScript', () => {
+    it('should return 410 Gone for legacy API requests (Story 5.2)', () => {
       const workerPath = path.join(__dirname, '../../cloudflare-proxy/worker.js');
       const content = fs.readFileSync(workerPath, 'utf8');
 
-      expect(content).toContain("if (isApiRequest)");
-      expect(content).toContain("response = await proxyToAppsScript(request, appsScriptBase, env)");
+      // Story 5.2: Legacy /api/* returns 410 Gone
+      expect(content).toContain("if (isApiRequest");
+      expect(content).toContain("[API_DEPRECATED]");
+      expect(content).toContain("status: 410");
     });
   });
 
