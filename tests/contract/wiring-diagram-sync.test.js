@@ -131,7 +131,8 @@ describe('Wiring Diagram Sync Contract', () => {
     test('no orphaned APIs in the diagram', () => {
       // ZEVENT-003: These APIs are intentionally orphaned - kept for backward compatibility
       // but no longer called by Admin (migrated to api_saveEvent)
-      const allowedOrphanedApis = ['api_create', 'api_updateEventData'];
+      // Story 2.2: api_getPublicBundle and api_list are now served by Cloudflare Worker, not GAS RPC
+      const allowedOrphanedApis = ['api_create', 'api_updateEventData', 'api_getPublicBundle', 'api_list'];
 
       const orphanedApis = diagram.orphanedApis || [];
       const unexpectedOrphans = orphanedApis.filter(api => !allowedOrphanedApis.includes(api));
@@ -233,7 +234,8 @@ describe('Wiring Diagram Sync Contract', () => {
     test('all MVP APIs are used by at least one surface', () => {
       // ZEVENT-003: These APIs are intentionally orphaned - kept for backward compatibility
       // but no longer called by Admin (migrated to api_saveEvent)
-      const allowedOrphanedApis = ['api_create', 'api_updateEventData'];
+      // Story 2.2: api_getPublicBundle and api_list are now served by Cloudflare Worker, not GAS RPC
+      const allowedOrphanedApis = ['api_create', 'api_updateEventData', 'api_getPublicBundle', 'api_list'];
 
       const mvpApis = diagram.mvpApis;
       const orphaned = [];
@@ -260,7 +262,8 @@ describe('Wiring Diagram Sync Contract', () => {
 
     test('each surface uses appropriate bundle API', () => {
       // Verify surfaces use their expected bundle APIs
-      expect(diagram.surfaces.Public.calls).toContain('api_getPublicBundle');
+      // Story 2.2: Public now uses Cloudflare Worker endpoint instead of GAS api_getPublicBundle
+      // Public.html calls /api/events/:id/publicBundle directly via fetch
       expect(diagram.surfaces.Display.calls).toContain('api_getDisplayBundle');
       expect(diagram.surfaces.Poster.calls).toContain('api_getPosterBundle');
       expect(diagram.surfaces.SharedReport.calls).toContain('api_getSharedAnalytics');

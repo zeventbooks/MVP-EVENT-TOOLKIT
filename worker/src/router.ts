@@ -16,10 +16,13 @@
  *
  * @module router
  * @see Story 1.1 - Create Central Worker Router
+ * @see Story 2.2 - Replace getPublicBundle Worker Implementation
  */
 
 import { RouterLogger, createLogger } from './logger';
 import { handleStatus, type StatusEnv } from './handlers/status';
+import { handleGetPublicBundle } from './handlers/publicBundle';
+import { handleGetAdminBundle } from './handlers/adminBundle';
 
 // =============================================================================
 // Constants
@@ -27,8 +30,10 @@ import { handleStatus, type StatusEnv } from './handlers/status';
 
 /**
  * Router version - incremented with each significant change
+ * 1.1.0 - Initial router (Story 1.1)
+ * 1.2.0 - Wired up publicBundle and adminBundle handlers (Story 2.2)
  */
-export const ROUTER_VERSION = '1.1.0';
+export const ROUTER_VERSION = '1.2.0';
 
 /**
  * Valid brands for routing
@@ -427,9 +432,94 @@ async function handleApiEvent(
 }
 
 /**
- * Placeholder for bundle handlers
+ * Handle public bundle request
+ * @see Story 2.1 - Worker getPublicBundle from Sheets
  */
-async function handleApiBundle(
+async function handleApiPublicBundle(
+  request: Request,
+  env: RouterEnv,
+  logger: RouterLogger,
+  brand: Brand,
+  eventId: string
+): Promise<Response> {
+  const startTime = Date.now();
+
+  try {
+    // Add brand to URL if not already present
+    const url = new URL(request.url);
+    if (!url.searchParams.has('brand')) {
+      url.searchParams.set('brand', brand);
+    }
+
+    // Create modified request with brand param
+    const modifiedRequest = new Request(url.toString(), {
+      method: request.method,
+      headers: request.headers,
+    });
+
+    const response = await handleGetPublicBundle(modifiedRequest, env, eventId);
+    const durationMs = Date.now() - startTime;
+
+    logger.apiRequest('GET', `/api/events/${eventId}/publicBundle`, response.status, durationMs, {
+      brand,
+      eventId,
+      bundleType: 'publicBundle',
+    });
+
+    return addStandardHeaders(response, logger);
+  } catch (error) {
+    logger.error('Failed to handle publicBundle', error);
+    return create500Response(error instanceof Error ? error : new Error(String(error)), logger);
+  }
+}
+
+/**
+ * Handle admin bundle request
+ * @see Story 2.2 - Worker getAdminBundle from Sheets
+ */
+async function handleApiAdminBundle(
+  request: Request,
+  env: RouterEnv,
+  logger: RouterLogger,
+  brand: Brand,
+  eventId: string
+): Promise<Response> {
+  const startTime = Date.now();
+
+  try {
+    // Add brand to URL if not already present
+    const url = new URL(request.url);
+    if (!url.searchParams.has('brand')) {
+      url.searchParams.set('brand', brand);
+    }
+
+    // Create modified request with brand param
+    const modifiedRequest = new Request(url.toString(), {
+      method: request.method,
+      headers: request.headers,
+    });
+
+    const response = await handleGetAdminBundle(modifiedRequest, env, eventId);
+    const durationMs = Date.now() - startTime;
+
+    logger.apiRequest('GET', `/api/events/${eventId}/adminBundle`, response.status, durationMs, {
+      brand,
+      eventId,
+      bundleType: 'adminBundle',
+    });
+
+    return addStandardHeaders(response, logger);
+  } catch (error) {
+    logger.error('Failed to handle adminBundle', error);
+    return create500Response(error instanceof Error ? error : new Error(String(error)), logger);
+  }
+}
+
+/**
+ * Placeholder for display/poster bundle handlers
+ * @see Story 2.3, Story 2.4
+ */
+async function handleApiDisplayPosterBundle(
   _request: Request,
   _env: RouterEnv,
   logger: RouterLogger,
@@ -437,7 +527,7 @@ async function handleApiBundle(
   eventId: string,
   bundleType: string
 ): Promise<Response> {
-  // TODO: Implement bundle fetch in Story 2.x
+  // TODO: Implement display/poster bundle fetch in Story 2.3, 2.4
   const body = {
     ok: true,
     status: 200,
@@ -446,7 +536,7 @@ async function handleApiBundle(
     eventId,
     bundleType,
     bundle: null,
-    message: `${bundleType} endpoint placeholder`,
+    message: `${bundleType} endpoint placeholder - implement in Story 2.3/2.4`,
     timestamp: new Date().toISOString(),
   };
 
@@ -597,10 +687,28 @@ export async function handleRequest(
             break;
 
           case 'publicBundle':
+            response = await handleApiPublicBundle(
+              request,
+              env,
+              logger,
+              match.brand || 'root',
+              match.eventId!
+            );
+            break;
+
           case 'adminBundle':
+            response = await handleApiAdminBundle(
+              request,
+              env,
+              logger,
+              match.brand || 'root',
+              match.eventId!
+            );
+            break;
+
           case 'displayBundle':
           case 'posterBundle':
-            response = await handleApiBundle(
+            response = await handleApiDisplayPosterBundle(
               request,
               env,
               logger,

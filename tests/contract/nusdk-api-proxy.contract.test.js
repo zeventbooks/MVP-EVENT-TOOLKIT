@@ -163,7 +163,7 @@ describe('Story 4: NU SDK + /api/* Proxy (Stage-1 Hermetic)', () => {
     );
 
     test.each(ACTIVE_TEMPLATES)(
-      '%s should use NU SDK for API calls (rpc/safeRpc/swr)',
+      '%s should use NU SDK for API calls (rpc/safeRpc/swr) or Worker endpoints',
       (templateName) => {
         const filePath = path.join(SRC_MVP_DIR, templateName);
 
@@ -178,7 +178,15 @@ describe('Story 4: NU SDK + /api/* Proxy (Stage-1 Hermetic)', () => {
         // - NU.rpc() - direct RPC call
         // - NU.safeRpc() - RPC with graceful error handling
         // - NU.swr() - stale-while-revalidate pattern
-        expect(content).toMatch(/NU\.(rpc|safeRpc|swr)\s*\(/);
+        //
+        // Story 2.2: Public.html migrated to use Worker endpoints directly
+        // instead of NU SDK for GAS RPC calls. This is the target state
+        // for all surfaces as we migrate away from GAS.
+        const usesNuSdk = /NU\.(rpc|safeRpc|swr)\s*\(/.test(content);
+        const usesWorkerEndpoints = /fetch\w*FromWorker\s*\(/.test(content);
+
+        // Either NU SDK or Worker endpoints is acceptable
+        expect(usesNuSdk || usesWorkerEndpoints).toBe(true);
       }
     );
   });
