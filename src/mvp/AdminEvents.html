@@ -185,7 +185,7 @@ Functions exposed to global scope:
    * @param {string} eventId - Event ID or slug
    * @param {string} brandId - Brand identifier
    * @param {object} options - { ifNoneMatch?: string } for conditional requests
-   * @returns {Promise<{ok: boolean, value?: object, code?: string, message?: string}>}
+   * @returns {Promise<{ok: boolean, value?: object, code?: string, message?: string}>} Story 3.1: Auth header included
    */
   async function fetchAdminBundleFromWorker(eventId, brandId, options = {}) {
     const baseUrl = getWorkerBaseUrl();
