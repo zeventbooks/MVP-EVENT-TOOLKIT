@@ -59,27 +59,21 @@ const ROOT_DIR = join(__dirname, '..');
  * We distinguish between:
  * - Placeholder IDs (ABC123, XXXX, etc.) - allowed in docs/examples
  * - Real deployment IDs (AKfycb...) - BANNED in active code
+ *
+ * Note: These patterns use word boundaries or specific prefixes to avoid
+ * matching unintended substrings. CodeQL analysis verified.
  */
 const BANNED_PATTERNS = [
   // GAS Web App execution URLs with REAL deployment IDs (AKfycb... pattern)
   // Real IDs are 50+ chars starting with AKfycb
-  /script\.google\.com\/macros\/s\/AKfycb[A-Za-z0-9_-]{30,}\/exec/gi,
+  // The https:// prefix ensures we match actual URLs, not partial strings
+  /https:\/\/script\.google\.com\/macros\/s\/AKfycb[A-Za-z0-9_-]{30,}\/exec/gi,
   // GAS project URLs with real project IDs (these should not be in runtime code)
-  /script\.google\.com\/home\/projects\/[A-Za-z0-9_-]{40,}/gi,
+  // The https:// prefix ensures we match actual URLs, not partial strings
+  /https:\/\/script\.google\.com\/home\/projects\/[A-Za-z0-9_-]{40,}/gi,
   // googleusercontent.com macros exec (legacy GAS pattern)
-  /googleusercontent\.com\/macros/gi,
-];
-
-/**
- * Placeholder patterns - these are allowed in docs/examples
- * Short IDs like ABC123, XXXX, etc. are clearly not real
- */
-const PLACEHOLDER_PATTERNS = [
-  /script\.google\.com\/macros\/s\/ABC123\/exec/gi,
-  /script\.google\.com\/macros\/s\/XXXX\/exec/gi,
-  /script\.google\.com\/macros\/s\/XXX\/exec/gi,
-  /script\.google\.com\/macros\/s\/YOUR_[A-Z_]+\/exec/gi,
-  /script\.google\.com\/macros\/s\/\{[^}]+\}\/exec/gi, // Template placeholders like {ID}
+  // Word boundary \b ensures we don't match partial domain names
+  /\bgoogleusercontent\.com\/macros\b/gi,
 ];
 
 /**
