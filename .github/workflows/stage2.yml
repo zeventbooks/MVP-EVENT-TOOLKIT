@@ -785,7 +785,7 @@ jobs:
           fi
 
       - name: Upload alignment test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: env-alignment-results-${{ env.ENVIRONMENT }}
@@ -943,7 +943,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload API smoke test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: api-smoke-results-${{ env.ENVIRONMENT }}
@@ -1084,7 +1084,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload UI smoke test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: ui-smoke-results-${{ env.ENVIRONMENT }}
@@ -1226,7 +1226,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload E2E test artifacts (screenshots, videos, traces)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: e2e-test-artifacts-${{ env.ENVIRONMENT }}
@@ -1238,7 +1238,7 @@ jobs:
           retention-days: 14
 
       - name: Upload failure artifacts (videos and traces on failure)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: steps.e2e-tests.outcome == 'failure'
         with:
           name: e2e-failure-debug-${{ env.ENVIRONMENT }}-${{ github.run_number }}
@@ -1389,7 +1389,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload Worker cutover test artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: worker-cutover-results-${{ env.ENVIRONMENT }}

@@ -279,7 +279,7 @@ jobs:
 
       - name: Upload API test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: api-smoke-results
           path: |
@@ -369,7 +369,7 @@ jobs:
 
       - name: Upload UI test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ui-smoke-results
           path: |

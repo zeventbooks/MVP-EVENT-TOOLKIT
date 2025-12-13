@@ -192,7 +192,7 @@ jobs:
 
       - name: Upload coverage reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: coverage-report
           path: |
@@ -295,7 +295,7 @@ jobs:
 
       - name: Upload contract test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: contract-test-results
           path: .test-results/
@@ -1570,7 +1570,7 @@ jobs:
           echo "base_url=${{ env.STAGING_URL }}" >> $GITHUB_OUTPUT
 
       - name: Upload stg-base-url artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: stg-base-url
           path: artifact/stg-base-url.txt
@@ -2358,7 +2358,7 @@ jobs:
 
       - name: Upload GAS HTML artifacts on failure
         if: failure() && steps.gas-integrity.outcome == 'failure'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: prod-gas-html-artifacts
           path: .test-results/gas-html-artifacts/
@@ -2386,7 +2386,7 @@ jobs:
           echo "base_url=${{ env.PRODUCTION_URL }}" >> $GITHUB_OUTPUT
 
       - name: Upload prod-base-url artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: prod-base-url
           path: artifact/prod-base-url.txt
