@@ -8,6 +8,8 @@ DEPENDENCIES: NUSDK.html (NU.rpc, NU.esc), SharedUtils.html (showToast)
 Story 4.1: Extracted from Admin.html for modularization and maintainability.
 Story 2.3: Migrated from GAS to Worker endpoints for all read operations.
          All event loading now uses Worker /api/events and /api/events/:id/adminBundle
+Story 3.2: Added createEventViaWorker() for creating events via Worker.
+         Event creation now uses Worker POST /api/admin/events
 
 Functions exposed to global scope:
   Event Selector:
@@ -20,6 +22,7 @@ Functions exposed to global scope:
   Worker Fetch Functions:
   - fetchEventsListFromWorker()    → GET /api/events
   - fetchAdminBundleFromWorker()   → GET /api/events/:id/adminBundle
+  - createEventViaWorker()         → POST /api/admin/events (Story 3.2)
 
   Auth Helpers (Story 3.1):
   - getAdminToken()              → Get admin token from window or localStorage
@@ -239,9 +242,89 @@ Functions exposed to global scope:
     }
   }
 
+  /**
+   * Create a new event via Worker endpoint
+   * POST /api/admin/events
+   *
+   * Story 3.2: Replaces GAS api_saveEvent (create mode)
+   *
+   * @param {object} eventData - Event data to create
+   * @param {string} eventData.name - Event name (required)
+   * @param {string} eventData.startDateISO - Start date YYYY-MM-DD (required)
+   * @param {string} eventData.venue - Event venue (required)
+   * @param {string} [eventData.brandId] - Brand ID (optional, uses window.BRAND)
+   * @param {string} [eventData.templateId] - Template ID (optional)
+   * @param {string} [eventData.signupUrl] - Signup URL (optional)
+   * @returns {Promise<{ok: boolean, value?: object, code?: string, message?: string}>}
+   */
+  async function createEventViaWorker(eventData) {
+    const baseUrl = getWorkerBaseUrl();
+    const endpoint = `${baseUrl}/api/admin/events`;
+
+    // Build request body
+    const body = {
+      name: eventData.name,
+      startDateISO: eventData.startDateISO,
+      venue: eventData.venue,
+      brandId: eventData.brandId || window.BRAND || 'root',
+      templateId: eventData.templateId,
+      signupUrl: eventData.signupUrl || eventData.ctas?.primary?.url || ''
+    };
+
+    try {
+      console.log('[AdminEvents] Creating event via Worker:', body.name);
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: buildAdminHeaders({
+          'Content-Type': 'application/json'
+        }),
+        credentials: 'same-origin',
+        body: JSON.stringify(body)
+      });
+
+      // Handle auth errors
+      if (response.status === 401) {
+        console.warn('[AdminEvents] Authentication required for createEvent');
+        return {
+          ok: false,
+          code: 'UNAUTHORIZED',
+          message: 'Authentication required. Please reload the page or contact admin.'
+        };
+      }
+
+      // Parse JSON response
+      const data = await response.json();
+
+      // Normalize response shape for compatibility with existing code
+      // Worker returns { ok, status, item, message }
+      // Existing code expects { ok, value: {...event data} }
+      if (data.ok && data.item) {
+        console.log('[AdminEvents] Event created via Worker:', data.item.id);
+        return {
+          ok: true,
+          value: data.item,
+          message: data.message
+        };
+      }
+
+      // Pass through error responses
+      return data;
+
+    } catch (error) {
+      console.error('[AdminEvents] Worker createEvent failed:', error);
+      return {
+        ok: false,
+        code: 'NETWORK_ERROR',
+        message: 'Unable to connect to server. Please check your connection.'
+      };
+    }
+  }
+
   // Expose Worker functions to global scope
   window.fetchEventsListFromWorker = fetchEventsListFromWorker;
   window.fetchAdminBundleFromWorker = fetchAdminBundleFromWorker;
+  window.createEventViaWorker = createEventViaWorker;
 
   // Story 3.1: Expose auth helpers for other modules that need to make authenticated requests
   window.getAdminToken = getAdminToken;

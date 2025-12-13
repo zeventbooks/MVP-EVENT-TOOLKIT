@@ -3868,15 +3868,16 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
         const selectedTemplateId = document.getElementById('templateId').value || 'custom';
         console.log('[CreateEvent] Selected template:', selectedTemplateId);
 
-        // CANONICAL API: api_saveEvent (ZEVENT-003)
-        // Contract-First pattern: Admin sends full Event object, server validates and persists
-        console.log('[CreateEvent] Calling api_saveEvent (canonical)...');
-        const res = await NU.rpc('api_saveEvent', {
+        // Story 3.2: Use Worker endpoint for event creation
+        // POST /api/admin/events via createEventViaWorker()
+        console.log('[CreateEvent] Calling Worker createEvent...');
+        const res = await window.createEventViaWorker({
+          name: eventData.name,
+          startDateISO: eventData.startDateISO,
+          venue: eventData.venue,
           brandId: BRAND,
-          adminKey: getAdminKey(),
-          event: eventData,
-          scope: SCOPE,
-          templateId: selectedTemplateId
+          templateId: selectedTemplateId,
+          signupUrl: eventData.ctas?.primary?.url || ''
         });
         console.log('[CreateEvent] API response:', res.ok ? 'success' : 'error', res.ok ? res.value?.id : res.message);
 
@@ -5459,7 +5460,7 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
 
     /**
      * Create event via wizard (Step 3 → 4 transition)
-     * Uses existing api_saveEvent RPC
+     * Story 3.2: Uses Worker POST /api/admin/events via createEventViaWorker()
      */
     async function createWizardEvent() {
       overlay(true);
@@ -5477,52 +5478,16 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
           signupUrl = document.getElementById('wizardSignupUrl')?.value.trim() || '';
         }
 
-        // Build event object (minimal required fields)
-        const eventId = generateId();
-        const slug = slugify(name);
-
-        const event = {
-          id: eventId,
-          slug: slug,
+        // Story 3.2: Use Worker endpoint for event creation
+        // Server generates ID, slug, and all other fields
+        console.log('[Wizard] Creating event via Worker...');
+        const res = await window.createEventViaWorker({
           name: name,
           startDateISO: startDateISO,
           venue: venue,
-          ctas: {
-            primary: {
-              label: 'Sign Up',
-              url: signupUrl
-            }
-          },
-          settings: {
-            showSchedule: false,
-            showStandings: false,
-            showBracket: false,
-            showVideo: true,
-            showMap: true,
-            showGallery: true,
-            showSponsors: true,
-            showSponsorBanner: true,
-            showSponsorStrip: true,
-            showLeagueStrip: true,
-            showQRSection: true
-          }
-        };
-
-        // Get admin key
-        const adminKey = getAdminKey();
-        if (!adminKey) {
-          SharedUtils.showToast('Admin key required', 'error');
-          return false;
-        }
-
-        // Call api_saveEvent (existing RPC)
-        console.log('[Wizard] Creating event:', eventId);
-        const res = await NU.rpc('api_saveEvent', {
           brandId: BRAND,
-          adminKey: adminKey,
-          event: event,
-          scope: SCOPE,
-          templateId: templateId
+          templateId: templateId,
+          signupUrl: signupUrl || ''
         });
 
         if (!res.ok) {
@@ -5530,13 +5495,14 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
           return false;
         }
 
-        // Store created event data
+        // Store created event data (now includes server-generated ID, slug, links, etc.)
         WIZARD.event = res.value;
         WIZARD.links = res.value.links || {};
+        const createdEventId = res.value.id;
 
         // If user wanted a form created, do that now
         if (WIZARD.signupOption === 'create') {
-          await createWizardSignupForm(eventId, name);
+          await createWizardSignupForm(createdEventId, name);
         }
 
         // Populate Step 4 (Links) with generated URLs
@@ -5545,7 +5511,7 @@ Related MVP Surfaces: Poster, Display, Public, Sponsor, SharedReport
         // Update Step 5 summary
         updateWizardSummary();
 
-        console.log('[Wizard] Event created successfully:', eventId);
+        console.log('[Wizard] Event created successfully:', createdEventId);
         SharedUtils.showToast('Event created!', 'success');
 
         return true;
