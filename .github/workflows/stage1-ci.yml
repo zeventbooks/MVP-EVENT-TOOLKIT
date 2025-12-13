@@ -9,28 +9,40 @@
 # Flow:
 #   1. Checkout + Install
 #   2. Lint / Format Check
-#   3. Unit Tests
-#   4. Contract Tests (API shapes)
-#   5. Sheets Connectivity Test (service account)
-#   6. Build Worker (wrangler build)
-#   7. Deploy to Staging (wrangler deploy --env staging)
+#   3. Unit Tests (parallel with Contract Tests)
+#   4. Contract Tests (parallel with Unit Tests)
+#   5. Sheets Connectivity Test
+#   6. Template Bundle Check
+#   7. Build Worker (wrangler build)
+#   8. Deploy to Staging (wrangler deploy --env staging)
 #
 # Acceptance Criteria:
 #   - If any job fails → no deploy
 #   - On success, stg.eventangle.com is updated using the built worker
+#   - PR validation runs without deployment
+#   - Push to main triggers full pipeline with deployment
 #
 # Negative Paths:
 #   - Misconfigured secrets → pipeline fails with clear error logs
+#   - Template bundling fails → deployment blocked
 #
 # Required Secrets:
 #   - CLOUDFLARE_API_TOKEN: Cloudflare API token for Worker deployment
 #   - GOOGLE_CLIENT_EMAIL: Service account email for Sheets connectivity
 #   - GOOGLE_PRIVATE_KEY: Service account private key (PEM format)
-#   - SHEETS_SPREADSHEET_ID: Staging spreadsheet ID for connectivity test
+#   - STAGING_SHEETS_SPREADSHEET_ID: Staging spreadsheet ID for connectivity test
+#
+# Rollback:
+#   - Use: npm run rollback:staging
+#   - Or: wrangler rollback --env staging
+#   - See: docs/ROLLBACK.md
 
 name: Stage-1 CI
 
 on:
+  pull_request:
+    branches:
+      - main
   push:
     branches:
       - main
@@ -38,6 +50,11 @@ on:
     inputs:
       skip_deploy:
         description: 'Skip deployment (validation only)'
+        required: false
+        default: 'false'
+        type: boolean
+      force_deploy:
+        description: 'Force deployment even on PR (use with caution)'
         required: false
         default: 'false'
         type: boolean
@@ -281,13 +298,13 @@ jobs:
             echo "✓ GOOGLE_PRIVATE_KEY is set"
           fi
 
-          if [ -z "${{ secrets.SHEETS_SPREADSHEET_ID }}" ]; then
-            echo "::error::Missing required secret: SHEETS_SPREADSHEET_ID"
+          if [ -z "${{ secrets.STAGING_SHEETS_SPREADSHEET_ID }}" ]; then
+            echo "::error::Missing required secret: STAGING_SHEETS_SPREADSHEET_ID"
             echo "  Configure in: Settings → Secrets → Actions → New repository secret"
             echo "  Value: Google Sheets spreadsheet ID for staging"
             ERRORS=$((ERRORS + 1))
           else
-            echo "✓ SHEETS_SPREADSHEET_ID is set"
+            echo "✓ STAGING_SHEETS_SPREADSHEET_ID is set"
           fi
 
           if [ $ERRORS -gt 0 ]; then
@@ -303,7 +320,7 @@ jobs:
         env:
           GOOGLE_CLIENT_EMAIL: ${{ secrets.GOOGLE_CLIENT_EMAIL }}
           GOOGLE_PRIVATE_KEY: ${{ secrets.GOOGLE_PRIVATE_KEY }}
-          SHEETS_SPREADSHEET_ID: ${{ secrets.SHEETS_SPREADSHEET_ID }}
+          SHEETS_SPREADSHEET_ID: ${{ secrets.STAGING_SHEETS_SPREADSHEET_ID }}
         run: |
           echo "=================================================="
           echo "STAGE-1: SHEETS CONNECTIVITY TEST"
@@ -324,14 +341,64 @@ jobs:
           fi
 
   # ==========================================================================
-  # JOB 6: BUILD WORKER
+  # JOB 6: TEMPLATE BUNDLE CHECK
+  # ==========================================================================
+  # Verify HTML templates can be bundled for Worker embedding
+  # Story 5.1: Ensures templates are valid before deployment
+  # ==========================================================================
+  template-bundle:
+    name: 📦 Template Bundle Check
+    runs-on: ubuntu-latest
+    needs: [lint]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Restore node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install dependencies (fallback)
+        run: npm ci
+        if: steps.cache.outputs.cache-hit != 'true'
+
+      - name: Verify template bundling
+        run: |
+          echo "=================================================="
+          echo "STAGE-1: TEMPLATE BUNDLE CHECK"
+          echo "=================================================="
+          npm run bundle:templates:check
+
+      - name: Create summary
+        if: always()
+        run: |
+          echo "## 📦 Template Bundle Check" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "### ✅ PASSED" >> $GITHUB_STEP_SUMMARY
+            echo "HTML templates validated and ready for bundling." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "Template bundling failed. Check HTML template syntax." >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # ==========================================================================
+  # JOB 7: BUILD WORKER
   # ==========================================================================
   # Build the Cloudflare Worker using wrangler
   # ==========================================================================
   build-worker:
     name: 🔨 Build Worker
     runs-on: ubuntu-latest
-    needs: [unit-tests, contract-tests, sheets-connectivity]
+    needs: [unit-tests, contract-tests, sheets-connectivity, template-bundle]
 
     steps:
       - name: Checkout code
@@ -388,19 +455,25 @@ jobs:
           fi
 
   # ==========================================================================
-  # JOB 7: DEPLOY TO STAGING
+  # JOB 8: DEPLOY TO STAGING
   # ==========================================================================
   # Deploy the Worker to stg.eventangle.com
-  # Only runs if ALL previous jobs pass
+  # Only runs on push to main (not PRs) and if ALL previous jobs pass
   # ==========================================================================
   deploy-staging:
     name: 🚀 Deploy to Staging
     runs-on: ubuntu-latest
     needs: [build-worker]
-    if: github.event.inputs.skip_deploy != 'true'
+    # Deploy only on push to main, unless force_deploy is set or skip_deploy is set
+    if: |
+      github.event.inputs.skip_deploy != 'true' &&
+      (github.event_name == 'push' || github.event.inputs.force_deploy == 'true')
     environment:
       name: staging
       url: https://stg.eventangle.com
+    outputs:
+      deployed: ${{ steps.deploy.outcome == 'success' }}
+      deployment_time: ${{ steps.deploy.outputs.deployment_time }}
 
     steps:
       - name: Checkout code
@@ -445,6 +518,7 @@ jobs:
         run: npm install -g wrangler@3
 
       - name: Deploy Worker to Staging
+        id: deploy
         working-directory: cloudflare-proxy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -456,6 +530,10 @@ jobs:
           echo "Environment: staging"
           echo ""
 
+          # Capture deployment time
+          DEPLOY_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          echo "deployment_time=$DEPLOY_TIME" >> $GITHUB_OUTPUT
+
           wrangler deploy --env staging
 
           echo ""
@@ -463,6 +541,7 @@ jobs:
           echo "✅ WORKER DEPLOYED TO STAGING"
           echo "=================================================="
           echo "URL: https://stg.eventangle.com"
+          echo "Time: $DEPLOY_TIME"
           echo ""
 
       - name: Verify staging deployment
@@ -528,7 +607,7 @@ jobs:
   pipeline-summary:
     name: 📋 Pipeline Summary
     runs-on: ubuntu-latest
-    needs: [lint, unit-tests, contract-tests, sheets-connectivity, build-worker, deploy-staging]
+    needs: [lint, unit-tests, contract-tests, sheets-connectivity, template-bundle, build-worker, deploy-staging]
     if: always()
 
     steps:
@@ -544,6 +623,7 @@ jobs:
           echo "| 🧪 Unit Tests | ${{ needs.unit-tests.result == 'success' && '✅ Passed' || needs.unit-tests.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 📜 Contract Tests | ${{ needs.contract-tests.result == 'success' && '✅ Passed' || needs.contract-tests.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 📊 Sheets Connectivity | ${{ needs.sheets-connectivity.result == 'success' && '✅ Passed' || needs.sheets-connectivity.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 📦 Template Bundle | ${{ needs.template-bundle.result == 'success' && '✅ Passed' || needs.template-bundle.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 🔨 Build Worker | ${{ needs.build-worker.result == 'success' && '✅ Passed' || needs.build-worker.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 🚀 Deploy to Staging | ${{ needs.deploy-staging.result == 'success' && '✅ Deployed' || needs.deploy-staging.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -552,15 +632,26 @@ jobs:
           if [ "${{ needs.deploy-staging.result }}" == "success" ]; then
             echo "## ✅ Pipeline Complete" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Staging URL: https://stg.eventangle.com" >> $GITHUB_STEP_SUMMARY
+            echo "**Staging URL:** https://stg.eventangle.com" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Rollback" >> $GITHUB_STEP_SUMMARY
+            echo "If issues are found, rollback with:" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+            echo "npm run rollback:staging" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           elif [ "${{ needs.lint.result }}" != "success" ] || \
                [ "${{ needs.unit-tests.result }}" != "success" ] || \
                [ "${{ needs.contract-tests.result }}" != "success" ] || \
                [ "${{ needs.sheets-connectivity.result }}" != "success" ] || \
+               [ "${{ needs.template-bundle.result }}" != "success" ] || \
                [ "${{ needs.build-worker.result }}" != "success" ]; then
             echo "## ❌ Pipeline Failed" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "Deployment blocked due to validation failures." >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ github.event_name }}" == "pull_request" ]; then
+            echo "## ✅ PR Validation Passed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "All validation checks passed. Deployment will occur on merge to main." >> $GITHUB_STEP_SUMMARY
           else
             echo "## ⏭️ Deployment Skipped" >> $GITHUB_STEP_SUMMARY
           fi

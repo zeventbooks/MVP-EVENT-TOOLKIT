@@ -898,7 +898,7 @@ jobs:
   # Required secrets:
   #   - GOOGLE_CLIENT_EMAIL: Service account email
   #   - GOOGLE_PRIVATE_KEY: Service account private key (PEM format)
-  #   - SHEETS_SPREADSHEET_ID_TEST: Test spreadsheet ID (dedicated for CI)
+  #   - STAGING_SHEETS_SPREADSHEET_ID: Staging spreadsheet ID for CI connectivity test
   #
   # This job:
   #   - Only runs on push to main (not on PRs - requires secrets)
@@ -934,7 +934,7 @@ jobs:
         env:
           GOOGLE_CLIENT_EMAIL: ${{ secrets.GOOGLE_CLIENT_EMAIL }}
           GOOGLE_PRIVATE_KEY: ${{ secrets.GOOGLE_PRIVATE_KEY }}
-          SHEETS_SPREADSHEET_ID_TEST: ${{ secrets.SHEETS_SPREADSHEET_ID_TEST }}
+          STAGING_SHEETS_SPREADSHEET_ID: ${{ secrets.STAGING_SHEETS_SPREADSHEET_ID }}
         run: |
           echo "=================================================="
           echo "STORY 1.1: Verifying Sheets Configuration"
@@ -956,11 +956,11 @@ jobs:
             echo "  GOOGLE_PRIVATE_KEY: configured (length: ${#GOOGLE_PRIVATE_KEY} chars)"
           fi
 
-          if [ -z "$SHEETS_SPREADSHEET_ID_TEST" ]; then
-            MISSING="${MISSING}SHEETS_SPREADSHEET_ID_TEST, "
-            echo "::warning::SHEETS_SPREADSHEET_ID_TEST secret not configured"
+          if [ -z "$STAGING_SHEETS_SPREADSHEET_ID" ]; then
+            MISSING="${MISSING}STAGING_SHEETS_SPREADSHEET_ID, "
+            echo "::warning::STAGING_SHEETS_SPREADSHEET_ID secret not configured"
           else
-            echo "  SHEETS_SPREADSHEET_ID_TEST: configured"
+            echo "  STAGING_SHEETS_SPREADSHEET_ID: configured"
           fi
 
           if [ -n "$MISSING" ]; then
@@ -980,7 +980,7 @@ jobs:
         env:
           GOOGLE_CLIENT_EMAIL: ${{ secrets.GOOGLE_CLIENT_EMAIL }}
           GOOGLE_PRIVATE_KEY: ${{ secrets.GOOGLE_PRIVATE_KEY }}
-          SHEETS_SPREADSHEET_ID: ${{ secrets.SHEETS_SPREADSHEET_ID_TEST }}
+          SHEETS_SPREADSHEET_ID: ${{ secrets.STAGING_SHEETS_SPREADSHEET_ID }}
           VERBOSE: 'true'
         run: |
           echo "=================================================="

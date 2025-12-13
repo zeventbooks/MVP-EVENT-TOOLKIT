@@ -154,10 +154,10 @@ Add these secrets to GitHub for the CI pipeline:
 |-------------|-------------|-------|
 | `GOOGLE_CLIENT_EMAIL` | Service account email | `eventangle-worker@project.iam.gserviceaccount.com` |
 | `GOOGLE_PRIVATE_KEY` | Service account private key | The entire PEM block from JSON |
-| `SHEETS_SPREADSHEET_ID_TEST` | Test spreadsheet ID | ID of a test sheet for CI connectivity |
+| `STAGING_SHEETS_SPREADSHEET_ID` | Staging spreadsheet ID | ID for CI connectivity tests |
+| `PROD_SHEETS_SPREADSHEET_ID` | Production spreadsheet ID | ID for production Worker API |
 
-> **Note:** Use a dedicated test spreadsheet (`SHEETS_SPREADSHEET_ID_TEST`) for CI
-> connectivity tests to avoid polluting production/staging data.
+> **Note:** Environment-prefixed secret names (STAGING_*, PROD_*) allow sorting in GitHub UI.
 
 ---
 
@@ -168,7 +168,7 @@ Create a dedicated test spreadsheet for CI connectivity checks:
 1. Create a new Google Sheet named "CI Connectivity Test"
 2. Share it with the service account (Editor access)
 3. Note the spreadsheet ID from the URL
-4. Add it to GitHub secrets as `SHEETS_SPREADSHEET_ID_TEST`
+4. Add it to GitHub secrets as `STAGING_SHEETS_SPREADSHEET_ID`
 
 The CI pipeline will:
 1. Read a test cell (e.g., `TEST!A1`)
