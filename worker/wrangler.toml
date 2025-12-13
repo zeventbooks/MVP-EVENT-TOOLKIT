@@ -1,0 +1,95 @@
+# ============================================
+# TypeScript Worker Router Configuration
+# Story 1.1 - Create Central Worker Router
+# ============================================
+# This is the new TypeScript-native Worker that serves as the
+# central router, replacing GAS doGet as the routing layer.
+#
+# Deployment:
+#   cd worker && wrangler deploy --env staging
+#   cd worker && wrangler deploy --env production
+#
+# Development:
+#   cd worker && wrangler dev
+#
+# ============================================
+
+name = "eventangle-router"
+main = "src/router.ts"
+compatibility_date = "2024-01-01"
+
+# TypeScript compilation is handled automatically by wrangler
+
+# ===========================================
+# Development Environment (workers.dev)
+# ===========================================
+# Default deployment uses workers.dev for testing:
+# https://eventangle-router.YOUR_SUBDOMAIN.workers.dev
+#
+# Test URLs:
+# - https://eventangle-router.YOUR_SUBDOMAIN.workers.dev/api/status
+# - https://eventangle-router.YOUR_SUBDOMAIN.workers.dev/public
+# - https://eventangle-router.YOUR_SUBDOMAIN.workers.dev/admin
+#
+[vars]
+WORKER_ENV = "development"
+WORKER_BUILD_VERSION = "dev-local"
+DEBUG_LEVEL = "debug"
+
+# ============================================
+# Staging Environment (stg.eventangle.com)
+# ============================================
+# Staging deployment for pre-production validation.
+#
+# Deploy: cd worker && wrangler deploy --env staging
+# ============================================
+[env.staging]
+name = "eventangle-router-staging"
+routes = [
+  { pattern = "stg.eventangle.com/*", zone_name = "eventangle.com" },
+  { pattern = "api-stg.eventangle.com/*", zone_name = "eventangle.com" }
+]
+
+[env.staging.vars]
+WORKER_ENV = "staging"
+WORKER_BUILD_VERSION = "stg-2025.12.12"
+DEBUG_LEVEL = "debug"
+# Enable debug features for staging only
+ENABLE_DEBUG_ENDPOINTS = "true"
+
+# ============================================
+# Production Environment (eventangle.com)
+# ============================================
+# Production deployment serving the main site.
+#
+# Deploy: cd worker && wrangler deploy --env production
+# ============================================
+[env.production]
+name = "eventangle-router-prod"
+routes = [
+  { pattern = "eventangle.com/*", zone_name = "eventangle.com" },
+  { pattern = "www.eventangle.com/*", zone_name = "eventangle.com" },
+  { pattern = "api.eventangle.com/*", zone_name = "eventangle.com" }
+]
+
+[env.production.vars]
+WORKER_ENV = "production"
+WORKER_BUILD_VERSION = "prod-2025.12.12"
+DEBUG_LEVEL = "error"
+
+# ============================================
+# SECRETS - Required for API functionality
+# ============================================
+# These secrets must be configured via wrangler:
+#
+#   wrangler secret put ADMIN_TOKEN --env staging
+#   wrangler secret put GOOGLE_CLIENT_EMAIL --env staging
+#   wrangler secret put GOOGLE_PRIVATE_KEY --env staging
+#   wrangler secret put SHEETS_SPREADSHEET_ID --env staging
+#
+# Required secrets:
+#   ADMIN_TOKEN          - Bearer token for admin endpoints
+#   GOOGLE_CLIENT_EMAIL  - Service account email
+#   GOOGLE_PRIVATE_KEY   - Service account private key (PEM format)
+#   SHEETS_SPREADSHEET_ID - Google Sheets spreadsheet ID
+# ============================================
