@@ -114,14 +114,12 @@ DEBUG_LEVEL = "error"
 # ============================================
 BACKEND_MODE = "worker"
 # ============================================
-# DEPRECATED GAS VARS (Story 5.2)
+# DEPRECATED GAS VARS (Story 5.2 / Story 2.1)
 # ============================================
-# These vars are NO LONGER USED but kept for emergency rollback.
+# Story 2.1: GAS URLs removed from codebase.
+# Worker-only mode is now the only supported backend.
+# See deploy-manifest.json for historical deployment IDs.
 # ============================================
-# PROD_DEPLOYMENT_ID = "AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw"
-# PROD_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw/exec"
-# DEPLOYMENT_ID = "AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw"
-# GAS_DEPLOYMENT_BASE_URL = "https://script.google.com/macros/s/AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw/exec"
 
 # KV Namespace for HTML templates (production)
 # Created via: wrangler kv:namespace create "TEMPLATES_KV" --env production
@@ -195,16 +193,12 @@ BACKEND_MODE = "worker"
 # Story 5.2: Worker versioning - Updated for full DNS cutover
 WORKER_BUILD_VERSION = "stg-2025.12.13-story5.2"
 # ============================================
-# DEPRECATED GAS VARS (Story 5.2)
+# DEPRECATED GAS VARS (Story 5.2 / Story 2.1)
 # ============================================
-# These vars are NO LONGER USED but kept for emergency GAS rollback.
-# Story 5.2 routes ALL traffic through Worker-native implementations.
-# To rollback: set BACKEND_MODE="gas" and redeploy (NOT RECOMMENDED)
+# Story 2.1: GAS URLs removed from codebase.
+# Worker-only mode is now the only supported backend.
+# See deploy-manifest.json for historical deployment IDs.
 # ============================================
-# STAGING_DEPLOYMENT_ID = "AKfycbwFneYCpkio7wCn7y08eDUb2PRCPc2Tdtbv20L4AbEHvuCvoqY9ks7-ONL0pzPPw4Hm"
-# STAGING_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwFneYCpkio7wCn7y08eDUb2PRCPc2Tdtbv20L4AbEHvuCvoqY9ks7-ONL0pzPPw4Hm/exec"
-# DEPLOYMENT_ID = "AKfycbwFneYCpkio7wCn7y08eDUb2PRCPc2Tdtbv20L4AbEHvuCvoqY9ks7-ONL0pzPPw4Hm"
-# GAS_DEPLOYMENT_BASE_URL = "https://script.google.com/macros/s/AKfycbwFneYCpkio7wCn7y08eDUb2PRCPc2Tdtbv20L4AbEHvuCvoqY9ks7-ONL0pzPPw4Hm/exec"
 # Enable debug endpoints (/__debug/template/*) for staging only
 # SECURITY: This should NEVER be enabled in production
 ENABLE_DEBUG_ENDPOINTS = "true"
@@ -239,11 +233,12 @@ DEBUG_LEVEL = "error"
 # Story 5.2: Worker-only mode - NO GAS backend calls
 BACKEND_MODE = "worker"
 # ============================================
-# DEPRECATED GAS VARS (Story 5.2)
+# DEPRECATED GAS VARS (Story 5.2 / Story 2.1)
 # ============================================
-# PROD_DEPLOYMENT_ID = "AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw"
-# PROD_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw/exec"
-# DEPLOYMENT_ID = "AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw"
+# Story 2.1: GAS URLs removed from codebase.
+# Worker-only mode is now the only supported backend.
+# See deploy-manifest.json for historical deployment IDs.
+# ============================================
 
 # ============================================
 # Friendly URLs (all app paths on main site)
@@ -336,12 +331,12 @@ DEBUG_LEVEL = "error"
 # Story 5.2: Worker-only mode - NO GAS backend calls
 BACKEND_MODE = "worker"
 # ============================================
-# DEPRECATED GAS VARS (Story 5.2)
+# DEPRECATED GAS VARS (Story 5.2 / Story 2.1)
 # ============================================
-# PROD_DEPLOYMENT_ID = "AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw"
-# PROD_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw/exec"
-# GAS_DEPLOYMENT_BASE_URL = "https://script.google.com/macros/s/AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw/exec"
-# DEPLOYMENT_ID = "AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw"
+# Story 2.1: GAS URLs removed from codebase.
+# Worker-only mode is now the only supported backend.
+# See deploy-manifest.json for historical deployment IDs.
+# ============================================
 
 # ============================================
 # Development (workers.dev subdomain)

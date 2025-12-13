@@ -304,12 +304,52 @@ jobs:
           fi
 
   # --------------------------------------------------------------------------
+  # JOB 2.1b: GAS URL Ban Check (Story 2.1)
+  # --------------------------------------------------------------------------
+  # Hard gate: Prevents shipping code that references script.google.com
+  # --------------------------------------------------------------------------
+  banned-origins:
+    name: 🚫 GAS URL Ban Check
+    runs-on: ubuntu-latest
+    needs: [lint]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Check for banned GAS origins
+        run: |
+          echo "=================================================="
+          echo "GATE 2: VALIDATION - GAS URL Ban Check (Story 2.1)"
+          echo "=================================================="
+          node scripts/check-banned-origins.mjs
+
+      - name: Create summary
+        if: always()
+        run: |
+          echo "## 🚫 GAS URL Ban Check" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "### ✅ PASSED - No banned GAS URLs found" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ FAILED - Banned GAS URLs detected" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Code referencing script.google.com is not allowed." >> $GITHUB_STEP_SUMMARY
+            echo "Run \`npm run check:banned-origins\` locally to see details." >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # --------------------------------------------------------------------------
   # JOB 2.2: Unit Tests
   # --------------------------------------------------------------------------
   unit-tests:
     name: 🧪 Unit Tests
     runs-on: ubuntu-latest
-    needs: [lint]
+    needs: [lint, banned-origins]
 
     steps:
       - name: Checkout code
@@ -674,7 +714,7 @@ jobs:
   pipeline-summary:
     name: 📋 Pipeline Summary
     runs-on: ubuntu-latest
-    needs: [codeql-security, dependency-audit, lint, unit-tests, contract-tests, sheets-connectivity, template-bundle, build-worker, deploy-staging]
+    needs: [codeql-security, dependency-audit, lint, banned-origins, unit-tests, contract-tests, sheets-connectivity, template-bundle, build-worker, deploy-staging]
     if: always()
 
     steps:
@@ -696,6 +736,7 @@ jobs:
           echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
           echo "| 🔍 Lint / Format | ${{ needs.lint.result == 'success' && '✅ Passed' || needs.lint.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🚫 GAS URL Ban | ${{ needs.banned-origins.result == 'success' && '✅ Passed' || needs.banned-origins.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 🧪 Unit Tests | ${{ needs.unit-tests.result == 'success' && '✅ Passed' || needs.unit-tests.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 📜 Contract Tests | ${{ needs.contract-tests.result == 'success' && '✅ Passed' || needs.contract-tests.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 📊 Sheets Connectivity | ${{ needs.sheets-connectivity.result == 'success' && '✅ Passed' || needs.sheets-connectivity.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
