@@ -937,6 +937,75 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
     const { esc, logEvent, initLogging } = window.SponsorUtils;
     initLogging();
 
+    // =============================================================================
+    // Story 2.2: Worker Endpoint Configuration
+    // Public bundle now fetched from Worker instead of GAS
+    // =============================================================================
+
+    /**
+     * Get Worker base URL for API calls
+     * Uses current origin for same-domain Worker deployment
+     */
+    function getWorkerBaseUrl() {
+      return window.location.origin;
+    }
+
+    /**
+     * Fetch public bundle from Worker endpoint
+     * GET /api/events/:id/publicBundle?brand=:brand
+     *
+     * @param {string} eventId - Event ID or slug
+     * @param {string} brandId - Brand identifier
+     * @param {object} options - { ifNoneMatch?: string } for conditional requests
+     * @returns {Promise<{ok: boolean, value?: object, code?: string, message?: string}>}
+     */
+    async function fetchPublicBundleFromWorker(eventId, brandId, options = {}) {
+      const baseUrl = getWorkerBaseUrl();
+      const endpoint = `${baseUrl}/api/events/${encodeURIComponent(eventId)}/publicBundle`;
+      const url = new URL(endpoint);
+      url.searchParams.set('brand', brandId);
+
+      const headers = {
+        'Accept': 'application/json'
+      };
+
+      // Support conditional requests (ETag)
+      if (options.ifNoneMatch) {
+        headers['If-None-Match'] = options.ifNoneMatch;
+      }
+
+      try {
+        const response = await fetch(url.toString(), {
+          method: 'GET',
+          headers,
+          credentials: 'same-origin'
+        });
+
+        // Handle 304 Not Modified
+        if (response.status === 304) {
+          return {
+            ok: true,
+            notModified: true,
+            etag: response.headers.get('ETag')
+          };
+        }
+
+        // Parse JSON response
+        const data = await response.json();
+
+        // Pass through response (Worker returns standard envelope)
+        return data;
+
+      } catch (error) {
+        console.error('Worker fetch failed:', error);
+        return {
+          ok: false,
+          code: 'NETWORK_ERROR',
+          message: 'Unable to connect to server. Please check your connection.'
+        };
+      }
+    }
+
     // === MVP Essential Utilities ===
 
     // Toast notification
@@ -1959,13 +2028,14 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
     }
 
     // Load event data
-    // SCHEMA: /schemas/event.schema.json via api_getPublicBundle
-    // S13: Use safeRpc for graceful error handling
+    // SCHEMA: /schemas/event.schema.json via Worker /api/events/:id/publicBundle
+    // Story 2.2: Now uses Worker endpoint instead of GAS api_getPublicBundle
     if (ID) {
       (async () => {
-        const res = await NU.safeRpc('api_getPublicBundle', { brandId: BRAND, scope: SCOPE, id: ID });
+        // Story 2.2: Fetch from Worker endpoint (no GAS calls)
+        const res = await fetchPublicBundleFromWorker(ID, BRAND);
 
-        // S13: Handle API errors with proper classification
+        // Handle API errors with proper classification
         if (!res.ok) {
           console.error('API error:', res.code, res.message);
           showError(res);
