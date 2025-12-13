@@ -1,28 +1,26 @@
-# CodeQL Security Analysis & Release Gate (Story 4)
+# CodeQL Security Analysis - Scheduled Deep Scans (Story 4/5.2)
 #
-# Purpose: Continuous security analysis for all code changes.
-#          This is a REQUIRED CHECK for merging - no code goes to production
-#          without passing security scans.
+# Purpose: Weekly deep security analysis for vulnerability discovery.
+#          This workflow performs comprehensive scans outside the main CI flow.
 #
-# Story 4 Acceptance Criteria:
-#   - CodeQL runs on every push and PR
-#   - Critical/severe findings BLOCK merges
-#   - Weekly scheduled scans for vulnerability discovery
-#   - Team agreement: No production deployment without passing scans
+# Story 5.2 Update:
+#   - Security checks are now integrated into Stage-1 CI (stage1-ci.yml)
+#   - This workflow runs ONLY on schedule for deep scans
+#   - Push/PR security is handled by stage1-ci.yml Gate 1
+#
+# When this runs:
+#   - Weekly (Sundays 00:00 UTC) - deep vulnerability discovery
+#   - Manual trigger - for security audits
 #
 # Integration:
-#   - Runs independently of Stage-1/Stage-2 (parallel security gate)
-#   - Configure as REQUIRED status check in GitHub branch protection
-#   - Results visible in Security tab and PR checks
+#   - Stage-1 CI (stage1-ci.yml): Security Gate 1 - blocks PRs/pushes
+#   - This workflow: Weekly deep scans for newly discovered CVEs
+#   - Results visible in Security tab
 #
 # @see docs/ci-cd-architecture.md - Security scan documentation
-name: CodeQL Security Analysis
+name: CodeQL Security Analysis (Scheduled)
 
 on:
-  push:
-    branches: [ main, 'claude/**' ]
-  pull_request:
-    branches: [ main ]
   schedule:
     # Run weekly on Sundays at 00:00 UTC for vulnerability discovery
     - cron: '0 0 * * 0'
@@ -71,17 +69,17 @@ jobs:
     - name: Display security scan configuration
       run: |
         echo "=============================================="
-        echo "CODEQL SECURITY SCAN (Story 4)"
+        echo "CODEQL DEEP SECURITY SCAN (Story 4/5.2)"
         echo "=============================================="
         echo ""
-        echo "This scan is a REQUIRED CHECK for merging."
-        echo "Critical and high severity findings will BLOCK the PR."
+        echo "This is a SCHEDULED deep scan for vulnerability discovery."
+        echo "For PR/push security gates, see stage1-ci.yml Gate 1."
         echo ""
         echo "Trigger: ${{ github.event_name }}"
         echo "Branch: ${{ github.ref_name }}"
         echo "Commit: ${{ github.sha }}"
         echo ""
-        echo "Policy: Fail on $FAIL_ON_SEVERITY severity findings"
+        echo "Policy: Report $FAIL_ON_SEVERITY severity findings"
         echo "=============================================="
 
     - name: Initialize CodeQL
@@ -124,20 +122,18 @@ jobs:
         echo "" >> $GITHUB_STEP_SUMMARY
 
         # Determine scan type for better context
-        if [ "${{ github.event_name }}" == "pull_request" ]; then
-          echo "### 🚦 REQUIRED CHECK: Pull Request Security Gate" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "This security scan must pass before the PR can be merged." >> $GITHUB_STEP_SUMMARY
-          echo "Critical and high severity findings will block the merge." >> $GITHUB_STEP_SUMMARY
-        elif [ "${{ github.event_name }}" == "schedule" ]; then
-          echo "### 📅 Scheduled Weekly Scan" >> $GITHUB_STEP_SUMMARY
+        if [ "${{ github.event_name }}" == "schedule" ]; then
+          echo "### 📅 Scheduled Weekly Deep Scan" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Regular security audit for vulnerability discovery." >> $GITHUB_STEP_SUMMARY
+          echo "Checks for newly discovered CVEs since last scan." >> $GITHUB_STEP_SUMMARY
         else
-          echo "### 🔄 Push Security Scan" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔍 Manual Security Audit" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Continuous security monitoring for code changes." >> $GITHUB_STEP_SUMMARY
+          echo "On-demand security scan for comprehensive analysis." >> $GITHUB_STEP_SUMMARY
         fi
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Note:** For PR/push security gates, see **Stage-1 CI** (stage1-ci.yml)." >> $GITHUB_STEP_SUMMARY
 
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### Language Analyzed" >> $GITHUB_STEP_SUMMARY
@@ -170,8 +166,8 @@ jobs:
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "---" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "**Story 4 Policy**: This is a required release gate." >> $GITHUB_STEP_SUMMARY
-        echo "No code goes to production without passing security scans." >> $GITHUB_STEP_SUMMARY
+        echo "**Story 5.2 Architecture**: Security gates are now in Stage-1 CI." >> $GITHUB_STEP_SUMMARY
+        echo "This scheduled scan provides deep vulnerability discovery." >> $GITHUB_STEP_SUMMARY
 
   # ============================================================================
   # DEPENDENCY AUDIT (npm audit)
@@ -200,10 +196,11 @@ jobs:
       id: npm-audit
       run: |
         echo "=============================================="
-        echo "NPM DEPENDENCY AUDIT (Story 2.4)"
+        echo "NPM DEPENDENCY AUDIT - Deep Scan (Story 4/5.2)"
         echo "=============================================="
         echo ""
-        echo "Policy: High and critical vulnerabilities BLOCK merges."
+        echo "This is a SCHEDULED deep scan for new vulnerabilities."
+        echo "For PR/push gates, see stage1-ci.yml Gate 1."
         echo ""
 
         # Create audit report directory
@@ -283,7 +280,7 @@ jobs:
     - name: Create audit summary
       if: always()
       run: |
-        echo "## 🔍 Dependency Vulnerability Audit (Story 2.4)" >> $GITHUB_STEP_SUMMARY
+        echo "## 🔍 Dependency Vulnerability Audit - Deep Scan" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
 
         AUDIT_STATUS="${{ steps.npm-audit.outputs.audit_status }}"
@@ -324,5 +321,5 @@ jobs:
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "---" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "**Story 2.4 Policy**: High severity vulnerabilities block merges." >> $GITHUB_STEP_SUMMARY
+        echo "**Story 5.2 Architecture**: PR/push gates are in Stage-1 CI." >> $GITHUB_STEP_SUMMARY
         echo "**Artifact**: \`dependency-audit-report\` contains detailed JSON report." >> $GITHUB_STEP_SUMMARY

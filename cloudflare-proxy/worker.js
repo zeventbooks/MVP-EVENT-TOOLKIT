@@ -1,45 +1,40 @@
 /**
- * Cloudflare Worker - Transparent Google Apps Script Proxy
+ * Cloudflare Worker - EventAngle API & UI Server
  *
- * This worker provides a TRANSPARENT proxy to Google Apps Script:
- * - Custom domain support (e.g., eventangle.com/events)
- * - CORS headers for API cross-origin requests
- * - Friendly URL routing (/events/abc/manage → exec/abc/manage)
- * - Query string preservation (?page=admin passes through)
- * - Transparency headers for debugging (X-Proxied-By, X-Worker-Version)
- * - Error handling and retry logic
+ * Story 5.2: Full DNS Cutover Complete
+ * This worker serves ALL eventangle.com traffic directly - no GAS proxy.
  *
- * TRANSPARENCY PRINCIPLE:
- * All requests are PROXIED, not redirected. The worker adds diagnostic headers
- * but does NOT modify response bodies. This ensures:
- * - https://www.eventangle.com stays in the browser address bar
- * - No script.google.com URL is ever user-facing
- * - Response content is identical to direct GAS access
+ * ARCHITECTURE (Story 5.2):
+ * - ALL requests handled by Worker-native implementations
+ * - NO script.google.com backend calls exist anywhere
+ * - HTML pages served from embedded Worker templates
+ * - API endpoints use Worker-native Google Sheets API
+ * - Shortlinks resolved via Worker-native Sheets API
  *
  * Request routing:
- * - HTML page routes (?page=*) → Proxy to GAS, return HTML directly
- * - API routes (?action=* or ?api=*) → Proxy to GAS with CORS headers
+ * - HTML pages: /events, /admin, /display, /poster, /report → Worker templates
+ * - API v2: /api/v2/* → Worker-native (Sheets API)
+ * - Shortlinks: /r, /redirect → Worker-native Sheets API
+ * - Legacy API: /api/* → Returns 410 Gone (deprecated)
  *
- * Deployment modes (see wrangler.toml):
- * - env.events: Only /events* paths (RECOMMENDED for production)
- * - env.production: Full site (eventangle.com/*)
- * - env.api-only: API subdomain only
+ * Deployment environments (see wrangler.toml):
+ * - env.production: eventangle.com/* (BACKEND_MODE=worker)
+ * - env.staging: stg.eventangle.com/* (BACKEND_MODE=worker)
+ * - env.api-only: api.eventangle.com/* (BACKEND_MODE=worker)
  *
- * Example flows (env.events - /events* route):
- * - eventangle.com/events → exec → Public.html (default)
- * - eventangle.com/events?page=admin → exec?page=admin → Admin.html
- * - eventangle.com/events?page=display → exec?page=display → Display.html
- * - eventangle.com/events?page=poster → exec?page=poster → Poster.html
- * - eventangle.com/events?page=public → exec?page=public → Public.html
- * - eventangle.com/events?page=report → exec?page=report → Report.html
- * - eventangle.com/events?page=status → exec?page=status → Status JSON
+ * Key Features:
+ * - Custom domain support (eventangle.com, stg.eventangle.com)
+ * - CORS headers for API cross-origin requests
+ * - Friendly URL routing (/events → public page)
+ * - Transparency headers (X-Proxied-By, X-Worker-Version)
+ * - Graceful error handling
  *
- * Apps Script receives paths via e.pathInfo array.
- * See docs/FRIENDLY_URLS.md for complete URL mapping.
+ * DEPRECATED (Story 5.2):
+ * - GAS proxy functionality (proxyToAppsScript, handleShortlinkRedirect)
+ * - BACKEND_MODE=gas and BACKEND_MODE=mixed
+ * - Legacy /api/* endpoints (use /api/v2/* instead)
  *
- * Configuration via wrangler.toml:
- * - GAS_DEPLOYMENT_BASE_URL: Full Apps Script exec URL (preferred)
- * - DEPLOYMENT_ID: Apps Script deployment ID (fallback)
+ * See docs/DNS_CUTOVER.md for migration details.
  */
 
 // =============================================================================
@@ -96,6 +91,16 @@ import {
 } from './src/sheets/client.js';
 
 // =============================================================================
+// STORY 5.2: WORKER-NATIVE SHORTLINK HANDLER
+// =============================================================================
+// Shortlinks are now resolved directly via Google Sheets API,
+// eliminating the GAS proxy dependency.
+import {
+  handleShortlinkRedirect as handleWorkerShortlinkRedirect,
+  isShortlinkRequest
+} from './src/api/shortlinks.js';
+
+// =============================================================================
 // STORY 0.1: VERSIONED BACKEND ROUTING
 // =============================================================================
 // Configuration module for routing requests to GAS or Worker-native backends.
@@ -124,8 +129,9 @@ const EMBEDDED_TEMPLATES = {
 // Story 2: Updated for staging env vars and versioning support
 // Story 3: Defensive upstream response handling - honest JSON or structured errors
 // Story 5: Add /api/status health check endpoint for CI/CD pipelines
+// Story 5.2: Full DNS cutover - all routes Worker-native, GAS proxy removed
 // Story 6: Cloudflare Worker Migration - direct Sheets API access
-const WORKER_VERSION = '3.0.0';
+const WORKER_VERSION = '4.0.0';
 
 // =============================================================================
 // OBSERVABILITY & LOGGING - Story 5 Implementation
@@ -314,12 +320,14 @@ const JSON_ROUTE_MAP = Object.freeze({
 });
 
 /**
- * Routes that require GAS proxy (shortlinks/redirects)
- * These are the ONLY non-API routes that touch GAS
+ * Routes that were previously GAS-proxied (DEPRECATED)
+ * Story 5.2: These routes now use Worker-native implementations.
+ * Shortlinks are resolved via Worker-native Sheets API.
+ * @deprecated Use Worker-native shortlink handler instead
  */
 const GAS_PROXY_ROUTES = Object.freeze({
-  'r': 'redirect',         // Shortlink redirect
-  'redirect': 'redirect'   // Explicit redirect
+  'r': 'redirect',         // Now handled by Worker-native shortlinks
+  'redirect': 'redirect'   // Now handled by Worker-native shortlinks
 });
 
 // =============================================================================
@@ -2500,8 +2508,8 @@ export default {
   async fetch(request, env, ctx) {
     const startTime = Date.now();
 
-    // Story 2: Use environment-aware URL resolution
-    const appsScriptBase = getGasUrl(env);
+    // Story 5.2: GAS URL no longer needed - all routes use Worker-native
+    // const appsScriptBase = getGasUrl(env); // REMOVED
 
     const url = new URL(request.url);
 
@@ -2632,8 +2640,8 @@ export default {
           else {
             const eventId = pathSegments[1] || null;
 
-            // Create/Update require auth
-            if (request.method === 'POST' || request.method === 'PUT') {
+            // Create/Update/Delete require auth
+            if (request.method === 'POST' || request.method === 'PUT' || request.method === 'DELETE') {
               const authError = requireAdminAuth(request, env);
               if (authError) {
                 response = authError;
@@ -2693,48 +2701,24 @@ export default {
     }
 
     // ==========================================================================
-    // HEALTH CHECK ENDPOINT - Story 5 Implementation + Story 0.1 Versioned Routing
+    // HEALTH CHECK ENDPOINT - Story 5.2: Worker-native only
     // ==========================================================================
-    // GET /api/status (or POST with { "method": "status" })
-    // Lightweight health check for CI/CD pipelines.
-    // Returns structured JSON with GAS and eventsIndex health status.
+    // GET /api/status - Lightweight health check for CI/CD pipelines.
+    // Returns structured JSON with Worker and Sheets health status.
     //
-    // Story 0.1: Versioned Backend Routing
-    // - Uses backendConfig to decide whether to use GAS or Worker-native
-    // - Supports ?backend=gas|worker query param override for staging
-    // - Worker-native uses handleWorkerStatusRequest from src/api/status.js
-    // - GAS uses handleHealthCheckEndpoint (legacy)
+    // Story 5.2: Always uses Worker-native (GAS removed)
     if (url.pathname === '/api/status') {
       try {
-        // Story 0.1: Determine which backend to use
-        const { backend, source } = getBackendForRoute(url.pathname, url.searchParams, env);
-        logBackendDecision(url.pathname, backend, source, env);
+        // Worker-native implementation
+        let response = await handleWorkerStatusRequest(request, env);
 
-        let response;
-
-        if (backend === BACKEND_MODES.WORKER) {
-          // Worker-native implementation (Story 6)
-          response = await handleWorkerStatusRequest(request, env);
-
-          // Add X-Backend header for debugging
-          response = new Response(response.body, {
-            status: response.status,
-            headers: response.headers
-          });
-          response.headers.set('X-Backend', 'worker');
-          response.headers.set('X-Backend-Source', source);
-        } else {
-          // GAS backend (legacy)
-          response = await handleHealthCheckEndpoint(request, appsScriptBase, env, url);
-
-          // Add X-Backend header for debugging
-          response = new Response(response.body, {
-            status: response.status,
-            headers: response.headers
-          });
-          response.headers.set('X-Backend', 'gas');
-          response.headers.set('X-Backend-Source', source);
-        }
+        // Add backend header for debugging
+        response = new Response(response.body, {
+          status: response.status,
+          headers: response.headers
+        });
+        response.headers.set('X-Backend', 'worker');
+        response.headers.set('X-Backend-Source', 'story-5.2-worker-native');
 
         return addTransparencyHeaders(addCORSHeaders(response), startTime, env);
 
@@ -2743,51 +2727,51 @@ export default {
         ctx.waitUntil(logError(env, {
           corrId,
           type: 'health_check_error',
-          backend: getBackendMode(env),
           error: error.message,
           stack: error.stack?.slice(0, 500),
           url: url.pathname,
           duration: Date.now() - startTime
         }));
 
-        // Story 0.1: Return structured BACKEND_ERROR response
         const errorResponse = createBackendError500(
           'Health check failed unexpectedly',
-          { corrId, backend: getBackendMode(env) }
+          { corrId, backend: 'worker' }
         );
         return addTransparencyHeaders(addCORSHeaders(errorResponse), startTime, env);
       }
     }
 
     // ==========================================================================
-    // /api/* - Frontend API endpoints (fetch-based transport)
+    // /api/* - Legacy GAS API endpoints (DEPRECATED - Story 5.2)
     // ==========================================================================
-    // Supports two patterns:
+    // Story 5.2: Full DNS cutover - all API traffic uses Worker-native /api/v2/*
+    // Legacy /api/* endpoints return 410 Gone with migration guidance.
     //
-    // 1. Legacy RPC: POST /api/rpc with body { method: 'api_list', payload: {...} }
-    //    - Preserves backward compatibility with existing SDK calls
+    // Migration path:
+    // - POST /api/rpc -> Use /api/v2/* REST endpoints
+    // - POST /api/events/* -> Use /api/v2/events
     //
-    // 2. Path-based: POST /api/<path> with body {...payload}
-    //    - New pattern: /api/events/list, /api/getPublicBundle
-    //    - Maps to GAS action: events/list -> list, getPublicBundle -> getPublicBundle
-    //
-    // Response: JSON from GAS backend
-    //
-    if (url.pathname.startsWith('/api/') && request.method === 'POST') {
-      try {
-        const response = await handleApiRequest(request, appsScriptBase, env, url);
-        return addTransparencyHeaders(addCORSHeaders(response), startTime, env);
-      } catch (error) {
-        const corrId = generateCorrId();
-        ctx.waitUntil(logError(env, {
-          corrId,
-          type: 'api_error',
-          error: error.message,
-          url: url.pathname,
-          duration: Date.now() - startTime
-        }));
-        return createGracefulErrorResponse(error, url, true, corrId, env);
-      }
+    if (url.pathname.startsWith('/api/') && !url.pathname.startsWith('/api/v2/') && request.method === 'POST') {
+      console.log(`[API_DEPRECATED] Legacy POST to ${url.pathname} - returning 410`);
+      const response = new Response(JSON.stringify({
+        ok: false,
+        code: 'DEPRECATED',
+        message: 'Legacy API endpoint is deprecated. Use /api/v2/* endpoints instead.',
+        migration: {
+          events: 'POST/PUT/DELETE /api/v2/events',
+          bundles: 'GET /api/v2/events/:id/bundle/:type',
+          status: 'GET /api/v2/status'
+        },
+        documentation: 'https://www.eventangle.com/docs/api'
+      }), {
+        status: 410,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Deprecated': 'true',
+          'X-Migration-Path': '/api/v2/*'
+        }
+      });
+      return addTransparencyHeaders(addCORSHeaders(response), startTime, env);
     }
 
     // ==========================================================================
@@ -2816,11 +2800,14 @@ export default {
     // ==========================================================================
     // EXPLICIT ROUTE HANDLING - Story 2 Implementation
     // ==========================================================================
-    // Routes are handled explicitly based on type:
-    // - API requests: /api/* → proxy to GAS with CORS
-    // - HTML pages: /events, /admin, etc. → render from Worker templates (NO GAS)
-    // - JSON pages: /status, /ping → proxy to GAS for data
-    // - Shortlinks: ?p=r&t=... → proxy to GAS for redirect resolution
+    // Story 5.2: Full DNS Cutover - All routes use Worker-native implementations
+    // ==========================================================================
+    // Routes are handled explicitly:
+    // - API v2 requests: /api/v2/* → Worker-native (handled above)
+    // - Legacy API: /api/* → DEPRECATED, returns 410 Gone
+    // - HTML pages: /events, /admin, etc. → Worker templates
+    // - Shortlinks: /r, /redirect → Worker-native Sheets API
+    // - NO routes proxy to GAS anymore
 
     const isApiRequest = validation.isApiRequest;
     const routeParams = extractRouteParams(url);
@@ -2828,23 +2815,41 @@ export default {
     try {
       let response;
 
-      if (isApiRequest) {
-        // API request: proxy and add CORS headers
-        // This is the ONLY path that touches GAS for regular requests
-        logGasProxy('api', url.pathname, env);
-        response = await proxyToAppsScript(request, appsScriptBase, env);
-      } else if (routeParams.p && Object.hasOwn(GAS_PROXY_ROUTES, routeParams.p)) {
-        // Shortlink redirect: requires GAS to resolve token
-        // This is a deliberate exception where we proxy to GAS
-        logGasProxy('shortlink', url.pathname, env);
-        response = await handleShortlinkRedirect(request, url, appsScriptBase, env);
+      // Story 5.2: Check for shortlink requests FIRST (before API check)
+      // Shortlinks can come as /r?t=xxx or ?p=r&t=xxx
+      if (isShortlinkRequest(url) || (routeParams.p && Object.hasOwn(GAS_PROXY_ROUTES, routeParams.p))) {
+        // Worker-native shortlink resolution via Sheets API
+        console.log(`[SHORTLINK] Worker-native resolution: ${url.pathname}${url.search}`);
+        response = await handleWorkerShortlinkRedirect(request, url, env);
+      } else if (isApiRequest && !url.pathname.startsWith('/api/v2/')) {
+        // Story 5.2: Legacy /api/* endpoint - return deprecation notice
+        // Use /api/v2/* instead
+        console.log(`[API_DEPRECATED] Legacy API request: ${url.pathname}`);
+        response = new Response(JSON.stringify({
+          ok: false,
+          code: 'DEPRECATED',
+          message: 'Legacy API endpoint is deprecated. Use /api/v2/* endpoints instead.',
+          migration: {
+            events: '/api/v2/events',
+            status: '/api/v2/status',
+            bundles: '/api/v2/events/:id/bundle/:type'
+          },
+          documentation: 'https://www.eventangle.com/docs/api'
+        }), {
+          status: 410,
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Deprecated': 'true',
+            'X-Migration-Path': '/api/v2/*'
+          }
+        });
       } else if (routeParams.page && Object.hasOwn(JSON_ROUTE_MAP, routeParams.page)) {
-        // JSON page (status, ping, etc.): proxy to GAS for data
-        logGasProxy('json_page', url.pathname, env);
-        response = await handleJsonPageRequest(request, url, routeParams, appsScriptBase, env);
+        // JSON page (status, ping, etc.): handled by Worker-native /api/v2/status
+        // Redirect to new endpoint
+        console.log(`[JSON_REDIRECT] Redirecting ${routeParams.page} to /api/v2/${routeParams.page}`);
+        response = Response.redirect(`${url.origin}/api/v2/${routeParams.page}`, 301);
       } else if (routeParams.page && Object.hasOwn(HTML_ROUTE_MAP, routeParams.page)) {
         // HTML page: render from Worker template
-        // NEVER calls fetch(GAS_WEBAPP_URL) for these routes
         // Story 5: HTML routes are logged via logRouteResolution in handleHtmlPageRequest
         response = await handleHtmlPageRequest(url, routeParams, env);
       } else {

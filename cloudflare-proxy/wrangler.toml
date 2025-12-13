@@ -90,31 +90,38 @@ routes = [
 [env.production.vars]
 # Story 2: Explicit environment identifier for consistent detection
 WORKER_ENV = "production"
-# Story 2: Worker versioning - build version logged in X-Worker-Build-Version header
-WORKER_BUILD_VERSION = "prod-2025.12.09"
+# Story 5.2: Worker versioning - Updated for full DNS cutover
+WORKER_BUILD_VERSION = "prod-2025.12.13-story5.2"
 # Story 2: Debug level for observability (production uses 'error' for minimal logging)
 DEBUG_LEVEL = "error"
 # ============================================
-# Story 6.1: DNS Cutover - Worker-Only Mode
+# Story 5.2: Full DNS Cutover - Worker-Only Mode
 # ============================================
 # BACKEND_MODE controls which backend handles requests:
-#   - 'gas'    : All routes use GAS backend (legacy)
-#   - 'worker' : All routes use Worker-native backend (CURRENT)
-#   - 'mixed'  : Per-route selection based on backendConfig.js
+#   - 'worker' : All routes use Worker-native backend (CURRENT - DEFAULT)
+#   - 'gas'    : DEPRECATED - Emergency rollback only
+#   - 'mixed'  : DEPRECATED - No longer needed
 #
-# As of Story 6.1, production routes ALL traffic through Worker.
-# GAS is only called for:
-#   - Shortlink resolution (/r, /redirect) - proxied through Worker
-#   - Legacy RPC (/api/rpc) - proxied through Worker
+# Story 5.2 Status:
+#   - ALL traffic routes through Cloudflare Worker
+#   - Shortlinks use Worker-native Sheets API (no GAS proxy)
+#   - NO script.google.com backend calls exist anywhere
 #
-# To rollback to GAS-first routing, change to 'gas' and redeploy.
+# To rollback to GAS (NOT RECOMMENDED):
+#   1. Uncomment the GAS vars below
+#   2. Set BACKEND_MODE = "gas"
+#   3. Redeploy: wrangler deploy --env production
 # ============================================
 BACKEND_MODE = "worker"
-PROD_DEPLOYMENT_ID = "AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw"
-PROD_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw/exec"
-# Legacy aliases (keeping for backward compatibility)
-DEPLOYMENT_ID = "AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw"
-GAS_DEPLOYMENT_BASE_URL = "https://script.google.com/macros/s/AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw/exec"
+# ============================================
+# DEPRECATED GAS VARS (Story 5.2)
+# ============================================
+# These vars are NO LONGER USED but kept for emergency rollback.
+# ============================================
+# PROD_DEPLOYMENT_ID = "AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw"
+# PROD_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw/exec"
+# DEPLOYMENT_ID = "AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw"
+# GAS_DEPLOYMENT_BASE_URL = "https://script.google.com/macros/s/AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw/exec"
 
 # KV Namespace for HTML templates (production)
 # Created via: wrangler kv:namespace create "TEMPLATES_KV" --env production
@@ -162,50 +169,47 @@ routes = [
 # ============================================
 # STAGING DEPLOYMENT CONFIGURATION
 # ============================================
-# Uses standardized naming convention:
-#   STAGING_SCRIPT_ID      - Permanent project ID (for clasp)
-#   STAGING_DEPLOYMENT_ID  - Web app deployment ID (changes per deploy)
-#   STAGING_WEB_APP_URL    - Executable URL (runtime)
+# Story 5.2: Full DNS Cutover - Staging now uses Worker-only mode
+# GAS is no longer used for any routes in staging or production.
 #
-# Script ID: 1gHiPuj7eXNk09dDyk17SJ6QsCJg7LMqXBRrkowljL3z2TaAKFIvBLhHJ
-#
-# To update after deployment:
-# 1. Deploy staging GAS: npm run deploy:staging
-# 2. Copy the AKfycb... deployment ID from the output
-# 3. Run: npm run staging:configure --deployment-id=AKfycb...
+# DEPRECATED: The following GAS-related vars are kept for emergency rollback only:
+#   STAGING_DEPLOYMENT_ID  - No longer used
+#   STAGING_WEB_APP_URL    - No longer used
+#   GAS_DEPLOYMENT_BASE_URL - No longer used
 # ============================================
 WORKER_ENV = "staging"
 # ============================================
-# Story 0.1: Versioned Backend Routing
+# Story 5.2: Full DNS Cutover - Worker-Only Mode
 # ============================================
 # BACKEND_MODE controls which backend handles requests:
-#   - 'gas'    : All routes use GAS backend (current production behavior)
-#   - 'worker' : All routes use Worker-native backend
-#   - 'mixed'  : Per-route selection based on backendConfig.js
+#   - 'worker' : All routes use Worker-native backend (CURRENT - DEFAULT)
+#   - 'gas'    : DEPRECATED - Emergency rollback only
+#   - 'mixed'  : DEPRECATED - No longer needed
 #
-# Migration Strategy:
-#   1. Start with 'gas' (default)
-#   2. Switch to 'mixed' to test individual routes on Worker
-#   3. Once all routes verified, switch to 'worker'
-#
-# Query Param Override (staging only):
-#   Add ?backend=gas or ?backend=worker to any request to force a backend
+# Story 5.2 Status:
+#   - All traffic routes through Cloudflare Worker
+#   - Shortlinks use Worker-native Sheets API
+#   - No script.google.com backend calls exist
 # ============================================
-BACKEND_MODE = "mixed"
-# Story 2: Worker versioning - build version logged in X-Worker-Build-Version header
-WORKER_BUILD_VERSION = "stg-2025.12.09"
-# Story 2: STAGING_WEB_APP_URL is the SINGLE SOURCE OF TRUTH
-STAGING_DEPLOYMENT_ID = "AKfycbwFneYCpkio7wCn7y08eDUb2PRCPc2Tdtbv20L4AbEHvuCvoqY9ks7-ONL0pzPPw4Hm"
-STAGING_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwFneYCpkio7wCn7y08eDUb2PRCPc2Tdtbv20L4AbEHvuCvoqY9ks7-ONL0pzPPw4Hm/exec"
-# DEPRECATED: Legacy aliases - migrate to STAGING_* vars
-DEPLOYMENT_ID = "AKfycbwFneYCpkio7wCn7y08eDUb2PRCPc2Tdtbv20L4AbEHvuCvoqY9ks7-ONL0pzPPw4Hm"
-GAS_DEPLOYMENT_BASE_URL = "https://script.google.com/macros/s/AKfycbwFneYCpkio7wCn7y08eDUb2PRCPc2Tdtbv20L4AbEHvuCvoqY9ks7-ONL0pzPPw4Hm/exec"
+BACKEND_MODE = "worker"
+# Story 5.2: Worker versioning - Updated for full DNS cutover
+WORKER_BUILD_VERSION = "stg-2025.12.13-story5.2"
+# ============================================
+# DEPRECATED GAS VARS (Story 5.2)
+# ============================================
+# These vars are NO LONGER USED but kept for emergency GAS rollback.
+# Story 5.2 routes ALL traffic through Worker-native implementations.
+# To rollback: set BACKEND_MODE="gas" and redeploy (NOT RECOMMENDED)
+# ============================================
+# STAGING_DEPLOYMENT_ID = "AKfycbwFneYCpkio7wCn7y08eDUb2PRCPc2Tdtbv20L4AbEHvuCvoqY9ks7-ONL0pzPPw4Hm"
+# STAGING_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwFneYCpkio7wCn7y08eDUb2PRCPc2Tdtbv20L4AbEHvuCvoqY9ks7-ONL0pzPPw4Hm/exec"
+# DEPLOYMENT_ID = "AKfycbwFneYCpkio7wCn7y08eDUb2PRCPc2Tdtbv20L4AbEHvuCvoqY9ks7-ONL0pzPPw4Hm"
+# GAS_DEPLOYMENT_BASE_URL = "https://script.google.com/macros/s/AKfycbwFneYCpkio7wCn7y08eDUb2PRCPc2Tdtbv20L4AbEHvuCvoqY9ks7-ONL0pzPPw4Hm/exec"
 # Enable debug endpoints (/__debug/template/*) for staging only
 # SECURITY: This should NEVER be enabled in production
 ENABLE_DEBUG_ENDPOINTS = "true"
 # Story 5: Debug level for observability
 # Staging uses 'debug' for full visibility, production uses 'error'
-# Note: NU SDK auto-detects based on hostname, this is for documentation
 DEBUG_LEVEL = "debug"
 
 # KV Namespace for HTML templates (staging)
@@ -229,15 +233,17 @@ routes = [
 [env.api-only.vars]
 # Story 2: Explicit environment identifier for consistent detection
 WORKER_ENV = "production"
-# Story 2: Worker versioning - build version logged in X-Worker-Build-Version header
-WORKER_BUILD_VERSION = "prod-2025.12.09"
+# Story 5.2: Worker versioning - Updated for full DNS cutover
+WORKER_BUILD_VERSION = "prod-2025.12.13-story5.2"
 DEBUG_LEVEL = "error"
-# Story 6.1: Worker-only mode for production
+# Story 5.2: Worker-only mode - NO GAS backend calls
 BACKEND_MODE = "worker"
-PROD_DEPLOYMENT_ID = "AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw"
-PROD_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw/exec"
-# Legacy alias
-DEPLOYMENT_ID = "AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw"
+# ============================================
+# DEPRECATED GAS VARS (Story 5.2)
+# ============================================
+# PROD_DEPLOYMENT_ID = "AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw"
+# PROD_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw/exec"
+# DEPLOYMENT_ID = "AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw"
 
 # ============================================
 # Friendly URLs (all app paths on main site)
@@ -324,17 +330,18 @@ routes = [
 [env.events.vars]
 # Story 2: Explicit environment identifier for consistent detection
 WORKER_ENV = "production"
-# Story 2: Worker versioning - build version logged in X-Worker-Build-Version header
-WORKER_BUILD_VERSION = "prod-2025.12.09"
+# Story 5.2: Worker versioning - Updated for full DNS cutover
+WORKER_BUILD_VERSION = "prod-2025.12.13-story5.2"
 DEBUG_LEVEL = "error"
-# Story 6.1: Worker-only mode for production
+# Story 5.2: Worker-only mode - NO GAS backend calls
 BACKEND_MODE = "worker"
-# Production GAS deployment (standardized naming)
-PROD_DEPLOYMENT_ID = "AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw"
-PROD_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw/exec"
-# Legacy aliases (keeping for backward compatibility)
-GAS_DEPLOYMENT_BASE_URL = "https://script.google.com/macros/s/AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw/exec"
-DEPLOYMENT_ID = "AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw"
+# ============================================
+# DEPRECATED GAS VARS (Story 5.2)
+# ============================================
+# PROD_DEPLOYMENT_ID = "AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw"
+# PROD_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw/exec"
+# GAS_DEPLOYMENT_BASE_URL = "https://script.google.com/macros/s/AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw/exec"
+# DEPLOYMENT_ID = "AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw"
 
 # ============================================
 # Development (workers.dev subdomain)

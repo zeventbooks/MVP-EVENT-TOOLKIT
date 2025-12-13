@@ -295,6 +295,34 @@ export async function eventExists(env, eventId) {
 }
 
 /**
+ * Delete an event by ID
+ *
+ * @param {Object} env - Worker environment
+ * @param {string} eventId - Event ID to delete
+ * @param {string} [brandId] - Optional brand ID for validation
+ * @returns {Promise<boolean>} True if deleted
+ */
+export async function deleteEvent(env, eventId, brandId = null) {
+  const existing = await getEvent(env, eventId, brandId);
+
+  if (!existing) {
+    return false; // Event not found or wrong brand
+  }
+
+  const rowIndex = await findEventRowIndex(env, eventId);
+  if (rowIndex < 0) {
+    return false;
+  }
+
+  // Clear the row (set all cells to empty strings)
+  // This effectively "deletes" the event since parseEventRow requires valid data
+  const emptyRow = ['', '', '', '', '', '', ''];
+  await writeRange(env, `${EVENTS_SHEET}!A${rowIndex}:G${rowIndex}`, [emptyRow]);
+
+  return true;
+}
+
+/**
  * Generate a unique slug for an event
  *
  * @param {Object} env - Worker environment

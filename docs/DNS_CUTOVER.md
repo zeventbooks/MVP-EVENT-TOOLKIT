@@ -1,27 +1,36 @@
 # DNS Cutover: Worker-Only Routing
 
-## EPIC 6 - Story 6.1: Confirm Prod Worker Parity & DNS Cutover
+## Story 5.2: DNS Cutover (stg + prod fully to Cloudflare)
 
-This document describes the DNS cutover process to route all eventangle.com traffic through the Cloudflare Worker, effectively decommissioning GAS (Google Apps Script) as the primary backend.
+This document describes the complete DNS cutover to route ALL eventangle.com traffic through the Cloudflare Worker, with NO GAS (Google Apps Script) backend calls.
 
-## Overview
+## Status: COMPLETE ✅
 
-### Before Cutover
+As of Story 5.2, the DNS cutover is fully complete:
+- **Staging** (`stg.eventangle.com`): BACKEND_MODE=worker
+- **Production** (`eventangle.com`): BACKEND_MODE=worker
+- **No script.google.com backend calls exist anywhere**
+
+## Architecture
+
+### Before Story 5.2
 ```
-eventangle.com → Cloudflare Worker → GAS (for HTML, data)
-                                   ↘ Worker templates (for some routes)
+eventangle.com → Cloudflare Worker → GAS (for shortlinks, RPC)
+                                   → Worker templates (HTML)
+                                   → Google Sheets API (data)
 ```
 
-### After Cutover
+### After Story 5.2 (CURRENT)
 ```
 eventangle.com → Cloudflare Worker → Worker templates (HTML)
                                    → Google Sheets API (data)
-                                   → GAS (only for shortlinks, legacy RPC)
+                                   → Worker-native shortlinks (Sheets API)
+                                   ✗ NO GAS calls anywhere
 ```
 
 ## Prerequisites
 
-Before executing the DNS cutover:
+Before deploying Story 5.2 changes:
 
 1. **Staging validation passes** - Stage-2 smoke tests must pass on staging
 2. **Production parity confirmed** - Run `Prod Parity Check` workflow
@@ -30,7 +39,8 @@ Before executing the DNS cutover:
    - `GOOGLE_PRIVATE_KEY`
    - `SHEETS_SPREADSHEET_ID`
    - `ADMIN_TOKEN`
-4. **Rollback plan ready** - Review [ROLLBACK.md](./ROLLBACK.md)
+4. **SHORTLINKS sheet exists** - Required for Worker-native shortlink resolution
+5. **Rollback plan ready** - Review [ROLLBACK.md](./ROLLBACK.md)
 
 ## Cutover Process
 
@@ -103,44 +113,42 @@ After cutover, monitor for:
 - Response latency
 - User reports
 
-## What Changes
+## What Changes (Story 5.2)
 
-### Routes Now Handled by Worker
+### All Routes Now Worker-Native
 
-| Route | Before | After |
-|-------|--------|-------|
-| `/events` | Worker template | Worker template |
-| `/admin` | Worker template | Worker template |
-| `/display` | Worker template | Worker template |
-| `/poster` | Worker template | Worker template |
-| `/report` | Worker template | Worker template |
-| `/api/status` | Worker | Worker |
-| `/api/v2/events` | Worker → Sheets | Worker → Sheets |
-| `/api/v2/events/:id` | Worker → Sheets | Worker → Sheets |
-| `/api/v2/events/:id/bundle/*` | Worker → Sheets | Worker → Sheets |
+| Route | Implementation | Notes |
+|-------|---------------|-------|
+| `/events` | Worker template | Embedded HTML |
+| `/admin` | Worker template | Embedded HTML |
+| `/display` | Worker template | Embedded HTML |
+| `/poster` | Worker template | Embedded HTML |
+| `/report` | Worker template | Embedded HTML |
+| `/api/v2/status` | Worker-native | Direct response |
+| `/api/v2/events` | Worker → Sheets | Google Sheets API |
+| `/api/v2/events/:id` | Worker → Sheets | Google Sheets API |
+| `/api/v2/events/:id/bundle/*` | Worker → Sheets | Google Sheets API |
+| `/r`, `/redirect` | **Worker → Sheets** | **NEW: Worker-native shortlinks** |
+| `/api/rpc` | **410 Gone** | **DEPRECATED: Use /api/v2/* instead** |
+| `/api/*` | **410 Gone** | **DEPRECATED: Use /api/v2/* instead** |
 
-### Routes Still Proxied to GAS
+### No Routes Proxy to GAS
 
-These routes continue to use GAS through the Worker proxy:
+As of Story 5.2, **NO routes proxy to GAS**. All functionality is Worker-native:
 
-| Route | Reason |
-|-------|--------|
-| `/r`, `/redirect` | Shortlink token resolution |
-| `/api/rpc` | Legacy RPC calls (createEvent, recordResult, etc.) |
+- **Shortlinks**: Resolved via Worker reading SHORTLINKS sheet directly
+- **Legacy RPC**: Returns 410 Gone with migration guidance to /api/v2/*
+- **All HTML**: Served from embedded Worker templates
+- **All API**: Worker-native using Google Sheets API
 
-**Note**: Even these routes go through the Worker - they're just proxied to GAS for execution.
+### GAS URLs Completely Unused
 
-### GAS URLs Now Unused
+The following GAS URLs are **NO LONGER CALLED** by the Worker:
 
-With `BACKEND_MODE = "worker"`, the following GAS URLs are no longer directly accessed:
+- ~~`script.google.com/macros/s/{DEPLOYMENT_ID}/exec?p=r&t=...`~~ → Worker-native
+- ~~`script.google.com/macros/s/{DEPLOYMENT_ID}/exec` (RPC)~~ → 410 Gone
 
-- `script.google.com/macros/s/{DEPLOYMENT_ID}/exec?p=admin`
-- `script.google.com/macros/s/{DEPLOYMENT_ID}/exec?p=public`
-- `script.google.com/macros/s/{DEPLOYMENT_ID}/exec?p=display`
-- `script.google.com/macros/s/{DEPLOYMENT_ID}/exec?p=poster`
-- `script.google.com/macros/s/{DEPLOYMENT_ID}/exec?p=status`
-
-These URLs may still work if accessed directly, but all production traffic flows through the Worker.
+**GAS may still be accessible directly**, but is not used by any production system.
 
 ## Rollback
 
@@ -219,10 +227,22 @@ Shortlinks (`/r/...`) still require GAS:
 
 ## Timeline
 
-| Date | Event |
-|------|-------|
+| Story | Event |
+|-------|-------|
 | Story 0.1 | Versioned backend routing introduced |
 | Story 4.2 | Staging switched to mixed mode |
-| Story 5.2 | Stage-2 smoke tests for production gate |
-| **Story 6.1** | **Production DNS cutover to Worker-only** |
-| Story 6.2+ | Full GAS decommission (remove GAS code) |
+| Story 6.1 | Production DNS cutover to Worker-only (with GAS shortlink proxy) |
+| **Story 5.2** | **Full DNS cutover - NO GAS backend calls anywhere** |
+| | - Staging BACKEND_MODE=worker |
+| | - Production BACKEND_MODE=worker |
+| | - Worker-native shortlink resolution |
+| | - Legacy /api/* deprecated (410 Gone) |
+| Story 6.2+ | GAS code archival (no longer needed for runtime) |
+
+## Acceptance Criteria (Story 5.2)
+
+- ✅ `eventangle.com/*` routes through Worker
+- ✅ `stg.eventangle.com/*` routes through Worker
+- ✅ No `script.google.com` backend calls exist anywhere
+- ✅ Shortlinks use Worker-native Sheets API
+- ✅ Legacy API returns 410 Gone with migration guidance

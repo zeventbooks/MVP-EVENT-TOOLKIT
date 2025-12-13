@@ -3,13 +3,14 @@
  *
  * Handles event CRUD operations via Google Sheets.
  *
- * GET /api/events - List events
- * GET /api/events/:id - Get single event
- * POST /api/events - Create event (requires auth)
- * PUT /api/events/:id - Update event (requires auth)
+ * GET /api/v2/events - List events
+ * GET /api/v2/events/:id - Get single event
+ * POST /api/v2/events - Create event (requires auth)
+ * PUT /api/v2/events/:id - Update event (requires auth)
+ * DELETE /api/v2/events/:id - Delete event (requires auth)
  */
 
-import { listEvents, getEvent, getEventBySlug, createEvent, updateEvent, generateUniqueSlug, countEvents } from '../sheets/events.js';
+import { listEvents, getEvent, getEventBySlug, createEvent, updateEvent, deleteEvent, generateUniqueSlug, countEvents } from '../sheets/events.js';
 import { isConfigured } from '../sheets/client.js';
 import { isValidBrand, DEFAULT_BRAND, generateEventUrls } from '../utils/brand.js';
 import { generateEventQrCodes } from '../utils/qr.js';
@@ -385,6 +386,62 @@ export async function handleUpdateEvent(request, env, eventId) {
 }
 
 /**
+ * Handle DELETE /api/events/:id
+ *
+ * Delete an event by ID.
+ * Requires admin authentication.
+ *
+ * @param {Request} request
+ * @param {Object} env
+ * @param {string} eventId - Event ID from path
+ * @returns {Promise<Response>}
+ */
+export async function handleDeleteEvent(request, env, eventId) {
+  if (!eventId) {
+    return errorResponse('BAD_INPUT', 'Missing event ID');
+  }
+
+  // Check if Sheets is configured
+  if (!isConfigured(env)) {
+    return errorResponse(
+      'NOT_CONFIGURED',
+      'Google Sheets API not configured',
+      503
+    );
+  }
+
+  try {
+    const url = new URL(request.url);
+    const brandId = url.searchParams.get('brand') || DEFAULT_BRAND;
+
+    const deleted = await deleteEvent(env, eventId, brandId);
+
+    if (!deleted) {
+      return errorResponse('NOT_FOUND', `Event not found: ${eventId}`, 404);
+    }
+
+    return new Response(JSON.stringify({
+      ok: true,
+      value: null,
+      message: `Event ${eventId} deleted`
+    }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  } catch (error) {
+    const corrId = generateCorrId();
+    console.error(`[${corrId}] Error deleting event ${eventId}:`, error);
+
+    return errorResponse(
+      'INTERNAL',
+      'Failed to delete event',
+      500,
+      corrId
+    );
+  }
+}
+
+/**
  * Route event API requests
  *
  * @param {Request} request
@@ -413,6 +470,11 @@ export async function routeEventsApi(request, env, path) {
   // PUT /api/events/:id - Update event
   if (method === 'PUT' && path && !path.includes('/')) {
     return handleUpdateEvent(request, env, path);
+  }
+
+  // DELETE /api/events/:id - Delete event
+  if (method === 'DELETE' && path && !path.includes('/')) {
+    return handleDeleteEvent(request, env, path);
   }
 
   // Unknown route

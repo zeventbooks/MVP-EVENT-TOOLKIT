@@ -1,29 +1,27 @@
 /**
- * Backend Configuration Module (Story 0.1, updated Story 6.1)
+ * Backend Configuration Module (Story 0.1, updated Story 5.2)
  *
- * Provides versioned backend routing configuration for gradual GAS → Worker migration.
- * Allows routing requests to either GAS (Google Apps Script) or Worker-native
- * implementations on a per-route basis.
+ * Provides versioned backend routing configuration for GAS → Worker migration.
  *
  * BACKEND_MODE values:
- *   - 'gas'    : All routes use GAS backend (legacy, for rollback only)
- *   - 'worker' : All routes use Worker-native backend (PRODUCTION DEFAULT)
- *   - 'mixed'  : Per-route selection based on BACKEND_ROUTE_MAP (staging)
+ *   - 'gas'    : All routes use GAS backend (DEPRECATED - for emergency rollback only)
+ *   - 'worker' : All routes use Worker-native backend (DEFAULT for all environments)
+ *   - 'mixed'  : Per-route selection (DEPRECATED - no longer needed)
  *
  * Environment Variables:
- *   - BACKEND_MODE: 'gas' | 'worker' | 'mixed' (default: 'gas')
+ *   - BACKEND_MODE: 'gas' | 'worker' | 'mixed' (default: 'worker')
  *
- * Query Parameter Override (staging only):
- *   - ?backend=gas|worker forces a specific backend for testing
- *
- * Production Status (Story 6.1):
- *   - Production uses BACKEND_MODE='worker' as of Story 6.1 DNS cutover
- *   - GAS is only used for shortlinks (/r, /redirect) and legacy RPC (/api/rpc)
- *   - These are proxied through the Worker, not accessed directly
+ * Story 5.2 Status - Full DNS Cutover:
+ *   - Both staging AND production use BACKEND_MODE='worker'
+ *   - ALL routes now use Worker-native implementations
+ *   - Shortlinks (/r, /redirect) use Worker-native Sheets API
+ *   - NO script.google.com backend calls exist anywhere
+ *   - GAS mode is DEPRECATED and kept only for emergency rollback
  *
  * @module backendConfig
  * @see Story 0.1 - Introduce Versioned Backend Routing
- * @see Story 6.1 - Confirm Prod Worker Parity & DNS Cutover
+ * @see Story 5.2 - DNS Cutover (stg + prod fully to Cloudflare)
+ * @see Story 6.1 - Confirm Prod Worker Parity
  * @see docs/DNS_CUTOVER.md - Cutover documentation
  */
 
@@ -43,46 +41,44 @@ export const BACKEND_MODES = Object.freeze({
 
 /**
  * Default backend mode
+ * Story 5.2: Changed from GAS to WORKER - full DNS cutover complete
  * @type {string}
  */
-export const DEFAULT_BACKEND_MODE = BACKEND_MODES.GAS;
+export const DEFAULT_BACKEND_MODE = BACKEND_MODES.WORKER;
 
 // =============================================================================
 // ROUTE-LEVEL BACKEND MAPPING (for MIXED mode)
 // =============================================================================
 
 /**
- * Per-route backend configuration for MIXED mode.
+ * Per-route backend configuration for MIXED mode (DEPRECATED).
  *
- * Maps route patterns to their backend implementation:
- *   - 'gas'    : Route to GAS (legacy)
- *   - 'worker' : Route to Worker-native implementation
+ * Story 5.2: This map is now DEPRECATED. All routes use Worker backend.
+ * The map is kept for reference and potential emergency rollback only.
  *
- * Routes not listed here use the default backend (GAS).
+ * ALL routes now use Worker-native implementations:
+ *   - API endpoints: Worker-native /api/v2/* endpoints
+ *   - HTML pages: Worker templates
+ *   - Shortlinks: Worker-native Sheets API
+ *   - Legacy RPC: Deprecated (use /api/v2/* instead)
  *
- * Migration Strategy (COMPLETED as of Story 6.1):
- *   1. Start with all routes on 'gas' ✓
- *   2. Flip individual routes to 'worker' as implementations are verified ✓
- *   3. Once all routes are 'worker', switch BACKEND_MODE to 'worker' ✓
- *
- * Current Status:
- *   - Production: BACKEND_MODE='worker' (all routes use Worker)
- *   - Staging: BACKEND_MODE='mixed' (for testing individual routes)
- *   - GAS routes below are only used when BACKEND_MODE='mixed'
+ * Migration Complete (Story 5.2):
+ *   - Production: BACKEND_MODE='worker'
+ *   - Staging: BACKEND_MODE='worker'
+ *   - No GAS backend calls exist anywhere
  *
  * @type {Object<string, string>}
+ * @deprecated Use BACKEND_MODE='worker' instead
  */
 export const BACKEND_ROUTE_MAP = Object.freeze({
   // =========================================================================
-  // API Endpoints
+  // API Endpoints - ALL Worker-native
   // =========================================================================
-  // Health check endpoints - can safely use Worker
   '/api/status': 'worker',
   '/api/v2/status': 'worker',
   '/api/v2/ping': 'worker',
   '/api/ping': 'worker',
 
-  // Events endpoints - migrate incrementally
   '/api/v2/events': 'worker',
   '/api/v2/events/:id': 'worker',
   '/api/v2/events/:id/bundle/public': 'worker',
@@ -90,15 +86,13 @@ export const BACKEND_ROUTE_MAP = Object.freeze({
   '/api/v2/events/:id/bundle/poster': 'worker',
   '/api/v2/events/:id/bundle/admin': 'worker',
 
-  // Legacy API endpoints - keep on GAS until ready
-  '/api': 'gas',
-  '/api/rpc': 'gas',
+  // Legacy API - DEPRECATED, returns 410 Gone
+  '/api': 'worker',
+  '/api/rpc': 'worker',
 
   // =========================================================================
-  // Page Requests (HTML)
+  // Page Requests (HTML) - Worker templates
   // =========================================================================
-  // HTML pages are already served from Worker templates (Story 2)
-  // These don't hit GAS for HTML, only for data via /api/*
   '/events': 'worker',
   '/admin': 'worker',
   '/display': 'worker',
@@ -106,11 +100,10 @@ export const BACKEND_ROUTE_MAP = Object.freeze({
   '/report': 'worker',
 
   // =========================================================================
-  // Special Routes
+  // Shortlinks - Worker-native Sheets API (Story 5.2)
   // =========================================================================
-  // Shortlinks must stay on GAS for token resolution
-  '/r': 'gas',
-  '/redirect': 'gas'
+  '/r': 'worker',
+  '/redirect': 'worker'
 });
 
 // =============================================================================

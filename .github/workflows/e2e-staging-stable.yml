@@ -1,7 +1,12 @@
-# Staging E2E Tests with Environment Reset (Story 3.5)
+# Staging E2E Tests with Environment Reset (Story 3.5/5.2)
 #
-# Purpose: Run E2E tests against staging with proper environment preparation
-# and cleanup to ensure reliable, non-flaky test results.
+# Purpose: Run E2E tests against staging AFTER deployment.
+# Tests require a live staging environment with the deployed Worker.
+#
+# Story 5.2 Update:
+#   - No longer runs on PRs (PRs don't deploy, so no staging to test)
+#   - Triggered by Stage-1 CI completion (after staging deploy)
+#   - Can also be triggered manually for ad-hoc testing
 #
 # Features:
 # - Pre-test environment health check
@@ -10,24 +15,18 @@
 # - Stability tracking and reporting
 # - Graceful error handling
 #
-# Schedule: Runs on push to main, PRs, and manually
-#
 # @see docs/QA_ENVIRONMENT_MANAGEMENT.md for details
+# @see stage1-ci.yml - Triggers this workflow after staging deploy
 
 name: E2E Staging (Stable)
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'tests/**'
-      - 'src/**'
-      - '.github/workflows/e2e-staging-stable.yml'
-  pull_request:
-    branches: [main]
-    paths:
-      - 'tests/**'
-      - 'src/**'
+  # Trigger after Stage-1 CI deploys to staging
+  workflow_run:
+    workflows:
+      - "Stage-1 CI"
+    types:
+      - completed
   workflow_dispatch:
     inputs:
       cleanup_before:
@@ -50,11 +49,69 @@ env:
 
 jobs:
   # ============================================================================
+  # GATE CHECK: Verify Stage-1 deployed (not just validated)
+  # ============================================================================
+  check-deployment:
+    name: 0. Check Deployment Status
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+
+    steps:
+      - name: Check if deployment occurred
+        id: check
+        run: |
+          # Handle manual dispatch - always run
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "Manual dispatch - proceeding with E2E tests"
+            echo "should_run=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Handle workflow_run trigger
+          CONCLUSION="${{ github.event.workflow_run.conclusion }}"
+          TRIGGER_EVENT="${{ github.event.workflow_run.event }}"
+          HEAD_BRANCH="${{ github.event.workflow_run.head_branch }}"
+
+          echo "Stage-1 CI conclusion: $CONCLUSION"
+          echo "Stage-1 trigger event: $TRIGGER_EVENT"
+          echo "Stage-1 head branch: $HEAD_BRANCH"
+
+          # E2E should only run if Stage-1 deployed (push to main)
+          if [ "$CONCLUSION" != "success" ]; then
+            echo "::notice::Stage-1 CI did not succeed - skipping E2E"
+            echo "should_run=false" >> $GITHUB_OUTPUT
+          elif [ "$TRIGGER_EVENT" != "push" ]; then
+            echo "::notice::Stage-1 was triggered by '$TRIGGER_EVENT' - no deployment, skipping E2E"
+            echo "should_run=false" >> $GITHUB_OUTPUT
+          elif [ "$HEAD_BRANCH" != "main" ]; then
+            echo "::notice::Stage-1 ran on branch '$HEAD_BRANCH' - skipping E2E"
+            echo "should_run=false" >> $GITHUB_OUTPUT
+          else
+            echo "Stage-1 deployed to staging - proceeding with E2E tests"
+            echo "should_run=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create skip summary
+        if: steps.check.outputs.should_run != 'true'
+        run: |
+          echo "## E2E Staging Tests - Skipped" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "E2E tests only run after Stage-1 deploys to staging (push to main)." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Trigger Event** | \`${{ github.event.workflow_run.event }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Branch** | \`${{ github.event.workflow_run.head_branch }}\` |" >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================================
   # ENVIRONMENT PREPARATION
   # ============================================================================
   prepare-environment:
     name: 1. Prepare QA Environment
     runs-on: ubuntu-latest
+    needs: check-deployment
+    if: needs.check-deployment.outputs.should_run == 'true'
     outputs:
       ready: ${{ steps.validate.outputs.ready }}
       session_id: ${{ steps.session.outputs.id }}
