@@ -121,17 +121,18 @@ Functions exposed to global scope:
 
   /**
    * Fetch events list from Worker endpoint
-   * GET /api/events?brand=:brand
+   * GET /api/v2/events?brand=:brand
    *
    * Story 2.3: Replaces GAS api_getEventsSafe
    * Story 3.1: Now includes Authorization header for admin auth
+   * Story 5.3: Uses v2 API (GAS retired)
    *
    * @param {string} brandId - Brand identifier
    * @returns {Promise<{ok: boolean, items?: object[], code?: string, message?: string}>}
    */
   async function fetchEventsListFromWorker(brandId) {
     const baseUrl = getWorkerBaseUrl();
-    const endpoint = `${baseUrl}/api/events`;
+    const endpoint = `${baseUrl}/api/v2/events`;
     const url = new URL(endpoint);
     url.searchParams.set('brand', brandId);
 
@@ -177,10 +178,11 @@ Functions exposed to global scope:
 
   /**
    * Fetch admin bundle from Worker endpoint
-   * GET /api/events/:id/adminBundle?brand=:brand
+   * GET /api/v2/events/:id/bundle/admin?brand=:brand
    *
    * Story 2.3: Replaces GAS api_get for admin context
    * Story 3.1: Now includes Authorization header for admin auth
+   * Story 5.3: Uses v2 API (GAS retired)
    *
    * @param {string} eventId - Event ID or slug
    * @param {string} brandId - Brand identifier
@@ -189,7 +191,7 @@ Functions exposed to global scope:
    */
   async function fetchAdminBundleFromWorker(eventId, brandId, options = {}) {
     const baseUrl = getWorkerBaseUrl();
-    const endpoint = `${baseUrl}/api/events/${encodeURIComponent(eventId)}/adminBundle`;
+    const endpoint = `${baseUrl}/api/v2/events/${encodeURIComponent(eventId)}/bundle/admin`;
     const url = new URL(endpoint);
     url.searchParams.set('brand', brandId);
 

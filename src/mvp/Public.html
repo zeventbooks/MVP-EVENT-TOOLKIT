@@ -952,7 +952,7 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
 
     /**
      * Fetch public bundle from Worker endpoint
-     * GET /api/events/:id/publicBundle?brand=:brand
+     * GET /api/v2/events/:id/bundle/public?brand=:brand
      *
      * @param {string} eventId - Event ID or slug
      * @param {string} brandId - Brand identifier
@@ -961,7 +961,7 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
      */
     async function fetchPublicBundleFromWorker(eventId, brandId, options = {}) {
       const baseUrl = getWorkerBaseUrl();
-      const endpoint = `${baseUrl}/api/events/${encodeURIComponent(eventId)}/publicBundle`;
+      const endpoint = `${baseUrl}/api/v2/events/${encodeURIComponent(eventId)}/bundle/public`;
       const url = new URL(endpoint);
       url.searchParams.set('brand', brandId);
 
@@ -1008,14 +1008,14 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
 
     /**
      * Fetch events list from Worker endpoint
-     * GET /api/events?brand=:brand
+     * GET /api/v2/events?brand=:brand
      *
      * @param {string} brandId - Brand identifier
      * @returns {Promise<{ok: boolean, value?: object, code?: string, message?: string}>}
      */
     async function fetchEventsListFromWorker(brandId) {
       const baseUrl = getWorkerBaseUrl();
-      const endpoint = `${baseUrl}/api/events`;
+      const endpoint = `${baseUrl}/api/v2/events`;
       const url = new URL(endpoint);
       url.searchParams.set('brand', brandId);
 
