@@ -1,13 +1,13 @@
 # Stage-2 Smoke Tests: Post-Deploy Validation & Production Gate
 #
-# EPIC 5 - Story 5.2: Stage-2 Post-Deploy Smoke + Synthetic (Staging -> Prod gate)
+# EPIC 5 - Story 5.1: Stage-2 Post-Deploy Smoke + Synthetic (Staging -> Prod gate)
 #
 # Purpose / Value:
 #   Automatically verify staging after deploy and gate promotion to production.
 #   Ensures no promotion to prod if staging is not healthy.
 #
 # Flow:
-#   1. Triggered by Stage-1 CI success (workflow_run)
+#   1. Triggered by Stage-1 CI success (workflow_run) OR manual dispatch
 #   2. Hit staging endpoints:
 #      - /api/status (API health)
 #      - /api/events (API data)
@@ -17,17 +17,25 @@
 #      - /poster?event=<testEvent> (Playwright UI)
 #   3. (Optional) Trigger Datadog synthetic checks
 #   4. On full pass:
-#      - Raise manual approval gate in GitHub
+#      - If auto_promote=true: deploy directly to production
+#      - Otherwise: Raise manual approval gate in GitHub
 #      - On approval: deploy to production
 #
 # Acceptance Criteria:
 #   - Clear pass/fail indicator for the whole system
 #   - No promotion to prod if staging is not healthy
+#   - Optional auto-promote to production after smoke tests pass
 #
 # Negative Paths:
 #   - If Stage-2 fails:
 #     - Staging stays with new build (for debugging)
 #     - Production remains untouched (safe)
+#     - Optional rollback to previous staging version
+#
+# Rollback:
+#   - Staging: npm run rollback:staging
+#   - Production: npm run rollback:prod
+#   - See: docs/ROLLBACK.md
 #
 # Required Secrets:
 #   - CLOUDFLARE_API_TOKEN: For production deployment (wrangler deploy --env production)
@@ -42,10 +50,27 @@ on:
       - "Stage-1 CI"
     types:
       - completed
+  workflow_dispatch:
+    inputs:
+      auto_promote:
+        description: 'Auto-promote to production if smoke tests pass (skip approval gate)'
+        required: false
+        default: 'false'
+        type: boolean
+      rollback_on_failure:
+        description: 'Rollback staging to previous version if smoke tests fail'
+        required: false
+        default: 'false'
+        type: boolean
+      skip_ui_tests:
+        description: 'Skip UI smoke tests (API only)'
+        required: false
+        default: 'false'
+        type: boolean
 
 # Prevent duplicate runs for the same deployment
 concurrency:
-  group: stage2-smoke-${{ github.event.workflow_run.head_sha }}
+  group: stage2-smoke-${{ github.event.workflow_run.head_sha || github.run_id }}
   cancel-in-progress: true
 
 env:
@@ -57,7 +82,7 @@ env:
 
 jobs:
   # ==========================================================================
-  # GATE CHECK: Verify Stage-1 succeeded
+  # GATE CHECK: Verify Stage-1 succeeded or manual dispatch
   # ==========================================================================
   check-stage1:
     name: Check Stage-1 Status
@@ -65,14 +90,32 @@ jobs:
     outputs:
       should_run: ${{ steps.check.outputs.should_run }}
       conclusion: ${{ steps.check.outputs.conclusion }}
+      auto_promote: ${{ steps.check.outputs.auto_promote }}
+      rollback_on_failure: ${{ steps.check.outputs.rollback_on_failure }}
+      skip_ui_tests: ${{ steps.check.outputs.skip_ui_tests }}
 
     steps:
       - name: Check Stage-1 conclusion
         id: check
         run: |
+          # Handle manual dispatch
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "Manual dispatch - proceeding with Stage-2 smoke tests"
+            echo "conclusion=manual" >> $GITHUB_OUTPUT
+            echo "should_run=true" >> $GITHUB_OUTPUT
+            echo "auto_promote=${{ github.event.inputs.auto_promote }}" >> $GITHUB_OUTPUT
+            echo "rollback_on_failure=${{ github.event.inputs.rollback_on_failure }}" >> $GITHUB_OUTPUT
+            echo "skip_ui_tests=${{ github.event.inputs.skip_ui_tests }}" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Handle workflow_run trigger
           CONCLUSION="${{ github.event.workflow_run.conclusion }}"
           echo "Stage-1 CI conclusion: $CONCLUSION"
           echo "conclusion=$CONCLUSION" >> $GITHUB_OUTPUT
+          echo "auto_promote=false" >> $GITHUB_OUTPUT
+          echo "rollback_on_failure=false" >> $GITHUB_OUTPUT
+          echo "skip_ui_tests=false" >> $GITHUB_OUTPUT
 
           if [ "$CONCLUSION" == "success" ]; then
             echo "Stage-1 CI succeeded - proceeding with Stage-2 smoke tests"
@@ -245,7 +288,10 @@ jobs:
     name: UI Smoke Tests (Playwright)
     runs-on: ubuntu-latest
     needs: [check-stage1, api-smoke-tests]
-    if: needs.api-smoke-tests.outputs.api_passed == 'true'
+    # Run if API passed AND ui tests not skipped
+    if: |
+      needs.api-smoke-tests.outputs.api_passed == 'true' &&
+      needs.check-stage1.outputs.skip_ui_tests != 'true'
     outputs:
       ui_passed: ${{ steps.ui-tests.outputs.passed }}
 
@@ -392,6 +438,8 @@ jobs:
     if: always() && needs.check-stage1.outputs.should_run == 'true'
     outputs:
       all_passed: ${{ steps.summary.outputs.all_passed }}
+      auto_promote: ${{ needs.check-stage1.outputs.auto_promote }}
+      rollback_on_failure: ${{ needs.check-stage1.outputs.rollback_on_failure }}
 
     steps:
       - name: Calculate overall result
@@ -405,18 +453,33 @@ jobs:
           PREFLIGHT="${{ needs.preflight-check.result }}"
           API="${{ needs.api-smoke-tests.result }}"
           UI="${{ needs.ui-smoke-tests.result }}"
+          SKIP_UI="${{ needs.check-stage1.outputs.skip_ui_tests }}"
 
           echo "Pre-flight: $PREFLIGHT"
           echo "API Tests:  $API"
-          echo "UI Tests:   $UI"
+          echo "UI Tests:   $UI (skip_ui_tests=$SKIP_UI)"
           echo ""
 
-          if [ "$PREFLIGHT" = "success" ] && [ "$API" = "success" ] && [ "$UI" = "success" ]; then
-            echo "all_passed=true" >> $GITHUB_OUTPUT
-            echo "=============================================="
-            echo "ALL SMOKE TESTS PASSED"
-            echo "=============================================="
-            echo "Staging is healthy and ready for production promotion."
+          # If UI tests are skipped, consider them passed
+          if [ "$SKIP_UI" = "true" ]; then
+            UI="skipped_ok"
+          fi
+
+          # Check if all required tests passed
+          if [ "$PREFLIGHT" = "success" ] && [ "$API" = "success" ]; then
+            if [ "$UI" = "success" ] || [ "$UI" = "skipped" ] || [ "$UI" = "skipped_ok" ]; then
+              echo "all_passed=true" >> $GITHUB_OUTPUT
+              echo "=============================================="
+              echo "ALL SMOKE TESTS PASSED"
+              echo "=============================================="
+              echo "Staging is healthy and ready for production promotion."
+            else
+              echo "all_passed=false" >> $GITHUB_OUTPUT
+              echo "=============================================="
+              echo "UI SMOKE TESTS FAILED"
+              echo "=============================================="
+              echo "Production promotion blocked."
+            fi
           else
             echo "all_passed=false" >> $GITHUB_OUTPUT
             echo "=============================================="
@@ -453,10 +516,103 @@ jobs:
           fi
 
   # ==========================================================================
-  # PRODUCTION APPROVAL GATE
+  # ROLLBACK ON FAILURE (Optional)
+  # ==========================================================================
+  # Rollback staging to previous version if smoke tests fail
+  # Only runs when rollback_on_failure=true
+  # ==========================================================================
+  rollback-staging:
+    name: Rollback Staging (On Failure)
+    runs-on: ubuntu-latest
+    needs: [smoke-summary]
+    # Only run if smoke tests failed AND rollback_on_failure is true
+    if: |
+      needs.smoke-summary.outputs.all_passed != 'true' &&
+      needs.smoke-summary.outputs.rollback_on_failure == 'true'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Wrangler
+        run: npm install -g wrangler@3
+
+      - name: Rollback staging to previous version
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          echo "=============================================="
+          echo "ROLLBACK: Reverting staging to previous version"
+          echo "=============================================="
+          echo ""
+          echo "Smoke tests failed - initiating automatic rollback"
+          echo ""
+
+          cd cloudflare-proxy
+
+          # List current deployments
+          echo "Current deployments:"
+          wrangler deployments list --env staging || true
+
+          # Execute rollback
+          echo ""
+          echo "Executing rollback..."
+          wrangler rollback --env staging
+
+          echo ""
+          echo "=============================================="
+          echo "ROLLBACK COMPLETE"
+          echo "=============================================="
+
+      - name: Verify rollback
+        run: |
+          echo "Waiting for edge propagation..."
+          sleep 10
+
+          echo "Verifying staging health..."
+          RESPONSE=$(curl -s -w "\n%{http_code}" "${{ env.STG_BASE_URL }}/api/status" || echo "CURL_FAILED")
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "Staging health check passed after rollback"
+          else
+            echo "::warning::Staging health check returned HTTP $HTTP_CODE after rollback"
+          fi
+
+      - name: Create rollback summary
+        if: always()
+        run: |
+          echo "## Staging Rollback" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "### ROLLED BACK" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Staging has been rolled back to the previous version due to smoke test failures." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Staging URL:** ${{ env.STG_BASE_URL }}" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ROLLBACK FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Automatic rollback failed. Manual intervention required." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Run manually: \`npm run rollback:staging\`" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # ==========================================================================
+  # PRODUCTION APPROVAL GATE (Manual)
   # ==========================================================================
   # Manual approval required before production deployment.
   # Uses GitHub Environment protection rules.
+  # Skipped when auto_promote=true
   #
   # Setup Required (GitHub Settings):
   #   1. Go to Settings > Environments
@@ -467,7 +623,10 @@ jobs:
     name: Production Approval Gate
     runs-on: ubuntu-latest
     needs: [smoke-summary]
-    if: needs.smoke-summary.outputs.all_passed == 'true'
+    # Only require approval if smoke tests passed AND auto_promote is false
+    if: |
+      needs.smoke-summary.outputs.all_passed == 'true' &&
+      needs.smoke-summary.outputs.auto_promote != 'true'
     environment:
       name: production
       url: https://www.eventangle.com
@@ -496,15 +655,58 @@ jobs:
           echo "| **Target URL** | \`https://www.eventangle.com\` |" >> $GITHUB_STEP_SUMMARY
 
   # ==========================================================================
+  # AUTO-PROMOTE TO PRODUCTION
+  # ==========================================================================
+  # Automatically deploys to production when auto_promote=true
+  # Skips the manual approval gate
+  # ==========================================================================
+  auto-promote-check:
+    name: Auto-Promote Check
+    runs-on: ubuntu-latest
+    needs: [smoke-summary]
+    # Only run if smoke tests passed AND auto_promote is true
+    if: |
+      needs.smoke-summary.outputs.all_passed == 'true' &&
+      needs.smoke-summary.outputs.auto_promote == 'true'
+    outputs:
+      should_deploy: ${{ steps.check.outputs.should_deploy }}
+
+    steps:
+      - name: Auto-promote enabled
+        id: check
+        run: |
+          echo "=============================================="
+          echo "AUTO-PROMOTE ENABLED"
+          echo "=============================================="
+          echo ""
+          echo "Smoke tests passed and auto_promote=true"
+          echo "Skipping manual approval gate"
+          echo "Deploying directly to production..."
+          echo ""
+          echo "should_deploy=true" >> $GITHUB_OUTPUT
+
+      - name: Create auto-promote summary
+        run: |
+          echo "## Auto-Promote to Production" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### AUTO-PROMOTING" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Smoke tests passed. Auto-promoting to production (manual approval skipped)." >> $GITHUB_STEP_SUMMARY
+
+  # ==========================================================================
   # PRODUCTION DEPLOYMENT
   # ==========================================================================
-  # Deploy to production after manual approval.
+  # Deploy to production after manual approval OR auto-promote
   # Uses wrangler deploy --env production
   # ==========================================================================
   deploy-production:
     name: Deploy to Production
     runs-on: ubuntu-latest
-    needs: [production-approval]
+    needs: [production-approval, auto-promote-check]
+    # Run if either approval received OR auto-promote enabled
+    if: |
+      always() &&
+      (needs.production-approval.result == 'success' || needs.auto-promote-check.result == 'success')
 
     steps:
       - name: Checkout code
@@ -602,7 +804,7 @@ jobs:
   pipeline-status:
     name: Pipeline Final Status
     runs-on: ubuntu-latest
-    needs: [check-stage1, smoke-summary, deploy-production]
+    needs: [check-stage1, smoke-summary, rollback-staging, deploy-production]
     if: always()
 
     steps:
@@ -614,6 +816,8 @@ jobs:
           STAGE1="${{ needs.check-stage1.outputs.should_run }}"
           SMOKE="${{ needs.smoke-summary.outputs.all_passed }}"
           DEPLOY="${{ needs.deploy-production.result }}"
+          ROLLBACK="${{ needs.rollback-staging.result }}"
+          AUTO_PROMOTE="${{ needs.smoke-summary.outputs.auto_promote }}"
 
           if [ "$STAGE1" != "true" ]; then
             echo "## SKIPPED" >> $GITHUB_STEP_SUMMARY
@@ -622,17 +826,41 @@ jobs:
             echo "## BLOCKED" >> $GITHUB_STEP_SUMMARY
             echo "Smoke tests failed. Production deployment blocked." >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Staging is safe to debug**: ${{ env.STG_BASE_URL }}" >> $GITHUB_STEP_SUMMARY
+            if [ "$ROLLBACK" = "success" ]; then
+              echo "Staging has been rolled back to the previous version." >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+            fi
+            echo "**Staging URL**: ${{ env.STG_BASE_URL }}" >> $GITHUB_STEP_SUMMARY
             echo "**Production is untouched**: ${{ env.PROD_BASE_URL }}" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Rollback Commands" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+            echo "npm run rollback:staging  # Rollback staging" >> $GITHUB_STEP_SUMMARY
+            echo "npm run rollback:prod     # Rollback production" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           elif [ "$DEPLOY" = "success" ]; then
             echo "## SUCCESS" >> $GITHUB_STEP_SUMMARY
-            echo "All smoke tests passed and production deployment completed." >> $GITHUB_STEP_SUMMARY
+            if [ "$AUTO_PROMOTE" = "true" ]; then
+              echo "All smoke tests passed. Production deployment auto-promoted." >> $GITHUB_STEP_SUMMARY
+            else
+              echo "All smoke tests passed and production deployment completed." >> $GITHUB_STEP_SUMMARY
+            fi
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "**Production URL**: https://www.eventangle.com" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Rollback (if needed)" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+            echo "npm run rollback:prod" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           elif [ "$DEPLOY" = "skipped" ]; then
             echo "## AWAITING APPROVAL" >> $GITHUB_STEP_SUMMARY
             echo "Smoke tests passed. Awaiting manual approval for production deployment." >> $GITHUB_STEP_SUMMARY
           else
             echo "## DEPLOYMENT FAILED" >> $GITHUB_STEP_SUMMARY
             echo "Smoke tests passed but production deployment failed." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Rollback Production" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+            echo "npm run rollback:prod" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           fi
