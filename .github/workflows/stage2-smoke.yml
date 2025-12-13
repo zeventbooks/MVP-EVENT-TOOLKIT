@@ -111,19 +111,37 @@ jobs:
 
           # Handle workflow_run trigger
           CONCLUSION="${{ github.event.workflow_run.conclusion }}"
+          TRIGGER_EVENT="${{ github.event.workflow_run.event }}"
+          HEAD_BRANCH="${{ github.event.workflow_run.head_branch }}"
+
           echo "Stage-1 CI conclusion: $CONCLUSION"
+          echo "Stage-1 trigger event: $TRIGGER_EVENT"
+          echo "Stage-1 head branch: $HEAD_BRANCH"
           echo "conclusion=$CONCLUSION" >> $GITHUB_OUTPUT
           echo "auto_promote=false" >> $GITHUB_OUTPUT
           echo "rollback_on_failure=false" >> $GITHUB_OUTPUT
           echo "skip_ui_tests=false" >> $GITHUB_OUTPUT
 
-          if [ "$CONCLUSION" == "success" ]; then
-            echo "Stage-1 CI succeeded - proceeding with Stage-2 smoke tests"
-            echo "should_run=true" >> $GITHUB_OUTPUT
-          else
+          # Stage-2 should only run if:
+          # 1. Stage-1 succeeded AND
+          # 2. Stage-1 was triggered by a push to main (actual deployment)
+          #
+          # On PRs, Stage-1 validates but does NOT deploy, so Stage-2 should skip.
+          if [ "$CONCLUSION" != "success" ]; then
             echo "::warning::Stage-1 CI did not succeed (conclusion: $CONCLUSION)"
             echo "Stage-2 smoke tests skipped"
             echo "should_run=false" >> $GITHUB_OUTPUT
+          elif [ "$TRIGGER_EVENT" != "push" ]; then
+            echo "::notice::Stage-1 was triggered by '$TRIGGER_EVENT' (not push) - no deployment occurred"
+            echo "Stage-2 smoke tests skipped (staging not updated)"
+            echo "should_run=false" >> $GITHUB_OUTPUT
+          elif [ "$HEAD_BRANCH" != "main" ]; then
+            echo "::notice::Stage-1 ran on branch '$HEAD_BRANCH' (not main) - deployment may not have occurred"
+            echo "Stage-2 smoke tests skipped"
+            echo "should_run=false" >> $GITHUB_OUTPUT
+          else
+            echo "Stage-1 CI succeeded with push to main - proceeding with Stage-2 smoke tests"
+            echo "should_run=true" >> $GITHUB_OUTPUT
           fi
 
       - name: Create skip summary
@@ -131,12 +149,17 @@ jobs:
         run: |
           echo "## Stage-2 Smoke Tests - Skipped" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Stage-1 CI did not succeed." >> $GITHUB_STEP_SUMMARY
+          echo "Stage-2 only runs after Stage-1 deploys to staging (push to main)." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
           echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
           echo "| **Stage-1 Conclusion** | \`${{ github.event.workflow_run.conclusion }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Trigger Event** | \`${{ github.event.workflow_run.event }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Branch** | \`${{ github.event.workflow_run.head_branch }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **Workflow Run** | \`${{ github.event.workflow_run.id }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Why skipped?** Stage-2 smoke tests require an actual deployment to staging." >> $GITHUB_STEP_SUMMARY
+          echo "PRs validate code but don't deploy. Merge to main to trigger deployment + smoke tests." >> $GITHUB_STEP_SUMMARY
 
   # ==========================================================================
   # PRE-FLIGHT: Quick health check before full test suite
