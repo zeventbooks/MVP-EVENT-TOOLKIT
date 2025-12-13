@@ -25,6 +25,7 @@ import { handleStatus, type StatusEnv } from './handlers/status';
 import { handleListEvents } from './handlers/eventsList';
 import { handleGetPublicBundle } from './handlers/publicBundle';
 import { handleGetAdminBundle } from './handlers/adminBundle';
+import { handleAdminCreateEvent } from './handlers/adminCreateEvent';
 import { guardAdminRoute, type AdminAuthEnv } from './auth';
 
 // =============================================================================
@@ -36,8 +37,9 @@ import { guardAdminRoute, type AdminAuthEnv } from './auth';
  * 1.1.0 - Initial router (Story 1.1)
  * 1.2.0 - Wired up publicBundle and adminBundle handlers (Story 2.2)
  * 1.3.0 - Wired up events list handler for Admin migration (Story 2.3)
+ * 1.4.0 - Added admin createEvent endpoint (Story 3.2)
  */
-export const ROUTER_VERSION = '1.3.0';
+export const ROUTER_VERSION = '1.4.0';
 
 /**
  * Valid brands for routing
@@ -203,6 +205,11 @@ function matchRoute(url: URL): RouteMatch {
     const posterBundleMatch = apiPath.match(/^\/events\/([^/]+)\/posterBundle$/);
     if (posterBundleMatch) {
       return { type: 'api', handler: 'posterBundle', brand, eventId: posterBundleMatch[1] };
+    }
+
+    // /api/admin/events - create event (Story 3.2)
+    if (apiPath === '/admin/events' || apiPath === '/admin/events/') {
+      return { type: 'api', handler: 'adminCreateEvent', brand };
     }
 
     // Unknown API route - return 404
@@ -559,6 +566,48 @@ async function handleApiDisplayPosterBundle(
   return addStandardHeaders(response, logger);
 }
 
+/**
+ * Handle admin create event request
+ * POST /api/admin/events
+ * @see Story 3.2 - Port createEvent to Worker
+ */
+async function handleApiAdminCreateEvent(
+  request: Request,
+  env: RouterEnv,
+  logger: RouterLogger,
+  brand: Brand
+): Promise<Response> {
+  const startTime = Date.now();
+
+  try {
+    // Add brand to URL if not already present (for handler to extract)
+    const url = new URL(request.url);
+    if (!url.searchParams.has('brand')) {
+      url.searchParams.set('brand', brand);
+    }
+
+    // Create modified request with brand param
+    const modifiedRequest = new Request(url.toString(), {
+      method: request.method,
+      headers: request.headers,
+      body: request.body,
+    });
+
+    const response = await handleAdminCreateEvent(modifiedRequest, env);
+    const durationMs = Date.now() - startTime;
+
+    logger.apiRequest(request.method, '/api/admin/events', response.status, durationMs, {
+      brand,
+      operation: 'createEvent',
+    });
+
+    return addStandardHeaders(response, logger);
+  } catch (error) {
+    logger.error('Failed to handle admin createEvent', error);
+    return create500Response(error instanceof Error ? error : new Error(String(error)), logger);
+  }
+}
+
 // =============================================================================
 // Page Handlers
 // =============================================================================
@@ -726,6 +775,15 @@ export async function handleRequest(
               match.brand || 'root',
               match.eventId!,
               match.handler
+            );
+            break;
+
+          case 'adminCreateEvent':
+            response = await handleApiAdminCreateEvent(
+              request,
+              env,
+              logger,
+              match.brand || 'root'
             );
             break;
 
