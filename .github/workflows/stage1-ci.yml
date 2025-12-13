@@ -30,7 +30,7 @@
 #   - CLOUDFLARE_API_TOKEN: Cloudflare API token for Worker deployment
 #   - GOOGLE_CLIENT_EMAIL: Service account email for Sheets connectivity
 #   - GOOGLE_PRIVATE_KEY: Service account private key (PEM format)
-#   - SHEETS_SPREADSHEET_ID: Staging spreadsheet ID for connectivity test
+#   - STAGING_SHEETS_SPREADSHEET_ID: Staging spreadsheet ID for connectivity test
 #
 # Rollback:
 #   - Use: npm run rollback:staging
@@ -298,13 +298,13 @@ jobs:
             echo "✓ GOOGLE_PRIVATE_KEY is set"
           fi
 
-          if [ -z "${{ secrets.SHEETS_SPREADSHEET_ID }}" ]; then
-            echo "::error::Missing required secret: SHEETS_SPREADSHEET_ID"
+          if [ -z "${{ secrets.STAGING_SHEETS_SPREADSHEET_ID }}" ]; then
+            echo "::error::Missing required secret: STAGING_SHEETS_SPREADSHEET_ID"
             echo "  Configure in: Settings → Secrets → Actions → New repository secret"
             echo "  Value: Google Sheets spreadsheet ID for staging"
             ERRORS=$((ERRORS + 1))
           else
-            echo "✓ SHEETS_SPREADSHEET_ID is set"
+            echo "✓ STAGING_SHEETS_SPREADSHEET_ID is set"
           fi
 
           if [ $ERRORS -gt 0 ]; then
@@ -320,7 +320,7 @@ jobs:
         env:
           GOOGLE_CLIENT_EMAIL: ${{ secrets.GOOGLE_CLIENT_EMAIL }}
           GOOGLE_PRIVATE_KEY: ${{ secrets.GOOGLE_PRIVATE_KEY }}
-          SHEETS_SPREADSHEET_ID: ${{ secrets.SHEETS_SPREADSHEET_ID }}
+          SHEETS_SPREADSHEET_ID: ${{ secrets.STAGING_SHEETS_SPREADSHEET_ID }}
         run: |
           echo "=================================================="
           echo "STAGE-1: SHEETS CONNECTIVITY TEST"
