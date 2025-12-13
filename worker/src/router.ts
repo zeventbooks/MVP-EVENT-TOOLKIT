@@ -18,6 +18,7 @@
  * @see Story 1.1 - Create Central Worker Router
  * @see Story 2.2 - Replace getPublicBundle Worker Implementation
  * @see Story 2.3 - Replace getAdminBundle Worker Implementation
+ * @see Story 4.1 - Move HTML Surfaces to Cloudflare
  */
 
 import { RouterLogger, createLogger } from './logger';
@@ -28,6 +29,11 @@ import { handleGetAdminBundle } from './handlers/adminBundle';
 import { handleAdminCreateEvent } from './handlers/adminCreateEvent';
 import { handleAdminRecordResult } from './handlers/adminRecordResult';
 import { guardAdminRoute, type AdminAuthEnv } from './auth';
+import {
+  handleStaticAsset,
+  type PageType as StaticPageType,
+  type StaticAssetEnv,
+} from './handlers/staticAssets';
 
 // =============================================================================
 // Constants
@@ -40,8 +46,9 @@ import { guardAdminRoute, type AdminAuthEnv } from './auth';
  * 1.3.0 - Wired up events list handler for Admin migration (Story 2.3)
  * 1.4.0 - Added admin createEvent endpoint (Story 3.2)
  * 1.5.0 - Added admin recordResult endpoint (Story 3.3)
+ * 1.6.0 - Static HTML serving from Worker (Story 4.1)
  */
-export const ROUTER_VERSION = '1.5.0';
+export const ROUTER_VERSION = '1.6.0';
 
 /**
  * Valid brands for routing
@@ -95,7 +102,7 @@ const HTML_ROUTE_MAP: Record<string, PageType> = {
 /**
  * Worker environment bindings
  */
-export interface RouterEnv extends StatusEnv, AdminAuthEnv {
+export interface RouterEnv extends StatusEnv, AdminAuthEnv, StaticAssetEnv {
   /** Worker environment (staging, production) */
   WORKER_ENV?: string;
   /** Build version for tracking */
@@ -665,46 +672,78 @@ async function handleApiAdminRecordResult(
 // =============================================================================
 
 /**
- * Placeholder for HTML page handler
- * Will serve embedded templates or proxy to GAS based on configuration
+ * Handle HTML page requests
+ *
+ * Serves static HTML templates from embedded Worker bundle.
+ * All templates are served directly from Cloudflare - no GAS fetch required.
+ *
+ * @see Story 4.1 - Move HTML Surfaces to Cloudflare
  */
 async function handlePage(
-  _request: Request,
-  _env: RouterEnv,
+  request: Request,
+  env: RouterEnv,
   logger: RouterLogger,
   pageType: PageType,
   brand: Brand
 ): Promise<Response> {
-  // TODO: Implement HTML serving in Story 1.x
-  // For now, return a simple placeholder indicating the route was matched
-  const body = `<!DOCTYPE html>
+  const startTime = Date.now();
+
+  try {
+    // Story 4.1: Serve HTML from Worker-embedded templates (no GAS)
+    const response = await handleStaticAsset(request, env, pageType as StaticPageType);
+    const durationMs = Date.now() - startTime;
+
+    logger.routeResolved(`/${pageType}`, pageType, response.status, durationMs, { brand });
+
+    // Add router headers to response
+    const headers = new Headers(response.headers);
+    headers.set('X-Router-Version', ROUTER_VERSION);
+    headers.set('X-Request-Id', logger.getRequestId());
+
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    });
+  } catch (error) {
+    logger.error(`Failed to serve ${pageType} page`, error);
+
+    // Return error page
+    const errorBody = `<!DOCTYPE html>
 <html>
 <head>
-  <title>EventAngle - ${pageType}</title>
+  <title>Error - EventAngle</title>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
+    h1 { color: #dc2626; }
+    .details { background: #f3f4f6; padding: 16px; border-radius: 8px; }
+  </style>
 </head>
 <body>
-  <h1>EventAngle ${pageType.charAt(0).toUpperCase() + pageType.slice(1)}</h1>
-  <p>Brand: ${brand}</p>
-  <p>This is a placeholder page. Full implementation coming in subsequent stories.</p>
-  <p>Router Version: ${ROUTER_VERSION}</p>
+  <h1>Page Load Error</h1>
+  <p>Unable to load the ${pageType} page. Please try again.</p>
+  <div class="details">
+    <p><strong>Page:</strong> ${pageType}</p>
+    <p><strong>Brand:</strong> ${brand}</p>
+    <p><strong>Router:</strong> ${ROUTER_VERSION}</p>
+  </div>
 </body>
 </html>`;
 
-  logger.routeResolved(`/${pageType}`, pageType, 200, undefined, { brand });
-
-  return new Response(body, {
-    status: 200,
-    headers: {
-      'Content-Type': 'text/html; charset=utf-8',
-      'Cache-Control': 'no-cache',
-      'X-Router-Version': ROUTER_VERSION,
-      'X-Request-Id': logger.getRequestId(),
-      'X-Page-Type': pageType,
-      'X-Brand': brand,
-    },
-  });
+    return new Response(errorBody, {
+      status: 500,
+      headers: {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'no-cache',
+        'X-Router-Version': ROUTER_VERSION,
+        'X-Request-Id': logger.getRequestId(),
+        'X-Page-Type': pageType,
+        'X-Brand': brand,
+      },
+    });
+  }
 }
 
 // =============================================================================
