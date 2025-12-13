@@ -624,3 +624,198 @@ describe('Security Negative Paths (Story 3.1 AC)', () => {
     });
   });
 });
+
+// =============================================================================
+// Router Integration Tests (Story 3.1 - Token Guard in Worker)
+// =============================================================================
+
+const routerPath = path.join(__dirname, '../../../worker/src/router.ts');
+let routerSource = '';
+
+beforeAll(() => {
+  try {
+    routerSource = fs.readFileSync(routerPath, 'utf8');
+  } catch (error) {
+    console.error('Failed to read router file:', error.message);
+  }
+});
+
+describe('Router Integration with Admin Auth Guard (Story 3.1)', () => {
+
+  describe('Router Imports', () => {
+    it('should import guardAdminRoute from auth module', () => {
+      expect(routerSource).toContain("import { guardAdminRoute");
+      expect(routerSource).toContain("from './auth'");
+    });
+
+    it('should import AdminAuthEnv type', () => {
+      expect(routerSource).toContain('type AdminAuthEnv');
+    });
+  });
+
+  describe('RouterEnv Interface', () => {
+    it('should extend AdminAuthEnv interface', () => {
+      expect(routerSource).toContain('export interface RouterEnv extends StatusEnv, AdminAuthEnv');
+    });
+  });
+
+  describe('Auth Guard Integration', () => {
+    it('should call guardAdminRoute in handleRequest', () => {
+      expect(routerSource).toContain('guardAdminRoute(request, env)');
+    });
+
+    it('should check auth guard result before route matching', () => {
+      // Auth guard should be called before matchRoute
+      const handleRequestStart = routerSource.indexOf('async function handleRequest');
+      const authGuardCall = routerSource.indexOf('guardAdminRoute(request, env)', handleRequestStart);
+      const matchRouteCall = routerSource.indexOf('matchRoute(url)', handleRequestStart);
+
+      expect(authGuardCall).toBeGreaterThan(handleRequestStart);
+      expect(authGuardCall).toBeLessThan(matchRouteCall);
+    });
+
+    it('should return auth error response if guard fails', () => {
+      expect(routerSource).toContain('if (authError)');
+      expect(routerSource).toContain('return addCorsHeaders(authError)');
+    });
+
+    it('should add CORS headers to auth error responses', () => {
+      expect(routerSource).toContain('addCorsHeaders(authError)');
+    });
+
+    it('should log auth failures', () => {
+      expect(routerSource).toContain('logger.warn');
+      expect(routerSource).toContain('Admin auth failed');
+    });
+
+    it('should reference Story 3.1 in auth guard comment', () => {
+      expect(routerSource).toContain('Story 3.1');
+      expect(routerSource).toContain('admin authentication');
+    });
+  });
+
+  describe('Auth Bypass for Non-Admin Routes', () => {
+    it('should not block public bundle requests (guardAdminRoute returns null)', () => {
+      // Public routes should not be blocked by auth guard
+      // The guard returns null for non-admin routes
+      expect(routerSource).toContain("case 'publicBundle':");
+      expect(routerSource).toContain('handleApiPublicBundle');
+    });
+
+    it('should protect adminBundle route via guard', () => {
+      // adminBundle routes ARE protected - guardAdminRoute checks isAdminRoute
+      expect(adminAuthSource).toContain("normalized.includes('/adminbundle')");
+    });
+  });
+});
+
+// =============================================================================
+// AdminEvents.html Integration Tests (Story 3.1 - Authorization Header)
+// =============================================================================
+
+const adminEventsPath = path.join(__dirname, '../../../src/mvp/AdminEvents.html');
+let adminEventsSource = '';
+
+beforeAll(() => {
+  try {
+    adminEventsSource = fs.readFileSync(adminEventsPath, 'utf8');
+  } catch (error) {
+    console.error('Failed to read AdminEvents.html:', error.message);
+  }
+});
+
+describe('AdminEvents.html Auth Integration (Story 3.1)', () => {
+
+  describe('Auth Helper Functions', () => {
+    it('should define getAdminToken function', () => {
+      expect(adminEventsSource).toContain('function getAdminToken()');
+    });
+
+    it('should check window.ADMIN_TOKEN for token', () => {
+      expect(adminEventsSource).toContain('window.ADMIN_TOKEN');
+    });
+
+    it('should fall back to localStorage for token', () => {
+      expect(adminEventsSource).toContain("localStorage.getItem('adminToken')");
+    });
+
+    it('should define buildAdminHeaders function', () => {
+      expect(adminEventsSource).toContain('function buildAdminHeaders(');
+    });
+
+    it('should include Authorization Bearer header when token available', () => {
+      expect(adminEventsSource).toContain("'Authorization'");
+      expect(adminEventsSource).toContain('`Bearer ${token}`');
+    });
+
+    it('should expose getAdminToken to global scope', () => {
+      expect(adminEventsSource).toContain('window.getAdminToken = getAdminToken');
+    });
+
+    it('should expose buildAdminHeaders to global scope', () => {
+      expect(adminEventsSource).toContain('window.buildAdminHeaders = buildAdminHeaders');
+    });
+  });
+
+  describe('fetchEventsListFromWorker Auth', () => {
+    it('should use buildAdminHeaders for events list fetch', () => {
+      expect(adminEventsSource).toContain('headers: buildAdminHeaders()');
+    });
+
+    it('should handle 401 status for events list', () => {
+      expect(adminEventsSource).toContain('response.status === 401');
+    });
+
+    it('should return UNAUTHORIZED code on 401', () => {
+      expect(adminEventsSource).toContain("code: 'UNAUTHORIZED'");
+    });
+
+    it('should include Story 3.1 reference in fetchEventsListFromWorker', () => {
+      expect(adminEventsSource).toContain('Story 3.1');
+    });
+  });
+
+  describe('fetchAdminBundleFromWorker Auth', () => {
+    it('should use buildAdminHeaders for admin bundle fetch', () => {
+      // Find the fetchAdminBundleFromWorker function and check it uses buildAdminHeaders
+      const functionStart = adminEventsSource.indexOf('function fetchAdminBundleFromWorker');
+      const functionEnd = adminEventsSource.indexOf('// Expose Worker functions', functionStart);
+      const functionBody = adminEventsSource.substring(functionStart, functionEnd);
+
+      expect(functionBody).toContain('buildAdminHeaders(');
+    });
+
+    it('should handle 401 status for admin bundle', () => {
+      const functionStart = adminEventsSource.indexOf('function fetchAdminBundleFromWorker');
+      const functionEnd = adminEventsSource.indexOf('// Expose Worker functions', functionStart);
+      const functionBody = adminEventsSource.substring(functionStart, functionEnd);
+
+      expect(functionBody).toContain('response.status === 401');
+    });
+
+    it('should preserve If-None-Match header support with auth', () => {
+      expect(adminEventsSource).toContain("additionalHeaders['If-None-Match']");
+      expect(adminEventsSource).toContain('buildAdminHeaders(additionalHeaders)');
+    });
+
+    it('should include Story 3.1 reference in fetchAdminBundleFromWorker', () => {
+      const functionStart = adminEventsSource.indexOf('function fetchAdminBundleFromWorker');
+      const commentEnd = adminEventsSource.indexOf('*/', functionStart);
+      const commentBody = adminEventsSource.substring(functionStart - 200, commentEnd);
+
+      expect(commentBody).toContain('Story 3.1');
+    });
+  });
+
+  describe('Module Documentation', () => {
+    it('should document auth helpers in module header', () => {
+      // Check the module header comment lists auth helpers
+      const headerEnd = adminEventsSource.indexOf('<script>');
+      const header = adminEventsSource.substring(0, headerEnd);
+
+      expect(header).toContain('Auth Helpers (Story 3.1)');
+      expect(header).toContain('getAdminToken()');
+      expect(header).toContain('buildAdminHeaders()');
+    });
+  });
+});

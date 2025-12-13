@@ -21,6 +21,10 @@ Functions exposed to global scope:
   - fetchEventsListFromWorker()    → GET /api/events
   - fetchAdminBundleFromWorker()   → GET /api/events/:id/adminBundle
 
+  Auth Helpers (Story 3.1):
+  - getAdminToken()              → Get admin token from window or localStorage
+  - buildAdminHeaders()          → Build headers with Authorization if token available
+
   Event Card:
   - showEventCard(event)         → Display event in dashboard
   - showWizard()                 → Show create wizard
@@ -69,10 +73,55 @@ Functions exposed to global scope:
   }
 
   /**
+   * Get admin auth token for API requests.
+   * Story 3.1: Admin endpoints now require Bearer token authentication.
+   *
+   * Token can be set via:
+   * - window.ADMIN_TOKEN (injected by GAS templating)
+   * - localStorage.getItem('adminToken') (for SPA flows)
+   *
+   * @returns {string|null} Admin token or null if not available
+   */
+  function getAdminToken() {
+    // Priority 1: Window variable (GAS templating)
+    if (window.ADMIN_TOKEN) {
+      return window.ADMIN_TOKEN;
+    }
+    // Priority 2: localStorage (SPA/persistent session)
+    const stored = localStorage.getItem('adminToken');
+    if (stored) {
+      return stored;
+    }
+    return null;
+  }
+
+  /**
+   * Build headers for admin API requests.
+   * Story 3.1: Include Authorization header if token is available.
+   *
+   * @param {object} additionalHeaders - Additional headers to include
+   * @returns {object} Headers object with auth if available
+   */
+  function buildAdminHeaders(additionalHeaders = {}) {
+    const headers = {
+      'Accept': 'application/json',
+      ...additionalHeaders
+    };
+
+    const token = getAdminToken();
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    return headers;
+  }
+
+  /**
    * Fetch events list from Worker endpoint
    * GET /api/events?brand=:brand
    *
    * Story 2.3: Replaces GAS api_getEventsSafe
+   * Story 3.1: Now includes Authorization header for admin auth
    *
    * @param {string} brandId - Brand identifier
    * @returns {Promise<{ok: boolean, items?: object[], code?: string, message?: string}>}
@@ -86,9 +135,19 @@ Functions exposed to global scope:
     try {
       const response = await fetch(url.toString(), {
         method: 'GET',
-        headers: { 'Accept': 'application/json' },
+        headers: buildAdminHeaders(),
         credentials: 'same-origin'
       });
+
+      // Handle auth errors
+      if (response.status === 401) {
+        console.warn('[AdminEvents] Authentication required for events list');
+        return {
+          ok: false,
+          code: 'UNAUTHORIZED',
+          message: 'Authentication required. Please reload the page or contact admin.'
+        };
+      }
 
       const data = await response.json();
 
@@ -118,6 +177,7 @@ Functions exposed to global scope:
    * GET /api/events/:id/adminBundle?brand=:brand
    *
    * Story 2.3: Replaces GAS api_get for admin context
+   * Story 3.1: Now includes Authorization header for admin auth
    *
    * @param {string} eventId - Event ID or slug
    * @param {string} brandId - Brand identifier
@@ -130,14 +190,12 @@ Functions exposed to global scope:
     const url = new URL(endpoint);
     url.searchParams.set('brand', brandId);
 
-    const headers = {
-      'Accept': 'application/json'
-    };
-
-    // Support conditional requests (ETag)
+    // Build headers with auth and optional conditional request headers
+    const additionalHeaders = {};
     if (options.ifNoneMatch) {
-      headers['If-None-Match'] = options.ifNoneMatch;
+      additionalHeaders['If-None-Match'] = options.ifNoneMatch;
     }
+    const headers = buildAdminHeaders(additionalHeaders);
 
     try {
       const response = await fetch(url.toString(), {
@@ -152,6 +210,16 @@ Functions exposed to global scope:
           ok: true,
           notModified: true,
           etag: response.headers.get('ETag')
+        };
+      }
+
+      // Handle auth errors
+      if (response.status === 401) {
+        console.warn('[AdminEvents] Authentication required for admin bundle');
+        return {
+          ok: false,
+          code: 'UNAUTHORIZED',
+          message: 'Authentication required. Please reload the page or contact admin.'
         };
       }
 
@@ -174,6 +242,10 @@ Functions exposed to global scope:
   // Expose Worker functions to global scope
   window.fetchEventsListFromWorker = fetchEventsListFromWorker;
   window.fetchAdminBundleFromWorker = fetchAdminBundleFromWorker;
+
+  // Story 3.1: Expose auth helpers for other modules that need to make authenticated requests
+  window.getAdminToken = getAdminToken;
+  window.buildAdminHeaders = buildAdminHeaders;
 
   // ==========================================================================
   // HELPER FUNCTIONS

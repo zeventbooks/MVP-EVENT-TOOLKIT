@@ -25,6 +25,7 @@ import { handleStatus, type StatusEnv } from './handlers/status';
 import { handleListEvents } from './handlers/eventsList';
 import { handleGetPublicBundle } from './handlers/publicBundle';
 import { handleGetAdminBundle } from './handlers/adminBundle';
+import { guardAdminRoute, type AdminAuthEnv } from './auth';
 
 // =============================================================================
 // Constants
@@ -90,15 +91,13 @@ const HTML_ROUTE_MAP: Record<string, PageType> = {
 /**
  * Worker environment bindings
  */
-export interface RouterEnv extends StatusEnv {
+export interface RouterEnv extends StatusEnv, AdminAuthEnv {
   /** Worker environment (staging, production) */
   WORKER_ENV?: string;
   /** Build version for tracking */
   WORKER_BUILD_VERSION?: string;
   /** Debug level (debug, info, warn, error) */
   DEBUG_LEVEL?: string;
-  /** Admin authentication token */
-  ADMIN_TOKEN?: string;
   /** Google Sheets spreadsheet ID */
   SHEETS_SPREADSHEET_ID?: string;
   /** Google service account email */
@@ -659,6 +658,14 @@ export async function handleRequest(
     // Handle CORS preflight
     if (method === 'OPTIONS') {
       return handleOptions(request, logger);
+    }
+
+    // Story 3.1: Check admin authentication for protected routes
+    // This guards all admin endpoints (/api/admin/*, /api/events/:id/adminBundle, etc.)
+    const authError = guardAdminRoute(request, env);
+    if (authError) {
+      logger.warn(`Admin auth failed for ${url.pathname}`);
+      return addCorsHeaders(authError);
     }
 
     // Match the route
