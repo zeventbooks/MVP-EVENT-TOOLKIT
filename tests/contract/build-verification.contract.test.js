@@ -1,22 +1,25 @@
 /**
  * Bundle Compilation Verification Contract Test
  *
- * This test ensures the Apps Script bundle compiles cleanly.
+ * This test ensures the Worker and HTML templates are properly configured.
  * It is part of the Stage 1 CI gate and runs locally + in GitHub Actions.
  *
  * Tests:
- *   1. All required MVP source files exist
- *   2. .gs files have valid syntax (balanced braces/parens)
- *   3. .html files have valid structure (DOCTYPE, html, head, body)
- *   4. ApiSchemas.gs exports are properly structured
- *   5. Code.gs exports all required api_* functions
- *   6. Admin bundle includes diagnostics capability
+ *   1. All required HTML surface files exist
+ *   2. .html files have valid structure (DOCTYPE, html, head, body)
+ *   3. Worker code exists and is properly configured
+ *   4. Admin bundle includes diagnostics capability
+ *
+ * NOTE: Story 5.3 - GAS backend has been archived. The .gs files are now in
+ * archive/gas/ and are no longer part of the active codebase. All API traffic
+ * is handled by Cloudflare Workers.
  *
  * This test validates Story requirement:
  *   "Add a test in the Test Harness that confirms the bundle compiles cleanly
  *    (Admin > Diagnostics -> Build verification)"
  *
  * @see scripts/stage1-local.mjs (unified Stage 1 runner)
+ * @see archive/gas/README.md (GAS restoration guide)
  */
 
 const fs = require('fs');
@@ -24,12 +27,15 @@ const path = require('path');
 
 const ROOT_DIR = path.join(__dirname, '..', '..');
 const MVP_DIR = path.join(ROOT_DIR, 'src', 'mvp');
+const GAS_ARCHIVE_DIR = path.join(ROOT_DIR, 'archive', 'gas');
+const WORKER_DIR = path.join(ROOT_DIR, 'cloudflare-proxy');
 
 /**
- * Required MVP source files for the Apps Script bundle
+ * Required MVP source files
+ * NOTE: .gs files are archived in archive/gas/ (Story 5.3)
  */
 const REQUIRED_FILES = {
-  core: [
+  archived_gas: [
     'Code.gs',
     'ApiSchemas.gs',
   ],
@@ -62,9 +68,10 @@ describe('Bundle Compilation Verification', () => {
 
   describe('Required Source Files', () => {
 
-    test('all core .gs files exist', () => {
-      for (const file of REQUIRED_FILES.core) {
-        const filePath = path.join(MVP_DIR, file);
+    test('all archived .gs files exist in archive/gas/ (Story 5.3)', () => {
+      // GAS files were archived as part of Story 5.3 - Decommission Apps Script Project
+      for (const file of REQUIRED_FILES.archived_gas) {
+        const filePath = path.join(GAS_ARCHIVE_DIR, file);
         expect(fs.existsSync(filePath)).toBe(true);
       }
     });
@@ -80,12 +87,27 @@ describe('Bundle Compilation Verification', () => {
       expect(fs.existsSync(MVP_DIR)).toBe(true);
     });
 
+    test('GAS archive directory exists (Story 5.3)', () => {
+      expect(fs.existsSync(GAS_ARCHIVE_DIR)).toBe(true);
+    });
+
+    test('Worker directory exists', () => {
+      expect(fs.existsSync(WORKER_DIR)).toBe(true);
+    });
+
+    test('Worker entry point exists', () => {
+      const workerPath = path.join(WORKER_DIR, 'worker.js');
+      expect(fs.existsSync(workerPath)).toBe(true);
+    });
+
   });
 
-  describe('.gs File Syntax Validation', () => {
+  describe('Archived .gs File Syntax Validation (Story 5.3)', () => {
+    // These tests validate the archived GAS code in archive/gas/
+    // The GAS backend is archived but preserved for emergency rollback
 
-    test('Code.gs has balanced braces', () => {
-      const filePath = path.join(MVP_DIR, 'Code.gs');
+    test('archived Code.gs has balanced braces', () => {
+      const filePath = path.join(GAS_ARCHIVE_DIR, 'Code.gs');
       const content = fs.readFileSync(filePath, 'utf-8');
 
       const openBraces = (content.match(/{/g) || []).length;
@@ -94,8 +116,8 @@ describe('Bundle Compilation Verification', () => {
       expect(openBraces).toBe(closeBraces);
     });
 
-    test('Code.gs has balanced parentheses', () => {
-      const filePath = path.join(MVP_DIR, 'Code.gs');
+    test('archived Code.gs has balanced parentheses', () => {
+      const filePath = path.join(GAS_ARCHIVE_DIR, 'Code.gs');
       const content = fs.readFileSync(filePath, 'utf-8');
 
       const openParens = (content.match(/\(/g) || []).length;
@@ -104,8 +126,8 @@ describe('Bundle Compilation Verification', () => {
       expect(openParens).toBe(closeParens);
     });
 
-    test('ApiSchemas.gs has balanced braces', () => {
-      const filePath = path.join(MVP_DIR, 'ApiSchemas.gs');
+    test('archived ApiSchemas.gs has balanced braces', () => {
+      const filePath = path.join(GAS_ARCHIVE_DIR, 'ApiSchemas.gs');
       const content = fs.readFileSync(filePath, 'utf-8');
 
       const openBraces = (content.match(/{/g) || []).length;
@@ -114,11 +136,11 @@ describe('Bundle Compilation Verification', () => {
       expect(openBraces).toBe(closeBraces);
     });
 
-    test('all .gs files have no unclosed string literals', () => {
-      const gsFiles = [...REQUIRED_FILES.core];
+    test('all archived .gs files have no unclosed string literals', () => {
+      const gsFiles = [...REQUIRED_FILES.archived_gas];
 
       for (const file of gsFiles) {
-        const filePath = path.join(MVP_DIR, file);
+        const filePath = path.join(GAS_ARCHIVE_DIR, file);
         if (!fs.existsSync(filePath)) continue;
 
         const content = fs.readFileSync(filePath, 'utf-8');
@@ -173,10 +195,12 @@ describe('Bundle Compilation Verification', () => {
 
   });
 
-  describe('Code.gs API Exports', () => {
+  describe('Archived Code.gs API Exports (Story 5.3)', () => {
+    // These tests validate the archived GAS code
+    // The GAS backend is archived but preserved for emergency rollback
 
-    test('exports required api_* functions', () => {
-      const filePath = path.join(MVP_DIR, 'Code.gs');
+    test('archived Code.gs exports required api_* functions', () => {
+      const filePath = path.join(GAS_ARCHIVE_DIR, 'Code.gs');
       const content = fs.readFileSync(filePath, 'utf-8');
 
       for (const apiFunc of REQUIRED_API_EXPORTS) {
@@ -186,15 +210,15 @@ describe('Bundle Compilation Verification', () => {
       }
     });
 
-    test('doGet function exists for web app routing', () => {
-      const filePath = path.join(MVP_DIR, 'Code.gs');
+    test('archived Code.gs has doGet function for web app routing', () => {
+      const filePath = path.join(GAS_ARCHIVE_DIR, 'Code.gs');
       const content = fs.readFileSync(filePath, 'utf-8');
 
       expect(content).toMatch(/function\s+doGet\s*\(/);
     });
 
-    test('doPost function exists for API handling', () => {
-      const filePath = path.join(MVP_DIR, 'Code.gs');
+    test('archived Code.gs has doPost function for API handling', () => {
+      const filePath = path.join(GAS_ARCHIVE_DIR, 'Code.gs');
       const content = fs.readFileSync(filePath, 'utf-8');
 
       expect(content).toMatch(/function\s+doPost\s*\(/);
@@ -202,18 +226,19 @@ describe('Bundle Compilation Verification', () => {
 
   });
 
-  describe('ApiSchemas.gs Structure', () => {
+  describe('Archived ApiSchemas.gs Structure (Story 5.3)', () => {
+    // These tests validate the archived GAS code
 
-    test('defines EVENT schema object', () => {
-      const filePath = path.join(MVP_DIR, 'ApiSchemas.gs');
+    test('archived ApiSchemas.gs defines EVENT schema object', () => {
+      const filePath = path.join(GAS_ARCHIVE_DIR, 'ApiSchemas.gs');
       const content = fs.readFileSync(filePath, 'utf-8');
 
       // Check for event schema definition
       expect(content).toMatch(/EVENT|event|EventSchema/i);
     });
 
-    test('defines SETTINGS schema object', () => {
-      const filePath = path.join(MVP_DIR, 'ApiSchemas.gs');
+    test('archived ApiSchemas.gs defines SETTINGS schema object', () => {
+      const filePath = path.join(GAS_ARCHIVE_DIR, 'ApiSchemas.gs');
       const content = fs.readFileSync(filePath, 'utf-8');
 
       // Check for settings schema definition
@@ -236,8 +261,8 @@ describe('Bundle Compilation Verification', () => {
       expect(content.toLowerCase()).toMatch(/diagnostic|status|health|build/);
     });
 
-    test('api_getAdminBundle exists for diagnostics data', () => {
-      const filePath = path.join(MVP_DIR, 'Code.gs');
+    test('archived Code.gs has api_getAdminBundle for diagnostics data', () => {
+      const filePath = path.join(GAS_ARCHIVE_DIR, 'Code.gs');
       const content = fs.readFileSync(filePath, 'utf-8');
 
       // Admin bundle should exist
@@ -247,8 +272,8 @@ describe('Bundle Compilation Verification', () => {
       expect(content).toMatch(/diagnostics|buildInfo|systemStatus/i);
     });
 
-    test('api_getConfig exists for system configuration', () => {
-      const filePath = path.join(MVP_DIR, 'Code.gs');
+    test('archived Code.gs has api_getConfig for system configuration', () => {
+      const filePath = path.join(GAS_ARCHIVE_DIR, 'Code.gs');
       const content = fs.readFileSync(filePath, 'utf-8');
 
       expect(content).toMatch(/function\s+api_getConfig\s*\(/);
@@ -287,14 +312,14 @@ describe('Bundle Compilation Verification', () => {
 
   describe('Bundle File Size Validation', () => {
 
-    test('Code.gs is not empty', () => {
-      const filePath = path.join(MVP_DIR, 'Code.gs');
+    test('archived Code.gs is not empty', () => {
+      const filePath = path.join(GAS_ARCHIVE_DIR, 'Code.gs');
       const stats = fs.statSync(filePath);
       expect(stats.size).toBeGreaterThan(1000); // At least 1KB
     });
 
-    test('Code.gs is under Apps Script limit (50MB)', () => {
-      const filePath = path.join(MVP_DIR, 'Code.gs');
+    test('archived Code.gs is under Apps Script limit (50MB)', () => {
+      const filePath = path.join(GAS_ARCHIVE_DIR, 'Code.gs');
       const stats = fs.statSync(filePath);
       const maxSize = 50 * 1024 * 1024; // 50MB
       expect(stats.size).toBeLessThan(maxSize);
@@ -302,9 +327,16 @@ describe('Bundle Compilation Verification', () => {
 
     test('total bundle size is under Apps Script project limit', () => {
       let totalSize = 0;
-      const allFiles = [...REQUIRED_FILES.core, ...REQUIRED_FILES.surfaces];
-
-      for (const file of allFiles) {
+      // Check archived GAS files
+      for (const file of REQUIRED_FILES.archived_gas) {
+        const filePath = path.join(GAS_ARCHIVE_DIR, file);
+        if (fs.existsSync(filePath)) {
+          const stats = fs.statSync(filePath);
+          totalSize += stats.size;
+        }
+      }
+      // Check HTML surfaces
+      for (const file of REQUIRED_FILES.surfaces) {
         const filePath = path.join(MVP_DIR, file);
         if (fs.existsSync(filePath)) {
           const stats = fs.statSync(filePath);
@@ -314,6 +346,12 @@ describe('Bundle Compilation Verification', () => {
 
       const maxProjectSize = 50 * 1024 * 1024; // 50MB project limit
       expect(totalSize).toBeLessThan(maxProjectSize);
+    });
+
+    test('Worker entry point exists and is not empty', () => {
+      const workerPath = path.join(WORKER_DIR, 'worker.js');
+      const stats = fs.statSync(workerPath);
+      expect(stats.size).toBeGreaterThan(1000); // At least 1KB
     });
 
   });
