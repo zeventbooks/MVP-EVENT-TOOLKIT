@@ -140,10 +140,11 @@ export function extractBrandFromPath(pathname) {
  */
 export function generateEventUrls(brandId, eventSlug, env) {
   // Determine base URL from environment
-  let baseUrl = 'https://eventangle.com';
+  // Story 5.3: Default base path is /manage
+  let baseUrl = 'https://eventangle.com/manage';
 
   if (env.WORKER_ENV === 'staging') {
-    baseUrl = 'https://stg.eventangle.com';
+    baseUrl = 'https://stg.eventangle.com/manage';
   }
 
   const brandPrefix = brandId === 'root' ? '' : `/${brandId}`;

@@ -7,9 +7,8 @@ DEPENDENCIES: NUSDK.html (NU.rpc, NU.esc), SharedUtils.html (showToast)
 ================================================================================
 Story 4.1: Extracted from Admin.html for modularization and maintainability.
 Story 2.3: Migrated from GAS to Worker endpoints for all read operations.
-         All event loading now uses Worker /api/events and /api/events/:id/adminBundle
 Story 3.2: Added createEventViaWorker() for creating events via Worker.
-         Event creation now uses Worker POST /api/admin/events
+Story 5.3: All endpoints migrated to v2 API (/api/v2/*). GAS retired.
 
 Functions exposed to global scope:
   Event Selector:
@@ -19,10 +18,10 @@ Functions exposed to global scope:
   - refreshEventList()           → Refresh the event list
   - selectEventInDropdown(id)    → Select event in dropdown
 
-  Worker Fetch Functions:
-  - fetchEventsListFromWorker()    → GET /api/events
-  - fetchAdminBundleFromWorker()   → GET /api/events/:id/adminBundle
-  - createEventViaWorker()         → POST /api/admin/events (Story 3.2)
+  Worker Fetch Functions (Story 5.3: v2 API):
+  - fetchEventsListFromWorker()    → GET /api/v2/events
+  - fetchAdminBundleFromWorker()   → GET /api/v2/events/:id/bundle/admin
+  - createEventViaWorker()         → POST /api/v2/events
 
   Auth Helpers (Story 3.1):
   - getAdminToken()              → Get admin token from window or localStorage
@@ -121,17 +120,18 @@ Functions exposed to global scope:
 
   /**
    * Fetch events list from Worker endpoint
-   * GET /api/events?brand=:brand
+   * GET /api/v2/events?brand=:brand
    *
    * Story 2.3: Replaces GAS api_getEventsSafe
    * Story 3.1: Now includes Authorization header for admin auth
+   * Story 5.3: Uses v2 API (GAS retired)
    *
    * @param {string} brandId - Brand identifier
    * @returns {Promise<{ok: boolean, items?: object[], code?: string, message?: string}>}
    */
   async function fetchEventsListFromWorker(brandId) {
     const baseUrl = getWorkerBaseUrl();
-    const endpoint = `${baseUrl}/api/events`;
+    const endpoint = `${baseUrl}/api/v2/events`;
     const url = new URL(endpoint);
     url.searchParams.set('brand', brandId);
 
@@ -177,10 +177,11 @@ Functions exposed to global scope:
 
   /**
    * Fetch admin bundle from Worker endpoint
-   * GET /api/events/:id/adminBundle?brand=:brand
+   * GET /api/v2/events/:id/bundle/admin?brand=:brand
    *
    * Story 2.3: Replaces GAS api_get for admin context
    * Story 3.1: Now includes Authorization header for admin auth
+   * Story 5.3: Uses v2 API (GAS retired)
    *
    * @param {string} eventId - Event ID or slug
    * @param {string} brandId - Brand identifier
@@ -189,7 +190,7 @@ Functions exposed to global scope:
    */
   async function fetchAdminBundleFromWorker(eventId, brandId, options = {}) {
     const baseUrl = getWorkerBaseUrl();
-    const endpoint = `${baseUrl}/api/events/${encodeURIComponent(eventId)}/adminBundle`;
+    const endpoint = `${baseUrl}/api/v2/events/${encodeURIComponent(eventId)}/bundle/admin`;
     const url = new URL(endpoint);
     url.searchParams.set('brand', brandId);
 
@@ -244,9 +245,10 @@ Functions exposed to global scope:
 
   /**
    * Create a new event via Worker endpoint
-   * POST /api/admin/events
+   * POST /api/v2/events
    *
    * Story 3.2: Replaces GAS api_saveEvent (create mode)
+   * Story 5.3: Uses v2 API (GAS retired)
    *
    * @param {object} eventData - Event data to create
    * @param {string} eventData.name - Event name (required)
@@ -259,7 +261,7 @@ Functions exposed to global scope:
    */
   async function createEventViaWorker(eventData) {
     const baseUrl = getWorkerBaseUrl();
-    const endpoint = `${baseUrl}/api/admin/events`;
+    const endpoint = `${baseUrl}/api/v2/events`;
 
     // Build request body
     const body = {
@@ -412,7 +414,7 @@ Functions exposed to global scope:
    * Load existing events into the dropdown.
    * Called on page init and after event creation.
    *
-   * Story 2.3: Now uses Worker /api/events endpoint instead of GAS api_getEventsSafe
+   * Story 2.3/5.3: Uses Worker /api/v2/events endpoint (GAS retired)
    */
   async function loadExistingEvents() {
     const dropdown = document.getElementById('eventDropdown');
@@ -486,9 +488,9 @@ Functions exposed to global scope:
   /**
    * Load a specific event by ID and show in the dashboard.
    *
-   * Story 2.3: Now uses Worker /api/events/:id/adminBundle endpoint
-   * instead of GAS api_get. The admin bundle includes full event data
-   * plus admin-specific fields (brandConfig, templates, diagnostics).
+   * Story 2.3/5.3: Uses Worker /api/v2/events/:id/bundle/admin endpoint (GAS retired).
+   * The admin bundle includes full event data plus admin-specific fields
+   * (brandConfig, templates, diagnostics).
    */
   async function loadSelectedEvent(eventId) {
     if (!eventId) return;

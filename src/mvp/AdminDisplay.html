@@ -7,7 +7,7 @@ DEPENDENCIES: NUSDK.html (NU.rpc), SharedUtils.html (showToast), AdminEvents.htm
 ================================================================================
 Story 4.1: Extracted from Admin.html for modularization and maintainability.
 Story 2.3: Read operations now use Worker via fetchAdminBundleFromWorker
-         Write operations (api_saveEvent) still use GAS via NU.rpc
+Story 5.3: All APIs migrated to /api/v2/* endpoints (GAS retired)
 
 Functions exposed to global scope:
   Display Configuration:
@@ -53,8 +53,8 @@ Functions exposed to global scope:
   /**
    * Load display configuration from admin bundle or Worker.
    *
-   * Story 2.3: Uses cached admin bundle data if available,
-   * otherwise fetches from Worker /api/events/:id/adminBundle
+   * Story 2.3/5.3: Uses cached admin bundle data if available,
+   * otherwise fetches from Worker /api/v2/events/:id/bundle/admin (GAS retired)
    */
   async function loadDisplayConfig() {
     const BRAND = window.BRAND || 'root';

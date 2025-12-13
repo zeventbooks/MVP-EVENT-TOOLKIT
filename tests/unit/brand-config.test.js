@@ -368,9 +368,11 @@ describe('Brand Configuration - Single Source of Truth', () => {
   });
 
   describe('Backend Sync - Config.gs Alignment', () => {
+    // Story 5.3: GAS files archived to archive/gas/
+    const GAS_ARCHIVE_DIR = path.join(__dirname, '../../archive/gas');
 
     test('Config.gs BRANDS array matches centralized config', () => {
-      const configGsPath = path.join(__dirname, '../../src/mvp/Config.gs');
+      const configGsPath = path.join(GAS_ARCHIVE_DIR, 'Config.gs');
 
       // Read Config.gs
       const configGs = fs.readFileSync(configGsPath, 'utf8');
@@ -391,7 +393,7 @@ describe('Brand Configuration - Single Source of Truth', () => {
     });
 
     test('Config.gs brand names match centralized config', () => {
-      const configGsPath = path.join(__dirname, '../../src/mvp/Config.gs');
+      const configGsPath = path.join(GAS_ARCHIVE_DIR, 'Config.gs');
       const configGs = fs.readFileSync(configGsPath, 'utf8');
 
       // Check that each brand's name appears in Config.gs

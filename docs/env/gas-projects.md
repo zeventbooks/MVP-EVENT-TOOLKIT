@@ -1,14 +1,17 @@
 # GAS Projects Inventory
 
-**Last Updated:** 2025-12-11
-**Story:** 1.1.1 - Inventory & document current GAS projects and owners
-**Epic:** Backend Identity Consolidation
+**Last Updated:** 2025-12-13
+**Status:** ALL PROJECTS ARCHIVED
+**Story:** 5.3 - Decommission Apps Script Project
 
 ---
 
 ## Summary
 
-This document serves as the **single source of truth** for all Google Apps Script (GAS) projects used by MVP-EVENT-TOOLKIT. All projects should be owned by `zeventbook@gmail.com` - any ownership by `mzdano@gmail.com` indicates configuration drift that must be corrected.
+All Google Apps Script (GAS) projects have been **archived** as part of the migration to Cloudflare Workers. The GAS backend is no longer in active use. All API traffic now flows through the Cloudflare Worker.
+
+**Archive Location:** `archive/gas/`
+**Restoration Guide:** `archive/gas/README.md`
 
 ---
 
@@ -16,183 +19,95 @@ This document serves as the **single source of truth** for all Google Apps Scrip
 
 | Environment | Script ID | Project Name | Owner Email | Status |
 |-------------|-----------|--------------|-------------|--------|
-| **Staging** | `PENDING_NEW_SCRIPTID` | EA-MVP-Backend-Staging | `zeventbook@gmail.com` | **PENDING** (Story 1.1.2) |
-| **Production** | `1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l` | EventAngle Production | `zeventbook@gmail.com` | Correct |
-
-> **Note:** Staging is pending migration to new zeventbook-owned project. See [Deprecated Projects](#deprecated-projects) section and [`staging-migration.md`](./staging-migration.md) for details.
+| **Staging** | `1gHiPuj7eXNk09dDyk17SJ6QsCJg7LMqXBRrkowljL3z2TaAKFIvBLhHJ` | EA-MVP-Backend-Staging | `mzdano@gmail.com` | **ARCHIVED** |
+| **Production** | `1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l` | EventAngle Production | `zeventbook@gmail.com` | **ARCHIVED** |
 
 ---
 
 ## Detailed Project Information
 
-### Staging Environment
-
-> **STATUS: PENDING MIGRATION (Story 1.1.2)**
->
-> The current staging scriptId is DEPRECATED. A new project owned by zeventbook needs to be created.
-> See [`staging-migration.md`](./staging-migration.md) for step-by-step instructions.
-
-| Property | Value |
-|----------|-------|
-| **Script ID** | `PENDING_NEW_SCRIPTID` - **TO BE UPDATED** |
-| **Deployment ID** | `PENDING_NEW_DEPLOYMENT_ID` - **TO BE UPDATED** |
-| **Owner** | `zeventbook@gmail.com` (required) |
-| **Project Editor URL** | TBD after new project creation |
-| **Web App URL** | TBD after new deployment |
-| **Public URL (Cloudflare)** | `https://stg.eventangle.com` |
-
-**Old (Deprecated) Values:**
-| Property | Value | Status |
-|----------|-------|--------|
-| Script ID | `1gHiPuj7eXNk09dDyk17SJ6QsCJg7LMqXBRrkowljL3z2TaAKFIvBLhHJ` | DEPRECATED |
-| Deployment ID | `AKfycbwFneYCpkio7wCn7y08eDUb2PRCPc2Tdtbv20L4AbEHvuCvoqY9ks7-ONL0pzPPw4Hm` | DEPRECATED |
-| Former Owner | `mzdano@gmail.com` | INCORRECT |
-
-### Production Environment
-
-| Property | Value |
-|----------|-------|
-| **Script ID** | `1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l` |
-| **Deployment ID** | `AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw` |
-| **Owner** | `zeventbook@gmail.com` |
-| **Project Editor URL** | https://script.google.com/home/projects/1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l/edit |
-| **Web App URL** | `https://script.google.com/macros/s/AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw/exec` |
-| **Public URL (Cloudflare)** | `https://www.eventangle.com` |
-
----
-
-## Web App Deployments
-
-### Staging Deployments
-
-| Deployment ID | URL | Notes |
-|---------------|-----|-------|
-| `AKfycbwFneYCpkio7wCn7y08eDUb2PRCPc2Tdtbv20L4AbEHvuCvoqY9ks7-ONL0pzPPw4Hm` | [exec link](https://script.google.com/macros/s/AKfycbwFneYCpkio7wCn7y08eDUb2PRCPc2Tdtbv20L4AbEHvuCvoqY9ks7-ONL0pzPPw4Hm/exec) | Current active deployment |
-
-### Production Deployments
-
-| Deployment ID | URL | Notes |
-|---------------|-----|-------|
-| `AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw` | [exec link](https://script.google.com/macros/s/AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw/exec) | Current active deployment |
-
----
-
-## Configuration File References
-
-### Where Script IDs are Defined
-
-| File | Environment | Script ID | Purpose |
-|------|-------------|-----------|---------|
-| `.clasp.json` | Staging (default) | `1gHiPuj7eXNk09dDyk17SJ6QsCJg7LMqXBRrkowljL3z2TaAKFIvBLhHJ` | Default clasp config (safe for local dev) |
-| `.clasp-staging.json` | Staging | `1gHiPuj7eXNk09dDyk17SJ6QsCJg7LMqXBRrkowljL3z2TaAKFIvBLhHJ` | Staging clasp config |
-| `.clasp-production.json` | Production | `1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l` | Production clasp config (CI-only) |
-| `deploy-manifest.json` | Both | Both script IDs | Centralized deployment manifest |
-| `cloudflare-proxy/wrangler.toml` | Both | Referenced in vars | Cloudflare Worker config |
-| `wrangler.toml` (root) | Staging | Referenced in comments | Root staging worker config |
-
-### Deployment ID Locations
-
-| File | Variable/Key | Environment |
-|------|--------------|-------------|
-| `deploy-manifest.json` | `environments.staging.appsScript.deploymentId` | Staging |
-| `deploy-manifest.json` | `environments.production.appsScript.deploymentId` | Production |
-| `cloudflare-proxy/wrangler.toml` | `STAGING_DEPLOYMENT_ID` | Staging |
-| `cloudflare-proxy/wrangler.toml` | `PROD_DEPLOYMENT_ID` | Production |
-| `wrangler.toml` (root) | `STAGING_DEPLOYMENT_ID` | Staging |
-
----
-
-## Ownership Audit
-
-### Expected Ownership
-
-All GAS projects for EventAngle **MUST** be owned by:
-
-```
-zeventbook@gmail.com
-```
-
-### Flagged Ownership Issues
-
-| Environment | Script ID | Current Owner | Expected Owner | Status |
-|-------------|-----------|---------------|----------------|--------|
-| Staging (OLD) | `1gHiPuj7eXNk09dDyk17SJ6QsCJg7LMqXBRrkowljL3z2TaAKFIvBLhHJ` | `mzdano@gmail.com` | N/A (deprecated) | **DEPRECATED** |
-| Staging (NEW) | `PENDING_NEW_SCRIPTID` | TBD | `zeventbook@gmail.com` | **PENDING** (Story 1.1.2) |
-| Production | `1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l` | `zeventbook@gmail.com` | `zeventbook@gmail.com` | OK |
-
-### Accounts to Watch
-
-| Account | Should Own GAS Projects? | Notes |
-|---------|--------------------------|-------|
-| `zeventbook@gmail.com` | YES | Canonical owner for all EventAngle GAS projects |
-| `mzdano@gmail.com` | NO | Personal account - should NOT own any EventAngle resources |
-
----
-
-## Verification Steps
-
-### Manual Ownership Verification
-
-To verify project ownership in Apps Script:
-
-1. Open the Project Editor URL (links above)
-2. Click **Project Settings** (gear icon)
-3. Verify **Owner** shows `zeventbook@gmail.com`
-4. If owned by `mzdano`, this is a **DRIFT** issue requiring remediation
-
-### Automated Verification
-
-```bash
-# Check staging health
-npm run staging:verify
-
-# Check production health
-curl -s https://www.eventangle.com/status | jq
-
-# Full environment status
-npm run staging:status
-```
-
----
-
-## Deprecated Projects
-
-> **IMPORTANT:** The following projects are deprecated and should NOT be used for new work.
-> See Story 1.1.2 for migration details.
-
-### DEPRECATED: Old Staging Backend (mzdano-owned)
+### Staging Environment (ARCHIVED)
 
 | Property | Value |
 |----------|-------|
 | **Script ID** | `1gHiPuj7eXNk09dDyk17SJ6QsCJg7LMqXBRrkowljL3z2TaAKFIvBLhHJ` |
+| **Status** | **ARCHIVED** - No longer receiving deployments |
+| **Archived Date** | 2025-12-13 |
 | **Former Owner** | `mzdano@gmail.com` |
-| **Status** | **DEPRECATED** - Do not use for new deployments |
-| **Deprecation Date** | 2025-12-11 |
-| **Reason** | Replaced by zeventbook-owned project (Story 1.1.2) |
-| **Migration Status** | Pending - awaiting new project creation |
+| **Project Editor URL** | https://script.google.com/home/projects/1gHiPuj7eXNk09dDyk17SJ6QsCJg7LMqXBRrkowljL3z2TaAKFIvBLhHJ/edit |
+| **Replacement** | Cloudflare Worker at `stg.eventangle.com` |
 
-**Why Deprecated:**
-- Project ownership was under `mzdano@gmail.com` (personal account)
-- All EventAngle GAS projects must be owned by `zeventbook@gmail.com`
-- Clean separation required for proper identity consolidation
+### Production Environment (ARCHIVED)
 
-**Migration Instructions:**
-See [`staging-migration.md`](./staging-migration.md) for complete migration guide.
+| Property | Value |
+|----------|-------|
+| **Script ID** | `1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l` |
+| **Status** | **ARCHIVED** - Webapp deployments disabled |
+| **Archived Date** | 2025-12-13 |
+| **Owner** | `zeventbook@gmail.com` |
+| **Project Editor URL** | https://script.google.com/home/projects/1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l/edit |
+| **Replacement** | Cloudflare Worker at `www.eventangle.com` |
 
 ---
 
-## Change Log
+## Current Architecture
 
-| Date | Change | Author |
-|------|--------|--------|
-| 2025-12-11 | Added deprecated project tracking (Story 1.1.2) | Claude |
-| 2025-12-11 | Initial inventory created (Story 1.1.1) | Claude |
+All traffic is now served by Cloudflare Workers:
+
+| Environment | URL | Backend |
+|-------------|-----|---------|
+| Staging | `https://stg.eventangle.com` | Cloudflare Worker |
+| Production | `https://www.eventangle.com` | Cloudflare Worker |
+
+The Workers connect directly to Google Sheets via the Sheets API using a service account.
+
+---
+
+## Archived Configuration Files
+
+The following clasp configuration files have been marked as archived:
+
+| File | Purpose | Status |
+|------|---------|--------|
+| `.clasp.json` | Default clasp config | ARCHIVED (rootDir → archive/gas) |
+| `.clasp-staging.json` | Staging config | ARCHIVED |
+| `.clasp-production.json` | Production config | ARCHIVED |
+| `.clasp.json.archived` | Backup of original | For restoration |
+| `.clasp-staging.json.archived` | Backup | For restoration |
+| `.clasp-production.json.archived` | Backup | For restoration |
+
+---
+
+## Emergency Restoration
+
+If GAS needs to be restored for emergency rollback:
+
+1. See `archive/gas/README.md` for detailed instructions
+2. Restore GAS code: `cp archive/gas/*.gs src/mvp/`
+3. Restore clasp configs from `.archived` backups
+4. Push to GAS: `clasp push --force`
+5. Create new deployment: `clasp deploy`
+6. Update Worker to proxy to GAS
 
 ---
 
 ## Related Documentation
 
-- [`staging.md`](./staging.md) - Detailed staging environment docs
-- [`deploy-manifest.json`](../../deploy-manifest.json) - Centralized deployment manifest
-- [`DEPLOYMENT.md`](../DEPLOYMENT.md) - Deployment procedures
-- [`cloudflare-proxy/wrangler.toml`](../../cloudflare-proxy/wrangler.toml) - Cloudflare Worker configuration
+- [`archive/gas/README.md`](../../archive/gas/README.md) - GAS restoration guide
+- [`ARCHITECTURE.md`](../ARCHITECTURE.md) - Current Worker-only architecture
+- [`CLOUDFLARE_WORKER_MIGRATION.md`](../CLOUDFLARE_WORKER_MIGRATION.md) - Migration history
+- [`deploy-manifest.json`](../../deploy-manifest.json) - Deployment manifest
+
+---
+
+## Change Log
+
+| Date | Change | Story |
+|------|--------|-------|
+| 2025-12-13 | All projects marked ARCHIVED | Story 5.3 |
+| 2025-12-11 | Added deprecated project tracking | Story 1.1.2 |
+| 2025-12-11 | Initial inventory created | Story 1.1.1 |
+
+---
+
+*All GAS projects archived as part of Story 5.3 - Decommission Apps Script Project*

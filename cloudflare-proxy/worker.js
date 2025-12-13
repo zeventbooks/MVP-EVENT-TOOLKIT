@@ -447,9 +447,11 @@ function renderTemplate(templateContent, params, env) {
     demoMode = false
   } = params;
 
-  // Get exec URL from environment (for API calls)
-  // Story 2: Use environment-aware URL resolution
-  const execUrl = getGasUrl(env);
+  // Story 5.3: GAS retired - DO NOT populate execUrl
+  // This forces NUSDK to use Worker proxy transport instead of direct GAS transport
+  // When execUrl is empty, NUSDK._directTransport.enabled stays false (default)
+  // and all RPC calls go through the Worker's /api/* endpoints
+  const execUrl = ''; // Empty = use Worker proxy
 
   // Build app title
   const appTitle = `${brandName} · ${scope}`;
@@ -461,6 +463,7 @@ function renderTemplate(templateContent, params, env) {
   html = html.replace(/<\?=\s*appTitle\s*\?>/g, escapeHtml(appTitle));
   html = html.replace(/<\?=\s*brandId\s*\?>/g, escapeHtml(brandId));
   html = html.replace(/<\?=\s*scope\s*\?>/g, escapeHtml(scope));
+  // Story 5.3: execUrl is empty to force Worker proxy transport
   html = html.replace(/<\?=\s*execUrl\s*\?>/g, escapeHtml(execUrl));
   html = html.replace(/<\?=\s*demoMode\s*\?>/g, demoMode ? 'true' : 'false');
 

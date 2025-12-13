@@ -1,12 +1,13 @@
 {
   "scriptId": "1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l",
-  "rootDir": "./src/mvp",
+  "rootDir": "./archive/gas",
   "_environment": "production",
-  "_comment": "PRODUCTION environment - CI/CD ONLY! Manual deployment is PROHIBITED. See PRODUCTION_DEPLOYMENT_POLICY.md",
+  "_status": "ARCHIVED",
+  "_archivedDate": "2025-12-13",
+  "_story": "Story 5.3: Decommission Apps Script Project",
+  "_comment": "GAS PRODUCTION BACKEND ARCHIVED - Traffic now served by Cloudflare Workers at eventangle.com",
+  "_warning": "DO NOT USE - GAS deployments have been disabled. This configuration is retained for emergency rollback only. See archive/gas/README.md",
   "_owner": "zeventbook@gmail.com",
   "_projectUrl": "https://script.google.com/home/projects/1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l/edit",
-  "_deploymentUrl": "https://www.eventangle.com",
-  "_ciOnly": true,
-  "_warning": "DO NOT use this file for local clasp commands. Production deploys require CI pipeline (tag vX.Y.Z).",
-  "_story": "Story 1.3: Separate Apps Script environments for staging and production"
+  "_originalRootDir": "./src/mvp"
 }

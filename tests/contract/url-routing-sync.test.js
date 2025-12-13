@@ -1,13 +1,14 @@
 /**
  * URL Routing Sync Contract Test
  *
- * Ensures Worker config (cloudflare-proxy/worker.js) and Config.URL_ALIASES
- * (src/mvp/Config.gs) stay in sync. This prevents routing drift where
- * the worker maps a URL to one page but Config expects another.
+ * Story 5.3: GAS is retired. Worker is the single source of truth for routing.
+ *
+ * This test now verifies:
+ *   - Worker pathToPage covers all MVP surfaces
+ *   - Config.gs (archived) still has correct mappings for reference
  *
  * Contract:
  *   - Worker pathToPage must cover all MVP surfaces
- *   - Config.URL_ALIASES must match worker mappings for canonical aliases
  *   - Both must agree on: events, admin, display, poster, report, status
  */
 
@@ -47,11 +48,13 @@ function extractWorkerPathToPage() {
 }
 
 /**
- * Extract URL_ALIASES from Config.gs
+ * Extract URL_ALIASES from Config.gs (archived)
+ * Story 5.3: Config.gs moved to archive/gas/ after GAS retirement
  * Parses the JavaScript object literal from the source
  */
 function extractConfigUrlAliases() {
-  const configPath = path.join(__dirname, '../../src/mvp/Config.gs');
+  // Story 5.3: GAS files archived to archive/gas/
+  const configPath = path.join(__dirname, '../../archive/gas/Config.gs');
   const content = fs.readFileSync(configPath, 'utf8');
 
   // Find URL_ALIASES block

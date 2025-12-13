@@ -1,32 +1,25 @@
 {
   "$schema": "./schemas/deploy-manifest.schema.json",
   "_comment": "Centralized Deployment Manifest - Single Source of Truth for Environment Configuration",
-  "_version": "1.2.0",
-  "_lastUpdated": "2025-12-11",
-  "_story": "Story 1.1.2: Create new staging GAS backend owned by zeventbook",
+  "_version": "2.0.0",
+  "_lastUpdated": "2025-12-13",
+  "_story": "Story 5.3: Decommission Apps Script Project",
+  "_architecture": "Worker-only (GAS backend archived)",
 
   "environments": {
     "staging": {
       "name": "Staging",
-      "description": "Safe sandbox for testing and pre-production validation (UAT proxy for production)",
-
-      "_migration": {
-        "_status": "PENDING",
-        "_story": "Story 1.1.2 - Create new staging GAS backend owned by zeventbook",
-        "_instructions": "See docs/env/staging-migration.md for migration steps",
-        "_deprecatedScriptId": "1gHiPuj7eXNk09dDyk17SJ6QsCJg7LMqXBRrkowljL3z2TaAKFIvBLhHJ",
-        "_deprecatedOwner": "mzdano@gmail.com",
-        "_newOwner": "zeventbook@gmail.com",
-        "_action": "Replace scriptId and deploymentId below with new zeventbook-owned values"
-      },
+      "description": "Safe sandbox for testing and pre-production validation - Cloudflare Worker only",
 
       "appsScript": {
+        "_status": "ARCHIVED",
+        "_archivedDate": "2025-12-13",
+        "_story": "Story 5.3: Decommission Apps Script Project",
+        "_note": "GAS backend has been archived. All traffic now served by Cloudflare Workers. See archive/gas/README.md for restoration instructions.",
         "scriptId": "1gHiPuj7eXNk09dDyk17SJ6QsCJg7LMqXBRrkowljL3z2TaAKFIvBLhHJ",
         "deploymentId": "AKfycbwFneYCpkio7wCn7y08eDUb2PRCPc2Tdtbv20L4AbEHvuCvoqY9ks7-ONL0pzPPw4Hm",
         "webAppUrl": "https://script.google.com/macros/s/AKfycbwFneYCpkio7wCn7y08eDUb2PRCPc2Tdtbv20L4AbEHvuCvoqY9ks7-ONL0pzPPw4Hm/exec",
-        "editUrl": "https://script.google.com/u/1/home/projects/1gHiPuj7eXNk09dDyk17SJ6QsCJg7LMqXBRrkowljL3z2TaAKFIvBLhHJ/edit",
-        "_note": "DEPRECATED: Update with new zeventbook-owned scriptId/deploymentId per Story 1.1.2",
-        "_owner": "MIGRATE TO: zeventbook@gmail.com"
+        "editUrl": "https://script.google.com/u/1/home/projects/1gHiPuj7eXNk09dDyk17SJ6QsCJg7LMqXBRrkowljL3z2TaAKFIvBLhHJ/edit"
       },
 
       "cloudflare": {
@@ -35,7 +28,8 @@
           "stg.eventangle.com/*",
           "api-stg.eventangle.com/*"
         ],
-        "zoneName": "eventangle.com"
+        "zoneName": "eventangle.com",
+        "_note": "Primary backend - all traffic served by Cloudflare Worker"
       },
 
       "urls": {
@@ -90,14 +84,17 @@
 
     "production": {
       "name": "Production",
-      "description": "Customer-facing production environment",
+      "description": "Customer-facing production environment - Cloudflare Worker only",
 
       "appsScript": {
+        "_status": "ARCHIVED",
+        "_archivedDate": "2025-12-13",
+        "_story": "Story 5.3: Decommission Apps Script Project",
+        "_note": "GAS backend has been archived. All traffic now served by Cloudflare Workers. See archive/gas/README.md for restoration instructions.",
         "scriptId": "1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l",
         "deploymentId": "AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw",
         "webAppUrl": "https://script.google.com/macros/s/AKfycbz-RVTCdsQsI913wN3TkPtUP8F8EhSjyFAlWIpLVRgzV6WJ-isDyG-ntaV1VjBNaWZLdw/exec",
-        "editUrl": "https://script.google.com/u/1/home/projects/1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l/edit",
-        "_note": "deploymentId is updated automatically by CI/CD after each deployment"
+        "editUrl": "https://script.google.com/u/1/home/projects/1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l/edit"
       },
 
       "cloudflare": {
@@ -107,7 +104,8 @@
           "www.eventangle.com/*",
           "api.eventangle.com/*"
         ],
-        "zoneName": "eventangle.com"
+        "zoneName": "eventangle.com",
+        "_note": "Primary backend - all traffic served by Cloudflare Worker"
       },
 
       "urls": {
@@ -179,30 +177,12 @@
     "deploymentIdMinLength": 50
   },
 
-  "parity": {
-    "_comment": "Story 1.4: Configuration parity requirements between staging and production",
-    "mustMatch": [
-      "appsScript.scriptId pattern validation",
-      "cloudflare.zoneName",
-      "featureFlags.mvpFeatures (all values)",
-      "featureFlags.v2Features (all values)",
-      "brands.validBrands",
-      "brands.defaultBrand"
-    ],
-    "allowedDifferences": [
-      "appsScript.scriptId (different projects)",
-      "appsScript.deploymentId (different deployments)",
-      "cloudflare.workerName (different workers)",
-      "cloudflare.routes (different domains)",
-      "urls.baseUrl (different domains)",
-      "urls.apiUrl (different domains)",
-      "flags.workerEnv (staging vs production)",
-      "flags.debugLevel (debug vs error)",
-      "flags.enableDebugEndpoints (true vs false)",
-      "featureFlags.testingFeatures (enabled in staging for UAT)",
-      "featureFlags.experimentalFeatures (enabled in staging for validation)"
-    ],
-    "lastAuditDate": "2025-12-10",
-    "auditedBy": "Story 1.4 Implementation"
+  "gasRetirement": {
+    "_comment": "Story 5.3: GAS backend retirement tracking",
+    "status": "ARCHIVED",
+    "archivedDate": "2025-12-13",
+    "archiveLocation": "archive/gas/",
+    "restorationGuide": "archive/gas/README.md",
+    "reason": "Migration to Cloudflare Workers complete - all APIs now Worker-native"
   }
 }

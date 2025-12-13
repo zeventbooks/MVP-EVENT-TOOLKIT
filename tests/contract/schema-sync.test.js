@@ -34,6 +34,8 @@ const path = require('path');
 const ROOT = path.join(__dirname, '../..');
 const SCHEMAS_DIR = path.join(ROOT, 'schemas');
 const MVP_DIR = path.join(ROOT, 'src/mvp');
+// Story 5.3: GAS files archived to archive/gas/
+const GAS_ARCHIVE_DIR = path.join(ROOT, 'archive/gas');
 
 /**
  * Load and parse JSON schema file
@@ -111,7 +113,7 @@ function extractJsonSchemaFields(schema, prefix = '', defs = null) {
  * This is a simplified parser that extracts property names from the GAS file
  */
 function parseApiSchemasGs() {
-  const filepath = path.join(MVP_DIR, 'ApiSchemas.gs');
+  const filepath = path.join(GAS_ARCHIVE_DIR, 'ApiSchemas.gs');
   const content = fs.readFileSync(filepath, 'utf8');
 
   // Extract key schema definitions we care about
@@ -237,7 +239,7 @@ function parseHtmlFields(filename) {
  * Returns object with template IDs and which settings they enable
  */
 function parseTemplateServiceGs() {
-  const filepath = path.join(MVP_DIR, 'TemplateService.gs');
+  const filepath = path.join(GAS_ARCHIVE_DIR, 'TemplateService.gs');
   const content = fs.readFileSync(filepath, 'utf8');
 
   const templates = {};

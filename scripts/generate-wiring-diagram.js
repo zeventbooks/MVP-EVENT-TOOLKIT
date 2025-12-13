@@ -23,6 +23,8 @@ const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
 const SRC_MVP = path.join(ROOT, 'src', 'mvp');
+// Story 5.3: GAS files archived to archive/gas/
+const GAS_ARCHIVE = path.join(ROOT, 'archive', 'gas');
 const DOCS = path.join(ROOT, 'docs');
 const OUTPUT_FILE = path.join(DOCS, 'wiring-admin-public-display-poster-report.json');
 
@@ -40,7 +42,8 @@ const SURFACES = {
 // ============================================================================
 
 function extractMvpApis() {
-  const codeGsPath = path.join(SRC_MVP, 'Code.gs');
+  // Story 5.3: Read from archive directory
+  const codeGsPath = path.join(GAS_ARCHIVE, 'Code.gs');
   const content = fs.readFileSync(codeGsPath, 'utf8');
 
   // Match the _listMvpApis_ function
