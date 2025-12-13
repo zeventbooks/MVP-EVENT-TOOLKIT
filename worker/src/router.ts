@@ -12,6 +12,7 @@
  * - /display, /tv, /kiosk, /screen - Display page
  * - /poster, /posters, /flyers - Poster page
  * - /report, /analytics, /reports, /insights - Report page
+ * - /web/shared/apiClient.js - Shared API client module (Story 4.2)
  * - Unknown routes - 404 JSON response
  *
  * @module router
@@ -19,6 +20,7 @@
  * @see Story 2.2 - Replace getPublicBundle Worker Implementation
  * @see Story 2.3 - Replace getAdminBundle Worker Implementation
  * @see Story 4.1 - Move HTML Surfaces to Cloudflare
+ * @see Story 4.2 - Shared API Client Module
  */
 
 import { RouterLogger, createLogger } from './logger';
@@ -34,6 +36,11 @@ import {
   type PageType as StaticPageType,
   type StaticAssetEnv,
 } from './handlers/staticAssets';
+import {
+  handleSharedModule,
+  type ModuleName,
+  type SharedModulesEnv,
+} from './handlers/sharedModules';
 
 // =============================================================================
 // Constants
@@ -47,8 +54,9 @@ import {
  * 1.4.0 - Added admin createEvent endpoint (Story 3.2)
  * 1.5.0 - Added admin recordResult endpoint (Story 3.3)
  * 1.6.0 - Static HTML serving from Worker (Story 4.1)
+ * 1.7.0 - Shared API client module (Story 4.2)
  */
-export const ROUTER_VERSION = '1.6.0';
+export const ROUTER_VERSION = '1.7.0';
 
 /**
  * Valid brands for routing
@@ -102,7 +110,7 @@ const HTML_ROUTE_MAP: Record<string, PageType> = {
 /**
  * Worker environment bindings
  */
-export interface RouterEnv extends StatusEnv, AdminAuthEnv, StaticAssetEnv {
+export interface RouterEnv extends StatusEnv, AdminAuthEnv, StaticAssetEnv, SharedModulesEnv {
   /** Worker environment (staging, production) */
   WORKER_ENV?: string;
   /** Build version for tracking */
@@ -121,9 +129,10 @@ export interface RouterEnv extends StatusEnv, AdminAuthEnv, StaticAssetEnv {
  * Route match result
  */
 interface RouteMatch {
-  type: 'api' | 'page' | 'not_found';
+  type: 'api' | 'page' | 'module' | 'not_found';
   handler?: string;
   pageType?: PageType;
+  moduleName?: ModuleName;
   brand?: Brand;
   eventId?: string;
   params?: Record<string, string>;
@@ -240,6 +249,12 @@ function matchRoute(url: URL): RouteMatch {
   // Root path - default to public page
   if (normalizedPath === '/') {
     return { type: 'page', pageType: 'public', brand };
+  }
+
+  // Check for shared module routes (Story 4.2)
+  // /web/shared/apiClient.js - Shared API client module
+  if (normalizedPath === '/web/shared/apiClient.js') {
+    return { type: 'module', moduleName: 'apiClient', brand };
   }
 
   // Unknown route
@@ -902,6 +917,21 @@ export async function handleRequest(
         }
 
         return handlePage(request, env, logger, match.pageType!, match.brand || 'root');
+      }
+
+      case 'module': {
+        // Shared JavaScript module routes (Story 4.2)
+        if (method !== 'GET' && method !== 'HEAD') {
+          return create405Response(method, url.pathname, logger);
+        }
+
+        const startTimeModule = Date.now();
+        const response = await handleSharedModule(request, env, match.moduleName!);
+        const durationMs = Date.now() - startTimeModule;
+
+        logger.debug(`Served module: ${match.moduleName} (${durationMs}ms)`);
+
+        return addStandardHeaders(response, logger);
       }
 
       case 'not_found':
