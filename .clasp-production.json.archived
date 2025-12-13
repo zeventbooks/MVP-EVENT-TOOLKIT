@@ -1,0 +1,12 @@
+{
+  "scriptId": "1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l",
+  "rootDir": "./src/mvp",
+  "_environment": "production",
+  "_comment": "PRODUCTION environment - CI/CD ONLY! Manual deployment is PROHIBITED. See PRODUCTION_DEPLOYMENT_POLICY.md",
+  "_owner": "zeventbook@gmail.com",
+  "_projectUrl": "https://script.google.com/home/projects/1YO4apLOQoAIh208AcAqWO3pWtx_O3yas_QC4z-pkurgMem9UgYOsp86l/edit",
+  "_deploymentUrl": "https://www.eventangle.com",
+  "_ciOnly": true,
+  "_warning": "DO NOT use this file for local clasp commands. Production deploys require CI pipeline (tag vX.Y.Z).",
+  "_story": "Story 1.3: Separate Apps Script environments for staging and production"
+}

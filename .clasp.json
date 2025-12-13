@@ -1,13 +1,11 @@
 {
   "scriptId": "1gHiPuj7eXNk09dDyk17SJ6QsCJg7LMqXBRrkowljL3z2TaAKFIvBLhHJ",
-  "rootDir": "./src/mvp",
+  "rootDir": "./archive/gas",
   "_environment": "staging",
-  "_comment": "DEFAULT SAFE: Points to STAGING for local development safety. CI dynamically updates to correct environment.",
-  "_migration": {
-    "_status": "PENDING",
-    "_story": "Story 1.1.2",
-    "_instructions": "See docs/env/staging-migration.md"
-  },
-  "_owner": "MIGRATE TO: zeventbook@gmail.com",
-  "_story": "Story 1.1.2: Create new staging GAS backend owned by zeventbook"
+  "_status": "ARCHIVED",
+  "_archivedDate": "2025-12-13",
+  "_story": "Story 5.3: Decommission Apps Script Project",
+  "_comment": "GAS BACKEND ARCHIVED - All traffic now served by Cloudflare Workers. See archive/gas/README.md for restoration instructions.",
+  "_warning": "DO NOT USE - This configuration is retained for emergency rollback only. GAS code has been moved to archive/gas/",
+  "_originalRootDir": "./src/mvp"
 }
