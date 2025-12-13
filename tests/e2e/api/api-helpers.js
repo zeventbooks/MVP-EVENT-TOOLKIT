@@ -1,6 +1,8 @@
 /**
  * API Testing Helpers for Playwright
- * Replaces Newman/Postman API testing with native Playwright API testing
+ *
+ * Story 5.2: Updated to use Worker-native /api/v2/* endpoints
+ * All requests go directly to Cloudflare Worker (no GAS proxy)
  *
  * EVENT_CONTRACT.md v2.0 Compliance:
  * - EventBuilder uses v2.0 field names: startDateISO, venue
@@ -45,171 +47,227 @@ export class ApiHelpers {
     });
   }
 
+  /**
+   * PUT request helper
+   * @param {string} path - URL path
+   * @param {object} data - Request body
+   * @param {object} options - Additional options
+   */
+  async put(path, data, options = {}) {
+    const url = path.startsWith('http') ? path : `${this.baseUrl}${path}`;
+    return await this.request.put(url, {
+      data,
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+      },
+      ...options
+    });
+  }
+
+  /**
+   * DELETE request helper
+   * @param {string} path - URL path
+   * @param {object} options - Additional options
+   */
+  async delete(path, options = {}) {
+    const url = path.startsWith('http') ? path : `${this.baseUrl}${path}`;
+    return await this.request.delete(url, options);
+  }
+
   // ============================================================================
   // SYSTEM APIs
   // ============================================================================
 
   /**
-   * Check system status using friendly URLs
+   * Check system status via Worker-native API
    * @param {string} brand - Brand ID
    */
   async getStatus(brand = 'root') {
-    // Use friendly URL pattern: /status for root, /{brand}/status for others
-    const path = brand === 'root' ? '/status' : `/${brand}/status`;
-    return await this.get(path);
+    return await this.get(`/api/v2/status?brand=${brand}`);
   }
 
   /**
-   * Run diagnostics (requires admin key)
-   * @param {string} brand - Brand ID
-   * @param {string} adminKey - Admin key
+   * Ping endpoint for health check
    */
-  async runDiagnostics(brand, adminKey) {
-    return await this.post('?action=runDiagnostics', {
-      brandId: brand,
-      adminKey
-    });
+  async ping() {
+    return await this.get('/api/v2/ping');
   }
 
   // ============================================================================
-  // EVENT APIs (CRUD)
+  // EVENT APIs (CRUD) - Worker-native /api/v2/events
   // ============================================================================
 
   /**
-   * Create an event using canonical api_saveEvent (ZEVENT-003)
+   * Create an event via Worker-native API
+   * POST /api/v2/events
+   *
    * @param {string} brand - Brand ID
-   * @param {object} eventData - Event data (full Event object per EVENT_CONTRACT.md)
-   * @param {string} adminKey - Admin key
+   * @param {object} eventData - Event data (per EVENT_CONTRACT.md v2.0)
+   * @param {string} adminKey - Admin key for authentication
    */
   async createEvent(brand, eventData, adminKey) {
-    // CANONICAL API: api_saveEvent (ZEVENT-003)
-    // Pass full event object without id to create new event
-    return await this.post('?action=saveEvent', {
-      brandId: brand,
-      adminKey,
-      event: eventData,
-      scope: 'events',
-      templateId: 'event'
+    return await this.post('/api/v2/events', {
+      ...eventData,
+      brandId: brand
+    }, {
+      headers: {
+        'X-Admin-Key': adminKey
+      }
     });
   }
 
   /**
    * Get a specific event
+   * GET /api/v2/events/:id
+   *
    * @param {string} brand - Brand ID
    * @param {string} eventId - Event ID
    */
   async getEvent(brand, eventId) {
-    return await this.get(`?p=api&action=get&brand=${brand}&scope=events&id=${eventId}`);
+    return await this.get(`/api/v2/events/${eventId}?brand=${brand}`);
   }
 
   /**
    * List all events for a brand
+   * GET /api/v2/events
+   *
    * @param {string} brand - Brand ID
+   * @param {boolean} full - Include full event data
    */
-  async listEvents(brand) {
-    return await this.get(`?p=api&action=list&brand=${brand}&scope=events`);
+  async listEvents(brand, full = false) {
+    const params = new URLSearchParams({ brand });
+    if (full) params.set('full', 'true');
+    return await this.get(`/api/v2/events?${params}`);
   }
 
   /**
-   * Update an event using canonical api_saveEvent (ZEVENT-003)
-   * Note: For partial updates, caller should merge with existing event first
+   * Update an event via Worker-native API
+   * PUT /api/v2/events/:id
+   *
    * @param {string} brand - Brand ID
    * @param {string} eventId - Event ID
-   * @param {object} eventData - Full or partial event data (must include id)
-   * @param {string} adminKey - Admin key
+   * @param {object} eventData - Event data to update
+   * @param {string} adminKey - Admin key for authentication
    */
   async updateEvent(brand, eventId, eventData, adminKey) {
-    // CANONICAL API: api_saveEvent (ZEVENT-003)
-    // Pass event object with id to update existing event
-    return await this.post('?action=saveEvent', {
-      brandId: brand,
-      adminKey,
-      event: { id: eventId, ...eventData },
-      scope: 'events'
+    return await this.put(`/api/v2/events/${eventId}?brand=${brand}`, eventData, {
+      headers: {
+        'X-Admin-Key': adminKey
+      }
     });
   }
 
   /**
-   * Delete an event
+   * Delete an event via Worker-native API
+   * DELETE /api/v2/events/:id
+   *
+   * @param {string} brand - Brand ID
+   * @param {string} eventId - Event ID
+   * @param {string} adminKey - Admin key for authentication
+   */
+  async deleteEvent(brand, eventId, adminKey) {
+    return await this.delete(`/api/v2/events/${eventId}?brand=${brand}`, {
+      headers: {
+        'X-Admin-Key': adminKey
+      }
+    });
+  }
+
+  // ============================================================================
+  // BUNDLE APIs - Worker-native /api/v2/events/:id/bundle/:type
+  // ============================================================================
+
+  /**
+   * Get public bundle for an event
+   * @param {string} brand - Brand ID
+   * @param {string} eventId - Event ID or slug
+   */
+  async getPublicBundle(brand, eventId) {
+    return await this.get(`/api/v2/events/${eventId}/bundle/public?brand=${brand}`);
+  }
+
+  /**
+   * Get display bundle for an event
+   * @param {string} brand - Brand ID
+   * @param {string} eventId - Event ID or slug
+   */
+  async getDisplayBundle(brand, eventId) {
+    return await this.get(`/api/v2/events/${eventId}/bundle/display?brand=${brand}`);
+  }
+
+  /**
+   * Get poster bundle for an event
+   * @param {string} brand - Brand ID
+   * @param {string} eventId - Event ID or slug
+   */
+  async getPosterBundle(brand, eventId) {
+    return await this.get(`/api/v2/events/${eventId}/bundle/poster?brand=${brand}`);
+  }
+
+  /**
+   * Get admin bundle for an event (requires auth)
    * @param {string} brand - Brand ID
    * @param {string} eventId - Event ID
    * @param {string} adminKey - Admin key
    */
-  async deleteEvent(brand, eventId, adminKey) {
-    return await this.post('?action=delete', {
-      brandId: brand,
-      scope: 'events',
-      id: eventId,
-      adminKey
+  async getAdminBundle(brand, eventId, adminKey) {
+    return await this.get(`/api/v2/events/${eventId}/bundle/admin?brand=${brand}`, {
+      headers: {
+        'X-Admin-Key': adminKey
+      }
     });
   }
 
   // ============================================================================
-  // SPONSOR APIs (CRUD)
+  // SPONSOR APIs (CRUD) - Placeholder for future Worker-native implementation
   // ============================================================================
+  // Note: Sponsors are not yet implemented in Worker-native API
+  // These methods will return 404 until implemented
 
   /**
-   * Create a sponsor
-   * @param {string} brand - Brand ID
-   * @param {object} sponsorData - Sponsor data
-   * @param {string} adminKey - Admin key
+   * Create a sponsor (NOT YET IMPLEMENTED IN WORKER)
    */
   async createSponsor(brand, sponsorData, adminKey) {
-    return await this.post('?action=create', {
-      brandId: brand,
-      scope: 'sponsors',
-      templateId: 'sponsor',
-      adminKey,
-      data: sponsorData
+    // TODO: Implement /api/v2/sponsors when needed
+    console.warn('Sponsor API not yet implemented in Worker-native');
+    return await this.post('/api/v2/sponsors', {
+      ...sponsorData,
+      brandId: brand
+    }, {
+      headers: { 'X-Admin-Key': adminKey }
     });
   }
 
   /**
-   * Get a specific sponsor
-   * @param {string} brand - Brand ID
-   * @param {string} sponsorId - Sponsor ID
+   * Get a specific sponsor (NOT YET IMPLEMENTED IN WORKER)
    */
   async getSponsor(brand, sponsorId) {
-    return await this.get(`?p=api&action=get&brand=${brand}&scope=sponsors&id=${sponsorId}`);
+    return await this.get(`/api/v2/sponsors/${sponsorId}?brand=${brand}`);
   }
 
   /**
-   * List all sponsors for a brand
-   * @param {string} brand - Brand ID
+   * List all sponsors for a brand (NOT YET IMPLEMENTED IN WORKER)
    */
   async listSponsors(brand) {
-    return await this.get(`?p=api&action=list&brand=${brand}&scope=sponsors`);
+    return await this.get(`/api/v2/sponsors?brand=${brand}`);
   }
 
   /**
-   * Update a sponsor
-   * @param {string} brand - Brand ID
-   * @param {string} sponsorId - Sponsor ID
-   * @param {object} updateData - Fields to update
-   * @param {string} adminKey - Admin key
+   * Update a sponsor (NOT YET IMPLEMENTED IN WORKER)
    */
   async updateSponsor(brand, sponsorId, updateData, adminKey) {
-    return await this.post('?action=update', {
-      brandId: brand,
-      scope: 'sponsors',
-      id: sponsorId,
-      adminKey,
-      data: updateData
+    return await this.put(`/api/v2/sponsors/${sponsorId}?brand=${brand}`, updateData, {
+      headers: { 'X-Admin-Key': adminKey }
     });
   }
 
   /**
-   * Delete a sponsor
-   * @param {string} brand - Brand ID
-   * @param {string} sponsorId - Sponsor ID
-   * @param {string} adminKey - Admin key
+   * Delete a sponsor (NOT YET IMPLEMENTED IN WORKER)
    */
   async deleteSponsor(brand, sponsorId, adminKey) {
-    return await this.post('?action=delete', {
-      brandId: brand,
-      scope: 'sponsors',
-      id: sponsorId,
-      adminKey
+    return await this.delete(`/api/v2/sponsors/${sponsorId}?brand=${brand}`, {
+      headers: { 'X-Admin-Key': adminKey }
     });
   }
 

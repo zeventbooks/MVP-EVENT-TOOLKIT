@@ -2640,8 +2640,8 @@ export default {
           else {
             const eventId = pathSegments[1] || null;
 
-            // Create/Update require auth
-            if (request.method === 'POST' || request.method === 'PUT') {
+            // Create/Update/Delete require auth
+            if (request.method === 'POST' || request.method === 'PUT' || request.method === 'DELETE') {
               const authError = requireAdminAuth(request, env);
               if (authError) {
                 response = authError;
