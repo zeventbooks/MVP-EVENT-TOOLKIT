@@ -139,7 +139,9 @@ describe('Story 4.2 - Shared API Client', () => {
           let errorData = {};
           try {
             errorData = await response.json();
-          } catch {}
+          } catch (_jsonError) {
+            // Ignore JSON parse errors for error responses
+          }
 
           const code = errorData.code || mapStatusToErrorCode(response.status);
           return { ok: false, code, message: errorData.message || 'HTTP error', status: response.status };

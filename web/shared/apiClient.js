@@ -241,7 +241,12 @@
       delete logData.level;
 
       if (level === 'error') {
-        console.error(prefix, type, JSON.stringify(logData));
+        // Deduplicate error console output to prevent log spam
+        const path = data.path || type;
+        const code = data.code || 'error';
+        if (!isDuplicateError(path, code)) {
+          console.error(prefix, type, JSON.stringify(logData));
+        }
       } else {
         console.debug(prefix, type, JSON.stringify(logData));
       }
@@ -546,13 +551,17 @@
     try {
       const cached = JSON.parse(localStorage.getItem(key) || '{}');
 
+      // Check if cached data is stale (beyond staleMs threshold)
+      const isStale = cached.t && (Date.now() - cached.t > staleMs);
+
       if (cached.data) {
-        // Return stale data immediately
+        // Return stale data immediately (even if stale)
         setTimeout(() => onUpdate && onUpdate(cached.data), 0);
       }
 
-      // Fetch fresh data in background
-      rpc(path, { ...(payload || {}), ifNoneMatch: cached.etag }).then(res => {
+      // Always revalidate if stale or no cached data, otherwise use conditional request
+      const shouldRevalidate = isStale || !cached.data;
+      rpc(path, { ...(payload || {}), ifNoneMatch: shouldRevalidate ? undefined : cached.etag }).then(res => {
         if (res?.notModified) return;
         if (res?.ok && res.value) {
           localStorage.setItem(key, JSON.stringify({
