@@ -2508,8 +2508,8 @@ export default {
   async fetch(request, env, ctx) {
     const startTime = Date.now();
 
-    // Story 2: Use environment-aware URL resolution
-    const appsScriptBase = getGasUrl(env);
+    // Story 5.2: GAS URL no longer needed - all routes use Worker-native
+    // const appsScriptBase = getGasUrl(env); // REMOVED
 
     const url = new URL(request.url);
 
@@ -2701,48 +2701,24 @@ export default {
     }
 
     // ==========================================================================
-    // HEALTH CHECK ENDPOINT - Story 5 Implementation + Story 0.1 Versioned Routing
+    // HEALTH CHECK ENDPOINT - Story 5.2: Worker-native only
     // ==========================================================================
-    // GET /api/status (or POST with { "method": "status" })
-    // Lightweight health check for CI/CD pipelines.
-    // Returns structured JSON with GAS and eventsIndex health status.
+    // GET /api/status - Lightweight health check for CI/CD pipelines.
+    // Returns structured JSON with Worker and Sheets health status.
     //
-    // Story 0.1: Versioned Backend Routing
-    // - Uses backendConfig to decide whether to use GAS or Worker-native
-    // - Supports ?backend=gas|worker query param override for staging
-    // - Worker-native uses handleWorkerStatusRequest from src/api/status.js
-    // - GAS uses handleHealthCheckEndpoint (legacy)
+    // Story 5.2: Always uses Worker-native (GAS removed)
     if (url.pathname === '/api/status') {
       try {
-        // Story 0.1: Determine which backend to use
-        const { backend, source } = getBackendForRoute(url.pathname, url.searchParams, env);
-        logBackendDecision(url.pathname, backend, source, env);
+        // Worker-native implementation
+        let response = await handleWorkerStatusRequest(request, env);
 
-        let response;
-
-        if (backend === BACKEND_MODES.WORKER) {
-          // Worker-native implementation (Story 6)
-          response = await handleWorkerStatusRequest(request, env);
-
-          // Add X-Backend header for debugging
-          response = new Response(response.body, {
-            status: response.status,
-            headers: response.headers
-          });
-          response.headers.set('X-Backend', 'worker');
-          response.headers.set('X-Backend-Source', source);
-        } else {
-          // GAS backend (legacy)
-          response = await handleHealthCheckEndpoint(request, appsScriptBase, env, url);
-
-          // Add X-Backend header for debugging
-          response = new Response(response.body, {
-            status: response.status,
-            headers: response.headers
-          });
-          response.headers.set('X-Backend', 'gas');
-          response.headers.set('X-Backend-Source', source);
-        }
+        // Add backend header for debugging
+        response = new Response(response.body, {
+          status: response.status,
+          headers: response.headers
+        });
+        response.headers.set('X-Backend', 'worker');
+        response.headers.set('X-Backend-Source', 'story-5.2-worker-native');
 
         return addTransparencyHeaders(addCORSHeaders(response), startTime, env);
 
@@ -2751,51 +2727,51 @@ export default {
         ctx.waitUntil(logError(env, {
           corrId,
           type: 'health_check_error',
-          backend: getBackendMode(env),
           error: error.message,
           stack: error.stack?.slice(0, 500),
           url: url.pathname,
           duration: Date.now() - startTime
         }));
 
-        // Story 0.1: Return structured BACKEND_ERROR response
         const errorResponse = createBackendError500(
           'Health check failed unexpectedly',
-          { corrId, backend: getBackendMode(env) }
+          { corrId, backend: 'worker' }
         );
         return addTransparencyHeaders(addCORSHeaders(errorResponse), startTime, env);
       }
     }
 
     // ==========================================================================
-    // /api/* - Frontend API endpoints (fetch-based transport)
+    // /api/* - Legacy GAS API endpoints (DEPRECATED - Story 5.2)
     // ==========================================================================
-    // Supports two patterns:
+    // Story 5.2: Full DNS cutover - all API traffic uses Worker-native /api/v2/*
+    // Legacy /api/* endpoints return 410 Gone with migration guidance.
     //
-    // 1. Legacy RPC: POST /api/rpc with body { method: 'api_list', payload: {...} }
-    //    - Preserves backward compatibility with existing SDK calls
+    // Migration path:
+    // - POST /api/rpc -> Use /api/v2/* REST endpoints
+    // - POST /api/events/* -> Use /api/v2/events
     //
-    // 2. Path-based: POST /api/<path> with body {...payload}
-    //    - New pattern: /api/events/list, /api/getPublicBundle
-    //    - Maps to GAS action: events/list -> list, getPublicBundle -> getPublicBundle
-    //
-    // Response: JSON from GAS backend
-    //
-    if (url.pathname.startsWith('/api/') && request.method === 'POST') {
-      try {
-        const response = await handleApiRequest(request, appsScriptBase, env, url);
-        return addTransparencyHeaders(addCORSHeaders(response), startTime, env);
-      } catch (error) {
-        const corrId = generateCorrId();
-        ctx.waitUntil(logError(env, {
-          corrId,
-          type: 'api_error',
-          error: error.message,
-          url: url.pathname,
-          duration: Date.now() - startTime
-        }));
-        return createGracefulErrorResponse(error, url, true, corrId, env);
-      }
+    if (url.pathname.startsWith('/api/') && !url.pathname.startsWith('/api/v2/') && request.method === 'POST') {
+      console.log(`[API_DEPRECATED] Legacy POST to ${url.pathname} - returning 410`);
+      const response = new Response(JSON.stringify({
+        ok: false,
+        code: 'DEPRECATED',
+        message: 'Legacy API endpoint is deprecated. Use /api/v2/* endpoints instead.',
+        migration: {
+          events: 'POST/PUT/DELETE /api/v2/events',
+          bundles: 'GET /api/v2/events/:id/bundle/:type',
+          status: 'GET /api/v2/status'
+        },
+        documentation: 'https://www.eventangle.com/docs/api'
+      }), {
+        status: 410,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Deprecated': 'true',
+          'X-Migration-Path': '/api/v2/*'
+        }
+      });
+      return addTransparencyHeaders(addCORSHeaders(response), startTime, env);
     }
 
     // ==========================================================================

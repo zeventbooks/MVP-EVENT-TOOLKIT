@@ -404,9 +404,10 @@ describe('Backend Router (Story 0.1)', () => {
       expect(workerContent).toContain('BACKEND_MODES');
     });
 
-    it('should use versioned routing for /api/status', () => {
-      // Should have the backend selection logic in the /api/status handler
-      expect(workerContent).toContain('getBackendForRoute(url.pathname, url.searchParams, env)');
+    it('should use Worker-native for /api/status (Story 5.2)', () => {
+      // Story 5.2: No longer uses versioned routing - always Worker-native
+      expect(workerContent).toContain("if (url.pathname === '/api/status')");
+      expect(workerContent).toContain('handleWorkerStatusRequest');
     });
 
     it('should set X-Backend header on responses', () => {
@@ -417,13 +418,14 @@ describe('Backend Router (Story 0.1)', () => {
       expect(workerContent).toContain("response.headers.set('X-Backend-Source'");
     });
 
-    it('should call Worker handler when backend is worker', () => {
-      expect(workerContent).toContain('if (backend === BACKEND_MODES.WORKER)');
+    it('should call Worker handler (Story 5.2: Worker-native only)', () => {
+      // Story 5.2: GAS removed - always use Worker-native
       expect(workerContent).toContain('await handleWorkerStatusRequest(request, env)');
     });
 
-    it('should call GAS handler when backend is gas', () => {
-      expect(workerContent).toContain('await handleHealthCheckEndpoint(request, appsScriptBase, env, url)');
+    it('should NOT call GAS handler (Story 5.2: GAS removed)', () => {
+      // Story 5.2: GAS proxy removed - no handleHealthCheckEndpoint calls
+      expect(workerContent).not.toContain('await handleHealthCheckEndpoint(request, appsScriptBase, env, url)');
     });
   });
 });

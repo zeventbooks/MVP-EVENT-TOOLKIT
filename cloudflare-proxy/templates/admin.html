@@ -6923,18 +6923,17 @@ Functions exposed to global scope:
 
   /**
    * CANONICAL WRITE API HELPER (ZEVENT-003)
-   * Load-Merge-Save pattern using Worker for load, GAS for save.
+   * Load-Merge-Save pattern using Worker for all operations.
    *
-   * Story 2.3: Load step now uses Worker admin bundle
-   * Save step still uses GAS api_saveEvent (canonical write endpoint)
+   * Story 5.2: Full Worker-native - no GAS dependency
+   * Uses PUT /api/v2/events/:id for saves
    *
    * @param {string} eventId - Event ID to update
    * @param {Object} partialData - Partial data to merge into event
-   * @returns {Object} Result from api_saveEvent { ok, value, message }
+   * @returns {Object} Result { ok, value, message }
    */
   async function saveEventPartial(eventId, partialData) {
     const BRAND = window.BRAND || 'root';
-    const SCOPE = window.SCOPE || 'events';
 
     // Step 1: Load current event - prefer cached admin bundle, then Worker
     let currentEvent = null;
@@ -6963,20 +6962,28 @@ Functions exposed to global scope:
     // Step 2: Merge partial data into the full event object
     const mergedEvent = deepMerge_(currentEvent, partialData);
 
-    // Step 3: Save via canonical api_saveEvent (GAS)
-    const saveRes = await NU.rpc('api_saveEvent', {
-      brandId: BRAND,
-      adminKey: getAdminKey(),
-      event: mergedEvent,
-      scope: SCOPE
-    });
+    // Step 3: Save via Worker-native PUT /api/v2/events/:id (Story 5.2)
+    try {
+      const response = await fetch(`/api/v2/events/${eventId}?brand=${BRAND}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Admin-Key': getAdminKey()
+        },
+        body: JSON.stringify(mergedEvent)
+      });
+      const saveRes = await response.json();
 
-    // Update cached admin bundle with new event data if save succeeded
-    if (saveRes.ok && window.currentAdminBundle) {
-      window.currentAdminBundle.event = mergedEvent;
+      // Update cached admin bundle with new event data if save succeeded
+      if (saveRes.ok && window.currentAdminBundle) {
+        window.currentAdminBundle.event = saveRes.value || mergedEvent;
+      }
+
+      return saveRes;
+    } catch (err) {
+      console.error('[AdminDisplay] saveEventPartial fetch error:', err);
+      return { ok: false, message: `Save failed: ${err.message}` };
     }
-
-    return saveRes;
   }
 
   /**
@@ -11852,14 +11859,14 @@ Functions exposed to global scope:
 
     /**
      * CANONICAL WRITE API HELPER (ZEVENT-003)
-     * Load-Merge-Save pattern using Worker for load, GAS for save.
+     * Load-Merge-Save pattern using Worker for all operations.
      *
-     * Story 2.3: Load step now uses Worker admin bundle
-     * Save step still uses GAS api_saveEvent (canonical write endpoint)
+     * Story 5.2: Full Worker-native - no GAS dependency
+     * Uses PUT /api/v2/events/:id for saves
      *
      * @param {string} eventId - Event ID to update
      * @param {Object} partialData - Partial data to merge into event
-     * @returns {Object} Result from api_saveEvent { ok, value, message }
+     * @returns {Object} Result { ok, value, message }
      */
     async function saveEventPartial(eventId, partialData) {
       // Step 1: Load current event - prefer cached admin bundle, then Worker
@@ -11889,20 +11896,28 @@ Functions exposed to global scope:
       // Step 2: Merge partial data into the full event object
       const mergedEvent = deepMerge_(currentEvent, partialData);
 
-      // Step 3: Save via canonical api_saveEvent (GAS)
-      const saveRes = await NU.rpc('api_saveEvent', {
-        brandId: BRAND,
-        adminKey: getAdminKey(),
-        event: mergedEvent,
-        scope: SCOPE
-      });
+      // Step 3: Save via Worker-native PUT /api/v2/events/:id (Story 5.2)
+      try {
+        const response = await fetch(`/api/v2/events/${eventId}?brand=${BRAND}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Admin-Key': getAdminKey()
+          },
+          body: JSON.stringify(mergedEvent)
+        });
+        const saveRes = await response.json();
 
-      // Update cached admin bundle with new event data if save succeeded
-      if (saveRes.ok && window.currentAdminBundle) {
-        window.currentAdminBundle.event = mergedEvent;
+        // Update cached admin bundle with new event data if save succeeded
+        if (saveRes.ok && window.currentAdminBundle) {
+          window.currentAdminBundle.event = saveRes.value || mergedEvent;
+        }
+
+        return saveRes;
+      } catch (err) {
+        console.error('[Admin] saveEventPartial fetch error:', err);
+        return { ok: false, message: `Save failed: ${err.message}` };
       }
-
-      return saveRes;
     }
 
     /**
@@ -12814,6 +12829,8 @@ Functions exposed to global scope:
 
     /**
      * Create a signup form via existing api_createFormFromTemplate RPC
+     * Note: Form creation still requires GAS (Google Forms API)
+     * Story 5.2: Event save uses Worker-native API
      */
     async function createWizardSignupForm(eventId, eventName) {
       try {
@@ -12828,16 +12845,10 @@ Functions exposed to global scope:
 
         if (res.ok && res.publishedUrl) {
           WIZARD.signupUrl = res.publishedUrl;
-          // Update the event with the form URL
-          await NU.rpc('api_saveEvent', {
-            brandId: BRAND,
-            adminKey: adminKey,
-            event: {
-              id: eventId,
-              registerUrl: res.publishedUrl,
-              ctas: { primary: { label: 'Sign Up', url: res.publishedUrl } }
-            },
-            scope: SCOPE
+          // Update the event with the form URL via Worker-native API (Story 5.2)
+          await saveEventPartial(eventId, {
+            registerUrl: res.publishedUrl,
+            ctas: { primary: { label: 'Sign Up', url: res.publishedUrl } }
           });
           console.log('[Wizard] Created signup form:', res.publishedUrl);
         }
