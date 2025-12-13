@@ -3,17 +3,18 @@
 MODULE: AdminDisplay.html
 PURPOSE: Display configuration and sponsor management for Admin dashboard
 INCLUDED BY: Admin.html
-DEPENDENCIES: NUSDK.html (NU.rpc), SharedUtils.html (showToast), AdminEvents.html (overlay)
+DEPENDENCIES: NUSDK.html (NU.rpc), SharedUtils.html (showToast), AdminEvents.html (overlay, fetchAdminBundleFromWorker)
 ================================================================================
 Story 4.1: Extracted from Admin.html for modularization and maintainability.
-This module handles display mode configuration, URL rotation, and sponsor settings.
+Story 2.3: Read operations now use Worker via fetchAdminBundleFromWorker
+         Write operations (api_saveEvent) still use GAS via NU.rpc
 
 Functions exposed to global scope:
   Display Configuration:
   - configureDisplay()           → Open display config panel
-  - loadDisplayConfig()          → Load display config from API
+  - loadDisplayConfig()          → Load display config from Worker
   - toggleDisplayMode()          → Toggle dynamic/public mode
-  - saveDisplayConfig()          → Save display config to API
+  - saveDisplayConfig()          → Save display config to API (GAS)
   - closeDisplayConfig()         → Close display config panel
 
   URL Management:
@@ -26,7 +27,7 @@ Functions exposed to global scope:
 
   Helpers:
   - getAdminKey()                → Get/prompt for admin key
-  - saveEventPartial(id, data)   → Load-merge-save helper
+  - saveEventPartial(id, data)   → Load-merge-save helper (GAS)
   - deepMerge_(target, source)   → Deep merge objects
 ================================================================================
 -->
@@ -50,11 +51,13 @@ Functions exposed to global scope:
   }
 
   /**
-   * Load display configuration from API.
+   * Load display configuration from admin bundle or Worker.
+   *
+   * Story 2.3: Uses cached admin bundle data if available,
+   * otherwise fetches from Worker /api/events/:id/adminBundle
    */
   async function loadDisplayConfig() {
     const BRAND = window.BRAND || 'root';
-    const SCOPE = window.SCOPE || 'events';
     const currentEventId = window.currentEventId;
 
     if (!currentEventId) return;
@@ -63,16 +66,27 @@ Functions exposed to global scope:
       window.overlay(true);
     }
 
-    const res = await NU.rpc('api_get', { brandId: BRAND, scope: SCOPE, id: currentEventId });
+    // Story 2.3: Try to use cached admin bundle data first
+    let event = null;
+    if (window.currentAdminBundle && window.currentAdminBundle.event) {
+      event = window.currentAdminBundle.event;
+      console.log('[AdminDisplay] Using cached admin bundle for display config');
+    } else if (typeof window.fetchAdminBundleFromWorker === 'function') {
+      // Fetch from Worker if not cached
+      const res = await window.fetchAdminBundleFromWorker(currentEventId, BRAND);
+      if (res.ok && res.value) {
+        event = res.value.event;
+        console.log('[AdminDisplay] Fetched admin bundle from Worker for display config');
+      }
+    }
 
     if (typeof window.overlay === 'function') {
       window.overlay(false);
     }
 
-    if (res.ok && res.value) {
-      const data = res.value.data || {};
-      const display = data.display || {};
-      const sponsors = data.sponsors || [];
+    if (event) {
+      const display = event.display || {};
+      const sponsors = event.sponsors || [];
 
       const displayModeEl = document.getElementById('displayMode');
       if (displayModeEl) {
@@ -287,7 +301,10 @@ Functions exposed to global scope:
 
   /**
    * CANONICAL WRITE API HELPER (ZEVENT-003)
-   * Load-Merge-Save pattern using only api_saveEvent (canonical write endpoint).
+   * Load-Merge-Save pattern using Worker for load, GAS for save.
+   *
+   * Story 2.3: Load step now uses Worker admin bundle
+   * Save step still uses GAS api_saveEvent (canonical write endpoint)
    *
    * @param {string} eventId - Event ID to update
    * @param {Object} partialData - Partial data to merge into event
@@ -297,28 +314,45 @@ Functions exposed to global scope:
     const BRAND = window.BRAND || 'root';
     const SCOPE = window.SCOPE || 'events';
 
-    // Step 1: Load current event via api_get
-    const getRes = await NU.rpc('api_get', {
-      brandId: BRAND,
-      scope: SCOPE,
-      id: eventId
-    });
+    // Step 1: Load current event - prefer cached admin bundle, then Worker
+    let currentEvent = null;
 
-    if (!getRes.ok) {
-      return { ok: false, message: `Failed to load event: ${getRes.message}` };
+    if (window.currentAdminBundle && window.currentAdminBundle.event &&
+        window.currentAdminBundle.event.id === eventId) {
+      // Use cached admin bundle event
+      currentEvent = window.currentAdminBundle.event;
+      console.log('[AdminDisplay] saveEventPartial using cached admin bundle');
+    } else if (typeof window.fetchAdminBundleFromWorker === 'function') {
+      // Fetch from Worker
+      const getRes = await window.fetchAdminBundleFromWorker(eventId, BRAND);
+      if (!getRes.ok) {
+        return { ok: false, message: `Failed to load event: ${getRes.message}` };
+      }
+      currentEvent = getRes.value.event;
+      console.log('[AdminDisplay] saveEventPartial fetched from Worker');
+    } else {
+      return { ok: false, message: 'Failed to load event: Worker not available' };
+    }
+
+    if (!currentEvent) {
+      return { ok: false, message: 'Failed to load event: No event data' };
     }
 
     // Step 2: Merge partial data into the full event object
-    const currentEvent = getRes.value;
     const mergedEvent = deepMerge_(currentEvent, partialData);
 
-    // Step 3: Save via canonical api_saveEvent
+    // Step 3: Save via canonical api_saveEvent (GAS)
     const saveRes = await NU.rpc('api_saveEvent', {
       brandId: BRAND,
       adminKey: getAdminKey(),
       event: mergedEvent,
       scope: SCOPE
     });
+
+    // Update cached admin bundle with new event data if save succeeded
+    if (saveRes.ok && window.currentAdminBundle) {
+      window.currentAdminBundle.event = mergedEvent;
+    }
 
     return saveRes;
   }

@@ -102,6 +102,28 @@
       ],
       "description": "V2 OPTIONAL - External data source URLs"
     },
+    "checkinUrl": {
+      "type": ["string", "null"],
+      "pattern": "^https?://.+",
+      "description": "V2 OPTIONAL - Check-in form URL"
+    },
+    "walkinUrl": {
+      "type": ["string", "null"],
+      "pattern": "^https?://.+",
+      "description": "V2 OPTIONAL - Walk-in registration form URL"
+    },
+    "surveyUrl": {
+      "type": ["string", "null"],
+      "pattern": "^https?://.+",
+      "description": "V2 OPTIONAL - Post-event survey form URL"
+    },
+    "display": {
+      "oneOf": [
+        { "$ref": "#/$defs/DisplayConfig" },
+        { "type": "null" }
+      ],
+      "description": "V2 OPTIONAL - Display surface configuration"
+    },
     "analytics": {
       "oneOf": [
         { "$ref": "#/$defs/Analytics" },
@@ -577,6 +599,42 @@
           "type": ["string", "null"],
           "maxLength": 100,
           "description": "Optional title overlay for the pane"
+        }
+      }
+    },
+    "DisplayConfig": {
+      "type": "object",
+      "description": "V2 OPTIONAL - Display surface configuration for TV mode",
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["public", "dynamic"],
+          "description": "Display mode: public (embed public page) or dynamic (URL rotation)"
+        },
+        "urls": {
+          "type": ["array", "null"],
+          "items": { "$ref": "#/$defs/DisplayUrl" },
+          "description": "URLs to rotate through in dynamic mode"
+        }
+      }
+    },
+    "DisplayUrl": {
+      "type": "object",
+      "description": "V2 OPTIONAL - A URL entry for display rotation",
+      "required": ["url"],
+      "additionalProperties": false,
+      "properties": {
+        "url": {
+          "type": "string",
+          "pattern": "^https?://.+",
+          "description": "URL to display"
+        },
+        "seconds": {
+          "type": "integer",
+          "minimum": 5,
+          "maximum": 300,
+          "description": "Duration in seconds to display this URL (default: 10)"
         }
       }
     }

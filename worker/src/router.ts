@@ -17,10 +17,12 @@
  * @module router
  * @see Story 1.1 - Create Central Worker Router
  * @see Story 2.2 - Replace getPublicBundle Worker Implementation
+ * @see Story 2.3 - Replace getAdminBundle Worker Implementation
  */
 
 import { RouterLogger, createLogger } from './logger';
 import { handleStatus, type StatusEnv } from './handlers/status';
+import { handleListEvents } from './handlers/eventsList';
 import { handleGetPublicBundle } from './handlers/publicBundle';
 import { handleGetAdminBundle } from './handlers/adminBundle';
 
@@ -32,8 +34,9 @@ import { handleGetAdminBundle } from './handlers/adminBundle';
  * Router version - incremented with each significant change
  * 1.1.0 - Initial router (Story 1.1)
  * 1.2.0 - Wired up publicBundle and adminBundle handlers (Story 2.2)
+ * 1.3.0 - Wired up events list handler for Admin migration (Story 2.3)
  */
-export const ROUTER_VERSION = '1.2.0';
+export const ROUTER_VERSION = '1.3.0';
 
 /**
  * Valid brands for routing
@@ -361,40 +364,41 @@ async function handleApiStatus(
 }
 
 /**
- * Placeholder for events list handler
- * Will be implemented in Story 1.3
+ * Handle events list request
+ * @see Story 1.3 - Port api_status + Simple Read-Only api_listEvents
+ * @see Story 2.3 - Admin UI reads events from Worker
  */
 async function handleApiEvents(
-  _request: Request,
-  _env: RouterEnv,
+  request: Request,
+  env: RouterEnv,
   logger: RouterLogger,
   brand: Brand
 ): Promise<Response> {
   const startTime = Date.now();
 
-  // TODO: Implement in Story 1.3 - port api_listEvents
-  const body = {
-    ok: true,
-    status: 200,
-    backend: 'worker',
-    brand,
-    events: [],
-    message: 'Events endpoint placeholder - implement in Story 1.3',
-    timestamp: new Date().toISOString(),
-  };
+  try {
+    // Add brand to URL if not already present
+    const url = new URL(request.url);
+    if (!url.searchParams.has('brand')) {
+      url.searchParams.set('brand', brand);
+    }
 
-  const response = new Response(JSON.stringify(body), {
-    status: 200,
-    headers: {
-      'Content-Type': 'application/json',
-      'Cache-Control': 'max-age=60',
-    },
-  });
+    // Create modified request with brand param
+    const modifiedRequest = new Request(url.toString(), {
+      method: request.method,
+      headers: request.headers,
+    });
 
-  const durationMs = Date.now() - startTime;
-  logger.apiRequest('GET', '/api/events', 200, durationMs, { brand });
+    const response = await handleListEvents(modifiedRequest, env);
+    const durationMs = Date.now() - startTime;
 
-  return addStandardHeaders(response, logger);
+    logger.apiRequest('GET', '/api/events', response.status, durationMs, { brand });
+
+    return addStandardHeaders(response, logger);
+  } catch (error) {
+    logger.error('Failed to handle events list', error);
+    return create500Response(error instanceof Error ? error : new Error(String(error)), logger);
+  }
 }
 
 /**

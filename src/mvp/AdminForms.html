@@ -3,22 +3,23 @@
 MODULE: AdminForms.html
 PURPOSE: Sign-up forms and Google Forms template integration for Admin dashboard
 INCLUDED BY: Admin.html
-DEPENDENCIES: NUSDK.html (NU.rpc), SharedUtils.html (showToast, esc), AdminDisplay.html (saveEventPartial, getAdminKey), AdminEvents.html (overlay, updateChecklistStatus)
+DEPENDENCIES: NUSDK.html (NU.rpc), SharedUtils.html (showToast, esc), AdminDisplay.html (saveEventPartial, getAdminKey), AdminEvents.html (overlay, updateChecklistStatus, fetchAdminBundleFromWorker)
 ================================================================================
 Story 4.1: Extracted from Admin.html for modularization and maintainability.
-This module handles sign-up form configuration and Google Forms template creation.
+Story 2.3: Read operations now use Worker via fetchAdminBundleFromWorker
+         Write operations (api_createFormFromTemplate, api_generateFormShortlink) still use GAS
 
 Functions exposed to global scope:
   Sign-up Configuration:
   - configureSignup()            → Open signup config panel
-  - loadSignupForms()            → Load signup forms from API
+  - loadSignupForms()            → Load signup forms from Worker
   - saveAllSignupForms()         → Save signup forms to API
   - closeSignupConfig()          → Close signup config panel
 
   Google Forms Templates:
   - openFormsTemplates()         → Open forms templates panel
   - closeFormsTemplates()        → Close forms templates panel
-  - createFormTemplate(type)     → Create form from template
+  - createFormTemplate(type)     → Create form from template (GAS)
   - copyFormLink(inputId)        → Copy form link to clipboard
 ================================================================================
 -->
@@ -42,11 +43,13 @@ Functions exposed to global scope:
   }
 
   /**
-   * Load sign-up form URLs from API.
+   * Load sign-up form URLs from admin bundle or Worker.
+   *
+   * Story 2.3: Uses cached admin bundle data if available,
+   * otherwise fetches from Worker /api/events/:id/adminBundle
    */
   async function loadSignupForms() {
     const BRAND = window.BRAND || 'root';
-    const SCOPE = window.SCOPE || 'events';
     const currentEventId = window.currentEventId;
 
     if (!currentEventId) return;
@@ -55,24 +58,39 @@ Functions exposed to global scope:
       window.overlay(true);
     }
 
-    const res = await NU.rpc('api_get', { brandId: BRAND, scope: SCOPE, id: currentEventId });
+    // Story 2.3: Try to use cached admin bundle data first
+    let event = null;
+    if (window.currentAdminBundle && window.currentAdminBundle.event) {
+      event = window.currentAdminBundle.event;
+      console.log('[AdminForms] Using cached admin bundle for signup forms');
+    } else if (typeof window.fetchAdminBundleFromWorker === 'function') {
+      // Fetch from Worker if not cached
+      const res = await window.fetchAdminBundleFromWorker(currentEventId, BRAND);
+      if (res.ok && res.value) {
+        event = res.value.event;
+        console.log('[AdminForms] Fetched admin bundle from Worker for signup forms');
+      }
+    }
 
     if (typeof window.overlay === 'function') {
       window.overlay(false);
     }
 
-    if (res.ok && res.value) {
-      const data = res.value.data || {};
+    if (event) {
+      // Extract form URLs from event data
+      const links = event.links || {};
+      const ctas = event.ctas || {};
 
       const registerUrl = document.getElementById('registerUrl');
       const checkinUrl = document.getElementById('checkinUrl');
       const walkinUrl = document.getElementById('walkinUrl');
       const surveyUrl = document.getElementById('surveyUrl');
 
-      if (registerUrl) registerUrl.value = data.registerUrl || '';
-      if (checkinUrl) checkinUrl.value = data.checkinUrl || '';
-      if (walkinUrl) walkinUrl.value = data.walkinUrl || '';
-      if (surveyUrl) surveyUrl.value = data.surveyUrl || '';
+      // Use signupUrl as register URL if available
+      if (registerUrl) registerUrl.value = links.signupUrl || ctas.primary?.url || '';
+      if (checkinUrl) checkinUrl.value = event.checkinUrl || '';
+      if (walkinUrl) walkinUrl.value = event.walkinUrl || '';
+      if (surveyUrl) surveyUrl.value = event.surveyUrl || '';
     }
   }
 
@@ -160,10 +178,11 @@ Functions exposed to global scope:
   /**
    * Create a Google Form from template.
    * @param {string} templateType - Type of form (check-in, walk-in, survey)
+   *
+   * Story 2.3: Uses cached admin bundle for event name, then calls GAS for form creation
    */
   async function createFormTemplate(templateType) {
     const BRAND = window.BRAND || 'root';
-    const SCOPE = window.SCOPE || 'events';
     const currentEventId = window.currentEventId;
 
     if (!currentEventId) {
@@ -191,16 +210,19 @@ Functions exposed to global scope:
       window.overlay(true);
     }
 
-    // Get event data for context
-    const eventRes = await NU.rpc('api_get', {
-      brandId: BRAND,
-      scope: SCOPE,
-      id: currentEventId
-    });
-
-    const eventName = eventRes.ok && eventRes.value?.data?.name
-      ? eventRes.value.data.name
-      : 'Event';
+    // Story 2.3: Get event name from cached admin bundle
+    let eventName = 'Event';
+    if (window.currentAdminBundle && window.currentAdminBundle.event) {
+      eventName = window.currentAdminBundle.event.name || 'Event';
+      console.log('[AdminForms] Using cached event name:', eventName);
+    } else if (typeof window.fetchAdminBundleFromWorker === 'function') {
+      // Fetch from Worker if not cached
+      const eventRes = await window.fetchAdminBundleFromWorker(currentEventId, BRAND);
+      if (eventRes.ok && eventRes.value?.event?.name) {
+        eventName = eventRes.value.event.name;
+        console.log('[AdminForms] Fetched event name from Worker:', eventName);
+      }
+    }
 
     // Get admin key using helper from AdminDisplay.html
     const adminKey = typeof window.getAdminKey === 'function' ? window.getAdminKey() : '';

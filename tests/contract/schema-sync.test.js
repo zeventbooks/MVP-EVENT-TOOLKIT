@@ -306,7 +306,7 @@ const CANONICAL = {
   // Event Schema top-level fields
   event: {
     required: ['id', 'slug', 'name', 'startDateISO', 'venue', 'links', 'qr', 'ctas', 'settings', 'createdAtISO', 'updatedAtISO'],
-    optional: ['templateId', 'schedule', 'standings', 'bracket', 'sponsors', 'media', 'externalData', 'analytics', 'payments']
+    optional: ['templateId', 'schedule', 'standings', 'bracket', 'sponsors', 'media', 'externalData', 'checkinUrl', 'walkinUrl', 'surveyUrl', 'display', 'analytics', 'payments']
   },
 
   // Links sub-schema
