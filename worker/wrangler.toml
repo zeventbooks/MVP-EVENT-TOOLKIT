@@ -20,6 +20,17 @@ compatibility_date = "2024-01-01"
 
 # TypeScript compilation is handled automatically by wrangler
 
+# ============================================
+# Static Asset Rules (Story 4.1)
+# ============================================
+# HTML templates are imported as text and embedded in the Worker bundle.
+# This eliminates the need for GAS fetch or KV storage.
+# Note: Must use fallthrough = true to not conflict with wrangler defaults
+[[rules]]
+type = "Text"
+globs = ["**/*.html"]
+fallthrough = true
+
 # ===========================================
 # Development Environment (workers.dev)
 # ===========================================
