@@ -239,11 +239,8 @@ export {
   updateStandings,
   updateBracket,
 
-  // Types
-  type ScheduleItem,
-  type StandingsItem,
+  // Types (Note: ScheduleItem, StandingsItem, Bracket exported from ./mappers above)
   type BracketMatch,
-  type Bracket,
   type RecordResultInput,
   type EventData,
   type LoadEventResult,
