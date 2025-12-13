@@ -4,6 +4,10 @@
  * Stage-2 API Smoke Pack Configuration
  * Validates deployed environment against v4.1.2 contract.
  *
+ * Story 1.2 (DevOps + SDET): All CI tests use https://stg.eventangle.com
+ * - Reads process.env.BASE_URL with default = https://stg.eventangle.com
+ * - Uses canonical config/environments.js for consistent environment resolution
+ *
  * Usage:
  *   npm run test:api:smoke                    # Run all API smoke tests
  *   npm run test:api:smoke -- --grep status   # Run only status tests
@@ -15,19 +19,9 @@
 
 import { defineConfig, devices } from '@playwright/test';
 
-// Environment configuration - uses staging by default for safety
-const getBaseUrl = (): string => {
-  // Check for explicit BASE_URL
-  if (process.env.BASE_URL) {
-    return process.env.BASE_URL;
-  }
-  // Check for production flag
-  if (process.env.USE_PRODUCTION === 'true') {
-    return 'https://www.eventangle.com';
-  }
-  // Default to staging (safe sandbox)
-  return 'https://stg.eventangle.com';
-};
+// Import canonical environment configuration (Story 1.2)
+// Single source of truth for BASE_URL resolution
+const { getBaseUrl } = require('./config/environments');
 
 export default defineConfig({
   testDir: './tests/api/smoke',

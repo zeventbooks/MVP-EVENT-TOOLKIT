@@ -6237,7 +6237,8 @@ DO NOT modify this component's structure without updating:
   </style>
 </head>
 <body>
-  <div class="container">
+  <!-- Story 1.2: data-testid="events-root" marker for CI smoke tests -->
+  <div class="container" data-testid="events-root">
     <h1><?= appTitle ?></h1>
     <div id="sponsorBanner" hidden></div>
     <section class="card">
