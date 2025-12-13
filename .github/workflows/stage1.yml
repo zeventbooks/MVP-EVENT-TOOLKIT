@@ -1,99 +1,35 @@
 # Stage-1 Validation, Staging Deploy & Production Release Workflow
 #
-# Purpose: Validate code quality, deploy to staging on main push,
-#          and deploy to production on tagged releases.
+# DEPRECATED FOR PR/PUSH TO MAIN - Use stage1-ci.yml instead
 #
-# Story 2.1 (Product Owner): Quality Gates Implementation
-#   - VISIBLE status checks: Lint ✅, Tests ✅, Security ✅ shown in each PR
-#   - Each quality gate runs as a SEPARATE JOB for individual status visibility
-#   - Deployment only occurs if ALL gates pass (no partial deploys)
-#   - Branch protection requires: "Lint", "Unit Tests", "Contract Tests", "CodeQL Security Scan"
+# This workflow now ONLY handles PRODUCTION RELEASES (tagged versions).
+# For PR validation and staging deployment, see stage1-ci.yml.
 #
-# Story 2.5 (DevOps): Fail-Fast Pipeline Implementation
-#   - Critical gates (lint, unit tests) BLOCK subsequent stages on failure
-#   - Fail-fast strategy ensures immediate feedback
-#   - Team notification on pipeline gate failures
-#   - Resources not wasted on doomed deployments
+# Purpose: Deploy to production on tagged releases (vX.Y.Z)
+#
+# Story 5.2 Update:
+#   - PR validation moved to stage1-ci.yml (security-first pipeline)
+#   - Staging deployment moved to stage1-ci.yml
+#   - This workflow now only handles production releases
 #
 # Story 1.1 (DevOps/Cloudflare): Automated Cloudflare Worker deployments
-#   - Merging to main: deploys eventangle-staging to stg.eventangle.com
 #   - Tagging vX.Y.Z: deploys eventangle-prod to eventangle.com
-#   - Environment isolation verified (no cross-contamination)
 #
-# Story 1.3 (Developer/DevOps): Separate Apps Script environments
-#   - Staging deploys use STAGING_SCRIPT_ID (from GitHub secret or manifest)
-#   - Production deploys use PROD_SCRIPT_ID (from manifest, CI-only)
-#   - Manual production deploys are blocked (tag release required)
-#
-# This workflow creates a clean boundary:
-#   - PRs validate correctness only (lint, test, contract, guards)
-#   - Push to main: validate + deploy to staging
-#   - Tag push (vX.Y.Z): validate + deploy to production
-#   - Guards eventbook data integrity by preventing accidental deploys
-#
-# Quality Gates (Story 2.1):
-#   Each gate is a separate job with its own status check visible in PRs:
-#   1. Lint           - ESLint code quality (required)
-#   2. Unit Tests     - Jest unit tests including security (required)
-#   3. Contract Tests - Schema, API, and bundle contract tests (required)
-#   4. Guards         - MVP surface, dead code, schema, API checks (required)
-#   5. CodeQL Scan    - Security analysis (runs in security-scan.yml, required)
-#
-# Acceptance Criteria (Story 1.1):
-#   - Merging to main triggers Cloudflare Worker deploy to staging
-#   - Tagging a release triggers Worker deploy to production
-#   - Staging routes: stg.eventangle.com/*, api-stg.eventangle.com/*
-#   - Production routes: eventangle.com/*, www.eventangle.com/*, api.eventangle.com/*
-#   - Routes verified to hit respective Apps Script endpoints
-#   - No cross-contamination between environments
-#
-# Acceptance Criteria (Story 1.3):
-#   - Distinct Script IDs for staging and prod (STAGING_SCRIPT_ID vs PROD_SCRIPT_ID)
-#   - Stage 1 staging deployment uses STAGING_SCRIPT_ID from GitHub secrets or manifest
-#   - Stage 1 production deployment uses PROD_SCRIPT_ID from manifest only
-#   - After staging deployment, new version appears in staging Apps Script project
-#   - After production deployment, new version appears in production Apps Script project
-#   - Manual production deploys blocked (requires CI pipeline with vX.Y.Z tag)
-#
-# Acceptance Criteria (Story 2.1):
-#   - Visible status checks in each PR: Lint ✅, Tests ✅, Security ✅
-#   - Each check blocks merging if ❌
-#   - Deployment only occurs if ALL gates pass
-#   - PR cannot merge unless all required checks pass
-#
-# Acceptance Criteria (Stage-1):
-#   - PR to main triggers: checkout, npm ci, quality gates (lint, tests, guards)
-#   - Push to main triggers: validation + staging deploy
-#   - Tag push (vX.Y.Z) triggers: validation + production deploy
-#   - Emits artifact stg-base-url containing https://stg.eventangle.com
-#   - Emits artifact prod-base-url containing https://www.eventangle.com
-#   - Deploy aborts on validation failure
-#   - PR cannot merge unless Stage-1 passes (configure as required check)
-#   - Tagged releases become the sole path to production
-#
-# Contract Boundaries:
-#   - Uses strict v4.1.2 response contract but does not modify it
-#   - Stage-1 validation is HERMETIC: no BASE_URL, no HTTP calls
-#   - Prod deploy uses stable API contract only (no dev-only endpoints)
-#   - Stage-2 will consume the stg-base-url/prod-base-url artifacts
-#
-# @see scripts/stage1-local.mjs - Single source of truth for validation steps
-# @see scripts/deploy-gas-stg.mjs - Staging deployment script
-# @see scripts/deploy-gas-prod.mjs - Production deployment script
-# @see cloudflare-proxy/wrangler.toml - Cloudflare Worker environment configs
-# @see .github/workflows/security-scan.yml - CodeQL security analysis
+# @see stage1-ci.yml - Primary CI pipeline (PR validation + staging deploy)
+# @see stage2-smoke.yml - Post-deploy smoke tests
 
-name: Stage-1 Validation
+name: Production Release
 
 on:
-  pull_request:
-    branches:
-      - main
   push:
-    branches:
-      - main
     tags:
       - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      confirm_production:
+        description: 'Type "PRODUCTION" to confirm manual production deploy'
+        required: true
+        type: string
 
 # Prevent duplicate runs: cancel in-progress runs for the same PR/branch
 # Note: Uses unique group name to avoid conflicts with stage1-deploy.yml
