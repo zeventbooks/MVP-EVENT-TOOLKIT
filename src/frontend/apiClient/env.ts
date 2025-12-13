@@ -1,10 +1,11 @@
 /**
  * Environment Detection Module
  *
- * Story 4.2 - Cut Over Public/Display/Poster to Worker in Staging
+ * Story 5.2 - Full DNS Cutover to Cloudflare
  *
- * Detects whether the frontend is running in staging or production environment
- * to route API calls to the appropriate backend (Worker v2 or GAS).
+ * Detects the current environment and routes API calls to Worker v2 endpoints.
+ * As of Story 5.2, ALL environments (staging + production) use Worker backend.
+ * GAS is no longer used - all traffic goes through Cloudflare Worker.
  *
  * @module frontend/apiClient/env
  */
@@ -90,10 +91,9 @@ export function detectEnvironment(hostname?: string): Environment {
     return 'local';
   }
 
-  // Check Google Apps Script direct access (production by default)
-  if (host === 'script.google.com') {
-    return 'production';
-  }
+  // Story 5.2: script.google.com is no longer supported
+  // All traffic should go through eventangle.com domains
+  // If somehow accessed directly, treat as unknown (will use relative URLs)
 
   return 'unknown';
 }
@@ -101,26 +101,16 @@ export function detectEnvironment(hostname?: string): Environment {
 /**
  * Determine which API backend to use
  *
- * Story 4.2: Staging uses Worker v2 endpoints, Production uses GAS
+ * Story 5.2: ALL environments now use Worker backend.
+ * GAS is no longer used anywhere.
  *
  * @param env - Environment type
- * @returns API backend to use
+ * @returns API backend to use (always 'worker' as of Story 5.2)
  */
 export function getApiBackend(env: Environment): ApiBackend {
-  switch (env) {
-    case 'staging':
-      // Story 4.2: Staging fully on Worker
-      return 'worker';
-    case 'production':
-      // Production still on GAS (until Stage-2 passes)
-      return 'gas';
-    case 'local':
-      // Local development defaults to Worker for testing
-      return 'worker';
-    default:
-      // Unknown environments use GAS (safe fallback)
-      return 'gas';
-  }
+  // Story 5.2: Full DNS Cutover - All environments use Worker
+  // GAS backend is deprecated and no longer supported
+  return 'worker';
 }
 
 /**
