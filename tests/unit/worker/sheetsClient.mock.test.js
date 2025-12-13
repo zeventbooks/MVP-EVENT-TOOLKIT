@@ -618,8 +618,8 @@ describe('Story 2.1 - CI Configuration', () => {
       expect(ciConfig).toContain('GOOGLE_PRIVATE_KEY: ${{ secrets.GOOGLE_PRIVATE_KEY }}');
     });
 
-    it('should inject SHEETS_SPREADSHEET_ID secret', () => {
-      expect(ciConfig).toContain('SHEETS_SPREADSHEET_ID: ${{ secrets.SHEETS_SPREADSHEET_ID }}');
+    it('should inject STAGING_SHEETS_SPREADSHEET_ID secret', () => {
+      expect(ciConfig).toContain('SHEETS_SPREADSHEET_ID: ${{ secrets.STAGING_SHEETS_SPREADSHEET_ID }}');
     });
 
     it('should validate secrets before connectivity test', () => {
@@ -636,7 +636,7 @@ describe('Story 2.1 - CI Configuration', () => {
       expect(ciConfig).toContain('Required Secrets:');
       expect(ciConfig).toContain('GOOGLE_CLIENT_EMAIL');
       expect(ciConfig).toContain('GOOGLE_PRIVATE_KEY');
-      expect(ciConfig).toContain('SHEETS_SPREADSHEET_ID');
+      expect(ciConfig).toContain('STAGING_SHEETS_SPREADSHEET_ID');
     });
   });
 });
