@@ -43,9 +43,11 @@ const BASE_URL = getBaseUrl();
 const TIMEOUT_MS = 30000;
 
 // --- Extract canonical values from Config.gs (Single Source of Truth) ---
+// Story 5.3: GAS files archived to archive/gas/
+const GAS_ARCHIVE_DIR = path.join(__dirname, '../../archive/gas');
 
 function getCanonicalBuildId() {
-  const configPath = path.join(__dirname, '../../src/mvp/Config.gs');
+  const configPath = path.join(GAS_ARCHIVE_DIR, 'Config.gs');
   const configContent = fs.readFileSync(configPath, 'utf8');
   const match = configContent.match(/BUILD_ID:\s*['"]([^'"]+)['"]/);
   if (!match) {
@@ -55,7 +57,7 @@ function getCanonicalBuildId() {
 }
 
 function getCanonicalBrandIds() {
-  const configPath = path.join(__dirname, '../../src/mvp/Config.gs');
+  const configPath = path.join(GAS_ARCHIVE_DIR, 'Config.gs');
   const configContent = fs.readFileSync(configPath, 'utf8');
   const brandsMatch = configContent.match(/const BRANDS\s*=\s*\[([\s\S]*?)\];/);
   if (!brandsMatch) {
@@ -74,7 +76,7 @@ function getCanonicalBrandIds() {
 }
 
 function getCanonicalContractVersion() {
-  const configPath = path.join(__dirname, '../../src/mvp/Config.gs');
+  const configPath = path.join(GAS_ARCHIVE_DIR, 'Config.gs');
   const configContent = fs.readFileSync(configPath, 'utf8');
   const match = configContent.match(/CONTRACT_VER:\s*['"]([^'"]+)['"]/);
   return match ? match[1] : null;

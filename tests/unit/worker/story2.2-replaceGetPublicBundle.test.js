@@ -164,8 +164,9 @@ describe('Public.html Worker Integration (Story 2.2)', () => {
     });
 
     it('should construct correct Worker endpoint URL', () => {
-      expect(publicHtmlSource).toContain('/api/events/');
-      expect(publicHtmlSource).toContain('/publicBundle');
+      // Story 5.3: Updated to v2 API endpoints
+      expect(publicHtmlSource).toContain('/api/v2/events/');
+      expect(publicHtmlSource).toContain('/bundle/public');
     });
 
     it('should use GET method for Worker endpoint', () => {
@@ -225,8 +226,9 @@ describe('Public.html Worker Integration (Story 2.2)', () => {
       expect(publicHtmlSource).not.toContain("NU.rpc('api_list'");
     });
 
-    it('should call Worker /api/events endpoint', () => {
-      expect(publicHtmlSource).toContain('/api/events');
+    it('should call Worker /api/v2/events endpoint', () => {
+      // Story 5.3: Updated to v2 API endpoints
+      expect(publicHtmlSource).toContain('/api/v2/events');
     });
   });
 
@@ -355,9 +357,10 @@ describe('Contract Comparison - GAS vs Worker Shape (Story 2.2)', () => {
 describe('Acceptance Criteria (Story 2.2)', () => {
 
   describe('AC: Public page loads event metadata, schedule, bracket from Worker', () => {
-    it('should fetch from Worker /api/events/:id/publicBundle endpoint', () => {
-      expect(publicHtmlSource).toContain('/api/events/');
-      expect(publicHtmlSource).toContain('/publicBundle');
+    it('should fetch from Worker /api/v2/events/:id/bundle/public endpoint', () => {
+      // Story 5.3: Updated to v2 API endpoints
+      expect(publicHtmlSource).toContain('/api/v2/events/');
+      expect(publicHtmlSource).toContain('/bundle/public');
     });
 
     it('should render event details from Worker response', () => {

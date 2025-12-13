@@ -18,6 +18,8 @@ const MVP_SURFACES = ['Admin', 'Public', 'Display', 'Poster', 'SharedReport'];
 const POSTER_MAX_QR_SLOTS = 3;
 
 const SRC_MVP_DIR = path.join(__dirname, '../../src/mvp');
+// Story 5.3: GAS files archived to archive/gas/
+const GAS_ARCHIVE_DIR = path.join(__dirname, '../../archive/gas');
 const DOCS_DIR = path.join(__dirname, '../../docs');
 
 // =============================================================================
@@ -69,7 +71,7 @@ describe('MVP Scope Lock - Week 1 Contract', () => {
   describe('Backend QR Flow Configuration', () => {
 
     test('Code.gs has QR flow configuration comment block', () => {
-      const codeFile = path.join(SRC_MVP_DIR, 'Code.gs');
+      const codeFile = path.join(GAS_ARCHIVE_DIR, 'Code.gs');
       const content = fs.readFileSync(codeFile, 'utf-8');
 
       // Check for MVP scope lock comment
@@ -79,7 +81,7 @@ describe('MVP Scope Lock - Week 1 Contract', () => {
     });
 
     test('Backend can define more than 3 QR flow types', () => {
-      const codeFile = path.join(SRC_MVP_DIR, 'Code.gs');
+      const codeFile = path.join(GAS_ARCHIVE_DIR, 'Code.gs');
       const content = fs.readFileSync(codeFile, 'utf-8');
 
       // The generateQRDataUri_ function should exist
@@ -90,7 +92,7 @@ describe('MVP Scope Lock - Week 1 Contract', () => {
     });
 
     test('QR generation function accepts any URL (unlimited flows)', () => {
-      const codeFile = path.join(SRC_MVP_DIR, 'Code.gs');
+      const codeFile = path.join(GAS_ARCHIVE_DIR, 'Code.gs');
       const content = fs.readFileSync(codeFile, 'utf-8');
 
       // Find generateQRDataUri_ function
@@ -102,7 +104,7 @@ describe('MVP Scope Lock - Week 1 Contract', () => {
     });
 
     test('Backend QR config mentions poster 3-slot limit', () => {
-      const codeFile = path.join(SRC_MVP_DIR, 'Code.gs');
+      const codeFile = path.join(GAS_ARCHIVE_DIR, 'Code.gs');
       const content = fs.readFileSync(codeFile, 'utf-8');
 
       // The comment should reference the poster limit
@@ -235,7 +237,7 @@ describe('MVP Scope Lock - Week 1 Contract', () => {
 describe('Backend QR Flow Acceptance - Unlimited Flows', () => {
 
   test('Backend can generate QR for any valid URL', () => {
-    const codeFile = path.join(SRC_MVP_DIR, 'Code.gs');
+    const codeFile = path.join(GAS_ARCHIVE_DIR, 'Code.gs');
     const content = fs.readFileSync(codeFile, 'utf-8');
 
     // generateQRDataUri_ should accept a url parameter
@@ -246,7 +248,7 @@ describe('Backend QR Flow Acceptance - Unlimited Flows', () => {
   });
 
   test('Event contract can include multiple QR fields', () => {
-    const codeFile = path.join(SRC_MVP_DIR, 'Code.gs');
+    const codeFile = path.join(GAS_ARCHIVE_DIR, 'Code.gs');
     const content = fs.readFileSync(codeFile, 'utf-8');
 
     // Check that qr object can have multiple properties (const qr = { or qr: {)
@@ -258,7 +260,7 @@ describe('Backend QR Flow Acceptance - Unlimited Flows', () => {
   });
 
   test('Config documents that new QR flows can be added', () => {
-    const codeFile = path.join(SRC_MVP_DIR, 'Code.gs');
+    const codeFile = path.join(GAS_ARCHIVE_DIR, 'Code.gs');
     const content = fs.readFileSync(codeFile, 'utf-8');
 
     // Comment should explain how to add new flows

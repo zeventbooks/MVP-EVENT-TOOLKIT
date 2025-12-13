@@ -27,7 +27,8 @@ const path = require('path');
 
 const ROOT = path.join(__dirname, '../..');
 const WIRING_JSON = path.join(ROOT, 'docs/wiring-admin-public-display-poster-report.json');
-const CODE_GS = path.join(ROOT, 'src/mvp/Code.gs');
+// Story 5.3: GAS files archived to archive/gas/
+const CODE_GS = path.join(ROOT, 'archive/gas/Code.gs');
 const SRC_MVP = path.join(ROOT, 'src/mvp');
 
 // ============================================================================
