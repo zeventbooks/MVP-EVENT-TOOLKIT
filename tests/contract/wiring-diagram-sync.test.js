@@ -131,8 +131,8 @@ describe('Wiring Diagram Sync Contract', () => {
     test('no orphaned APIs in the diagram', () => {
       // ZEVENT-003: These APIs are intentionally orphaned - kept for backward compatibility
       // but no longer called by Admin (migrated to api_saveEvent)
-      // Story 2.2: api_getPublicBundle is now served by Cloudflare Worker, not GAS RPC
-      const allowedOrphanedApis = ['api_create', 'api_updateEventData', 'api_getPublicBundle'];
+      // Story 2.2: api_getPublicBundle and api_list are now served by Cloudflare Worker, not GAS RPC
+      const allowedOrphanedApis = ['api_create', 'api_updateEventData', 'api_getPublicBundle', 'api_list'];
 
       const orphanedApis = diagram.orphanedApis || [];
       const unexpectedOrphans = orphanedApis.filter(api => !allowedOrphanedApis.includes(api));
@@ -234,8 +234,8 @@ describe('Wiring Diagram Sync Contract', () => {
     test('all MVP APIs are used by at least one surface', () => {
       // ZEVENT-003: These APIs are intentionally orphaned - kept for backward compatibility
       // but no longer called by Admin (migrated to api_saveEvent)
-      // Story 2.2: api_getPublicBundle is now served by Cloudflare Worker, not GAS RPC
-      const allowedOrphanedApis = ['api_create', 'api_updateEventData', 'api_getPublicBundle'];
+      // Story 2.2: api_getPublicBundle and api_list are now served by Cloudflare Worker, not GAS RPC
+      const allowedOrphanedApis = ['api_create', 'api_updateEventData', 'api_getPublicBundle', 'api_list'];
 
       const mvpApis = diagram.mvpApis;
       const orphaned = [];

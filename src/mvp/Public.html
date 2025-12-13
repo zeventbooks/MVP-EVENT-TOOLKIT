@@ -1006,6 +1006,39 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
       }
     }
 
+    /**
+     * Fetch events list from Worker endpoint
+     * GET /api/events?brand=:brand
+     *
+     * @param {string} brandId - Brand identifier
+     * @returns {Promise<{ok: boolean, value?: object, code?: string, message?: string}>}
+     */
+    async function fetchEventsListFromWorker(brandId) {
+      const baseUrl = getWorkerBaseUrl();
+      const endpoint = `${baseUrl}/api/events`;
+      const url = new URL(endpoint);
+      url.searchParams.set('brand', brandId);
+
+      try {
+        const response = await fetch(url.toString(), {
+          method: 'GET',
+          headers: { 'Accept': 'application/json' },
+          credentials: 'same-origin'
+        });
+
+        const data = await response.json();
+        return data;
+
+      } catch (error) {
+        console.error('Worker fetch failed:', error);
+        return {
+          ok: false,
+          code: 'NETWORK_ERROR',
+          message: 'Unable to connect to server. Please check your connection.'
+        };
+      }
+    }
+
     // === MVP Essential Utilities ===
 
     // Toast notification
@@ -2063,11 +2096,11 @@ Related MVP Surfaces: Admin, Poster, Display, Sponsor, SharedReport
         }
       })();
     } else {
-      // List view uses api_list which returns canonical Event shapes
+      // List view - Story 2.2: Now uses Worker endpoint instead of GAS api_list
       (async () => {
-        const res = await NU.safeRpc('api_list', { brandId: BRAND, scope: SCOPE });
+        const res = await fetchEventsListFromWorker(BRAND);
 
-        // S13: Handle API errors with proper classification
+        // Handle API errors with proper classification
         if (!res.ok) {
           console.error('API error:', res.code, res.message);
           showError(res);

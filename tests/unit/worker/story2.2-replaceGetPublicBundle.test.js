@@ -205,6 +205,26 @@ describe('Public.html Worker Integration (Story 2.2)', () => {
     });
   });
 
+  describe('No GAS Calls for Events List', () => {
+    it('should define fetchEventsListFromWorker function', () => {
+      expect(publicHtmlSource).toContain('async function fetchEventsListFromWorker(');
+    });
+
+    it('should use fetchEventsListFromWorker for list view', () => {
+      expect(publicHtmlSource).toContain('const res = await fetchEventsListFromWorker(BRAND)');
+    });
+
+    it('should NOT use NU.safeRpc for api_list', () => {
+      // There should be NO NU.safeRpc or NU.rpc calls in Public.html
+      expect(publicHtmlSource).not.toContain("NU.safeRpc('api_list'");
+      expect(publicHtmlSource).not.toContain("NU.rpc('api_list'");
+    });
+
+    it('should call Worker /api/events endpoint', () => {
+      expect(publicHtmlSource).toContain('/api/events');
+    });
+  });
+
   describe('Error Handling', () => {
     it('should handle API errors from Worker', () => {
       expect(publicHtmlSource).toContain('if (!res.ok)');
