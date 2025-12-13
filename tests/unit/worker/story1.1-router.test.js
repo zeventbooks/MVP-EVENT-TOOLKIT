@@ -102,17 +102,17 @@ describe('Route Matching (Story 1.1)', () => {
     });
 
     it('should handle /api/events/:id route', () => {
-      expect(routerSource).toContain("/^\\\/events\\\/([^/]+)$/");
+      expect(routerSource).toContain("apiPath.match(/^\\/events\\/([^/]+)$/)");
       expect(routerSource).toContain("handler: 'event'");
     });
 
     it('should handle /api/events/:id/publicBundle route', () => {
-      expect(routerSource).toContain("/^\\\/events\\\/([^/]+)\\\/publicBundle$/");
+      expect(routerSource).toContain("apiPath.match(/^\\/events\\/([^/]+)\\/publicBundle$/)");
       expect(routerSource).toContain("handler: 'publicBundle'");
     });
 
     it('should handle /api/events/:id/adminBundle route', () => {
-      expect(routerSource).toContain("/^\\\/events\\\/([^/]+)\\\/adminBundle$/");
+      expect(routerSource).toContain("apiPath.match(/^\\/events\\/([^/]+)\\/adminBundle$/)");
       expect(routerSource).toContain("handler: 'adminBundle'");
     });
 
