@@ -53,6 +53,8 @@ const {
 /**
  * Fixture Event: Standard test event with all MVP required fields
  * Used for testing api_get, bundles, and other read operations
+ *
+ * Story 2.2: Updated fixture URLs to use eventangle.com (no GAS URLs in test data)
  */
 const FIXTURE_EVENT_STANDARD = {
   id: 'fixture-event-001',
@@ -61,9 +63,9 @@ const FIXTURE_EVENT_STANDARD = {
   startDateISO: '2025-12-15',
   venue: 'Test Arena, 123 Main St',
   links: {
-    publicUrl: 'https://script.google.com/exec?page=events&brand=root&id=fixture-event-001',
-    displayUrl: 'https://script.google.com/exec?page=display&brand=root&id=fixture-event-001&tv=1',
-    posterUrl: 'https://script.google.com/exec?page=poster&brand=root&id=fixture-event-001',
+    publicUrl: 'https://www.eventangle.com/events/fixture-event-001?brand=root',
+    displayUrl: 'https://www.eventangle.com/display/fixture-event-001?brand=root&tv=1',
+    posterUrl: 'https://www.eventangle.com/poster/fixture-event-001?brand=root',
     signupUrl: 'https://forms.google.com/fixture-signup'
   },
   qr: {
@@ -1263,7 +1265,7 @@ describe('Explicit API Response Contracts', () => {
       const mockResponse = {
         ok: true,
         value: {
-          url: 'https://script.google.com/exec?page=report&sponsor=true&sponsorId=sponsor-001',
+          url: 'https://www.eventangle.com/report?sponsor=true&sponsorId=sponsor-001',
           qrB64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
           verified: true
         }
@@ -1278,14 +1280,14 @@ describe('Explicit API Response Contracts', () => {
       const mockResponse = {
         ok: true,
         value: {
-          url: 'https://script.google.com/exec?page=report&sponsor=true&sponsorId=gold-sponsor-123',
+          url: 'https://www.eventangle.com/report?sponsor=true&sponsorId=gold-sponsor-123',
           qrB64: 'base64data...',
           verified: true
         }
       };
 
       expect(mockResponse.value.url).toContain('sponsorId=');
-      expect(mockResponse.value.url).toContain('page=report');
+      expect(mockResponse.value.url).toContain('/report');
       expect(mockResponse.value.url).toContain('sponsor=true');
     });
 
@@ -1293,7 +1295,7 @@ describe('Explicit API Response Contracts', () => {
       const mockResponse = {
         ok: true,
         value: {
-          url: 'https://script.google.com/exec?page=report&sponsor=true&sponsorId=sponsor-001',
+          url: 'https://www.eventangle.com/report?sponsor=true&sponsorId=sponsor-001',
           qrB64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
           verified: true
         }
@@ -1309,7 +1311,7 @@ describe('Explicit API Response Contracts', () => {
       const mockResponse = {
         ok: true,
         value: {
-          url: 'https://script.google.com/exec?page=report&sponsor=true&sponsorId=sponsor-001',
+          url: 'https://www.eventangle.com/report?sponsor=true&sponsorId=sponsor-001',
           qrB64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
           verified: true
         }
@@ -1371,7 +1373,7 @@ describe('Explicit API Response Contracts', () => {
 
     it('should validate STRICT mode passes for exact shape', () => {
       const exactShapeResponse = {
-        url: 'https://script.google.com/exec?page=report&sponsor=true&sponsorId=test',
+        url: 'https://www.eventangle.com/report?sponsor=true&sponsorId=test',
         qrB64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ',
         verified: true
       };
@@ -2054,7 +2056,7 @@ describe('Explicit API Response Contracts', () => {
 
       it('should PASS for exact SponsorReportQr shape', () => {
         const exactQrShape = {
-          url: 'https://script.google.com/exec?page=report&sponsor=true&sponsorId=sponsor-001',
+          url: 'https://www.eventangle.com/report?sponsor=true&sponsorId=sponsor-001',
           qrB64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ',
           verified: true
         };

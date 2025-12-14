@@ -2,13 +2,32 @@
  * Environment Detection Module
  *
  * Story 5.2 - Full DNS Cutover to Cloudflare
+ * Story 2.2 - Purge Mixed-Origin Calls in Frontend
  *
  * Detects the current environment and routes API calls to Worker v2 endpoints.
  * As of Story 5.2, ALL environments (staging + production) use Worker backend.
- * GAS is no longer used - all traffic goes through Cloudflare Worker.
+ * As of Story 2.2, GAS fallback code has been removed - Worker is the only backend.
+ *
+ * FRONTEND_API_BASE: All frontend API calls should use this constant or relative paths.
+ * This ensures all requests go through the same-origin Worker proxy.
  *
  * @module frontend/apiClient/env
  */
+
+// =============================================================================
+// Constants
+// =============================================================================
+
+/**
+ * Story 2.2: Frontend API base URL
+ *
+ * All frontend API calls should use relative paths through this base.
+ * This ensures all requests stay on the same origin (no mixed-origin calls).
+ *
+ * - Defaults to '/' for same-origin requests
+ * - Can be overridden via build-time env for testing
+ */
+export const FRONTEND_API_BASE = '/';
 
 // =============================================================================
 // Types
@@ -21,8 +40,9 @@ export type Environment = 'staging' | 'production' | 'local' | 'unknown';
 
 /**
  * API backend type
+ * @deprecated Story 2.2: Only 'worker' is supported. GAS backend has been removed.
  */
-export type ApiBackend = 'worker' | 'gas';
+export type ApiBackend = 'worker';
 
 /**
  * Environment configuration
@@ -102,14 +122,14 @@ export function detectEnvironment(hostname?: string): Environment {
  * Determine which API backend to use
  *
  * Story 5.2: ALL environments now use Worker backend.
- * GAS is no longer used anywhere.
+ * Story 2.2: GAS fallback code has been removed entirely.
  *
  * @param env - Environment type
- * @returns API backend to use (always 'worker' as of Story 5.2)
+ * @returns API backend to use (always 'worker')
+ * @deprecated Story 2.2: This function always returns 'worker'. Consider removing.
  */
 export function getApiBackend(env: Environment): ApiBackend {
-  // Story 5.2: Full DNS Cutover - All environments use Worker
-  // GAS backend is deprecated and no longer supported
+  // Story 5.2 + 2.2: Worker is the only backend. GAS has been removed.
   return 'worker';
 }
 
@@ -226,6 +246,7 @@ export function isProduction(): boolean {
 }
 
 export default {
+  FRONTEND_API_BASE,
   detectEnvironment,
   getApiBackend,
   shouldUseWorkerV2,

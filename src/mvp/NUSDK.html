@@ -1,10 +1,15 @@
 <!--
 ═══════════════════════════════════════════════════════════════════════════════
-NUSDK v2.2 - Fetch-Based NU SDK for Google Apps Script
+NUSDK v2.3 - Fetch-Based NU SDK for Cloudflare Worker
 ═══════════════════════════════════════════════════════════════════════════════
 
 RESPONSIBILITY: This file provides the RPC client for frontend→backend calls ONLY.
-It does NOT implement business logic - that belongs in Code.gs.
+It does NOT implement business logic - that belongs in the Worker.
+
+Story 2.2: Purge Mixed-Origin Calls
+- All API calls now go through the Cloudflare Worker proxy only
+- Direct GAS transport is DEPRECATED and disabled in production
+- Direct GAS transport only available in development (localhost) for debugging
 
 WINDOW ADDITIONS:
 - window.NU        - Main SDK object
@@ -12,18 +17,12 @@ WINDOW ADDITIONS:
 - window.NU_DIAG   - Diagnostic helper for Test.html
 
 INITIALIZATION:
-Call NU.init({ execUrl, brand }) early in page setup to configure transport.
-Falls back to template variables when available:
-  NU.init({ execUrl: '<?= execUrl ?>', brand: '<?= brandId ?>' });
+Call NU.init() to initialize with default Worker proxy transport:
+  NU.init(); // Uses /api/* through Cloudflare Worker
 
-TRANSPORT OPTIONS:
-1. Worker Proxy (default): Fetch-based (/api/<path>) through Cloudflare Worker
-   - Used when: NU.init() called with no execUrl or empty execUrl
-2. Direct GAS Transport: Fetch-based ({execUrl}?action={method}&brand={brand})
-   - Used when: NU.init({ execUrl: '...', brand: '...' }) called with valid URL
-   - Legacy enable: NU.configureDirectTransport(execUrl, brand)
-   - Includes retry logic with exponential backoff
-   - Includes correlation ID for distributed tracing
+TRANSPORT:
+- Worker Proxy (default): Fetch-based (/api/<path>) through Cloudflare Worker
+- Direct GAS Transport: DEPRECATED - only enabled on localhost for debugging
 
 LOGGING LEVELS:
 - Staging: 'debug' (all logs)
@@ -69,8 +68,9 @@ window.__NU_LOGS__ = [];
 window.NU = {
   /**
    * SDK Version
+   * Story 2.2: Updated to v2.3.0 - Direct GAS transport deprecated
    */
-  VERSION: '2.2.0',
+  VERSION: '2.3.0',
 
   /**
    * Configuration
@@ -86,6 +86,7 @@ window.NU = {
   /**
    * Direct transport configuration (for direct GAS exec URL calls)
    * @private
+   * @deprecated Story 2.2: Direct GAS transport is deprecated and only enabled on localhost
    */
   _directTransport: {
     enabled: false,    // Whether to use direct GAS transport instead of Worker proxy
@@ -170,52 +171,53 @@ window.NU = {
   /**
    * Initialize the SDK with configuration
    *
-   * Call this method early in your page initialization to configure the SDK.
-   * If execUrl is provided, the SDK will use direct GAS transport.
-   * If not provided (or empty), the SDK will use the Cloudflare Worker proxy.
+   * Story 2.2: All API calls now go through the Cloudflare Worker proxy.
+   * Direct GAS transport is DEPRECATED and only available on localhost for debugging.
    *
-   * Fallback behavior:
-   * - In GAS-hosted pages: Pass template vars: NU.init({ execUrl: '<?= execUrl ?>', brand: '<?= brandId ?>' })
-   * - In proxy contexts: Call with no args or empty config to use Worker proxy
+   * Call this method early in your page initialization to configure the SDK.
+   * In production, always uses the Worker proxy regardless of execUrl parameter.
    *
    * @param {object} config - Configuration object
-   * @param {string} [config.execUrl] - GAS web app exec URL for direct transport
+   * @param {string} [config.execUrl] - DEPRECATED: GAS exec URL (only works on localhost)
    * @param {string} [config.brand] - Brand identifier for multi-tenant routing
-   * @param {object} [config.directTransportOptions] - Optional direct transport settings { maxRetries?, retryDelayMs? }
+   * @param {object} [config.directTransportOptions] - DEPRECATED: Direct transport settings
    * @returns {void}
    *
    * @example
-   * // Initialize with direct GAS transport (from GAS-hosted template)
-   * NU.init({
-   *   execUrl: '<?= execUrl ?>',  // Template var from GAS
-   *   brand: '<?= brandId ?>'     // Template var from GAS
-   * });
+   * // Initialize with Worker proxy (default, recommended)
+   * NU.init(); // Uses /api/* through Cloudflare Worker
    *
    * @example
-   * // Initialize with proxy transport (default, no config needed)
-   * NU.init(); // or NU.init({})
+   * // Initialize with brand
+   * NU.init({ brand: 'myBrand' });
    *
    * @example
-   * // Initialize with custom retry settings
+   * // DEPRECATED: Direct GAS transport (localhost debugging only)
+   * // This only works on localhost and will be ignored in production
    * NU.init({
    *   execUrl: 'https://script.google.com/macros/s/ABC123/exec',
-   *   brand: 'eventangle',
-   *   directTransportOptions: { maxRetries: 5, retryDelayMs: 500 }
+   *   brand: 'eventangle'
    * });
    */
   init(config = {}) {
     const { execUrl, brand, directTransportOptions = {} } = config;
 
+    // Story 2.2: Gate direct transport behind localhost check
+    // Direct GAS transport is only available on localhost for debugging
+    const hostname = window.location?.hostname || '';
+    const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '0.0.0.0';
+
     // Determine if we have a valid execUrl for direct transport
     // Empty strings from unpopulated template vars (<?= execUrl ?>) should be treated as falsy
     const hasValidExecUrl = execUrl && typeof execUrl === 'string' && execUrl.trim() !== '';
 
-    if (hasValidExecUrl) {
+    if (hasValidExecUrl && isLocalhost) {
+      // Story 2.2: Only enable direct transport on localhost for debugging
       // Validate URL format before enabling direct transport
       try {
         new URL(execUrl);
 
-        // Configure and enable direct transport
+        // Configure and enable direct transport (localhost only)
         NU._directTransport = {
           enabled: true,
           execUrl: execUrl.trim(),
@@ -229,8 +231,12 @@ window.NU = {
           execUrl: execUrl.substring(0, 50) + (execUrl.length > 50 ? '...' : ''),
           brand: brand || '(none)',
           maxRetries: NU._directTransport.maxRetries,
-          retryDelayMs: NU._directTransport.retryDelayMs
+          retryDelayMs: NU._directTransport.retryDelayMs,
+          note: 'DEPRECATED: Direct transport only enabled for localhost debugging'
         });
+
+        // Log deprecation warning
+        console.warn('[NUSDK] Direct GAS transport is DEPRECATED. Use Worker proxy instead.');
 
       } catch {
         // Invalid URL - fall back to proxy transport
@@ -240,8 +246,16 @@ window.NU = {
         });
         // Keep direct transport disabled (default)
       }
+    } else if (hasValidExecUrl && !isLocalhost) {
+      // Story 2.2: execUrl provided but not on localhost - ignore and use Worker proxy
+      NU._log('debug', 'init_config', {
+        transport: 'proxy',
+        apiBase: NU._config.apiBase,
+        reason: 'Direct GAS transport is disabled in production (Story 2.2)',
+        note: 'execUrl parameter ignored - use Worker proxy in non-localhost environments'
+      });
     } else {
-      // No execUrl provided - use Worker proxy (default)
+      // No execUrl provided - use Worker proxy (default, recommended)
       NU._log('debug', 'init_config', {
         transport: 'proxy',
         apiBase: NU._config.apiBase,
@@ -953,32 +967,45 @@ window.NU = {
 
   /**
    * Configure and enable direct GAS transport
-   * When enabled, rpc() calls will use the direct exec URL instead of Worker proxy
+   *
+   * @deprecated Story 2.2: Direct GAS transport is DEPRECATED and only works on localhost.
+   * Use the Worker proxy instead (default behavior).
+   *
+   * When enabled, rpc() calls will use the direct exec URL instead of Worker proxy.
+   * This function is only available on localhost for debugging purposes.
    *
    * @param {string} execUrl - GAS web app exec URL (required)
    * @param {string} brand - Brand identifier for multi-tenant routing (optional)
    * @param {object} options - Additional options { maxRetries?, retryDelayMs? }
    * @returns {void}
+   * @throws {Error} If not on localhost (production environments)
    *
    * @example
-   * // Enable direct transport
-   * NU.configureDirectTransport(
-   *   'https://script.google.com/macros/s/ABC123/exec',
-   *   'eventangle'
-   * );
-   *
-   * // With custom retry settings
-   * NU.configureDirectTransport(
-   *   'https://script.google.com/macros/s/ABC123/exec',
-   *   'eventangle',
-   *   { maxRetries: 5, retryDelayMs: 500 }
-   * );
+   * // DEPRECATED: This only works on localhost for debugging
+   * // In production, use NU.init() with no execUrl to use Worker proxy
+   * NU.init(); // Recommended
    */
   configureDirectTransport(execUrl, brand = null, options = {}) {
+    // Story 2.2: Gate direct transport behind localhost check
+    const hostname = window.location?.hostname || '';
+    const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '0.0.0.0';
+
+    if (!isLocalhost) {
+      console.warn('[NUSDK] configureDirectTransport is DEPRECATED and disabled in production (Story 2.2)');
+      NU._log('error', 'config', {
+        error: 'Direct GAS transport is disabled in production (Story 2.2)',
+        hostname
+      });
+      return; // Silently ignore in production
+    }
+
     if (!execUrl) {
       NU._log('error', 'config', { error: 'execUrl is required for direct transport' });
       throw new Error('execUrl is required for configureDirectTransport');
     }
+
+    // Log deprecation warning
+    console.warn('[NUSDK] configureDirectTransport is DEPRECATED. Use Worker proxy instead.');
 
     // Validate URL format
     try {

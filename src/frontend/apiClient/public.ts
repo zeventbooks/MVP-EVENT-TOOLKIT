@@ -2,9 +2,13 @@
  * Public Surface API Client
  *
  * Story 4.1 - Extract Frontend API Adapter Layer
+ * Story 2.2 - Purge Mixed-Origin Calls (GAS fallback removed)
  *
  * API client for the Public surface (event listing and registration page).
  * Handles all API calls needed by Public.html.
+ *
+ * All API calls go through the Cloudflare Worker proxy using relative paths.
+ * No direct calls to script.google.com or external origins.
  *
  * @module frontend/apiClient/public
  */
@@ -18,7 +22,6 @@ import {
   isSuccess,
 } from './base';
 import {
-  getEnvConfig,
   buildWorkerV2BundlePath,
   buildWorkerV2EventsPath,
 } from './env';
@@ -248,13 +251,11 @@ export interface ExternalClickPayload {
 /**
  * API client for the Public surface
  *
- * Story 4.2: Supports both GAS (production) and Worker v2 (staging) backends.
- * Uses environment detection to automatically route to the correct backend.
+ * Story 2.2: All API calls go through the Cloudflare Worker proxy.
+ * GAS fallback code has been removed - Worker is the only backend.
  */
 export class PublicApiClient extends BaseApiClient {
   private brandId: string;
-  private scope: string;
-  private useWorkerV2: boolean;
 
   constructor(
     brandId: string,
@@ -264,80 +265,44 @@ export class PublicApiClient extends BaseApiClient {
   ) {
     super(config, onError);
     this.brandId = brandId;
-    this.scope = scope;
-    // Story 4.2: Auto-detect backend based on environment
-    this.useWorkerV2 = getEnvConfig().useWorkerV2;
-  }
-
-  /**
-   * Force use of Worker v2 endpoints (for testing)
-   */
-  setUseWorkerV2(useV2: boolean): void {
-    this.useWorkerV2 = useV2;
+    // Note: scope parameter kept for API compatibility but no longer used
   }
 
   /**
    * Get list of events
    *
-   * Story 4.2: Uses Worker v2 in staging, GAS in production
+   * Story 2.2: Uses Worker v2 endpoints only (relative paths)
    */
   async getEventList(): Promise<ApiResponse<EventListResponse>> {
-    if (this.useWorkerV2) {
-      return this.get<EventListResponse>(
-        buildWorkerV2EventsPath(undefined, this.brandId)
-      );
-    }
-
-    // GAS fallback
-    return this.post<EventListResponse>('api_list', {
-      brandId: this.brandId,
-      scope: this.scope,
-    });
+    return this.get<EventListResponse>(
+      buildWorkerV2EventsPath(undefined, this.brandId)
+    );
   }
 
   /**
    * Get public bundle for a specific event
    *
-   * Story 4.2: Uses Worker v2 in staging, GAS in production
+   * Story 2.2: Uses Worker v2 endpoints only (relative paths)
    */
   async getPublicBundle(eventId: string): Promise<ApiResponse<PublicBundleValue>> {
-    if (this.useWorkerV2) {
-      return this.get<PublicBundleValue>(
-        buildWorkerV2BundlePath(eventId, 'public', this.brandId)
-      );
-    }
-
-    // GAS fallback
-    return this.post<PublicBundleValue>('api_getPublicBundle', {
-      brandId: this.brandId,
-      scope: this.scope,
-      id: eventId,
-    });
+    return this.get<PublicBundleValue>(
+      buildWorkerV2BundlePath(eventId, 'public', this.brandId)
+    );
   }
 
   /**
    * Get public bundle with etag for conditional requests
    *
-   * Story 4.2: Uses Worker v2 in staging, GAS in production
+   * Story 2.2: Uses Worker v2 endpoints only (relative paths)
    */
   async getPublicBundleIfModified(
     eventId: string,
     etag: string
   ): Promise<ApiResponse<PublicBundleValue>> {
-    if (this.useWorkerV2) {
-      return this.get<PublicBundleValue>(
-        buildWorkerV2BundlePath(eventId, 'public', this.brandId),
-        { ifNoneMatch: etag }
-      );
-    }
-
-    // GAS fallback
-    return this.post<PublicBundleValue>('api_getPublicBundle', {
-      brandId: this.brandId,
-      scope: this.scope,
-      id: eventId,
-      ifNoneMatch: etag,
-    });
+    return this.get<PublicBundleValue>(
+      buildWorkerV2BundlePath(eventId, 'public', this.brandId),
+      { ifNoneMatch: etag }
+    );
   }
 
   /**
