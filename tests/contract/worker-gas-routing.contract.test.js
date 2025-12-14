@@ -90,8 +90,12 @@ describe('Worker → GAS Routing Contract', () => {
     test('root wrangler.toml does NOT contain active GAS URLs', () => {
       // Story 2.1: GAS URLs should be removed from active config
       // Only commented documentation should remain
-      const uncommentedGasUrl = /^[^#]*https:\/\/script\.google\.com\/macros\/s\/AKfycb/m;
-      expect(rootWranglerContent).not.toMatch(uncommentedGasUrl);
+      // Using string check to avoid CodeQL regex anchor warnings
+      const gasUrlMarker = 'https://script.google.com/macros/s/AKfycb';
+      const hasUncommentedGasUrl = rootWranglerContent
+        .split('\n')
+        .some(line => !line.trim().startsWith('#') && line.includes(gasUrlMarker));
+      expect(hasUncommentedGasUrl).toBe(false);
     });
 
     test('root wrangler.toml points to correct worker path', () => {
@@ -110,8 +114,12 @@ describe('Worker → GAS Routing Contract', () => {
 
     test('proxy wrangler.toml does NOT contain active GAS URLs', () => {
       // Story 2.1: GAS URLs should be removed from active config
-      const uncommentedGasUrl = /^[^#]*https:\/\/script\.google\.com\/macros\/s\/AKfycb/m;
-      expect(proxyWranglerContent).not.toMatch(uncommentedGasUrl);
+      // Using string check to avoid CodeQL regex anchor warnings
+      const gasUrlMarker = 'https://script.google.com/macros/s/AKfycb';
+      const hasUncommentedGasUrl = proxyWranglerContent
+        .split('\n')
+        .some(line => !line.trim().startsWith('#') && line.includes(gasUrlMarker));
+      expect(hasUncommentedGasUrl).toBe(false);
     });
 
     test('staging and production deployment IDs are still defined in config', () => {
@@ -362,11 +370,12 @@ describe('Worker-Only Mode Verification', () => {
     const proxyWrangler = readFileContent(PROXY_WRANGLER_PATH);
 
     // Check that any GAS URL lines are commented out
-    const gasUrlPattern = /script\.google\.com\/macros\/s\/AKfycb/;
+    // Using string includes instead of regex to avoid CodeQL anchor warnings
+    const gasUrlMarker = 'script.google.com/macros/s/AKfycb';
     const lines = [...rootWrangler.split('\n'), ...proxyWrangler.split('\n')];
 
     lines.forEach(line => {
-      if (gasUrlPattern.test(line)) {
+      if (line.includes(gasUrlMarker)) {
         // If a line contains a GAS URL, it must be commented
         expect(line.trim().startsWith('#')).toBe(true);
       }
