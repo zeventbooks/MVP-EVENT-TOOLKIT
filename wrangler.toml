@@ -50,13 +50,10 @@ BACKEND_MODE = "worker"
 # ============================================
 # DEPRECATED GAS VARS (Story 5.2)
 # ============================================
-# These vars are NO LONGER USED. All traffic routes through Worker-native implementations.
-# Kept for emergency rollback only (NOT RECOMMENDED).
+# Story 2.1: GAS URLs removed from codebase.
+# Worker-only mode is now the only supported backend.
+# See deploy-manifest.json for historical deployment IDs.
 # ============================================
-# STAGING_DEPLOYMENT_ID = "AKfycbwFneYCpkio7wCn7y08eDUb2PRCPc2Tdtbv20L4AbEHvuCvoqY9ks7-ONL0pzPPw4Hm"
-# STAGING_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwFneYCpkio7wCn7y08eDUb2PRCPc2Tdtbv20L4AbEHvuCvoqY9ks7-ONL0pzPPw4Hm/exec"
-# DEPLOYMENT_ID = "AKfycbwFneYCpkio7wCn7y08eDUb2PRCPc2Tdtbv20L4AbEHvuCvoqY9ks7-ONL0pzPPw4Hm"
-# GAS_DEPLOYMENT_BASE_URL = "https://script.google.com/macros/s/AKfycbwFneYCpkio7wCn7y08eDUb2PRCPc2Tdtbv20L4AbEHvuCvoqY9ks7-ONL0pzPPw4Hm/exec"
 
 # ============================================
 # SECRETS - Worker Admin Authentication (Story 3.1)

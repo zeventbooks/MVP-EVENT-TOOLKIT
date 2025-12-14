@@ -71,6 +71,12 @@ const STAGE1_STEPS = [
     critical: true,
   },
   {
+    name: 'banned-origins',
+    description: 'GAS URL Ban Check (Story 2.1)',
+    command: 'npm run check:banned-origins',
+    critical: true,
+  },
+  {
     name: 'unit-tests',
     description: 'Jest Unit Tests (MVP Logic + Security)',
     command: 'npm run test:unit',
