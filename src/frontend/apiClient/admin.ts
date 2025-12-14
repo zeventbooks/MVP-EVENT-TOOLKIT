@@ -2,9 +2,13 @@
  * Admin Surface API Client
  *
  * Story 4.1 - Extract Frontend API Adapter Layer
+ * Story 2.2 - Purge Mixed-Origin Calls (uses Worker proxy only)
  *
  * API client for the Admin surface (event management dashboard).
  * Handles all API calls needed by Admin.html with Bearer token authentication.
+ *
+ * All API calls go through the Cloudflare Worker proxy using relative paths.
+ * No direct calls to script.google.com or external origins.
  *
  * @module frontend/apiClient/admin
  */
@@ -347,6 +351,9 @@ function clearStoredToken(brandId: string): void {
 
 /**
  * API client for the Admin surface with Bearer token authentication
+ *
+ * Story 2.2: All API calls go through the Cloudflare Worker proxy.
+ * Uses relative paths (/api/*) - no direct GAS calls.
  */
 export class AdminApiClient extends BaseApiClient {
   private brandId: string;
