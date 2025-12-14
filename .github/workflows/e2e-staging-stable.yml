@@ -212,7 +212,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload API test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: api-smoke-results-${{ github.run_number }}
@@ -264,7 +264,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload UI test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: ui-smoke-results-${{ github.run_number }}
@@ -275,7 +275,7 @@ jobs:
           retention-days: 14
 
       - name: Upload failure artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: steps.ui-tests.outcome == 'failure'
         with:
           name: ui-failure-debug-${{ github.run_number }}
@@ -331,7 +331,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload full E2E results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: full-e2e-results-${{ github.run_number }}
@@ -398,7 +398,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload stability report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: stability-report-${{ github.run_number }}

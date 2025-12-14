@@ -99,7 +99,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload API smoke results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: nightly-api-smoke-results
@@ -147,7 +147,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload UI smoke results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: nightly-ui-smoke-results
@@ -158,7 +158,7 @@ jobs:
           retention-days: 7
 
       - name: Upload failure artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: steps.ui-tests.outcome == 'failure'
         with:
           name: nightly-failure-debug-${{ github.run_number }}
